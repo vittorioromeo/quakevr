@@ -328,13 +328,21 @@ void(entity p, float xPacked) DW_UnpackWeaponVariants =
 // sparks (vr_dw_lance_hit_sparks), smoke (vr_dw_lance_hit_smoke) and the bolt's lasting burn (VR_Lightning_Burn).
 float dw_lance_pushes; // (the tests: the props and ragdolls its beams pushed)
 float dw_lance_impacts; // (the tests: its beams' ends drawn on a surface)
+vector dw_lance_last_from; // (the tests: the last beam's start, its tip's: embedfire)
 float dw_lance_aim_test; // (the tests: the beam from dw_lance_aim_src along dw_lance_aim_dir, not the hand's: test 225)
 vector dw_lance_aim_src, dw_lance_aim_dir;
 void(float xHand) dw_fire_lance =
 {
     vector src = dw_lance_aim_test ? dw_lance_aim_src : VRGetMuzzlePos(xHand);
     vector dir = dw_lance_aim_test ? normalize(dw_lance_aim_dir) : VRGetWeaponFireRotFwd(xHand);
-    vector start = src;
+    vector start = src; // (drawn from its tip)
+    dw_lance_last_from = start;
+    // Traced from behind its tip as every hand's shot (weapons.qc VR_ShotBackPoint, from the hand's place on its line):
+    // a body its tip is in is hit (embedfire: the Lance stuck in it, its hand's place its handle, vr_propfire.qc).
+    if(!dw_lance_aim_test)
+    {
+        src = VR_ShotBackPoint(xHand, src, dir);
+    }
     entity ignore = self;
     float push = max(0, cvar_hget(cvarh_vr_dw_lance_push)) * 5; // (a player's bolt pushes 30 / 30: the Lance's 150 / 30)
     float wasDecap = vr_decap_weapon;
@@ -375,8 +383,8 @@ void(float xHand) dw_fire_lance =
     trace_endpos = stop;
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
-    WriteEntity(MSG_BROADCAST, dw_beam_prop ? dw_beam_prop : self); // (an armed grunt's: from its gun, as its lightning)
-    WriteByte(MSG_BROADCAST, dw_beam_prop ? 0 : xHand); /* disambiguator (the beam per hand: without it the client misread the message) */
+    WriteEntity(MSG_BROADCAST, vr_fire_prop ? vr_fire_prop : self); // (a prop's: from it; an armed grunt's gun, as its lightning)
+    WriteByte(MSG_BROADCAST, vr_fire_prop ? 0 : xHand); /* disambiguator (the beam per hand: without it the client misread the message) */
     WriteVec3(MSG_BROADCAST, start);
     WriteVec3(MSG_BROADCAST, trace_endpos);
 };
@@ -401,7 +409,7 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
         dw_fire_lance(xHand);
         dw_variant_shots++;
         self.punchangle_x = -3;
-        weaponfired(self, xHand);
+        VR_WeaponFired(xHand); // (a prop's: on it, vr_propfire.qc)
         VRGunHaptic(xHand, 0.7, 80, 1.0);
         *xOutAttackFinished = time + RuneApplyHell(1.4, self);
         return TRUE;

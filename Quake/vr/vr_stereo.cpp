@@ -23,6 +23,7 @@
 #include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
 #include "vr_dynres.hpp"
+#include "vr_gfxpresets.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_hands.hpp"
 #include "vr_haze.hpp"
@@ -434,23 +435,41 @@ void focusTexture(GLuint texture, GLint points, const Fov& fov, float sx, float 
 // The eye's foveation (vr_gl_foveation), before its scene: full resolution round the point the eye looks straight at
 // (its projection's centre, off the image's centre in each eye), less and less outside. The driver's pixel density at
 // a point d away (in the image's -1..1) is 1 / (gain^2 d^2 - area): full within sqrt(1 + area) / gain of it.
+// (C4n: stronger than C4h's 1/1.5/2, which showed no change: the resolution's fall-off rate and the full-resolution
+// area around the focal point, in the QCOM extension's units)
+constexpr float foveationGains[] = {0.f, 2.f, 4.f, 6.f};
+constexpr float foveationAreas[] = {0.f, 0.5f, 0.25f, 0.1f};
+
+// vr_gl_foveation's zones on the eye's scene now (vr_foveated_debug; none while it is off): the focal point on the
+// projection's centre in the drawn part's -1..1, as focusTexture sets it.
+[[nodiscard]] foveated::DensityZones glFoveationZones(const Fov& fov)
+{
+    foveated::DensityZones z;
+    if(!eyeTargets.foveated || foveationLevel() == 0)
+    {
+        return z;
+    }
+    const float l = za::tan(fov.left), r = za::tan(fov.right), u = za::tan(fov.up), d = za::tan(fov.down);
+    z.focalX = -(r + l) / (r - l);
+    z.focalY = -(u + d) / (u - d);
+    z.gain = foveationGains[foveationLevel()];
+    z.area = foveationAreas[foveationLevel()];
+    return z;
+}
+
 void foveateEye(const Fov& fov)
 {
     if(!eyeTargets.foveated || foveationLevel() == 0) // (none: the targets made again without it, an incomplete framebuffer)
     {
         return;
     }
-    // (C4n: stronger than C4h's 1/1.5/2, which showed no change: the resolution's fall-off rate and the full-resolution
-    // area around the focal point, in the QCOM extension's units)
-    constexpr float gains[] = {0.f, 2.f, 4.f, 6.f};
-    constexpr float areas[] = {0.f, 0.5f, 0.25f, 0.1f};
     const int level = foveationLevel();
     const SceneTargets& t = eyeTargets;
     const float sx = t.allocatedWidth > 0 && t.drawnWidth > 0 ? static_cast<float>(t.drawnWidth) / t.allocatedWidth : 1.f;
     const float sy = t.allocatedHeight > 0 && t.drawnHeight > 0 ? static_cast<float>(t.drawnHeight) / t.allocatedHeight : 1.f;
     for(const GLuint texture : foveatedTextures(t))
     {
-        focusTexture(texture, foveationPoints, fov, sx, sy, gains[level], areas[level]);
+        focusTexture(texture, foveationPoints, fov, sx, sy, foveationGains[level], foveationAreas[level]);
     }
 }
 
@@ -1583,6 +1602,7 @@ extern "C" int VR_RenderView()
     }
     const EyeSizes sizes = be->eyeSizes();
     dynres::beginFrame(); // (the scale this frame is drawn at, for its GPU time read back later)
+    gfxpresets::frame();  // (a graphics pick too slow to use: put back, questcrash)
     // The size the eyes are drawn at this frame, and the size their targets are allocated at.
     const int drawnWidth = scaledEyeSize(imageWidth, sizes.maxWidth);
     const int drawnHeight = scaledEyeSize(imageHeight, sizes.maxHeight);
@@ -1899,10 +1919,21 @@ extern "C" int VR_RenderView()
         }
         {
             QVR_TRACY_SCOPE(zoneFoveatedDebug, "eye: foveated debug");
-            foveated::drawDebug(eye, stereo::targetFbo, shownWidth, shownHeight, drawnWidth, drawnHeight); // vr_foveated_debug
+            // (questrender) The Quest's foveation: the GL one on our scene (vr_gl_foveation), else the runtime's on the
+            // eye images (vr_xr_foveation, modelled; vr_foveated_debug 2: its zones at that level on any headset)
+            foveated::DensityZones questZones;
+            if(vr_foveated_debug.value != 0.f)
+            {
+                questZones = drawnDirect ? foveated::DensityZones{} : stereo::glFoveationZones(frame.eyes[eye].fov);
+                if(questZones.gain <= 0.f && (xrFoveation || vr_foveated_debug.value >= 2.f))
+                {
+                    questZones = foveated::runtimeZones(za::max(1, static_cast<int>(vr_xr_foveation.value)));
+                }
+            }
+            foveated::drawDebug(eye, stereo::targetFbo, shownWidth, shownHeight, drawnWidth, drawnHeight, questZones); // vr_foveated_debug
             if(stereo::mirrored(eye))
             {
-                foveated::drawDebug(eye, framebufs.composite.fbo, drawnWidth, drawnHeight, drawnWidth, drawnHeight);
+                foveated::drawDebug(eye, framebufs.composite.fbo, drawnWidth, drawnHeight, drawnWidth, drawnHeight, questZones);
             }
         }
         if(shotFinal)

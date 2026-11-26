@@ -2,13 +2,18 @@
 
 #include "vr_prepare.hpp"
 
+#include "vr_ambient.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_files.hpp"
+#include "vr_hull_internal.hpp"
 #include "vr_limbmodel.hpp"
+#include "vr_nav.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_relight.hpp"
+#include "vr_relight_maps.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
@@ -41,7 +46,29 @@ enum class Step
     CampaignWait, // its start map in play: then the models' step again, for its own models
     Relight,     // the batch's command given
     RelightWait, // the batch running
+    Hulls,       // the next common map's command given (-preparehulls)
+    HullsWait,   // its load, then every tree it asked for (the deferred ones too) made or read
     Done,
+};
+
+// One map of the hulls' step: its name and the campaign it is played in (Quake's, Scourge of Armagon's or Dissolution of
+// Eternity's: "start" is each one's own).
+struct HullMap
+{
+    za::String map;
+    int campaign{0};
+};
+
+// The hulls' step's counts and the files of its maps' collision (the list Setup's Quest copy reads).
+struct HullCounts
+{
+    int ok{0};
+    int failed{0};
+    int fresh{0}; // files written by this run (not there before the map's load)
+    za::U64 bytes{0};
+    double since{0.0};
+    za::Vector<za::String> files;  // "hulls/<build>/<key>..." (under the disk cache's root)
+    za::Vector<za::String> before; // every hull file there when the step began (the same form)
 };
 
 struct Run
@@ -68,6 +95,15 @@ struct Run
     // -preparemaps <map>[,<map>...]: only these maps (the shipped cache's generator, Misc/release/make_shipped_cache.py:
     // one map a run, its files then all its own), then the end: no guns, models, campaigns nor relight.
     za::Vector<za::String> onlyMaps;
+    // -preparehulls [<map>[,<map>...]]: the common maps' collision (their hull trees and brushes) made once, after the
+    // relight (the relit copy is the map the game loads: the trees are keyed by its world), so their first visits read
+    // it; the list given: only those maps (Quake's campaign).
+    bool hulls{false};
+    za::String progressPath; // the progress file's (the hulls' list beside it)
+    za::Vector<HullMap> hullMaps;
+    za::SizeT hullMap{0};
+    int hullCampaign{0}; // the campaign active for the hulls' step (0: Quake's)
+    HullCounts hullCounts;
 };
 Run run;
 
@@ -243,6 +279,8 @@ void finish()
     Cbuf_AddText("quit\n");
 }
 
+void afterRelight();
+
 // After the maps (and the guns): the relight, or the end.
 void afterMaps()
 {
@@ -253,7 +291,7 @@ void afterMaps()
     }
     else
     {
-        finish();
+        afterRelight();
     }
 }
 
@@ -277,6 +315,142 @@ void relightResult()
         r.maps, r.relit, r.skipped, r.failed, r.cancelled, r.alreadyLit, relight::statusLine()));
 }
 
+// The hulls' step's maps: the single-player maps of Quake's and the mission packs' folders that are installed (start,
+// e1m1..e4m8, end; hipstart, hip1m1.., hipend; start, r1m1.., end), not the deathmatch ones (dm1, hipdm1, ctf1).
+constexpr int hullCampaigns = 3; // campaigns[] 0..2: id1, hipnotic, rogue (vr_gamedir.cpp)
+
+[[nodiscard]] bool commonMap(const char* map)
+{
+    if(strchr(map, '/'))
+    {
+        return false;
+    }
+    for(const char* named : {"start", "end", "hipstart", "hipend"})
+    {
+        if(!q_strcasecmp(map, named))
+        {
+            return true;
+        }
+    }
+    return !relight::maps::episodePrefix(map).empty();
+}
+
+void collectHullMaps()
+{
+    if(!run.hullMaps.empty())
+    {
+        return; // (the list given)
+    }
+    for(int c = 0; c < hullCampaigns && c < VR_CampaignCount(); c++)
+    {
+        if(c && VR_CampaignUnavailable(c))
+        {
+            continue;
+        }
+        za::Vector<relight::maps::Source> found;
+        za::String why;
+        if(!relight::maps::collect(relight::maps::Set::Game, VR_CampaignFolder(c), "", found, why))
+        {
+            continue;
+        }
+        for(const relight::maps::Source& s : found)
+        {
+            if(commonMap(s.map.cStr()))
+            {
+                run.hullMaps.pushBack(HullMap{s.map, c});
+            }
+        }
+    }
+}
+
+// The disk cache's hull files (trees and brushes: "<key>_<box>.hul", "<key>.hbr" under hulls/<build>/) whose name
+// begins with `key` (a world's key in hex; "": all), as paths under the cache's root.
+za::Vector<za::String> hullFiles(const char* key)
+{
+    za::Vector<za::String> out;
+    const za::SizeT keyLength = ZA_STRLEN(key);
+    const za::String root = diskcache::root();
+    const char* kind = diskcache::kindOf(diskcache::Product::Hulls);
+    files::forEachEntry((root + "/" + kind).cStr(), [&](const char* build, bool isDirectory) {
+        if(!isDirectory || build[0] == '.')
+        {
+            return;
+        }
+        const za::String folder = za::String{kind} + "/" + build;
+        files::forEachEntry((root + "/" + folder).cStr(), [&](const char* name, bool isFolder) {
+            if(!isFolder && !q_strncasecmp(name, key, static_cast<int>(keyLength)))
+            {
+                out.pushBack(folder + "/" + name);
+            }
+        });
+    });
+    return out;
+}
+
+// The world in play's hull files.
+za::Vector<za::String> worldHullFiles()
+{
+    if(!sv.active || !sv.worldmodel || sv.worldmodel->type != mod_brush)
+    {
+        return {};
+    }
+    char key[24];
+    q_snprintf(key, sizeof(key), "%016llx", static_cast<unsigned long long>(hull::detail::keyOf(sv.worldmodel)));
+    return hullFiles(key);
+}
+
+// The hulls' list beside the progress file (setup_hulls.txt): a line per file, its path under the disk cache's root
+// and its whole path, a tab between (Setup's Quest copy: Installer/.../QuestFiles.cs, AddHulls).
+void writeHullList()
+{
+    if(run.progressPath.empty())
+    {
+        return;
+    }
+    za::String path = run.progressPath;
+    const char* p = path.cStr();
+    const char* slash = strrchr(p, '/');
+    const char* back = strrchr(p, '\\');
+    const char* sep = back > slash ? back : slash;
+    za::String listPath = sep ? za::String{p, static_cast<za::SizeT>(sep - p + 1)} : za::String{};
+    listPath += "setup_hulls.txt";
+    const za::String root = diskcache::root();
+    za::String text;
+    for(const za::String& f : run.hullCounts.files)
+    {
+        text += f + "\t" + root + "/" + f + "\n";
+    }
+    if(!files::writeText(listPath.cStr(), za::StringView{text.cStr(), text.size()}))
+    {
+        Con_Printf("Prepare: can't write %s\n", listPath.cStr());
+    }
+}
+
+void startHulls()
+{
+    collectHullMaps();
+    run.hullMap = 0;
+    run.hullCampaign = 0;
+    run.hullCounts = HullCounts{};
+    run.hullCounts.since = Sys_DoubleTime();
+    run.hullCounts.before = hullFiles("");
+    hull::setWriteEveryTree(true); // (the PC's quick trees too: the Quest's copies)
+    run.step = Step::Hulls;
+}
+
+// After the relight (or the maps when there is none): the hulls, or the end.
+void afterRelight()
+{
+    if(run.hulls)
+    {
+        startHulls();
+    }
+    else
+    {
+        finish();
+    }
+}
+
 } // namespace
 
 bool active()
@@ -296,6 +470,7 @@ void start()
     if(arg && arg + 1 < com_argc && com_argv[arg + 1][0] != '-' && com_argv[arg + 1][0] != '+')
     {
         run.out = fopen(com_argv[arg + 1], "w");
+        run.progressPath = za::String{com_argv[arg + 1]};
         if(!run.out)
         {
             Con_Printf("Prepare: can't write %s\n", com_argv[arg + 1]);
@@ -320,6 +495,27 @@ void start()
             list += end ? n + 1 : n;
         }
         run.relight = false;
+        // The shipped cache's run: every product written however quick it was here (the trees' 25 ms bar and the light
+        // grid's 0.1 s are this PC's: a faster exe left out files the Quest, 5-15x slower, needs), so the file list is
+        // the same from any exe on any PC.
+        hull::setWriteEveryTree(true);
+        ambient::setWriteEveryGrid(true);
+    }
+    const int hulls = COM_CheckParm("-preparehulls");
+    run.hulls = hulls != 0;
+    if(hulls && hulls + 1 < com_argc && com_argv[hulls + 1][0] != '-' && com_argv[hulls + 1][0] != '+')
+    {
+        const char* list = com_argv[hulls + 1];
+        while(*list)
+        {
+            const char* end = strchr(list, ',');
+            const za::SizeT n = end ? static_cast<za::SizeT>(end - list) : ZA_STRLEN(list);
+            if(n > 0 && n < 64)
+            {
+                run.hullMaps.pushBack(HullMap{za::String{list, n}, 0});
+            }
+            list += end ? n + 1 : n;
+        }
     }
     // No tips: one shown to the mock headset would be marked seen in tips_seen.txt and never shown to the player (the
     // config, where this would stay, is not written: -noconfigwrite).
@@ -343,7 +539,7 @@ void frame()
                 line(va("result maps ok=%d failed=%d", static_cast<int>(run.map) - run.failedMaps, run.failedMaps));
                 if(!run.onlyMaps.empty())
                 {
-                    finish();
+                    afterRelight(); // (no relight with a list: the hulls when asked, else the end)
                 }
                 else if(inPlay(firstMaps[za::getArraySize(firstMaps) - 1].name))
                 {
@@ -374,6 +570,11 @@ void frame()
                 }
                 if(now - run.signedOn >= settleSeconds)
                 {
+                    // Every product still on the pool finished and written before the next map (or the end): the
+                    // load's trees and the monsters' deferred ones (hull), the navmesh's size classes (joined otherwise
+                    // by a monster's first path, which a quick map may never ask for).
+                    hull::finishLoads();
+                    nav::finishBuilds();
                     line(va("map %s ok %.1f", map, run.signedOn - run.since));
                     run.map++;
                     run.step = Step::Map;
@@ -538,7 +739,82 @@ void frame()
                 return; // (the command runs at the next frame's start)
             }
             relightResult();
-            finish();
+            afterRelight();
+            return;
+        }
+        case Step::Hulls:
+        {
+            HullCounts& h = run.hullCounts;
+            if(run.hullMap >= run.hullMaps.size())
+            {
+                if(run.hullCampaign != 0 && !VR_SelectCampaignNoMap(0))
+                {
+                    line("campaign id1 failed 0.0"); // (never: Quake's is always there)
+                }
+                run.hullCampaign = 0;
+                writeHullList();
+                line(va("result hulls ok=%d failed=%d files=%d written=%d mb=%.1f %.1f", h.ok, h.failed,
+                    static_cast<int>(h.files.size()), h.fresh, static_cast<double>(h.bytes) / (1024.0 * 1024.0), now - h.since));
+                finish();
+                return;
+            }
+            const HullMap& m = run.hullMaps[run.hullMap];
+            line(va("step hulls %d %d %s", static_cast<int>(run.hullMap) + 1, static_cast<int>(run.hullMaps.size()), m.map.cStr()));
+            if(m.campaign != run.hullCampaign)
+            {
+                if(!VR_SelectCampaignNoMap(m.campaign))
+                {
+                    line(va("hulls %s failed 0.0", m.map.cStr()));
+                    h.failed++;
+                    run.hullMap++;
+                    return;
+                }
+                run.hullCampaign = m.campaign;
+            }
+            // (Hard: the most monsters, so the most of their boxes' trees; the deathmatch flags off as the maps' step's)
+            Cbuf_AddText(va("maxplayers 1; deathmatch 0; coop 0; skill 2; map %s\n", m.map.cStr()));
+            run.since = now;
+            run.frames = 0;
+            run.step = Step::HullsWait;
+            return;
+        }
+        case Step::HullsWait:
+        {
+            const HullMap& m = run.hullMaps[run.hullMap];
+            HullCounts& h = run.hullCounts;
+            // (the map's command runs at the next frame's start: a map of the same name in play before, "start" of
+            // another campaign, is never taken for it)
+            if(++run.frames > 2 && inPlay(m.map.cStr()))
+            {
+                hull::finishLoads(); // every tree the load asked for, the deferred ones too (vr_hull_defer), made or read
+                const za::Vector<za::String> found = worldHullFiles();
+                for(const za::String& f : found)
+                {
+                    const bool listed = za::findIf(h.files.begin(), h.files.end(), [&f](const za::String& g) {
+                        return !q_strcasecmp(g.cStr(), f.cStr());
+                    }) != h.files.end();
+                    if(listed)
+                    {
+                        continue; // (a map whose world another's has: the same files)
+                    }
+                    h.fresh += za::findIf(h.before.begin(), h.before.end(), [&f](const za::String& g) {
+                        return !q_strcasecmp(g.cStr(), f.cStr());
+                    }) == h.before.end() ? 1 : 0;
+                    h.bytes += files::fileSize((diskcache::root() + "/" + f).cStr());
+                    h.files.pushBack(f);
+                }
+                line(va("hulls %s ok %.1f files=%d", m.map.cStr(), now - run.since, static_cast<int>(found.size())));
+                h.ok++;
+                run.hullMap++;
+                run.step = Step::Hulls;
+            }
+            else if(now - run.since > mapTimeout)
+            {
+                line(va("hulls %s failed %.1f", m.map.cStr(), now - run.since));
+                h.failed++;
+                run.hullMap++;
+                run.step = Step::Hulls;
+            }
             return;
         }
     }

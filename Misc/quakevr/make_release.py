@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""make_release.py -- a Quake VR: Unleashed release, ready to publish, from a built package.
+"""make_release.py -- a Quake VR: UNLEASHED release, ready to publish, from a built package.
 
 From the package Windows/package-quakevr.ps1 made (dist/QuakeVR with its manifest.json, or dist/QuakeVR.zip), writes
 into --out (default dist/release/<tag>):
@@ -205,13 +205,13 @@ def main():
     assets.append(latest)
 
     names = " ".join(f'"{os.path.basename(p)}"' for p in assets)
-    publish = f"""Quake VR: Unleashed {version}: release {tag} (made by Misc/quakevr/make_release.py; nothing is published yet)
+    publish = f"""Quake VR: UNLEASHED {version}: release {tag} (made by Misc/quakevr/make_release.py; nothing is published yet)
 
 1. GitHub: tag the commit the package was built from and create the release with every file of this folder as an
    asset (latest.json included: https://github.com/{REPO}/releases/latest/download/latest.json then serves it). Not a
    draft and not a prerelease: "latest" skips both. From this folder:
 
-   gh release create {tag} --repo {REPO} --target <commit> --title "Quake VR: Unleashed {version}" --notes-file <notes.md> {names}
+   gh release create {tag} --repo {REPO} --target <commit> --title "Quake VR: UNLEASHED {version}" --notes-file <notes.md> {names}
 
    The notes link ericw-tools' GPL source (the package ships light.exe): Source of ericw-tools' light.exe:
    {support_url(sa, "ericw_source")}

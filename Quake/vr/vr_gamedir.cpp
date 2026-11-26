@@ -536,6 +536,28 @@ za::Vector<za::String> ownedRoots()
         addRoot(path);
         addRoot(com_basedirs[i]);
     }
+    // The same folder by two spellings (Steam's install path and -basedir's "<Quake>/rerelease", their slashes or case)
+    // counted once, at its highest place: the language tables were read from it twice (vrlogwarn 2026-11-26: "VR
+    // language source" said twice for the rerelease's pak0.pak), the campaigns looked for in it twice.
+    za::Vector<za::String> keys, unique;
+    for(int r = static_cast<int>(roots.size()) - 1; r >= 0; --r)
+    {
+        const za::String key = qvr::files::resolved(roots[static_cast<za::SizeT>(r)]);
+        bool seen = false;
+        for(const za::String& k : keys)
+        {
+#ifdef _WIN32
+            seen = seen || !q_strcasecmp(k.cStr(), key.cStr());
+#else
+            seen = seen || !ZA_STRCMP(k.cStr(), key.cStr());
+#endif
+        }
+        if(seen) { continue; }
+        keys.pushBack(key);
+        unique.pushBack(roots[static_cast<za::SizeT>(r)]);
+    }
+    roots.clear();
+    for(int u = static_cast<int>(unique.size()) - 1; u >= 0; --u) { roots.pushBack(unique[static_cast<za::SizeT>(u)]); }
     return roots;
 }
 

@@ -662,6 +662,13 @@ void buildWorld()
         b3ShapeDef shape = shapeDef(0, catWorld, catProp | catCorpse);
         world->worldShape = b3CreateMeshShape(id, &shape, world->mesh, b3Vec3_one);
     }
+    {
+        // (A pushable corpse turning about its yaw only is held upright by a motion lock joint to this: Box3D's motion
+        // locks became a joint upstream, #236. vr_box3d_props.cpp, makeBody.)
+        b3BodyDef anchor = b3DefaultBodyDef();
+        anchor.type = b3_staticBody;
+        world->anchor = b3CreateBody(world->id, &anchor);
+    }
     world->slots.resize(static_cast<za::SizeT>(qcvm->num_edicts) + 64);
     if(vr_debug_box3d.value)
     {

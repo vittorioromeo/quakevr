@@ -16,14 +16,14 @@ public sealed class AiStatement
     // The author's wording, unchanged (only "reinassance" corrected to "renaissance").
     public static readonly IReadOnlyList<string> Paragraphs =
     [
-        "I have developed \"Quake VR: Unleashed\" with heavy AI assistance, rebasing my original fully hand-written older " +
+        "I have developed \"Quake VR: UNLEASHED\" with heavy AI assistance, rebasing my original fully hand-written older " +
         "\"Quake VR\" project on top of the Ironwail source port, and using an agent-driven workflow to improve and iterate on " +
         "the existing foundation.",
         "VR gaming and many other areas of our life are in a period of renaissance thanks to AI. As any other tool, it " +
         "can be used to produce both quality products and so called \"slop\".", "I am deeply saddened by the constant undeserved harassment and bullying that AI " +
         "content creators are receiving online, despite the very clear passion and effort they put in their work.",
 		"I want to live in a future where products are judged by their quality and by the passion of their creators, not by the tools used to create them.",
-        "As a \"Quake VR: Unleashed\" player, your values and views regarding AI usage should be fair and respectful of the hard work put into this project.",
+        "As a \"Quake VR: UNLEASHED\" player, your values and views regarding AI usage should be fair and respectful of the hard work put into this project.",
     ];
 
     public static readonly IReadOnlyList<string> Claims =

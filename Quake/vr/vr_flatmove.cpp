@@ -24,6 +24,7 @@
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Strcmp.hpp"
@@ -2415,6 +2416,253 @@ void ladderTest_f()
     }
 }
 
+// vr_rung_grip_test (tutorial, his VR note 2026-11-26: the hand "doesn't seem to wrap around the rung, but it seems to go
+// above the rung"): flatscreen play's ladder walked into and hung from still, the hands drawn on its rungs (vr_climb.cpp
+// drawnHand, findRung). vrtutorial's lesson 3 ladder (round rungs 3.5 thick, 5 off the wall): each hand round its rung
+// (climb::rungHeld: the rung through the fist), its palm's middle within rungTestNear of the rung's surface, the hand
+// round it (vertices over its axis and under or behind it), its deepest vertex in the rung at most rungTestSink; with the
+// switch off (vr_climb_rung_grip 0, the same holds) no hand round a rung and fewer of its vertices under it (the ledge
+// pose on top of it, as before). vrtesthall's brush ladder (square rungs flush on the wall): no hand round a rung (held as a ledge, as before).
+// The counted frames the hang and the pins need; 10 s a step at most (FAIL timed out).
+struct RungMeasure
+{
+    bool round{false};
+    float palmOff{0.f};          // the palm's middle off the rung's surface (units)
+    float sink{0.f};             // the deepest vertex within rungTestAlong of the palm, in the rung (units; 0 none)
+    const char* part{"-"};       // the deepest's part of the hand
+    glm::vec2 tips{0.f};         // the fingertips' middle from the axis: towards the wall, up (units)
+    int over{0}, under{0}, behind{0}; // vertices over, under and behind (the wall's side of) its axis, by half its radius
+};
+struct RungTest
+{
+    int phase{0};
+    int frames{0};
+    double phaseAt{0.0};
+    testkit::Tally tally;
+    bool tutorial{false}; // vrtutorial's ladder (else vrtesthall's)
+    float yaw{0.f};
+    glm::vec3 axis[2]{}, along[2]{};
+    float thick[2]{0.f, 0.f};
+    bool have[2]{false, false};
+    RungMeasure grip[2]; // vr_climb_rung_grip 1's
+};
+RungTest rungTest;
+za::Vector<glm::vec4> rungVerts;
+za::Vector<view::HandPart> rungParts;
+constexpr const char* rungTestName = "vr_rung_grip_test";
+constexpr float rungTestNear = 1.5f;  // units: the palm's middle off the rung's surface at most
+constexpr float rungTestSink = 1.5f;  // units: the hand's deepest vertex in the rung at most
+constexpr float rungTestAlong = 6.f;  // units: the hand's vertices this far along the rung from its palm counted
+
+// Hand `h` as drawn against the rung its round grip found (its axis, way along and thickness; `fwd` towards the wall).
+[[nodiscard]] RungMeasure rungMeasure(int h, const glm::vec3& axis, const glm::vec3& along, float thick, const glm::vec3& fwd)
+{
+    RungMeasure m;
+    glm::vec3 a{0.f}, w{0.f};
+    float t = 0.f, weight = 0.f;
+    m.round = climb::rungHeld(h, a, w, t, weight) && weight >= 0.999f;
+    glm::vec3 palm{0.f};
+    (void)climb::drawnPalm(h, palm);
+    m.palmOff = 1e9f;
+    if(!view::drawnHandSurface(h, rungVerts, &rungParts))
+    {
+        return m;
+    }
+    const float r = 0.5f * thick;
+    glm::vec2 tips{0.f};
+    int tipCount = 0;
+    for(za::SizeT i = 0; i < rungVerts.size(); i++)
+    {
+        const glm::vec3 d = glm::vec3{rungVerts[i]} - axis;
+        const float s = glm::dot(d, along);
+        if(za::abs(s - glm::dot(palm - axis, along)) > rungTestAlong)
+        {
+            continue;
+        }
+        const glm::vec3 radial = d - along * s;
+        const float in = r - glm::length(radial) + rungVerts[i].w;
+        const view::HandPart part = i < rungParts.size() ? rungParts[i] : view::HandPart::Hand;
+        if(in > m.sink)
+        {
+            m.sink = in;
+            m.part = view::handPartName(part);
+        }
+        if(part == view::HandPart::Palm)
+        {
+            m.palmOff = za::min(m.palmOff, -in); // (the palm's nearest to the surface)
+        }
+        else if(part == view::HandPart::Fingertips)
+        {
+            tips += glm::vec2{glm::dot(radial, fwd), radial.z};
+            tipCount++;
+        }
+        m.over += radial.z > 0.5f * r ? 1 : 0;
+        m.under += radial.z < -0.5f * r ? 1 : 0;
+        m.behind += glm::dot(radial, fwd) > 0.5f * r ? 1 : 0;
+    }
+    m.tips = tipCount ? tips / static_cast<float>(tipCount) : glm::vec2{0.f};
+    return m;
+}
+
+void rungTestFrame()
+{
+    RungTest& t = rungTest;
+    if(t.phase == 0)
+    {
+        return;
+    }
+    progs::ServerVm vm;
+    edict_t* pl = progs::localPlayer();
+    if(!pl)
+    {
+        return;
+    }
+    const double now = qcvm->time;
+    const auto next = [&](int phase) {
+        t.phase = phase;
+        t.phaseAt = now;
+        t.frames = 0;
+    };
+    const auto end = [&]() {
+        Cbuf_InsertText("-forward\nvr_climb_rung_grip 1\n");
+        t.tally.verdict(rungTestName);
+        t = RungTest{};
+    };
+    t.frames++;
+    cl.viewangles[PITCH] = -20.f; // (the hands in sight: the screenshot)
+    cl.viewangles[YAW] = t.yaw;
+    bool climbing = false;
+    (void)climb::flatLadders(pl, climbing);
+    const glm::vec3 fwd{za::cos(glm::radians(t.yaw)), za::sin(glm::radians(t.yaw)), 0.f};
+    if(now - t.phaseAt > 10.0)
+    {
+        t.tally.check(false, rungTestName, va("timed out (step %d, on the ladder %d)", t.phase, climbing ? 1 : 0));
+        end();
+        return;
+    }
+    switch(t.phase)
+    {
+    case 1: // placed before the ladder, on the floor
+    {
+        const glm::vec3 at = t.tutorial ? glm::vec3{2933.f, 704.f, 24.f} : glm::vec3{464.f, 270.f, 24.f};
+        pl->v.origin[0] = pl->v.oldorigin[0] = at.x;
+        pl->v.origin[1] = pl->v.oldorigin[1] = at.y;
+        pl->v.origin[2] = pl->v.oldorigin[2] = at.z;
+        pl->v.velocity[0] = pl->v.velocity[1] = pl->v.velocity[2] = 0.f;
+        SV_LinkEdict(pl, false);
+        next(2);
+        return;
+    }
+    case 2: // settled (40 frames on the ground), then into it
+        if(t.frames >= 40 && (static_cast<int>(pl->v.flags) & FL_ONGROUND) != 0)
+        {
+            Cbuf_InsertText("+forward\n");
+            next(3);
+        }
+        return;
+    case 3: // on it, both hands drawn on their rungs: let go of the key, hang
+        if(climbing && climb::drawnShare(0) >= 0.999f && climb::drawnShare(1) >= 0.999f)
+        {
+            Cbuf_InsertText("-forward\n");
+            next(4);
+        }
+        return;
+    case 4: // hung still a second (the climb's step ended, the pins settled): measured, the grip seen
+        if(t.frames == 54)
+        {
+            Cbuf_InsertText("screenshot\n");
+        }
+        if(t.frames < 72)
+        {
+            return;
+        }
+        for(int h = 0; h < 2; h++)
+        {
+            float w = 0.f;
+            t.have[h] = climb::rungHeld(h, t.axis[h], t.along[h], t.thick[h], w);
+            if(!t.tutorial)
+            {
+                t.tally.check(!t.have[h], rungTestName, va("%s hand on a square rung held as a ledge, not round it",
+                                                           h ? "main" : "off"));
+                if(!t.have[h])
+                {
+                    Con_Printf("%s: PASS %s hand on a square rung held as a ledge\n", rungTestName, h ? "main" : "off");
+                }
+                continue;
+            }
+            if(!t.have[h])
+            {
+                t.tally.check(false, rungTestName, va("%s hand round its rung: no round rung found", h ? "main" : "off"));
+                continue;
+            }
+            const RungMeasure m = rungMeasure(h, t.axis[h], t.along[h], t.thick[h], fwd);
+            t.grip[h] = m;
+            const bool ok = m.round && m.palmOff <= rungTestNear && m.over > 0 && (m.under > 0 || m.behind > 0) &&
+                            m.sink <= rungTestSink;
+            const char* what = va("%s hand round its rung (%.2f thick): palm %.2f off it (at most %.1f), vertices %d over, "
+                                  "%d under, %d behind it, the deepest %.2f in (%s; at most %.1f); fingertips %.1f to the wall, %.1f up",
+                h ? "main" : "off", t.thick[h], m.palmOff, rungTestNear, m.over, m.under, m.behind, m.sink, m.part, rungTestSink,
+                m.tips.x, m.tips.y);
+            t.tally.check(ok, rungTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", rungTestName, what);
+            }
+        }
+        if(!t.tutorial)
+        {
+            end();
+            return;
+        }
+        Cbuf_InsertText("vr_climb_rung_grip 0\n");
+        next(5);
+        return;
+    case 5: // the switch off (the next drawn frames): the ledge pose on the same holds
+        if(t.frames < 4)
+        {
+            return;
+        }
+        for(int h = 0; h < 2; h++)
+        {
+            if(!t.have[h])
+            {
+                continue;
+            }
+            const RungMeasure m = rungMeasure(h, t.axis[h], t.along[h], t.thick[h], fwd);
+            const bool ok = !m.round && m.under < t.grip[h].under;
+            const char* what = va("%s hand, Hand Round Thin Rungs off: on top as a ledge (round %d), %d vertices under the "
+                                  "rung's axis (round it: %d), the deepest %.2f in (%s), palm %.2f off the rung",
+                h ? "main" : "off", m.round ? 1 : 0, m.under, t.grip[h].under, m.sink, m.part, m.palmOff);
+            t.tally.check(ok, rungTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", rungTestName, what);
+            }
+        }
+        end();
+        return;
+    default:
+        return;
+    }
+}
+
+void rungTest_f()
+{
+    const bool tutorial = sv.active && !q_strcasecmp(sv.name, "vrtutorial");
+    if(!flatplay::active() || !sv.active || (!tutorial && q_strcasecmp(sv.name, "vrtesthall")))
+    {
+        Con_Printf("%s: FAIL usage: flat-screen play (-flatscreenmode) in a game you host, map vrtutorial or vrtesthall\n",
+            rungTestName);
+        testkit::verdict(rungTestName, 0, 1);
+        return;
+    }
+    rungTest = RungTest{};
+    rungTest.tutorial = tutorial;
+    rungTest.yaw = tutorial ? 0.f : 90.f;
+    rungTest.phase = 1;
+    Cbuf_InsertText("vr_climb_rung_grip 1\n");
+}
+
 void slideSelftest_f()
 {
     testkit::Tally tally;
@@ -2640,6 +2888,7 @@ void init()
     Cmd_AddCommand("vr_flatpronedual_test", proneDualTest_f);
     Cmd_AddCommand("vr_flatmantle_test", mantleTest_f);
     Cmd_AddCommand("vr_flatladder_test", ladderTest_f);
+    Cmd_AddCommand("vr_rung_grip_test", rungTest_f);
     Cmd_AddCommand("vr_flatmove_status", status_f);
 }
 
@@ -2663,6 +2912,7 @@ void frame(bool on)
         proneDualTestFrame();
         mantleTestFrame();
         ladderTestFrame();
+        rungTestFrame();
         slide::poseTestFrame();
     }
 }
@@ -2782,10 +3032,10 @@ namespace
 // space between ("c CTRL"), read by flatplay::keyNum / keyIs / keyHeld, set by flatplay::setKey.
 cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_crouch, &vr_flat_key_prone, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_shove, &vr_flat_key_punch,
     &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_pull, &vr_flat_key_cycle_left, &vr_flat_key_cycle_right,
-    &vr_flat_key_holster_left, &vr_flat_key_holster_right, &vr_flat_key_drop_left, &vr_flat_key_drop_right, &vr_flat_key_grenade, &vr_flat_key_throw, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_gearlights, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
+    &vr_flat_key_holster_left, &vr_flat_key_holster_right, &vr_flat_key_drop_left, &vr_flat_key_drop_right, &vr_flat_key_grenade, &vr_flat_key_throw, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_gearlights, &vr_flat_key_attach, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
     &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust};
 const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Crouch / slide", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Grab / pull",
-    "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Throw / drop", "Bullet time", "Flashlight", "Gear lights", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
+    "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Throw / drop", "Bullet time", "Flashlight", "Gear lights", "Attach / detach", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
 static_assert(za::getArraySize(flatKeyList) == za::getArraySize(flatKeyLabels), "a label for every flat key");
 static_assert(flatplay::keySlots == VR_FLATKEY_SLOTS, "the menu's slots are the keys'");
 

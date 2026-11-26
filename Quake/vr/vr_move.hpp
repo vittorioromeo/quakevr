@@ -116,9 +116,10 @@ struct VrGunLook
     za::U8 clipSize{0}; // its magazine's size (the ammo screen's warning colour)
     za::I32 revolver{0}; // QC .vr_rv_hud (vr_view.cpp setupRevolverParts: chambers, swung out, the rod)
     float cylinder{0.f}; // QC .vr_rv_cyl, degrees (written in 256ths of a turn)
+    za::U8 attach{0};    // its attachment (vr_attach.hpp Kind: its record's .wi_attach; 0 none)
     [[nodiscard]] bool has(za::U8 bit) const { return (bits & bit) != 0; }
 };
-// Written as the bits, then with a gun its flags, clip and clip size (4 B), with a revolver its state and turn (4 B).
+// Written as the bits, then with a gun its flags, clip, clip size and attachment (5 B), with a revolver its state and turn (4 B).
 void writeGunLook(sizebuf_t* buf, const VrGunLook& l);
 [[nodiscard]] VrGunLook readGunLook();
 
@@ -187,7 +188,7 @@ struct VrMove
     za::U8 buttons{0};        // protocol::QVR_BUTTON_*
     za::U8 sawCord{0};        // the chainsaws' cords (vr_chainsaw.cpp moveBits) -> .sawcord
     za::U8 handDrop{0};       // a heavy weapon wrenched out of a hand (vr_weight.cpp dropBits) -> .handdrop
-    za::U8 handSynth{0};      // the hands whose motion is synthesized, not for gestures (vr_handsource.cpp moveBits) -> .handsynth
+    za::U16 handSynth{0};     // the hands whose motion is synthesized, not for gestures (vr_handsource.cpp moveBits) -> .handsynth
     glm::vec3 origin{0.f};          // the player origin the client placed the hands from
     glm::vec3 headPos{0.f};         // the head (between the eyes), world
     // Where each hand's shots go (angles): its aim turned by the held weapon's Shot Pitch and Yaw (weapons::shotAngles);

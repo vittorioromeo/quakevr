@@ -414,6 +414,16 @@ za::Vector<Item> pageDebugTests()
         adSpawnRow(309, command("Arcane Dimensions: Upgraded Weapons Ahead", "vr_ad_test 96")) // AD support
             .help("The Shadow Axe, the Widowmaker and the Plasma Gun pickups ahead of you, as the toolgun makes them: "
                   "drawn as their VR models (made from your AD's own view models)."),
+        // flatparry2: the guard's free hand on the blade or shaft (vr_flat_parry_shaft_at), one weapon alone in the main hand.
+        adSpawnRow(309, command("Arcane Dimensions: Fury's Sword Alone in Hand", "vr_ad_test 171"))
+            .help("The death fury's sword in your main hand, the off hand emptied: to look at its parry guard (flat screen: "
+                  "the right mouse button) and two-handed holds."),
+        adSpawnRow(309, command("Arcane Dimensions: Judicator's Sword Alone in Hand", "vr_ad_test 172"))
+            .help("The judicator's sword in your main hand, the off hand emptied: to look at its parry guard and two-handed holds."),
+        adSpawnRow(309, command("Arcane Dimensions: Ogre Hammer Alone in Hand", "vr_ad_test 173"))
+            .help("The hunter ogre's hammer in your main hand, the off hand emptied: to look at its parry guard and two-handed holds."),
+        adSpawnRow(309, command("Arcane Dimensions: Ogre Mace Alone in Hand", "vr_ad_test 174"))
+            .help("The hunter ogre's mace in your main hand, the off hand emptied: to look at its parry guard and two-handed holds."),
         adSpawnRow(309, command("Arcane Dimensions: Shadow Axe in Hand", "vr_ad_test 97")) // AD support
             .help("The Shadow Axe in your main hand, the Widowmaker and the Plasma Gun in the hip holsters."),
         adSpawnRow(310, command("Arcane Dimensions: Widowmaker in Hand", "vr_ad_test 98")) // AD support
@@ -1528,6 +1538,11 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: in the open with god and notarget (vrtesthall): a sword stabbed into a grunt and held as it dies, lifted "
                   "20 units, level and with the wrist turning: the handle stays in the real hand, the body comes; the hand on the handle "
                   "is drawn as it held the sword. Prints embedgrip: N passed, M failed."),
+        command("Crystal Lance Fired While Stuck Check", "vr_embed_test 77")
+            .help("Headset (mock or real) with Dwell's data, destructive: in the open with god and notarget (vrtesthall): the "
+                  "Lance charged in the hand then stabbed into a grunt, and stabbed then charged: let go full, one bolt from the "
+                  "stuck Lance's tip, 6 cells, the grunt hit; the hand off it fires nothing; pulled out charging, fired from the "
+                  "hand. Flat-screen: vr_embed_test 78. Prints embedfire: N passed, M failed."),
         command("Flat Dual Wielding: an Embedded Blade Keeps Its Hand Check", "vr_embed_test 52")
             .help("Flat-screen play only, destructive: in the open with god and notarget (vrtesthall): an axe in one hand and a shotgun "
                   "in the other, the axe swung into a grunt and held: the hand stays drawn on it, the gun one-handed, the ironsight "
@@ -1658,6 +1673,7 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_nav_cache),
         row(opt::vr_hull_async),
         row(opt::vr_hull_defer),
+        row(opt::vr_load_panel_shot),
         header("Teleporters: Crossing One (the start map; developer 1: VR portal: ...)"),
         command("The Gates In This Map", "vr_portals_info")
             .help("vr_portals_info: every teleporter built for this map - its plane, its opening, its trigger brush - and "

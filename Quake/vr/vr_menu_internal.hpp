@@ -451,6 +451,7 @@ enum WeaponOffsetsPart
     WofsHolstered,
     WofsEffects,
     WofsFlashlight,
+    WofsAttachments,
     WofsParts
 };
 
@@ -660,6 +661,7 @@ extern mem::Cache<PageTexts> pageTexts;
 [[nodiscard]] za::Vector<Item> pageWofsEffects();
 [[nodiscard]] za::Vector<Item> pageWofsFingers();
 [[nodiscard]] za::Vector<Item> pageWofsFlashlight();
+[[nodiscard]] za::Vector<Item> pageWofsAttachments();
 [[nodiscard]] za::Vector<Item> pageWofsHand();
 [[nodiscard]] za::Vector<Item> pageWofsHolstered();
 [[nodiscard]] za::Vector<Item> pageWofsScreen();
@@ -860,6 +862,7 @@ za::Vector<Item> pageWofsTwoHanded();
 extern int relightToolState;
 extern int weaponOffsetsHand;
 extern int weaponOffsetsHeldSlot;
+extern int wofsAttachKind; // Weapon Offsets > Attachments: the kind edited (vr_attach.hpp)
 extern int weaponOffsetsHolster;
 extern int weaponOffsetsHotspot;
 extern int weaponOffsetsHotspotManual;

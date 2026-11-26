@@ -168,5 +168,76 @@ for k in ("stand", "run", "side"):
 check(dist.get("run", -1) > dist.get("stand", -1) and dist.get("stand", -1) > 100,
       "move: thrown running it lands further (%d vs %d units standing)" % (dist.get("run", -1), dist.get("stand", -1)))
 
+# (flatthrow2) cancel: the throwing hand's attack button with B held.
+def between(ls, start, end=None):
+    i = next((k for k, l in enumerate(ls) if start in l), len(ls))
+    j = next((k for k, l in enumerate(ls) if end and k > i and end in l), len(ls))
+    return ls[i:j]
+
+
+ls = lines("cancel")
+done(ls, "cancel")
+WIND6 = r"flat throw: [JB]: the main hand winds up weapon 6.* \(ammo (\d+)\)"
+g1 = between(ls, "flatthrow_test: cancel gun", "flatthrow_test: cancel gun again")
+g2 = between(ls, "flatthrow_test: cancel gun again", "flatthrow_test: cancel gren")
+w1, w2 = find(g1, WIND6), find(g2, WIND6)
+c1 = find(g1, r"flat throw: cancelled: the main hand keeps weapon 6 \(ammo (\d+)\)")
+check(bool(w1) and bool(c1) and w1[0].group(1) == c1[0].group(1) and not find(g1, THROWN),
+      "cancel: B held, LMB: the nail gun's throw cancelled, nothing thrown, no nail (ammo %s at the wind-up, %s cancelled)" %
+      (w1[0].group(1) if w1 else "?", c1[0].group(1) if c1 else "?"))
+check(bool(find(g1, r"flatthrow: the main hand's attack button \(left\) with \S+ held: throw cancelled")),
+      "cancel: the client sent the cancel for the main hand's left button")
+t2 = find(g2, THROWN)
+check(bool(w1) and bool(w2) and w2[0].group(1) == w1[0].group(1) and bool(t2) and t2[0].group(1) == "thrown_weapon",
+      "cancel: LMB held on past B's release shot nothing, the gun still held: B again winds it up (ammo %s) and throws it (%s)" %
+      (w2[0].group(1) if w2 else "?", t2[0].group(0) if t2 else "none"))
+g3 = between(ls, "flatthrow_test: cancel gren")
+check(bool(find(g3, r"flat throw: [JB]: the main hand winds up its grenade")) and
+      bool(find(g3, r"flat throw: cancelled: the main hand keeps its grenade \(unarmed\)")),
+      "cancel: the quick grenade wound up by B, LMB: cancelled, kept unarmed")
+check(not find(g3, r"flat grenade: thrown by") and not find(g3, r"flat grenade: winding up") and bool(find(g3, r"flatgren: phase 2, hand main")),
+      "cancel: the grenade neither thrown nor armed by that press, held again (phase 2)")
+
+ls = lines("cancoff")
+done(ls, "cancoff")
+g = between(ls, "flatthrow_test: cancoff")
+check(bool(find(g, r"flat throw: [JB]: the off hand winds up item_health")) and
+      bool(find(g, r"flat throw: cancelled: the off hand keeps item_health")),
+      "cancoff: the box in the off hand wound up by B, RMB (its button): cancelled")
+check(not find(g, r"flat (throw|drop): item_health (thrown|dropped)") and bool(find(g, r"flatthrow: phase 0, .*cancels 1")),
+      "cancoff: the box neither thrown nor dropped, one cancel")
+
+ls = lines("guide")
+v = find(ls, r"flatitems: (\d+) passed, (\d+) failed")
+check(bool(v) and int(v[0].group(2)) == 0 and int(v[0].group(1)) >= 13,
+      "guide: vr_flatitems_test 12: the guiding off hand catches nothing while B winds up; no catch without H, caught with a timed H (%s)" %
+      (v[0].group(0) if v else "no verdict"))
+
+# (flatthrow3) release: carried on into the follow-through, then let go of at the hand.
+ls = lines("release")
+done(ls, "release")
+LEFT = r"flat throw:   left the hand ([\d.]+) s after the key's release, ([\d.]+) units from it"
+FWD = r"flat throw:   left (-?[\d.]+) forward"
+r0 = between(ls, "flatthrow_test: release 0", "flatthrow_test: release default")
+r1 = between(ls, "flatthrow_test: release default", "flatthrow_test: release gren")
+l0, l1, f0, f1 = find(r0, LEFT), find(r1, LEFT), find(r0, FWD), find(r1, FWD)
+check(bool(l0) and float(l0[0].group(1)) < 0.005 and bool(find(r0, THROWN)),
+      "release: Release Delay 0: the nail gun leaves the hand at B's release (%s)" % (l0[0].group(0) if l0 else "no throw"))
+check(bool(l1) and 0.055 <= float(l1[0].group(1)) <= 0.09 and bool(find(r1, r"carried on 0\.07 s into the follow-through")),
+      "release: the default 0.07 s: carried on into the follow-through, it leaves that long after B's release (%s)" %
+      (l1[0].group(0) if l1 else "no throw"))
+check(bool(f0) and bool(f1) and float(f1[0].group(1)) > float(f0[0].group(1)) + 2,
+      "release: it leaves from the hand further forward than at once (%s vs %s units ahead of the eye)" %
+      (f1[0].group(1) if f1 else "?", f0[0].group(1) if f0 else "?"))
+check(bool(l1) and float(l1[0].group(2)) <= 16,
+      "release: it starts at the hand (no pop-in: %s units from it)" % (l1[0].group(2) if l1 else "?"))
+rg = between(ls, "flatthrow_test: release gren")
+lg = find(rg, r"flat grenade: left the hand ([\d.]+) s after the release")
+check(bool(lg) and 0.055 <= float(lg[0].group(1)) <= 0.09,
+      "release: the quick grenade's fire-button throw: the same delay (%s)" % (lg[0].group(0) if lg else "no throw"))
+for l in ls:
+    if "flatitems: FAIL" in l:
+        print("  " + l)
+
 print("flatthrow: %d passed, %d failed" % (passed, failed))
 sys.exit(1 if failed else 0)

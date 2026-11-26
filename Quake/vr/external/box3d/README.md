@@ -7,8 +7,14 @@ Erin Catto's 3D rigid-body physics engine, the successor to Box2D. MIT licence (
 
 - Upstream: https://github.com/erincatto/box3d
 - Version: 0.1.0 (alpha) and later work on main (`b3GetVersion` says 0.2.0, the next)
-- Commit: `1767150df433d94ffccd96f550431351403c4e8e` ("Pull model task API (#228)"; updated 2026-11-20 from efca0c18,
-  `docs/vr-port/ROUND25.md`, "box3dup"; from 5d83df83 on 2026-10-19, `docs/vr-port/ROUND22.md`). Since #191 a world's
+- Commit: `042be585b58d7eebcafecb287053d2448c116b06` ("Vehicle tech (#241)"; updated 2026-11-26 from 1767150d,
+  `docs/vr-port/ROUND26.md`, "box3dup3"; from efca0c18 on 2026-11-20, `docs/vr-port/ROUND25.md`, "box3dup"; from
+  5d83df83 on 2026-10-19, `docs/vr-port/ROUND22.md`). Since #236 the body's motion locks are gone: a body's
+  `fixedRotation` locks every turn, a motion lock joint the rest (a pushable corpse turning about its yaw alone is held
+  by one to the world's `anchor` body, `vr_box3d_props.cpp`). Since #237 a spherical joint's motor velocity is in joint
+  frame A, no longer the world's (`vr_ragactive.cpp`'s drive). Since #238 b3CreateHull fails (NULL) on a hull thinner
+  than the larger of `B3_LINEAR_SLOP` and 0.1% of its extent; its hulls are otherwise the same bytes (the gun pieces'
+  cache compared the same). Since #191 a world's
   `isotropicInertiaTolerance` (upstream's default 0.2) leaves the gyroscopic torque out for nearly isotropic bodies;
   Quake VR's worlds set it to 0, so every body but an exactly isotropic one keeps it, as before #191 (`vr_box3d.cpp`,
   the throw's spin alignment). Since #228 the enqueue callback gets a `b3TaskType` instead of a name
@@ -32,7 +38,8 @@ CMake files are left out. The changes:
   `src/mesh_contact.c`): the contact's least separation (0 from continuous collision): the hands pressing on props
   (`notePress`).
 - Elliptical cones (`include/box3d/types.h` b3SphericalJointDef `coneAngleY`, `src/joint.h`, `src/joint.c`,
-  `src/spherical_joint.c`, `src/recording.c`, `src/recording.h` (recording major version 7), `src/replay.c`): a
+  `src/spherical_joint.c`, `src/recording.c`, `src/recording.h` (recording major version 8: upstream took 7 for its
+  motion lock joints in #236), `src/replay.c`): a
   spherical joint's cone half angle toward frame A's y axis, `coneAngle` then toward x (the authored rig's balls,
   `vr_rig2.cpp`).
 - b3CreateHullWith (`src/hull.c`, `include/box3d/collision.h`): b3CreateHull with its working memory and result from
@@ -41,8 +48,10 @@ CMake files are left out. The changes:
 - Long manifold arrays (`src/physics_world.h`, `src/physics_world.c`, `include/box3d/box3d.h`): arrays longer than
   `B3_POOLED_MANIFOLD_COUNT` (4) come from b3Alloc instead of a block allocator of their own count (upstream makes one
   pool for every count up to the longest a contact had, each 512 arrays of its count, kept until the world goes; #227
-  capped the count at 8, so the pools' worst is now bounded, but the change stays), freed at the world's end, counted
-  in `b3World_DumpMemoryStats`, and `b3World_GetManifoldMemory` (`vr_physics_mem`; `docs/vr-port/MP_PLAN.md` B21).
+  capped the count at 8, so the pools' worst is now bounded, and #236 made the 8 allocators up front, empty, but the
+  change stays: a block of 512 eight-manifold arrays for one long contact), freed at the world's end, counted in
+  `b3World_DumpMemoryStats`, and `b3World_GetManifoldMemory` (`vr_physics_mem`, its pools those holding blocks;
+  `docs/vr-port/MP_PLAN.md` B21).
 - b3Body_GetAllContactData (`src/body.c`, `include/box3d/box3d.h`): b3Body_GetContactData's every contact, touching or
   not (`vr_physics_frametime`'s split of the ragdolls' contacts: ROUND25.md, "ragperf2").
 - b3World_EnableMeshGhostHandling (`src/physics_world.h`, `src/physics_world.c`, `src/mesh_contact.c`,

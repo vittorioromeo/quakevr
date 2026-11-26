@@ -52,6 +52,9 @@ namespace qvr::hull::detail
 // A table's planes by planeKey(dist), each key's in the order they were added.
 using PlaneIndex = ankerl::unordered_dense::map<long long, za::Vector<int>>;
 inline constexpr float minWidth = 8.f, maxWidth = 32.f;
+// The lowest box the player ever has (the lying-down box's least, vr_prone_height): the recovered clip brushes' faces
+// that move with a box's height (recoverClips) have their bounds grown for it. Quake's box is 56 tall (half 28).
+inline constexpr float lowestBoxHeight = 12.f;
 
 // A brush's face, outward: inside is dot(normal, p) < dist + grows * the box's reach along normal. A face of hull 0's
 // brushes grows with the box (grows 1); a recovered clip brush's face (see recoverClips) is already grown by Quake's
@@ -157,6 +160,7 @@ struct Tree
     // slowest's build and pieces (the critical path: buildTree)
     double growMs = 0.0, unitsMs = 0.0, mergeMs = 0.0, slowestMs = 0.0;
     za::SizeT slowestPieces = 0, units = 0;
+    int folded = 0;                            // (developer 1) its builds' nodes folded (both sides the same leaf: TreeBuilder::fold)
     int solidLeaves = 0, emptyLeaves = 0;
     bool fromDisk = false;                     // the world's tree read from the disk cache (vr_hull_cache)
     int cutBack = 0;                           // the world's compile (or file): its pieces cut back (reported by settle)
@@ -164,7 +168,7 @@ struct Tree
     {
         return qvr::mem::list(nodes, planes, heads, index, indexed, keptNodes, keptPlanes, keptSolid, keptEmpty, keptHeads,
             forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone, fromDisk, cutBack, growMs, unitsMs, mergeMs, slowestMs,
-            slowestPieces, units);
+            slowestPieces, units, folded);
     }
 };
 
@@ -248,9 +252,9 @@ struct Pending
     double brushesBegan = 0.0;          // when build() started on its worker (its wait in the queue: the load's report)
     double brushesEnded = 0.0;          // and ended, the holes included
     bool kept = false;                  // the brushes (and the trees found) the last load's of the same map
-    // vr_hull_defer (loadprof2): from beforeLoad to afterLoad, only the standing player's tree is made with the load;
-    // the crouched, lying and monsters' trees are compiled after it, on the pool ("Trees compiled in play"), and a
-    // monster moves with Quake's hull meanwhile.
+    // vr_hull_defer (loadprof2, hullwait): from beforeLoad to afterLoad, only the player's boxes' trees (standing,
+    // crouched, lying) are made with the load; the monsters' are compiled after it, on the pool ("Trees compiled in
+    // play"), and a monster moves with Quake's hull meanwhile.
     bool deferring = false;
     za::Vector<glm::vec3> later; // the boxes the spawned map asked for (spawned: monsters by class, as the load's own)
 };
@@ -339,6 +343,9 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
 Tree* findSlot(const mclipnode_t* clipnodes, const glm::vec3& ext);
 bool boxInBrush(const Brushes& b, const Brush& br, const glm::dvec3& p, const glm::dvec3& ext);
 double support(const Plane& p, const glm::dvec3& ext);
+// The faces a brush's planes make in the centre space of a box of half size ext (each moved by support): their points'
+// bounds; false if they make none. (vr_hull_strays; recoverClips bounds a clip brush whose faces reach past its box.)
+bool brushReach(const Plane* planes, za::U32 count, const glm::dvec3& ext, glm::dvec3& lo, glm::dvec3& hi);
 int clientNum(const edict_t* ent);
 float entWidthSetting();
 // The trees compiled in play on the pool (vr_hull_async) finished first: before anything changes `built`'s layout or the

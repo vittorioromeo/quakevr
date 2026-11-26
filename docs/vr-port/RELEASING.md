@@ -1,6 +1,6 @@
 # Making a release
 
-One script builds, checks, packages and publishes a release of Quake VR: Unleashed:
+One script builds, checks, packages and publishes a release of Quake VR: UNLEASHED:
 `Misc\release\make_release.ps1` (PowerShell, Windows). It uses the branch that is checked out (no branch name is
 written in it). Everything it writes goes under `out\release\<version>\` (git-ignored). From Git Bash,
 `bash Misc/release/make_release.sh ...` runs the same script. The version released is the repository's `VERSION` file
@@ -332,7 +332,7 @@ a prerelease as `MAJOR.MINOR.PATCH-beta.N` (or `-rc.N`). Every build reads it:
 
 **Dev and release builds.** Every build is a dev build except the release script's: `VR_BuildVersion` reads
 `1.0.0-dev (2026-10-07 afd53921)` (the commit's date and short hash, `-dirty` with uncommitted changes), and the menus'
-corner label "Quake VR: Unleashed - v1.0-dev" (the "-dev" fainter). The release script builds with
+corner label "Quake VR: UNLEASHED - v1.0-dev" (the "-dev" fainter). The release script builds with
 `/p:QvrReleaseVersion=<VERSION>` (the build refuses one that is not `VERSION`'s): `1.0.0 (2026-10-07 afd53921)` and
 "v1.0"; `manifest.json` and `latest.json` carry the same text, the installer's version is `1.0.0`, and the annotated
 tag `v1.0.0` records it. Between releases `VERSION` names the last release (or the one being prepared): a dev build's
@@ -352,7 +352,7 @@ shows `vMAJOR.MINOR` while PATCH is 0 ("v1.0", "v1.1") and the whole version oth
 - **Prereleases** (`1.0.0-beta.1`, `-beta.2`, `-rc.1`): test builds of the version named; GitHub marks them as
   prereleases. The final release drops the suffix (1.0.0-rc.2 to 1.0.0).
 
-The first Ironwail-based release is **1.0.0** (decided 2026-10-08): the old Quake VR's tags reached v0.8.2, and Unleashed
+The first Ironwail-based release is **1.0.0** (decided 2026-10-08): the old Quake VR's tags reached v0.8.2, and UNLEASHED
 is the release called finished, so it starts at 1.0.0 rather than below it.
 
 ## What an update replaces

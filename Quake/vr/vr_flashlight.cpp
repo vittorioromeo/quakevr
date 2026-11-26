@@ -610,6 +610,13 @@ BeamTrace beamTraces[beamRings][beamSides];
 }
 bool headModeWas = false; // vr_flashlight was 2 when last set (onModeChanged)
 
+// Whether the torch is on the belt or on its way back there: a holster slot (round 26, "flashgrab"), taken as any
+// holster's weapon is, no deliberate press needed.
+[[nodiscard]] bool onBelt()
+{
+    return st.mode == Mode::Mounted || st.mode == Mode::Returning;
+}
+
 // Metres from the torch's axis a hand reaches it at (lit, taken by a press): `reach` times vr_flashlight_grab_range (the
 // author's notes: more leniency).
 [[nodiscard]] float grabReach()
@@ -631,6 +638,18 @@ bool headModeWas = false; // vr_flashlight was 2 when last set (onModeChanged)
 [[nodiscard]] Pose poseFromAxes(const glm::vec3& pos, const glm::vec3& fwd, const glm::vec3& left, const glm::vec3& up)
 {
     return {pos, glm::normalize(glm::quat_cast(glm::mat3{fwd, left, up}))};
+}
+
+// The belt torch's turn in the pelvis's frame (x forward, y left, z up) from hanging lens down with its switch forward:
+// leant about the side axis by vr_flashlight_tilt (the lens out from the body), turned about the upright by
+// vr_flashlight_yaw (the switch towards its side) and leant about the forward axis by vr_flashlight_roll (the lens out
+// sideways, away from your middle): Rz(yaw) Ry(-tilt) Rx(roll). `side` -1 (the right hip) mirrors it: yaw and roll negated.
+[[nodiscard]] glm::mat3 beltTurn(float side)
+{
+    const float yaw = glm::radians(vr_flashlight_yaw.value) * side, roll = glm::radians(vr_flashlight_roll.value) * side;
+    const float pitch = -glm::radians(za::clamp(vr_flashlight_tilt.value, -90.f, 90.f));
+    return glm::mat3_cast(glm::angleAxis(yaw, glm::vec3{0.f, 0.f, 1.f}) * glm::angleAxis(pitch, glm::vec3{0.f, 1.f, 0.f}) *
+                          glm::angleAxis(roll, glm::vec3{1.f, 0.f, 0.f}));
 }
 
 // Stored on the belt (round 21: hanging; on the chest at first, where a boxing guard's fist closed on it): clipped by
@@ -661,9 +680,12 @@ bool headModeWas = false; // vr_flashlight was 2 when last set (onModeChanged)
                                                   up * (beltUp + vr_flashlight_up.value + vr_body_belt_up.value)) *
                                                   m2w;
 
-    const float lean = glm::radians(CLAMP(-30.f, vr_flashlight_tilt.value, 60.f));
-    const glm::vec3 beam = -up * za::cos(lean) + fwd * za::sin(lean); // down, the lens leaning out
-    const glm::vec3 out = fwd * za::cos(lean) + up * za::sin(lean);   // the switch's side
+    // Down, the lens leaning out (vr_flashlight_tilt), turned and leant sideways (_yaw, _roll; round 26: Holster Setup
+    // turns it); the switch's side out.
+    const glm::mat3 frame{fwd, left, up};
+    const glm::mat3 turn = beltTurn(side);
+    const glm::vec3 beam = frame * (turn * glm::vec3{0.f, 0.f, -1.f});
+    const glm::vec3 out = frame * (turn * glm::vec3{1.f, 0.f, 0.f});
     return poseFromAxes(clip + beam * (-shape().cap.x * units::worldScale()), beam, glm::cross(out, beam), out); // the tail at the clip
 }
 
@@ -1649,20 +1671,27 @@ void gripTake(const hands::State& s, int hand)
     take(hand);
 }
 
-// A grip press the lamp didn't take (button): a late grip (lateGrips) if it may yet. The empty hand pressed from open,
-// not just punching, within lateReach of the lamp (plus a slowed hand's lag behind its controller: where the player's
-// hand already is), and not where the game's grip wins (a holster nearer: it draws).
+// A grip press the lamp didn't take (button): a late grip (lateGrips) if it may yet. On the head only: the empty hand
+// pressed from open, not just punching, within lateReach of the lamp (plus a slowed hand's lag behind its controller:
+// where the player's hand already is). On the belt a hand arriving closed takes nothing (round 26, his call).
 void startLate(const hands::State& s, int hand)
 {
     st.lateUntil[hand] = -1.0;
     if(st.mode == Mode::Held || st.mode == Mode::OnGun || hand == st.gunHand || !s.valid || !handEmpty(hand) ||
-        held::heldEntity(hand) != 0 || realtime < st.punchUntil[hand] || !pressedOpen(hand, 0) ||
-        ((st.mode == Mode::Mounted || st.mode == Mode::Returning) && gameGripWins(s, hand)))
+        held::heldEntity(hand) != 0)
     {
         return;
     }
     const float m2u = units::metresToUnits();
     const float d = lampDistance(s, hand);
+    if(onBelt())
+    {
+        return;
+    }
+    if(realtime < st.punchUntil[hand] || !pressedOpen(hand, 0))
+    {
+        return;
+    }
     if(d > (lateReach * grabReach() / reach + timescale::handLag(hand)) * m2u && !(st.mode == Mode::OnHead && handAt(s, hand)))
     {
         return;
@@ -2260,6 +2289,13 @@ void probe_f()
     // The lit lens's disc (drawLens) drawn in the last frame or the one before, and the torch's model drawn.
     Con_Printf("torchprobe %s lens drawn %d model %d\n", tag, st.lensFrame >= host_framecount - 2 ? 1 : 0,
         st.model && view::drawn(*st.model) ? 1 : 0);
+    // The belt slot (Holster Setup's; round 26): its middle in the world, its reach (units), its beam's direction.
+    if(BeltSlot slot; beltSlot(s, slot))
+    {
+        const glm::vec3 beam = slot.rot * glm::vec3{1.f, 0.f, 0.f};
+        Con_Printf("torchprobe %s slot %.2f %.2f %.2f reach %.2f beam %.3f %.3f %.3f len %.2f\n", tag, slot.middle.x,
+            slot.middle.y, slot.middle.z, slot.reach, beam.x, beam.y, beam.z, glm::distance(slot.tail, slot.lens));
+    }
     view::WeaponMount gm;
     if(st.mode == Mode::OnGun && st.gunHand >= 0 && view::weaponMount(st.gunHand, gm))
     {
@@ -3033,9 +3069,11 @@ bool button(int hand, Button b, bool pressed)
         swallowed = true;
         return true;
     }
-    // (On a gun, a grip at the lamp is the game's: the foregrip is near. B/Y takes it off.) On the head, a grip at it
-    // takes it off into the hand.
-    if(grip && atLamp && st.mode != Mode::OnGun && handEmpty(hand) && deliberate(hand, b))
+    // (On a gun, a grip at the lamp is the game's: the foregrip is near. B/Y takes it off.) On the head, a deliberate grip
+    // at it takes it off into the hand. On the belt (or on its way home) it is a holster slot like the others (round 26,
+    // "flashgrab"; his note 2026-11-26 19:58: a quick grab often missed it, the hand had to stop half a second): any grip
+    // in its grab zone takes it, the hand moving or not, open before or not.
+    if(grip && atLamp && st.mode != Mode::OnGun && handEmpty(hand) && (onBelt() || deliberate(hand, b)))
     {
         gripTake(s, hand);
         swallowed = true;
@@ -3093,6 +3131,11 @@ void lateGrips()
             held::heldEntity(hand) != 0 || (cl.stats[protocol::STAT_QVR_CLIMB] & (1 << hand)) != 0 || fg >= 2)
         {
             end("the game's (a weapon, a hold, a force grab) or the torch taken");
+            continue;
+        }
+        if(onBelt())
+        {
+            end("the torch is on the belt: no closed-hand grab");
             continue;
         }
         if(realtime < st.punchUntil[hand])
@@ -3246,6 +3289,58 @@ float reachRatio(const hands::State& s, int hand)
         ratio = za::min(ratio, glm::distance(fist, z.temple[st.headSide > 0.f ? 1 : 0]) / za::max(z.radius, 1e-3f));
     }
     return ratio;
+}
+
+bool beltSlot(const hands::State& s, BeltSlot& out)
+{
+    if(!enabled() || headMode() || !s.valid)
+    {
+        return false;
+    }
+    const Pose p = mountPose(s);
+    out.tail = modelPointAt(p, shape().cap);
+    out.lens = modelPointAt(p, shape().lens);
+    out.middle = 0.5f * (out.tail + out.lens);
+    out.rot = p.rot;
+    out.reach = grabReach() * units::metresToUnits();
+    return true;
+}
+
+float beltRatio(const BeltSlot& slot, const glm::vec3& p)
+{
+    // As lampDistance: from the axis, tail to lens.
+    const glm::vec3 ab = slot.lens - slot.tail;
+    const float t = za::clamp(glm::dot(p - slot.tail, ab) / za::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
+    return glm::distance(p, slot.tail + ab * t) / za::max(slot.reach, 1e-3f);
+}
+
+void setBeltTurn(const hands::State& s, const glm::quat& rot)
+{
+    if(!s.valid)
+    {
+        return;
+    }
+    // The turn in the pelvis's frame (mountPose's): rot's axes (the beam, its left, the switch's side) from hanging lens
+    // down, switch forward (base: the beam -z, its left y, the switch x), then Rz(a) Ry(b) Rx(c) read back (beltTurn).
+    const avatar::Torso torso = avatar::torso(s);
+    const glm::vec3 up = torso.pelvis.rot[0], fwd = torso.pelvis.rot[2];
+    const glm::mat3 frame{fwd, glm::cross(up, fwd), up};
+    const glm::mat3 base{glm::vec3{0.f, 0.f, -1.f}, glm::vec3{0.f, 1.f, 0.f}, glm::vec3{1.f, 0.f, 0.f}};
+    const glm::mat3 m = glm::transpose(frame) * glm::mat3_cast(rot) * glm::transpose(base);
+    const float a = za::atan2(m[0][1], m[0][0]);
+    const float b = za::asin(za::clamp(-m[0][2], -1.f, 1.f));
+    const float c = za::atan2(m[1][2], m[2][2]);
+    const float side = vr_flashlight_side.value != 0.f ? -1.f : 1.f;
+    const auto set = [](cvar_t& var, float degrees) {
+        const float v = roundf(degrees * 2.f) * 0.5f;
+        if(za::fabs(var.value - v) > 1e-4f)
+        {
+            Cvar_SetValueQuick(&var, v);
+        }
+    };
+    set(vr_flashlight_tilt, -glm::degrees(b));
+    set(vr_flashlight_yaw, glm::degrees(a) * side);
+    set(vr_flashlight_roll, glm::degrees(c) * side);
 }
 
 bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& angles)

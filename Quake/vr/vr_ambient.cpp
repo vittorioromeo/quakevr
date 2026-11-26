@@ -28,7 +28,9 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 #include "vr_api_render.h"
 
 
@@ -524,6 +526,7 @@ constexpr float GRID_POWER = 2.5f;
 
 constexpr unsigned GRID_CACHE_VERSION = 3u;         // a build's: bumped when gridProbe's values change
 constexpr double GRID_CACHE_SECONDS = 0.1;          // a grid that took this long is kept on disk (the smaller read no faster)
+bool writeEveryGrid = false;                        // setWriteEveryGrid: every grid kept, however quick (the shipped cache's)
 constexpr float GRID_AIR = 256.f;                  // a probe has a surface within this straight below it
 constexpr float GRID_FIXED = 128.f;                 // a GridEntry's values over Quake's lightmap units
 constexpr float GRID_MASK_MOVE = 4.f;               // the probes in sight looked at again when it moved this far
@@ -1068,14 +1071,22 @@ void gridBuild()
     }
 
     // The probes, a layer at a time; each layer's entries are its own until they are all in one list.
+    // A row (of x) a chunk: a layer a chunk left the main thread waiting seconds for the last few (a big map's dozens of
+    // layers, uneven), its loading panel still (flatloadbar); the entries merged in the same order, the same grid.
     const int layers = grid.size[2];
-    za::Vector<za::Vector<GridEntry>> layerEntries(static_cast<za::SizeT>(layers));
-    jobs::parallelFor(gridProbesSite, static_cast<za::SizeT>(layers), 1, [&layerEntries](za::SizeT z0, za::SizeT z1) {
-        for(int z = static_cast<int>(z0); z < static_cast<int>(z1); z++)
+    const int rowsY = grid.size[1];
+    const int probeRows = layers * rowsY;
+    za::Vector<za::Vector<GridEntry>> rowEntries(static_cast<za::SizeT>(probeRows));
+    za::Atomic<int> rowsDone{0}; // (the loading panel's count: drawn by the main thread as it ends one)
+    int mainRows = 0;            // (those the main thread made: developer 1)
+    const int totalRows = probeRows + za::max(layers - 1, 0) * za::max(rowsY - 1, 0); // (both passes)
+    jobs::parallelFor(gridProbesSite, static_cast<za::SizeT>(probeRows), 1, [&rowEntries, &rowsDone, &mainRows, totalRows, rowsY](za::SizeT r0, za::SizeT r1) {
+        for(int r = static_cast<int>(r0); r < static_cast<int>(r1); r++)
         {
-            za::Vector<GridEntry>& out = layerEntries[z];
-            for(int y = 0; y < grid.size[1]; y++)
+            za::Vector<GridEntry>& out = rowEntries[r];
+            const int z = r / rowsY;
             {
+                const int y = r % rowsY;
                 for(int x = 0; x < grid.size[0]; x++)
                 {
                     const glm::vec3 p = grid.point(x, y, z);
@@ -1094,42 +1105,49 @@ void gridBuild()
                         gridProbe(p, x, y, z, out, grid.cells[grid.index(x, y, z)]);
                     }
                 }
+                const int rows = rowsDone.fetchAddRelaxed(1) + 1;
+                if(VR_OnMainThread())
+                {
+                    mainRows++;
+                    VR_LoadCount(rows, totalRows);
+                }
             }
         }
     });
+    const double probesDone = Sys_DoubleTime();
     za::SizeT totalEntries = 0;
-    for(const za::Vector<GridEntry>& layer : layerEntries)
+    for(const za::Vector<GridEntry>& row : rowEntries)
     {
-        totalEntries += layer.size();
+        totalEntries += row.size();
     }
     grid.entries.reserve(totalEntries);
-    for(int z = 0; z < layers; z++)
+    for(int r = 0; r < probeRows; r++)
     {
         const unsigned base = static_cast<unsigned>(grid.entries.size());
-        for(const GridEntry& entry : layerEntries[z])
+        for(const GridEntry& entry : rowEntries[r])
         {
             grid.entries.pushBack(entry);
         }
-        for(int y = 0; y < grid.size[1]; y++)
+        const int z = r / rowsY, y = r % rowsY;
+        for(int x = 0; x < grid.size[0]; x++)
         {
-            for(int x = 0; x < grid.size[0]; x++)
+            unsigned& cell = grid.cells[grid.index(x, y, z)];
+            if((cell & GRID_FIRST) != GRID_FIRST)
             {
-                unsigned& cell = grid.cells[grid.index(x, y, z)];
-                if((cell & GRID_FIRST) != GRID_FIRST)
-                {
-                    cell += base;
-                }
+                cell += base;
             }
         }
     }
 
     // The cells with nothing in them: all eight corners probes, and the long diagonals clear.
     za::Vector<unsigned char> clear(grid.cells.size(), static_cast<unsigned char>(0));
-    jobs::parallelFor(gridClearSite, static_cast<za::SizeT>(za::max(layers - 1, 0)), 1, [&clear](za::SizeT z0, za::SizeT z1) {
-        for(int z = static_cast<int>(z0); z < static_cast<int>(z1); z++)
+    const int clearY = za::max(rowsY - 1, 0); // (a row a chunk, as the probes)
+    jobs::parallelFor(gridClearSite, static_cast<za::SizeT>(za::max(layers - 1, 0) * clearY), 1, [&clear, &rowsDone, totalRows, clearY](za::SizeT r0, za::SizeT r1) {
+        for(int r = static_cast<int>(r0); r < static_cast<int>(r1); r++)
         {
-            for(int y = 0; y + 1 < grid.size[1]; y++)
+            const int z = r / clearY;
             {
+                const int y = r % clearY;
                 for(int x = 0; x + 1 < grid.size[0]; x++)
                 {
                     bool open = true;
@@ -1145,9 +1163,16 @@ void gridBuild()
                     }
                     clear[grid.index(x, y, z)] = open ? 1 : 0;
                 }
+                const int rows = rowsDone.fetchAddRelaxed(1) + 1;
+                if(VR_OnMainThread())
+                {
+                    VR_LoadCount(rows, totalRows);
+                }
             }
         }
     });
+    Con_DPrintf("model light grid: probes %.0f ms (%d of %d rows on the main thread), clear cells %.0f ms\n",
+        (probesDone - start) * 1000.0, mainRows, probeRows, (Sys_DoubleTime() - probesDone) * 1000.0);
     for(za::SizeT i = 0; i < clear.size(); i++)
     {
         if(clear[i])
@@ -1158,7 +1183,7 @@ void gridBuild()
 
     const za::SizeT cellBytes = grid.cells.size() * sizeof(unsigned);
     const za::SizeT entryBytes = grid.entries.size() * sizeof(GridEntry);
-    if(Sys_DoubleTime() - start >= GRID_CACHE_SECONDS)
+    if(Sys_DoubleTime() - start >= GRID_CACHE_SECONDS || writeEveryGrid)
     {
         za::Vector<char> bytes;
         bytes.resize(cellBytes + entryBytes);
@@ -2431,6 +2456,11 @@ void gridTest_f()
 #endif
 
 } // namespace
+
+void ambient::setWriteEveryGrid(bool on)
+{
+    writeEveryGrid = on;
+}
 
 // VR_NewMap (prewarm): the grid is built with the map's load, not at its first frame.
 void ambient::prepareGrid()

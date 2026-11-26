@@ -3,6 +3,7 @@
 #include "vr_lancecharge.hpp"
 
 #include "vr_anchor.hpp"
+#include "vr_axestick.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
@@ -38,6 +39,8 @@ constexpr float humPitchLow = 0.6f; // its rate as the charge begins .. once ful
 constexpr float humPitchHigh = 1.35f;
 constexpr float firedFade = 0.06f;  // s the charge's look goes out over as it fires (its bolt takes over)
 constexpr float quakeBeamLife = 0.2f; // (cl_tent.c's)
+constexpr double lostGrace = 0.25;  // s a charge's Lance may be found nowhere (a frame between the hand and its stuck
+                                    // prop, embedfire) before it is gone with it
 constexpr int maxSparksFrame = 12;
 const glm::vec3 violet{0.62f, 0.32f, 1.f};
 const glm::vec3 paleViolet{0.88f, 0.75f, 1.f};
@@ -56,6 +59,7 @@ struct Charge
     bool logFired{false}; // vr_debug_gunfx: where it fired from to print (its bolt's start: boltStart)
     double fired{-1.0};   // cl.time it last fired (yours: shake's)
     double buzzNext{-1.0}; // yours: the charge's next buzz
+    double lost{-1.0};     // cl.time its Lance was first found nowhere (-1: drawn)
 };
 
 // A Lance model's middle crystal's tip (his note 2026-11-23: the charge's light and sparks came from a little off it):
@@ -88,6 +92,8 @@ struct State
     bool boltLog[MAX_SCOREBOARD + 1][2]{}; // a new bolt's start to print (vr_debug_gunfx: beamLife, then boltStart)
     float shakeMost{0.f}; // yours: the most shake given (kicks) since the last vr_debug_gunfx event print (lance3)
     int buzzes{0};        // yours: the charge's and the shot's buzzes started (printed with it)
+    view::ViewEntity stuck[2]; // your hands' Lance stuck in a body as drawn (stuckLance's)
+    bool propBoltLog{false};   // a prop's new bolt's start to print (vr_debug_gunfx: beamLife, then boltStart)
 };
 
 [[nodiscard]] State& st()
@@ -100,11 +106,33 @@ struct State
     return m && (ZA_STRSTR(m->name, "dw_lance") || ZA_STRSTR(m->name, "dw_rail"));
 }
 
-// Player `p`'s Lance in `hand` as drawn this frame (yours: `own`; another player's copy's), else null.
+// The Lance stuck in a body that your `hand` holds (embedfire: it charges and fires there, QC vr_propfire.qc), as drawn:
+// its client entity (axestick::heldEnt) in st.stuck[hand]; else null.
+[[nodiscard]] const view::ViewEntity* stuckLance(int hand)
+{
+    const int e = axestick::heldEnt(hand);
+    if(e <= 0 || e >= cl.num_entities || !isLance(cl_entities[e].model))
+    {
+        return nullptr;
+    }
+    view::ViewEntity& w = st.stuck[hand];
+    w = view::ViewEntity{};
+    w.ent = cl_entities[e];
+    w.visible = true;
+    w.netEntity = e; // (its networked scale and offset, as a lying gun's)
+    return &w;
+}
+
+// Player `p`'s Lance in `hand` as drawn this frame (yours: `own`, or the Lance stuck in a body that hand holds; another
+// player's copy's), else null.
 [[nodiscard]] const view::ViewEntity* drawnLance(int p, int hand, const view::ViewEntity (&own)[2])
 {
     const view::ViewEntity* w = p == cl.viewentity ? &own[hand] : mpavatar::drawnWeapon(p, hand);
-    return w && w->ent.model && (w->visible || p != cl.viewentity) && isLance(w->ent.model) ? w : nullptr;
+    if(w && w->ent.model && (w->visible || p != cl.viewentity) && isLance(w->ent.model))
+    {
+        return w;
+    }
+    return p == cl.viewentity ? stuckLance(hand) : nullptr;
 }
 
 // An anchor's text ("x y z", weapons.txt *_av) as a point in model units; false: not three numbers.
@@ -382,7 +410,18 @@ void frame(const view::ViewEntity (&own)[2])
             gunfx::Muzzle m;
             if(!w || !gunfx::drawnMuzzle(*w, weapons::slotForModel(w->ent.model), m))
             {
+                // Found nowhere a moment (the frame the hand's Lance became its stuck prop, or came back out: embedfire):
+                // the charge kept, not drawn.
+                if(c.charging && (c.lost < 0.0 || cl.time - c.lost < lostGrace))
+                {
+                    if(c.lost < 0.0)
+                    {
+                        c.lost = cl.time;
+                    }
+                    continue;
+                }
                 // The Lance left the hand (thrown, dropped, holstered, his copy not drawn): nothing to draw it on.
+                c.lost = -1.0;
                 if(c.charging || c.level > 0.f)
                 {
                     debugPrint("gone with the Lance", p, hand, c);
@@ -392,6 +431,7 @@ void frame(const view::ViewEntity (&own)[2])
                 stopHum(c, p, hand);
                 continue;
             }
+            c.lost = -1.0;
             const float was = c.level;
             c.level = c.charging ? za::clamp(static_cast<float>(cl.time - c.start) / c.seconds, 0.f, 1.f)
                                  : za::max(0.f, c.level - dt / c.fade);
@@ -468,12 +508,43 @@ float beamLife(int ent)
         {
             st().boltLog[e][id] = true;
         }
+        else
+        {
+            st.propBoltLog = true;
+        }
     }
     return life;
 }
 
 bool boltStart(int ent, int hand, const glm::vec3& muzzle, glm::vec3& out)
 {
+    if(ent > cl.maxclients && ent < cl.num_entities)
+    {
+        // A prop's bolt (embedfire): the Lance stuck in a body that your hand holds and fires (QC vr_propfire.qc), from its
+        // tip as drawn. (Not an armed grunt's: its gun is drawn by its arms, away from its entity.)
+        for(int h = 0; h < 2; h++)
+        {
+            if(axestick::heldEnt(h) != ent)
+            {
+                continue;
+            }
+            const view::ViewEntity* w = stuckLance(h);
+            gunfx::Muzzle m;
+            if(!w || !gunfx::drawnMuzzle(*w, weapons::slotForModel(w->ent.model), m) || tipAt(*w, m.at) < 0)
+            {
+                return false;
+            }
+            out = m.at;
+            if(st.propBoltLog)
+            {
+                st.propBoltLog = false;
+                Con_Printf("lancecharge: bolt from the stuck Lance (ent %d, your hand %d) at its tip %.2f %.2f %.2f, %.2f off "
+                           "the server's muzzle\n", ent, h, out.x, out.y, out.z, glm::distance(out, muzzle));
+            }
+            return true;
+        }
+        return false;
+    }
     if(ent < 1 || ent > MAX_SCOREBOARD || ent > cl.maxclients || hand < 0 || hand > 1)
     {
         return false;

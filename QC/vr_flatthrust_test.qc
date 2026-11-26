@@ -364,7 +364,10 @@ void() VR_FM5_Frame =
         }
         VR_ET_To(2);
     }
-    else if(vr_et_case >= 9 && vr_et_s == 2 && (vr_fm5_hit || w != world || t > 0.9))
+    // (The flipped thrusts, 11 and 12, wait to be stuck, not just the hit, as test 58 does: the blade goes in once the drawn
+    // blade reaches the hit, frames after it; with his flipped pose (900606064) the sword's hit came first and it was read
+    // unstuck at once.)
+    else if(vr_et_case >= 9 && vr_et_s == 2 && ((vr_fm5_hit && vr_et_case != 11 && vr_et_case != 12) || w != world || t > 0.9))
     {
         float dmg = vr_ft_hp - vr_et_m.health;
         VR_Test_Check(dmg > 0, sprintf("%s: attack connects and deals damage (%g dmg, kind %g, f %.2f)", vr_ft_name, dmg, vr_fm5_kind, vr_fm5_cf));

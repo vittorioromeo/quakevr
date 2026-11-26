@@ -170,6 +170,7 @@ void openRunSetupArena();  // Arena Mode's row after its experimental notice: th
 [[nodiscard]] za::Vector<Item> pageWofsHolstered();
 [[nodiscard]] za::Vector<Item> pageWofsEffects();
 [[nodiscard]] za::Vector<Item> pageWofsFlashlight();
+[[nodiscard]] za::Vector<Item> pageWofsAttachments();
 [[nodiscard]] za::Vector<Item> pageCombat();
 [[nodiscard]] za::Vector<Item> pageEmbeddedBlades();
 [[nodiscard]] za::Vector<Item> pageMovement();
@@ -478,6 +479,7 @@ inline constexpr Page pages[] = {
     {"Run Setup", pageRunSetup, pageMaps, LevelStandard}, // (a run's difficulty, presets, mutators: vr_menu_runsetup.inc)
     {"Menu Look", pageMenuLook, pageHudHub}, // (vr_menu_pages.inc: the menus' sizes, gaps, highlights and folds)
     {"Voice Chat", pageVoiceChat, pageVrsHudHapticsSound, LevelStandard}, // (vr_menu_voicechat.inc: multiplayer voice chat, MP B10v)
+    {"Weapon Offsets - Attachments", pageWofsAttachments, pageWeaponOffsets, LevelDeveloper}, // (vr_menu_wofs.inc; vr_attach.cpp: the bayonet's mount)
 #ifndef QVR_RELEASE
     {"Tunables", pageTunables, pageDebug, LevelDeveloper}, // a development build's (vr_menu_tunables.inc; vr_tunables.cpp)
     // Its submenus, a page a depth (titled with the submenu shown: tunablesTitle).

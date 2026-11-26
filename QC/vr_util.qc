@@ -108,6 +108,23 @@ vector(float xHand) VRGetWeaponFireRotFwd =
     return v_forward;
 }
 
+// The weapon prop a shot being fired comes from (world: the shooter's hand): an armed grunt's gun (vr_armedgrunt.qc
+// VR_AG_ShootProp), a weapon stuck in a body that the player's hand holds (vr_propfire.qc, embedfire). Set around the
+// fire code, which reads the hand's fields as the prop's: its beams drawn from the prop, its flash on it.
+entity vr_fire_prop;
+
+// weaponfired (its muzzle flash, the client's shot effects) for the shot of `xHand`: on the prop a player's hand fires
+// (vr_fire_prop), else on the hand's weapon.
+void(float xHand) VR_WeaponFired =
+{
+    if(vr_fire_prop != world && (self.flags & FL_CLIENT))
+    {
+        weaponfired(vr_fire_prop, -1);
+        return;
+    }
+    weaponfired(self, xHand);
+};
+
 // The forward vector of `xAngles`, leaving v_forward (and v_right, v_up) as they were: for code
 // that runs while a caller still needs them.
 vector(vector xAngles) VRForwardOf =
@@ -575,6 +592,16 @@ float VR_HANDACTION_MAIN = 8;
 float(entity p, float xHand) VR_HandMotionAction =
 {
     return (p.handsynth & (xHand == cVR_MainHand ? VR_HANDACTION_MAIN : VR_HANDACTION_OFF)) != 0;
+};
+
+// Whether hand `xHand` of `p` strikes this move with flat-screen V's two-fisted overhead blow (the engine's
+// vr_flat_overhand_both, both hands empty; 256 of .handsynth): one hit, the main fist's, for both fists (the off fist's
+// motion is synthesized, no blow of its own): its damage times vr_flat_overhand_2h_damage (VRMeleeDmg), its push times
+// vr_flat_overhand_2h_push (T_Damage_VRMelee). flatmelee6, his words 2026-11-26.
+float VR_HANDTWOFIST = 256;
+float(entity p, float xHand) VR_HandTwoFisted =
+{
+    return xHand == cVR_MainHand && (p.handsynth & VR_HANDTWOFIST) && (p.handsynth & VR_HANDACTION_MAIN);
 };
 
 // The hand of flat-screen player `p` holding its melee weapon up in the parry's guard this move (the engine's

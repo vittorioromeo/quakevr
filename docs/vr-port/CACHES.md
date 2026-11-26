@@ -63,7 +63,12 @@ loading Quake VR's own first maps, read where the player's cache has no file (or
   packaged game, in a copy of the package's `quakevr` (no player config: the shipped defaults), loads each map alone
   (`-prepare <file> -preparemaps <map>`: the installer's preparation run limited to those maps, then quit;
   `+vr_setup_pending 0`, or a first start's calibration room replaces the map) with an empty `vr_cache_dir` and
-  `vr_cache_shipped 0`, and copies the products' files of that run.
+  `vr_cache_shipped 0`, and copies the products' files of that run. With `-preparemaps` the run writes every product
+  however quick it was on this PC (`hull::setWriteEveryTree`, `ambient::setWriteEveryGrid`: the 25 ms and 0.1 s bars
+  are skipped) and, before a map ends, finishes what is still on the pool (`hull::finishLoads`: the monsters' deferred
+  trees; `nav::finishBuilds`: the navmesh's size classes), so any exe gives the same files byte for byte
+  (shipcachefix, 2026-11-26: 30 files, 169.0 MB; every player and monster box of each map, the three light grids,
+  vrtutorial's and vrstart's navmeshes).
 - **What ships** (2026-11-25, loadprof2): vrstart's 8 hull trees (130.6 MB, 61 MB deflated: the player's and the
   monsters' boxes) and light grid (47.7 MB, 21 MB), vrtutorial's light grid (4.7 MB) and 2 small trees (0.4 MB), and the
   three maps' brushes (`.hbr`, the hull's walk, clip brushes and holes: vrstart 15.0 MB, 4.8 MB deflated; vrtutorial

@@ -286,6 +286,8 @@ layout(location = 0) uniform vec4 Map;  // scene pixels per image pixel (xy), 1 
 layout(location = 1) uniform vec4 Lens; // the projection centre (image pixels), 1 / pixels per tangent
 layout(location = 2) uniform vec2 Ring; // vr_upscale's radius and the ring's half width, as tangents (x 0: none)
 layout(location = 3) uniform int HasRates;
+layout(location = 4) uniform vec4 Quest;     // the Quest's density zones: the focal point (the drawn part's -1..1), gain (0: none), area
+layout(location = 5) uniform vec2 SceneSize; // the drawn part's pixels
 layout(location = 0) out vec4 Out;
 void main()
 {
@@ -298,6 +300,15 @@ void main()
             c = vec4(1.0, 0.9, 0.0, 0.22);
         else if(r >= 2u)
             c = vec4(1.0, 0.15, 0.0, 0.35);
+    }
+    if(Quest.z > 0.0)
+    {
+        vec2 d = gl_FragCoord.xy * Map.xy / SceneSize * 2.0 - 1.0 - Quest.xy;
+        float q = Quest.z * Quest.z * dot(d, d) - Quest.w; // the density's inverse
+        if(q >= 4.0)
+            c = vec4(1.0, 0.15, 0.0, 0.35);
+        else if(q >= 2.0)
+            c = vec4(1.0, 0.9, 0.0, 0.22);
     }
     if(Ring.x > 0.0 && abs(length((gl_FragCoord.xy - Lens.xy) * Lens.zw) - Ring.x) < Ring.y)
         c = vec4(0.0, 1.0, 1.0, 0.8);
@@ -455,7 +466,18 @@ void endScene()
     bindShadingRateImage(0);
 }
 
-void drawDebug(int eye, GLuint fbo, int width, int height, int sceneWidth, int sceneHeight)
+DensityZones runtimeZones(int level)
+{
+    // Modelled on Meta's level pictures and qfov4's Quest 3 traces (min density 0.25 at every level; Low and Medium
+    // reduce the edges and corners, High from about two thirds out): full within sqrt(2 + area) / gain of the centre,
+    // half (2x1) to sqrt(4 + area) / gain, a quarter (2x2) beyond.
+    constexpr float gains[] = {0.f, 1.3f, 1.6f, 2.f};
+    DensityZones z;
+    z.gain = gains[za::clamp(level, 0, 3)];
+    return z;
+}
+
+void drawDebug(int eye, GLuint fbo, int width, int height, int sceneWidth, int sceneHeight, const DensityZones& quest)
 {
     if(vr_foveated_debug.value == 0.f)
     {
@@ -475,6 +497,10 @@ void drawDebug(int eye, GLuint fbo, int width, int height, int sceneWidth, int s
     const bool hasRates = vr_foveated.value >= 1.f && img.texture && img.width == sceneWidth && img.height == sceneHeight;
     const upscale::Lens lens = upscale::lens(eye, width, height);
     const bool ring = vr_upscale.value >= 1.f && upscale::radiusTangent() > 0.f;
+    if(!hasRates && !ring && quest.gain <= 0.f)
+    {
+        return;
+    }
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
     glViewport(0, 0, width, height);
@@ -486,6 +512,8 @@ void drawDebug(int eye, GLuint fbo, int width, int height, int sceneWidth, int s
     GL_Uniform4fFunc(1, lens.centre.x, lens.centre.y, 1.f / lens.pixelsPerTangent.x, 1.f / lens.pixelsPerTangent.y);
     GL_Uniform2fFunc(2, ring ? upscale::radiusTangent() : 0.f, 1.5f / lens.pixelsPerTangent.x);
     GL_Uniform1iFunc(3, hasRates ? 1 : 0);
+    GL_Uniform4fFunc(4, quest.focalX, quest.focalY, quest.gain, quest.area);
+    GL_Uniform2fFunc(5, static_cast<float>(za::max(sceneWidth, 1)), static_cast<float>(za::max(sceneHeight, 1)));
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 

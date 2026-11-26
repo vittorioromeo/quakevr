@@ -6,7 +6,7 @@
 #     and the gun's club (dwlance verdict); the seven models made (vr_adweapon_models).
 #  2. Mock VR, the Lance in the main hand held like a spear (lancespear: the pole through the fist, the controller
 #     pitched so the pole lies level; vr_ad_test 207), vr_debug_2h_grip 2: the off hand closes on its pole 0.75 of
-#     the way to the tip (a pole grip taken), slides to 0.95 and back to 0.35 still gripping (the place along the pole
+#     the way to the tip (a pole grip taken; vr_pole_grip_fixed 0, vrspear), slides to 0.95 and back to 0.35 still gripping (the place along the pole
 #     follows it: further, then nearer; never let go), the two-handed hold counts (vr_status: "on its pole") and the
 #     beam goes along the pole (vr_status: the shot within 6 degrees of the line from the hand to the tip).
 # Exits 1 on a failure.
@@ -20,7 +20,7 @@ check $(grep -q "vr_adweapon_models: 7 made, 0 not made" <<<"$log" && echo 1 || 
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "models: the run ended on its verdict"
 OFF="vr_mock_fingers main 0 1;+grableft;vr_mock_button off grip 1;wait30" # (the main hand's grip closed: it holds, the off hand slides)
 SLIDE="vr_mock_hand_to off held 0.95;wait30;echo dwlance-mark: far;vr_mock_hand_to off held 0.35;wait30;echo dwlance-mark: near;vr_status"
-log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_mock_hand main 0.2 1.1 -0.3 -22 0 0;vr_ad_test 207;wait10;vr_debug_2h_grip 2;vr_mock_hand_to off held 0.75;wait5;vr_mock_hand_to off held 0.75;wait5;$OFF;echo dwlance-mark: took;$SLIDE;echo dwlance-test: done" \
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_mock_hand main 0.2 1.1 -0.3 -22 0 0;vr_ad_test 207;wait10;vr_debug_2h_grip 2;vr_pole_grip_fixed 0;vr_mock_hand_to off held 0.75;wait5;vr_mock_hand_to off held 0.75;wait5;$OFF;echo dwlance-mark: took;$SLIDE;echo dwlance-test: done" \
     -QuitOn "dwlance-test: done" -Timeout 300 -Filter "2h grip|dwlance-mark|off .*angles|the shot|rror|exit=" 2>&1 | tr -d '\r')
 took=$(grep -m1 "took the weapon anywhere" <<<"$log")
 echo "  $took" | cut -c1-160
@@ -90,7 +90,7 @@ check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "cord: the run end
 #    the main hand's grip loose (analog 0.3 < vr_pole_slide_grip 0.6): the off hand moved towards the tip carries the
 #    Lance with it, the main hand sliding back towards the butt (the tip drawn further ahead of it); its grip closed
 #    again, the off hand slides and the main hand's place stays.
-log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_mock_hand main 0.2 1.1 -0.3 -22 0 0;vr_ad_test 207;wait10;vr_debug_2h_grip 2;vr_mock_hand_to off held 0.75;wait5;vr_mock_hand_to off held 0.75;wait5;$OFF;echo dwlance-mark: took;vr_mock_fingers main 0 0.3;vr_mock_hand_to off held 0.95;wait30;echo dwlance-mark: slid;vr_mock_fingers main 0 1;vr_mock_hand_to off held 0.5;wait30;echo dwlance-mark: held;vr_status;echo dwlance-test: done" \
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_mock_hand main 0.2 1.1 -0.3 -22 0 0;vr_ad_test 207;wait10;vr_debug_2h_grip 2;vr_pole_grip_fixed 0;vr_mock_hand_to off held 0.75;wait5;vr_mock_hand_to off held 0.75;wait5;$OFF;echo dwlance-mark: took;vr_mock_fingers main 0 0.3;vr_mock_hand_to off held 0.95;wait30;echo dwlance-mark: slid;vr_mock_fingers main 0 1;vr_mock_hand_to off held 0.5;wait30;echo dwlance-mark: held;vr_status;echo dwlance-test: done" \
     -QuitOn "dwlance-test: done" -Timeout 300 -Filter "2h grip|dwlance-mark|the shot|rror|exit=" 2>&1 | tr -d '\r')
 mainAt() { awk -v m="$1" '/dwlance-mark/ { if (index($0, m)) { print last; exit } } /the holding hand .* along it from the handle/ { for (i = 1; i <= NF; i++) if ($i == "hand" && $(i+2) == "along" && $(i+6) == "handle") last = $(i+1) }' <<<"$log"; }
 tipAt() { awk -v m="$1" '/dwlance-mark/ { if (index($0, m)) { print last; exit } } /the tip drawn/ { for (i = 1; i <= NF; i++) if ($i == "drawn") last = $(i+1) }' <<<"$log"; }

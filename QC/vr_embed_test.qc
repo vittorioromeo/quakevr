@@ -905,6 +905,7 @@ float vr_eh_ahead;           // how far ahead the body stands (0: as these cases
 float vr_eh_down;            // the blow goes down so steeply (0: level; a body lying)
 float vr_eh_along;           // a swing meets the body this share of the line out (0: with its far end; a spear's shaft)
 entity vr_ee_target;         // the body the blow is at (world: a grunt spawned; vr_embed_edge_test.qc)
+string vr_eh_givecmd;        // a command that gives the weapon instead of VR_EH_Give ("": none; vrspear: Dwell's Lance)
 
 void(float xWid, float xFlags) VR_EH_Give =
 {
@@ -955,7 +956,14 @@ float(float xWid, float xSpeed, float xOff, float xSwing, float t) VR_EH_Blow =
     }
     else if(vr_et_s == 1 && VR_HandGrabUtil_IsHandGrabbing(self, cVR_MainHand) && t > 0.1)
     {
-        VR_EH_Give(xWid, vr_eh_flags);
+        if(vr_eh_givecmd != "")
+        {
+            localcmd(vr_eh_givecmd); // (vrspear: a weapon a command gives, Dwell's Lance by vr_ad_test 207; aimed below a frame on)
+        }
+        else
+        {
+            VR_EH_Give(xWid, vr_eh_flags);
+        }
         vector chest = VR_EH_Target(vr_et_m);
         vector hand = VRGetHandPos(cVR_MainHand);
         vr_eh_fw = chest - hand;
@@ -1071,6 +1079,7 @@ void() VR_EH_NextCase =
     }
     VRSetHandEmpty(self, cVR_MainHand);
     vr_eh_flags = 0;
+    vr_eh_givecmd = "";
     vr_eh_along = 0;
     VR_EH_ClearGibs();
     VR_ET_NextCase();
@@ -4544,6 +4553,14 @@ void() VR_Embed_TestFrame =
         {
             VR_TP_Begin(); // (thrown swords and daggers settle point first: vr_throwpoint_test.qc)
         }
+        if(ask == 73)
+        {
+            VR_RT_Begin(); // (reverse grip throws settle point first: vr_revthrow_test.qc)
+        }
+        if(ask == 83)
+        {
+            VR_FA_Begin(); // (a thrown axe whose host goes falls, never floats: vr_floataxe_test.qc)
+        }
         if(ask == 48)
         {
             VR_AS_Begin(); // (a gib tossed up skewered in the air: vr_airskewer_test.qc)
@@ -4575,6 +4592,30 @@ void() VR_Embed_TestFrame =
         if(ask == 64)
         {
             VR_FW_Begin(); // (flat: walking away from a stuck blade: vr_flatembedwalk_test.qc)
+        }
+        if(ask == 71 || ask == 72)
+        {
+            VR_PE_Begin(ask); // (flat: the pole's other hand in four states; a held blade's ragdoll smoothing: vr_poleembed_test.qc)
+        }
+        if(ask == 75 || ask == 76)
+        {
+            VR_VS_Begin(ask); // (VR: the pole's other hand round the shaft, fixed on it, through a stab that sticks: vr_poleembed_test.qc)
+        }
+        if(ask == 77 || ask == 78)
+        {
+            VR_EF_Begin(ask); // (the Crystal Lance fired while stuck in a body, VR and flat: vr_embedfire_test.qc)
+        }
+        if(ask == 79 || ask == 80)
+        {
+            VR_AT_Begin(ask); // (the bayonet on the shotguns, VR and flat: vr_attach_test.qc)
+        }
+        if(ask == 81)
+        {
+            VR_AT_PersistSet(); // (the bayonets carried for a level change or a save: vr_attach_test.qc)
+        }
+        if(ask == 82)
+        {
+            VR_AT_PersistCheck(); // (... still on after it)
         }
         if(ask == 42)
         {
@@ -4817,6 +4858,14 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     {
         VR_TP_Frame(); // (thrown swords and daggers settle point first: vr_throwpoint_test.qc)
     }
+    else if(vr_et_on == 73)
+    {
+        VR_RT_Frame(); // (reverse grip throws settle point first: vr_revthrow_test.qc)
+    }
+    else if(vr_et_on == 83)
+    {
+        VR_FA_Frame(); // (a thrown axe whose host goes falls, never floats: vr_floataxe_test.qc)
+    }
     else if(vr_et_on == 48)
     {
         VR_AS_Frame(); // (a gib tossed up skewered in the air: vr_airskewer_test.qc)
@@ -4844,6 +4893,30 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 64)
     {
         VR_FW_Frame(); // (flat: walking away from a stuck blade: vr_flatembedwalk_test.qc)
+    }
+    else if(vr_et_on == 71)
+    {
+        VR_PE_PoleFrame(); // (flat: the pole's other hand in four states: vr_poleembed_test.qc)
+    }
+    else if(vr_et_on == 72)
+    {
+        VR_PE_JitterFrame(); // (flat: a held blade's ragdoll smoothing: vr_poleembed_test.qc)
+    }
+    else if(vr_et_on == 75)
+    {
+        VR_VS_Frame(); // (VR: the pole's other hand on the shaft: vr_poleembed_test.qc)
+    }
+    else if(vr_et_on == 77 || vr_et_on == 78)
+    {
+        VR_EF_Frame(); // (the Crystal Lance fired while stuck: vr_embedfire_test.qc)
+    }
+    else if(vr_et_on == 79)
+    {
+        VR_AT_Frame(); // (the bayonet on the shotguns, VR: vr_attach_test.qc)
+    }
+    else if(vr_et_on == 80)
+    {
+        VR_AT_FlatFrame(); // (the bayonet on the shotguns, flat: vr_attach_test.qc)
     }
     else if(vr_et_on == 42)
     {

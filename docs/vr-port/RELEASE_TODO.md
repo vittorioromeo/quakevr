@@ -15,7 +15,7 @@ pass on `agent/relpass`.
   `-AllowUnpromotedTunables`.
 - [ ] **Release notes:** the draft is `docs/vr-port/RELEASE_NOTES_1.1.md`: edit, delete its DRAFT comment, pass it with
   `-Notes docs\vr-port\RELEASE_NOTES_1.1.md`.
-- [x] **Flat-screen launch:** the installer creates "Quake VR Unleashed (Flat Screen)" (`-flatscreenmode`), in the same places as the VR one (2026-11-08).
+- [x] **Flat-screen launch:** the installer creates "Quake VR UNLEASHED (Flat Screen)" (`-flatscreenmode`), in the same places as the VR one (2026-11-08).
 - [ ] **The installer's settings page:** review its rows, order and labels (BACKLOG.md, section 2).
 - [x] **"Armed Grunts":** "(Experimental)" removed from menu titles, rows, help and docs (decided 2026-11-08).
 - [x] **Developer files in the package (decided 2026-11-08: keep the dev maps and scenarios in the zip for now, no change):** by the allowlist rule (every tracked file under `quakevr\`) the zip ships

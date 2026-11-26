@@ -79,7 +79,7 @@ def climb():
     p.rope(3.9, "off", 1.25)
     p.rope(4.6, "main", 1.6)
     p.check(4.7, "lowered 15")
-    p.check(4.75, "mark")  # (ropes6: climbing down and a mere grab make no pull grunt)
+    p.check(4.75, "mark")
     # both hands, the nudge, the swing, let go
     p.key(4.1, "off", (-0.12, 1.3, -0.3))
     p.rope(5.0, "off", 1.75)
@@ -88,7 +88,6 @@ def climb():
     p.check(5.3, "grip 2")
     p.check(5.3, "sink 0.3")  # (ropes8a: round the rope, not through it)
     p.check(5.3, "thumb 60")  # (ropes12: the thumbs wrap it the other way round from the fingers)
-    p.check(5.3, "grunts 0 0")
     p.check(5.3, "mark")
     p.check(5.3, "nudge 150")
     p.check(5.6, "moved 15")
@@ -155,7 +154,6 @@ def calm():
         hold, free = free, hold
     p.check(t + 0.1, "rose 50")
     p.check(t + 0.1, "calm 25 30")
-    p.check(t + 0.1, "grunts 3 4")
     p.check(t + 0.2, "done")
     return p
 

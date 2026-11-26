@@ -159,6 +159,7 @@ void runLaunchTest_f();      // vr_runlaunch_test: every way a run starts, the m
 void runLaunchTestFrame();   // ... its steps, a frame at a time (VR_HostFrameEnd)
 void continueRowsTest_f();   // vr_continue_rows_test: Continue on Select Campaign's and the Map Library's rows
 void flashTest_f();          // vr_menu_flash_test: a Search result's row flashed and centred
+void presetCycleTest_f();    // vr_menu_preset_cycle_test: the preset rows (Comfort, Handedness, Gore) step both ways, never stuck on Custom
 void searchFilterTest_f();   // vr_menu_search_filter_test: Search's filter row (Both, Cvars, Tunables)
 void stopTest_f();           // vr_menu_stop_test: a menu opened while walking stops the player
 void mapsPagePick_f(); // maps_page_pick <row> [source]: a row of the Map Library picked (test aid) // maps_page_stats: what the page's list costs, and its layout (Debug > Tools)
@@ -183,6 +184,9 @@ bool scroll(int rows);
 // Weapon Offsets > Flashlight: while it is shown (Show the Torch's Place on), the hand whose weapon the page edits (still
 // holding it): the flashlight draws the torch's place on it (vr_flashlight.cpp drawMountPreview); false otherwise.
 [[nodiscard]] bool flashlightMountPreview(int& hand);
+// Weapon Offsets > Attachments: the attachment kind drawn on the edited weapon in `hand` while the page is open (whether
+// or not it has one: its mount is being placed); 0 (none) otherwise.
+[[nodiscard]] int attachPreview(int hand);
 
 // The body's mirror image (vr_bodyclone.cpp): a VR page that tweaks something worn on the body is shown (Flashlight - On a
 // Gun or Head, Weapon Offsets - Holstered), or a row of such a setting has been chosen on the page shown (the holsters',

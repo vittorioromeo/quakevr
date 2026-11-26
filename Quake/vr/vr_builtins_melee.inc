@@ -1009,6 +1009,44 @@ void PF_weaponvalue()
     G_FLOAT(OFS_RETURN) = slot >= 0 && key != weapons::Key::Count ? weapons::value(slot, key) : 0.f;
 }
 
+// vector(string model, float kind, float what) attachinfo: weapon attachments (vr_attach.hpp) on the weapon drawn with
+// `model`: what 0 '1 0 0' if attachment `kind` fits it (its att1_ok), '0 0 0' if not; what 1 the attachment's mount and
+// what 2 its tip (its striking point), each from the weapon's muzzle in the weapon's own axes as drawn in a hand (x forward,
+// y left, z up; units as drawn: its Scale): a hand's muzzle (QC .muzzlepos) plus these along the hand's axes is where they
+// are (QC vr_attach.qc; turned by the weapon's Pitch, Yaw and Roll in the hand: view::weaponTurnInHand, so in the hand's
+// axes). '0 0 0' if it doesn't fit.
+void PF_attachinfo()
+{
+    const char* const name = G_STRING(OFS_PARM0);
+    const int kind = static_cast<int>(G_FLOAT(OFS_PARM1));
+    const int what = static_cast<int>(G_FLOAT(OFS_PARM2));
+    float* const out = G_VECTOR(OFS_RETURN);
+    out[0] = out[1] = out[2] = 0.f;
+    const int slot = weapons::slotForName(name);
+    const attach::Mount m = attach::mount(slot, kind);
+    const attach::KindInfo* const info = attach::info(kind);
+    if(!m.fits || !info)
+    {
+        return;
+    }
+    if(what == 0)
+    {
+        out[0] = 1.f;
+        return;
+    }
+    qmodel_t* const model = Mod_ForName(name, false);
+    glm::vec3 own{0.f};
+    if(!model || !attach::fromMuzzle(model, kind, what, own)) // (the drawn bayonet's own measure: one source)
+    {
+        return;
+    }
+    // (turned as the gun is in the hand: the stab's and the snap's points on the drawn bayonet)
+    const glm::vec3 d = (vr_attach_turn.value ? view::weaponTurnInHand(slot) : glm::mat3{1.f}) * own;
+    out[0] = d.x;
+    out[1] = d.y;
+    out[2] = d.z;
+}
+
 // float(float mass) weightdamage: the damage multiplier of a melee blow or a throw by a thing of `mass` kg (weight and
 // damage, vr_weight_damage_*; 1 for no mass). float(float mass) weightleniency: the factor on the speed thresholds of
 // its strikes and throws (heavy leniency, vr_weight_lenient*; 1 for anything up to vr_weight_lenient_from).

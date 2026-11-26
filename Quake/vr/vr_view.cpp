@@ -9,6 +9,8 @@
 #include "vr_blender.hpp" // (blender::addPreview: vr_model_show's model)
 #include "vr_ambient.hpp"
 #include "vr_axestick.hpp"
+#include "vr_attach.hpp"
+#include "vr_menu.hpp"
 #include "vr_kickcancel.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_dirparryviz.hpp"
@@ -196,7 +198,7 @@ void updateFingerFrames()
         // thumb rest says (VR; flat play's thumb is always closed): it wraps it, stopped on its surface (ropeHeld).
         glm::vec3 ropeAt, ropeUp;
         float ropeThick = 0.f, ropeWeight = 0.f;
-        const bool onRope = climb::ropeLine(hand, ropeAt, ropeUp, ropeThick, ropeWeight) && ropeWeight >= 0.5f;
+        const bool onRope = climb::gripLine(hand, ropeAt, ropeUp, ropeThick, ropeWeight) && ropeWeight >= 0.5f;
         for(int finger = 0; finger < FingerCount; finger++)
         {
             const float curl = finger == FingerThumb && onRope ? 1.f : targetCurl(in, finger, holdsOther);
@@ -2742,8 +2744,107 @@ void setupHeldMagazines()
     }
 }
 
+// The hands' attachments as drawn last frame (view::drawnAttachment).
+struct AttachDrawn
+{
+    bool valid{false};
+    glm::vec3 mount{0.f};
+    glm::vec3 tip{0.f};
+};
+AttachDrawn attachDrawn[2];
+
+// Every attachment drawn last frame (vr_attach_report: the multiplayer test's, mp_test.py attach): where (yours in a hand
+// or holster, a lying gun's, another player's held or holstered), whose (his entity; a lying gun's own), which kind.
+struct AttachSeen
+{
+    const char* where{""};
+    int ent{0};
+    int kind{0};
+    const qmodel_t* gun{nullptr};
+    glm::vec3 at{0.f};
+};
+struct AttachSeenList
+{
+    AttachSeen list[32];
+    int count{0};
+    int frame{-1};
+};
+AttachSeenList attachSeen;
+
+void noteAttachSeen(const char* where, int ent, int kind, const qvr::view::ViewEntity& out, const qvr::view::ViewEntity& gun)
+{
+    if(!out.visible)
+    {
+        return;
+    }
+    if(attachSeen.frame != host_framecount)
+    {
+        attachSeen.count = 0;
+        attachSeen.frame = host_framecount;
+    }
+    if(attachSeen.count < static_cast<int>(sizeof(attachSeen.list) / sizeof(attachSeen.list[0])))
+    {
+        attachSeen.list[attachSeen.count++] =
+            AttachSeen{where, ent, kind, gun.ent.model, glm::vec3{out.ent.origin[0], out.ent.origin[1], out.ent.origin[2]}};
+    }
+}
+
 // Every frame, after the guns are placed: their magazines (immersive reloading: the server's mode, the guns' flags; a
 // lying gun's U_QVR_NOMAG); with Show Load Points, a held magazine's reference point and radius (orange).
+// Every frame, after the guns are placed (before the open super shotgun hides its gun for its parts): the guns'
+// attachments (vr_attach.hpp): your hands' (by their ids' kinds; Weapon Offsets > Attachments shows the edited one's),
+// your holsters', the lying guns' (dropped, thrown, stuck in a body). Another player's: drawGunParts.
+void setupAttachments()
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const int preview = menu::attachPreview(hand);
+        const int kind = preview != attach::None ? preview : view::ownGunLook(hand).attach;
+        const attach::KindInfo* const info = attach::info(kind);
+        AttachDrawn& d = attachDrawn[hand];
+        d.valid = view::placeAttachment(entities.attach[hand], entities.weapon[hand], kind, hand) && info;
+        if(d.valid)
+        {
+            d.mount = modelPoint(entities.attach[hand], glm::vec3{0.f});
+            d.tip = modelPoint(entities.attach[hand], info->tip);
+            noteAttachSeen(hand == HAND_MAIN ? "hand_main" : "hand_off", cl.viewentity, kind, entities.attach[hand],
+                entities.weapon[hand]);
+        }
+        if(hand == HAND_MAIN && vr_attach_probe.value)
+        {
+            // (the tests: the drawn bayonet's tip beside the server's, QC vr_attach_test.qc)
+            Cvar_SetValueQuick(&vr_attach_probe_drawn, d.valid ? 1.f : 0.f);
+            Cvar_SetValueQuick(&vr_attach_probe_x, d.tip.x);
+            Cvar_SetValueQuick(&vr_attach_probe_y, d.tip.y);
+            Cvar_SetValueQuick(&vr_attach_probe_z, d.tip.z);
+        }
+    }
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        const int kind = attach::kindOfUid(holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONUID0));
+        (void)view::placeAttachment(entities.holsterAttach[h], entities.holster[h], kind, -1);
+        noteAttachSeen("holster", cl.viewentity, kind, entities.holsterAttach[h], entities.holster[h]);
+    }
+    for(int i = 0; i < maxWorldWeapons; i++)
+    {
+        const entity_t* e = worldWeaponsNear[i];
+        const bool numbered = e && e >= cl_entities && e < cl_entities + cl_max_edicts;
+        const client::EntityVr* net = numbered ? client::entityVr(static_cast<int>(e - cl_entities)) : nullptr;
+        const int kind = net ? attach::kindOfUid(net->weaponUid) : attach::None;
+        entities.worldAttach[i].visible = false;
+        if(kind == attach::None)
+        {
+            continue;
+        }
+        view::ViewEntity gun;
+        gun.ent = *e;
+        gun.visible = true;
+        gun.netEntity = static_cast<int>(e - cl_entities);
+        (void)view::placeAttachment(entities.worldAttach[i], gun, kind, -1);
+        noteAttachSeen("lying", gun.netEntity, kind, entities.worldAttach[i], gun);
+    }
+}
+
 void setupMagazines()
 {
     const bool on = magazinesShown();
@@ -3784,7 +3885,106 @@ VrGunLook ownGunLook(int hand)
         static_cast<za::U8>(CLAMP(0, cl.stats[main ? protocol::STAT_QVR_WEAPONCLIPSIZE : protocol::STAT_QVR_WEAPONCLIPSIZE2], 255));
     l.revolver = rv;
     l.cylinder = cl.statsf[main ? protocol::STAT_QVR_REVOLVERCYL : protocol::STAT_QVR_REVOLVERCYL2];
+    l.attach = static_cast<za::U8>(
+        attach::kindOfUid(cl.stats[main ? protocol::STAT_QVR_WEAPONUID : protocol::STAT_QVR_WEAPONUID2]));
     return l;
+}
+
+glm::mat3 mountBasis(const glm::vec3& angles)
+{
+    return anglesBasis(angles);
+}
+
+bool drawnAttachment(int hand, glm::vec3& mount, glm::vec3& tip)
+{
+    if(hand < 0 || hand > 1 || !view_detail::attachDrawn[hand].valid)
+    {
+        return false;
+    }
+    mount = view_detail::attachDrawn[hand].mount;
+    tip = view_detail::attachDrawn[hand].tip;
+    return true;
+}
+
+glm::mat3 weaponTurnInHand(int slot)
+{
+    const glm::vec3 o = view_detail::weaponAngleOffsets(slot, false);
+    return anglesBasis(glm::vec3{-o.x, o.y, o.z}); // (as weaponTurn composes it with the hand)
+}
+
+bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand)
+{
+    out.visible = false;
+    const attach::KindInfo* const k = attach::info(kind);
+    if(!k || !gun.visible || !gun.ent.model || gun.ent.model->type != mod_alias)
+    {
+        return false;
+    }
+    const int slot = weapons::slotForModel(gun.ent.model);
+    const attach::Mount m = attach::mount(slot, kind);
+    qmodel_t* const model = m.fits ? viewModel(k->model) : nullptr;
+    if(!model)
+    {
+        return false;
+    }
+    // Its axes as the gun's model is drawn (its place, turn, Scale, mirroring; a lying gun's networked scale).
+    const ModelSpace space{gun};
+    const glm::mat3 r = anglesBasis(m.angles);
+    glm::vec3 o = space.point(m.pos);
+    const glm::vec3 ax = space.point(m.pos + r[0]) - o;
+    glm::vec3 ay = space.point(m.pos + r[1]) - o;
+    const glm::vec3 az = space.point(m.pos + r[2]) - o;
+    const float size = glm::length(ax);
+    if(size < 1e-5f || glm::length(ay) < 1e-5f || glm::length(az) < 1e-5f)
+    {
+        return false;
+    }
+    // The mounts are frame 0's; the guns' firing frames move their fronts (ATTACHMENTS.md: up to 17 units): moved as the
+    // muzzle's anchor is drawn now against frame 0.
+    if(const char* const a = weapons::anchor(slot, weapons::Key::MuzzleAnchor); a && *a)
+    {
+        o += anchorPosition(gun.ent, gun.mirrored, gun.zeroBlend, a, glm::vec3{0.f}) -
+             anchorPosition(gun.ent, gun.mirrored, 1.f, a, glm::vec3{0.f});
+    }
+    if(gun.mirrored)
+    {
+        ay = -ay; // (drawn mirrored as the gun: the renderer mirrors it back)
+    }
+    glm::mat3 b{ax / size, glm::normalize(ay), glm::normalize(az)};
+    glm::vec3 hinge;
+    glm::mat3 turn;
+    if(ssgHand >= 0 && ssgBarrelsCarry(ssgHand, o, hinge, turn))
+    {
+        o = hinge + turn * (o - hinge); // (under the barrels: it drops open with them)
+        b = turn * b;
+    }
+    out = gun;
+    out.ent.model = model;
+    out.ent.frame = 0;
+    out.ent.skinnum = 0;
+    out.ent.lerpflags |= LERP_RESETANIM;
+    out.lastModel = nullptr;
+    out.zeroBlend = 0.f;
+    out.morph = 0.f;
+    out.poseFrame[0] = out.poseFrame[1] = -1;
+    out.poseBlend = 0.f;
+    out.netEntity = 0;
+    out.scale = glm::vec3{size * m.scale};
+    glm::vec3 ang = basisAngles(b);
+    ang.x = -ang.x; // (an entity's pitch)
+    for(int i = 0; i < 3; i++)
+    {
+        out.ent.angles[i] = ang[i];
+        out.ent.origin[i] = o[i];
+    }
+    // (its origin where the mount is: its model's header origin moved onto it, as setGunPart's corner)
+    const glm::vec3 corner = o - modelPoint(out, glm::vec3{0.f});
+    for(int i = 0; i < 3; i++)
+    {
+        out.ent.origin[i] += corner[i];
+    }
+    out.visible = true;
+    return true;
 }
 
 void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen, int player, int side)
@@ -3816,6 +4016,14 @@ void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held
     else
     {
         p[GunParts::PumpBody].visible = p[GunParts::Pump].visible = false;
+    }
+    (void)placeAttachment(p[GunParts::Attach], gun, look.attach, -1); // (before the gun is hidden for its parts)
+    if(player > 0)
+    {
+        noteAttachSeen(held ? "other_held" : "other_holster", player, look.attach, p[GunParts::Attach], gun);
+    }
+    if(!held)
+    {
         // As your own holsters' (setupSsgParts, setupMagazines): no revolver in parts, no magazine sliding.
         parts = ssgHolsterParts(gun, g.ssg, look.flags, look.clip, breaks, p[GunParts::SsgFrame], p[GunParts::SsgBarrels]);
         setMagazine(p[GunParts::MagIn], gun, look.has(VrGunLook::magsShownBit) && !(look.flags & weaponFlagNoMag), false,
@@ -4194,7 +4402,8 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(worldSsgBarrels, VR_DRAW_LYING), QVR_DRAW_RANGE(rvFrame, VR_DRAW_HELD), QVR_DRAW_RANGE(rvCrane, VR_DRAW_HELD),
         QVR_DRAW_RANGE(rvCyl, VR_DRAW_HELD), QVR_DRAW_RANGE(rvShell, VR_DRAW_HELD), QVR_DRAW_RANGE(sawHandle, VR_DRAW_HELD), QVR_DRAW_RANGE(button, VR_DRAW_HELD),
         QVR_DRAW_RANGE(frontButton, VR_DRAW_HELD), QVR_DRAW_RANGE(ghost, VR_DRAW_OTHER), QVR_DRAW_RANGE(ghostHand, VR_DRAW_OTHER), QVR_DRAW_RANGE(muzzleFlash, VR_DRAW_HELD),
-        QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER), QVR_DRAW_RANGE(adBolt, VR_DRAW_HELD)};
+        QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER), QVR_DRAW_RANGE(adBolt, VR_DRAW_HELD), QVR_DRAW_RANGE(attach, VR_DRAW_HELD),
+        QVR_DRAW_RANGE(holsterAttach, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldAttach, VR_DRAW_LYING)};
 #undef QVR_DRAW_RANGE
     // Every member in a range (the heavy revolver's parts were not: drawn as OTHER, flatscreen play's model FOV missed them).
     static_assert(
@@ -5881,6 +6090,7 @@ extern "C" void VR_SetupViewEntities()
         }
         {
             QVR_PROFILE("view weapons");
+            embedSmoothStep(); // (the held blade's drawn place, smoothed, before anything is drawn on it)
             embedPinStep(s, HAND_MAIN); // (a blade just out of a body: the weapon eased into the hand with the hand)
             embedPinStep(s, HAND_OFF);
             setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
@@ -6171,6 +6381,7 @@ extern "C" void VR_SetupViewEntities()
     {
         QVR_PROFILE("view weapon parts");
         setupMagazines();
+        setupAttachments();
         setupPumps();
         adcrossbow::frame(entities().weapon, entities().adBolt); // AD support: the crossbow's string and bolt
         adweapons::spinFrame(entities().weapon); // AD support: the Widowmaker's barrels turning
@@ -6258,4 +6469,17 @@ extern "C" void VR_SetupViewEntities()
     wounds::frame();
     drips::frame(s.head); // water off the wet, blood off the wounded (vr_drips.cpp)
     playergore::frame();  // your own wounds' drips (vr_player_gore; vr_playergore.cpp)
+}
+
+// vr_attach_report (vr_view_diag.cpp): every attachment drawn last frame, a line each, then the count (mp_test.py attach).
+void qvr::view::printDrawnAttachments()
+{
+    const int n = attachSeen.frame >= host_framecount - 1 ? attachSeen.count : 0;
+    for(int i = 0; i < n; i++)
+    {
+        const AttachSeen& a = attachSeen.list[i];
+        Con_Printf("attach_drawn: where=%s ent=%d kind=%d gun=%s at=%.1f %.1f %.1f\n", a.where, a.ent, a.kind,
+            a.gun ? a.gun->name : "-", a.at.x, a.at.y, a.at.z);
+    }
+    Con_Printf("attach_report: %d drawn\n", n);
 }

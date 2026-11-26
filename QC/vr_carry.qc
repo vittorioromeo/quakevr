@@ -361,9 +361,9 @@ float(entity p, float xHand) VR_Hand_HeldOff =
         return TRUE; // drawn on its hold (vr_climb.cpp)
     }
     float k = VR_Hand_Kind(p, xHand);
-    if(k == VR_HOLD_FOE || k == VR_HOLD_RAGDOLL || k == VR_HOLD_TUG || k == VR_HOLD_SSGGRIP || k == VR_HOLD_EMBED)
+    if(k == VR_HOLD_FOE || k == VR_HOLD_RAGDOLL || k == VR_HOLD_TUG || k == VR_HOLD_SSGGRIP || k == VR_HOLD_EMBED || k == VR_HOLD_DRAG)
     {
-        return TRUE; // drawn on the spot it holds (vr_foegrab.cpp, the limb: vr_view_hands.cpp limbDrawnHand), on the gun, on the blade
+        return TRUE; // drawn on the spot it holds (vr_foegrab.cpp, the limb or the dragged prop: vr_view_hands.cpp limbDrawnHand), on the gun, on the blade
     }
     entity t = VR_Hand_Thing(p, xHand);
     return t != world && t == VR_Hand_Thing(p, VRGetOtherHand(xHand)); // drawn on its grip on it (vr_held.cpp drawnHand)
@@ -388,6 +388,7 @@ void(entity xPlayer) VR_Hand_Derive =
 float(entity p, float xHand) VR_Reload_SsgBreaks;                  // (vr_reload.qc)
 float(entity e, entity xPlayer, float xHand) VR_AxeStick_TuggedBy; // (vr_axestick.qc)
 float(entity e, entity xPlayer, float xHand) VR_Embed_HeldBy;      // (vr_embedhold.qc)
+float(entity e, entity xPlayer, float xHand) VR_FlatGrab_DragHeldBy; // (vr_flatgrab.qc)
 
 // Whether the busy kind in `xHand` of `xPlayer` still holds: one its writer left (a tugged axe gone, the gun no longer a
 // super shotgun) ends, with a line.
@@ -401,6 +402,10 @@ float(entity xPlayer, float xHand, float xKind) VR_Hand_BusyHolds =
     if(xKind == VR_HOLD_EMBED)
     {
         return VR_Embed_HeldBy(e, xPlayer, xHand);
+    }
+    if(xKind == VR_HOLD_DRAG)
+    {
+        return VR_FlatGrab_DragHeldBy(e, xPlayer, xHand);
     }
     if(xKind == VR_HOLD_SSGGRIP)
     {
@@ -1475,6 +1480,15 @@ void(entity xBox, vector v) VR_Carry_Throw =
 };
 
 // Let go: it keeps the hand's throw (the same estimate thrown weapons use).
+// A carried thing's throw (`xBox`) from a hand moving at `xVel` (m/s; `xFlick` of it the wrist's) in `xHands` hands: the
+// velocity it leaves at (units/s), by the weight rules (throwvelocity), vr_carry_throw_mult and its own Throw (Held Object
+// Offsets, from its mass). VR_Carry_Release's, and the flat throw key's aim (vr_flatgrenade.qc VR_FlatThrow_Aim).
+vector(entity xBox, vector xVel, vector xFlick, float xHands) VR_Carry_ThrowVel =
+{
+    vector v = throwvelocity(xVel, xFlick, propvalue(xBox, "mass"), xHands) * VRMetersToUnits() * cvar_hget(cvarh_vr_carry_throw_mult);
+    return v * propvalue(xBox, "throw"); // a heavy thing leaves the hand slower
+};
+
 void(float xHand, entity xBox) VR_Carry_Release =
 {
     // Thrown with both hands: held in both, or by the other until a moment ago (the hand's estimate is then the prop's
@@ -1493,11 +1507,8 @@ void(float xHand, entity xBox) VR_Carry_Release =
     vector refNow = hands == 2 ? (xBox.absmin + xBox.absmax) * 0.5 : VRGetHandPos(xHand);
     VR_Hand_Release(self, xHand, "letgo");
 
-    float m2u = VRMetersToUnits();
     vector throwVel = VRGetHandThrowVel(xHand);
-    vector v = throwvelocity(throwVel, VRGetHandThrowFlick(xHand), propvalue(xBox, "mass"), hands) * m2u *
-               cvar_hget(cvarh_vr_carry_throw_mult);
-    v = v * propvalue(xBox, "throw"); // a heavy thing leaves the hand slower (Held Object Offsets: Throw, from its mass)
+    vector v = VR_Carry_ThrowVel(xBox, throwVel, VRGetHandThrowFlick(xHand), hands);
 
     // Where it would be by now (VR_Throw_BackProject; still the carrier's: his traces pass through it), and the throw
     // assist's bend towards a monster, as a thrown weapon's (DropWeaponInHandScaled).
@@ -2008,6 +2019,7 @@ void(entity box) VR_Carry_KeepAlive =
 // reach of its surface, as the first hand's (VR_Carry_Handtouch: a carried thing is not solid, so no
 // touch comes).
 float(entity xBox) VR_FlatThrow_WindsUp; // (vr_flatgrenade.qc)
+float(entity p, float xHand) VR_FlatThrow_Guides; // (vr_flatgrenade.qc: also vr_grenade.qc's catch)
 void(float xHand) VR_Carry_TrySecondHand =
 {
     float other = cVR_MainHand;
@@ -2387,7 +2399,9 @@ void() VR_Carry_Handtouch =
     }
     // A force grab's catch (VR_Forcegrab_Catch) has checked the grip already: its window
     // (vr_forcegrab_catch_early) is longer than a touch's.
-    if((forcegrabCatching || VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&
+    // (Flat play's free hand guiding the other's throw takes nothing that flies into it: VR_FlatThrow_Guides.)
+    if((forcegrabCatching || ((VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&
+                              !VR_FlatThrow_Guides(other, hand))) &&
        VR_Hand_Free(other, hand, 0))
     {
         VR_Carry_Start(other, hand, self);

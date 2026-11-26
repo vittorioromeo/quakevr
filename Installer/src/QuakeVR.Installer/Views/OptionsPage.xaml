@@ -14,7 +14,7 @@
             <TextBlock Text="Options" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}" Text="Change anything you like." />
 
-            <!-- Where Quake VR: Unleashed comes from: a local package (no internet), or the online release. When the online
+            <!-- Where Quake VR: UNLEASHED comes from: a local package (no internet), or the online release. When the online
                  release can't be reached, this says so and offers a local package instead of a dead end. -->
             <TextBlock Text="PACKAGE" Style="{StaticResource SectionTitle}" />
             <Border Padding="16,13">
@@ -65,7 +65,7 @@
                         <TextBlock DockPanel.Dock="Right" Text="{Binding CoreSizeText}" Style="{StaticResource Size}" />
                         <CheckBox IsChecked="True" IsEnabled="False">
                             <StackPanel>
-                                <TextBlock Text="Quake VR: Unleashed" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Text="Quake VR: UNLEASHED" Style="{StaticResource Body}" FontWeight="SemiBold" />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Text="The game: engine, models, sounds, the hub and its maps, and the author's default settings." />
                             </StackPanel>
                         </CheckBox>
@@ -143,6 +143,16 @@
                                            Text="Light from lamps, lava and glowing panels, made on your PC by the game's Relighting tool at the end of the install (skipped: at the game's first start). Quake's and the official mission packs' maps; Map Library and Arcane Dimensions maps are relit in the game (Graphics &gt; Relighting)." />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Foreground="{StaticResource Faint}"
                                            Text="With see-through water: VisPatch's data for your games is downloaded with it (about 2.5 MB, from SourceForge)." />
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="about a minute" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="{Binding PrepareHulls}">
+                            <StackPanel>
+                                <TextBlock Text="Prepare collision for Quake's maps" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                           Text="Quake's and the mission packs' maps load faster at their first visit, on the PC and the Quest (about 150 MB; skipped: made at each map's first visit)." />
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>

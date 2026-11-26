@@ -5,6 +5,7 @@
 #include "vr_body.hpp"
 #include "vr_bodyclone.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_hands.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_lines.hpp"
@@ -19,6 +20,7 @@
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -50,18 +52,32 @@ cvar_t* const managedCvars[] = {&vr_hip_offset_x, &vr_hip_offset_y, &vr_hip_offs
     &vr_holster_trim_lupper_x, &vr_holster_trim_lupper_y, &vr_holster_trim_lupper_z, &vr_holster_trim_rupper_x,
     &vr_holster_trim_rupper_y, &vr_holster_trim_rupper_z, &vr_holster_size_lshoulder, &vr_holster_size_rshoulder,
     &vr_holster_size_lhip, &vr_holster_size_rhip, &vr_holster_size_lupper, &vr_holster_size_rupper,
-    &vr_holster_size_ammopouch, &vr_holster_size_grenadepouch};
+    &vr_holster_size_ammopouch, &vr_holster_size_grenadepouch, &vr_flashlight_forward, &vr_flashlight_out,
+    &vr_flashlight_up, &vr_flashlight_tilt, &vr_flashlight_yaw, &vr_flashlight_roll, &vr_flashlight_grab_range};
 constexpr int managedCount = static_cast<int>(sizeof(managedCvars) / sizeof(managedCvars[0]));
+
+// The belt torch (round 26, "flashgrab"): a slot after the zones (flashlight::beltSlot), dragged like them (its
+// vr_flashlight_forward/_out/_up), turned by the holding hand's turn (_tilt/_yaw/_roll), its grab zone sized by both
+// hands or the stick (vr_flashlight_grab_range: the zone, not the model). No seated layout of its own.
+constexpr int ZoneTorch = ZoneCount;
+constexpr int SlotCount = ZoneCount + 1;
+constexpr float TURN_DEAD_ZONE = 4.f; // degrees the holding hand turns before the torch turns with it
 
 struct Snapshot
 {
     float v[managedCount]{};
 };
 
-// The three settings a drag moves (forward, outwards or right, up: as the sliders).
+// The three settings a drag moves (forward, outwards or right, up: as the sliders), and their scale: what a move is
+// rounded to, how near the shipped value snaps to it, how far either way it may go, a solver step's most (the holsters'
+// in units; the torch's in metres).
 struct Params
 {
     cvar_t* c[3]{};
+    float round{0.05f};
+    float snap{0.6f};
+    float limit{60.f};
+    float maxStep{6.f};
 };
 
 // The panel's buttons, in order (vr_mock_hand_to <hand> setupbutton <index>).
@@ -84,11 +100,11 @@ constexpr float BUTTON_GAP = 0.015f;
 constexpr float BUTTON_DEPTH = 0.08f;    // a hand this atShipped the panel's plane (metres) is at a button
 constexpr float HOVER_RATIO = 1.2f;      // a hand this deep in a zone's box (1: its surface) is at it
 constexpr float DEAD_ZONE = 0.75f;       // units the hands move before a held holster follows (no accidental drags)
-constexpr float SNAP_RADIUS = 0.6f;      // units: a holster this atShipped its shipped place goes to it
 constexpr float SETUP_SIZE_MIN = 0.5f;
 constexpr float SETUP_SIZE_MAX = 2.5f;
-constexpr float PARAM_LIMIT = 60.f;      // units either way (or the value on entering, if beyond)
 constexpr int UNDO_MAX = 64;
+// (Params: a holster this near its shipped place (units) goes to it; its settings 60 units either way at most, or the
+// value on entering if beyond.)
 
 // The holster or pouch held, by one hand or two (a bit each: 1 << hand).
 struct Edit
@@ -106,6 +122,10 @@ struct Edit
     float spread0{1.f};
     float size0{1.f};
     glm::vec3 lastTick{0.f}; // the reach point at the last haptic tick
+    // The torch: the holding hand's turn and the torch's when it took hold, and whether it turns with the hand yet.
+    glm::quat handRot0{1.f, 0.f, 0.f, 0.f};
+    glm::quat torchRot0{1.f, 0.f, 0.f, 0.f};
+    bool turning{false};
 };
 
 struct Session
@@ -203,8 +223,96 @@ void say(const za::String& text)
         case body::LeftUpper: return "Left Chest";
         case body::RightUpper: return "Right Chest";
         case zones::ZoneAmmoPouch: return "Ammo Pouch";
+        case ZoneTorch: return "Flashlight";
         default: return "Grenade Pouch";
     }
+}
+
+[[nodiscard]] const char* slotName(int zone)
+{
+    return zone == ZoneTorch ? "torch" : zones::name(zone);
+}
+
+// A slot's reach point now (a zone's; the torch's middle).
+[[nodiscard]] bool pivotOf(const hands::State& s, int zone, glm::vec3& out)
+{
+    if(zone == ZoneTorch)
+    {
+        flashlight::BeltSlot slot;
+        if(!flashlight::beltSlot(s, slot))
+        {
+            return false;
+        }
+        out = slot.middle;
+        return true;
+    }
+    return zones::pivotNow(s, zone, out);
+}
+
+// A slot's box (a zone's; round the torch's axis, its grab zone's reach about it).
+[[nodiscard]] bool boxOf(const hands::State& s, int zone, zones::Box& out)
+{
+    if(zone != ZoneTorch)
+    {
+        return zones::boxNow(s, zone, out);
+    }
+    flashlight::BeltSlot slot;
+    if(!flashlight::beltSlot(s, slot))
+    {
+        return false;
+    }
+    const glm::mat3 m = glm::mat3_cast(slot.rot);
+    out.centre = slot.middle;
+    out.axis[0] = m[0];
+    out.axis[1] = m[1];
+    out.axis[2] = m[2];
+    out.half = glm::vec3{0.5f * glm::distance(slot.tail, slot.lens) + slot.reach, slot.reach, slot.reach};
+    return true;
+}
+
+// How deep `p` is in a slot (1: its surface): a zone's box, the torch's grab zone (round its axis, as a press is judged).
+[[nodiscard]] float ratioOf(const hands::State& s, int zone, const zones::Box& b, const glm::vec3& p)
+{
+    flashlight::BeltSlot slot;
+    if(zone == ZoneTorch && flashlight::beltSlot(s, slot))
+    {
+        return flashlight::beltRatio(slot, p);
+    }
+    return zones::ratioIn(b, p);
+}
+
+// A slot's size: a zone's (its box and model), the torch's grab zone (vr_flashlight_grab_range: the model as it is).
+[[nodiscard]] cvar_t& sizeOf(int zone)
+{
+    return zone == ZoneTorch ? vr_flashlight_grab_range : zones::sizeCvar(zone);
+}
+
+[[nodiscard]] float sizeMin(int zone)
+{
+    return zone == ZoneTorch ? 0.25f : SETUP_SIZE_MIN;
+}
+
+[[nodiscard]] float sizeMax(int zone)
+{
+    return zone == ZoneTorch ? 4.f : SETUP_SIZE_MAX;
+}
+
+// A hand's turn in the world (its Quake angles).
+[[nodiscard]] glm::quat handTurn(const hands::State& s, int hand)
+{
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.rot[hand], fwd, right, up);
+    return glm::normalize(glm::quat_cast(glm::mat3{fwd, -right, up}));
+}
+
+[[nodiscard]] Params torchParams()
+{
+    Params p{{&vr_flashlight_forward, &vr_flashlight_out, &vr_flashlight_up}};
+    p.round = 0.0025f; // metres
+    p.snap = 0.01f;
+    p.limit = 1.f;
+    p.maxStep = 0.2f;
+    return p;
 }
 
 [[nodiscard]] bool symmetry()
@@ -264,6 +372,10 @@ void say(const za::String& text)
 [[nodiscard]] Params paramsFor(int zone)
 {
     const bool seated = seated::active();
+    if(zone == ZoneTorch)
+    {
+        return torchParams();
+    }
     if(!isHolster(zone))
     {
         return pouchParams(zone, seated);
@@ -297,7 +409,7 @@ void setRaw(const Params& p, const glm::vec3& v)
 {
     const glm::vec3 was = get(p);
     setRaw(p, v);
-    const bool ok = zones::pivotNow(s, zone, out);
+    const bool ok = pivotOf(s, zone, out);
     setRaw(p, was);
     return ok;
 }
@@ -352,22 +464,29 @@ void rebase(const hands::State& s)
     const Params p = paramsFor(e.zone);
     e.params0 = e.params = get(p);
     e.solve = solverAt(s, e.zone, p, e.params0);
-    if(!zones::pivotNow(s, e.zone, e.pivot0))
+    if(!pivotOf(s, e.zone, e.pivot0))
     {
         e.pivot0 = glm::vec3{0.f};
     }
     e.lastTick = e.pivot0;
     e.grabMid = handsMid(e.hands, s);
     e.spread0 = za::max(0.5f, glm::distance(s.pos[HAND_OFF], s.pos[HAND_MAIN]));
-    e.size0 = zones::sizeCvar(e.zone).value;
+    e.size0 = sizeOf(e.zone).value;
     e.live = e.live && e.hands != 0; // (the dead zone again only for a new hold)
+    // The torch turns with one holding hand: from their turns now.
+    flashlight::BeltSlot slot;
+    if(e.zone == ZoneTorch && (e.hands == 1 || e.hands == 2) && flashlight::beltSlot(s, slot))
+    {
+        e.handRot0 = handTurn(s, e.hands == 1 ? 0 : 1);
+        e.torchRot0 = slot.rot;
+    }
 }
 
 // Sets `zone`'s size (and its pair's, with Symmetry), rounded.
 void setSize(int zone, float v)
 {
-    v = za::clamp(roundf(v / 0.05f) * 0.05f, SETUP_SIZE_MIN, SETUP_SIZE_MAX);
-    setIfChanged(&zones::sizeCvar(zone), v);
+    v = za::clamp(roundf(v / 0.05f) * 0.05f, sizeMin(zone), sizeMax(zone));
+    setIfChanged(&sizeOf(zone), v);
     if(symmetry() && pairOf(zone) >= 0)
     {
         setIfChanged(&zones::sizeCvar(pairOf(zone)), v);
@@ -440,6 +559,23 @@ void editFrame(const hands::State& s)
         e.live = true;
     }
     const bool both = e.hands == 3;
+    // The torch held in one hand turns as the hand turns (past TURN_DEAD_ZONE degrees), about its middle: it starts to
+    // follow then, so that the middle stays with the hand.
+    if(e.zone == ZoneTorch && !both)
+    {
+        const glm::quat turn = handTurn(s, e.hands == 1 ? 0 : 1) * glm::inverse(e.handRot0);
+        const float angle = glm::degrees(2.f * za::acos(za::clamp(za::fabs(turn.w), 0.f, 1.f)));
+        if(!e.turning && angle > TURN_DEAD_ZONE)
+        {
+            e.turning = true;
+            e.live = true;
+        }
+        if(e.turning)
+        {
+            flashlight::setBeltTurn(s, glm::normalize(turn * e.torchRot0));
+            e.changed = true;
+        }
+    }
     if(e.live)
     {
         // Where the reach point goes: as far as the hands' middle has moved since they took hold, solved for the settings
@@ -455,14 +591,14 @@ void editFrame(const hands::State& s)
             }
             glm::vec3 step = e.solve * (target - now);
             const float len = glm::length(step);
-            if(len > 6.f)
+            if(len > p.maxStep)
             {
-                step *= 6.f / len;
+                step *= p.maxStep / len;
             }
             e.params += step;
             for(int i = 0; i < 3; i++)
             {
-                const float lo = za::min(-PARAM_LIMIT, e.params0[i]), hi = za::max(PARAM_LIMIT, e.params0[i]);
+                const float lo = za::min(-p.limit, e.params0[i]), hi = za::max(p.limit, e.params0[i]);
                 e.params[i] = za::clamp(e.params[i], lo, hi);
             }
         }
@@ -472,7 +608,7 @@ void editFrame(const hands::State& s)
         for(int i = 0; i < 3; i++)
         {
             shipped[i] = defaultOf(*p.c[i]);
-            atShipped = atShipped && za::fabs(e.params[i] - shipped[i]) < SNAP_RADIUS;
+            atShipped = atShipped && za::fabs(e.params[i] - shipped[i]) < p.snap;
         }
         if(atShipped && !e.snapped)
         {
@@ -487,7 +623,7 @@ void editFrame(const hands::State& s)
         e.snapped = atShipped;
         for(int i = 0; i < 3; i++)
         {
-            const float v = atShipped ? shipped[i] : roundf(e.params[i] / 0.05f) * 0.05f;
+            const float v = atShipped ? shipped[i] : roundf(e.params[i] / p.round) * p.round;
             if(za::fabs(p.c[i]->value - v) > 1e-5f)
             {
                 Cvar_SetValueQuick(p.c[i], v);
@@ -496,7 +632,7 @@ void editFrame(const hands::State& s)
         }
         // A light tick every unit (3 cm) it goes.
         glm::vec3 at;
-        if(zones::pivotNow(s, e.zone, at) && glm::distance(at, e.lastTick) >= 1.f)
+        if(pivotOf(s, e.zone, at) && glm::distance(at, e.lastTick) >= 1.f)
         {
             e.lastTick = at;
             for(int h = 0; h < HAND_COUNT; h++)
@@ -521,14 +657,24 @@ void editFrame(const hands::State& s)
         if(za::fabs(y) > 0.25f)
         {
             const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
-            const float v = za::clamp(zones::sizeCvar(e.zone).value * expf(y * 0.8f * dt), SETUP_SIZE_MIN, SETUP_SIZE_MAX);
+            const float v = za::clamp(sizeOf(e.zone).value * expf(y * 0.8f * dt), sizeMin(e.zone), sizeMax(e.zone));
             // (Kept unrounded while the stick is held: small steps add up.)
-            setIfChanged(&zones::sizeCvar(e.zone), v);
+            setIfChanged(&sizeOf(e.zone), v);
             if(symmetry() && pairOf(e.zone) >= 0)
             {
                 setIfChanged(&zones::sizeCvar(pairOf(e.zone)), v);
             }
         }
+    }
+}
+
+// The torch's place, turn and grab zone as shipped.
+void resetTorch()
+{
+    toDefaults(torchParams());
+    for(cvar_t* c : {&vr_flashlight_tilt, &vr_flashlight_yaw, &vr_flashlight_roll, &vr_flashlight_grab_range})
+    {
+        setIfChanged(c, defaultOf(*c));
     }
 }
 
@@ -541,7 +687,12 @@ void resetZone(int zone)
     }
     pushUndo();
     const bool seated = seated::active();
-    if(!isHolster(zone))
+    if(zone == ZoneTorch)
+    {
+        resetTorch();
+        say("Flashlight: back to its shipped place, turn and grab zone");
+    }
+    else if(!isHolster(zone))
     {
         toDefaults(pouchParams(zone, seated));
         setIfChanged(&zones::sizeCvar(zone), 1.f);
@@ -578,6 +729,7 @@ void resetAll()
         }
         setIfChanged(&zones::sizeCvar(z), 1.f);
     }
+    resetTorch();
     say(seated ? "every holster and pouch back to its shipped place (seated)"
                : "every holster and pouch back to its shipped place");
 }
@@ -655,14 +807,14 @@ void hoverFrame(const hands::State& s)
     {
         int best = -1;
         float bestRatio = HOVER_RATIO;
-        for(int z = 0; z < ZoneCount; z++)
+        for(int z = 0; z < SlotCount; z++)
         {
             zones::Box b;
-            if(!zones::boxNow(s, z, b))
+            if(!boxOf(s, z, b))
             {
                 continue;
             }
-            const float r = zones::ratioIn(b, s.pos[h]);
+            const float r = ratioOf(s, z, b, s.pos[h]);
             if(r <= bestRatio)
             {
                 best = z;
@@ -720,10 +872,10 @@ void drawZones(const hands::State& s)
     // The body's mirror image beside the panel (vr_bodyclone.cpp): each box and its name on it too, at the same place.
     glm::mat4 mirror;
     const bool cloned = bodyclone::mirror(mirror);
-    for(int z = 0; z < ZoneCount; z++)
+    for(int z = 0; z < SlotCount; z++)
     {
         zones::Box b;
-        if(!zones::boxNow(s, z, b))
+        if(!boxOf(s, z, b))
         {
             continue;
         }
@@ -738,9 +890,10 @@ void drawZones(const hands::State& s)
         box(b, fill, edge, held || hovered ? 0.2f : 0.12f);
         // Its name over it (the back holsters' too: seen in a mirror), and its size when not 1.
         za::String text{label(z)};
-        if(za::fabs(zones::size(z) - 1.f) > 0.01f)
+        const float size = z == ZoneTorch ? sizeOf(z).value : zones::size(z);
+        if(za::fabs(size - 1.f) > 0.01f)
         {
-            text += va(" %.2fx", static_cast<double>(zones::size(z)));
+            text += va(z == ZoneTorch ? " grab %.2fx" : " %.2fx", static_cast<double>(size));
         }
         text3d::queueOverlay(text, b.centre + b.axis[2] * (b.half.z + 1.2f), angles, 0.05f);
         if(cloned)
@@ -797,9 +950,11 @@ void drawPanel(const hands::State& s)
     text += "\ngrip a box: drag it";
     text += "\nboth grips on it: resize it";
     text += "\n(or hold it and push the stick)";
+    text += "\nflashlight: turn your hand to turn it,";
+    text += "\nresizing sizes its grab zone";
     text += "\nbutton: touch it, pull the trigger";
     text += "\nB/Y: undo     menu button: done";
-    int lineCount = 6;
+    int lineCount = 8;
     if(realtime < ses.feedbackUntil)
     {
         text += "\n" + ses.feedback;
@@ -873,26 +1028,30 @@ void report_f()
 {
     const hands::State& s = hands::current();
     Con_Printf("setup active %d paused %d symmetry %d seated %d held %s hands %d undo %d\n", ses.active ? 1 : 0,
-        pausesGame() ? 1 : 0, symmetry() ? 1 : 0, seated::active() ? 1 : 0, zones::name(ses.edit.zone), ses.edit.hands,
-        static_cast<int>(ses.undo.size()));
+        pausesGame() ? 1 : 0, symmetry() ? 1 : 0, seated::active() ? 1 : 0, ses.edit.zone >= 0 ? slotName(ses.edit.zone) : "none",
+        ses.edit.hands, static_cast<int>(ses.undo.size()));
     if(!s.valid)
     {
         return;
     }
     glm::vec3 fwd, right, up;
     hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
-    for(int z = 0; z < ZoneCount; z++)
+    for(int z = 0; z < SlotCount; z++)
     {
         glm::vec3 p;
-        if(!zones::pivotNow(s, z, p))
+        if(!pivotOf(s, z, p))
         {
             continue;
         }
         const glm::vec3 d = p - s.head;
-        Con_Printf("setup %s at %.2f %.2f %.2f size %.2f\n", zones::name(z), static_cast<double>(glm::dot(d, fwd)),
+        Con_Printf("setup %s at %.2f %.2f %.2f size %.2f\n", slotName(z), static_cast<double>(glm::dot(d, fwd)),
             static_cast<double>(glm::dot(d, right)), static_cast<double>(glm::dot(d, up)),
-            static_cast<double>(zones::size(z)));
+            static_cast<double>(z == ZoneTorch ? sizeOf(z).value : zones::size(z)));
     }
+    // The torch's settings (round 26): its place (metres), turn (degrees) and grab zone.
+    Con_Printf("setup torch settings %.4f %.4f %.4f turn %.1f %.1f %.1f grab %.2f\n", vr_flashlight_forward.value,
+        vr_flashlight_out.value, vr_flashlight_up.value, vr_flashlight_tilt.value, vr_flashlight_yaw.value,
+        vr_flashlight_roll.value, vr_flashlight_grab_range.value);
 }
 
 // vr_holstersetup_press <index>: presses panel button `index` (as a hand's trigger there).

@@ -23,23 +23,42 @@ float(float xHand) VR_FlatGrab_HandBit =
     return xHand == cVR_OffHand ? 1 : 2;
 };
 
-// Whether `self` currently holds a 2H prop, a bulky 1H prop (crate/barrel) or a ragdoll via Grab / Pull (tells client
-// to raise and hold the hand(s) out comfortably in front, clear of the torso and floor).
+// What `xHand` of `p` holds: a thing it carries, a ragdoll, or the big prop it drags by its surface (VR_HOLD_DRAG, a busy
+// kind: the prop is not carried, it stays in the physics, hanging from the hand).
+entity(entity p, float xHand) VR_FlatGrab_Held =
+{
+    entity t = VR_Carry_Held(p, xHand);
+    if(t == world && VR_Hand_Kind(p, xHand) == VR_HOLD_DRAG)
+    {
+        t = VR_Hand_BusyEnt(p, xHand);
+    }
+    return t;
+};
+
+// Whether `xHand` of `xPlayer` still drags `e` (VR_Hand_BusyHolds' VR_HOLD_DRAG).
+float(entity e, entity xPlayer, float xHand) VR_FlatGrab_DragHeldBy =
+{
+    return e != world && e.model != string_null && xPlayer.health > 0 && (xPlayer.vr_flatgrab_hands & VR_FlatGrab_HandBit(xHand)) != 0;
+};
+
+// Whether `self` holds a ragdoll, a big prop it drags or a 2H prop via Grab / Pull (tells the client to raise and hold the
+// hand(s) out in front, clear of the torso and floor: vr_flat_grab_hold_*; what they hold comes there). A small thing is in
+// the hand as a force grab's: no hold pose.
 float() VR_FlatGrab_UsesHoldPose =
 {
     if(!self.vr_flatgrab_hands)
     {
         return FALSE;
     }
-    entity eOff = (self.vr_flatgrab_hands & 1) ? VR_Carry_Held(self, cVR_OffHand) : world;
-    entity eMain = (self.vr_flatgrab_hands & 2) ? VR_Carry_Held(self, cVR_MainHand) : world;
-    if(eOff != world && (isragdoll(eOff) || eOff.carry_2h || vlen(eOff.maxs - eOff.mins) > 18))
+    float h = cVR_OffHand;
+    while(h <= cVR_MainHand)
     {
-        return TRUE;
-    }
-    if(eMain != world && (isragdoll(eMain) || eMain.carry_2h || vlen(eMain.maxs - eMain.mins) > 18))
-    {
-        return TRUE;
+        entity e = (self.vr_flatgrab_hands & VR_FlatGrab_HandBit(h)) ? VR_FlatGrab_Held(self, h) : world;
+        if(e != world && (isragdoll(e) || e.carry_2h || VR_Hand_Kind(self, h) == VR_HOLD_DRAG))
+        {
+            return TRUE;
+        }
+        h = h + 1;
     }
     return FALSE;
 };
@@ -142,27 +161,80 @@ float(entity e) VR_FlatGrab_IsEligible =
     return FALSE;
 };
 
-// Closest point on entity `e`'s world AABB to the crosshair ray (`eye` + `aim * t`), falling back to model centre.
-vector(entity e, vector eye, vector aim, float reach) VR_FlatGrab_TargetPoint =
+// Grab / Pull's reach (units): vr_flat_grab_reach m (his note 2026-11-26: 100 units, 3.8 m, reached too far).
+float() VR_FlatGrab_Reach =
 {
-    vector centre = VR_Forcegrab_Centre(e);
-    float along = clamp((centre - eye) * aim, 0, reach);
-    vector rayPt = eye + aim * along;
-    if(e.absmax_x > e.absmin_x || e.absmax_y > e.absmin_y || e.absmax_z > e.absmin_z)
-    {
-        vector pt;
-        pt_x = clamp(rayPt_x, e.absmin_x, e.absmax_x);
-        pt_y = clamp(rayPt_y, e.absmin_y, e.absmax_y);
-        pt_z = clamp(rayPt_z, e.absmin_z, e.absmax_z);
-        return pt;
-    }
-    return centre;
+    return clamp(cvar_hget(cvarh_vr_flat_grab_reach), 0.3, 4) * VRMetersToUnits();
 };
 
-// Best grabbable entity in front of `self` within `vr_flat_grab_reach` and `vr_flat_grab_cone`.
+// How far the point `pt` is for Grab / Pull's reach from `eye`: level and up as it is, down not at all (the hand goes
+// down to the floor at your feet: a body lying there is in reach); below the feet, out of reach (-1).
+float(vector eye, vector pt) VR_FlatGrab_ReachDist =
+{
+    if(pt_z < self.absmin_z - 8)
+    {
+        return -1;
+    }
+    vector d = pt - eye;
+    d_z = max(0, d_z);
+    return vlen(d);
+};
+
+// Where the crosshair ray (`eye` + `aim * t`) enters entity `e`'s world AABB; missing it, the box's point nearest the ray.
+vector(entity e, vector eye, vector aim) VR_FlatGrab_RayEntry =
+{
+    float t0 = 0;
+    float t1 = 100000;
+    float axis = 0;
+    float hits = TRUE;
+    while((axis < 3) && hits)
+    {
+        float o = (axis == 0) ? eye_x : ((axis == 1) ? eye_y : eye_z);
+        float d = (axis == 0) ? aim_x : ((axis == 1) ? aim_y : aim_z);
+        float lo = (axis == 0) ? e.absmin_x : ((axis == 1) ? e.absmin_y : e.absmin_z);
+        float hi = (axis == 0) ? e.absmax_x : ((axis == 1) ? e.absmax_y : e.absmax_z);
+        if(fabs(d) < 0.0001)
+        {
+            hits = ((o >= lo) && (o <= hi));
+        }
+        else
+        {
+            float ta = (lo - o) / d;
+            float tb = (hi - o) / d;
+            t0 = max(t0, min(ta, tb));
+            t1 = min(t1, max(ta, tb));
+            hits = t0 <= t1;
+        }
+        axis = axis + 1;
+    }
+    if(hits)
+    {
+        return eye + aim * t0;
+    }
+    vector centre = VR_Forcegrab_Centre(e);
+    vector rayPt = eye + aim * max(0, (centre - eye) * aim);
+    vector pt;
+    pt_x = clamp(rayPt_x, e.absmin_x, e.absmax_x);
+    pt_y = clamp(rayPt_y, e.absmin_y, e.absmax_y);
+    pt_z = clamp(rayPt_z, e.absmin_z, e.absmax_z);
+    return pt;
+};
+
+// Where the crosshair ray (`eye` + `aim * t`) meets entity `e`'s world AABB (or its point nearest the ray), falling back to
+// model centre.
+vector(entity e, vector eye, vector aim) VR_FlatGrab_TargetPoint =
+{
+    if(e.absmax_x > e.absmin_x || e.absmax_y > e.absmin_y || e.absmax_z > e.absmin_z)
+    {
+        return VR_FlatGrab_RayEntry(e, eye, aim); // (its near side where the crosshair meets it: what the hand reaches)
+    }
+    return VR_Forcegrab_Centre(e);
+};
+
+// Best grabbable entity in front of `self` within `vr_flat_grab_reach` (VR_FlatGrab_ReachDist) and `vr_flat_grab_cone`.
 entity(vector eye, vector aim) VR_FlatGrab_FindTarget =
 {
-    float reach = clamp(cvar_hget(cvarh_vr_flat_grab_reach), 16, 300);
+    float reach = VR_FlatGrab_Reach();
     float cone = clamp(cvar_hget(cvarh_vr_flat_grab_cone), 1, 80);
     float minCos = cos(cone * 0.0174533);
     float closeCos = cos(min(80, cone * 1.6) * 0.0174533);
@@ -171,16 +243,18 @@ entity(vector eye, vector aim) VR_FlatGrab_FindTarget =
     float bestScore = -10;
     vector bestPt = '0 0 0';
 
-    for(entity e = findradius(eye, reach + 48); e; e = e.chain)
+    // (Far enough to find what lies on the floor at your feet and what is big: its box's point in reach, not its middle.)
+    for(entity e = findradius(eye, reach + 96); e; e = e.chain)
     {
         if(!VR_FlatGrab_IsEligible(e))
         {
             continue;
         }
-        vector pt = VR_FlatGrab_TargetPoint(e, eye, aim, reach);
+        vector pt = VR_FlatGrab_TargetPoint(e, eye, aim);
         vector d = pt - eye;
         float dist = vlen(d);
-        if(dist > reach || dist < 0.01)
+        float reachDist = VR_FlatGrab_ReachDist(eye, pt);
+        if(reachDist < 0 || reachDist > reach || dist < 0.01)
         {
             continue;
         }
@@ -270,6 +344,79 @@ float(entity e, float canMain, float canOff, float reach) VR_FlatGrab_TakeRagdol
     vr_flatgrab_count++;
     dprint(sprintf("flat grab: took ragdoll %s (%s)%s\n", e.classname, e.health > 0 ? "active" : "dead",
         takenBoth ? " with both hands" : sprintf(" with %s hand", VR_FlatGrenade_HandName(h1))));
+    return TRUE;
+};
+
+// Whether Grab / Pull drags the carryable `e` by its surface (his note 2026-11-26: the crates, barrels and explosive boxes,
+// as a ragdoll is) rather than taking it into the hand as a force grab does (the bricks, rocks, ammo and health boxes,
+// gibs): its mass (Held Object Weights: Mass, or estimated from its size) at least vr_flat_grab_drag_mass. (A pickup never;
+// a thing with no Box3D body is carried instead: VR_FlatGrab_TakeDrag fails.)
+float(entity e) VR_FlatGrab_Drags =
+{
+    return !isragdoll(e) && e.handtouch == VR_Carry_Handtouch && propvalue(e, "mass") >= max(0, cvar_hget(cvarh_vr_flat_grab_drag_mass));
+};
+
+// The hold of `xHand` on the big prop it drags, kept each frame (TRUE) or let go of (its point too far from the hand:
+// vr_flat_grab_drag_letgo; no body any more), with `xTarget` where it takes hold as it begins (propdrag).
+float(entity e, float xHand, vector xTarget) VR_FlatGrab_DragHold =
+{
+    return propdrag(e, self, xHand, xTarget, max(0, cvar_hget(cvarh_vr_flat_grab_drag_force)), max(0, cvar_hget(cvarh_vr_flat_grab_drag_lift)),
+        cvar_hget(cvarh_vr_flat_grab_drag_hertz), max(0.1, cvar_hget(cvarh_vr_flat_grab_drag_letgo)) * VRMetersToUnits()) >= 0;
+};
+
+// `xHand` lets go of the big prop it drags (it keeps the speed the physics gave it).
+void(float xHand) VR_FlatGrab_LetGoDrag =
+{
+    propdrag(world, self, xHand, '0 0 0', -1, 0, 0, 0);
+    VR_Hand_Unbusy(self, xHand, VR_HOLD_DRAG, "letgo");
+    self.vr_flatgrab_hands = self.vr_flatgrab_hands - (self.vr_flatgrab_hands & VR_FlatGrab_HandBit(xHand));
+};
+
+// Drag the big prop `e` by its surface with every available empty hand (both: side by side where the crosshair meets it,
+// as far apart as the hands are; the engine takes the nearest points of its shape). The hands are drawn on those points
+// and the prop hangs from them, its far side dragging (propdrag). FALSE: no hand took hold (no Box3D body).
+float(entity e, vector eye, vector aim, float canMain, float canOff) VR_FlatGrab_TakeDrag =
+{
+    vector entry = VR_FlatGrab_RayEntry(e, eye, aim);
+    makevectors(self.v_angle);
+    vector right = v_right;
+    float both = (canMain && canOff);
+    float half = both ? clamp(0.5 * fabs((VRGetHandPos(cVR_MainHand) - VRGetHandPos(cVR_OffHand)) * right), 3, 12) : 0;
+    float took = 0;
+    float first = cVR_MainHand;
+    float h = cVR_MainHand;
+    while(h >= cVR_OffHand)
+    {
+        float can = h == cVR_MainHand ? canMain : canOff;
+        if(can && VR_Hand_Free(self, h, 0)) // (not on the gun's grip either: a busy kind of its own)
+        {
+            float side = (VRGetHandPos(h) - eye) * right >= 0 ? 1 : -1;
+            if(VR_FlatGrab_DragHold(e, h, entry + right * (side * half)))
+            {
+                VR_Hand_Busy(self, h, VR_HOLD_DRAG, e, "drag");
+                self.vr_flatgrab_hands = self.vr_flatgrab_hands | VR_FlatGrab_HandBit(h);
+                VR_Haptic_GrabProp(h);
+                if(!took)
+                {
+                    first = h;
+                }
+                took = took + 1;
+            }
+        }
+        h = h - 1;
+    }
+    if(!took)
+    {
+        return FALSE;
+    }
+    string grab = VR_Carry_GrabSound(e);
+    if(grab != "")
+    {
+        sound(e, CHAN_AUTO, grab, 1, ATTN_NORM);
+    }
+    vr_flatgrab_count++;
+    dprint(sprintf("flat grab: drags %s (%.0f kg) by its surface %s\n", e.classname, propvalue(e, "mass"),
+        took > 1 ? "with both hands" : sprintf("with %s hand", VR_FlatGrenade_HandName(first))));
     return TRUE;
 };
 
@@ -391,15 +538,17 @@ float() VR_FlatGrab_TryGrab =
     vector eye = VRGetHeadPos(self);
     makevectors(self.v_angle);
     vector aim = v_forward;
-    float reach = clamp(cvar_hget(cvarh_vr_flat_grab_reach), 16, 300);
+    float reach = VR_FlatGrab_Reach();
 
     entity e = VR_FlatGrab_FindTarget(eye, aim);
     if(e == world)
     {
-        dprint("flat grab: nothing grabbable in reach\n");
+        dprint(sprintf("flat grab: nothing grabbable in reach (%.2f m)\n", reach / VRMetersToUnits()));
         return FALSE;
     }
     float ok = FALSE;
+    dprint(sprintf("flat grab: target %s, %.0f kg, %.2f m away (reach %.2f m)\n", e.classname, isragdoll(e) ? 0 : propvalue(e, "mass"),
+        VR_FlatGrab_ReachDist(eye, vr_flatgrab_hitpt) / VRMetersToUnits(), reach / VRMetersToUnits()));
     if(isragdoll(e))
     {
         ok = VR_FlatGrab_TakeRagdoll(e, canMain, canOff, reach);
@@ -408,9 +557,23 @@ float() VR_FlatGrab_TryGrab =
     {
         ok = VR_FlatGrab_TakeHandTouch(e, canMain, canOff);
     }
+    else if(VR_FlatGrab_Drags(e))
+    {
+        // A big prop: dragged by its surface, as a ragdoll is; with no Box3D body, carried as before.
+        ok = VR_FlatGrab_TakeDrag(e, eye, aim, canMain, canOff);
+        if(!ok)
+        {
+            ok = VR_FlatGrab_TakeCarry(e, eye, aim, canMain, canOff);
+        }
+    }
     else
     {
-        ok = VR_FlatGrab_TakeCarry(e, eye, aim, canMain, canOff);
+        // A small thing (a brick, a rock, an ammo or health box, a gib): into the hand as a force grab's catch.
+        ok = VR_FlatGrab_TakeHandTouch(e, canMain, canOff);
+        if(!ok && e.model != string_null && e.carry_player == world) // (not taken, nor collected by its touch)
+        {
+            ok = VR_FlatGrab_TakeCarry(e, eye, aim, canMain, canOff);
+        }
     }
     if(ok)
     {
@@ -419,11 +582,32 @@ float() VR_FlatGrab_TryGrab =
     return ok;
 };
 
-// Release a ragdoll held by `self` (1 or both hands) cleanly with `vel` (u/s; '0 0 0' for a clean drop).
-void(entity xRag, vector xVel) VR_FlatGrab_ReleaseRagdoll =
+// Release a ragdoll, or a big prop dragged, held by `self` (1 or both hands) cleanly with `vel` (u/s; '0 0 0' for a clean
+// drop; a heavy prop leaves slower, VR_Thrown_Lenient).
+void(entity xRag, vector xVel) VR_FlatGrab_ReleaseHeld =
 {
     if(xRag == world)
     {
+        return;
+    }
+    if(!isragdoll(xRag))
+    {
+        float dragged = FALSE;
+        float h = cVR_OffHand;
+        while(h <= cVR_MainHand)
+        {
+            if(VR_Hand_Kind(self, h) == VR_HOLD_DRAG && VR_Hand_BusyEnt(self, h) == xRag)
+            {
+                VR_FlatGrab_LetGoDrag(h);
+                dragged = TRUE;
+            }
+            h = h + 1;
+        }
+        if(dragged && xVel != '0 0 0')
+        {
+            xRag.velocity = xVel * VR_Thrown_Lenient(xRag);
+            VR_Throw_SelfStart(xRag, self);
+        }
         return;
     }
     float hadOff = (VR_Carry_Held(self, cVR_OffHand) == xRag);
@@ -457,12 +641,18 @@ void() VR_FlatGrab_ReleaseAll =
         float bit = VR_FlatGrab_HandBit(h);
         if(self.vr_flatgrab_hands & bit)
         {
-            entity e = VR_Carry_Held(self, h);
+            entity e = VR_FlatGrab_Held(self, h);
             if(e != world)
             {
-                if(isragdoll(e))
+                if(VR_Hand_Kind(self, h) == VR_HOLD_DRAG)
                 {
-                    VR_FlatGrab_ReleaseRagdoll(e, '0 0 0');
+                    VR_FlatGrab_LetGoDrag(h);
+                    dprint(sprintf("flat grab: let go of dragged %s\n", e.classname));
+                    released = TRUE;
+                }
+                else if(isragdoll(e))
+                {
+                    VR_FlatGrab_ReleaseHeld(e, '0 0 0');
                     dprint(sprintf("flat grab: released ragdoll %s\n", e.classname));
                     released = TRUE;
                 }
@@ -484,6 +674,65 @@ void() VR_FlatGrab_ReleaseAll =
     VR_FlatGrab_SyncStat();
 };
 
+// H's catch (flatthrow3, his words 2026-11-26: "Grenades thrown by ogres should never automatically be picked up by the
+// player, only if the player presses the grab button (H) at the right timing"): flat play catches no grenade by itself
+// (VR_Grenade_HandCatches); an H press opens a window of vr_flat_grab_catch_window seconds (VR_FlatGrab_CatchOpen) in which
+// a live grenade in flight whose path this frame passes within vr_flat_grab_catch_reach of his body (the line from its
+// middle to the eyes) is taken by a free hand, the main one first (VR_Grenade_Take: then the quick grenade's to throw back,
+// VR_FlatGrenade_Adopt); the palm's own reach and touch (VR_Grenade_CatchCheck, VR_Grenade_HandTouch) catch in it too.
+float vr_flatcatch_count; // (the tests) grenades H's window caught
+
+float() VR_FlatGrab_CatchTry =
+{
+    if(time > self.vr_flatcatch_until || time >= vr_gren_fuse_last || !VR_Grenade_On(FALSE))
+    {
+        return FALSE;
+    }
+    float reach = clamp(cvar_hget(cvarh_vr_flat_grab_catch_reach), 0.3, 3) * VRMetersToUnits();
+    vector head = VRGetHeadPos(self);
+    float dt = max(frametime, 0.011);
+    for(entity g = findradius(head, reach + 200); g; g = g.chain)
+    {
+        if(!VR_Grenade_Catchable(g))
+        {
+            continue;
+        }
+        vector at = g.origin + (g.mins + g.maxs) * 0.5;
+        float d = VR_SegmentDistance(at - g.velocity * dt, at + g.velocity * (dt * 0.5), self.origin, head);
+        if(d > reach + g.maxs_x)
+        {
+            continue;
+        }
+        float h = -1;
+        if(VR_Grenade_HandCatches(cVR_MainHand, VR_Blow(cVR_MainHand)))
+        {
+            h = cVR_MainHand;
+        }
+        else if(VR_Grenade_HandCatches(cVR_OffHand, VR_Blow(cVR_OffHand)))
+        {
+            h = cVR_OffHand;
+        }
+        if(h < 0)
+        {
+            return FALSE; // (no free hand: it flies on)
+        }
+        float window = clamp(cvar_hget(cvarh_vr_flat_grab_catch_window), 0.05, 1);
+        VR_Grenade_Take(self, h, g, sprintf("H's catch, %.2f s after the press, its path %.1f units off the body", window -
+            (self.vr_flatcatch_until - time), d));
+        self.vr_flatcatch_until = 0;
+        vr_flatcatch_count++;
+        return TRUE;
+    }
+    return FALSE;
+};
+
+// An H press: H's catch window opens (and a grenade there already is caught at once: TRUE).
+float() VR_FlatGrab_CatchOpen =
+{
+    self.vr_flatcatch_until = time + clamp(cvar_hget(cvarh_vr_flat_grab_catch_window), 0.05, 1);
+    return VR_FlatGrab_CatchTry();
+};
+
 // Impulse 52: Toggle mode press (default vr_flat_grab_hold 0).
 void() VR_FlatGrab_Toggle =
 {
@@ -493,6 +742,10 @@ void() VR_FlatGrab_Toggle =
     }
     self.vr_flatgrab_holdmode = FALSE;
     self.vr_flatgrab_hold_done = FALSE;
+    if(VR_FlatGrab_CatchOpen()) // (a grenade coming at him caught: that is all this press does)
+    {
+        return;
+    }
     if(self.vr_flatgrab_hands)
     {
         VR_FlatGrab_ReleaseAll();
@@ -508,7 +761,12 @@ void() VR_FlatGrab_HoldStart =
     {
         return;
     }
+    float fresh = !self.vr_flatgrab_holdmode; // (the press itself, not the client's retries while H is held)
     self.vr_flatgrab_holdmode = TRUE;
+    if(fresh && VR_FlatGrab_CatchOpen())
+    {
+        return;
+    }
     if(self.vr_flatgrab_hands || self.vr_flatgrab_hold_done)
     {
         return;
@@ -530,12 +788,31 @@ void() VR_FlatGrab_HoldEnd =
 // Each server player frame: clear stale grab bits when a hand empties (thrown, auto-collected, lost, died) and sync stat.
 void() VR_FlatGrab_Frame =
 {
+    if(self.vr_flatcatch_until) // (H's catch window: VR_FlatGrab_CatchTry)
+    {
+        if(time > self.vr_flatcatch_until || !VR_FlatPlay(self))
+        {
+            self.vr_flatcatch_until = 0;
+        }
+        else
+        {
+            VR_FlatGrab_CatchTry();
+        }
+    }
     if(!self.vr_flatgrab_hands)
     {
         return;
     }
+    float h;
     if(!VR_FlatPlay(self) || self.health <= 0)
     {
+        for(h = cVR_OffHand; h <= cVR_MainHand; h++)
+        {
+            if(VR_Hand_Kind(self, h) == VR_HOLD_DRAG)
+            {
+                VR_FlatGrab_LetGoDrag(h);
+            }
+        }
         self.vr_flatgrab_hands = 0;
         self.vr_flatgrab_holdmode = FALSE;
         self.vr_flatgrab_hold_done = FALSE;
@@ -543,13 +820,28 @@ void() VR_FlatGrab_Frame =
         return;
     }
     float before = self.vr_flatgrab_hands;
-    if((self.vr_flatgrab_hands & 1) && VR_Carry_Held(self, cVR_OffHand) == world)
+    for(h = cVR_OffHand; h <= cVR_MainHand; h++)
     {
-        self.vr_flatgrab_hands = self.vr_flatgrab_hands - 1;
-    }
-    if((self.vr_flatgrab_hands & 2) && VR_Carry_Held(self, cVR_MainHand) == world)
-    {
-        self.vr_flatgrab_hands = self.vr_flatgrab_hands - 2;
+        float bit = VR_FlatGrab_HandBit(h);
+        if(!(self.vr_flatgrab_hands & bit))
+        {
+            continue;
+        }
+        if(VR_Hand_Kind(self, h) == VR_HOLD_DRAG)
+        {
+            // A big prop dragged: its hold kept (the joint's spring and its draw: the engine's), or let go of when its
+            // point stays too far from the hand (caught, too heavy) or it is gone (broken, exploded).
+            entity e = VR_Hand_BusyEnt(self, h);
+            if(e == world || e.model == string_null || !VR_FlatGrab_DragHold(e, h, '0 0 0'))
+            {
+                dprint(sprintf("flat grab: the %s hand loses its hold on the dragged %s\n", VR_FlatGrenade_HandName(h), e == world ? "prop" : e.classname));
+                VR_FlatGrab_LetGoDrag(h);
+            }
+        }
+        else if(VR_Carry_Held(self, h) == world)
+        {
+            self.vr_flatgrab_hands = self.vr_flatgrab_hands - bit;
+        }
     }
     if(self.vr_flatgrab_hands != before)
     {

@@ -1332,6 +1332,128 @@ void() VR_GT_Step =
     }
 };
 
+// vr_prop_impact_test 8 (Debug > Tests; ROUND26.md, "vrmisc"; his VR note 2026-11-26 19:56: "punches that are thrown when
+// the player is hugging a crate ... most of the times they don't register"): the main fist (closed, the mock hand) punches
+// a large crate four times as the player hugs it (its face a quarter unit off his box; the knuckles from a unit off it),
+// four times from 3 units in it (a hand resting over it; a flat fist's rest past his box), then four times with it 6
+// units further (the control); each punch glides 26 units in 0.1 s (about 6.6 m/s), then back slowly. The same crate each four (put back; square to the axis he faces most). One
+// "hugpunch:" line a punch (its damage), then "hugpunch: N passed, M failed": every punch lands, hugging or not.
+float vr_propimp_hp_on;
+float vr_propimp_hp_case;   // 0..3 hugging (the fist a unit off), 4..7 hugging (the fist 3 units in), 8..11 the control
+float vr_propimp_hp_phase;  // 0 make, 1 settle, 2 the punch, 3 back
+float vr_propimp_hp_frames;
+float vr_propimp_hp_h0;
+float vr_propimp_hp_hits;   // landed: hugging from outside, + 16 x from inside it, + 256 x the control's
+entity vr_propimp_hp_crate;
+vector vr_propimp_hp_fwd;
+vector vr_propimp_hp_from;  // the fist's start and end (world)
+vector vr_propimp_hp_to;
+float VR_PROPIMP_HP_SETTLE = 24; // frames: the crate settled, the fist still (re-armed)
+float VR_PROPIMP_HP_PUNCH = 30;  // frames: the glide (7) and the blow decided
+float VR_PROPIMP_HP_BACK = 40;   // frames: back at 0.4 s
+
+void() VR_PropImp_HpClear =
+{
+    if(vr_propimp_hp_crate != world && vr_propimp_hp_crate.modelindex)
+    {
+        remove(vr_propimp_hp_crate);
+    }
+    vr_propimp_hp_crate = world;
+};
+
+string(vector v) VR_PropImp_HpXyz = { return sprintf("%g %g %g", v_x, v_y, v_z); };
+
+// Each frame while it runs; self the player.
+void() VR_PropImp_HpStep =
+{
+    float c = vr_propimp_hp_case;
+    float group = floor(c / 4); // 0 hugging, the fist off it; 1 hugging, the fist in it; 2 the control
+    float hug = group < 2;
+    entity t = vr_propimp_hp_crate;
+    vector fwd = vr_propimp_hp_fwd;
+    if(vr_propimp_hp_phase == 0)
+    {
+        if(mod(c, 4) == 0 || t == world || !t.modelindex)
+        {
+            VR_PropImp_HpClear();
+            t = VR_Crate_TestSpawn(self.origin + fwd * 64, 2, 0, FALSE);
+            vr_propimp_hp_crate = t;
+        }
+        // Its near face a quarter unit off his box (hugging; the control 6 more), along the axis he faces; put back
+        // there before each punch (the same crate: struck again, VR_Melee_Sweep's mh_struck).
+        float near = fabs(fwd * (fwd_x + fwd_y < 0 ? t.maxs : t.mins));
+        float gap = 0.25 + (hug ? 0 : 6);
+        vector at = self.origin + fwd * (self.maxs_x + near + gap);
+        traceline(at + '0 0 8', at - '0 0 256', TRUE, t);
+        setorigin(t, [at_x, at_y, trace_endpos_z - t.mins_z + 0.05]);
+        t.velocity = '0 0 0';
+        makevectors('0 1 0' * vectoyaw(fwd));
+        float z = min(self.origin_z + 12, t.origin_z + t.maxs_z - 10);
+        // (the hand 5 units short of the face: the fist's knuckles a unit off it, as close as a hug leaves room for;
+        // group 1 a unit past it, the knuckles 3 in: a hand resting over the crate, or a flat fist's rest past his box)
+        vr_propimp_hp_from = [self.origin_x, self.origin_y, z] + fwd * (self.maxs_x + gap - (group == 1 ? -1 : 5)) + v_right * 6;
+        vr_propimp_hp_to = vr_propimp_hp_from + fwd * 26;
+        localcmd(sprintf("vr_mock_hand_glide 0\nvr_mock_hand_to main %s\nvr_mock_button main grip 1\n",
+            VR_PropImp_HpXyz(vr_propimp_hp_from)));
+        dprint(sprintf("hugpunch: case %g, the crate at %v (box %v %v), his %v, the fist %v -> %v\n", c, t.origin, t.mins,
+            t.maxs, self.origin, vr_propimp_hp_from, vr_propimp_hp_to));
+        vr_propimp_hp_phase = 1;
+        vr_propimp_hp_frames = 0;
+        return;
+    }
+    vr_propimp_hp_frames++;
+    if(vr_propimp_hp_phase == 1)
+    {
+        if(vr_propimp_hp_frames < VR_PROPIMP_HP_SETTLE)
+        {
+            return;
+        }
+        vr_propimp_hp_h0 = t.health;
+        localcmd(sprintf("vr_mock_hand_glide 0.1\nvr_mock_hand_to main %s\n", VR_PropImp_HpXyz(vr_propimp_hp_to)));
+        vr_propimp_hp_phase = 2;
+        vr_propimp_hp_frames = 0;
+        return;
+    }
+    if(vr_propimp_hp_phase == 2)
+    {
+        if(vr_propimp_hp_frames < VR_PROPIMP_HP_PUNCH)
+        {
+            return;
+        }
+        float dmg = vr_propimp_hp_h0 - (t.modelindex ? t.health : 0);
+        bprint(sprintf("hugpunch: %s punch %g: damage %g\n", group == 0 ? "hugging" : (group == 1 ? "hugging, from in it," : "control"),
+            mod(c, 4) + 1, dmg));
+        if(dmg > 0)
+        {
+            vr_propimp_hp_hits = vr_propimp_hp_hits + pow(16, group);
+        }
+        localcmd(sprintf("vr_mock_hand_glide 0.4\nvr_mock_hand_to main %s\n", VR_PropImp_HpXyz(vr_propimp_hp_from)));
+        vr_propimp_hp_phase = 3;
+        vr_propimp_hp_frames = 0;
+        return;
+    }
+    if(vr_propimp_hp_frames < VR_PROPIMP_HP_BACK)
+    {
+        return;
+    }
+    vr_propimp_hp_case++;
+    vr_propimp_hp_phase = 0;
+    if(vr_propimp_hp_case < 12)
+    {
+        return;
+    }
+    float hugged = mod(vr_propimp_hp_hits, 16);
+    float inside = mod(floor(vr_propimp_hp_hits / 16), 16);
+    float control = floor(vr_propimp_hp_hits / 256);
+    VR_Test_Check(hugged == 4, sprintf("hugging the crate: %g of 4 punches land", hugged));
+    VR_Test_Check(inside == 4, sprintf("hugging it, each punch from 3 units in: %g of 4 land", inside));
+    VR_Test_Check(control == 4, sprintf("the crate 6 units off: %g of 4 punches land", control));
+    VR_PropImp_HpClear();
+    localcmd("vr_mock_hand_glide 0\nvr_mock_button main grip 0\n");
+    vr_propimp_hp_on = FALSE;
+    VR_Test_Verdict();
+};
+
 // Every server frame (StartFrame): a test asked for (vr_prop_impact_test).
 void() VR_PropImp_TestFrame =
 {
@@ -1378,6 +1500,17 @@ void() VR_PropImp_TestFrame =
             oself = self;
             self = p;
             VR_PropImp_MtStep();
+            self = oself;
+        }
+    }
+    if(vr_propimp_hp_on)
+    {
+        p = VR_Player();
+        if(p != world)
+        {
+            oself = self;
+            self = p;
+            VR_PropImp_HpStep();
             self = oself;
         }
     }
@@ -1468,6 +1601,19 @@ void() VR_PropImp_TestFrame =
         vr_propimp_fh_chain = cvar_hget(cvarh_vr_flail_chain);
         vr_propimp_fh_health = self.health;
         cvar_set("vr_flail_chain", "2");
+    }
+    else if(ask == 8)
+    {
+        VR_PropImp_HpClear();
+        vr_propimp_hp_on = TRUE;
+        vr_propimp_hp_case = 0;
+        vr_propimp_hp_phase = 0;
+        vr_propimp_hp_hits = 0;
+        // (the axis he faces most: the crate square to it)
+        float yaw = rint(self.angles_y / 90) * 90;
+        makevectors('0 1 0' * yaw);
+        vr_propimp_hp_fwd = [rint(v_forward_x), rint(v_forward_y), 0];
+        VR_Test_BeginFlags("hugpunch", VR_TEST_LOUD);
     }
     else if(ask == 6)
     {

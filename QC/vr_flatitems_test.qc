@@ -1410,6 +1410,310 @@ void(entity p) VR_FFX_Grenade =
     }
 };
 
+// `vr_flatitems_test 12` (flatthrow2, his words 2026-11-26: "while ... holding B, if the off-hand is empty and in the guiding
+// hand pose it automatically grabs things thrown at the players (e.g. ogre grenades). That shouldn't happen"): an ogre's
+// live grenade coming straight at the free off hand's palm (set just off it, its velocity into it: VR_Grenade_CatchCheck's
+// sweep meets it next frame) while the main hand winds up a throw with B: case 0 the quick grenade (G, then B held), case 1
+// the axe (B held; the off hand lets go of its grip): the off hand guides (VR_FlatThrow_Guides), its catch is refused
+// (VR_Grenade_HandCatches) and the grenade is neither stopped in its palm nor taken.
+// flatthrow3 (his words 2026-11-26: "Grenades thrown by ogres should never automatically be picked up by the player, only if
+// the player presses the grab button (H) at the right timing"), the axe in the main hand, no B: case 2 the same grenade at
+// the free off hand's palm flies on, then H pressed: caught (H's window, VR_FlatGrab_CatchOpen); case 3 H pressed, its
+// window let go by, then the grenade at the palm: flies on (too early); case 4 an ogre's grenade thrown at his face from 90
+// units, H pressed as it leaves: caught by the off hand before it meets him; case 5 the same throw, no H: it meets him (its
+// touch), nothing caught. Run with god.
+float VR_FFX_GUIDE_CASES = 6;
+entity vr_ffx_guideGren;  // the grenade at the off hand's palm (or thrown at him)
+float vr_ffx_guideHit;    // (cases 4, 5) the thrown grenade met his body
+float vr_ffx_guideCount;  // vr_flatcatch_count as the case began
+
+void(entity p) VR_FFX_GuideGrenade =
+{
+    vector palmDir = VR_Grenade_PalmDir(p, cVR_OffHand);
+    vector palm = VRGetEntHandPos(p, cVR_OffHand) + palmDir * VR_GREN_PALM;
+    entity g = spawn();
+    g.classname = "grenade";
+    g.movetype = MOVETYPE_BOUNCE;
+    g.solid = SOLID_BBOX;
+    g.touch = OgreGrenadeTouch;
+    g.nextthink = time + 6;
+    g.think = OgreGrenadeExplode;
+    setmodel(g, "progs/grenade.mdl");
+    setsize(g, '0 0 0', '0 0 0');
+    setorigin(g, palm + palmDir * 3);
+    VR_Grenade_Make(g, OgreGrenadeExplode, 6, FALSE);
+    // (Old enough to catch, held where it is with its velocity into the palm: only the hand's catch decides.)
+    g.vr_gren_made = time - 1;
+    g.vr_rigid = 0; // (not the physics' body: it stays where it is put, its velocity kept)
+    g.movetype = MOVETYPE_NONE; // (its solid kept: the palm's sweep finds it, findradius)
+    g.touch = SUB_Null; // (inside his box by a hand at rest: no hit on him; the palm's sweep alone, VR_Grenade_CatchCheck)
+    g.velocity = palmDir * -300;
+    vr_ffx_guideGren = g;
+};
+
+// Whether the off hand stopped or took the grenade.
+float(entity p) VR_FFX_GuideMet =
+{
+    entity g = vr_ffx_guideGren;
+    return g != world && (g.vr_gren_trap == p || VR_Carry_Held(p, cVR_OffHand) == g);
+};
+
+// (Cases 4, 5) the thrown grenade meeting his body: noted, and gone (no blast).
+void() VR_FFX_GuideTouch =
+{
+    if(other.classname != "player")
+    {
+        return;
+    }
+    vr_ffx_guideHit = TRUE;
+    if(vr_ffx_guideGren == self)
+    {
+        vr_ffx_guideGren = world;
+    }
+    remove(self);
+};
+
+// (Cases 4, 5) an ogre's live grenade thrown at his face: from 90 units ahead along the look at 450 u/s (lifted for the
+// gravity's drop on the way), Quake's physics (no rigid body), its touch VR_FFX_GuideTouch.
+void(entity p) VR_FFX_GuideThrowAt =
+{
+    vector head = VRGetHeadPos(p);
+    makevectors(p.v_angle);
+    vector from = head + v_forward * 90;
+    entity g = spawn();
+    g.classname = "grenade";
+    g.movetype = MOVETYPE_BOUNCE;
+    g.solid = SOLID_BBOX;
+    g.nextthink = time + 6;
+    g.think = OgreGrenadeExplode;
+    setmodel(g, "progs/grenade.mdl");
+    setsize(g, '0 0 0', '0 0 0');
+    setorigin(g, from);
+    VR_Grenade_Make(g, OgreGrenadeExplode, 6, FALSE);
+    g.vr_gren_made = time - 1; // (old enough to catch)
+    g.vr_rigid = 0;
+    g.movetype = MOVETYPE_BOUNCE;
+    g.touch = VR_FFX_GuideTouch;
+    float flight = 90 / 450;
+    g.velocity = normalize(head - from) * 450 + '0 0 1' * (cvar_hget(cvarh_sv_gravity) * flight * 0.5);
+    vr_ffx_guideGren = g;
+    vr_ffx_guideHit = FALSE;
+};
+
+// The case's grenade gone (let go of first if the off hand took it).
+void(entity p) VR_FFX_GuideDrop =
+{
+    entity g = vr_ffx_guideGren;
+    vr_ffx_guideGren = world;
+    if(g == world)
+    {
+        return;
+    }
+    if(VR_Carry_Held(p, cVR_OffHand) == g)
+    {
+        entity oself = self;
+        self = p;
+        VR_Carry_Release(cVR_OffHand, g);
+        self = oself;
+    }
+    remove(g);
+};
+
+void(entity p) VR_FFX_GuideNext =
+{
+    VR_FFX_GuideDrop(p);
+    vr_ffx_case = vr_ffx_case + 1;
+    VR_FFX_To(0, 10);
+};
+
+void(entity p) VR_FFX_Guide =
+{
+    string what = vr_ffx_case == 0 ? "the quick grenade wound up by B" : (vr_ffx_case == 1 ? "the axe wound up by B" :
+        (vr_ffx_case == 2 ? "no B, then H" : (vr_ffx_case == 3 ? "H pressed too early" :
+        (vr_ffx_case == 4 ? "thrown at him, H as it leaves" : "thrown at him, no H"))));
+    if(vr_ffx_s == 0)
+    {
+        if(vr_ffx_case >= VR_FFX_GUIDE_CASES)
+        {
+            VR_Test_Verdict();
+            vr_ffx_on = 0;
+            cvar_set("vr_flatitems_test", "0");
+            return;
+        }
+        localcmd(sprintf("setpos %g %g %g 0 %g 0\n", p.origin_x, p.origin_y, p.origin_z, p.v_angle_y));
+        vr_ffx_guideCount = vr_flatcatch_count;
+        if(vr_ffx_case >= 1)
+        {
+            localcmd("impulse 152\n"); // (the axe in the main hand)
+            VR_FFX_To(2, 40);
+            return;
+        }
+        localcmd("give r 10\nvr_mock_key g down\n");
+        VR_FFX_To(1, 2);
+        return;
+    }
+    if(vr_ffx_s == 1)
+    {
+        localcmd("vr_mock_key g up\n");
+        if(p.vr_flatgren_phase == VR_FLATGREN_HELD)
+        {
+            VR_FFX_To(2, 10);
+        }
+        return;
+    }
+    if(vr_ffx_s == 2) // B down (cases 0, 1)
+    {
+        if(vr_ffx_case <= 1)
+        {
+            localcmd("vr_mock_key b down\n");
+        }
+        VR_FFX_To(3, 0);
+        return;
+    }
+    if(vr_ffx_s == 3) // wound up (or no B): the guiding pose's wind-up time and more
+    {
+        if(vr_ffx_case >= 2 || p.vr_flatthrow_phase == VR_FLATTHROW_WIND || p.vr_flatgren_phase == VR_FLATGREN_WIND)
+        {
+            VR_FFX_To(4, 30);
+        }
+        return;
+    }
+    if(vr_ffx_s == 4)
+    {
+        entity oself = self;
+        self = p;
+        float catches = VR_Grenade_HandCatches(cVR_OffHand, VR_Blow(cVR_OffHand));
+        self = oself;
+        float guides = VR_FlatThrow_Guides(p, cVR_OffHand);
+        if(vr_ffx_case <= 1)
+        {
+            VR_Test_Check(guides && !catches, sprintf("%s: the free off hand guides and catches nothing (guides %g, catches %g)", what,
+                guides, catches));
+        }
+        else
+        {
+            VR_Test_Check(!guides && !catches, sprintf("%s: before H the free off hand catches nothing (guides %g, catches %g)", what,
+                guides, catches));
+        }
+        if(vr_ffx_case == 3)
+        {
+            localcmd("vr_mock_key h down\n");
+            VR_FFX_To(7, 2);
+            return;
+        }
+        if(vr_ffx_case >= 4)
+        {
+            VR_FFX_GuideThrowAt(p);
+            if(vr_ffx_case == 4)
+            {
+                localcmd("vr_mock_key h down\n");
+            }
+            VR_FFX_To(8, 2);
+            return;
+        }
+        VR_FFX_GuideGrenade(p);
+        VR_FFX_To(5, 4);
+        return;
+    }
+    if(vr_ffx_s == 5)
+    {
+        float met = VR_FFX_GuideMet(p);
+        if(vr_ffx_case >= 2)
+        {
+            VR_Test_Check(!met, sprintf("%s: an ogre's grenade into the free off hand's palm, H not pressed (or long before): flies on", what));
+            if(vr_ffx_case == 3)
+            {
+                VR_FFX_GuideNext(p);
+                return;
+            }
+            localcmd("vr_mock_key h down\n"); // (case 2: now H)
+            VR_FFX_To(9, 2);
+            return;
+        }
+        VR_Test_Check(!met, sprintf("%s: an ogre's grenade into the guiding off hand's palm flies on (not stopped, not taken)", what));
+        if(!met)
+        {
+            remove(vr_ffx_guideGren);
+        }
+        vr_ffx_guideGren = world;
+        localcmd("vr_mock_key b up\n"); // (thrown)
+        VR_FFX_To(6, 0);
+        return;
+    }
+    if(vr_ffx_s == 6) // the throw over
+    {
+        if(!p.vr_flatthrow_phase && !p.vr_flatgren_phase)
+        {
+            vr_ffx_case = vr_ffx_case + 1;
+            VR_FFX_To(0, 20);
+        }
+        return;
+    }
+    if(vr_ffx_s == 7) // (case 3) H up; its window goes by
+    {
+        localcmd("vr_mock_key h up\n");
+        VR_FFX_To(10, 0);
+        return;
+    }
+    if(vr_ffx_s == 10) // (case 3) the window shut: the grenade at the palm
+    {
+        if(!p.vr_flatcatch_until)
+        {
+            VR_FFX_GuideGrenade(p);
+            VR_FFX_To(5, 4);
+        }
+        return;
+    }
+    if(vr_ffx_s == 9) // (case 2) H up
+    {
+        localcmd("vr_mock_key h up\n");
+        VR_FFX_To(12, 0);
+        return;
+    }
+    if(vr_ffx_s == 12) // (case 2) taken in H's window
+    {
+        float took = VR_FFX_GuideMet(p);
+        if(!took && time - vr_ffx_t0 < 0.3)
+        {
+            return;
+        }
+        VR_Test_Check(took, sprintf("%s: H pressed: the grenade at the palm is caught (H's catches %g)", what,
+            vr_flatcatch_count - vr_ffx_guideCount));
+        VR_FFX_GuideNext(p);
+        return;
+    }
+    if(vr_ffx_s == 8) // (cases 4, 5) thrown at him; H up
+    {
+        if(vr_ffx_case == 4)
+        {
+            localcmd("vr_mock_key h up\n");
+        }
+        VR_FFX_To(11, 0);
+        return;
+    }
+    if(vr_ffx_s == 11) // (cases 4, 5) it arrives: caught, or it meets him
+    {
+        float held = vr_ffx_guideGren != world && VR_Carry_Held(p, cVR_OffHand) == vr_ffx_guideGren;
+        if(!held && !vr_ffx_guideHit && time - vr_ffx_t0 < 1)
+        {
+            return;
+        }
+        float caught = vr_flatcatch_count - vr_ffx_guideCount;
+        if(vr_ffx_case == 4)
+        {
+            VR_Test_Check(held && !vr_ffx_guideHit && caught == 1, sprintf("%s: caught by the off hand before it meets him (held %g, hit %g, H's catches %g)",
+                what, held, vr_ffx_guideHit, caught));
+        }
+        else
+        {
+            VR_Test_Check(!held && vr_ffx_guideHit && caught == 0, sprintf("%s: not caught, it meets him (held %g, hit %g, H's catches %g)",
+                what, held, vr_ffx_guideHit, caught));
+        }
+        VR_FFX_GuideNext(p);
+        return;
+    }
+};
+
 void() VR_FlatItemsTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_flatitems_test);
@@ -1457,6 +1761,7 @@ void() VR_FlatItemsTest_Frame =
     if(ask == 9) { VR_FFX_TwoHandGrab(p); }
     if(ask == 10) { VR_FFX_Route(p); }
     if(ask == 11) { VR_FFX_Grenade(p); }
+    if(ask == 12) { VR_FFX_Guide(p); }
 };
 
 #endif

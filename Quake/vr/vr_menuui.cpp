@@ -874,8 +874,11 @@ struct ToolbarLayout
 
     // The zoom buttons at the list's end (zoomOut "-", zoomIn "+"): small squares, side by side in a slot of their own
     // under the column's last button, or after the row's last icon. Their middle (menu y), left edge, side (menu x).
-    [[nodiscard]] float zoomYc() const { return row ? yc(0) : yc(lastTool()) + (2.f * columnHalf + buttonGap) / k; }
+    // (The column's: half a button's height clear of the shortcuts above, to keep a stray press off them.)
+    [[nodiscard]] float zoomYc() const { return row ? yc(0) : yc(lastTool()) + (2.f * columnHalf + buttonGap + columnHalf) / k; }
     [[nodiscard]] float zoomSide() const { return 2.f * bh(); }
+    // The third button, "RESET" (the shipped size, the flat panel's middle too): wide enough for its label.
+    [[nodiscard]] float zoomWidth(int button) const { return button == 2 ? 8.f * 5.f + 6.f : zoomSide(); }
     [[nodiscard]] float zoomGap() const { return row ? rowGap : buttonGap; }
     [[nodiscard]] float zoomX0(int button) const
     {
@@ -887,14 +890,14 @@ struct ToolbarLayout
     {
         const float g = zoomGap() * 0.5f;
         const float half = (bh() + g) / k;
-        return x >= zoomX0(button) - g && x <= zoomX0(button) + zoomSide() + g && y >= zoomYc() - half &&
+        return x >= zoomX0(button) - g && x <= zoomX0(button) + zoomWidth(button) + g && y >= zoomYc() - half &&
                y <= zoomYc() + half;
     }
 
     // The last button's bottom edge (menu y: the zoom buttons' in the column), and the buttons' right edge (the
     // row's zoom buttons').
     [[nodiscard]] float buttonsBottom() const { return zoomYc() + bh() / k; }
-    [[nodiscard]] float right() const { return row ? zoomX0(1) + zoomSide() : bx1(lastTool()); }
+    [[nodiscard]] float right() const { return row ? zoomX0(2) + zoomWidth(2) : bx1(lastTool()); }
 
     // What a click on `tool` takes: as far as the panel's edges, split halfway between buttons.
     [[nodiscard]] bool hit(int tool, float x, float y) const
@@ -954,6 +957,7 @@ struct ToolbarLayout
                               bottomRow * (2.f * ToolbarLayout::half + ToolbarLayout::gap) + ToolbarLayout::gap;
         const float room = (l.bottom - l.top) * l.k - ToolbarLayout::corner - reserve;
         const float height = (toolsShown() + 1) * (2.f * ToolbarLayout::half + ToolbarLayout::gap) - ToolbarLayout::gap + // (+1: the zoom buttons)
+                             ToolbarLayout::half + // (and the gap above them)
                              static_cast<float>(toolGroupsBefore(lastTool())) * l.groupGap;
         const float fit = za::fmin(1.f, za::fmax(0.1f, room / height));
         l.columnHalf *= fit;
@@ -973,7 +977,7 @@ struct Toolbar
 {
     int menu{m_none};  // the menu it was last drawn over (m_none: not drawn)
     int hovered{-1};   // the button under the laser
-    int zoomHovered{-1}; // the zoom button under it (0 "-", 1 "+")
+    int zoomHovered{-1}; // the zoom button under it (0 "-", 1 "+", 2 "RESET")
     int focused{-1};   // the button the sticks selected (-1: the menu has the selection)
     bool bannerHovered{false}; // the spectator camera's switch under the laser
     bool obsHovered{false};    // OBS's row above it (vr_obs.cpp)
@@ -1027,7 +1031,8 @@ struct FlatMouse
 };
 FlatMouse flatMouse;
 
-// The zoom button at a spot of the menu (0 "-", 1 "+"; -1: none).
+// The zoom button at a spot of the menu (0 "-", 1 "+", 2 "RESET"; -1: none).
+constexpr int zoomButtons = 3;
 [[nodiscard]] int zoomAt(float x, float y)
 {
     if(tb().menu != m_state)
@@ -1035,7 +1040,7 @@ FlatMouse flatMouse;
         return -1;
     }
     const ToolbarLayout l = toolbarLayout();
-    for(int z = 0; z < 2; z++)
+    for(int z = 0; z < zoomButtons; z++)
     {
         if(l.zoomHit(z, x, y))
         {
@@ -1646,11 +1651,11 @@ bool zoomMenu(ZoomLayout layout, int dir, const glm::vec2& at)
     return false;
 }
 
-// A press of a zoom button (0 "-", 1 "+"): the panel zoomed round the button (the flat panel's: it stays under the
+// A press of a zoom button (0 "-", 1 "+", 2 "RESET": back to the shipped size and place): the panel zoomed round the button (the flat panel's: it stays under the
 // mouse, for the next press), a sound, a pulse in the pointing hand.
 void pressZoom(int button, int hand)
 {
-    const bool done = zoomMenu(zoomLayoutShown(), button > 0 ? 1 : -1, flatPanelState.mouse);
+    const bool done = zoomMenu(zoomLayoutShown(), button == 2 ? 0 : button > 0 ? 1 : -1, flatPanelState.mouse);
     qvr::menuui::uiSound(done ? qvr::menuui::UiSound::Adjust : qvr::menuui::UiSound::Deny);
     if(done)
     {
@@ -1936,11 +1941,11 @@ void mockLaser_f()
             pointingHand = hand;
             return;
         }
-        if(argc == 2 && (!q_strcasecmp(Cmd_Argv(1), "zoomin") || !q_strcasecmp(Cmd_Argv(1), "zoomout")))
+        if(argc == 2 && (!q_strcasecmp(Cmd_Argv(1), "zoomin") || !q_strcasecmp(Cmd_Argv(1), "zoomout") || !q_strcasecmp(Cmd_Argv(1), "zoomreset")))
         {
             const ToolbarLayout l = toolbarLayout();
-            const int z = q_strcasecmp(Cmd_Argv(1), "zoomin") ? 0 : 1;
-            m = {true, {l.zoomX0(z) + l.zoomSide() * 0.5f, l.zoomYc()}};
+            const int z = !q_strcasecmp(Cmd_Argv(1), "zoomreset") ? 2 : q_strcasecmp(Cmd_Argv(1), "zoomin") ? 0 : 1;
+            m = {true, {l.zoomX0(z) + l.zoomWidth(z) * 0.5f, l.zoomYc()}};
             m.menu = target;
             pointingHand = hand;
             return;
@@ -2070,11 +2075,11 @@ void mockMouse_f()
         }
         next = 2;
     }
-    else if(Cmd_Argc() >= 2 && (!q_strcasecmp(Cmd_Argv(1), "zoomin") || !q_strcasecmp(Cmd_Argv(1), "zoomout")))
+    else if(Cmd_Argc() >= 2 && (!q_strcasecmp(Cmd_Argv(1), "zoomin") || !q_strcasecmp(Cmd_Argv(1), "zoomout") || !q_strcasecmp(Cmd_Argv(1), "zoomreset")))
     {
         const ToolbarLayout l = toolbarLayout();
-        const int z = q_strcasecmp(Cmd_Argv(1), "zoomin") ? 0 : 1;
-        spot = {l.zoomX0(z) + l.zoomSide() * 0.5f, l.zoomYc()};
+        const int z = !q_strcasecmp(Cmd_Argv(1), "zoomreset") ? 2 : q_strcasecmp(Cmd_Argv(1), "zoomin") ? 0 : 1;
+        spot = {l.zoomX0(z) + l.zoomWidth(z) * 0.5f, l.zoomYc()};
         next = 2;
     }
     else if(Cmd_Argc() >= 2)
@@ -2092,7 +2097,7 @@ void mockMouse_f()
     if(next == 0)
     {
         Con_Printf("vr_mock_mouse <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
-                   "toolgun | savedefaults | checklist | zoomin | zoomout | recording | kofi | update | yes | no [click]: the desktop mouse on that spot of the menu (yes, no: a "
+                   "toolgun | savedefaults | checklist | zoomin | zoomout | zoomreset | recording | kofi | update | yes | no [click]: the desktop mouse on that spot of the menu (yes, no: a "
                    "confirmation dialog's buttons), clicked with click. vr_mock_mouse window <x> <y> | by <dx> <dy> | corner <tl | tr | bl | br> | press | release | wheel <up | down>: "
                    "the window's mouse (window pixels; a corner of the flat screen's VR menu panel), its left button, its wheel\n");
         return;
@@ -3414,7 +3419,7 @@ extern "C" void VR_MenuDrawOverlay()
                 tb().hovered = t;
             }
         }
-        for(int z = 0; fm.moved && ui_mouse.value && z < 2; z++)
+        for(int z = 0; fm.moved && ui_mouse.value && z < zoomButtons; z++)
         {
             if(l.zoomHit(z, m_mousex, m_mousey))
             {
@@ -3464,14 +3469,26 @@ extern "C" void VR_MenuDrawOverlay()
         }
     }
 
-    // The zoom buttons at the list's end: "-" and "+", small squares (the menu panel zoomed out and in: zoomMenu).
-    for(int z = 0; z < 2; z++)
+    // The zoom buttons at the list's end: "-" and "+", small squares (the menu panel zoomed out and in: zoomMenu), and
+    // RESET (back to the shipped size, and the flat panel's place).
+    for(int z = 0; z < zoomButtons; z++)
     {
         const bool hot = tb().zoomHovered == z;
-        const float x0 = l.zoomX0(z), x1 = x0 + l.zoomSide(), yc = l.zoomYc();
+        const float x0 = l.zoomX0(z), x1 = x0 + l.zoomWidth(z), yc = l.zoomYc();
         p.rounded(x0, x1, yc, l.bh(), 3.f, hot ? colors::highlightEdge : colors::boxBorder);
         p.rounded(x0 + 1.f, x1 - 1.f, yc, l.bh() - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
         const glm::vec4 ink = hot ? colors::thumb : colors::fill;
+        if(z == 2)
+        {
+            GL_PushCanvasColor(1.f, 1.f, 1.f, 1.f);
+            float x = x0 + (x1 - x0 - 8.f * 5.f) * 0.5f;
+            for(const char* c = "RESET"; *c; c++, x += 8.f)
+            {
+                Draw_CharacterEx(x, yc - 4.f, 8.f, 8.f, hot ? *c : (*c | 128));
+            }
+            GL_PopCanvasColor();
+            continue;
+        }
         const float cx = (x0 + x1) * 0.5f, arm = l.bh() * 0.5f, bar = za::fmax(0.75f, l.bh() * 0.1f);
         p.rect(cx - arm, cx + arm, yc, bar, ink);
         if(z == 1)

@@ -23,7 +23,8 @@ def wait(n):
 
 
 def script():
-    out = ['alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "map vrstart"] + wait(30)
+    # (cl_alwaysrun 1: the legs' frames are counted at running speed; the default walks, and 16 of 18 legs fell short)
+    out = ['alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "cl_alwaysrun 1", "map vrstart"] + wait(30)
     for (ax, ay, az), (bx, by, bz) in zip(W, W[1:]):
         yaw = math.degrees(math.atan2(by - ay, bx - ax))
         frames = max(1, int(math.hypot(bx - ax, by - ay) / 320 * 72))

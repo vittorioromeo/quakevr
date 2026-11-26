@@ -54,3 +54,5 @@ quakevr/startup.log
 # Blender save backups
 *.blend1
 Windows/VisualStudio/*.vcxproj.user
+*.kra
+*.png~

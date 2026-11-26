@@ -206,6 +206,9 @@ constexpr float pointStiff = 400.f;    // 1/s^2: the spring, per radian off, at 
 constexpr float pointMaxAccel = 600.f; // rad/s^2: the most it turns the blade at 1 (times it)
 constexpr float pointSpeedFrom = 3.f;  // m/s: no help slower ...
 constexpr float pointSpeedFull = 8.f;  // ... full help from here
+constexpr int revGripFlag = 8192;      // QC's QVR_WPNFLAG_REVGRIP: thrown from the reverse grip (revthrow)
+constexpr float revStiff = 2.f;        // the spring (1 + this * L) times as stiff at reverse grip leniency L ...
+constexpr float revTumble = 3.f;       // ... steadying tumbles up to (1 + this * L) times Point-First Settling: Tumble
 // Returns its share of help this step (0: none; spinAlign then).
 float pointAlign(Slot& s, edict_t* ent, float dt)
 {
@@ -226,9 +229,9 @@ float pointAlign(Slot& s, edict_t* ent, float dt)
     // swords (the dagger) takes its own set too, times the swords' (Dagger Settling; his note 2026-11-16; 1: the same).
     const float lenient = axestick::pointLeniency(ent);
     const bool dagger = lenient > 1.f;
-    const float strength = za::max(vr_throw_point_align.value * (dagger ? vr_throw_point_dagger_align.value : 1.f), 0.f);
+    const float settle = za::max(vr_throw_point_align.value * (dagger ? vr_throw_point_dagger_align.value : 1.f), 0.f);
     const float window = vr_throw_point_time.value * (dagger ? vr_throw_point_dagger_time.value : 1.f);
-    if(strength <= 0.f || window <= 0.f || age >= window)
+    if(settle <= 0.f || window <= 0.f || age >= window)
     {
         return 0.f;
     }
@@ -237,15 +240,32 @@ float pointAlign(Slot& s, edict_t* ent, float dt)
     const float speed = glm::length(v);
     const glm::vec3 way = speed > 1e-4f ? v / speed : d;
     const float off = za::atan2(glm::length(glm::cross(d, way)), glm::dot(d, way));
-    const glm::vec3 w = glmv(b3Body_GetAngularVelocity(s.body));
-    const glm::vec3 across = w - d * glm::dot(w, d);
+    glm::vec3 w = glmv(b3Body_GetAngularVelocity(s.body));
+    glm::vec3 across = w - d * glm::dot(w, d);
     if(age <= 0.f)
     {
+        // Thrown from the reverse grip (revthrow: QVR_WPNFLAG_REVGRIP kept on the thrown weapon, DropWeaponInHandScaled): its
+        // leniency, a pole weapon's or a blade's; the wrist snap's tumble across it cut by as much as it leaves the hand.
+        const bool rev = (static_cast<int>(fieldFloatOr(ent, fields().weaponflags, 0.f)) & revGripFlag) != 0;
+        s.flightRev = rev ? za::max(axestick::pointPole(ent) ? vr_throw_point_rev_pole.value : vr_throw_point_rev_blade.value, 0.f) : 0.f;
+        if(s.flightRev > 0.f)
+        {
+            const glm::vec3 cut = across * za::min(s.flightRev, 1.f);
+            w -= cut;
+            across -= cut;
+            b3Body_SetAngularVelocity(s.body, b3v(w));
+        }
         s.flightOff = off; // (the release's: the gates)
         s.flightTumble = glm::length(across);
     }
-    const float fast = za::clamp((speed - pointSpeedFrom) / (pointSpeedFull - pointSpeedFrom), 0.f, 1.f);
-    const float spinTurns = vr_throw_point_spin.value * (dagger ? vr_throw_point_dagger_spin.value : 1.f);
+    const float rev = s.flightRev;
+    const float strength = settle * (1.f + revStiff * rev);
+    float fast = za::clamp((speed - pointSpeedFrom) / (pointSpeedFull - pointSpeedFrom), 0.f, 1.f);
+    if(speed >= pointSpeedFrom)
+    {
+        fast += (1.f - fast) * za::min(rev, 1.f); // (reversed: full help from the slowest throw it helps)
+    }
+    const float spinTurns = vr_throw_point_spin.value * (dagger ? vr_throw_point_dagger_spin.value : 1.f) * (1.f + revTumble * rev);
     const float tumbleMost = za::max(spinTurns, 0.f) * glm::two_pi<float>() * lenient;
     const float calm = tumbleMost > 0.f ? za::clamp((tumbleMost - s.flightTumble) / (0.5f * tumbleMost), 0.f, 1.f) : 0.f;
     const float gate = vr_throw_point_angle.value * (dagger ? vr_throw_point_dagger_angle.value : 1.f);
@@ -254,8 +274,8 @@ float pointAlign(Slot& s, edict_t* ent, float dt)
     const float share = aimed ? calm * fast * fade : 0.f;
     if(vr_debug_box3d.value != 0.f && (age <= 0.f || static_cast<int>(age * 20.f) != static_cast<int>((age + dt) * 20.f)))
     {
-        Con_Printf("pointalign: %d age %.2f off %.0f deg across %.1f along %.1f rad/s speed %.1f m/s share %.2f (x%.2f)\n",
-            NUM_FOR_EDICT(ent), age, glm::degrees(off), glm::length(across), glm::dot(w, d), speed, share, lenient);
+        Con_Printf("pointalign: %d age %.2f off %.0f deg across %.1f along %.1f rad/s speed %.1f m/s share %.2f (x%.2f, reversed %.2f)\n",
+            NUM_FOR_EDICT(ent), age, glm::degrees(off), glm::length(across), glm::dot(w, d), speed, share, lenient, rev);
     }
     if(share <= 0.f)
     {

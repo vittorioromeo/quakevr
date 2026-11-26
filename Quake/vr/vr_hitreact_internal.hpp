@@ -255,6 +255,8 @@ struct ArmPose
 struct ArmSeen
 {
     glm::vec3 hand[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 elbow[2]{glm::vec3{0.f}, glm::vec3{0.f}};    // (model space, as solved: vr_agholds_report's agarm lines)
+    glm::vec3 shoulder[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     rigpose::Rigid weapon;
 };
 

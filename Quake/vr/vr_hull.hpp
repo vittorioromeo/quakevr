@@ -45,6 +45,10 @@ void keepForReload();
 
 // VR_OnSpawnServerAfterLoad: the server's map rebuilt as brushes (with vr_hull_width on; else on first use).
 void afterLoad();
+// The installer's preparation run (vr_prepare.cpp, its hulls' step) and the shipped cache's (-preparemaps): every tree
+// compiled is written to the disk cache, not only those that took 25 ms (a Quest takes several times the PC's; Setup
+// copies the files there; a faster exe skipped trees near the bar).
+void setWriteEveryTree(bool on);
 
 // SV_Move: true if this move meets BSP models with the narrower box (a client's own 32-wide box), filled in
 // (mins and maxs are the move's).

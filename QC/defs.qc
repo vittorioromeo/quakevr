@@ -208,6 +208,7 @@ float parm73; // the magnetic holsters' bindings (vr_magholster.qc VR_MagHolster
 float parm74; // bullet time's meter used up (.vr_bullettime_spent: client.qc SetChangeParms)
 float parm75; // the armour plates shown (.vr_pp_mask: client.qc SetChangeParms; vr_playerplates.qc)
 float parm76; // Dwell support: the carried weapons' variants (dwell/dw_items.qc DW_PackWeaponVariants: 2 bits each)
+float parm77; // the carried weapons' attachments (vr_attach.qc VR_Attach_Pack: 3 bits each)
 
 void() OnSpawnServerBeforeLoad; // Called when a new server
                                 // is spawned, before

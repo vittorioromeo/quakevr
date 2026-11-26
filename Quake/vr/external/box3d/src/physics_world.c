@@ -210,6 +210,15 @@ static void b3DestroyWorkerContexts( b3World* world )
 b3WorldId b3CreateWorld( const b3WorldDef* def )
 {
 	B3_CHECK_DEF( def );
+	B3_CHECK_INPUT_RETURN( b3IsValidVec3( def->gravity ), (b3WorldId){ 0 } );
+	B3_CHECK_INPUT_RETURN( b3IsValidFloat( def->restitutionThreshold ), (b3WorldId){ 0 } );
+	B3_CHECK_INPUT_RETURN( def->restitutionIterations >= 0, (b3WorldId){ 0 } );
+	B3_CHECK_INPUT_RETURN( b3IsValidFloat( def->hitEventThreshold ), (b3WorldId){ 0 } );
+	B3_CHECK_INPUT_RETURN( b3IsValidFloat( def->contactHertz ), (b3WorldId){ 0 } );
+	B3_CHECK_INPUT_RETURN( b3IsValidFloat( def->contactDampingRatio ), (b3WorldId){ 0 } );
+	B3_CHECK_INPUT_RETURN( b3IsValidFloat( def->contactSpeed ), (b3WorldId){ 0 } );
+	B3_CHECK_INPUT_RETURN( b3IsValidFloat( def->maximumLinearSpeed ) && def->maximumLinearSpeed > 0.0f, (b3WorldId){ 0 } );
+	B3_CHECK_INPUT_RETURN( b3IsValidFloat( def->isotropicInertiaTolerance ), (b3WorldId){ 0 } );
 
 	B3_ASSERT( B3_LINEAR_SLOP <= B3_MESH_REST_OFFSET );
 	B3_ASSERT( B3_MESH_REST_OFFSET < B3_SPECULATIVE_DISTANCE );
@@ -253,7 +262,10 @@ b3WorldId b3CreateWorld( const b3WorldDef* def )
 
 	world->stack = b3CreateStack( 2048 );
 
-	b3Array_Reserve( world->manifoldAllocators, 16 );
+	for ( int i = 0; i < B3_MAX_MANIFOLDS; ++i )
+	{
+		world->manifoldAllocators[i] = b3CreateBlockAllocator( ( i + 1 ) * (int)sizeof( b3Manifold ), 0 );
+	}
 	world->manifoldAllocatorMutex = b3CreateMutex();
 
 	b3CreateBroadPhase( &world->broadPhase, &def->capacity );
@@ -546,11 +558,10 @@ void b3DestroyWorld( b3WorldId worldId )
 	b3DestroyIdPool( &world->islandIdPool );
 	b3DestroyIdPool( &world->solverSetIdPool );
 
-	for ( int i = 0; i < world->manifoldAllocators.count; ++i )
+	for ( int i = 0; i < B3_MAX_MANIFOLDS; ++i )
 	{
-		b3DestroyBlockAllocator( world->manifoldAllocators.data + i );
+		b3DestroyBlockAllocator( world->manifoldAllocators + i );
 	}
-	b3Array_Destroy( world->manifoldAllocators );
 	b3DestroyMutex( world->manifoldAllocatorMutex );
 
 	b3DestroyStack( &world->stack );
@@ -1459,6 +1470,8 @@ static void b3RunTaskBatch( b3StepDriver* driver, b3TaskBatch batch )
 
 void b3World_Step( b3WorldId worldId, float timeStep, int subStepCount )
 {
+	B3_CHECK_INPUT( b3IsValidFloat( timeStep ) );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
@@ -1555,6 +1568,8 @@ void b3World_Step( b3WorldId worldId, float timeStep, int subStepCount )
 
 b3TaskBatch b3World_BeginStep( b3WorldId worldId, float timeStep, int subStepCount )
 {
+	B3_CHECK_INPUT_RETURN( b3IsValidFloat( timeStep ), (b3TaskBatch){ 0 } );
+
 	b3World* world = b3GetWorldFromId( worldId );
 	B3_ASSERT( world->locked == false );
 	if ( world->locked )
@@ -1740,13 +1755,13 @@ static bool DrawQueryCallback( int proxyId, uint64_t userData, void* context )
 
 void b3World_Draw( b3WorldId worldId, b3DebugDraw* draw, uint64_t maskBits )
 {
+	B3_CHECK_INPUT( b3IsValidAABB( draw->drawingBounds ) );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
 		return;
 	}
-
-	B3_ASSERT( b3IsValidAABB( draw->drawingBounds ) );
 
 	float lengthScale = b3GetLengthUnitsPerMeter();
 	float axisScale = 0.3f * lengthScale;
@@ -2458,6 +2473,8 @@ bool b3World_IsContinuousEnabled( b3WorldId worldId )
 
 void b3World_SetRestitutionThreshold( b3WorldId worldId, float value )
 {
+	B3_CHECK_INPUT( b3IsValidFloat( value ) );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
@@ -2477,6 +2494,8 @@ float b3World_GetRestitutionThreshold( b3WorldId worldId )
 
 void b3World_SetRestitutionIterations( b3WorldId worldId, int iterations )
 {
+	B3_CHECK_INPUT( iterations >= 0 );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
@@ -2526,6 +2545,8 @@ bool b3World_IsRestitutionPropagationEnabled( b3WorldId worldId )
 
 void b3World_SetHitEventThreshold( b3WorldId worldId, float value )
 {
+	B3_CHECK_INPUT( b3IsValidFloat( value ) );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
@@ -2545,6 +2566,10 @@ float b3World_GetHitEventThreshold( b3WorldId worldId )
 
 void b3World_SetContactTuning( b3WorldId worldId, float hertz, float dampingRatio, float contactSpeed )
 {
+	B3_CHECK_INPUT( b3IsValidFloat( hertz ) );
+	B3_CHECK_INPUT( b3IsValidFloat( dampingRatio ) );
+	B3_CHECK_INPUT( b3IsValidFloat( contactSpeed ) );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
@@ -2560,6 +2585,8 @@ void b3World_SetContactTuning( b3WorldId worldId, float hertz, float dampingRati
 
 void b3World_SetContactRecycleDistance( b3WorldId worldId, float recycleDistance )
 {
+	B3_CHECK_INPUT( b3IsValidFloat( recycleDistance ) );
+
 	b3World* world = b3GetWorldFromId( worldId );
 	B3_ASSERT( world->locked == false );
 	if ( world->locked )
@@ -2580,7 +2607,7 @@ float b3World_GetContactRecycleDistance( b3WorldId worldId )
 
 void b3World_SetMaximumLinearSpeed( b3WorldId worldId, float maximumLinearSpeed )
 {
-	B3_ASSERT( b3IsValidFloat( maximumLinearSpeed ) && maximumLinearSpeed > 0.0f );
+	B3_CHECK_INPUT( b3IsValidFloat( maximumLinearSpeed ) && maximumLinearSpeed > 0.0f );
 
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
@@ -2601,7 +2628,7 @@ float b3World_GetMaximumLinearSpeed( b3WorldId worldId )
 
 void b3World_SetIsotropicInertiaTolerance( b3WorldId worldId, float tolerance )
 {
-	B3_ASSERT( b3IsValidFloat( tolerance ) );
+	B3_CHECK_INPUT( b3IsValidFloat( tolerance ) );
 
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
@@ -2865,21 +2892,19 @@ static uint64_t b3GetWorldByteCount( b3World* world, bool log )
 	}
 
 	// Manifold block allocators, one per manifold point count
-	int manifoldArrayBytes = b3Array_ByteCount( world->manifoldAllocators );
 	int manifoldBlockBytes = 0;
-	for ( int i = 0; i < world->manifoldAllocators.count; ++i )
+	for ( int i = 0; i < B3_MAX_MANIFOLDS; ++i )
 	{
-		b3BlockAllocator* allocator = world->manifoldAllocators.data + i;
+		b3BlockAllocator* allocator = world->manifoldAllocators + i;
 		manifoldBlockBytes += b3Array_ByteCount( allocator->blocks );
 		manifoldBlockBytes += allocator->blocks.count * B3_BLOCK_SIZE * allocator->elementSize;
 	}
-	total += (uint64_t)manifoldArrayBytes + manifoldBlockBytes;
+	total += (uint64_t)manifoldBlockBytes;
 	total += (uint64_t)world->manifoldLargeBytes; // QVR (local change, README.md): the long arrays, the heap's
 
 	if ( log )
 	{
 		b3Log( "manifold allocators" );
-		b3Log( "allocator array: %d", manifoldArrayBytes );
 		b3Log( "blocks: %d", manifoldBlockBytes );
 		b3Log( "long arrays: %d (%d)", (int)world->manifoldLargeBytes, world->manifoldLargeCount ); // QVR
 	}
@@ -3102,10 +3127,11 @@ void b3World_GetManifoldMemory( b3WorldId worldId, b3ManifoldMemory* out )
 		return;
 	}
 
-	out->pools = world->manifoldAllocators.count;
-	for ( int i = 0; i < world->manifoldAllocators.count; ++i )
+	// Since #236 every count up to B3_MAX_MANIFOLDS has its allocator from the start, empty: a pool is one holding blocks.
+	for ( int i = 0; i < B3_MAX_MANIFOLDS; ++i )
 	{
-		b3BlockAllocator* allocator = world->manifoldAllocators.data + i;
+		b3BlockAllocator* allocator = world->manifoldAllocators + i;
+		out->pools += allocator->blocks.count > 0 ? 1 : 0;
 		out->poolBytes += (int64_t)allocator->blocks.count * B3_BLOCK_SIZE * allocator->elementSize;
 		out->pooledArrays += allocator->allocationCount;
 	}
@@ -3150,13 +3176,13 @@ b3TreeStats b3World_OverlapAABB( b3WorldId worldId, b3AABB aabb, b3QueryFilter f
 {
 	b3TreeStats treeStats = { 0 };
 
+	B3_CHECK_INPUT_RETURN( b3IsValidAABB( aabb ), treeStats );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
 		return treeStats;
 	}
-
-	B3_ASSERT( b3IsValidAABB( aabb ) );
 
 	b3RecQueryWriter recWriter = { 0 };
 	if ( world->recording != NULL )
@@ -3195,8 +3221,9 @@ b3TreeStats b3World_OverlapAABB( b3WorldId worldId, b3AABB aabb, b3QueryFilter f
 b3TreeStats b3World_OverlapAABB_Static( b3WorldId worldId, b3AABB aabb, b3QueryFilter filter, b3OverlapResultFcn* fcn,
 										void* context )
 {
+	B3_CHECK_INPUT_RETURN( b3IsValidAABB( aabb ), (b3TreeStats){ 0 } );
+
 	b3World* world = b3GetWorldFromId( worldId );
-	B3_ASSERT( b3IsValidAABB( aabb ) );
 
 	WorldQueryContext worldContext = { world, fcn, filter, context };
 	return b3DynamicTree_QueryRelaxed( world->broadPhase.trees + b3_staticBody, aabb, filter.maskBits, false,
@@ -3251,13 +3278,13 @@ b3TreeStats b3World_OverlapShape( b3WorldId worldId, b3Pos origin, const b3Shape
 {
 	b3TreeStats treeStats = { 0 };
 
+	B3_CHECK_INPUT_RETURN( b3IsValidPosition( origin ), treeStats );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
 		return treeStats;
 	}
-
-	B3_ASSERT( b3IsValidPosition( origin ) );
 
 	b3RecQueryWriter recWriter = { 0 };
 	if ( world->recording != NULL )
@@ -3301,8 +3328,9 @@ b3TreeStats b3World_OverlapShape( b3WorldId worldId, b3Pos origin, const b3Shape
 b3TreeStats b3World_OverlapShape_Static( b3WorldId worldId, b3Pos origin, const b3ShapeProxy* proxy,
 										 b3QueryFilter filter, b3OverlapResultFcn* fcn, void* context )
 {
+	B3_CHECK_INPUT_RETURN( b3IsValidPosition( origin ), (b3TreeStats){ 0 } );
+
 	b3World* world = b3GetWorldFromId( worldId );
-	B3_ASSERT( b3IsValidPosition( origin ) );
 
 	b3AABB aabb = b3OffsetAABB( b3MakeAABB( proxy->points, proxy->count, proxy->radius ), origin );
 	WorldOverlapContext worldContext = {
@@ -3363,13 +3391,13 @@ static bool TreeCollideCallback( int proxyId, uint64_t userData, void* context )
 void b3World_CollideMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mover, b3QueryFilter filter, b3PlaneResultFcn* fcn,
 						   void* context )
 {
+	B3_CHECK_INPUT( b3IsValidPosition( origin ) );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
 		return;
 	}
-
-	B3_ASSERT( b3IsValidPosition( origin ) );
 
 	b3RecQueryWriter recWriter = { 0 };
 	if ( world->recording != NULL )
@@ -3474,14 +3502,14 @@ b3TreeStats b3World_CastRay( b3WorldId worldId, b3Pos origin, b3Vec3 translation
 {
 	b3TreeStats treeStats = { 0 };
 
+	B3_CHECK_INPUT_RETURN( b3IsValidPosition( origin ), treeStats );
+	B3_CHECK_INPUT_RETURN( b3IsValidVec3( translation ), treeStats );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
 		return treeStats;
 	}
-
-	B3_ASSERT( b3IsValidPosition( origin ) );
-	B3_ASSERT( b3IsValidVec3( translation ) );
 
 	b3RecQueryWriter recWriter = { 0 };
 	if ( world->recording != NULL )
@@ -3531,9 +3559,10 @@ b3TreeStats b3World_CastRay( b3WorldId worldId, b3Pos origin, b3Vec3 translation
 b3TreeStats b3World_CastRay_Static( b3WorldId worldId, b3Pos origin, b3Vec3 translation, b3QueryFilter filter,
 									b3CastResultFcn* fcn, void* context )
 {
+	B3_CHECK_INPUT_RETURN( b3IsValidPosition( origin ), (b3TreeStats){ 0 } );
+	B3_CHECK_INPUT_RETURN( b3IsValidVec3( translation ), (b3TreeStats){ 0 } );
+
 	b3World* world = b3GetWorldFromId( worldId );
-	B3_ASSERT( b3IsValidPosition( origin ) );
-	B3_ASSERT( b3IsValidVec3( translation ) );
 
 	b3RayCastInput input = { b3ToVec3( origin ), translation, 1.0f };
 	WorldRayCastContext worldContext = { world, fcn, filter, 1.0f, origin, context };
@@ -3568,14 +3597,14 @@ b3RayResult b3World_CastRayClosest( b3WorldId worldId, b3Pos origin, b3Vec3 tran
 {
 	b3RayResult result = { 0 };
 
+	B3_CHECK_INPUT_RETURN( b3IsValidPosition( origin ), result );
+	B3_CHECK_INPUT_RETURN( b3IsValidVec3( translation ), result );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
 		return result;
 	}
-
-	B3_ASSERT( b3IsValidPosition( origin ) );
-	B3_ASSERT( b3IsValidVec3( translation ) );
 
 	// The tree traverses in float relative to the world origin. Each shape is then re-differenced at
 	// full precision against its body, so a hit stays accurate far from the origin.
@@ -3688,14 +3717,14 @@ b3TreeStats b3World_CastShape( b3WorldId worldId, b3Pos origin, const b3ShapePro
 {
 	b3TreeStats treeStats = { 0 };
 
+	B3_CHECK_INPUT_RETURN( b3IsValidPosition( origin ), treeStats );
+	B3_CHECK_INPUT_RETURN( b3IsValidVec3( translation ), treeStats );
+
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
 	{
 		return treeStats;
 	}
-
-	B3_ASSERT( b3IsValidPosition( origin ) );
-	B3_ASSERT( b3IsValidVec3( translation ) );
 
 	b3RecQueryWriter recWriter = { 0 };
 	if ( world->recording != NULL )
@@ -3758,9 +3787,10 @@ b3TreeStats b3World_CastShape( b3WorldId worldId, b3Pos origin, const b3ShapePro
 b3TreeStats b3World_CastShape_Static( b3WorldId worldId, b3Pos origin, const b3ShapeProxy* proxy, b3Vec3 translation,
 									  b3QueryFilter filter, b3CastResultFcn* fcn, void* context )
 {
+	B3_CHECK_INPUT_RETURN( b3IsValidPosition( origin ), (b3TreeStats){ 0 } );
+	B3_CHECK_INPUT_RETURN( b3IsValidVec3( translation ), (b3TreeStats){ 0 } );
+
 	b3World* world = b3GetWorldFromId( worldId );
-	B3_ASSERT( b3IsValidPosition( origin ) );
-	B3_ASSERT( b3IsValidVec3( translation ) );
 
 	WorldShapeCastContext worldContext = { 0 };
 	worldContext.world = world;
@@ -3842,8 +3872,8 @@ static float MoverCastCallback( const b3BoxCastInput* input, int proxyId, uint64
 float b3World_CastMover( b3WorldId worldId, b3Pos origin, const b3Capsule* mover, b3Vec3 translation, b3QueryFilter filter,
 						 b3MoverFilterFcn* fcn, void* context )
 {
-	B3_ASSERT( b3IsValidPosition( origin ) );
-	B3_ASSERT( b3IsValidVec3( translation ) );
+	B3_CHECK_INPUT_RETURN( b3IsValidPosition( origin ), 1.0f );
+	B3_CHECK_INPUT_RETURN( b3IsValidVec3( translation ), 1.0f );
 
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )
@@ -3935,6 +3965,8 @@ void b3World_SetPreSolveCallback( b3WorldId worldId, b3PreSolveFcn* fcn, void* c
 
 void b3World_SetGravity( b3WorldId worldId, b3Vec3 gravity )
 {
+	B3_CHECK_INPUT( b3IsValidVec3( gravity ) );
+
 	b3World* world = b3GetWorldFromId( worldId );
 
 	B3_REC( world, WorldSetGravity, worldId, gravity );
@@ -4051,10 +4083,10 @@ void b3World_Explode( b3WorldId worldId, const b3ExplosionDef* explosionDef )
 	float falloff = explosionDef->falloff;
 	float impulsePerArea = explosionDef->impulsePerArea;
 
-	B3_ASSERT( b3IsValidPosition( position ) );
-	B3_ASSERT( b3IsValidFloat( radius ) && radius >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( falloff ) && falloff >= 0.0f );
-	B3_ASSERT( b3IsValidFloat( impulsePerArea ) );
+	B3_CHECK_INPUT( b3IsValidPosition( position ) );
+	B3_CHECK_INPUT( b3IsValidFloat( radius ) && radius >= 0.0f );
+	B3_CHECK_INPUT( b3IsValidFloat( falloff ) && falloff >= 0.0f );
+	B3_CHECK_INPUT( b3IsValidFloat( impulsePerArea ) );
 
 	b3World* world = b3GetUnlockedWorldFromId( worldId );
 	if ( world == NULL )

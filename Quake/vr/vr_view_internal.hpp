@@ -393,6 +393,9 @@ struct Entities
     view::ViewEntity muzzleFlash[2]; // the weapons' programmatic muzzle flashes (vr_weaponfx.cpp)
     view::ViewEntity enemyFlash[weaponfx::maxEnemyFlashes]; // and the grunts' guns'
     view::ViewEntity adBolt[2]; // AD support: the bolts in the hands' crossbows' grooves (vr_adcrossbow.cpp)
+    view::ViewEntity attach[2]; // the hands' guns' attachments (vr_attach.hpp: the bayonet; setupAttachments)
+    view::ViewEntity holsterAttach[HolsterCount]; // the holstered guns'
+    view::ViewEntity worldAttach[maxWorldWeapons]; // the lying guns' (dropped, thrown, stuck in a body)
 
     // Every member, in the order forEachEntity visits them: the order they are added to cl_visedicts (keep it: draws at
     // the same depth). A zip visits its arrays per index (cap and lames, frame and barrels, ...). Every member listed:
@@ -442,7 +445,7 @@ decltype(auto) Entities::members(F&& f)
         flashlight, pouch, ammoPouch, ammoPouchItem, mag, magOut, holsterMag, worldMag, well, holsterWell, worldWell, pumpBody, pump,
         zip(ssgFrame, ssgBarrels), zip(holsterSsgFrame, holsterSsgBarrels), zip(worldSsgFrame, worldSsgBarrels),
         zip(rvFrame, rvCrane, rvCyl, rvShell), sawHandle, button, frontButton, holsterButton, worldButton,
-        holsterFrontButton, worldFrontButton, ghost, ghostHand, muzzleFlash, enemyFlash, adBolt);
+        holsterFrontButton, worldFrontButton, ghost, ghostHand, muzzleFlash, enemyFlash, adBolt, attach, holsterAttach, worldAttach);
 }
 
 static_assert(decltype(za::declVal<Entities&>().members(CountEntityBytes{}))::value == sizeof(Entities),
@@ -670,10 +673,11 @@ inline FlipHold (&flipHolds())[2];
 // being `upright` (a weapon lying about's own, the pitch as a view's; a drawn weapon's handTurnOfWeapon): the reverse grip's handle
 // (its butt where the guard was). False for a weapon that may not be held reversed.
 [[nodiscard]] bool reversedHandPoint(const qmodel_t* model, int slot, bool mirrored, const glm::vec3& origin, const glm::vec3& upright, glm::vec3& point);
-// A blade in a body held by its handle (STAT_QVR_EMBED*: the edict * 4 + reversed * 2 + by its handle; vr_axestick.cpp calcStats).
+// A blade in a body held by its handle (STAT_QVR_EMBED*: the edict * 8 + in a ragdoll * 4 + reversed * 2 + by its handle; vr_axestick.cpp
+// calcStats).
 [[nodiscard]] inline int embedStatEnt(int stat)
 {
-    return stat / 4;
+    return stat / 8;
 }
 [[nodiscard]] inline bool embedStatHandle(int stat)
 {
@@ -923,6 +927,7 @@ struct LimbHold
     const grasp::Shape* shape{nullptr}; // the limb's (its rest pose's triangles)
     glm::mat4 toWorld{1.f};             // drawn there
     bool tug{false};                    // a tug-of-war's hold: the hand on the weapon in the limb's hand (box3d::RagdollHold)
+    bool drag{false};                   // a big prop dragged by its surface (box3d::PropDragHold; num the prop, part -1)
 };
 [[nodiscard]] bool limbHold(int hand, LimbHold& out);
 
@@ -958,6 +963,18 @@ struct LimbEase
     glm::vec3 drawnPos{0.f}; // where the hand was drawn last (its controller's place moved; vr_ragdoll_hand_probe)
 };
 inline LimbEase (&limbEase())[2];
+// flathold3: the hold-arm probe (vr_hold_arm_probe; flatgrabthrow_test.sh): while a hand is drawn on a held limb or a dragged
+// prop (LimbEase::blend > 0), every frame, how far its wrist was past its arm's reach (avatar::embedArmGapCm, last solved) and
+// how far placeController pulled the drawn hand in to keep it on its arm (keepOnArm), at most since the last report.
+struct HoldArmTrack
+{
+    bool on{false};
+    int frames{0};
+    float gapHi{0.f};    // cm
+    int pulled{0};       // frames the hand was pulled in
+    float pulledHi{0.f}; // cm
+};
+inline HoldArmTrack holdArmTrack; // seat-shared: a test's probe (vr_hold_arm_probe), filled and printed by one test
 // A hand holding a blade in a body (vr_view_hands.cpp): each frame before the weapons, whether it holds one and, just off it, the ease
 // (vr_embed_free_ease) the drawn hand and the weapon in it share: turned by `turn` about `pivot`, then moved by `offset`.
 struct EmbedEase
@@ -968,6 +985,8 @@ struct EmbedEase
 };
 void embedPinsReset();
 void embedPinStep(const hands::State& s, int hand);
+// Each frame before embedPinStep: a held blade stuck in a body drawn smoothed (vr_embed_ragdoll_smooth_*), the hands on it with it.
+void embedSmoothStep();
 [[nodiscard]] bool embedEase(int hand, EmbedEase& out);
 // (view::embedPinLead's, view::embedPinSeen's, view::embedEasing's.)
 [[nodiscard]] glm::vec3 embedPinLeadOf(int hand);
@@ -1300,6 +1319,7 @@ const ViewEntity* find(const entity_t* e);
 bool modelLoadPort(const qmodel_t* model, float ssgOpen, glm::vec3& at, glm::vec3& axis, glm::vec3& face);
 glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);
 bool weaponFrame(const hands::State& s, int hand, WeaponFrame& out);
+void printDrawnAttachments(); // vr_attach_report
 } // namespace qvr::view
 
 // The engine hooks one part defines and another calls.

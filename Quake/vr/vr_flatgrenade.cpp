@@ -26,6 +26,8 @@
 
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
+#include "vr_box3d.hpp"
+#include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
@@ -100,6 +102,12 @@ struct GrenadeState
     int throwPresses{0};
     int throwResend{0};        // frames to the next 40 while the key is up and the server still winds up
     double windStart{-1.0};    // (vr_gametime) when the shown wind-up began
+    // The cancel (flatthrow2): the throwing hand's attack button pressed while B is held.
+    int buttonsWas{0};    // the mouse buttons held last frame (1 the left, 2 the right)
+    int swallow{0};       // the buttons that cancelled a throw, held since: they do nothing till let go
+    int cancels{0};       // throws cancelled (impulse 41 sent on a fresh press)
+    int cancelResend{0};  // frames to the next 41 while the server still winds up after one
+    bool cancelSent{false}; // 41 sent and the server still aims since (B held): resent every cancelResend frames
     // The Grab / Pull key (H).
     bool grabHeld[2]{false, false}; // server reports this hand holds an H-grabbed prop or ragdoll
     bool grabHoldPose{false};       // server reports 2H prop or ragdoll held (extended hold-out pose)
@@ -143,13 +151,42 @@ void report_f()
         gs().phase, gs().hand0 < 0 ? "none" : handName(gs().hand0), gs().hand[HAND_OFF].away, gs().hand[HAND_OFF].hold,
         gs().hand[HAND_OFF].wind, gs().hand[HAND_OFF].follow, gs().hand[HAND_MAIN].away, gs().hand[HAND_MAIN].hold,
         gs().hand[HAND_MAIN].wind, gs().hand[HAND_MAIN].follow, gs().presses);
-    Con_Printf("flatthrow: phase %d, hand %s%s; charge off %.2f main %.2f; B presses %d\n", gs().throwPhase,
+    Con_Printf("flatthrow: phase %d, hand %s%s; charge off %.2f main %.2f; B presses %d; cancels %d, swallowed buttons %d\n", gs().throwPhase,
         gs().throwHand < 0 ? "none" : handName(gs().throwHand), gs().throwBoth ? " (was in both hands: the other let go)" : "", gs().hand[HAND_OFF].charge,
-        gs().hand[HAND_MAIN].charge, gs().throwPresses);
+        gs().hand[HAND_MAIN].charge, gs().throwPresses, gs().cancels, gs().swallow);
     Con_Printf("flatgrab: mode %s, held off %d main %d (holdPose %d); reach off %.2f main %.2f; hold off %.2f main %.2f; H presses %d\n",
         vr_flat_grab_hold.value != 0.f ? "hold" : "toggle", gs().grabHeld[HAND_OFF] ? 1 : 0, gs().grabHeld[HAND_MAIN] ? 1 : 0,
         gs().grabHoldPose ? 1 : 0, gs().hand[HAND_OFF].grabReach, gs().hand[HAND_MAIN].grabReach, gs().hand[HAND_OFF].grabHold,
         gs().hand[HAND_MAIN].grabHold, gs().pullPresses);
+    // (A big prop dragged by its surface, a listen server's: each hand's prop and how far its held point is from the hand.)
+    box3d::PropDragHold d[2];
+    const bool dragOff = sv.active && box3d::propDragHold(cl.viewentity, HAND_OFF, d[HAND_OFF]);
+    const bool dragMain = sv.active && box3d::propDragHold(cl.viewentity, HAND_MAIN, d[HAND_MAIN]);
+    if(dragOff || dragMain)
+    {
+        Con_Printf("flatgrab: drags off %d (%.1f u off the hand) main %d (%.1f u off the hand)\n", dragOff ? d[HAND_OFF].num : 0,
+            d[HAND_OFF].off, dragMain ? d[HAND_MAIN].num : 0, d[HAND_MAIN].off);
+    }
+}
+
+// The throw key's hand while the key is held, as the server's STAT_QVR_FLATGREN `stat` says: its tap window, its wind-up,
+// a quick grenade wound up by the key; -1 none.
+[[nodiscard]] int aimHand(int stat)
+{
+    if(key_dest != key_game || !flatplay::keyHeld(vr_flat_key_throw))
+    {
+        return -1;
+    }
+    const int tPhase = (stat >> 4) & 3;
+    if(tPhase == throwWind || tPhase == throwPending)
+    {
+        return (stat & 64) ? HAND_MAIN : HAND_OFF;
+    }
+    if(gs().throwKeyWound && (stat & 7) == phaseWind)
+    {
+        return (stat & 8) ? HAND_MAIN : HAND_OFF;
+    }
+    return -1;
 }
 
 // The throw / drop key (vr_flat_key_throw, default B): 39 as it goes down, 40 as it comes up, and 40 again while the
@@ -189,6 +226,39 @@ void throwKey(int stat)
         gs().throwKeyWound = false;
     }
     gs().throwKeyDown = down;
+
+    // The cancel (flatthrow2, his words 2026-11-26: "cancel a throw by pressing the throwing hand's corresponding attack
+    // button while the throw key is being pressed"): a fresh press of that hand's button (flatplay::attackButtons) while B
+    // is held sends 41 (QC VR_FlatThrow_Cancel: back to the hold, nothing thrown); the button does nothing till it is let
+    // go (swallowedButtons: flatplay::routeFire), and 41 again while the server still winds up (an impulse lost).
+    const int buttons = (client::mainButton() ? 1 : 0) | (client::offhandButton() ? 2 : 0);
+    const int fresh = buttons & ~gs().buttonsWas;
+    gs().buttonsWas = buttons;
+    gs().swallow &= buttons;
+    const int aimer = aimHand(stat);
+    const int cancelBy = aimer >= 0 ? fresh & flatplay::attackButtons(aimer) : 0;
+    if(cancelBy != 0)
+    {
+        gs().swallow |= cancelBy;
+        gs().cancels++;
+        gs().cancelSent = true;
+        gs().cancelResend = throwResendFrames;
+        Cbuf_InsertText("impulse 41\n");
+        if(vr_flat_grenade_debug.value)
+        {
+            Con_Printf("flatthrow: the %s hand's attack button (%s) with %s held: throw cancelled\n", handName(aimer),
+                (cancelBy & 1) ? "left" : "right", vr_flat_key_throw.string);
+        }
+    }
+    else if(aimer < 0)
+    {
+        gs().cancelSent = false;
+    }
+    else if(gs().cancelSent && --gs().cancelResend <= 0)
+    {
+        Cbuf_InsertText("impulse 41\n");
+        gs().cancelResend = throwResendFrames;
+    }
 }
 
 // The Grab / Pull key (vr_flat_key_pull, default H): uses every available empty hand to grab physics props, crates,
@@ -288,10 +358,12 @@ void frame(bool on)
         const int presses = gs().presses;
         const int throwPresses = gs().throwPresses;
         const int pullPresses = gs().pullPresses;
-        gs() =GrenadeState{};
+        const int cancels = gs().cancels;
+        gs() = GrenadeState{};
         gs().presses = presses;
         gs().throwPresses = throwPresses;
         gs().pullPresses = pullPresses;
+        gs().cancels = cancels;
         return;
     }
 
@@ -458,7 +530,28 @@ void apply(hands::State& s)
             {look.x + pitch(vr_flat_throw_wind_pitch), look.y - side * za::clamp(vr_flat_throw_wind_yaw.value, -90.f, 90.f),
                 side * za::clamp(vr_flat_throw_wind_roll.value, -180.f, 180.f)},
             geom::smooth01(a.wind));
+        // A weapon held with its grip flipped, wound up (flatthrow2, his words 2026-11-26): moved and turned about the fist
+        // over the wind-up by vr_flat_throw_rev_* (all 0: as any weapon's), by the flip's drawn share.
+        if(const float rk = geom::smooth01(a.wind) * flatplay::flipShare(h); rk > 0.f)
+        {
+            const auto units = [](const Tunable& c) { return za::clamp(c.value, -30.f, 30.f); };
+            const auto degrees = [](const Tunable& c) { return za::clamp(c.value, -180.f, 180.f); };
+            s.pos[h] += (vf * units(vr_flat_throw_rev_fwd) + vr * (side * units(vr_flat_throw_rev_out)) + vu * units(vr_flat_throw_rev_up)) * rk;
+            const glm::vec3 turn{degrees(vr_flat_throw_rev_pitch), degrees(vr_flat_throw_rev_yaw), degrees(vr_flat_throw_rev_roll)};
+            if(turn != glm::vec3{0.f})
+            {
+                s.rot[h] = flatplay::blendHandAngles(s.rot[h], flatplay::turnedHandAngles(s.rot[h], turn, side), rk);
+            }
+        }
         blend(s, h, followAt, {look.x + pitch(vr_flat_throw_follow_pitch), look.y, 0.f}, geom::smooth01(a.follow));
+        // The release's arc (flatthrow3): on the way from the wind-up into the follow-through (the thing still in the hand
+        // for vr_flat_throw_release_time of it, QC VR_FlatThrow_Release), the hand raised vr_flat_throw_release_arc (a share
+        // of the reach) at its middle, where the wind-up's share and the follow-through's cross.
+        const bool following = (gs.phase == phaseThrown && gs.hand0 == h) || (gs.throwPhase == throwThrown && gs.throwHand == h);
+        if(const float arc = za::clamp(vr_flat_throw_release_arc.value, -0.5f, 0.5f); following && arc != 0.f)
+        {
+            s.pos[h] += vu * (arc * span * 4.f * geom::smooth01(a.wind) * geom::smooth01(a.follow));
+        }
         blend(s, h, fetchAt, {pitch(vr_flat_grenade_fetch_pitch), look.y, 0.f}, geom::smooth01(a.away));
         if(a.guide > 0.f)
         {
@@ -523,6 +616,16 @@ bool letsGo(int holding, int helping)
 bool throwsWith(int h)
 {
     return h >= 0 && h < 2 && gs().throwPhase != 0 && gs().throwHand == h;
+}
+
+bool aimsWith(int h)
+{
+    return h >= 0 && h < 2 && aimHand(cl.stats[protocol::STAT_QVR_FLATGREN]) == h;
+}
+
+int swallowedButtons()
+{
+    return gs.swallow;
 }
 
 float guideShare(int h)

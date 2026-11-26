@@ -99,9 +99,8 @@ grip, pulled down), down (a lower grip, pushed up); stamina drains as on any hol
   point less than 0.6 of a leg under the hip: a short rope taken overhead) leaves the feet hanging; they wrap it fully
   from 0.85 of a leg, eased between, and never take its end as a foothold above where they look.
 - **Sounds** (ropes6): a hand taking a rope makes a soft thud (the soft material's impacts, `vr_physsound_grab`), a chain
-  the metal grip, a headset's grip and flat play's alike; each pull up (once a grip, when the body has risen 15 cm over
-  its hold: not a mere grab, not the swing) a short exertion grunt (`vr_rope_grunt` 0.4, `vr_rope_grunt_sound` 2: the
-  jump's, deeper; at most every 0.6 s; Climbing page). Flat play's keys climb steadily: no grunt there.
+  the metal grip, a headset's grip and flat play's alike. No exertion grunt on ropes, chains or poles (his VR note
+  2026-11-26: the pull grunt, `vr_rope_grunt`/`vr_pole_grunt`, removed in ROUND26 vrmisc).
 - **Regrabs barely move it** (ropes6): a body a little short of where the pull took it (`riderBlocked`'s miss) moves the
   bob back with its last place (it had kicked the swing 30-60 units/s at each regrab).
 - A hand on a rope and the other on a ledge: the ledge holds him (no ride); the rope's hold follows its points.
@@ -173,8 +172,7 @@ he looked back at it. Flat play keeps the view's way. **Over it** (`monkeySuppor
 (0.3 m) over it, the hands turn round its axis by `vr_rope_support_turn` (180) over `vr_rope_support_time` (0.15 s),
 by the side the body hung on: the palms on top, the knuckles down; back under it 5 cm lower. VR and flat (your drawn
 hands); another player's copy takes the turn (his snapshot) but its palm's place is ropePalm's, under it.
-(ropes14) **The legs** round a rope ease to their place from the hip (`vr_rope_leg_smooth` 0.25 s). **The pole's pull
-grunt** is off (`vr_pole_grunt` 0; ropes keep `vr_rope_grunt`). **Let go** (a drop or a jump, VR and flat), the rope or
+(ropes14) **The legs** round a rope ease to their place from the hip (`vr_rope_leg_smooth` 0.25 s). **Let go** (a drop or a jump, VR and flat), the rope or
 pole doesn't meet him for `vr_rope_letgo_pass` (0.4 s: `climb::ropeLetGoPass`; its boxes pass him, his body doesn't push
 a rope; a remote client's prediction passes the poles by him as long after its hands were last on one).
 
@@ -326,8 +324,8 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   times): `rope_climb` hand over hand up (37.8 units, at least 30), down (18.9, at least 15), a nudged swing carries the
   body (41 units), let go at the rope's speed at the hands (125 of 125 units/s): 8 passed; `rope_jump` up, nudged, a
   jump off (180 up over the rope's 14, 127 level of its 129): 6 passed. ropes6: `rope_climb` also checks both hands drawn
-  gripping it, the knuckles outwards (`grip`), and no pull grunt climbing down or on a mere grab; `rope_calm` four pulls
-  up close to the rope: the swing at the hands 2.5 units/s (bound 25; was 61), its free end 8.3 (bound 30), 4 grunts;
+  gripping it, the knuckles outwards (`grip`), (the pull grunt checks went with the grunt, ROUND26); `rope_calm` four pulls
+  up close to the rope: the swing at the hands 2.5 units/s (bound 25; was 61), its free end 8.3 (bound 30);
   `rope_short` a 425-long rope (its end near the legs; `vr_rope_climb_test <play> [length]`) taken overhead and pulled up:
   the higher ankle 28 units under the pelvis (bound 10; was 13 over it).
 - (ropes7) `rope_climb_test.sh`'s `pole_wood` / `pole_metal` (`vr_rope_climb_test <play> 0 wood|metal`: a pole standing

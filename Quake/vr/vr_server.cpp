@@ -9,6 +9,7 @@
 #include "vr_axestick.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_arenaxray.hpp"
+#include "vr_attach.hpp"
 #include "vr_humlook.hpp"
 #include "vr_climbrope.hpp"
 #include "vr_box3d.hpp"
@@ -2355,6 +2356,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
         serverrules::serverWriteAll(msg);
         agarmor::serverWriteAll(msg); // (the armed humanoids' armour: vr_agarmor.cpp)
         arenaxray::serverWriteAll(msg); // (the arena's last foes, seen through walls: vr_arenaxray.cpp)
+        attach::serverWriteAll(msg); // (the weapons' attachments: vr_attach.cpp)
         humlook::serverWriteAll(msg); // (the armed humanoids' recolours by weapon: vr_humlook.cpp)
         climbrope::serverWriteAll(msg); // (the climbable ropes: vr_climbrope.cpp)
         mpavatar::serverWriteAll(msg); // (the players' avatar calibrations: vr_mpavatar.cpp; multiplayer)
@@ -2435,6 +2437,7 @@ void writeGunLooks(sizebuf_t* msg, edict_t* ent, const VrDrawnHolsters& holsters
             l.clipSize = static_cast<za::U8>(CLAMP(0, static_cast<int>(fieldFloatOr(ent, main ? f.weaponclipsize : f.weaponclipsize2, 0.f)), 255));
             l.revolver = rv;
             l.cylinder = fieldFloatOr(ent, main ? f.vr_rv_cyl : f.vr_rv_cyl2, 0.f);
+            l.attach = static_cast<za::U8>(attach::kindOfRecord(inst));
         }
         writeGunLook(msg, l);
     }
@@ -2448,6 +2451,7 @@ void writeGunLooks(sizebuf_t* msg, edict_t* ent, const VrDrawnHolsters& holsters
         {
             MSG_WriteByte(msg, vrProgs ? static_cast<int>(fieldFloatOr(ent, holsterFlags[i], 0.f)) & 255 : 0);
             MSG_WriteByte(msg, vrProgs ? clipOf(weaponInst(ent, holsterInst[i])) : 0);
+            MSG_WriteByte(msg, vrProgs ? attach::kindOfRecord(weaponInst(ent, holsterInst[i])) : 0);
         }
     }
 }
@@ -2646,6 +2650,7 @@ extern "C" void VR_ServerFrameEnd(int worldRan)
     QVR_TRACY_CALL("sv end: rig sequences", qvr::rigseq::serverFrame()); // QC's Rig Studio sequences: started, their events sent to QC (vr_rigseq.cpp)
     QVR_TRACY_CALL("sv end: armour", qvr::agarmor::serverFrame()); // the armed humanoids' armour sent where it changed (vr_agarmor.cpp)
     qvr::arenaxray::serverFrame(); // the arena's last foes marked or not, sent where it changed (vr_arenaxray.cpp)
+    qvr::attach::serverFrame(); // the weapons' attachments, sent where they changed (vr_attach.cpp)
     qvr::humlook::serverFrame(); // the armed humanoids' recolours by weapon, sent where they changed (vr_humlook.cpp)
     QVR_TRACY_CALL("sv end: climbable ropes", qvr::climbrope::serverFrame(worldRan != 0)); // the climbable ropes stepped, pushed, sent (vr_climbrope.cpp; paused: they stand)
     qvr::rigstudio::serverFrame(); // the Rig Studio's scene: its subject made and held (nothing while closed)

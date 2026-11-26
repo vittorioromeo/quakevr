@@ -565,6 +565,8 @@ vr_flashlight_auto_head|1|Flashlight|Clip on Head When Let Go|Advanced VR Option
 vr_flashlight_auto_gun|1|Flashlight|Clip on Gun When Let Go|Advanced VR Options > Flashlight > Clip on Gun When Let Go
 vr_flashlight_clip_time|1|Flashlight|Clip-On Transition|Advanced VR Options > Flashlight > Clip-On Transition
 vr_flashlight_tilt|1|Flashlight|Lean Out|Advanced VR Options > Flashlight > Lean Out
+vr_flashlight_yaw|1|Flashlight|Turn|Advanced VR Options > Flashlight > Turn
+vr_flashlight_roll|1|Flashlight|Lean Sideways|Advanced VR Options > Flashlight > Lean Sideways
 vr_flashlight_forward|1|Flashlight|Forward|Advanced VR Options > Flashlight > Forward
 vr_flashlight_armor_forward|1|Flashlight|Forward With Armour|Advanced VR Options > Flashlight > Forward With Armour
 vr_flashlight_up|1|Flashlight|Up|Advanced VR Options > Flashlight > Up
@@ -1136,6 +1138,7 @@ vr_agrunt_repl_id|1|Armed Humanoid Replacements|Quake's Campaigns|Advanced VR Op
 vr_agrunt_repl_mp|1|Armed Humanoid Replacements|Mission Packs|Advanced VR Options > Combat > Armed Humanoid Replacements > Mission Packs
 vr_agrunt_repl_ad|1|Armed Humanoid Replacements|Arcane Dimensions|Advanced VR Options > Combat > Armed Humanoid Replacements > Arcane Dimensions
 vr_agrunt_repl_variants|1|Armed Humanoid Replacements|AD and Quoth Variants|Advanced VR Options > Combat > Armed Humanoid Replacements > AD and Quoth Variants
+vr_agrunt_repl_crossbow|1|Armed Humanoid Replacements|AD Crossbow Knights|Advanced VR Options > Combat > Armed Humanoid Replacements > AD Crossbow Knights
 vr_humlook|1|Armed Humanoid Replacements|Recolour by Weapon|Advanced VR Options > Combat > Armed Humanoid Replacements > Recolour by Weapon
 |1|Armed Humanoid Replacements|Reset This Page|Advanced VR Options > Combat > Armed Humanoid Replacements > Reset This Page
 @page|1|Armed Grunts - AI Behaviour||Advanced VR Options > Combat > Armed Humanoids' AI Behaviour
@@ -1497,6 +1500,9 @@ vr_flat_grenade_arm_mode|1|Locomotion|Quick Grenade Fire Button|Advanced VR Opti
 vr_flat_swap_anim|1|Locomotion|Hand Swap Animation|Advanced VR Options > Movement > Locomotion > Hand Swap Animation
 vr_flat_grab_preview|1|Locomotion|Force Grab Preview|Advanced VR Options > Movement > Locomotion > Force Grab Preview
 vr_flat_grab_hold|1|Locomotion|Grab / Pull Key|Advanced VR Options > Movement > Locomotion > Grab / Pull Key
+vr_flat_overhand_both|1|Locomotion|Quick Melee: Both Fists|Advanced VR Options > Movement > Locomotion > Quick Melee: Both Fists
+vr_flat_1h_dagger|1|Locomotion|Daggers One-Handed|Advanced VR Options > Movement > Locomotion > Daggers One-Handed
+vr_flat_1h_axe|1|Locomotion|Axes One-Handed|Advanced VR Options > Movement > Locomotion > Axes One-Handed
 vr_flat_shove|1|Locomotion|Shove Key (Mouse 5)|Advanced VR Options > Movement > Locomotion > Shove Key (Mouse 5)
 vr_flat_shove_cooldown|1|Locomotion|Shove Cooldown|Advanced VR Options > Movement > Locomotion > Shove Cooldown
 vr_flat_shove_push|1|Locomotion|Shove Strength|Advanced VR Options > Movement > Locomotion > Shove Strength
@@ -1581,8 +1587,6 @@ vr_climb_over_top|1|Climbing|Reach Over the Top|Advanced VR Options > Movement >
 vr_climb_slide|1|Climbing|Hands Slide Along Ledges|Advanced VR Options > Movement > Climbing > Hands Slide Along Ledges
 vr_physsound_grab|1|Climbing|Grab Sound|Advanced VR Options > Movement > Climbing > Grab Sound
 vr_physsound_chain|1|Climbing|Chain Sounds|Advanced VR Options > Movement > Climbing > Chain Sounds
-vr_rope_grunt|1|Climbing|Rope Pull Grunt|Advanced VR Options > Movement > Climbing > Rope Pull Grunt
-vr_rope_grunt_sound|1|Climbing|Rope Pull Grunt Sound|Advanced VR Options > Movement > Climbing > Rope Pull Grunt Sound
 vr_climb_mantle_height|1|Climbing|Mantle Height|Advanced VR Options > Movement > Climbing > Mantle Height
 vr_climb_mantle_trigger|1|Climbing|Mantle When|Advanced VR Options > Movement > Climbing > Mantle When
 vr_climb_mantle_slope|1|Climbing|Steepest Slope|Advanced VR Options > Movement > Climbing > Steepest Slope
@@ -1599,6 +1603,7 @@ vr_climb_hand_turn_blend|1|Climbing|Hold Rotation Blend|Advanced VR Options > Mo
 vr_climb_hand_pitch|1|Climbing|Hand on Hold: Pitch|Advanced VR Options > Movement > Climbing > Hand on Hold: Pitch
 vr_climb_hand_yaw|1|Climbing|Hand on Hold: Yaw|Advanced VR Options > Movement > Climbing > Hand on Hold: Yaw
 vr_climb_hand_roll|1|Climbing|Hand on Hold: Roll|Advanced VR Options > Movement > Climbing > Hand on Hold: Roll
+vr_climb_rung_grip|1|Climbing|Hand Round Thin Rungs|Advanced VR Options > Movement > Climbing > Hand Round Thin Rungs
 |1|Climbing|Reset This Page|Advanced VR Options > Movement > Climbing > Reset This Page
 @page|1|Swimming||Advanced VR Options > Movement > Swimming
 vr_swim|1|Swimming|Swimming|Advanced VR Options > Movement > Swimming > Swimming
@@ -1749,6 +1754,7 @@ vr_weapon_grab_anywhere|1|Carrying|Weapons Anywhere|Advanced VR Options > Carryi
 vr_weapon_grab_anywhere_min|1|Carrying|Anywhere: Away From Grips|Advanced VR Options > Carrying and Throwing > Carrying > Anywhere: Away From Grips
 vr_weapon_anygrip_mode|1|Carrying|Other Hand Anywhere|Advanced VR Options > Carrying and Throwing > Carrying > Other Hand Anywhere
 vr_pole_slide|1|Carrying|Weapon Hand Slides on Poles|Advanced VR Options > Carrying and Throwing > Carrying > Weapon Hand Slides on Poles
+vr_pole_grip_fixed|1|Carrying|Other Hand Fixed on Poles|Advanced VR Options > Carrying and Throwing > Carrying > Other Hand Fixed on Poles
 vr_pole_slide_grip|1|Carrying|Pole Slide Grip|Advanced VR Options > Carrying and Throwing > Carrying > Pole Slide Grip
 vr_carry_local|1|Carrying|Drawn In the Hand|Advanced VR Options > Carrying and Throwing > Carrying > Drawn In the Hand
 vr_carry_two_hands|1|Carrying|Two-Handed Carrying|Advanced VR Options > Carrying and Throwing > Carrying > Two-Handed Carrying
@@ -1793,6 +1799,7 @@ vr_throw_wrist_dist|2|Throwing and Physics|Wrist to Controller|Advanced VR Optio
 vr_throw_spin_drag|2|Throwing and Physics|Spin Drag|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Spin Drag
 vr_axestick|2|Throwing and Physics|Axes Stick|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Axes Stick
 vr_embed|2|Throwing and Physics|Embedded Blades|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Embedded Blades
+vr_embed_fire|2|Throwing and Physics|Stuck Weapons Fire|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Stuck Weapons Fire
 vr_prop_impact_damage|2|Throwing and Physics|Flung Props Hurt|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Flung Props Hurt
 vr_prop_impact_players|2|Throwing and Physics|Flung Props Hurt Players|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Flung Props Hurt Players
 vr_gib_spawn_harmless|2|Throwing and Physics|Fresh Gibs Harmless For|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Fresh Gibs Harmless For
@@ -3204,6 +3211,8 @@ vr_throw_point_dagger_time|2|Tunables|Dagger Settling: Time|Advanced VR Options 
 vr_throw_point_dagger_angle|2|Tunables|Dagger Settling: Angle|Advanced VR Options > Debug > Tunables > Dagger Settling: Angle
 vr_throw_point_dagger_spin|2|Tunables|Dagger Settling: Tumble|Advanced VR Options > Debug > Tunables > Dagger Settling: Tumble
 vr_throw_point_dagger_damp|2|Tunables|Dagger Settling: Spin Damping|Advanced VR Options > Debug > Tunables > Dagger Settling: Spin Damping
+vr_throw_point_rev_pole|2|Tunables|Reverse Grip Settling: Spears|Advanced VR Options > Debug > Tunables > Reverse Grip Settling: Spears
+vr_throw_point_rev_blade|2|Tunables|Reverse Grip Settling: Blades|Advanced VR Options > Debug > Tunables > Reverse Grip Settling: Blades
 vr_shot_push_pellet|2|Tunables|Pellet Push|Advanced VR Options > Debug > Tunables > Pellet Push
 vr_shot_push_nail|2|Tunables|Nail Push|Advanced VR Options > Debug > Tunables > Nail Push
 vr_shot_push_supernail|2|Tunables|Super Nail Push|Advanced VR Options > Debug > Tunables > Super Nail Push
@@ -4266,6 +4275,9 @@ vr_climb_prop_pull|2|Tunables|Light Prop Pull|Advanced VR Options > Debug > Tuna
 vr_climb_prop_tilt|2|Tunables|Prop Hold Tips Off At|Advanced VR Options > Debug > Tunables > Prop Hold Tips Off At
 vr_climb_prop_slip|2|Tunables|Light Prop Slips Off At|Advanced VR Options > Debug > Tunables > Light Prop Slips Off At
 vr_climb_prop_letgo_speed|2|Tunables|Prop Knocked Away At|Advanced VR Options > Debug > Tunables > Prop Knocked Away At
+vr_climb_rung_max|2|Tunables|Round Rung: Thickest|Advanced VR Options > Debug > Tunables > Round Rung: Thickest
+vr_climb_rung_round|2|Tunables|Round Rung: Roundness|Advanced VR Options > Debug > Tunables > Round Rung: Roundness
+vr_climb_rung_tilt|2|Tunables|Round Rung: Grip Tilt|Advanced VR Options > Debug > Tunables > Round Rung: Grip Tilt
 vr_hull_build_mb|2|Tunables|Hitbox Build Memory|Advanced VR Options > Debug > Tunables > Hitbox Build Memory
 vr_heap_load_hold|2|Tunables|Heap: Hold During Loads|Advanced VR Options > Debug > Tunables > Heap: Hold During Loads
 vr_image_cache_mb|2|Tunables|Decoded Image Cache|Advanced VR Options > Debug > Tunables > Decoded Image Cache
@@ -4466,6 +4478,12 @@ vr_flat_throw_wind_up|2|Tunables|Throw: Wind-Up Up|Advanced VR Options > Debug >
 vr_flat_throw_wind_pitch|2|Tunables|Throw: Wind-Up Pitch|Advanced VR Options > Debug > Tunables > Throw: Wind-Up Pitch
 vr_flat_throw_wind_yaw|2|Tunables|Throw: Wind-Up Yaw|Advanced VR Options > Debug > Tunables > Throw: Wind-Up Yaw
 vr_flat_throw_wind_roll|2|Tunables|Throw: Wind-Up Roll|Advanced VR Options > Debug > Tunables > Throw: Wind-Up Roll
+vr_flat_throw_rev_fwd|2|Tunables|Throw: Flipped Grip Forward|Advanced VR Options > Debug > Tunables > Throw: Flipped Grip Forward
+vr_flat_throw_rev_out|2|Tunables|Throw: Flipped Grip Out|Advanced VR Options > Debug > Tunables > Throw: Flipped Grip Out
+vr_flat_throw_rev_up|2|Tunables|Throw: Flipped Grip Up|Advanced VR Options > Debug > Tunables > Throw: Flipped Grip Up
+vr_flat_throw_rev_pitch|2|Tunables|Throw: Flipped Grip Pitch|Advanced VR Options > Debug > Tunables > Throw: Flipped Grip Pitch
+vr_flat_throw_rev_yaw|2|Tunables|Throw: Flipped Grip Yaw|Advanced VR Options > Debug > Tunables > Throw: Flipped Grip Yaw
+vr_flat_throw_rev_roll|2|Tunables|Throw: Flipped Grip Roll|Advanced VR Options > Debug > Tunables > Throw: Flipped Grip Roll
 vr_flat_throw_guide|2|Tunables|Throw: Free Hand Guides|Advanced VR Options > Debug > Tunables > Throw: Free Hand Guides
 vr_flat_throw_guide_fwd|2|Tunables|Throw: Guide Forward|Advanced VR Options > Debug > Tunables > Throw: Guide Forward
 vr_flat_throw_guide_out|2|Tunables|Throw: Guide Out|Advanced VR Options > Debug > Tunables > Throw: Guide Out
@@ -4476,6 +4494,8 @@ vr_flat_throw_guide_roll|2|Tunables|Throw: Guide Roll|Advanced VR Options > Debu
 vr_flat_throw_guide_open|2|Tunables|Throw: Guide Fingers Open|Advanced VR Options > Debug > Tunables > Throw: Guide Fingers Open
 vr_flat_throw_charge_back|2|Tunables|Throw: Charge Pulls Back|Advanced VR Options > Debug > Tunables > Throw: Charge Pulls Back
 vr_flat_throw_follow_time|2|Tunables|Throw: Follow-Through Time|Advanced VR Options > Debug > Tunables > Throw: Follow-Through Time
+vr_flat_throw_release_time|2|Tunables|Throw: Release Delay|Advanced VR Options > Debug > Tunables > Throw: Release Delay
+vr_flat_throw_release_arc|2|Tunables|Throw: Release Arc|Advanced VR Options > Debug > Tunables > Throw: Release Arc
 vr_flat_throw_follow_fwd|2|Tunables|Throw: Follow Forward|Advanced VR Options > Debug > Tunables > Throw: Follow Forward
 vr_flat_throw_follow_out|2|Tunables|Throw: Follow Out|Advanced VR Options > Debug > Tunables > Throw: Follow Out
 vr_flat_throw_follow_down|2|Tunables|Throw: Follow Down|Advanced VR Options > Debug > Tunables > Throw: Follow Down
@@ -4491,6 +4511,16 @@ vr_flat_throw_spin|2|Tunables|Throw: Spin|Advanced VR Options > Debug > Tunables
 vr_flat_throw_spin_time|2|Tunables|Throw: Blade Arrives First|Advanced VR Options > Debug > Tunables > Throw: Blade Arrives First
 vr_flat_throw_release_pitch|2|Tunables|Throw: Release Pitch|Advanced VR Options > Debug > Tunables > Throw: Release Pitch
 vr_flat_grab_reach|2|Tunables|Grab / Pull: Reach|Advanced VR Options > Debug > Tunables > Grab / Pull: Reach
+vr_flat_grab_catch_window|2|Tunables|Grab / Pull: Catch Window|Advanced VR Options > Debug > Tunables > Grab / Pull: Catch Window
+vr_flat_grab_catch_reach|2|Tunables|Grab / Pull: Catch Reach|Advanced VR Options > Debug > Tunables > Grab / Pull: Catch Reach
+vr_flat_grab_drag_mass|2|Tunables|Grab / Pull: Drag From Mass|Advanced VR Options > Debug > Tunables > Grab / Pull: Drag From Mass
+vr_flat_grab_drag_force|2|Tunables|Grab / Pull: Drag Force|Advanced VR Options > Debug > Tunables > Grab / Pull: Drag Force
+vr_flat_grab_drag_lift|2|Tunables|Grab / Pull: Drag Lift|Advanced VR Options > Debug > Tunables > Grab / Pull: Drag Lift
+vr_flat_grab_drag_hertz|2|Tunables|Grab / Pull: Drag Stiffness|Advanced VR Options > Debug > Tunables > Grab / Pull: Drag Stiffness
+vr_flat_grab_drag_letgo|2|Tunables|Grab / Pull: Drag Let Go|Advanced VR Options > Debug > Tunables > Grab / Pull: Drag Let Go
+vr_flat_grab_push|2|Tunables|Grab / Pull: Push Held Props|Advanced VR Options > Debug > Tunables > Grab / Pull: Push Held Props
+vr_flat_grab_push_force|2|Tunables|Grab / Pull: Push Strength|Advanced VR Options > Debug > Tunables > Grab / Pull: Push Strength
+vr_flat_grab_push_angle|2|Tunables|Grab / Pull: Push Max Angle|Advanced VR Options > Debug > Tunables > Grab / Pull: Push Max Angle
 vr_flat_grab_cone|2|Tunables|Grab / Pull: Cone|Advanced VR Options > Debug > Tunables > Grab / Pull: Cone
 vr_flat_grab_carry_dist|2|Tunables|Grab / Pull: Carry Distance|Advanced VR Options > Debug > Tunables > Grab / Pull: Carry Distance
 vr_flat_grab_reach_time|2|Tunables|Grab / Pull: Reach Time|Advanced VR Options > Debug > Tunables > Grab / Pull: Reach Time
@@ -4660,6 +4690,10 @@ vr_flat_overhand_end_fwd|2|Tunables|Overhand End Ahead|Advanced VR Options > Deb
 vr_flat_overhand_end_out|2|Tunables|Overhand End Out|Advanced VR Options > Debug > Tunables > Overhand End Out
 vr_flat_overhand_end_yaw|2|Tunables|Overhand End Yaw|Advanced VR Options > Debug > Tunables > Overhand End Yaw
 vr_flat_overhand_end_roll|2|Tunables|Overhand End Roll|Advanced VR Options > Debug > Tunables > Overhand End Roll
+vr_flat_overhand_2h_damage|2|Tunables|Both Fists: Damage x|Advanced VR Options > Debug > Tunables > Both Fists: Damage x
+vr_flat_overhand_2h_push|2|Tunables|Both Fists: Push x|Advanced VR Options > Debug > Tunables > Both Fists: Push x
+vr_flat_overhand_2h_raise_out|2|Tunables|Both Fists: Top Out|Advanced VR Options > Debug > Tunables > Both Fists: Top Out
+vr_flat_overhand_2h_end_out|2|Tunables|Both Fists: End Out|Advanced VR Options > Debug > Tunables > Both Fists: End Out
 vr_flat_parry|2|Tunables|Right Mouse Parries|Advanced VR Options > Debug > Tunables > Right Mouse Parries
 vr_flat_parry_fwd|2|Tunables|Guard Ahead|Advanced VR Options > Debug > Tunables > Guard Ahead
 vr_flat_parry_up|2|Tunables|Guard Up|Advanced VR Options > Debug > Tunables > Guard Up
@@ -4669,6 +4703,9 @@ vr_flat_parry_yaw|2|Tunables|Guard Yaw|Advanced VR Options > Debug > Tunables > 
 vr_flat_parry_roll|2|Tunables|Guard Roll|Advanced VR Options > Debug > Tunables > Guard Roll
 vr_flat_parry_in_time|2|Tunables|Guard In Time|Advanced VR Options > Debug > Tunables > Guard In Time
 vr_flat_parry_out_time|2|Tunables|Guard Out Time|Advanced VR Options > Debug > Tunables > Guard Out Time
+vr_flat_parry_unflip_time|2|Tunables|Guard Unflip Time|Advanced VR Options > Debug > Tunables > Guard Unflip Time
+vr_flat_parry_shaft_at|2|Tunables|Guard Shaft Grip At|Advanced VR Options > Debug > Tunables > Guard Shaft Grip At
+vr_flat_parry_shaft_reach|2|Tunables|Guard Shaft Grip Most Apart|Advanced VR Options > Debug > Tunables > Guard Shaft Grip Most Apart
 vr_flat_parry_cone|2|Tunables|Guard Parries From The Front|Advanced VR Options > Debug > Tunables > Guard Parries From The Front
 vr_flat_bash|2|Tunables|Fire In The Guard Bashes|Advanced VR Options > Debug > Tunables > Fire In The Guard Bashes
 vr_flat_bash_wind_time|2|Tunables|Bash Windup Time|Advanced VR Options > Debug > Tunables > Bash Windup Time
@@ -4697,6 +4734,7 @@ vr_flat_pole_up|2|Tunables|Spear Up|Advanced VR Options > Debug > Tunables > Spe
 vr_flat_pole_out|2|Tunables|Spear Out|Advanced VR Options > Debug > Tunables > Spear Out
 vr_flat_pole_roll|2|Tunables|Spear Roll|Advanced VR Options > Debug > Tunables > Spear Roll
 vr_flat_pole_off_along|2|Tunables|Spear Other Hand Along|Advanced VR Options > Debug > Tunables > Spear Other Hand Along
+vr_flat_pole_off_snap|2|Tunables|Spear Other Hand On Shaft|Advanced VR Options > Debug > Tunables > Spear Other Hand On Shaft
 vr_flat_pole_off_roll|2|Tunables|Spear Other Hand Roll|Advanced VR Options > Debug > Tunables > Spear Other Hand Roll
 vr_flat_pole_pitch|2|Tunables|Spear Pitch|Advanced VR Options > Debug > Tunables > Spear Pitch
 vr_flat_pole_yaw|2|Tunables|Spear Yaw|Advanced VR Options > Debug > Tunables > Spear Yaw
@@ -4770,9 +4808,33 @@ vr_flat_revgrip_pole_yaw|2|Tunables|Flipped Spear Yaw|Advanced VR Options > Debu
 vr_flat_revgrip_pole_roll|2|Tunables|Flipped Spear Roll|Advanced VR Options > Debug > Tunables > Flipped Spear Roll
 vr_flat_revgrip_pole_down|2|Tunables|Flipped Spear Stab Down|Advanced VR Options > Debug > Tunables > Flipped Spear Stab Down
 vr_flat_revgrip_pole_off_along|2|Tunables|Flipped Spear Other Hand Along|Advanced VR Options > Debug > Tunables > Flipped Spear Other Hand Along
+vr_flat_revgrip_swing_wind|2|Tunables|Flipped Swing Windup|Advanced VR Options > Debug > Tunables > Flipped Swing Windup
+vr_flat_revgrip_swing_top|2|Tunables|Flipped Swing Top Hold|Advanced VR Options > Debug > Tunables > Flipped Swing Top Hold
+vr_flat_revgrip_swing_strike|2|Tunables|Flipped Swing Strike Time|Advanced VR Options > Debug > Tunables > Flipped Swing Strike Time
+vr_flat_revgrip_swing_dwell|2|Tunables|Flipped Swing End Hold|Advanced VR Options > Debug > Tunables > Flipped Swing End Hold
+vr_flat_revgrip_swing_back|2|Tunables|Flipped Swing Recover|Advanced VR Options > Debug > Tunables > Flipped Swing Recover
+vr_flat_revgrip_swing_raise_up|2|Tunables|Flipped Swing Top Up|Advanced VR Options > Debug > Tunables > Flipped Swing Top Up
+vr_flat_revgrip_swing_raise_fwd|2|Tunables|Flipped Swing Top Ahead|Advanced VR Options > Debug > Tunables > Flipped Swing Top Ahead
+vr_flat_revgrip_swing_raise_out|2|Tunables|Flipped Swing Top Out|Advanced VR Options > Debug > Tunables > Flipped Swing Top Out
+vr_flat_revgrip_swing_raise_pitch|2|Tunables|Flipped Swing Top Pitch|Advanced VR Options > Debug > Tunables > Flipped Swing Top Pitch
+vr_flat_revgrip_swing_raise_yaw|2|Tunables|Flipped Swing Top Yaw|Advanced VR Options > Debug > Tunables > Flipped Swing Top Yaw
+vr_flat_revgrip_swing_raise_roll|2|Tunables|Flipped Swing Top Roll|Advanced VR Options > Debug > Tunables > Flipped Swing Top Roll
+vr_flat_revgrip_swing_end_pitch|2|Tunables|Flipped Swing End Pitch|Advanced VR Options > Debug > Tunables > Flipped Swing End Pitch
+vr_flat_revgrip_swing_end_down|2|Tunables|Flipped Swing End Down|Advanced VR Options > Debug > Tunables > Flipped Swing End Down
+vr_flat_revgrip_swing_end_fwd|2|Tunables|Flipped Swing End Ahead|Advanced VR Options > Debug > Tunables > Flipped Swing End Ahead
+vr_flat_revgrip_swing_end_out|2|Tunables|Flipped Swing End Out|Advanced VR Options > Debug > Tunables > Flipped Swing End Out
+vr_flat_revgrip_swing_end_yaw|2|Tunables|Flipped Swing End Yaw|Advanced VR Options > Debug > Tunables > Flipped Swing End Yaw
+vr_flat_revgrip_swing_end_roll|2|Tunables|Flipped Swing End Roll|Advanced VR Options > Debug > Tunables > Flipped Swing End Roll
+vr_flat_revgrip_thrust_wind_back|2|Tunables|Flipped Thrust Draw Back|Advanced VR Options > Debug > Tunables > Flipped Thrust Draw Back
+vr_flat_revgrip_thrust_wind_up|2|Tunables|Flipped Thrust Windup Up|Advanced VR Options > Debug > Tunables > Flipped Thrust Windup Up
+vr_flat_revgrip_thrust_wind_pitch|2|Tunables|Flipped Thrust Windup Pitch|Advanced VR Options > Debug > Tunables > Flipped Thrust Windup Pitch
+vr_flat_revgrip_thrust_reach|2|Tunables|Flipped Thrust Reach|Advanced VR Options > Debug > Tunables > Flipped Thrust Reach
+vr_flat_revgrip_thrust_up|2|Tunables|Flipped Thrust End Up|Advanced VR Options > Debug > Tunables > Flipped Thrust End Up
+vr_flat_revgrip_thrust_pitch|2|Tunables|Flipped Thrust End Pitch|Advanced VR Options > Debug > Tunables > Flipped Thrust End Pitch
 vr_flat_embed_pull|2|Tunables|Stuck Blade Pull|Advanced VR Options > Debug > Tunables > Stuck Blade Pull
 vr_flat_embed_pull_time|2|Tunables|Stuck Blade Pull Time|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Time
 vr_flat_embed_pull_hold|2|Tunables|Stuck Blade Pull Hold|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Hold
+vr_flat_embed_fire_tap|2|Tunables|Stuck Weapon Fire Tap|Advanced VR Options > Debug > Tunables > Stuck Weapon Fire Tap
 vr_flat_embed_arm|2|Tunables|Stuck Blade: Hand On Arm|Advanced VR Options > Debug > Tunables > Stuck Blade: Hand On Arm
 vr_flat_embed_arm_slip|2|Tunables|Stuck Blade: Hand Slip|Advanced VR Options > Debug > Tunables > Stuck Blade: Hand Slip
 vr_flat_embed_other_hand|2|Tunables|Stuck Blade: Other Hand|Advanced VR Options > Debug > Tunables > Stuck Blade: Other Hand
@@ -5033,6 +5095,9 @@ vr_embed_move_sword_lift|2|Tunables|Moving: Sword's Lift|Advanced VR Options > D
 vr_embed_move_sword_lift_deep|2|Tunables|Moving: Sword's Lift, Deep|Advanced VR Options > Debug > Tunables > Moving: Sword's Lift, Deep
 vr_embed_lean_sword|2|Tunables|Hold: Sword's Leeway|Advanced VR Options > Debug > Tunables > Hold: Sword's Leeway
 vr_embed_free_ease|2|Tunables|Hold: Out Into the Hand|Advanced VR Options > Debug > Tunables > Hold: Out Into the Hand
+vr_embed_ragdoll_smooth_time|2|Tunables|Hold: Smoothing|Advanced VR Options > Debug > Tunables > Hold: Smoothing
+vr_embed_ragdoll_smooth_max_pos|2|Tunables|Hold: Smoothing Most Lag|Advanced VR Options > Debug > Tunables > Hold: Smoothing Most Lag
+vr_embed_ragdoll_smooth_max_deg|2|Tunables|Hold: Smoothing Most Turn|Advanced VR Options > Debug > Tunables > Hold: Smoothing Most Turn
 vr_embed_arm_stretch|2|Tunables|Hold: Arm Stretch|Advanced VR Options > Debug > Tunables > Hold: Arm Stretch
 vr_embed_arm_stretch_ease|2|Tunables|Hold: Arm Stretch Ease|Advanced VR Options > Debug > Tunables > Hold: Arm Stretch Ease
 vr_embed_arm_letgo|2|Tunables|Hold: Let Go Past|Advanced VR Options > Debug > Tunables > Hold: Let Go Past
@@ -5166,7 +5231,6 @@ vr_rope_thumb_wrap|2|Tunables|Rope Thumb Wrap Thickness|Advanced VR Options > De
 vr_rope_hand_pitch|2|Tunables|Rope Grip Knuckles Up|Advanced VR Options > Debug > Tunables > Rope Grip Knuckles Up
 vr_rope_elbow_wide|2|Tunables|Rope Climb Elbows Wide|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Wide
 vr_rope_elbow_out|2|Tunables|Rope Climb Elbows Out|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Out
-vr_pole_grunt|2|Tunables|Pole Pull Grunt|Advanced VR Options > Debug > Tunables > Pole Pull Grunt
 vr_rope_letgo_pass|2|Tunables|Rope Let-Go Pass Time|Advanced VR Options > Debug > Tunables > Rope Let-Go Pass Time
 vr_rope_leg_smooth|2|Tunables|Rope Legs Smoothing|Advanced VR Options > Debug > Tunables > Rope Legs Smoothing
 vr_rope_grip_keep|2|Tunables|Level Rope Grip Kept|Advanced VR Options > Debug > Tunables > Level Rope Grip Kept
@@ -5187,6 +5251,11 @@ vr_hit_player_fatten|2|Tunables|Body Hit Fattening|Advanced VR Options > Debug >
 vr_monster_lean|2|Tunables|Monsters See Leaning|Advanced VR Options > Debug > Tunables > Monsters See Leaning
 vr_monster_lean_spread|2|Tunables|Lean Spread|Advanced VR Options > Debug > Tunables > Lean Spread
 vr_monster_lean_react|2|Tunables|Lean Reaction|Advanced VR Options > Debug > Tunables > Lean Reaction
+vr_flat_xhair_thrust_path|2|Tunables|Flipped Spear Crosshair|Advanced VR Options > Debug > Tunables > Flipped Spear Crosshair
+vr_flat_xhair_melee_kick|2|Tunables|Melee Crosshair Kick|Advanced VR Options > Debug > Tunables > Melee Crosshair Kick
+vr_flat_xhair_melee_mass|2|Tunables|Melee Kick Weight|Advanced VR Options > Debug > Tunables > Melee Kick Weight
+vr_flat_xhair_melee_fist|2|Tunables|Fist Kick Share|Advanced VR Options > Debug > Tunables > Fist Kick Share
+vr_flat_xhair_melee_decay|2|Tunables|Melee Kick Decay|Advanced VR Options > Debug > Tunables > Melee Kick Decay
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -5600,6 +5669,8 @@ vr_startup_log|2|Debug - Profiling and Memory|Startup Trace in the Console|Advan
 |2|Debug - Profiling and Memory|OpenGL ES Report|Advanced VR Options > Debug > Profiling and Memory > OpenGL ES Report
 |2|Debug - Profiling and Memory|Standalone Preset: Quest 2 72 Hz|Advanced VR Options > Debug > Profiling and Memory > Standalone Preset: Quest 2 72 Hz
 |2|Debug - Profiling and Memory|Quest Settings Check|Advanced VR Options > Debug > Profiling and Memory > Quest Settings Check
+|2|Debug - Profiling and Memory|Preset Revert Test: 500 ms Frames|Advanced VR Options > Debug > Profiling and Memory > Preset Revert Test: 500 ms Frames
+|2|Debug - Profiling and Memory|Preset Revert Test: Off|Advanced VR Options > Debug > Profiling and Memory > Preset Revert Test: Off
 |2|Debug - Profiling and Memory|GL Sync Report|Advanced VR Options > Debug > Profiling and Memory > GL Sync Report
 |2|Debug - Profiling and Memory|ES Texture Read-Back Test|Advanced VR Options > Debug > Profiling and Memory > ES Texture Read-Back Test
 |2|Debug - Profiling and Memory|Safe Mode Judge Test|Advanced VR Options > Debug > Profiling and Memory > Safe Mode Judge Test
@@ -5901,6 +5972,7 @@ vr_maps_slipseer_delay|2|Debug - Tools|Slipseer Page Spacing|Advanced VR Options
 vr_maps_allow_local|2|Debug - Tools|Allow Local Map Hosts|Advanced VR Options > Debug > Tools > Allow Local Map Hosts
 |2|Debug - Tools|Pick the First Map|Advanced VR Options > Debug > Tools > Pick the First Map
 |2|Debug - Tools|Search Flash Test|Advanced VR Options > Debug > Tools > Search Flash Test
+|2|Debug - Tools|Preset Row Cycle Test|Advanced VR Options > Debug > Tools > Preset Row Cycle Test
 |2|Debug - Tools|Search Filter Test|Advanced VR Options > Debug > Tools > Search Filter Test
 |2|Debug - Tools|Menu Stops Walking Test|Advanced VR Options > Debug > Tools > Menu Stops Walking Test
 |2|Debug - Tools|Continue Rows Test|Advanced VR Options > Debug > Tools > Continue Rows Test
@@ -6044,6 +6116,10 @@ vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > 
 |2|Debug - Tests|Quoth: Drive This Map's Flow|Advanced VR Options > Debug > Tests > Quoth: Drive This Map's Flow
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Pickup Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Pickup Ahead
 |2|Debug - Tests|Arcane Dimensions: Upgraded Weapons Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Upgraded Weapons Ahead
+|2|Debug - Tests|Arcane Dimensions: Fury's Sword Alone in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Fury's Sword Alone in Hand
+|2|Debug - Tests|Arcane Dimensions: Judicator's Sword Alone in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Judicator's Sword Alone in Hand
+|2|Debug - Tests|Arcane Dimensions: Ogre Hammer Alone in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Ogre Hammer Alone in Hand
+|2|Debug - Tests|Arcane Dimensions: Ogre Mace Alone in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Ogre Mace Alone in Hand
 |2|Debug - Tests|Arcane Dimensions: Shadow Axe in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Shadow Axe in Hand
 |2|Debug - Tests|Arcane Dimensions: Widowmaker in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker in Hand
 |2|Debug - Tests|Arcane Dimensions: Plasma Gun in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Plasma Gun in Hand
@@ -6426,6 +6502,7 @@ vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Option
 |2|Debug - Tests|Blades in Crates and Barrels Check|Advanced VR Options > Debug > Tests > Blades in Crates and Barrels Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
 |2|Debug - Tests|Embedded Blades: the Hand on the Handle Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Hand on the Handle Check
+|2|Debug - Tests|Crystal Lance Fired While Stuck Check|Advanced VR Options > Debug > Tests > Crystal Lance Fired While Stuck Check
 |2|Debug - Tests|Flat Dual Wielding: an Embedded Blade Keeps Its Hand Check|Advanced VR Options > Debug > Tests > Flat Dual Wielding: an Embedded Blade Keeps Its Hand Check
 |2|Debug - Tests|Reverse Grip (Blade Down) Check|Advanced VR Options > Debug > Tests > Reverse Grip (Blade Down) Check
 |2|Debug - Tests|Embedded Blades: the Edges Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Edges Check
@@ -6493,7 +6570,8 @@ vr_hull_keep|2|Debug - Tests|Keep Hitboxes for Reloads|Advanced VR Options > Deb
 vr_hull_cache|2|Debug - Tests|Hitboxes on Disk|Advanced VR Options > Debug > Tests > Hitboxes on Disk
 vr_nav_cache|2|Debug - Tests|Navmeshes on Disk|Advanced VR Options > Debug > Tests > Navmeshes on Disk
 vr_hull_async|2|Debug - Tests|New Monster Sizes in Play|Advanced VR Options > Debug > Tests > New Monster Sizes in Play
-vr_hull_defer|2|Debug - Tests|Crouch and Monster Hitboxes|Advanced VR Options > Debug > Tests > Crouch and Monster Hitboxes
+vr_hull_defer|2|Debug - Tests|Monster Hitbox Builds|Advanced VR Options > Debug > Tests > Monster Hitbox Builds
+vr_load_panel_shot|2|Debug - Tests|Save the Loading Panel|Advanced VR Options > Debug > Tests > Save the Loading Panel
 |2|Debug - Tests|The Gates In This Map|Advanced VR Options > Debug > Tests > The Gates In This Map
 |2|Debug - Tests|Teleporter Test Map|Advanced VR Options > Debug > Tests > Teleporter Test Map
 |2|Debug - Tests|To the Flush Gates|Advanced VR Options > Debug > Tests > To the Flush Gates
@@ -6795,6 +6873,7 @@ vr_smallgibs_test_dummy|2|Debug - Automation & Self-Tests|On the Training Dummy|
 |2|Debug - Automation & Self-Tests|Blasts Push Props: AD and Quake|Advanced VR Options > Debug > Automation & Self-Tests > Blasts Push Props: AD and Quake
 |2|Debug - Automation & Self-Tests|Fuel Tank and Crate Thrown at Monsters|Advanced VR Options > Debug > Automation & Self-Tests > Fuel Tank and Crate Thrown at Monsters
 |2|Debug - Automation & Self-Tests|Blows and Props: What Gibs|Advanced VR Options > Debug > Automation & Self-Tests > Blows and Props: What Gibs
+|2|Debug - Automation & Self-Tests|Punch a Hugged Crate|Advanced VR Options > Debug > Automation & Self-Tests > Punch a Hugged Crate
 |2|Debug - Automation & Self-Tests|Flail Head Hits|Advanced VR Options > Debug > Automation & Self-Tests > Flail Head Hits
 |2|Debug - Automation & Self-Tests|Magazines Thrown at a Grunt|Advanced VR Options > Debug > Automation & Self-Tests > Magazines Thrown at a Grunt
 |2|Debug - Automation & Self-Tests|Press Down on a Crate|Advanced VR Options > Debug > Automation & Self-Tests > Press Down on a Crate

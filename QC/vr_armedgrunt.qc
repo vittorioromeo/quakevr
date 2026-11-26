@@ -2165,9 +2165,9 @@ void(entity p) VR_AG_ShootProp =
     vr_fire_spread_extra = VR_AGAI_SpreadExtra(vr_fire_spread_extra); // (vr_agrunt_ai_accuracy)
     if(inst.wi_dwvar && DW_VariantFor(wid) == inst.wi_dwvar) // (Dwell's weapons: their shot, as yours: dw_items.qc)
     {
-        dw_beam_prop = p;
+        vr_fire_prop = p;
         DW_FireVariant(h, &p.attack_finished); // (its refire on the prop, unused: the grunt keeps its own pace)
-        dw_beam_prop = world;
+        vr_fire_prop = world;
     }
     else if(wid == WID_SHOTGUN)         { W_FireShotgun(h); }
     else if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst)) { AD_FireWidowmaker(h); } // (AD's upgrades: vr_ad_bridge.qc)

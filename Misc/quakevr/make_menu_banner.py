@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# make_menu_banner.py -- the menus' vertical "Quake VR: Unleashed" banner, drawn where Quake's plaque (gfx/qplaque.lmp)
+# make_menu_banner.py -- the menus' vertical "Quake VR: UNLEASHED" banner, drawn where Quake's plaque (gfx/qplaque.lmp)
 # was (Quake/vr/vr_menubrand.cpp):
 #   quakevr/gfx/vr/menu_banner.png   the vertical logo, its pixels and alpha exactly as drawn, on a transparent canvas
 #                                    of 768 x 2048 (centred): the engine's mipmaps halve a texture's rows and columns
@@ -51,9 +51,11 @@ def main():
         return 1
     src = Image.open(sys.argv[1]).convert("RGBA")
     game = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "..", "quakevr")
-    if src.width > WIDTH or src.height > HEIGHT:
-        print(f"{sys.argv[1]}: {src.width} x {src.height} is bigger than {WIDTH} x {HEIGHT}")
-        return 1
+    # Scaled (Lanczos) to the largest size that fits the canvas, as the shipped banner always was.
+    scale = min(WIDTH / src.width, HEIGHT / src.height)
+    if scale != 1:
+        src = src.resize((min(WIDTH, round(src.width * scale)), min(HEIGHT, round(src.height * scale))),
+                         Image.Resampling.LANCZOS)
     canvas = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
     left, top = (WIDTH - src.width) // 2, (HEIGHT - src.height) // 2
     canvas.paste(src, (left, top))

@@ -1744,7 +1744,7 @@ float vr_throw_bladein_count; // (how many blows so far counted blade first: the
 // too far); any other 1.
 float(entity inflictor) VR_KillPush_Mult =
 {
-    if(inflictor.classname == "thrown_weapon" && weaponvalue(inflictor.model, "embed") > 0)
+    if(inflictor.classname == "thrown_weapon" && VR_Attach_Embed(inflictor.model, inflictor.weaponinst) > 0)
     {
         return cvar_hget(cvarh_vr_throw_kill_push);
     }
@@ -1765,7 +1765,7 @@ void(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Gib_Ove
     {
         return;
     }
-    else if(inflictor.classname == "thrown_weapon" && (vr_throw_bladein || weaponvalue(inflictor.model, "embed") == 1))
+    else if(inflictor.classname == "thrown_weapon" && (vr_throw_bladein || VR_Attach_Embed(inflictor.model, inflictor.weaponinst) == 1))
     {
         // (A sword or the dagger, weapons.txt embed 1, whichever way it struck: his notes 2026-11-12, 11-15: a thrown blade
         // never gibs; blade first, an axe's edge too.)
@@ -3499,7 +3499,14 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
         prop = VR_Prop_BlowDamage(targ, damage, hit_hand);
     }
     float mult = 1;
-    float pushDamage = damage;
+    // (Flat V's two-fisted overhead blow: its push times vr_flat_overhand_2h_push on top of what its damage gives;
+    // VR_HandTwoFisted.)
+    float pushTwoFist = 1;
+    if(hit_kind == QVR_HITKIND_MELEE && attacker == self && (attacker.flags & FL_CLIENT) && VR_HandTwoFisted(attacker, hit_hand))
+    {
+        pushTwoFist = max(0, cvar_hget(cvarh_vr_flat_overhand_2h_push));
+    }
+    float pushDamage = damage * pushTwoFist;
     if(prop >= 0)
     {
         damage = prop;
@@ -3517,7 +3524,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     {
         mult = VR_Melee_Positional(targ, hit_pos, hit_dir);
         damage = VR_Melee_CapDamage(damage * mult, mult);
-        pushDamage = damage;
+        pushDamage = damage * pushTwoFist;
     }
     float decap = FALSE;
     if(!agp)

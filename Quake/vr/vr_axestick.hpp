@@ -46,6 +46,10 @@ void say(const char* fmt, ...);
 // swords', the dagger's more; unset or 0: 1).
 [[nodiscard]] float pointLeniency(edict_t* ent);
 
+// Whether `ent` is a pointed pole weapon (twohand::poleWeapon: the spear, the Crystal Lance): pointAlign's reverse grip
+// leniency for spears (vr_throw_point_rev_pole) rather than for blades.
+[[nodiscard]] bool pointPole(edict_t* ent);
+
 // A blade just thrown (`ent`, its origin, angles and velocity; `spin` its spin, rad/s, world axes): its arc followed to what
 // it meets (`flight` s later, at `at`), and `spin` set to the spin about the same axis nearest its own (within `least` ..
 // `most` times it) that turns what cuts (an edge's facing, a point's line) round to its way there: it arrives edge or point
@@ -64,6 +68,9 @@ void calcStats(edict_t* player, int* statsi);
 // Client: the blade stuck in a body that `hand` holds, as calcStats sent it (its edict * 4, + 2 reversed, + 1 by its handle); 0
 // none.
 [[nodiscard]] int heldStat(int hand);
+// Its blade's entity (0: none), and whether the body it is in is a ragdoll (heldStat's bits).
+[[nodiscard]] int heldEnt(int hand);
+[[nodiscard]] bool heldInRagdoll(int hand);
 
 // Client: whether `hand` holds a blade stuck in a body (QC's VR_HOLD_EMBED: drawn on it, its weapon left in the body). The one
 // check of it for the VR and flat paths: that hand is busy, as with a weapon of its own (no two-handed grip on the other hand's

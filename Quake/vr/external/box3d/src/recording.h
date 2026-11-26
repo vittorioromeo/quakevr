@@ -48,12 +48,14 @@ typedef struct b3World b3World;
 
 // Major recording version is bumped when writers change.
 // Major version 6 widened the body def with the safety factor.
-// Major version 7 (Quake VR): the spherical joint def's elliptical cone (coneAngleY).
-#define B3_REC_VERSION_MAJOR 7
+// Major version 7 for the motion lock change.
+// Major version 8 (Quake VR): the spherical joint def's elliptical cone (coneAngleY). Upstream took 7 for its motion
+// lock joints, so Quake VR's recordings are 8: neither reads the other's.
+#define B3_REC_VERSION_MAJOR 8
 
 // Minor tracks op-stream additions that keep the 48 byte header shape.
 // Minor version 7 made the contact body sim locators persistent
-#define B3_REC_VERSION_MINOR 10
+#define B3_REC_VERSION_MINOR 11
 
 // File header, fixed 48 bytes. Contains the registry locator so the player
 // can load geometry before replaying any ops.
@@ -179,7 +181,6 @@ typedef uint32_t b3RecCType_GEOMID;
 typedef b3Filter b3RecCType_FILTER;
 typedef b3SurfaceMaterial b3RecCType_MATERIAL;
 typedef b3MassData b3RecCType_MASSDATA;
-typedef b3MotionLocks b3RecCType_LOCKS;
 typedef const char* b3RecCType_STR;
 typedef b3WorldId b3RecCType_WORLDID;
 typedef b3BodyId b3RecCType_BODYID;
@@ -189,6 +190,7 @@ typedef b3BodyDef b3RecCType_BODYDEF;
 typedef b3ShapeDef b3RecCType_SHAPEDEF;
 typedef b3ExplosionDef b3RecCType_EXPLOSIONDEF;
 typedef b3ParallelJointDef b3RecCType_PARALLELJOINTDEF;
+typedef b3MotionLockJointDef b3RecCType_MOTIONLOCKJOINTDEF;
 typedef b3DistanceJointDef b3RecCType_DISTANCEJOINTDEF;
 typedef b3FilterJointDef b3RecCType_FILTERJOINTDEF;
 typedef b3MotorJointDef b3RecCType_MOTORJOINTDEF;
@@ -199,6 +201,7 @@ typedef b3WeldJointDef b3RecCType_WELDJOINTDEF;
 typedef b3WheelJointDef b3RecCType_WHEELJOINTDEF;
 typedef b3MoverJointDef b3RecCType_MOVERJOINTDEF;
 typedef b3PogoJointDef b3RecCType_POGOJOINTDEF;
+typedef b3TireJointDef b3RecCType_TIREJOINTDEF;
 
 // Codegen pass 1a: arg structs. Generated here so call sites (body.c, shape.c, etc.) can see them.
 #define ARG( TAG, field ) b3RecCType_##TAG field;
@@ -256,11 +259,11 @@ void b3RecW_GEOMID( b3RecBuffer* buf, uint32_t v );
 void b3RecW_FILTER( b3RecBuffer* buf, b3Filter v );
 void b3RecW_MATERIAL( b3RecBuffer* buf, b3SurfaceMaterial v );
 void b3RecW_MASSDATA( b3RecBuffer* buf, b3MassData v );
-void b3RecW_LOCKS( b3RecBuffer* buf, b3MotionLocks v );
 void b3RecW_EXPLOSIONDEF( b3RecBuffer* buf, b3ExplosionDef v );
 void b3RecW_BODYDEF( b3RecBuffer* buf, b3BodyDef v );
 void b3RecW_SHAPEDEF( b3RecBuffer* buf, b3ShapeDef v );
 void b3RecW_PARALLELJOINTDEF( b3RecBuffer* buf, b3ParallelJointDef v );
+void b3RecW_MOTIONLOCKJOINTDEF( b3RecBuffer* buf, b3MotionLockJointDef v );
 void b3RecW_DISTANCEJOINTDEF( b3RecBuffer* buf, b3DistanceJointDef v );
 void b3RecW_FILTERJOINTDEF( b3RecBuffer* buf, b3FilterJointDef v );
 void b3RecW_MOTORJOINTDEF( b3RecBuffer* buf, b3MotorJointDef v );
@@ -271,6 +274,7 @@ void b3RecW_WELDJOINTDEF( b3RecBuffer* buf, b3WeldJointDef v );
 void b3RecW_WHEELJOINTDEF( b3RecBuffer* buf, b3WheelJointDef v );
 void b3RecW_MOVERJOINTDEF( b3RecBuffer* buf, b3MoverJointDef v );
 void b3RecW_POGOJOINTDEF( b3RecBuffer* buf, b3PogoJointDef v );
+void b3RecW_TIREJOINTDEF( b3RecBuffer* buf, b3TireJointDef v );
 
 // Record framing
 void b3RecBeginRecord( b3Recording* rec, uint8_t opcode );

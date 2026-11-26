@@ -184,6 +184,7 @@ entity(entity xFrom) WeaponInst_Clone =
     entity r = WeaponInst_New(xFrom.wi_clip);
     r.wi_adup = xFrom.wi_adup; // (AD support: its upgrades too)
     r.wi_dwvar = xFrom.wi_dwvar; // (Dwell support: its variant)
+    r.wi_attach = xFrom.wi_attach; // (its attachment: vr_attach.qc)
     r.wi_heat = xFrom.wi_heat; // (its heat: vr_hotblade.qc)
     r.wi_heat_at = xFrom.wi_heat_at;
     r.wi_hot_end = xFrom.wi_hot_end;
@@ -206,6 +207,30 @@ entity(entity e, float xHand) VRGetEntWeaponInst =
     if(xHand == cVR_OffHand) return e.weaponinst2;
     else                     return e.weaponinst;
 };
+
+// Weapon attachments (vr_attach.qc; docs/vr-port/ATTACHMENTS.md): the attachment on a weapon (VR_ATT_*: its kind; 0
+// none), part of its record so it goes with the weapon everywhere (hands, holsters, props, saves; a level change: parm77).
+.float wi_attach;
+float VR_ATT_BAYONET = 1;
+// The attachment on the record `xInst`'s weapon, and on the weapon in `xHand` of `p`.
+float(entity xInst) VR_Attach_Of = { return xInst != world ? xInst.wi_attach : 0; };
+float(entity p, float xHand) VR_Attach_Hand = { return VR_Attach_Of(VRGetEntWeaponInst(p, xHand)); };
+// How the weapon drawn with `xModel` whose record is `xInst` sticks (weapons.txt embed: 0 not, 1 by its point, 2 by its
+// edge): a bayonet on a gun it fits makes it a point (the engine's vr_axestick.cpp attachBlade: the bayonet's tip).
+float(string xModel, entity xInst) VR_Attach_Embed =
+{
+    return (VR_Attach_Of(xInst) == VR_ATT_BAYONET && weaponvalue(xModel, "att1_ok") > 0) ? 1 : weaponvalue(xModel, "embed");
+};
+// Whether it fires where it is stuck (weapons.txt embed_fire; a gun with a bayonet: yes, it is a gun).
+float(string xModel, entity xInst) VR_Attach_EmbedFire =
+{
+    return (VR_Attach_Of(xInst) == VR_ATT_BAYONET && weaponvalue(xModel, "att1_ok") > 0) ? 1 : weaponvalue(xModel, "embed_fire");
+};
+void(entity p) VR_Attach_Frame;      // (vr_attach.qc)
+void(entity p) VR_Attach_Key;
+float(entity p) VR_Attach_Pack;
+void(entity p, float xPacked) VR_Attach_Unpack;
+vector(entity p, float xHand) VR_Attach_TipOf;
 
 void(entity e, float xHand, entity xInst) VRSetEntWeaponInst =
 {

@@ -163,6 +163,7 @@
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
+#include "vr_trace.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
@@ -1413,15 +1414,6 @@ struct Climber
     double flatSlideGrain{0.0};      // (ropes13) the server's time its next scrape grain starts
     int flatSlides{0};               // (ropes13) slides begun (the tests)
     bool flatCrouchWas{false};       // (ropes13) crouch held last frame on a monkey traverse (a press drops him)
-    // (ropes6) A headset's pulls up a rope (ropePullGrunt): each hand's rope grip last seen (its serial), the newest
-    // grip's hand and the body's height over its hold as it took it, whether its pull has grunted, when the next grunt
-    // may come, and the grunts so far (the tests').
-    int pullSeen[2]{-1, -1};
-    int pullHand{-1};
-    float pullFrom{0.f};
-    bool pullGrunted{true};
-    double pullGruntNext{0.0};
-    int pullGrunts{0};
     // Hanging or slipping: holding on with one hand or both.
     bool hanging() const
     {
@@ -4909,56 +4901,6 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
 
 namespace
 {
-constexpr float pullGruntRise = 0.15f; // m: the body risen this far over a new rope grip's hold since taking it: a pull
-constexpr double pullGruntGap = 0.6;   // seconds between two pull grunts at least
-
-// (ropes6, NOTES.md vrropes_2026-11-22_15-43-56) A short exertion grunt as a headset's pull lifts him up a rope: once a
-// grip, when the body has risen pullGruntRise over that grip's hold since the hand took it (pulled down on it; a mere
-// grab, or the rope's swing, which carries hold and body alike, lifts nothing), at vr_rope_grunt's volume (one of the
-// mantle's grunts: vr_rope_grunt_sound), at most every pullGruntGap. Flat-screen play's keys climb steadily, with no
-// pulls: none there.
-void ropePullGrunt(edict_t* ent, Climber& c)
-{
-    for(int h = 0; h < 2; h++)
-    {
-        const Grip& g = c.grips[h];
-        const int serial = g.active && g.rope ? g.serial : -1;
-        if(serial >= 0 && serial != c.pullSeen[h])
-        {
-            c.pullHand = h; // (a new grip: its pull to come)
-            c.pullFrom = ent->v.origin[2] - g.hold.z;
-            c.pullGrunted = c.flatRope;
-        }
-        c.pullSeen[h] = serial;
-    }
-    if(c.pullHand < 0 || c.pullGrunted || c.pullSeen[c.pullHand] < 0)
-    {
-        return;
-    }
-    const float rise = ent->v.origin[2] - c.grips[c.pullHand].hold.z - c.pullFrom;
-    if(rise < pullGruntRise * units::metresToUnits())
-    {
-        return;
-    }
-    c.pullGrunted = true;
-    // (ropes14, NOTES.md vrropes_2026-11-23_22-51-05: "too much" on poles) A pole's pulls at vr_pole_grunt's volume (0: none).
-    const float volume = climbrope::pole(c.grips[c.pullHand].entNum) ? vr_pole_grunt.value : vr_rope_grunt.value;
-    if(volume <= 0.f)
-    {
-        return;
-    }
-    if(qcvm->time >= c.pullGruntNext && climb::grunt(ent, vr_rope_grunt_sound.value, volume))
-    {
-        c.pullGruntNext = qcvm->time + pullGruntGap;
-        c.pullGrunts++;
-        if(debug())
-        {
-            Con_Printf("climb: rope pull grunt (%s hand, up %.1f) %s %.2f\n", handName(c.pullHand), rise,
-                climb::gruntSample(vr_rope_grunt_sound.value), za::clamp(volume, 0.f, 1.f));
-        }
-    }
-}
-
 // A hanging (or slipping) frame: the body moved by the holding hands, the mantle's test (the steps'); out of reach, the
 // fall; the stamina. The hang's once-a-frame part after its steps (single player's one, a remote client's moves': MP
 // B8i), unless they began the mantle: kept within reach, the owed settled, the reach checked, the no-room buzz, the
@@ -4973,7 +4915,6 @@ void hangFramePart(Hang& hang)
     // A rope's rider whose body couldn't go where the swing (and the pull) took it, level (a wall): his swing stopped
     // that way, the rope pushed back (see "Holds on ropes").
     climbrope::riderBlocked(NUM_FOR_EDICT(ent) - 1, glm::vec3{hang.meant.x - hang.done.x, hang.meant.y - hang.done.y, 0.f});
-    ropePullGrunt(ent, c);
     if(!c.hanging())
     {
         // Let go of everything (out of reach): fall.
@@ -5312,6 +5253,14 @@ struct Pin
     // (climbfix) how far the locked hold has come down towards the shoulders (vr_flat_rope_slide_hands_in, eased), and the
     // more it was taken down for the arm's reach (the wrist off its arm last frame: avatar::armWristGap)
     float slideIn{0.f}, slideReach{0.f};
+    // (tutorial) On a thin round rung (findRung, vr_climb_rung_grip): the holds' turns as a rung's grip (turnOn), from and
+    // to; and the last search's hold, its serial and what it found (searched once a hold, again if the hold moves).
+    bool fromRung{false}, toRung{false};
+    int rungSerial{-1};
+    glm::vec3 rungAt{0.f};
+    bool rungFound{false};
+    glm::vec3 rungAxis{0.f};
+    float rungThick{0.f};
     [[nodiscard]] float eased() const
     {
         return along * along * (3.f - 2.f * along);
@@ -5400,11 +5349,16 @@ constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (
 // (ropes5) The drawn hand's turn gripping a rope whose way up at the hold is `up` (as drawn), the hold's way out (towards
 // the climber) `out`: the rope through the fist as a gun's grip is held (the thumb's side up the rope, the palm against
 // it), the front (the knuckles) away from the body; the same for either hand (the left hand's model mirrors it).
-[[nodiscard]] glm::mat3 ropeTurn(const glm::vec3& out, const glm::vec3& up)
+[[nodiscard]] glm::mat3 gripAxes(const glm::vec3& out, const glm::vec3& up)
 {
     glm::vec3 front = -(out - up * glm::dot(out, up));
     front = glm::length(front) > 1e-4f ? glm::normalize(front) : glm::vec3{1.f, 0.f, 0.f};
-    const glm::mat3 m{front, glm::cross(up, front), up};
+    return glm::mat3{front, glm::cross(up, front), up};
+}
+[[nodiscard]] glm::mat3 ropeTurn(const glm::vec3& out, const glm::vec3& up)
+{
+    const glm::mat3 m = gripAxes(out, up);
+    const glm::vec3 front = m[0];
     // (ropes10, his flat note 2026-11-23: the knuckles exactly level) Pitched up by vr_rope_hand_pitch: turned about the
     // level line square to the front, the front towards the world's up (a monkey traverse's knuckles, already up, stay).
     const glm::vec3 axis = glm::cross(front, glm::vec3{0.f, 0.f, 1.f});
@@ -5429,9 +5383,14 @@ constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (
 }
 
 // The drawn hand's turn on a hold: gripping a rope (`up` set: ropeTurn) where vr_rope_hand_grip has it (1 flat-screen
-// play only, 2 VR too: the default since ropes6), else as on a ledge (holdTurn).
-[[nodiscard]] glm::mat3 turnOn(const glm::vec3& out, const glm::vec3& up, bool mirrored)
+// play only, 2 VR too: the default since ropes6), else as on a ledge (holdTurn). (tutorial) A thin round rung's
+// (`rung`, `up` its way, findRung): the rung through the fist, as a level pole's grip, with no rope's pitch.
+[[nodiscard]] glm::mat3 turnOn(const glm::vec3& out, const glm::vec3& up, bool mirrored, bool rung = false)
 {
+    if(rung && glm::length(up) > 0.5f)
+    {
+        return gripAxes(out, up);
+    }
     const int grip = static_cast<int>(vr_rope_hand_grip.value);
     const bool rope = glm::length(up) > 0.5f && (grip >= 2 || (grip == 1 && flatplay::active()));
     return rope ? ropeTurn(out, up) : holdTurn(out, mirrored);
@@ -5590,12 +5549,6 @@ int qvr::climb::ropeHands(edict_t* ent)
         return 0;
     }
     return (c->grips[0].active && c->grips[0].rope ? 1 : 0) + (c->grips[1].active && c->grips[1].rope ? 1 : 0);
-}
-
-int qvr::climb::ropePullGrunts(edict_t* ent)
-{
-    const Climber* c = climberOf(ent);
-    return c ? c->pullGrunts : 0;
 }
 
 bool qvr::climb::ropeLetGoPass(edict_t* ent, int rope)
@@ -5886,6 +5839,149 @@ bool qvr::climb::ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3
     return true;
 }
 
+namespace
+{
+
+constexpr float rungGap = 2.f;         // (tutorial) units: the room behind a round rung for the fingers, at least
+constexpr float rungProbe = 1.f / 6.f; // (tutorial) of its thickness: under its top and over its bottom, its front measured
+
+// A line through the level as the hands' (worldtrace: the world and the brush models; a remote client's own map).
+[[nodiscard]] za::Optional<trace_t> rungLine(const glm::vec3& a, const glm::vec3& b)
+{
+    const glm::vec3 zero{0.f};
+    return worldtrace::move(a, zero, zero, b, MOVE_NOMONSTERS);
+}
+
+// (tutorial, his VR note 2026-11-26: "if it's a shape like the one in the tutorial ... kind of like a cylinder, and it's
+// small enough that the hand can wrap around it, then that should be the place where the player ... holds onto the
+// ladder. If it's a bit chunkier, more like a ledge, or a ladder made out of rectangular brushes, then the behavior
+// should be the same as today") Whether the hold at `at` (its way out `out`) is on a thin round rung, by its shape alone
+// (any map's): a bar under the hold at most vr_climb_rung_max thick and deep, open under it, with rungGap of room behind
+// it (not a wall's ledge or trim), its front curving in towards its top and its bottom by vr_climb_rung_round of its
+// thickness (a square or a flat bar's doesn't). Its axis at the hold (the middle of its section there) and thickness.
+[[nodiscard]] bool findRung(const glm::vec3& at, const glm::vec3& out, glm::vec3& axis, float& thick)
+{
+    const float most = za::clamp(vr_climb_rung_max.value, 0.f, 12.f);
+    glm::vec3 o{out.x, out.y, 0.f};
+    if(most <= 0.f || glm::length(o) < 1e-3f)
+    {
+        return false;
+    }
+    o = glm::normalize(o);
+    const glm::vec3 z{0.f, 0.f, 1.f};
+    // Its top over the hold, and its underside under that.
+    const za::Optional<trace_t> top = rungLine(at + z * 4.f, at - z * (most + 2.f));
+    if(!top || top->startsolid || top->fraction >= 1.f)
+    {
+        return false;
+    }
+    const glm::vec3 base{at.x, at.y, top->endpos[2]};
+    const za::Optional<trace_t> under = rungLine(base - z * (most + 1.f), base - z * 0.05f);
+    if(!under || under->startsolid || under->fraction >= 1.f)
+    {
+        return false;
+    }
+    thick = base.z - under->endpos[2];
+    if(thick < 0.5f || thick > most)
+    {
+        return false;
+    }
+    // Its front at a height (how far out along `o` from the hold), from in front of it.
+    const float reach = most + 4.f;
+    const auto front = [&](float dz, float& f) {
+        const glm::vec3 from = base + z * dz + o * reach;
+        const za::Optional<trace_t> tr = rungLine(from, from - o * (2.f * reach));
+        if(!tr || tr->startsolid || tr->fraction >= 1.f)
+        {
+            return false;
+        }
+        f = glm::dot(vec(tr->endpos) - base, o);
+        return true;
+    };
+    float mid = 0.f, high = 0.f, low = 0.f;
+    if(!front(-0.5f * thick, mid) || !front(-rungProbe * thick, high) || !front(-(1.f - rungProbe) * thick, low))
+    {
+        return false;
+    }
+    // Its back, from rungGap past its deepest behind the front: open there (no wall, nothing deeper than `most`).
+    const glm::vec3 behind = base - z * (0.5f * thick) + o * (mid - most - rungGap);
+    const za::Optional<trace_t> back = rungLine(behind, base - z * (0.5f * thick) + o * (mid + 0.1f));
+    if(!back || back->startsolid || back->fraction >= 1.f)
+    {
+        return false;
+    }
+    const float b = glm::dot(vec(back->endpos) - base, o);
+    if(mid - b < 0.5f || mid - b > most)
+    {
+        return false;
+    }
+    if(za::min(mid - high, mid - low) < za::max(0.f, vr_climb_rung_round.value) * thick)
+    {
+        return false;
+    }
+    axis = base - z * (0.5f * thick) + o * (0.5f * (mid + b));
+    return true;
+}
+
+// The hand's hold at `at` (its serial `serial`) on a thin round rung, with vr_climb_rung_grip on (findRung, searched
+// once a hold): its axis and thickness.
+[[nodiscard]] bool rungAt(Pin& pin, const glm::vec3& at, const glm::vec3& out, int serial, glm::vec3& axis, float& thick)
+{
+    if(vr_climb_rung_grip.value == 0.f)
+    {
+        return false;
+    }
+    if(serial != pin.rungSerial || glm::distance(at, pin.rungAt) > 0.5f)
+    {
+        pin.rungSerial = serial;
+        pin.rungAt = at;
+        pin.rungFound = findRung(at, out, pin.rungAxis, pin.rungThick);
+        if(vr_climb_debug.value >= 2.f)
+        {
+            Con_Printf("climb: hold at (%.1f %.1f %.1f): %s\n", at.x, at.y, at.z,
+                pin.rungFound ? va("a round rung %.2f thick, its axis at (%.2f %.2f %.2f)", pin.rungThick, pin.rungAxis.x,
+                                    pin.rungAxis.y, pin.rungAxis.z)
+                              : "no round rung");
+        }
+    }
+    else if(pin.rungFound)
+    {
+        pin.rungAxis += at - pin.rungAt; // (a hold on a moving brush model moves)
+        pin.rungAt = at;
+    }
+    axis = pin.rungAxis;
+    thick = pin.rungThick;
+    return pin.rungFound;
+}
+
+// The way along a rung (gripAxes' thumb side) for `hand` gripping it with its palm's middle out from the axis `palmOut`
+// (the climber's side `o`, under it by `tilt` radians off level): an overhand grip, as on a level pole (monkeyRopeUp: the
+// palm away from him, the knuckles over the rung), turned round the rung towards him.
+[[nodiscard]] glm::vec3 rungUp(int hand, const glm::vec3& o, const glm::vec3& palmOut, float tilt)
+{
+    const glm::vec3 along{-o.y, o.x, 0.f};
+    const glm::vec3 want = -o * za::cos(tilt) - glm::vec3{0.f, 0.f, 1.f} * za::sin(tilt);
+    const glm::mat3 m = gripAxes(palmOut, along);
+    const glm::vec3 palm = hand == 1 ? m[1] : -m[1]; // (the off hand's model mirrored: drawnBack)
+    return glm::dot(palm, want) < 0.f ? -along : along;
+}
+
+} // namespace
+
+bool qvr::climb::rungHeld(int hand, glm::vec3& axis, glm::vec3& along, float& thickness, float& weight)
+{
+    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f || !pins[hand].toRung || pins[hand].thickness <= 0.f)
+    {
+        return false;
+    }
+    const Pin& pin = pins[hand];
+    axis = pin.hold() + pin.axis;
+    along = glm::normalize(pin.toUp);
+    thickness = pin.thickness;
+    weight = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
+    return true;
+}
+
 float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
     glm::vec3& lightShift)
 {
@@ -5914,6 +6010,7 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         glm::vec3 axis{0.f};
         float thick = 0.f;
         glm::vec3 palmOut = out;
+        bool rung = false; // (tutorial) on a thin round rung (rungAt)
         const int holdSerial = (bits >> (2 + 6 * hand)) & 63;
         if(ropePalm(at, out, hold, &ropeUp, &axis, &thick, &palmOut))
         {
@@ -5934,6 +6031,23 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
             pin.axis = axis - hold;
             pin.thickness = thick;
         }
+        else if(rungAt(pin, at, out, holdSerial, axis, thick))
+        {
+            // (tutorial) On a thin round rung: gripped round it as a level pole is (the rung through the fist, the
+            // knuckles over it, the palm away from him), the palm's middle out from its axis as on a rope, under it turned
+            // vr_climb_rung_tilt towards him. (Display only: the hold, the pull and the climb are the ledge's.)
+            const float tilt = glm::radians(za::clamp(vr_climb_rung_tilt.value, 0.f, 135.f));
+            palmOut = out * za::sin(tilt) - glm::vec3{0.f, 0.f, za::cos(tilt)};
+            ropeUp = rungUp(hand, out, palmOut, tilt);
+            hold = axis + palmOut * za::max(ropeHandOut * units::metresToUnits(), ropeHandSurface * thick);
+            pin.keepSign = 0.f;
+            pin.support = 0.f;
+            pin.supportOn = false;
+            pin.offset = hold - at;
+            pin.axis = axis - hold;
+            pin.thickness = thick;
+            rung = true;
+        }
         else
         {
             pin.thickness = 0.f;
@@ -5948,7 +6062,7 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         // (Begun on a hold on an upright or slanted rope; kept while the slide lasts on the same hold, wherever the server's
         // hold is meanwhile: a frame it is off the drawn rope (ropeHoldNear) must not let go of the lock.)
         const bool lockSlide = vr_flat_rope_slide_lock.value != 0.f && (bits & slideStatBit) != 0 && pin.weight >= 1.f &&
-                               holdSerial == pin.serial && (pin.slideLocked || (pin.thickness > 0.f && palmOut.z >= -0.5f));
+                               holdSerial == pin.serial && !rung && (pin.slideLocked || (pin.thickness > 0.f && palmOut.z >= -0.5f));
         if(vr_climb_debug.value >= 2.f && pin.slideLocked && !lockSlide)
         {
             Con_Printf("climb: slide lock %s let go: slide %d, weight %.2f, serial %d (was %d)\n", handName(hand),
@@ -6018,6 +6132,7 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
             pin.from = pin.to = hold;
             pin.fromOut = palmOut;
             pin.fromUp = ropeUp;
+            pin.fromRung = rung;
             pin.along = 1.f;
             const float dist = glm::distance(hold, hands::palmPoint(s, hand));
             pin.inTime = easeTime(dist);
@@ -6032,12 +6147,14 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
             pin.from = pin.hold(); // taken again before the hand was back: on to the new hold
             pin.fromOut = glm::normalize(glm::mix(pin.fromOut, pin.toOut, pin.eased()) + glm::vec3{1e-4f, 0.f, 0.f});
             pin.fromUp = pin.toUp;
+            pin.fromRung = pin.toRung;
             pin.along = 0.f;
             pin.inTime = easeTime(glm::distance(hold, pin.from));
         }
         pin.to = hold; // (a hold on a moving brush model moves)
         pin.toOut = palmOut;
         pin.toUp = ropeUp;
+        pin.toRung = rung;
         pin.serial = serial;
         pin.along = za::min(1.f, pin.along + dt / pin.inTime);
         pin.weight = za::min(1.f, pin.weight + dt / pin.inTime);
@@ -6057,8 +6174,8 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
     // controller's, as it was), eased in and out with the hand's place.
     const glm::mat3 drawn = anglesAxes(rot) * handTurn;
     const bool mirrored = hand == 0; // (the off hand: the left hand's model, as vr_view.cpp draws it)
-    const glm::quat onFrom = glm::quat_cast(turnOn(pin.fromOut, pin.fromUp, mirrored)),
-                    onTo = glm::quat_cast(turnOn(pin.toOut, pin.toUp, mirrored));
+    const glm::quat onFrom = glm::quat_cast(turnOn(pin.fromOut, pin.fromUp, mirrored, pin.fromRung)),
+                    onTo = glm::quat_cast(turnOn(pin.toOut, pin.toUp, mirrored, pin.toRung));
     const glm::quat qDrawn = glm::normalize(glm::quat_cast(drawn));
     const glm::quat qHold = glm::normalize(glm::slerp(onFrom, onTo, pin.eased()));
     const glm::quat qBlend = glm::slerp(qHold, qDrawn, CLAMP(0.f, vr_climb_hand_turn_blend.value, 1.f));
@@ -6105,6 +6222,12 @@ int qvr::climb::heldProp(edict_t* ent, int hand)
 
 bool qvr::climb::ropeLine(int hand, glm::vec3& at, glm::vec3& up, float& thickness, float& weight)
 {
+    // (a round rung's grip is no rope's: rungHeld, gripLine)
+    return hand >= 0 && hand <= 1 && !pins()[hand].toRung && gripLine(hand, at, up, thickness, weight);
+}
+
+bool qvr::climb::gripLine(int hand, glm::vec3& at, glm::vec3& up, float& thickness, float& weight)
+{
     if(hand < 0 || hand > 1 || pins()[hand].weight <= 0.f || pins()[hand].thickness <= 0.f || glm::length(pins()[hand].toUp) < 0.5f)
     {
         return false;
@@ -6144,7 +6267,7 @@ bool qvr::climb::drawnBack(int hand, glm::vec3& back, glm::vec3* front)
         return false;
     }
     // (The hand model's left is a right hand's palm side; the off hand's mirrored model has it the other way.)
-    const glm::mat3 m = turnOn(pins()[hand].toOut, pins()[hand].toUp, hand == 0);
+    const glm::mat3 m = turnOn(pins()[hand].toOut, pins()[hand].toUp, hand == 0, pins()[hand].toRung);
     back = hand == 0 ? m[1] : -m[1];
     if(front)
     {

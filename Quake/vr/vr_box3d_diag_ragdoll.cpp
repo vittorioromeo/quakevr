@@ -344,10 +344,13 @@ void corpseList_f()
             hands += (category & (catHeld | catReach)) ? 1 : 0;
             level += (category & (catWorld | catMover)) ? 1 : 0;
         }
-        Con_Printf("  %d %s: %s, %d shapes, %.0f kg, at %.1f %.1f %.1f yaw %.0f, %s; touching %d props, %d held/hands, %d level\n",
+        // (tilt: its body's z axis off the world's, degrees; a pushable corpse turns about its yaw alone: 0)
+        const b3Vec3 up = b3RotateVector(b3Body_GetRotation(s.body), b3Vec3{0.f, 0.f, 1.f});
+        const float tilt = glm::degrees(glm::acos(za::clamp(up.z, -1.f, 1.f)));
+        Con_Printf("  %d %s: %s, %d shapes, %.0f kg, at %.1f %.1f %.1f yaw %.0f tilt %.2f, %s; touching %d props, %d held/hands, %d level\n",
             num, PR_GetString(e->v.classname), modes[CLAMP(0, s.corpseMode, 4)], b3Body_GetShapeCount(s.body),
             s.corpseDynamic ? b3Body_GetMass(s.body) : 0.f, e->v.origin[0], e->v.origin[1], e->v.origin[2], e->v.angles[1],
-            b3Body_IsAwake(s.body) ? "awake" : "asleep", props, hands, level);
+            tilt, b3Body_IsAwake(s.body) ? "awake" : "asleep", props, hands, level);
     }
     Con_Printf("vr_corpse_list: %d corpses in the physics (vr_corpse_collide %d)\n", count, corpseMode());
 }

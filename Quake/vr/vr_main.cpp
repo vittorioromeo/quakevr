@@ -1214,7 +1214,7 @@ void VR_MemStats_f()
 //   av          an access violation on the main thread (the default)
 //   thread      an access violation on a thread pool worker (vr_jobs)
 //   stack       a stack overflow on the main thread (the vectored handler)
-//   error       a Sys_Error ("Quake VR: Unleashed - Error"; its dialog names the report)
+//   error       a Sys_Error ("Quake VR: UNLEASHED - Error"; its dialog names the report)
 //   threaderror a Sys_Error on a worker (reported and ended there)
 //   assert      a failed assert's report (Zancle's handler, in any build: a Quake error)
 //   zassert     a failed ZA_ASSERT in Zancle's library (Debug with QVR_ZANCLE_DEBUG only)
@@ -2387,6 +2387,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_runlaunch_test", menu::runLaunchTest_f);
     Cmd_AddCommand("vr_continue_rows_test", menu::continueRowsTest_f);
     Cmd_AddCommand("vr_menu_flash_test", menu::flashTest_f);
+    Cmd_AddCommand("vr_menu_preset_cycle_test", menu::presetCycleTest_f);
     Cmd_AddCommand("vr_menu_search_filter_test", menu::searchFilterTest_f);
     Cmd_AddCommand("vr_menu_stop_test", menu::stopTest_f);
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);

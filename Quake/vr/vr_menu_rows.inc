@@ -342,6 +342,10 @@ QVR_SLIDER(vr_flashlight_clip_time, "Clip-On Transition", 0.f, 0.5f, 0.01f, "%.2
     "How long the torch takes to move and turn from where it was onto the gun or your head as it clips on. It is on at once (it follows the gun, lights where it aims); only how it is drawn eases in. 0: it jumps there.")
 QVR_SLIDER(vr_flashlight_tilt, "Lean Out", -90.f, 90.f, 1.f, "%.0f deg", ext(),
     "How far the stored torch, hanging on your belt lens down, leans its lens out from your body.")
+QVR_SLIDER(vr_flashlight_yaw, "Turn", -180.f, 180.f, 1.f, "%.0f deg", ext(),
+    "The stored torch turned about the upright, its switch round towards its side (Holster Setup turns it with your hand).")
+QVR_SLIDER(vr_flashlight_roll, "Lean Sideways", -90.f, 90.f, 1.f, "%.0f deg", ext(-180.f, 180.f),
+    "How far the stored torch leans its lens out sideways, away from your middle.")
 QVR_SLIDER(vr_flashlight_forward, "Forward", -0.3f, 0.3f, 0.005f, "%.3f m", ext(), nullptr)
 QVR_SLIDER(vr_flashlight_armor_forward, "Forward With Armour", -0.3f, 0.3f, 0.005f, "%.3f m", ext(),
     "Added to Forward while the armour's plates show on your body, so the torch stands clear of them. 0: no change.")
@@ -943,6 +947,9 @@ QVR_TOGGLE(vr_agrunt_repl_variants, "AD and Quoth Variants",
     "Arcane Dimensions' and Quoth's own soldiers are armed humanoids holding their own gun: rocket, grenade and plasma "
     "soldiers as grunts, defenders, eliminators, pyros and fumigators as enforcers, crossbow knights as knights, with "
     "their health (where replacements play in AD's maps; vr_agrunt_repl_variants).")
+QVR_TOGGLE(vr_agrunt_repl_crossbow, "AD Crossbow Knights",
+    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed knights holding the crossbow too. Off "
+    "(the default for now): they stay as AD made them (vr_agrunt_repl_crossbow).")
 QVR_TOGGLE(vr_humlook, "Recolour by Weapon",
     "Armed humanoids wear the colour of the weapon they came with: rockets and grenades red, lightning and plasma blue, "
     "flamethrowers orange, poison green; their backpacks too (quakevr/humlook.txt; vr_humlook).")
@@ -2660,8 +2667,6 @@ QVR_SLIDER_BYNAME(vr_physsound_grab, "Grab Sound", 0.f, 1.f, 0.1f, "%.1f", noExt
     "A small slap as your hand takes a hold, of what the hold is made of: wood, muted metal or stone (0 off; also Carrying: Physics Sounds).")
 QVR_SLIDER_BYNAME(vr_physsound_chain, "Chain Sounds", 0.f, 1.f, 0.1f, "%.1f", noExt,
     "A climbable chain's own sounds: a metal grip as your hand takes it, and its links clinking when it swings or you climb it (0 off; a rope's grip makes a soft thud at the Grab Sound's volume).")
-QVR_SLIDER_BYNAME(vr_rope_grunt, "Rope Pull Grunt", 0.f, 1.f, 0.1f, "%.1f", noExt,
-    "A short grunt as you pull yourself up a climbable rope with your hands (once a grip, when the pull lifts you; not when you only grab it). 0 off.")
 QVR_SLIDER_BYNAME(vr_climb_mantle_height, "Mantle Height", 0.f, 40.f, 1.f, "%.0f units", noExt,
     "Holding a ledge, how far your head must rise above its top before you pull up onto it. Higher: you "
     "can lean up and down over a ledge without mantling (the old point was about 15 at a chest-high ledge; "
@@ -2697,6 +2702,8 @@ QVR_SLIDER_BYNAME(vr_climb_hand_yaw, "Hand on Hold: Yaw", -60.f, 60.f, 5.f, "%.0
     "The hand facing a hold, its knuckles turned towards the other hand (negative: away). Looks only.")
 QVR_SLIDER_BYNAME(vr_climb_hand_roll, "Hand on Hold: Roll", -90.f, 90.f, 5.f, "%.0f deg", ext(),
     "The hand facing a hold, rolled about its knuckles, the thumb's side up (negative: down). Looks only.")
+QVR_TOGGLE_BYNAME(vr_climb_rung_grip, "Hand Round Thin Rungs",
+    "On: your hand on a thin round rung (a ladder's bar you could close your fist round, like the tutorial's) is drawn gripping it, the rung through your fist. Off: drawn on top of it as on a ledge. Square or chunky rungs are always held as ledges. Looks only.")
 
 // vr_menu_pages.inc: pageSwimSettings
 QVR_TOGGLE_BYNAME(vr_swim, "Swimming",
@@ -4098,6 +4105,10 @@ QVR_TOGGLE(vr_embed, "Embedded Blades",
     "Swords thrown point first stick in walls and bodies, Super Axes stick as axes do, a stuck blade stays in a dead "
     "body until you tug it out. Off: only thrown axes stick, and they fall out when the body dies. Its numbers: "
     "Debug > Tunables > Combat > Embedded Blades.")
+QVR_TOGGLE(vr_embed_fire, "Stuck Weapons Fire",
+    "A weapon with a ranged attack stuck in an enemy (the Crystal Lance) still fires while you hold it: charge it in "
+    "your hand and let go of the trigger once it is in, or charge and fire it where it is stuck, with your ammunition. "
+    "Flat-screen: a tap of the fire button pulls it instead. Off: its trigger does nothing while it is stuck.")
 QVR_SLIDER(vr_embed_hold_strength, "Blade Hold Strength", 0.25f, 4.f, 0.05f, "x%.2f", ext(0.f, 10.f),
     "How hard your hand on a blade stuck in a body moves it: drag, swing or lift a staggering or dead body on "
     "your sword or axe. More: it follows your hand more closely and you can hold heavier bodies up; less: "
@@ -4197,6 +4208,10 @@ QVR_TOGGLE(vr_pole_slide, "Weapon Hand Slides on Poles",
     "A pole weapon held in both hands (the Crystal Lance): loosen your weapon hand's grip while the other hand "
     "holds the pole closed, and the weapon hand slides along the pole as you move it (choke up towards the head, "
     "or back to the butt). Off: only the other hand slides.")
+QVR_TOGGLE(vr_pole_grip_fixed, "Other Hand Fixed on Poles",
+    "A spear, a pole or the Crystal Lance held in both hands: your other hand stays at the point of the shaft where "
+    "it took hold, while held and while the weapon is stuck in an enemy. Off: it slides up and down the shaft with "
+    "your hand.")
 QVR_SLIDER(vr_pole_slide_grip, "Pole Slide Grip", 0.2f, 0.95f, 0.05f, "%.2f", noExt,
     "How far your grip may close and still slide on a pole: under this the hand slides, at or over it the hand "
     "holds. Keep it over the point where your controller lets go of the weapon.")
@@ -6011,9 +6026,12 @@ QVR_TOGGLE(vr_model_light_grid_show, "Show Light Probes",
     "The model light grid's probes near you as crosses, each the colour white paint has under its light (full light is "
     "white): compare them with the floor beside them. The model you look at, or else the nearest: lines to the eight "
     "probes it reads, as thick as each one's say (thin and red: out of its sight), and a dot in the colour it reads.")
-QVR_TOGGLE(vr_foveated_debug, "Show Foveation",
+QVR_CYCLE(vr_foveated_debug, "Show Foveation",
     "The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "
-    "sharp circle (cyan).")
+    "sharp circle (cyan). On the Quest: Quest Foveation's zones (yellow: half the pixels, red: a quarter), modelled on "
+    "Meta's level (the headset reduces whole tiles, so its edges fall on tile edges); Scene Foveation's exactly. "
+    "Quest Pattern: Quest Foveation's zones at its level on any headset, to compare.",
+    {0.f, "Off"}, {1.f, "On"}, {2.f, "Quest Pattern"})
 QVR_TOGGLE(vr_skin_edge_fill, "Fill Skin Edges",
     "Models' skins: a texel a triangle touches only at its edge takes the colour of its neighbour inside (no thin "
     "black slivers of the skin's background along triangle edges with a nearest texture mode). Off: the skins as "
@@ -6888,6 +6906,17 @@ QVR_CYCLE(vr_flat_grab_hold, "Grab / Pull Key",
     "props, crates, ragdolls and gibs with your available empty hands. Toggle: press to grab, press again to release. "
     "Hold: hold the key to grab and carry, let go to release (vr_flat_grab_hold).",
     {0.f, "Toggle"}, {1.f, "Hold"})
+QVR_TOGGLE(vr_flat_1h_dagger, "Daggers One-Handed",
+    "Playing on the desktop screen (-flatscreenmode): a dagger is always held in one hand. The free hand never takes it, "
+    "no two-handed stance, and it doesn't join a dagger stuck in a body. Off: held as the other blades (vr_flat_1h_dagger).")
+QVR_TOGGLE(vr_flat_1h_axe, "Axes One-Handed",
+    "Playing on the desktop screen (-flatscreenmode): an axe (the axe, the Shadow Axe, the super axe) is always held in one "
+    "hand, as a dagger. The free hand stays free: no two-handed stance, no grip up its handle, and it doesn't join an axe "
+    "stuck in a body. Off: two-handed as the swords (vr_flat_1h_axe).")
+QVR_TOGGLE(vr_flat_overhand_both, "Quick Melee: Both Fists",
+    "Playing on the desktop screen (-flatscreenmode): with both hands empty, quick melee (V) is a two-handed overhead "
+    "blow: both fists raised over your head and brought down together onto the crosshair, one hit harder than one fist's. "
+    "Off: V is the one-fist overhand blow (vr_flat_overhand_both).")
 QVR_TOGGLE(vr_flat_shove, "Shove Key (Mouse 5)",
     "Playing on the desktop screen (-flatscreenmode): the shove key (mouse 5, vr_flat_key_shove) pushes an open hand out in "
     "front of you, the headset's one-hand shove: what it reaches is thrown back and staggered. Off: the key does nothing "
@@ -7288,7 +7317,7 @@ QVR_CYCLE(vr_test_held_pick, "Which Gib",
     {-1.f, "Each in Turn"}, {0.f, "Small Gib (gib1)"}, {1.f, "Player's Head"}, {2.f, "Torso (gib2)"},
     {3.f, "Big Chunk (gib3)"}, {4.f, "Grunt's Head"}, {5.f, "Ogre's Head"}, {6.f, "Knight's Head"},
     {7.f, "Zombie's Head"}, {8.f, "Fiend's Head"}, {9.f, "Nearest Rock"}, {10.f, "Hand Grenade"},
-    {11.f, "Nearest Shells Box"}, {12.f, "Nearest Brick"})
+    {11.f, "Nearest Shells Box"}, {12.f, "Nearest Brick"}, {13.f, "Nearest Crate or Barrel"}, {14.f, "Nearest Bayonet"})
 QVR_TOGGLE(vr_test_held_hand, "Into the Main Hand",
     "vr_test_held_hand: Gib in the Off Hand fills the main hand instead (hold its grip): a prop to hit the "
     "super shotgun's barrels open or shut with, the gun in the off hand (reload_test.sh section 11).")
@@ -7391,12 +7420,19 @@ QVR_CYCLE(vr_hull_async, "New Monster Sizes in Play",
     "no hitch; In the Frame compiles it at its first move, the game waiting (ad_tears: 1.3-1.9 s) "
     "(vr_hull_async; developer 1 prints the switch).",
     {0.f, "In the Frame"}, {1.f, "On the Pool"})
-QVR_CYCLE(vr_hull_defer, "Crouch and Monster Hitboxes",
-    "After the Load: a map load waits only for the standing player's compiled hull; the crouched, lying "
-    "and monsters' are made after it on the pool (a monster moves with Quake's hull until its own is "
-    "ready; a crouch right after a cold load waits for its own at its first move). With the Load: all "
-    "waited for by the load (vr_hull_defer; developer 1 prints when each is ready).",
+QVR_CYCLE(vr_hull_defer, "Monster Hitbox Builds",
+    "After the Load: a map load waits for the player's compiled hulls (standing, crouched, lying: never "
+    "a wait in play) but not the monsters', made after it on the pool (a monster moves with Quake's "
+    "hull until its own is ready, seamless). With the Load: all waited for by the load (vr_hull_defer; "
+    "developer 1 prints when each is ready).",
     {0.f, "With the Load"}, {1.f, "After the Load"})
+QVR_CYCLE(vr_load_panel_shot, "Save the Loading Panel",
+    "At Half Way: the next map load that shows the loading panel (a cold collision build) saves its "
+    "image as screenshots/load_panel.png when it is half done, then goes back to Off. Meanwhile every "
+    "map load shows its panel from its start (not after a second), and saves it half way through its "
+    "entities, models, sounds and model lighting (screenshots/load_panel_<stage>.png) "
+    "(vr_load_panel_shot; a test aid).",
+    {0.f, "Off"}, {0.5f, "At Half Way"})
 QVR_TOGGLE_BYNAME(vr_portals_debug_split, "Print Gate Cuts",
     "vr_portals_debug_split 1: each frame, every entity drawn cut by a teleporter (where, the plane, how far "
     "through), the force grab's beam end, and each thrown or rigid thing's middle and why a gate did not "

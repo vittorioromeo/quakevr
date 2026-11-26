@@ -31,7 +31,8 @@
 //
 // developer 1 prints each step ("flat reload: ...").
 
-.float vr_flatrl;        // the hands on the trip (1 off, 2 main: STAT_QVR_FLATRELOAD)
+.float vr_flatrl;        // the hands on the trip (1 off, 2 main: STAT_QVR_FLATRELOAD); + 4 off, 8 main: in place, no trip
+                         // drawn (a gun stuck by its bayonet, the hand on it: it reloads where it is, still stuck)
 .float vr_flatrl_unl0;   // the off hand's gun (its weapon id) emptied by the holster menu's UNLOAD: not auto reloaded
 .float vr_flatrl_unl1;   // the main hand's (VR_FlatReload_HandFrame; 0 none)
 .float vr_flatrl_full;   // the hands whose UNLOAD is greyed, its rounds having no room in the reserve (1 off, 2 main:
@@ -59,6 +60,11 @@ void(float xHand, entity r, string xHow, vector xPush) VR_Revolver_Eject;
 float(entity r) VR_Revolver_IsOut;
 void(entity r) VR_Revolver_Home;
 float(entity r, float xState) VR_Revolver_Count;
+// A gun stuck by its bayonet with the hand on it (attach2): reloaded where it is, the hand taking it on for its frames as for
+// its shots (vr_propfire.qc).
+entity(entity p, float xHand) VR_PropFire_Held;
+void(entity w, float xHand) VR_PropFire_Begin;
+void(entity w, float xHand) VR_PropFire_End;
 .float vr_flatrl_at0;    // the off hand's: when its trip started,
 .float vr_flatrl_at1;    // the main hand's
 .float vr_flatrl_done0;  // whether its rounds went in
@@ -356,6 +362,10 @@ void(float xHand, string xWhy) VR_FlatReload_Shut =
 void(float xHand, string xWhy) VR_FlatReload_Start =
 {
     self.vr_flatrl = self.vr_flatrl | VR_FlatReload_Bit(xHand);
+    if(vr_fire_prop != world || VR_PropFire_Held(self, xHand) != world) // (R brackets its start: vr_fire_prop the stuck gun)
+    {
+        self.vr_flatrl = self.vr_flatrl | (VR_FlatReload_Bit(xHand) * 4); // (stuck: the hand stays on it, the same times)
+    }
     if(xHand == cVR_MainHand)
     {
         self.vr_flatrl_at1 = time;
@@ -414,7 +424,8 @@ void(float xHand, float xDone) VR_FlatReload_Stop =
     {
         self.vr_flatrl_shut0 = FALSE;
     }
-    self.vr_flatrl = self.vr_flatrl - (self.vr_flatrl & VR_FlatReload_Bit(xHand));
+    float bits = VR_FlatReload_Bit(xHand) * 5; // (its trip's bit and its in-place bit)
+    self.vr_flatrl = self.vr_flatrl - (self.vr_flatrl & bits);
 };
 
 // R (impulse 55): every hand whose gun can take rounds, both with a gun in each (dual wield reloads both at once).
@@ -424,10 +435,19 @@ void() VR_FlatReload_Key =
     for(float h = 0; h < 2; ++h)
     {
         float hand = h == 0 ? cVR_MainHand : cVR_OffHand;
+        entity prop = VR_PropFire_Held(self, hand); // (a gun stuck by its bayonet, the hand on it: reloaded where it is)
+        if(prop != world)
+        {
+            VR_PropFire_Begin(prop, hand);
+        }
         if(!VR_FlatReload_Busy(self, hand) && VR_FlatReload_Can(hand))
         {
             VR_FlatReload_Start(hand, "R");
             ++n;
+        }
+        if(prop != world)
+        {
+            VR_PropFire_End(prop, hand);
         }
     }
     if(!n)
@@ -554,7 +574,23 @@ void(float xHand) VR_FlatReload_AmmoSwitch =
 };
 
 // Each server frame, each hand (vr_wpnholster.qc's player frame): the trip's steps, its cancel, and the empty clip's start.
+// A hand on a gun stuck by its bayonet takes it on for them (its break-open, its reload: where it is).
+void(float xHand) VR_FlatReload_HandFrameOn;
 void(float xHand) VR_FlatReload_HandFrame =
+{
+    entity prop = VR_PropFire_Held(self, xHand);
+    if(prop != world)
+    {
+        VR_PropFire_Begin(prop, xHand);
+    }
+    VR_FlatReload_HandFrameOn(xHand);
+    if(prop != world)
+    {
+        VR_PropFire_End(prop, xHand);
+    }
+};
+
+void(float xHand) VR_FlatReload_HandFrameOn =
 {
     // UNLOAD greyed with its ammo full up (his words 2026-11-11: "if the player is at full ammo capacity, the unload button
     // should be greyed out"): rounds to take out and none would fit (some fit: it stays lit and moves those).

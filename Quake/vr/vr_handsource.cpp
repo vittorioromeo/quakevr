@@ -30,6 +30,9 @@ struct HandSourceSeat
 
     // This frame's hands holding a melee weapon up in the flat-screen parry's guard (guarding).
     bool guards[HAND_COUNT];
+
+    // This frame's main hand action is the flat two-fisted blow (twoFisted).
+    bool twoFist;
 };
 
 // splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::HandSource)
@@ -58,6 +61,7 @@ void beginFrame(bool tracked)
         hsrc().printed[h] = hsrc().marks[h];
         hsrc().passing[h] = false;
         hsrc().guards[h] = false;
+        hsrc().twoFist = false;
         hsrc().marks[h] = tracked ? HandMark{Source::Tracked, "controller"} : HandMark{Source::Synthesized, "flat-screen pose"};
         if(vr_handsource_force.value != 0.f)
         {
@@ -89,9 +93,9 @@ bool gestures(int h)
     return source(h) != Source::Synthesized || vr_handsource_gate.value == 0.f;
 }
 
-za::U8 moveBits()
+za::U16 moveBits()
 {
-    za::U8 bits = 0;
+    za::U16 bits = 0;
     if(!gestures(HAND_OFF))
     {
         bits |= 1; // QC VR_HANDSYNTH_OFF
@@ -124,7 +128,16 @@ za::U8 moveBits()
     {
         bits |= 128; // VR_HANDGUARD_MAIN
     }
+    if(hsrc().twoFist && source(HAND_MAIN) == Source::Action)
+    {
+        bits |= 256; // VR_HANDTWOFIST
+    }
     return bits;
+}
+
+void twoFisted()
+{
+    hsrc().twoFist = true;
 }
 
 void passBodies(int h)

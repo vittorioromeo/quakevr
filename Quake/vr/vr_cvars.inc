@@ -28,8 +28,9 @@ QVR_CVAR(vr_hull_holes_show, "0", CVAR_NONE)           // the gap blockers drawn
 QVR_CVAR(vr_hull_holes_show_range, "1024", CVAR_NONE)  // vr_hull_holes_show: blockers this far from the view are drawn (units)
 QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)            // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
 QVR_CVAR(vr_hull_async, "1", CVAR_NONE)               // a monster's box size first met in play (no tree from the load: AD's delayed spawns, the test spawner) compiled on the pool while it moves with Quake's hull, not in the frame (ad_tears' 40x88: a 1.3-1.9 s hitch); 0: compiled at its first move, the frame waiting (vr_hull.cpp, "Trees compiled in play")
-QVR_CVAR(vr_hull_defer, "1", CVAR_NONE)               // a map load waits only for the standing player's hull tree; the crouched, lying and monsters' trees are compiled after it on the pool (a monster moves with Quake's hull meanwhile, a crouch waits for its tree at its first move): Quest 3 cold hub 85 s of trees to the standing one's; 0: every tree waited for by the load (vr_hull.cpp, loadprof2)
-QVR_CVAR(vr_load_panel, "1", CVAR_ARCHIVE)            // a map load waiting a second or more for its world's collision (vr_hull.cpp settle: vrstart's first load after it changed, ~45 s on a Quest 3) shows the loading panel in the headset meanwhile (vr_shaderload.cpp; at a start the VR session started early for it), not the runtime's dots; 0: the wait shows nothing
+QVR_CVAR(vr_hull_defer, "1", CVAR_NONE)               // a map load waits for the player's hull trees (standing, crouched, lying: no wait in play) but not the monsters', compiled after it on the pool (a monster moves with Quake's hull meanwhile, seamless); 0: every tree waited for by the load (vr_hull.cpp, loadprof2, hullwait)
+QVR_CVAR(vr_load_panel, "1", CVAR_ARCHIVE)            // a map load past its first second shows the loading panel, in the headset and the window, flat and VR (vr_shaderload.cpp; at a start the VR session started early for it), not the runtime's dots: the stage it is in, in words, over a bar (its count: entities, model lighting, models, sounds; else the stages done; flatloadbar), and a wait for its world's collision what is being built (vr_hull.cpp settle: vrstart's first load after it changed, ~45 s on a Quest 3); 0: nothing shown
+QVR_CVAR(vr_load_panel_shot, "0", CVAR_NONE)          // test aid: the loading panel's image saved as screenshots/load_panel.png the first time a collision wait's progress reaches this share (0.5: half way), then back to 0 (hullwait); while set, every map load's panel shows from its start and is saved once a counted stage reaches it, as screenshots/load_panel_<entities|lightgrid|models|sounds>.png (flatloadbar; vr_shaderload.cpp)
 QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)             // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
 QVR_CVAR(vr_body_monster_inset, "4", CVAR_ARCHIVE | QVR_RULE)     // units (0-12) each level side of the player's box and a monster's comes in where the two bodies meet (both ways; twice as close face to face): the map, monsters against monsters, shots and melee keep their boxes (vr_bodycontact.cpp)
 QVR_CVAR(vr_enemy_melee_arc, "1", CVAR_ARCHIVE | QVR_RULE)        // a monster's melee blow lands on you only inside the arc ahead of it on its hit frame, it starts a melee attack only facing you (else it turns first), and while swinging it turns at most vr_enemy_melee_turn a frame; 0: Quake's reach-only blows (and no growth with size) (fight.qc VR_MeleeArc_Hits; ROUND22.md "Melee arc", "Enemy Melee menu")
@@ -192,6 +193,16 @@ QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE | QVR_RULE)             // on
 // Embedded blades (vr_axestick.cpp, QC/vr_axestick.qc; ROUND23.md, "Embedded blades"; Combat > Embedded Blades): off
 // restores thrown axes as they were and nothing else sticks.
 QVR_CVAR(vr_embed, "1", CVAR_ARCHIVE | QVR_RULE)                // on (his decision 2026-11-08); 0: axes alone
+QVR_CVAR(vr_attach_snap_radius, "5", CVAR_ARCHIVE | QVR_RULE)  // weapon attachments (QC vr_attach.qc): how near (units) an attachment's mount comes to a gun's mount in the other hand to snap on
+QVR_CVAR(vr_attach_snap_angle, "50", CVAR_ARCHIVE | QVR_RULE)  // and within how many degrees of the gun's way it must point
+QVR_CVAR(vr_attach_pull_radius, "6", CVAR_ARCHIVE | QVR_RULE)  // how near (units) the empty hand grips an attachment on the other hand's gun to pull it off
+QVR_CVAR(vr_attach_turn, "1", CVAR_NONE)                // 1: the server's attachment points (QC attachinfo) turned by the gun's Pitch/Yaw/Roll in the hand; 0: not (attach2's comparison)
+QVR_CVAR(vr_attach_probe, "0", CVAR_NONE)              // 1: the client writes the main hand's drawn attachment tip into vr_attach_probe_x/y/z every frame (the tests: QC vr_attach_test.qc)
+QVR_CVAR(vr_attach_probe_drawn, "0", CVAR_NONE)         // with vr_attach_probe 1: 1 while the main hand's gun has an attachment drawn
+QVR_CVAR(vr_attach_probe_x, "0", CVAR_NONE)             // its tip in the world (x)
+QVR_CVAR(vr_attach_probe_y, "0", CVAR_NONE)             // (y)
+QVR_CVAR(vr_attach_probe_z, "0", CVAR_NONE)             // (z)
+QVR_CVAR(vr_embed_fire, "1", CVAR_ARCHIVE | QVR_RULE)           // embedfire (his VR note 2026-11-26 20:24): a weapon stuck in a body that you hold fires there when weapons.txt embed_fire says it can (the Crystal Lance; QC vr_propfire.qc); 0 never
 // Blade Hold Strength (his 2026-11-08): how hard a hand on a blade stuck in a body moves it, all at once: times every Moving:
 // force and lift (QC VR_Embed_Spring), the stance's give, and the spring's stiffness (its Hz by the square root: its N per
 // m times this).
@@ -671,6 +682,9 @@ QVR_CVAR(vr_xr_refresh_rate, "0", CVAR_ARCHIVE)
 // vr_quest_check (each Android start, after the saved config; vr_gfxpresets.cpp): 1 the settings that break the Quest's
 // frames (MSAA, bloom) set back, each said in the log; 0 only said.
 QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
+// questcrash (vr_gfxpresets.cpp): a graphics preset, Standalone or My Settings picked in VR whose frames then stay under
+// this rate (the median of 8, after a second's grace) is put back as before the pick; 0: never.
+QVR_CVAR(vr_preset_revert_fps, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
@@ -847,7 +861,7 @@ QVR_CVAR(vr_mock_shake_turn, "0", CVAR_NONE)
 QVR_CVAR(vr_upscale, "1", CVAR_ARCHIVE)                // below vr_render_scale 1, the upscale to the headset's size: 0 bilinear, 1 AMD FSR 1 (EASU + RCAS), 2 NVIDIA Image Scaling
 QVR_CVAR(vr_upscale_sharpness, "0.5", CVAR_ARCHIVE)    // ... its sharpening, 0 none .. 1 most (FSR: RCAS 2 stops below its most at 0.1, its most at 1; NIS: its slider)
 QVR_CVAR(vr_foveated, "3", CVAR_ARCHIVE)               // fixed foveated rendering (NVIDIA variable-rate shading): 0 off, 1 conservative, 2 balanced, 3 aggressive
-QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror
+QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror; on the Quest the foveation's zones (vr_gl_foveation's exactly, else vr_xr_foveation's modelled: yellow half, red a quarter of the pixels); 2: vr_xr_foveation's modelled zones on any headset (questrender)
 // Eye-tracked foveation (ROUND25.md, "Quest Pro"): the full-rate region follows the eyes' gaze, not the lens centre
 // (XR_EXT_eye_gaze_interaction: Quest Pro via Virtual Desktop with eye tracking forwarded, Varjo, Vive Pro Eye...).
 // 1 (the default since his ask, 2026-11-21: "if we detect that eye tracking is available, we use it; if we don't, we
@@ -1077,7 +1091,7 @@ QVR_CVAR(vr_player_hue, "100", CVAR_ARCHIVE)          // the player's colour (vr
 QVR_CVAR(vr_player_saturation, "1", CVAR_ARCHIVE)     // and how saturated they are (1 as made, 0 white, up to 2)
 QVR_CVAR(vr_sight_hue, "-1", CVAR_ARCHIVE)            // the glowing iron sights of the shotgun and double shotgun (vr_sights.cpp): hue (degrees; 30 their own orange, 0 red, 120 green, 240 blue; -1 vr_player_hue),
 QVR_CVAR(vr_sight_saturation, "0.65", CVAR_ARCHIVE)      // and saturation (1 their own, 0 white, up to 2)
-QVR_CVAR(vr_sight_front_hue_shift, "240", CVAR_ARCHIVE) // the front post's hue turned this far (degrees) from the rear notches' (shotgun, double shotgun, lightning gun, nail pistol), to tell them apart; 0 the same colour
+QVR_CVAR(vr_sight_front_hue_shift, "90", CVAR_ARCHIVE) // the front post's hue turned this far (degrees) from the rear notches' (shotgun, double shotgun, lightning gun, nail pistol), to tell them apart; 0 the same colour
 QVR_CVAR(vr_notify_wrist, "1", CVAR_ARCHIVE)          // the console's messages (notify lines) with the gadget: 0 in front of the head, 1 in a log floating over the gadget, 2 both
 QVR_CVAR(vr_notify_wrist_time, "8", CVAR_ARCHIVE)     // seconds a message stays in that log (0: con_notifytime's)
 QVR_CVAR(vr_notify_wrist_height, "5", CVAR_ARCHIVE)   // cm the log's bottom floats over the gadget as seen (and always over the hologram)
@@ -1111,10 +1125,10 @@ QVR_CVAR(vr_sbar_offset_roll, "-0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_height_calibration, "1.646099", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_distance, "150", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_status, "1", CVAR_ARCHIVE)            // a status box in the menus' top right corner (vr_menuui.cpp): VR / mock / flat, the runtime, the resolution rendered, the target rate, fps, CPU/GPU ms, RAM/VRAM
-QVR_CVAR(vr_menu_version, "1", CVAR_ARCHIVE)           // the version box (with the Support on Ko-fi link) in the menus' bottom right corner (vr_menubrand.cpp): "Quake VR: Unleashed - v0.9", "by Vittorio Romeo"
+QVR_CVAR(vr_menu_version, "1", CVAR_ARCHIVE)           // the version box (with the Support on Ko-fi link) in the menus' bottom right corner (vr_menubrand.cpp): "Quake VR: UNLEASHED - v0.9", "by Vittorio Romeo"
 QVR_CVAR(vr_menu_link_dryrun, "0", CVAR_NONE)       // the menus' links (the version box's "Support on Ko-fi", the update notice: vr_menubrand.cpp) print the address instead of opening the browser (tests; the kit's hidden runs, QVR_TEST_HIDDEN, never open it either)
 // The update notice (vr_update.cpp): the release feed's latest.json read at start-up (at most once an hour: a cached
-// answer in <base>/cache/update_check.txt otherwise), and "Update available: Quake VR: Unleashed X.Y.Z" over the
+// answer in <base>/cache/update_check.txt otherwise), and "Update available: Quake VR: UNLEASHED X.Y.Z" over the
 // version box when it names a newer version than the game's. vr_update_status says what it found.
 QVR_CVAR(vr_update_check, "1", CVAR_ARCHIVE)           // the start-up check for a newer release (0: never asked for, and no notice). Never in the kit's test runs (QVR_TEST_BACKGROUND): vr_update_check_now asks
 QVR_CVAR(vr_update_url, "", CVAR_NONE)                 // test aid: the feed(s) read instead of GitHub's latest release's latest.json (one URL, or several separated by ';' or spaces, in order: qvr-setup serve's http://127.0.0.1:<port>/latest.json)
@@ -1491,6 +1505,17 @@ QVR_CVAR(vr_embed_probe_wstep, "0", CVAR_NONE)         // cm the most the drawn 
 QVR_CVAR(vr_embed_probe_eased, "0", CVAR_NONE)         // frames a weapon was drawn easing off a blade
 QVR_CVAR(vr_embed_probe_hoff, "-1", CVAR_NONE)         // vr_embed_test 33: cm the most a hand on a blade's handle was drawn from its place on that weapon held in it
 QVR_CVAR(vr_embed_probe_hturn, "-1", CVAR_NONE)        // and degrees the most it was turned from it
+QVR_CVAR(vr_embed_probe_pdist, "-1", CVAR_NONE)        // cm the most a hand on a pole weapon's shaft (spear, Crystal Lance) had its grip channel off the drawn shaft line (flatembed3)
+QVR_CVAR(vr_embed_probe_pturn, "-1", CVAR_NONE)        // degrees the most its grip channel was turned off the shaft
+QVR_CVAR(vr_embed_probe_pon, "0", CVAR_NONE)           // frames a hand was drawn on a pole weapon's shaft
+QVR_CVAR(vr_embed_probe_pmet, "-1", CVAR_NONE)         // the fewest of its four fingers closed on the pole those frames (flatgrip3)
+QVR_CVAR(vr_embed_probe_palong, "0", CVAR_NONE)       // vrspear: cm along the shaft (from its middle, towards the tip) the hand on a pole weapon's shaft had its grip channel, the last frame
+QVR_CVAR(vr_embed_probe_pslide, "-1", CVAR_NONE)      // vrspear: cm the most minus the least of that since the reset (how far it slid along the pole)
+QVR_CVAR(vr_embed_probe_shots, "0", CVAR_NONE)        // 1: vr_embed_test 71 takes a screenshot of each pole state it measures (flatgrip3)
+QVR_CVAR(vr_embed_probe_jraw, "0", CVAR_NONE)          // a held stuck blade's jitter in the body, the mean of its frame-to-frame change of velocity (units) and of turn rate (degrees) summed (flatembed3)
+QVR_CVAR(vr_embed_probe_jdrawn, "0", CVAR_NONE)        // ... and as drawn, smoothed (vr_embed_ragdoll_smooth_time)
+QVR_CVAR(vr_embed_probe_jlag, "-1", CVAR_NONE)         // cm the most the drawn blade trailed its place in the body
+QVR_CVAR(vr_embed_probe_jon, "0", CVAR_NONE)           // frames measured
 QVR_CVAR(vr_embed_probe_hctl, "-1", CVAR_NONE)         // degrees the most a hand wholly on a blade's handle was drawn turned from its controller (the flip grip: either grip, ROUND25.md "flipgrip")
 QVR_CVAR(vr_embed_probe_gibsnap, "-1", CVAR_NONE)      // vr_embed_test 34: cm the last hand that took hold of a skewered gib was moved to be drawn on its surface, as it did
 QVR_CVAR(vr_embed_probe_skew, "-1", CVAR_NONE)         // vr_embed_test 29 (set -1 to start): cm the most a gib on a blade in the hand was drawn off its place on the drawn blade
@@ -1942,17 +1967,19 @@ QVR_CVAR(vr_body_pauldron_follow, "0.35", CVAR_ARCHIVE) // how much the cap turn
 QVR_CVAR(vr_body_pauldron_forward, "0", CVAR_ARCHIVE) // metres they sit further forward,
 QVR_CVAR(vr_body_pauldron_up, "0", CVAR_ARCHIVE)      // up,
 QVR_CVAR(vr_body_pauldron_out, "0.005", CVAR_ARCHIVE)     // and out
-// The flashlight (vr_flashlight.cpp): stored hanging on the belt, on the left or right hip (vr_flashlight_side) (round 21; on the chest before); only deliberate presses (an open, still hand) take or switch it; trigger at it switches it, an empty hand's grip takes it; held near the other hand's gun, B/Y clips it on; held at the head, B/Y clips it on there.
+// The flashlight (vr_flashlight.cpp): stored hanging on the belt, on the left or right hip (vr_flashlight_side) (round 21; on the chest before); trigger at it switches it (a deliberate press: an open, still hand), an empty hand's grip takes it as any holster's would (round 26, "flashgrab": at once, moving or not, or a closed hand arriving; its place, turn and grab zone set in Holster Setup); held near the other hand's gun, B/Y clips it on; held at the head, B/Y clips it on there.
 QVR_CVAR(vr_flashlight, "1", CVAR_ARCHIVE)            // 0: no flashlight; 1 Immersive (on the belt: taken, clipped on a gun or the head); 2 Always on Head (patch 1.0.1: worn at the temple on vr_flashlight_side's side, never on the belt; the trigger at it switches it; on when chosen and at a fresh start)
 QVR_CVAR(vr_flashlight_shadows, "1", CVAR_ARCHIVE)    // its spot light casts shadows (takes one of vr_shadow_dlights: one tile, not six faces)
 QVR_CVAR(vr_flashlight_cord, "1", CVAR_ARCHIVE)      // the retracting cord from the belt clip to the torch while it is off the belt: 0 none, 1 a rusty low-poly iron chain (chunky faceted links, Quake's look; vr_coil.cpp), 2 coiled like an old telephone's
 QVR_CVAR(vr_flashlight_beam_quality, "1", CVAR_ARCHIVE) // how closely the visible beam finds the walls that cut it: 0 low, 1 medium, 2 high (traces a frame, vr_flashlight.cpp)
-QVR_CVAR(vr_flashlight_tilt, "-5", CVAR_ARCHIVE)       // degrees the stored lamp (hanging on the chest, lens down) leans its lens out from the body
+QVR_CVAR(vr_flashlight_tilt, "-5", CVAR_ARCHIVE)       // degrees the stored lamp (hanging on the belt, lens down) leans its lens out from the body (-90..90),
+QVR_CVAR(vr_flashlight_yaw, "0", CVAR_ARCHIVE)         // turns about the upright (the switch round towards its side; mirrored with vr_flashlight_side),
+QVR_CVAR(vr_flashlight_roll, "0", CVAR_ARCHIVE)        // and leans its lens out sideways, away from your middle (mirrored likewise; Holster Setup turns all three)
 QVR_CVAR(vr_flashlight_forward, "0.025", CVAR_ARCHIVE)    // metres the belt clip sits further forward,
 QVR_CVAR(vr_flashlight_up, "0.25", CVAR_ARCHIVE)         // up,
 QVR_CVAR(vr_flashlight_out, "-0.05", CVAR_ARCHIVE)        // and out (towards its side)
 QVR_CVAR(vr_flashlight_armor_forward, "0.03", CVAR_ARCHIVE) // (his, 2026-11-16) metres more forward on the belt while the armour's plates show on your body (they can pass through the torch); 0 off
-QVR_CVAR(vr_flashlight_side, "0", CVAR_ARCHIVE)       // the hip it hangs on: 0 the left, 1 the right
+QVR_CVAR(vr_flashlight_side, "0", CVAR_ARCHIVE)       // the hip it hangs on: 0 the left, 1 the right (the place and turn above mirrored)
 QVR_CVAR(vr_flashlight_grab_range, "1", CVAR_ARCHIVE) // times how far from the torch a hand reaches it (lit, taken; 9 cm from its axis at 1), 0.25..4
 QVR_CVAR(vr_flashlight_head_range, "1.5", CVAR_ARCHIVE) // times the head's zone's radius (vr_flashlight_head_zone_radius: clipping it on, taking it off), 0.25..4
 QVR_CVAR(vr_flashlight_gun_range, "1", CVAR_ARCHIVE)  // times the gun's zone's radius (vr_flashlight_gun_zone_radius: clipping it on with B/Y or on letting go), 0.25..4
@@ -2745,6 +2772,7 @@ QVR_CVAR(vr_climb_hand_turn_blend, "0.15", CVAR_ARCHIVE | QVR_OWN) // a hand on 
 QVR_CVAR(vr_climb_hand_pitch, "60", CVAR_ARCHIVE | QVR_OWN)    // degrees: the hand on a hold (facing it: at 0 the palm down on the top, the knuckles towards the ledge; 90: the palm against the face under the lip, the knuckles up) tilted knuckles up, display only
 QVR_CVAR(vr_climb_hand_yaw, "10", CVAR_ARCHIVE | QVR_OWN)      // degrees: and turned, the knuckles towards the other hand (mirrored), display only
 QVR_CVAR(vr_climb_hand_roll, "0", CVAR_ARCHIVE | QVR_OWN)      // degrees: and rolled about the knuckles' way, the thumb's side up (mirrored), display only
+QVR_CVAR(vr_climb_rung_grip, "1", CVAR_ARCHIVE | QVR_OWN)      // (tutorial, his VR note 2026-11-26) a hand on a thin round rung (vr_climb_rung_max thick, round: vr_climb.cpp findRung) drawn gripping it, the rung through the fist as a level pole's; 0 on top of it as on a ledge; VR and flat, display only
 QVR_CVAR(vr_climb_props, "1", CVAR_ARCHIVE | QVR_RULE)          // the edges of solid physics props (crates, barrels, explosive boxes, their stacks) are holds too, as they lie now (vr_climb.cpp "Holds on props")
 QVR_CVAR(vr_climb_prop_mass, "60", CVAR_ARCHIVE)     // kg: a prop at least this heavy (or pinned) holds like the level (the hold follows it, the pull doesn't move it); lighter, the hands' pull goes into it (vr_climb_prop_pull) and it tips or slides (large crate 65, explosive box 80.5; small crate 40, barrel 30)
 QVR_CVAR(vr_climb_prop_min_height, "36", CVAR_ARCHIVE | QVR_RULE) // units above the feet a prop's ledge must be to take hold of from the ground (lower: the grip carries the prop instead: a small crate, 32; a large one lying on its side, 40, is a hold); hanging or in the air, vr_climb_min_height as any ledge
@@ -2911,6 +2939,7 @@ QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Quake
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
 QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants by vr_agrunt_repl_variants; its point knights and ghosts never: QC VR_AGR_ADVariant); 0 until 2026-11-01
 QVR_CVAR(vr_agrunt_repl_variants, "1", CVAR_ARCHIVE | QVR_RULE) // 1: Arcane Dimensions' and Quoth's own humanoid variants (rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators, crossbow knights) are armed humanoids holding their gun (QC vr_humrepl.qc VR_HUM_Replace; with vr_agrunt_repl and vr_agrunt_repl_ad; crossbow knights with vr_agknight)
+QVR_CVAR(vr_agrunt_repl_crossbow, "0", CVAR_ARCHIVE | QVR_RULE) // (vrmisc, his note 2026-11-26: off until AD's crossbow knight is a proper armed humanoid, BACKLOG.md section 6) 1: with vr_agrunt_repl_variants, AD's crossbow knights are armed knights holding the crossbow too; 0: they stay AD's (QC vr_humrepl.qc VR_HUM_On)
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE | QVR_RULE)       // shuffles every map's loadouts (the same seed: the same loadouts)
 QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE | QVR_RULE)        // 1: crates and barrels, rocks, armed replacements and their armour rolled from the run's seed (vr_run_seed: a new run, a new layout; a level change, a restart, a loaded save keep the run's), or anew at each map start outside a run; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
 QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
@@ -3273,6 +3302,7 @@ QVR_CVAR(vr_weapon_grab_anywhere, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: a weapon 
 QVR_CVAR(vr_weapon_grab_anywhere_min, "12", CVAR_ARCHIVE | QVR_RULE) // cm: with it, how far from the weapon's handle and its grip and blade hotspots a hand must grip it to hold it there (nearer: the handle or the hotspot, which take priority)
 QVR_CVAR(vr_weapon_anygrip_mode, "0", CVAR_ARCHIVE | QVR_OWN)  // the other hand gripping a weapon held by its handle away from its hotspots: 0 steers the aim as a foregrip (two-handed aiming from where it holds it), 1 supports its weight only (the aim stays the holding hand's), 2 a rigid two-handed hold (the weapon follows both hands, as a prop held in both); each weapon may override it (vr_wofs_anygrip_mode_NN: -1 this)
 QVR_CVAR(vr_pole_slide, "1", CVAR_ARCHIVE | QVR_OWN)          // a pole weapon held in both hands (the Crystal Lance; POLEWEAPONS.md): the weapon hand slides along the pole too, while its grip is loose and the other hand's closed (vr_twohand.cpp poleShift); 0 only the other hand slides
+QVR_CVAR(vr_pole_grip_fixed, "1", CVAR_ARCHIVE | QVR_OWN)    // vrspear (his VR note 2026-11-26 20:09): a pole weapon's other hand (spear, Lance; VR's FREE_POLE grip) stays at the point of the shaft where it took hold, held and stuck in a body (vr_twohand.cpp updateFree); 0 it slides along the shaft with the hand
 QVR_CVAR(vr_pole_slide_grip, "0.6", CVAR_ARCHIVE | QVR_OWN)   // ... the analog grip under which a hand's grip is loose (slides), at or over closed (holds); controllers whose grip is only a button never slide the weapon hand
 QVR_CVAR(vr_debug_buttons, "0", CVAR_NONE)            // prints each controller button press and release (the hand, the button, its key and binding, and what took it: the posing mode, a voice note, the flashlight...), and the interaction profile the runtime picked for each hand when it changes
 QVR_CVAR(vr_debug_hands, "0", CVAR_NONE)              // prints each hand's state when it changes (2: every frame): the grip, what it holds (weapon, carried object, force grab, flashlight), its climbing hold and why a grip takes none, the hotspot (vr_climb.cpp debugHands)
@@ -3854,8 +3884,6 @@ QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at t
 QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
 QVR_CVAR(vr_pole_jump, "270", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a climbable pole gives (ropes10: a normal jump's; ropes keep vr_rope_jump)
 QVR_CVAR(vr_pole_jump_push, "200", CVAR_ARCHIVE | QVR_RULE)     // units/s level a jump off a pole pushes him away from it (under a level pole: the view's way across it)
-QVR_CVAR(vr_rope_grunt, "0.4", CVAR_ARCHIVE | QVR_RULE)         // volume (0..1) of the player's short exertion grunt as a headset's pull lifts him up a climbable rope (once a grip, when the body has risen 15 cm over its hold; at most every 0.6 s; vr_climb.cpp ropePullGrunt; ropes6); 0 off
-QVR_CVAR(vr_rope_grunt_sound, "2", CVAR_ARCHIVE | QVR_OWN)      // the rope pull's grunt (the mantle's list, vr_climb.cpp mantleGrunts): 0 the jump's, 1 a hard landing's, 2 the jump's deeper (the default: told apart from a jump off the rope), 3 a hard landing's deeper, 4 a short pain grunt
 QVR_CVAR(vr_rope_hand_grip, "2", CVAR_ARCHIVE | QVR_OWN)        // a hand on a climbable rope drawn gripping it (the rope through the fist, the knuckles outwards: the right hand's to the right, the left's to the left; vr_climb.cpp ropeTurn): 1 in flat-screen play only, 2 in VR too (ropes6); 0 as on a ledge (vr_climb_hand_pitch/yaw/roll), display only
 QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
 QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
@@ -4041,7 +4069,7 @@ QVR_CVAR(vr_test_axe_host, "0", CVAR_NONE)          // impulse 208 (tests), once
 QVR_CVAR(vr_test_weaponinst, "0", CVAR_NONE)          // impulse 120 (tests): the weapons moved by the game's own functions (QC vr_weaponinst_test.qc): 0 list what has which weapon (id, magazine), 1 holster the main hand's, 2 draw it, 3 drop the main hand's, 4 take the nearest lying, 5 hand off to the off hand, 6 take back, 7 switch hands, 8 back, 9 drop the off hand's
 QVR_CVAR(vr_test_weaponinst_slot, "0", CVAR_NONE)     // ... the holster (QC QVR_HS_*: 3-6 shoulders and hips, 8-9 upper; 0 the right hip)
 QVR_CVAR(vr_test_held_destroy, "0", CVAR_NONE)       // impulse 252 (tests): its gib or head can be destroyed, as a real one (VR_Gib_MakeDestroyable; gib_2h_throw_test.sh)
-QVR_CVAR(vr_test_held_pick, "-1", CVAR_NONE)          // impulse 252 (tests): which gib or head (0 gib1, 1 h_player, 2 gib2, 3 gib3, 4-8 heads; 9 the nearest rock, 10 a hand grenade, 11 the nearest shells box, 12 the nearest brick, 13 the nearest crate or barrel); -1 each gib in turn (gib_2h_throw_test.sh MODELS)
+QVR_CVAR(vr_test_held_pick, "-1", CVAR_NONE)          // impulse 252 (tests): which gib or head (0 gib1, 1 h_player, 2 gib2, 3 gib3, 4-8 heads; 9 the nearest rock, 10 a hand grenade, 11 the nearest shells box, 12 the nearest brick, 13 the nearest crate or barrel, 14 the nearest bayonet); -1 each gib in turn (gib_2h_throw_test.sh MODELS)
 QVR_CVAR(vr_test_held_hand, "0", CVAR_NONE)          // impulse 252 (tests): the hand it fills: 0 the off hand, 1 the main hand (reload_test.sh: a prop in the main hand hitting the super shotgun's barrels)
 QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): the prop nearest you sent at the nearest monster at this many m/s (VR_Test_Fling)
 QVR_CVAR(vr_test_fling_at, "0", CVAR_NONE)            // and at: 0 the nearest monster, 1 you (from ahead)
@@ -4611,7 +4639,10 @@ QVR_CVAR(vr_flat_grab_preview, "1", CVAR_ARCHIVE)      // flatscreen play: 1 wha
 QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
 QVR_CVAR(vr_flat_key_ammo, "n", CVAR_ARCHIVE)           // flat-screen (N; B until 2026-11-25, his words): the key that switches the main hand's weapon to its other ammo (impulse 43, as the headset's weapon button: QC ToggleSecondaryAmmo: the rocket and grenade launchers' multi-rockets and -grenades, the thunderbolt's plasma, the hell knight's sword...; nothing for one without); not with the toolgun in hand (N is its adjust key there), by its bind name; "" none
 QVR_CVAR(vr_flat_key_pull, "h", CVAR_ARCHIVE)           // flatscreen Grab / Pull key (H; replaces retired vr_flat_key_drop, which merged into B): uses every available empty hand to grab physics props, crates, ragdolls, gibs in front of the player (Toggle by default, or Hold via vr_flat_grab_hold); by its bind name; "" none
-QVR_CVAR(vr_flat_grab_hold, "0", CVAR_ARCHIVE | QVR_PREF) // flatscreen Grab / Pull key (H, vr_flat_key_pull) mode: 0 Toggle (default: press to grab, press again to release); 1 Hold (hold to grab and carry, let go to release)
+QVR_CVAR(vr_flat_1h_dagger, "1", CVAR_ARCHIVE | QVR_OWN)  // flatgrip3 (his flat item 7, 2026-11-26): flatscreen, a dagger is always held in one hand: no two-handed stance, the free hand never takes its grip, nor joins it stuck in a body (0: as any blade; vr_flatplay.cpp oneHandOnly)
+QVR_CVAR(vr_flat_1h_axe, "1", CVAR_ARCHIVE | QVR_OWN)     // flatgrip3: the same for the axes (the axe, AD's Shadow Axe, MG3's super axe): "2H poses for axes are a bit awkward, I would prefer them to always be held 1H like daggers"
+QVR_CVAR(vr_flat_overhand_both, "1", CVAR_ARCHIVE | QVR_OWN)  // flatfeedback 2026-11-26 (flatmelee6): flatscreen quick melee (V) with both hands empty: 1 both fists' two-handed overhead blow, raised and brought down together, one hit (vr_flat_overhand_2h_*; the client's own: the move tells the server, .handsynth 256); 0 the one-fist overhand blow (vr_flat_overhand)
+QVR_CVAR(vr_flat_grab_hold, "0", CVAR_ARCHIVE | QVR_OWN)  // flatscreen Grab / Pull key (H, vr_flat_key_pull) mode (his own: the client picks the impulse it sends, the server never reads it): 0 Toggle (default: press to grab, press again to release); 1 Hold (hold to grab and carry, let go to release)
 // The holsters' number keys (his words 2026-11-22; vr_flat_holsters on only: off, 1 .. 7 pick weapons as before; vr_flatplay.cpp
 // pollKeysFlat, QC vr_flatholster.qc VR_FlatHolster_Cycle / _Put). "Left" and "right" as the holster menu's: the off hand, the main hand.
 QVR_CVAR(vr_flat_key_cycle_left, "1", CVAR_ARCHIVE)     // the key that cycles the left hand through the holstered weapons, holster order, then the empty hand (impulse 86); by its bind name; "" none
@@ -4651,6 +4682,7 @@ QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the 
 QVR_CVAR(vr_flat_holsters, "1", CVAR_ARCHIVE | QVR_PREF)           // flatscreen play carries what a headset does: six holsters and two hands, the weapon keys doing nothing (3 swaps the hands), the wheel's button holding the holster menu (vr_flatholster.cpp, QC vr_flatholster.qc); 0: the number keys and the wheel cycle through every weapon collected, as before 2026-11-10
 QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Options > Controls, Quake VR (flat screen))
 QVR_CVAR(vr_flat_key_gearlights, "9", CVAR_ARCHIVE)    // the key that dims and lights the gear (vr_gear_lights_toggle: the visor, the guns' ammo screens; the wrist gadget's side button in VR), by its bind name; "" none (9: bound to nothing by default.cfg)
+QVR_CVAR(vr_flat_key_attach, "j", CVAR_ARCHIVE)        // weapon attachments (QC vr_attach.qc, impulse 52): the key that puts the attachment the other hand holds (a bayonet) on the gun in one hand, or takes the gun's off into the empty other hand, by its bind name; "" none
 QVR_CVAR(vr_flat_key_punch, "v", CVAR_ARCHIVE)         // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
 QVR_CVAR(vr_flat_key_voicechat, "CAPSLOCK", CVAR_ARCHIVE) // multiplayer voice chat's push-to-talk key, held (vr_voicechat.cpp; flat play owns it, VR reads it too); by its bind name; "" none
 QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)

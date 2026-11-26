@@ -62,6 +62,35 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     {
         def.density *= props::massScale(model); // its estimate's Mass x (Held Object Weights)
     }
+    // A gun's extra pieces, solid with it, the gun weighing as before: its seated magazine, its attachment (a bayonet: it
+    // strikes and sticks by its point, vr_axestick.cpp, and lies on it).
+    za::Array<const b3HullData*, 2> extras{nullptr, nullptr};
+    float extrasVolume = 0.f;
+    if(!held && hull && model->type == mod_alias)
+    {
+        if(const qmodel_t* magModel = seatedMagazine(ent, model))
+        {
+            za::Vector<glm::vec3>& magVertices = scratch.magVerts;
+            if(held::drawnMagazineVertices(ent, magModel, magVertices))
+            {
+                extras[0] = magazineHull(magModel, -6, magVertices);
+            }
+        }
+        extras[1] = attachmentHull(ent, model);
+        for(const b3HullData* extra : extras)
+        {
+            extrasVolume += extra ? extra->volume : 0.f;
+        }
+    }
+    const auto addExtras = [&](const b3ShapeDef& with) {
+        for(const b3HullData* extra : extras)
+        {
+            if(extra)
+            {
+                b3CreateHullShape(body, &with, extra);
+            }
+        }
+    };
     // A gun: its convex pieces, as dense as its one hull would weigh (its mass as before, its shape as drawn).
     if(hull && isGun(ent) && model->type == mod_alias)
     {
@@ -70,24 +99,10 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
             &gunPieces(key, [&](za::Vector<glm::vec3>& out) { return held::drawnVertices(ent, out); });
         if(!pieces->empty())
         {
-            float volume = 0.f;
+            float volume = extrasVolume;
             for(const b3HullData* piece : *pieces)
             {
                 volume += piece->volume;
-            }
-            // Its seated magazine, solid with it (one more piece: the gun weighs as before).
-            const b3HullData* mag = nullptr;
-            if(const qmodel_t* magModel = held ? nullptr : seatedMagazine(ent, model))
-            {
-                za::Vector<glm::vec3>& magVertices = scratch.magVerts;
-                if(held::drawnMagazineVertices(ent, magModel, magVertices))
-                {
-                    mag = magazineHull(magModel, -6, magVertices);
-                }
-            }
-            if(mag)
-            {
-                volume += mag->volume;
             }
             b3ShapeDef pieceDef = def;
             pieceDef.density = def.density * hull->volume / za::max(volume, 1e-9f);
@@ -95,35 +110,17 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
             {
                 b3CreateHullShape(body, &pieceDef, piece);
             }
-            if(mag)
-            {
-                b3CreateHullShape(body, &pieceDef, mag);
-            }
+            addExtras(pieceDef);
             return;
         }
     }
     if(hull)
     {
-        // (One hull: its seated magazine one more, as the pieces'.)
-        const b3HullData* mag = nullptr;
-        if(const qmodel_t* magModel = held ? nullptr : seatedMagazine(ent, model))
-        {
-            za::Vector<glm::vec3>& magVertices = scratch.magVerts;
-            if(held::drawnMagazineVertices(ent, magModel, magVertices))
-            {
-                mag = magazineHull(magModel, -6, magVertices);
-            }
-        }
+        // (One hull: its extra pieces too, as the pieces'.)
         b3ShapeDef hullDef = def;
-        if(mag)
-        {
-            hullDef.density = def.density * hull->volume / za::max(hull->volume + mag->volume, 1e-9f);
-        }
+        hullDef.density = def.density * hull->volume / za::max(hull->volume + extrasVolume, 1e-9f);
         b3CreateHullShape(body, &hullDef, hull);
-        if(mag)
-        {
-            b3CreateHullShape(body, &hullDef, mag);
-        }
+        addExtras(hullDef);
         return;
     }
     const b3BoxHull box = b3MakeOffsetBoxHull(half.x, half.y, half.z, world->toM((lo + hi) * 0.5f));
@@ -368,6 +365,10 @@ void trimPropHulls()
         {
             return true; // (its magazine taken out or put in: vr_reload_mag_collide)
         }
+        if(s.kind == Kind::Prop && s.attach != fittedAttachment(ent, model))
+        {
+            return true; // (its bayonet put on or taken off)
+        }
         if(s.skewerGen != fieldFloatOr(ent, fields().vr_skewer_gen, 0.f))
         {
             return true; // (a gib on it gone or come: addSkeweredShapes)
@@ -539,6 +540,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.scale = scaleFields(ent);
     s.brush = model && model->type == mod_brush;
     s.mag = kind == Kind::Prop ? seatedMagazine(ent, model) : nullptr;
+    s.attach = kind == Kind::Prop ? fittedAttachment(ent, model) : 0;
     s.spins = kind == Kind::Fixture && model &&
               ((model->flags & EF_ROTATE) || fieldFloatOr(ent, fields().vr_pickup_spin, 0.f) != 0.f); // (a weapon pickup drawn as its prop)
     s.massSetting = massSetting(ent, model);
@@ -573,10 +575,10 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     {
         // Lying as it lies (asleep until something meets it), upright: it slides and turns about its yaw (a box: not
         // even that, square to Quake's box), slowed as a heavy thing dragged.
+        // (The yaw-only turn is a motion lock joint to the world's anchor, below: Box3D's motion locks became a joint
+        // upstream, #236; a box's no turn at all is the body's fixed rotation.)
         def.isAwake = false;
-        def.motionLocks.angularX = true;
-        def.motionLocks.angularY = true;
-        def.motionLocks.angularZ = !s.corpseFitted;
+        def.fixedRotation = !s.corpseFitted;
         def.linearDamping = 0.5f;
         def.angularDamping = 2.f;
     }
@@ -595,6 +597,18 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     }
     s.body = b3CreateBody(world->id, &def);
     s.madeAt = static_cast<float>(qcvm->time);
+    if(kind == Kind::Corpse && s.corpseDynamic && s.corpseFitted && B3_IS_NON_NULL(world->anchor))
+    {
+        // Upright: its z axis kept on the world's (the body is made turned about z alone: rotationOf). The joint goes
+        // with the body (b3DestroyBody destroys its joints).
+        b3MotionLockJointDef lock = b3DefaultMotionLockJointDef();
+        lock.base.bodyIdA = world->anchor;
+        lock.base.bodyIdB = s.body;
+        lock.base.localFrameA = b3Transform{def.position, b3Quat_identity};
+        lock.base.localFrameB = b3Transform{b3Vec3_zero, b3Conjugate(def.rotation)};
+        lock.lockAngularXY = true;
+        b3CreateMotionLockJoint(world->id, &lock);
+    }
 
     switch(kind)
     {

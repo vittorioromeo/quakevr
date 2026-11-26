@@ -109,6 +109,7 @@ void() VR_FlatReload_Key;
 void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
 void() VR_FlatThrow_Release;
+void() VR_FlatThrow_Cancel;
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
 void(float xHand) VR_FlatReload_AmmoSwitch;
@@ -252,8 +253,10 @@ float(float xHand, float xBase) VRMeleeDmg =
     // The damage caps bound this blow's strength (times its zone's multiplier) when it lands (T_Damage_VRMelee).
     vr_mdmg_core = VR_Blow(xHand).mh_core;
     vr_mdmg_hand = xHand;
+    // (Flat V's two-fisted overhead blow: both fists' in one hit, vr_flat_overhand_2h_damage; VR_HandTwoFisted.)
+    float twoFist = VR_HandTwoFisted(self, xHand) ? max(0, cvar_hget(cvarh_vr_flat_overhand_2h_damage)) : 1;
     return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
-           VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+           VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult() * twoFist;
 }
 
 // A hand's blow of `xHand` at `xSpeed` m/s on a corpse or ragdoll (VR_Corpse_Struck), struck with `xThing` (VR_MTHING_*):
@@ -4875,6 +4878,14 @@ void() ImpulseCommands =
         return;
     }
 
+    // Weapon attachments: the Attach key (flat play's vr_flat_key_attach, J; any mode), vr_attach.qc. (52: flat play's holster
+    // menu takes 60 .. 79 first, VR_FlatHolster_Impulses, so 70 never got here.)
+    if(self.impulse == 52)
+    {
+        self.impulse = 0;
+        VR_Attach_Key(self);
+        return;
+    }
     // Flatscreen play (-flatscreenmode): H (vr_flat_key_drop) drops what a hand holds, the off hand's first (vr_flatplay.cpp reads the key
     // and sends the impulse; vr_wpnforcegrab.qc does it). Nobody else's impulse: it stays unused in a headset game.
     if(self.impulse == 47 && VR_FlatPlay(self))
@@ -4922,11 +4933,17 @@ void() ImpulseCommands =
 
     // Flatscreen play: B drops (quick tap) or throws (held) what a hand holds (vr_flatgrenade.cpp: 39 down, 40 up;
     // vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
-    if((self.impulse == 39 || self.impulse == 40) && VR_FlatPlay(self))
+    // 41: the throwing hand's attack button with B held cancels the throw (flatthrow2: VR_FlatThrow_Cancel).
+    if((self.impulse == 39 || self.impulse == 40 || self.impulse == 41) && VR_FlatPlay(self))
     {
         float throwUp = self.impulse == 40;
+        float throwCancel = self.impulse == 41;
         self.impulse = 0;
-        if(throwUp)
+        if(throwCancel)
+        {
+            VR_FlatThrow_Cancel();
+        }
+        else if(throwUp)
         {
             VR_FlatThrow_Release();
         }
@@ -5174,6 +5191,8 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 
 float(entity ent, float xHand) VRWeaponLeavingHand;
 
+float(float xHand) VR_PropFire_Frame; // (vr_propfire.qc)
+
 float vr_lg_trail_draws; // (the tests: the lightning gun's stream drawn, a hand's frame each; vr_ad_test 106)
 void(float xHand, float xButton) FrameDrawLightningTrail =
 {
@@ -5190,8 +5209,45 @@ void(float xHand, float xButton) FrameDrawLightningTrail =
     }
 }
 
+// The trigger's part of a hand's weapon frame (its refire over), `xPressed` its trigger: the weapon's charge (Dwell's
+// Crystal Lance), its attack (ammo, shot, refire, effects). The one firing path for the weapon in the hand
+// (W_WeaponFrameImpl) and for a weapon prop the hand holds (vr_propfire.qc VR_PropFire_Frame: the hand's weapon fields the
+// prop's for it: embedfire).
+void(float xHand, float xPressed) W_TriggerFrame =
+{
+    // Dwell's Crystal Lance: charged while the trigger is held, fired as it is let go fully charged (dw_items.qc).
+    if(DW_LanceCharged(xHand))
+    {
+        if(!DW_LanceChargeFrame(xHand, dw_lc_test ? dw_lc_test_press : xPressed))
+        {
+            return;
+        }
+        xPressed = TRUE;
+    }
+    if(xPressed)
+    {
+        // Quad's sound: not here (the trigger), but where damage is dealt: each gun's shot, a blow landing
+        // (VR_QuadSound, combat.qc).
+        if(xHand == cVR_OffHand)
+        {
+            W_OffHandAttack();
+        }
+        else
+        {
+            W_Attack();
+        }
+    }
+};
+
 void(float xHand) W_WeaponFrameImpl =
 {
+    // A weapon prop the hand holds (a blade stuck in a body, its weapon able to fire there): its trigger frame instead
+    // (vr_propfire.qc; the hand itself holds nothing).
+    if(VR_PropFire_Frame(xHand))
+    {
+        return;
+    }
+
     // A gun hanging from its foregrip (the hand-off) is carried, not held: it does not fire.
     if(VRIsHandCarryingByForegrip(self, xHand))
     {
@@ -5238,26 +5294,5 @@ void(float xHand) W_WeaponFrameImpl =
         pressed = FALSE;
         vr_flatthrow_refused++; // (printed with the throw: the tests)
     }
-    // Dwell's Crystal Lance: charged while the trigger is held, fired as it is let go fully charged (dw_items.qc).
-    if(DW_LanceCharged(xHand))
-    {
-        if(!DW_LanceChargeFrame(xHand, dw_lc_test ? dw_lc_test_press : pressed))
-        {
-            return;
-        }
-        pressed = TRUE;
-    }
-    if(pressed)
-    {
-        // Quad's sound: not here (the trigger), but where damage is dealt: each gun's shot, a blow landing
-        // (VR_QuadSound, combat.qc).
-        if(xHand == cVR_OffHand)
-        {
-            W_OffHandAttack();
-        }
-        else
-        {
-            W_Attack();
-        }
-    }
+    W_TriggerFrame(xHand, pressed);
 }

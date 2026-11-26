@@ -28,6 +28,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_axestick.hpp"
+#include "vr_attach.hpp"
 #include "vr_blade.hpp"
 #include "vr_avatar.hpp"
 
@@ -42,6 +43,7 @@
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_protocol.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -215,6 +217,7 @@ struct Sample
 struct Shape
 {
     const qmodel_t* model{nullptr};
+    int attach{0}; // the weapon's attachment (vr_attach.hpp): a bayonet makes a gun a point
     Blade blade;
     za::SizeT firstSample{0}, sampleCount{0};
     bool sampled{false};
@@ -346,18 +349,42 @@ constexpr za::SizeT maxSamples = 256;
     return b;
 }
 
+// A weapon with an attachment that strikes (vr_attach.hpp: the bayonet): a point, its tip the attachment's, its blade's
+// start the attachment's own, the rest (the hand, the handle) the gun's as a point's (pointBlade); none if it doesn't fit.
+[[nodiscard]] Blade attachBlade(edict_t* ent, qmodel_t* model, int kind)
+{
+    const int slot = weapons::slotForModel(model);
+    const attach::Mount m = attach::mount(slot, kind);
+    const attach::KindInfo* const info = attach::info(kind);
+    if(!m.fits || !info || glm::length(info->tip) < 1e-3f)
+    {
+        return bladeFromKeys(ent, model);
+    }
+    Blade b = pointBlade(ent, model, slot);
+    if(b.how != howPoint)
+    {
+        return bladeFromKeys(ent, model);
+    }
+    b.tip = attach::onGun(m, info->tip);
+    b.from = attach::onGun(m, info->base);
+    b.pole = false;
+    return b;
+}
+
 [[nodiscard]] Shape& shapeOf(edict_t* ent, qmodel_t* model)
 {
+    const int kind = attach::kindOfRef(ent, progs::fields().weaponinst);
     for(Shape& s : cache.shapes)
     {
-        if(s.model == model)
+        if(s.model == model && s.attach == kind)
         {
             return s;
         }
     }
     Shape made;
     made.model = model;
-    made.blade = bladeFromKeys(ent, model);
+    made.attach = kind;
+    made.blade = kind != attach::None ? attachBlade(ent, model, kind) : bladeFromKeys(ent, model);
     cache.shapes.pushBack(made);
     return cache.shapes.back();
 }
@@ -1265,6 +1292,17 @@ float pointLeniency(edict_t* ent)
     return k > 0.f ? k : 1.f;
 }
 
+bool pointPole(edict_t* ent)
+{
+    qmodel_t* model = modelOf(ent);
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const Blade& blade = shapeOf(ent, model).blade;
+    return blade.how == howPoint && blade.pole;
+}
+
 bool timeSpin(edict_t* ent, float least, float most, glm::vec3& spin, float& flight, glm::vec3& at)
 {
     qmodel_t* model = modelOf(ent);
@@ -2020,9 +2058,16 @@ void calcStats(edict_t* player, int* statsi)
             const edict_t* w = PROG_TO_EDICT(fieldInt(player, ofs));
             if(w != qcvm->edicts && !w->free)
             {
-                // (The edict * 4, held by its handle 1, reversed 2: QC's QVR_WPNFLAG_REVGRIP on it, blade down; view::embedStat*.)
+                // (The edict * 8, held by its handle 1, reversed 2: QC's QVR_WPNFLAG_REVGRIP on it, blade down; in a ragdoll 4: its
+                // drawn smoothing, view::embedSmoothStep; view::embedStat*, heldEnt.)
                 const int flags = static_cast<int>(fieldFloatOr(const_cast<edict_t*>(w), f.weaponflags, 0.f));
-                stat = NUM_FOR_EDICT(const_cast<edict_t*>(w)) * 4 + ((flags & 8192) ? 2 : 0) + ((handle & (1 << h)) ? 1 : 0);
+                bool inRagdoll = false;
+                if(f.vr_stick_ent >= 0)
+                {
+                    const edict_t* host = PROG_TO_EDICT(fieldInt(const_cast<edict_t*>(w), f.vr_stick_ent));
+                    inRagdoll = host != qcvm->edicts && !host->free && ragdoll::published(NUM_FOR_EDICT(const_cast<edict_t*>(host)));
+                }
+                stat = NUM_FOR_EDICT(const_cast<edict_t*>(w)) * 8 + (inRagdoll ? 4 : 0) + ((flags & 8192) ? 2 : 0) + ((handle & (1 << h)) ? 1 : 0);
             }
         }
         statsi[h ? STAT_QVR_EMBEDMAIN : STAT_QVR_EMBEDOFF] = stat;
@@ -2248,6 +2293,16 @@ void debugDraw(const glm::vec3& eye, const glm::vec3& headAngles)
 int heldStat(int hand)
 {
     return hand == HAND_MAIN || hand == HAND_OFF ? cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] : 0;
+}
+
+int heldEnt(int hand)
+{
+    return heldStat(hand) / 8;
+}
+
+bool heldInRagdoll(int hand)
+{
+    return (heldStat(hand) & 4) != 0;
 }
 
 bool handOnBlade(int hand)

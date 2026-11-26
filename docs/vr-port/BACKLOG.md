@@ -165,6 +165,11 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
 - **Lifts** (NAVMESH.md 10, 16): on by default; the reach scene (`nav_lift`) and the waiting-at-the-top case
   (`nav_lift_down`: the lift is called up). Left: a scene for a train (every id train with stops is triggered first:
   e2m6's elevator, e3m4's).
+- **Brushes beyond the world** (ROUND26 vsnav): the navmesh now cuts any brush reaching past the world's box (old
+  vrstart's mesh lost the whole island to one). The cause is fixed at the source (ROUND26 clipstray: `recoverClips`
+  boxes a sliver piece that lost its faces, and cuts a clip brush to its bounds where its moved faces reach past them;
+  `vr_hull_strays` says 0 and 0 on 21 maps), so the navmesh's cut is now only a safety net. Left: `vr_nav_toptest`'s
+  input check takes a cut brush's box top as its top (none on shipped maps).
 - **Flyers and swimmers**: a 3D grid of open space for scrags and fish (NAVMESH.md 7).
 - **Flanking and cover**: goal slots round the player, extra cost on polygons other monsters' paths use, cover use
   (NAVMESH.md 7, 11).
@@ -191,6 +196,11 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
   on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
   until this is done. 2026-11-22 (disarmfix, ROUND25): PvE now by jolts (no dice, a warning before the drop, fists and
   heavy blows count); left: his try in VR, then his OK to turn `vr_player_disarm` on.
+- **AD's crossbow knight as a proper armed humanoid, then re-enable its replacement** (his VR note 2026-11-26 20:21):
+  its automatic replacement by an armed knight holding the crossbow is off (`vr_agrunt_repl_crossbow` 0, ROUND26
+  vrmisc; every other AD/Quoth variant still replaced). Make the crossbow knight itself a valid armed humanoid (its own
+  model and rig, the crossbow held and aimed as AD's knight does, its look), then turn `vr_agrunt_repl_crossbow` back
+  on (or retire it). QC/vr_humrepl.qc VR_HUM_On; `vr_ad_test 219` checks both ways.
 
 ## 7. Combat and feel
 
@@ -338,3 +348,5 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   first whether he needs one. Design note: Misc/rendezvous/README.md, "When the punch fails".
 - **Old QuakeC notes** (TECHDEBT_2026-10-09.md 10): Rogue's teamplay variants don't work in VR (item handling
   commented out). (`readytime`, one for every client, is each player's `.vr_readytime` since 2026-11-19.)
+
+- Weapon attachments (attach1, 2026-11-26): the system and the bayonet are in; the next kinds (scopes, under-barrel grenade launcher / flamethrower, nailgun igniter, LG lenses and more) and the open points: docs/vr-port/ATTACHMENTS.md, "The system" and "Ideas"; ROUND26.md "attach1".

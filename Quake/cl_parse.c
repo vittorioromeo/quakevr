@@ -433,6 +433,7 @@ static void CL_ParseServerInfoRun (void)
 	for (i = 1; i < nummodels; i++)
 	{
 		VR_StepProgress ("model %d of %d: %s", i, nummodels - 1, model_precache[i]); // QVR
+		VR_LoadCount (i - 1, nummodels - 1); // QVR: the loading panel's (flatloadbar)
 		cl.model_precache[i] = Mod_ForName (model_precache[i], false);
 		if (cl.model_precache[i] == NULL)
 		{
@@ -447,6 +448,7 @@ static void CL_ParseServerInfoRun (void)
 	for (i = 1; i < numsounds; i++)
 	{
 		VR_StepProgress ("sound %d of %d: %s", i, numsounds - 1, sound_precache[i]); // QVR
+		VR_LoadCount (i - 1, numsounds - 1); // QVR: the loading panel's (flatloadbar)
 		cl.sound_precache[i] = S_PrecacheGameSound (sound_precache[i]); // QVR: (forgotten at a game switch)
 		CL_KeepaliveMessage ();
 	}

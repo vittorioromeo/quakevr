@@ -1,0 +1,7 @@
+# quoth_metmon: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Quoth's metmon from its start (switch stages, the portal sphere).
+title Quoth's metmon: the stages' switches and the portal sphere
+campaign quoth
+package 59971ea485de52bf metmon1d
+map metmon
+god
+hint Quoth's metmon from its start: each stage's switches unlock the next; the fourth shuts down the portal sphere.

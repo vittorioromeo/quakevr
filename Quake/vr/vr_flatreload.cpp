@@ -212,7 +212,7 @@ void frame(bool on)
     for(int h : {HAND_OFF, HAND_MAIN})
     {
         Trip& t = rs().trip[h];
-        const bool bit = ((bits >> h) & 1) != 0;
+        const bool bit = ((bits >> h) & 1) != 0 && ((bits >> (h + 2)) & 1) == 0; // (bits 2, 3: in place, no trip)
         if(bit && !t.bit)
         {
             t.startAt = vr_gametime;

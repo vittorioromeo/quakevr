@@ -22,6 +22,7 @@
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
 #include "vr_holsterzones.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_bladeedit.hpp"
 #include "vr_posestudio.hpp"
@@ -1272,6 +1273,21 @@ void mockHandTo_f()
             return;
         }
         moveHandTo(hand, target);
+        return;
+    }
+    if(hand >= 0 && Cmd_Argc() >= 3 && !q_strcasecmp(Cmd_Argv(2), "torch"))
+    {
+        // "torch [along left out]": at the belt torch's slot's middle as its settings put it (flashlight::beltSlot),
+        // plus units along its beam, its left and its switch's side (round 26, flash_grab_test.py slot).
+        flashlight::BeltSlot slot;
+        if(!flashlight::beltSlot(hands::current(), slot))
+        {
+            Con_Printf("vr_mock_hand_to: no belt torch\n");
+            return;
+        }
+        const glm::vec3 off{Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 0.f, Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 0.f,
+            Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 0.f};
+        moveHandTo(hand, slot.middle + slot.rot * off);
         return;
     }
     if(hand >= 0 && Cmd_Argc() >= 4 &&

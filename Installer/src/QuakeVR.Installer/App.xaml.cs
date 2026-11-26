@@ -73,8 +73,8 @@ public partial class App
         {
             if (!options.Quiet)
             {
-                MessageBox.Show($"No Quake VR: Unleashed install was found{(options.Target is null ? "" : " in " + options.Target)}.",
-                    "Remove Quake VR: Unleashed", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"No Quake VR: UNLEASHED install was found{(options.Target is null ? "" : " in " + options.Target)}.",
+                    "Remove Quake VR: UNLEASHED", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             Shutdown(1);
             return false;

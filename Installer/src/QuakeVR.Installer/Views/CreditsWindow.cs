@@ -13,7 +13,7 @@ sealed class CreditsWindow : Window
     public CreditsWindow(Window? owner)
     {
         Owner = owner;
-        Title = "Credits · Quake VR: Unleashed Setup";
+        Title = "Credits · Quake VR: UNLEASHED Setup";
         Width = 680;
         Height = 560;
         WindowStartupLocation = owner is null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner;
@@ -40,7 +40,7 @@ sealed class CreditsWindow : Window
         sb.AppendLine("Chat, help and news: https://discord.me/quakevr");
         sb.AppendLine();
         sb.AppendLine("Quake's textures and sounds in this installer are read while it runs from your own copy of Quake");
-        sb.AppendLine("(id Software). None of them is included with Quake VR: Unleashed or its installer; before Quake is");
+        sb.AppendLine("(id Software). None of them is included with Quake VR: UNLEASHED or its installer; before Quake is");
         sb.AppendLine("found (or without it) the installer makes its own textures and sounds.");
         sb.AppendLine();
         sb.AppendLine("Fonts, embedded under the SIL Open Font License 1.1 (full texts below):");

@@ -19,7 +19,10 @@ public static class ShellLink
 {
     public static void Save(ShortcutSpec spec)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(spec.LinkPath)!);
+        var dir = Path.GetDirectoryName(spec.LinkPath)!;
+        FixCase(dir, true);
+        Directory.CreateDirectory(dir);
+        FixCase(spec.LinkPath, false);
         var link = (IShellLinkW)new CShellLink();
         try
         {
@@ -36,6 +39,35 @@ public static class ShellLink
         finally
         {
             Marshal.ReleaseComObject(link);
+        }
+    }
+
+    /// <summary>Windows keeps the old spelling of an existing file or folder when it is written again, so an
+    /// install made before a name changed its letter case ("Quake VR Unleashed" -> "Quake VR UNLEASHED") would keep the
+    /// old name. When the existing entry differs from <paramref name="path"/> only in case, a shortcut file is deleted
+    /// (it is rewritten right after) and a folder is renamed (its other shortcuts stay inside).</summary>
+    static void FixCase(string path, bool folder)
+    {
+        var parent = Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent))
+        {
+            return;
+        }
+        var want = Path.GetFileName(path);
+        var found = (folder ? Directory.GetDirectories(parent, want) : Directory.GetFiles(parent, want)).FirstOrDefault();
+        if (found is null || Path.GetFileName(found) == want)
+        {
+            return;
+        }
+        if (folder)
+        {
+            var tmp = found + ".case-fix";
+            Directory.Move(found, tmp);
+            Directory.Move(tmp, Path.Combine(parent, want));
+        }
+        else
+        {
+            File.Delete(found);
         }
     }
 

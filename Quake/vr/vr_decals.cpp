@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatxhair.hpp"
 #include "vr_gfx.hpp"
 #include "vr_gore.hpp"
 #include "vr_goresound.hpp"
@@ -1660,6 +1661,7 @@ bool meleeEvent(const glm::vec3& org, const glm::vec3& dir, int preset, int coun
     {
         return false;
     }
+    flatxhair::noteMeleeMark(org); // (vr_flat_xhair_probe: where the blow landed against the crosshair)
     if(!vr_decals.value || !vr_decal_melee.value || !vr_decal_carve.value || !cl.worldmodel)
     {
         return true; // (the blow's Quake effect leaves its pit, as before)

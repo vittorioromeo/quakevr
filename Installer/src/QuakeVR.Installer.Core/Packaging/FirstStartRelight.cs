@@ -55,7 +55,7 @@ public static class FirstStartRelight
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path,
-                "Written by the Quake VR: Unleashed installer (the relight ticked). At its next start the game relights\r\n" +
+                "Written by the Quake VR: UNLEASHED installer (the relight ticked). At its next start the game relights\r\n" +
                 "Quake's and the official mission packs' maps not relit with these settings yet (vr_relight_batch\r\n" +
                 "official: the maps it relit before are skipped while they and the settings are unchanged; the Map\r\n" +
                 "Library's and Arcane Dimensions' maps are relit from Graphics > Relighting) and removes this file.\r\n" +

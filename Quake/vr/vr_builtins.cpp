@@ -23,6 +23,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_agarms.hpp"
 #include "vr_axestick.hpp"
+#include "vr_attach.hpp"
 #include "vr_box3d.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_carry2h.hpp"
@@ -89,6 +90,7 @@
 #include "vr_blade.hpp"
 #include "vr_lagcomp.hpp"
 #include "vr_meleeshow.hpp"
+#include "vr_flatxhair.hpp"
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
 #include "vr_walltorch.hpp"
@@ -932,6 +934,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"embedstick", PF_embedstick},
     {"embedproppull", PF_embedproppull},
     {"embedprophold", PF_embedprophold},
+    {"propdrag", PF_propdrag},
     {"arenawavesload", arenawaves::pfLoad},
     {"arenawavesfield", arenawaves::pfField},
     {"arenawavesreport", arenawaves::pfReport},
@@ -952,6 +955,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"admeleehead", PF_admeleehead},
     {"meleeshow", PF_meleeshow},
     {"meleeshowfoe", PF_meleeshowfoe},
+    {"flatthrowaim", PF_flatthrowaim},
     {"embedsay", PF_embedsay},
     {"bladewound", PF_bladewound},
     {"bladewoundage", PF_bladewoundage},
@@ -974,6 +978,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"propvalue", PF_propvalue},
     {"propgrip", PF_propgrip},
     {"weaponvalue", PF_weaponvalue},
+    {"attachinfo", PF_attachinfo},
     {"functionname", PF_functionname},
     {"callspawn", PF_callspawn},
     {"weightdamage", PF_weightdamage},

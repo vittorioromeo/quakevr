@@ -97,13 +97,14 @@ void(entity p) VR_HUM_Test =
         return;
     }
     // (the settings it needs on for its spawns, put back as they were after them: a checklist scene runs it in his game)
-    string keep = strzone(sprintf("vr_agrunt_repl %g;vr_agrunt_repl_ad %g;vr_agrunt_repl_variants %g;vr_agknight %g\n",
+    string keep = strzone(sprintf("vr_agrunt_repl %g;vr_agrunt_repl_ad %g;vr_agrunt_repl_variants %g;vr_agknight %g;vr_agrunt_repl_crossbow %g\n",
         cvar_hget(cvarh_vr_agrunt_repl), cvar_hget(cvarh_vr_agrunt_repl_ad), cvar_hget(cvarh_vr_agrunt_repl_variants),
-        cvar_hget(cvarh_vr_agknight)));
+        cvar_hget(cvarh_vr_agknight), cvar_hget(cvarh_vr_agrunt_repl_crossbow)));
     cvar_set("vr_agrunt_repl", "1");
     cvar_set("vr_agrunt_repl_ad", "1");
     cvar_set("vr_agrunt_repl_variants", "1");
     cvar_set("vr_agknight", "1");
+    cvar_set("vr_agrunt_repl_crossbow", "1"); // (vrmisc: its own switch, off by default; on for the rows below)
     makevectors([0, p.v_angle_y, 0]);
     vector hf = v_forward; // (kept: each spawn makes its own vectors)
     vector hr = v_right;
@@ -136,6 +137,12 @@ void(entity p) VR_HUM_Test =
     cvar_set("vr_agrunt_repl_variants", "1");
     VR_Test_Check(!off.vr_ag && off.classname == "monster_army_plasma", sprintf("off: the plasma soldier AD's (%s, armed %g)",
         off.classname, off.vr_ag));
+    // (vrmisc, his note 2026-11-26) The crossbow knight's own switch off (the default): AD's own.
+    cvar_set("vr_agrunt_repl_crossbow", "0");
+    entity xb = VR_HUMT_Spawn(VR_HUM_V_CROSSBOW, at + hf * 160 + hr * 64);
+    cvar_set("vr_agrunt_repl_crossbow", "1");
+    VR_Test_Check(!xb.vr_ag && xb.classname == "monster_dcrossbow", sprintf("crossbow off: the crossbow knight AD's (%s, armed %g)",
+        xb.classname, xb.vr_ag));
     // Looks by weapon, however armed (a toolgun spawn: "weapon").
     entity os = self;
     entity g1 = spawn();

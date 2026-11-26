@@ -14,7 +14,7 @@
 // Diagnostics mode (vr_diagnostics.cpp) keeps the rest: the debug GL context, the validation layer, XR_LOADER_DEBUG.
 //
 // The bug report: the console's bugreport, Options > Create Bug Report, VR Settings > Headset > Create Bug Report; or
-// -bugreport (the installer's "Quake VR Unleashed (Create Bug Report)"): the last run's, made without starting the
+// -bugreport (the installer's "Quake VR UNLEASHED (Create Bug Report)"): the last run's, made without starting the
 // game. <game folder>/bugreports/<date>_<time>.zip (stored, not compressed: the tree's miniz only reads) with the newest
 // two runs' folders, the crash reports since, gl_startup.log, the config, the runtimes' logs written since, the newest
 // diagnostics folder since, and summary.txt (the build, Windows, the GPU, the runtime, the API layers and overlays, the
@@ -841,7 +841,7 @@ bool makeReport(bool lastRun, char* out, za::SizeT outSize)
     }
 
     za::String summary;
-    summary += va("Quake VR: Unleashed bug report, made %s %s\n", stamp,
+    summary += va("Quake VR: UNLEASHED bug report, made %s %s\n", stamp,
         lastRun ? "with -bugreport (the last run's logs; the game not started)" : "in the game (this run's logs)");
     summary += va("Build: %s\n", VR_BuildInfo());
     summary += va("%s: %s\n", osLabel, osVersion());
@@ -972,7 +972,7 @@ void bugreport_f()
 #ifdef _WIN32
     else if(!getenv("QVR_NO_ERROR_DIALOG") && !getenv("QVR_TEST_HIDDEN"))
     {
-        MessageBoxA(nullptr, va("No bug report could be made:\n%s", path), "Quake VR: Unleashed - Bug Report", MB_OK | MB_ICONWARNING);
+        MessageBoxA(nullptr, va("No bug report could be made:\n%s", path), "Quake VR: UNLEASHED - Bug Report", MB_OK | MB_ICONWARNING);
     }
 #endif
     exit(ok ? 0 : 1);
@@ -1150,7 +1150,7 @@ extern "C" void VR_LogsBegin(void)
     }
     q_snprintf(path, sizeof(path), "%s/console.log", logs.dir);
     LOG_OpenRun(path);
-    systemLine(va("Quake VR: Unleashed %s, run of %s\n", VR_BuildInfo(), logs.stamp));
+    systemLine(va("Quake VR: UNLEASHED %s, run of %s\n", VR_BuildInfo(), logs.stamp));
     systemLine(va("Command line: %s\n", commandLine()));
     systemLine(va("%s: %s\n", osLabel, osVersion()));
     systemLine(va("Game folder: %s\n", com_gamedir));

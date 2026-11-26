@@ -114,7 +114,7 @@ float(entity m, float xBone) VR_AxeStick_LooseIn =
 // tip, towards it (the engine's own test, stickByPoint). An edge's facing is the engine's alone (vr_throw_bladestuck).
 float(entity w, entity xHost) VR_Throw_PointFirst =
 {
-    if(w.classname != "thrown_weapon" || weaponvalue(w.model, "embed") != AXESTICK_POINT)
+    if(w.classname != "thrown_weapon" || VR_Attach_Embed(w.model, w.weaponinst) != AXESTICK_POINT)
     {
         return FALSE;
     }
@@ -186,12 +186,19 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
     self.vr_stick_next = time + AXESTICK_BLEED_TICK;
     self.vr_stick_owed = 0;
     self.vr_stick_tug = 0;
-    self.movetype = MOVETYPE_NONE;
-    self.solid = SOLID_NOT_BUT_TOUCHABLE; // (a hand's grip, a force grab)
-    self.velocity = '0 0 0';
-    self.avelocity = '0 0 0';
-    self.vr_spin = '0 0 0';
-    self.flags = self.flags - (self.flags & FL_ONGROUND);
+    // Its own blow may have let go of it already: the head it went into cut off or popped by it (VR_AxeStick_CutDone: it fell, a
+    // rigid body again). It stays fallen, never held where that head was (his note 2026-11-26, flat: "The axe remained floating in
+    // mid air after the zombie was dead").
+    float fell = (self.vr_stick_kind == AXESTICK_OUT);
+    if(!fell)
+    {
+        self.movetype = MOVETYPE_NONE;
+        self.solid = SOLID_NOT_BUT_TOUCHABLE; // (a hand's grip, a force grab)
+        self.velocity = '0 0 0';
+        self.avelocity = '0 0 0';
+        self.vr_spin = '0 0 0';
+        self.flags = self.flags - (self.flags & FL_ONGROUND);
+    }
 
     if(!vr_embed_stabbing)
     {
@@ -210,8 +217,8 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
     }
     if(cvar_hget(cvarh_vr_debug_axestick))
     {
-        dprint(sprintf("axestick: %s stuck in %s (kind %g) at %.0f u/s, thrown by %s\n", self.netname,
-            other == world ? "the level" : other.classname, xKind, xSpeed, self.vr_stick_by.classname));
+        dprint(sprintf("axestick: %s %s %s (kind %g) at %.0f u/s, thrown by %s\n", self.netname, fell ? "struck, and fell out of" :
+            "stuck in", other == world ? "the level" : other.classname, xKind, xSpeed, self.vr_stick_by.classname));
     }
 };
 

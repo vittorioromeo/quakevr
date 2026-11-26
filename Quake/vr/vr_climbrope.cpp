@@ -1635,7 +1635,6 @@ struct ClimbTest
     glm::vec3 handVel{0.f}; // the rope's velocity at the lowest hand, the last frame he rode it
     float fastest{0.f};     // its fastest level speed since the last mark
     float freeFastest{0.f}; // (ropes6) the ridden rope's free end's fastest level speed since the last mark
-    int grunts{0};          // (ropes6) his pull grunts at the last mark
     float length{470.f};    // the rope's (vrropes' ceiling 480 over the floor: to near the floor; ropes6: shorter)
     int kind{0};            // (ropes7) 0 a rope; 1 a wooden pole, 2 a metal one (standing on the floor); 3 a strung rope
     za::Vector<glm::vec3> made; // (ropes7) a pole's points as made (it never moves)
@@ -2131,7 +2130,6 @@ void climbCheck_f()
         t.mark = o;
         t.fastest = 0.f;
         t.freeFastest = 0.f;
-        t.grunts = climb::ropePullGrunts(player);
         t.ankleJerk = 0.f;
         Con_Printf("%s: mark at %.1f %.1f %.1f\n", climbTestName, o.x, o.y, o.z);
     }
@@ -2205,12 +2203,6 @@ void climbCheck_f()
         check(t.fastest <= n && t.freeFastest <= freeMost,
             va("calm: swing %.1f u/s at the hands (max %.0f), free end %.1f (max %.0f)", t.fastest, n, t.freeFastest,
                 freeMost));
-    }
-    else if(!ZA_STRCMP(what, "grunts"))
-    {
-        // (ropes6) His pull grunts since the mark: n to the second number (a pull up grunts, a grab or a climb down not).
-        const int most = Q_atoi(Cmd_Argv(3)), got = climb::ropePullGrunts(player) - t.grunts;
-        check(got >= static_cast<int>(n) && got <= most, va("pull grunts since the mark: %d (%d to %d)", got, static_cast<int>(n), most));
     }
     else if(!ZA_STRCMP(what, "legs"))
     {

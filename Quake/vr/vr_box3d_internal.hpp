@@ -33,6 +33,7 @@
 #include "vr_tunables.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
+#include "vr_attach.hpp"
 #include "vr_ledges.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
@@ -247,6 +248,7 @@ struct Slot // what one edict is in the world (by its number)
     bool brush{false};    // angles as a brush model's
     bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
     const qmodel_t* mag{nullptr}; // props: a gun's seated magazine its body was made with (seatedMagazine; nullptr none)
+    int attach{0};                // props: the gun's attachment its body was made with (fittedAttachment; 0 none)
     physsound::Material sound{physsound::Material::None}; // what its knocks and scrapes sound like (vr_physsound.cpp)
     double born{0.0};     // the server's time its body was made (a prop: thrown, let go of, launched)
     int pushedStep{-100}; // props: the last step a hand's body pushed it (limitPushes: a hit, then a shove)
@@ -259,6 +261,7 @@ struct Slot // what one edict is in the world (by its number)
     float flightAge{0.f}; // ... seconds of that flight so far (pointAlign)
     float flightOff{0.f};    // ... a pointed blade's angle to its flight as it left the hand (radians; pointAlign's gate)
     float flightTumble{0.f}; // ... and its tumble across the blade then (rad/s)
+    float flightRev{0.f};    // ... thrown from the reverse grip: its leniency then (vr_throw_point_rev_*; 0 upright)
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
     // Corpses (vr_corpse_collide): the setting and the mask (corpseMask) its body was made with, and whether it is
     // dynamic (Pushable) and fitted to its pose (its hulls: corpseHulls) or a box.
@@ -601,6 +604,7 @@ struct World
     float friction{-1.f}, restitution{-1.f};
     b3MeshData* mesh{nullptr}; // (meshCache's)
     b3ShapeId worldShape{b3_nullShapeId};
+    b3BodyId anchor{b3_nullBodyId}; // a static body without shapes at the origin: body A of the motion lock joints
     za::Vector<za::Pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
     za::Vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
     za::Vector<Shock> falls;  // knocked-down monsters' ragdolls hitting the level this frame (the hardest, vertically)
@@ -913,6 +917,24 @@ struct World
         glm::vec3 gap{0.f};   // the handle from there as it took hold: eased away (vr_embed_move_match)
         double gapAt{0.0};
         double called{0.0};   // the QC's last call (a hold it no longer makes ends)
+        // A big prop dragged by a point of its surface (flat-screen Grab / Pull, QC propdrag; no blade): the joint's spring
+        // is linear only (it hangs and swings from the hand, as a ragdoll's limb does), at `hertz`, its gap eased over
+        // `gapOver` s; it ends when that point stays more than `letGo` units off the hand.
+        bool drag{false};
+        float hertz{0.f};
+        float gapOver{0.f};
+        float letGo{0.f};
+        // Pushed as well as dragged (vr_flat_grab_push): the point's target kept as far ahead of the player's body as it
+        // took hold (`arm`: units along his yaw's forward and left), not eased to the hand; `need` the force this hand's
+        // hold would need (N, its share of the mass), `strain` the s it stayed above vr_flat_grab_push_force (times how far), `angle` the
+        // held point round from the target (degrees, level, from the eyes), with their highest (`needMost`, `angleMost`).
+        bool keep{false};
+        glm::vec2 arm{0.f};
+        float need{0.f};
+        float strain{0.f};
+        float angle{0.f};
+        float needMost{0.f};
+        float angleMost{0.f};
     };
     za::Vector<PropBlade> propBlades;
     // Ragdolls made in each other (two grunts dying on one spot, vr_ragdoll_collide_each): they pass through each other
@@ -1200,6 +1222,8 @@ inline HullBuildStats hullBuilds;
 [[nodiscard]] bool chunkPair(b3ShapeId a, b3ShapeId b);
 void addChunkShape(edict_t* ent, int num, b3BodyId body);
 [[nodiscard]] const qmodel_t* seatedMagazine(edict_t* ent, const qmodel_t* model);
+[[nodiscard]] int fittedAttachment(edict_t* ent, const qmodel_t* model);
+[[nodiscard]] const b3HullData* attachmentHull(edict_t* ent, const qmodel_t* model);
 [[nodiscard]] bool isRigid(edict_t* ent);
 
 [[nodiscard]] bool isCorpse(edict_t* ent, int num); // (below)
@@ -1437,6 +1461,10 @@ void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s);
 [[nodiscard]] int looseHolder(const ragdoll::Rig& rig, int loose);
 void syncRagdollGrabs(float dt);
 void syncPropBlades(float dt);
+float holdPropDrag(int num, edict_t* player, int hand, const glm::vec3& target, float force, float lift, float hertz, float letGo);
+[[nodiscard]] bool propDragOf(int player, int hand, int& num, glm::vec3& at, glm::quat& turn, float& off);
+// Whether player `player` pushes prop `num` with his hands (vr_flat_grab_push): his body's capsule doesn't shove it (preSolve).
+[[nodiscard]] bool dragsProp(int player, int num);
 [[nodiscard]] float grabReach(int player, int hand);
 inline unsigned shapeGeneration = 1;
 

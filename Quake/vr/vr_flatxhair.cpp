@@ -20,6 +20,7 @@
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 #include "vr_trace.hpp"
+#include "vr_tunables.hpp"
 #include "vr_units.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_weapons.hpp"
@@ -71,6 +72,7 @@ constexpr float markLength = 0.55f;   // two crosshairs: each one's mark on its 
 constexpr int discSegments = 40;      // a circle or a dot, drawn as this many pieces round it
 constexpr float blockedDim = 0.35f;   // a gun the wall stops from firing (flatsight::wallBlocksFire): its crosshair this dim
 constexpr float dimEase = 0.06f;      // its dimming (the wall, a reload) eases in and out with this time constant (seconds)
+constexpr double throwFresh = 0.1;    // a throw's aim (noteThrowAim) holds this long (seconds of game time) past its last word
 
 // The last move's shot line for each hand (noteMove).
 struct ShotLine
@@ -79,6 +81,11 @@ struct ShotLine
     glm::vec3 muzzle{0.f};
     glm::vec3 hand{0.f};
     glm::vec3 dir{0.f};
+    // A melee weapon's blow (flatplay::strikePath: a swing or a thrust, either grip): its tip's way through the strike, what
+    // it meets or its end (muzzle and hand both at its end, `dir` its last step's way).
+    bool path{false};
+    int pathCount{0};
+    glm::vec3 pathPts[flatplay::strikePathMost]{};
 };
 
 // One hand's crosshair this frame, in the view's pixels from its top left.
@@ -91,7 +98,11 @@ struct Aim
     bool reloading{false}; // its gun is away on its reload trip (flatreload::busy)
     float dim{1.f};       // its opacity for those (eased)
     float kick{0.f};      // its gun's drawn recoil now: muzzle rise (degrees) + kick back (cm) (weaponfx::recoilOffset)
-    float spread{0.f};    // its lines pushed out from the point for that (pixels, smoothed: vr_flat_xhair_kick)
+    float spread{0.f};    // its lines pushed out from the point for that and a melee blow (pixels, smoothed: vr_flat_xhair_kick)
+    float melee{0.f};     // its last melee blow's kick now (pixels at 1080: vr_flat_xhair_melee_*)
+    int strikeCount{0};   // that blow's number (flatplay::lastStrike)
+    bool strikeKnown{false}; // its crosshair was shown as it began: `strikeHit` is where it said the blow would land
+    glm::vec3 strikeHit{0.f};
     glm::vec3 hit{0.f};   // where its shot stops
     glm::vec2 raw{0.f};   // that, projected
     glm::vec2 drawn{0.f}; // where it is drawn (smoothed)
@@ -112,6 +123,12 @@ struct State
     ShotLine shot[HAND_COUNT];
     Aim aim[HAND_COUNT];
     Pellets pellets[HAND_COUNT];
+    int throwHand{-1};          // the hand winding up a throw (noteThrowAim), where it would land, and when that was said
+    glm::vec3 throwAt{0.f};
+    double throwWhen{-1.0};
+    glm::vec3 meleeLanded{0.f}; // where the last melee blow on the world struck (noteMeleeMark)
+    int meleeMarks{0};          // blows noted, and the ones the probe has reported
+    int meleeMarksSeen{0};
     int frame{-1};
     bool merged{true};          // two guns drawn as one
     bool drawnAny{false};       // last frame drew one
@@ -161,7 +178,8 @@ struct TurnTest
 // seat-shared: a test's own (one at a time)
 TurnTest turn;
 
-[[nodiscard]] float tune(const cvar_t& v, float lo, float hi)
+template <typename T>
+[[nodiscard]] float tune(const T& v, float lo, float hi)
 {
     return v.value != v.value ? lo : za::clamp(v.value, lo, hi);
 }
@@ -194,6 +212,22 @@ TurnTest turn;
 // through the teleporters it crosses), as seen from here: through a gate, where the view through it shows it.
 [[nodiscard]] worldtrace::ShotStop shotStop(const ShotLine& s)
 {
+    if(s.path)
+    {
+        // (What the tip meets in the strike is what it strikes, step by step along its way; nothing in its reach: where its
+        // tip ends, the place on the view a thing must be for the blow to land on it. Not on along the blade: tilted down,
+        // that is the floor ahead.)
+        for(int i = 1; i < s.pathCount; i++)
+        {
+            const auto part = worldtrace::shotLine(s.pathPts[i - 1], s.pathPts[i], MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
+            if(part && part->gates == 0 && glm::distance(part->at, s.pathPts[i]) > 0.01f)
+            {
+                return *part;
+            }
+        }
+        const glm::vec3 end = s.pathPts[za::max(s.pathCount - 1, 0)];
+        return worldtrace::ShotStop{end, end, 0};
+    }
     const glm::vec3 src = backPoint(s);
     const glm::vec3 end = src + s.dir * (shotRange + glm::distance(s.muzzle, src));
     const auto stop = worldtrace::shotLine(src, end, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
@@ -215,6 +249,13 @@ TurnTest turn;
     }
     out = {(c.x / c.w * 0.5f + 0.5f) * st().view.x, (0.5f - c.y / c.w * 0.5f) * st().view.y};
     return true;
+}
+
+// Hand `h` winds up a throw now (noteThrowAim, fresh): its crosshair is on where it would land.
+[[nodiscard]] bool throwing(int h)
+{
+    return h == st.throwHand && st.throwWhen >= 0.0 && vr_gametime - st.throwWhen <= throwFresh && vr_gametime >= st.throwWhen &&
+           vr_flat_xhair_throw_aim.value != 0.f;
 }
 
 // The hand holds a gun its crosshair is for: a weapon, not the fist, not one whose crosshair is forbidden (melee).
@@ -297,6 +338,36 @@ void turnReport()
     Con_Printf("flatxhair turn: done\n");
 }
 
+// Item 10 of his flat notes 2026-11-26 ("Melee attacks should also widen the crosshair similarly to how firing weapons
+// does"): hand `k`'s melee blow's kick now (pixels at 1080), added to its gun's recoil's (update): vr_flat_xhair_melee_kick
+// as its strike begins, by its weapon's weight (vr_flat_xhair_melee_mass; a fist's or a prop's vr_flat_xhair_melee_fist
+// of it), back in over vr_flat_xhair_melee_decay. And a new blow's crosshair as it began (the probe's landed-against-said).
+[[nodiscard]] float meleeKick(int k)
+{
+    Aim& a = st.aim[k];
+    float since = 0.f, mass = 0.f;
+    int count = 0;
+    if(!flatplay::lastStrike(k, since, count, mass))
+    {
+        return 0.f;
+    }
+    if(count != a.strikeCount)
+    {
+        a.strikeCount = count;
+        a.strikeKnown = a.shown && a.had;
+        a.strikeHit = a.hit;
+    }
+    const float decay = tune(vr_flat_xhair_melee_decay, 0.01f, 2.f);
+    if(since < 0.f || since > decay * 10.f)
+    {
+        return 0.f;
+    }
+    const float share = mass > 0.f   ? za::clamp(za::sqrt(mass / tune(vr_flat_xhair_melee_mass, 0.1f, 30.f)), 0.5f, 2.f)
+                        : mass < 0.f ? 1.f // (a weapon with no weight in its data: the kick as it is)
+                                     : tune(vr_flat_xhair_melee_fist, 0.f, 4.f);
+    return tune(vr_flat_xhair_melee_kick, 0.f, 64.f) * share * za::exp(-since / decay);
+}
+
 // Once a frame: each hand's hit, its place on the view, snapped and smoothed.
 void update(int w, int h)
 {
@@ -326,30 +397,37 @@ void update(int w, int h)
     const float tau = tune(vr_flat_xhair_smooth, 0.f, 0.5f);
     const float dt = za::clamp(static_cast<float>(host_frametime), 0.f, 0.1f);
     const float follow = tau > 0.f ? 1.f - za::exp(-dt / tau) : 1.f;
+    const float kickTau = tune(vr_flat_xhair_kick_smooth, 0.f, 0.3f);
     for(int k = 0; k < HAND_COUNT; k++)
     {
         Aim& a = st().aim[k];
-        a.shown = st().shot[k].valid && gunIn(k);
+        // A shot's feedback (his words 2026-11-10): the lines pushed out from the point, the same length, as far as the gun's
+        // drawn recoil kicks it now (its own Weapon Offsets > Effects rise and kick, back to rest in its Recoil Time), and a
+        // melee blow's as well (meleeKick), smoothed. Each hand's, its crosshair shown or not: a blow with a melee weapon (no
+        // crosshair of its own) or a fist widens the one drawn (draw).
+        glm::vec3 kickPos{0.f}, kickAngles{0.f};
+        weaponfx::recoilOffset(k, glm::vec3{0.f}, kickPos, kickAngles);
+        a.kick = za::fabs(kickAngles.x) + glm::length(kickPos) * 100.f / units::metresToUnits();
+        a.melee = meleeKick(k);
+        const float spreadTo =
+            za::min(tune(vr_flat_xhair_kick, 0.f, 10.f) * a.kick + a.melee, tune(vr_flat_xhair_kick_max, 0.f, 64.f)) * px;
+        a.spread = kickTau > 0.f ? a.spread + (spreadTo - a.spread) * (1.f - za::exp(-dt / kickTau)) : spreadTo;
+        // (A melee weapon's too, whatever its own crosshair setting: on where its blow lands, flatplay::strikePath. And a
+        // hand winding up a throw, whatever it holds: on where the throw would land, noteThrowAim.)
+        const bool throws = throwing(k);
+        a.shown = st().shot[k].valid && (gunIn(k) || st().shot[k].path || throws);
         if(!a.shown)
         {
             a.had = false;
             continue;
         }
-        a.blocked = flatsight::wallBlocksFire(k);
+        a.blocked = !throws && flatsight::wallBlocksFire(k);
         // (Or drawn open, its muzzle turned away by its open pose: it can't fire either.)
-        a.reloading = flatreload::busy(k) || flatreload::openShare(k) > 0.f;
+        a.reloading = !throws && (flatreload::busy(k) || flatreload::openShare(k) > 0.f);
         // Dimmed while the wall stops it or it is away reloading, eased both ways (a gun that can't fire now).
         const float dimTo = za::min(a.blocked ? blockedDim : 1.f, a.reloading ? tune(vr_flat_xhair_reload_alpha, 0.f, 1.f) : 1.f);
         a.dim = a.had ? a.dim + (dimTo - a.dim) * (1.f - za::exp(-dt / dimEase)) : dimTo;
-        // A shot's feedback (his words 2026-11-10): the lines pushed out from the point, the same length, as far as the gun's
-        // drawn recoil kicks it now (its own Weapon Offsets > Effects rise and kick, back to rest in its Recoil Time), smoothed.
-        glm::vec3 kickPos{0.f}, kickAngles{0.f};
-        weaponfx::recoilOffset(k, glm::vec3{0.f}, kickPos, kickAngles);
-        a.kick = za::fabs(kickAngles.x) + glm::length(kickPos) * 100.f / units::metresToUnits();
-        const float spreadTo = za::min(tune(vr_flat_xhair_kick, 0.f, 10.f) * a.kick, tune(vr_flat_xhair_kick_max, 0.f, 64.f)) * px;
-        const float kickTau = tune(vr_flat_xhair_kick_smooth, 0.f, 0.3f);
-        a.spread = a.had && kickTau > 0.f ? a.spread + (spreadTo - a.spread) * (1.f - za::exp(-dt / kickTau)) : spreadTo;
-        a.hit = shotHit(st().shot[k]);
+        a.hit = throws ? st().throwAt : shotHit(st().shot[k]);
         if(!project(a.hit, a.raw, st().shotViewProj))
         {
             a.raw = st().centre;
@@ -631,12 +709,14 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     }
     else if(l.shown || r.shown)
     {
+        // (The other hand's melee blow widens it too: no crosshair of its own.)
         const Aim& a = l.shown ? l : r;
-        one(a.drawn, 0, a.dim, a.spread);
+        one(a.drawn, 0, a.dim, za::max(l.spread, r.spread));
     }
     else
     {
-        one(st().centre, 0, 1.f, 0.f); // (no gun: where he looks, for the hands, the grab and the punch)
+        // (No gun: where he looks, for the hands, the grab and the punch; a blow's kick its lines' spread.)
+        one(st().centre, 0, 1.f, za::max(l.spread, r.spread));
     }
     st().drawnAny = true;
     GL_EndGroup();
@@ -666,6 +746,19 @@ void probe_f()
             a.snapped ? 1 : 0, a.blocked ? 1 : 0, a.drawn.x, a.drawn.y, glm::distance(a.drawn, st().centre));
         Con_Printf("flatxhair: %s dim %.2f reload %d wall %.2f\n", name, a.dim, a.reloading ? 1 : 0, flatsight::wallShot(k));
         Con_Printf("flatxhair: %s kick %.2f spread %.2f px\n", name, a.kick, a.spread);
+        Con_Printf("flatxhair: %s melee kick %.2f px blows %d path %d\n", name, a.melee, a.strikeCount, st.shot[k].path ? 1 : 0);
+        if(throwing(k))
+        {
+            Con_Printf("flatxhair: %s throw aim %.1f %.1f %.1f\n", name, st.throwAt.x, st.throwAt.y, st.throwAt.z);
+        }
+        if(st.shot[k].path)
+        {
+            const ShotLine& s = st.shot[k];
+            const glm::vec3& p0 = s.pathPts[0];
+            const glm::vec3& p1 = s.pathPts[za::max(s.pathCount - 1, 0)];
+            Con_Printf("flatxhair: %s path %.1f %.1f %.1f to %.1f %.1f %.1f points %d\n", name, p0.x, p0.y, p0.z, p1.x, p1.y, p1.z,
+                s.pathCount);
+        }
         // The gun as drawn: where its barrel's line (the weapon's Shot Pitch and Yaw on its drawn angles) goes from its drawn
         // muzzle, against the shot's line as sent (degrees between the two ways; the barrel's hit on the view).
         glm::vec3 gunMuzzle{0.f}, gunRot{0.f};
@@ -716,6 +809,21 @@ void probe_f()
         }
         p = {};
     }
+    // The melee blow that struck the world since the last probe, against where the crosshair of the hand that struck last
+    // said it would land as it began (units apart, and on the view now).
+    if(st.meleeMarks != st.meleeMarksSeen)
+    {
+        st.meleeMarksSeen = st.meleeMarks;
+        const int k = st.aim[HAND_MAIN].strikeCount > 0 ? HAND_MAIN : HAND_OFF;
+        const Aim& a = st.aim[k];
+        glm::vec2 landedAt{0.f}, saidAt{0.f};
+        const bool seen = project(st.meleeLanded, landedAt) && project(a.strikeHit, saidAt);
+        Con_Printf("flatxhair: %s melee landed %.1f %.1f %.1f\n", k == HAND_MAIN ? "main" : "off", st.meleeLanded.x,
+            st.meleeLanded.y, st.meleeLanded.z);
+        Con_Printf("flatxhair: %s melee said %d %.1f %.1f %.1f apart %.1f px %.1f\n", k == HAND_MAIN ? "main" : "off",
+            a.strikeKnown ? 1 : 0, a.strikeHit.x, a.strikeHit.y, a.strikeHit.z, glm::distance(a.strikeHit, st.meleeLanded),
+            seen ? glm::distance(landedAt, saidAt) / px : -1.f);
+    }
 }
 
 // vr_flat_xhair_turntest [degrees a second, 360] [frames, 144] [frames each way, 36]
@@ -751,7 +859,30 @@ void noteMove(const VrMove& move)
         s.muzzle = move.muzzlePos[k];
         s.hand = move.hands[k].pos;
         s.dir = hands::forward(move.shotRot[k]);
+        // (A melee weapon strikes where its blow takes it, a swing or a thrust in either grip, not along its shot's line
+        // (a flipped spear's pointed back over the shoulder): the crosshair goes on that.)
+        s.path = vr_flat_xhair_thrust_path.value != 0.f && flatplay::strikePath(k, s.pathPts, s.pathCount) && s.pathCount >= 2;
+        if(s.path)
+        {
+            const glm::vec3& end = s.pathPts[s.pathCount - 1];
+            const glm::vec3 step = end - s.pathPts[s.pathCount - 2];
+            s.muzzle = s.hand = end;
+            s.dir = glm::length(step) > 1e-3f ? glm::normalize(step) : s.dir;
+        }
     }
+}
+
+void noteThrowAim(int hand, const glm::vec3& at)
+{
+    st.throwHand = hand >= 0 && hand < HAND_COUNT ? hand : -1;
+    st.throwAt = at;
+    st.throwWhen = vr_gametime;
+}
+
+void noteMeleeMark(const glm::vec3& at)
+{
+    st.meleeLanded = at;
+    st.meleeMarks++;
 }
 
 void noteTracer(int hand, const glm::vec3& to)

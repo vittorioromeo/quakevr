@@ -1,0 +1,15 @@
+# attach_bayonet: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". attach1 (ROUND26.md, ATTACHMENTS.md):
+# weapon attachments, the bayonet on the shotgun and the super shotgun.
+title Bayonets: put them on the shotguns, stab, stick, fire and reload stuck
+cvar vr_embed 1
+cvar vr_embed_fire 1
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Super Shotgun" 40 30
+spawn "Bayonet" 40 -20
+spawn "Bayonet" 40 -35
+spawn "Ogre" 140 -60
+spawn "Ogre" 140 60
+hint Take a bayonet in your left hand and bring its socket to the shotgun's muzzle, under the barrel: it snaps on. Stab an ogre: it sticks; keep your hand on the gun and pull the trigger: it fires there. Grip the bayonet with the empty hand and pull it off. The same with the super shotgun (break it open, load it). Holster, drop and throw a gun with its bayonet: it stays on. Flat-screen: H takes a bayonet in the free hand, J puts it on (or takes it off), V stabs with it, fire shoots.

@@ -50,14 +50,14 @@ void() VR_FlatKeysTest_Frame =
 
     if(mode == 4)
     {
-        entity hMain = VR_Carry_Held(player, cVR_MainHand);
-        entity hOff = VR_Carry_Held(player, cVR_OffHand);
+        entity hMain = VR_FlatGrab_Held(player, cVR_MainHand); // (a big prop dragged too)
+        entity hOff = VR_FlatGrab_Held(player, cVR_OffHand);
         bprint(sprintf("flatkeys: held main %s %.0f %.0f %.0f ", hMain == world ? "-" : hMain.classname,
             hMain == world ? 0 : hMain.origin_x, hMain == world ? 0 : hMain.origin_y, hMain == world ? 0 : hMain.origin_z));
         bprint(sprintf("off %s %.0f %.0f %.0f ", hOff == world ? "-" : hOff.classname,
             hOff == world ? 0 : hOff.origin_x, hOff == world ? 0 : hOff.origin_y, hOff == world ? 0 : hOff.origin_z));
-        bprint(sprintf("grab %g wpn %g %g\n", player.vr_flatgrab_hands, VRGetEntWeapon(player, cVR_MainHand),
-            VRGetEntWeapon(player, cVR_OffHand)));
+        bprint(sprintf("grab %g wpn %g %g me %.0f %.0f %.0f\n", player.vr_flatgrab_hands, VRGetEntWeapon(player, cVR_MainHand),
+            VRGetEntWeapon(player, cVR_OffHand), player.origin_x, player.origin_y, player.origin_z));
         cvar_set("vr_flatkeys_test", "0");
         return;
     }

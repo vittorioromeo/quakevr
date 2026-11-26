@@ -8,8 +8,9 @@ namespace QuakeVR.Installer.SelfTest;
 /// <summary>
 /// A fake adb for the Quest target's tests: records every command and answers like adb and the headset's shell would,
 /// with the headset's app files folder (<see cref="QuestFiles.DeviceRoot"/>) as a folder on this PC. It understands the
-/// commands QuestInstaller sends (devices, install, getprop, pm path, md5sum, mkdir, find/stat, chmod, df, exec-in tar)
-/// and simulates no device, an unauthorized one, several, a failed install, a full disk and a disk filling mid-copy.
+/// commands QuestInstaller sends (devices, install, push, getprop, pm path, md5sum, mkdir, find/stat, chmod, df, mv, rm,
+/// echo, exec-in tar) and simulates no device, an unauthorized one, several, a failed install, a full disk, a disk filling
+/// mid-copy, folders the game made, and adbd's "remote fchown failed" (its target unlinked; /data/local/tmp as another folder).
 /// </summary>
 sealed class FakeAdb(string deviceFiles) : IAdb
 {
@@ -30,6 +31,14 @@ sealed class FakeAdb(string deviceFiles) : IAdb
     public List<string> Chmodded { get; } = [];
     /// <summary>Folders the game made itself (u0_aNNN, 770): adb push into them is refused (the real Quest's quakevr/doom).</summary>
     public HashSet<string> GameFolders { get; } = new(StringComparer.Ordinal);
+    /// <summary>adb push into the app's folder fails "remote fchown failed" after unlinking its target (questb6's Quest 3).</summary>
+    public bool FchownFails { get; set; }
+    public int FchownFailures { get; private set; }
+    /// <summary>adb's shell's own folder (/data/local/tmp), another filesystem: a mv from it into the app's folder copies.</summary>
+    public const string TmpRoot = "/data/local/tmp";
+    public string TmpFiles { get; } = Directory.CreateDirectory(deviceFiles + "-tmp").FullName;
+    /// <summary>Every path a shell rm/mv removed or moved away (the headset's paths as sent).</summary>
+    public List<string> Removed { get; } = [];
 
     public AdbResult Run(IReadOnlyList<string> args, Stream? stdin, CancellationToken ct)
     {
@@ -111,52 +120,97 @@ sealed class FakeAdb(string deviceFiles) : IAdb
         return Ok("");
     }
 
-    /// <summary>adb push: one file to a path, or several into a folder ("dir/"), which must exist (as adb's); counts
-    /// each file in <see cref="TarFiles"/>; a full disk stops it ("No space left on device", exit 1).</summary>
+    /// <summary>adb push: one file to a path, or several into a folder ("dir/"), which must exist (as adb's), in the app's
+    /// files folder or /data/local/tmp; counts each file written in <see cref="TarFiles"/>; a full disk stops it ("No space
+    /// left on device", exit 1). As adbd: the target is unlinked before it is written, and stays unlinked when the push
+    /// then fails (<see cref="FchownFails"/>: the real Quest 3's "remote fchown failed" in the app's folder).</summary>
     AdbResult Push(List<string> sources, string target)
     {
-        if (!target.StartsWith(QuestFiles.DeviceRoot + "/", StringComparison.Ordinal))
+        var intoDir = target.EndsWith('/');
+        var dest = Resolve(target.TrimEnd('/'));
+        if (dest is null)
         {
             return new AdbResult(1, "", $"adb: error: unexpected target {target}");
         }
-        var rel = target[(QuestFiles.DeviceRoot.Length + 1)..];
-        var intoDir = rel.EndsWith('/');
-        if ((sources.Count > 1 && !intoDir) || (intoDir && !Directory.Exists(Local(rel.TrimEnd('/')))))
+        if ((sources.Count > 1 && !intoDir) || (intoDir && !Directory.Exists(dest)))
         {
             return new AdbResult(1, "", $"adb: error: target '{target}' is not a directory");
         }
-        var buffer = new byte[65536];
         foreach (var source in sources)
         {
-            var devicePath = intoDir ? rel + Path.GetFileName(source) : rel;
-            if (GameFolders.Contains(devicePath[..devicePath.LastIndexOf('/')]))
+            var path = intoDir ? Path.Combine(dest, Path.GetFileName(source)) : dest;
+            var rel = DeviceRel(path);
+            if (rel is not null && GameFolders.Contains(DirOf(rel)))
             {
                 return new AdbResult(1, "", $"adb: error: failed to copy '{source}' to '{target}': remote couldn't create file: Permission denied");
             }
-            var path = Local(devicePath);
+            File.Delete(path); // (adbd: "don't delete files before copying if they are not regular": these are)
+            if (rel is not null && FchownFails)
+            {
+                ++FchownFailures;
+                return new AdbResult(1, "", $"adb: error: failed to copy '{source}' to '{target}': remote fchown failed: Operation not permitted");
+            }
             using var input = File.OpenRead(source);
             using var output = File.Create(path);
-            ++TarFiles;
-            int n;
-            while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
+            if (!Copy(input, output))
             {
-                var take = WriteQuota is { } q ? (int)Math.Min(q, n) : n;
-                output.Write(buffer, 0, take);
-                if (WriteQuota is not null)
-                {
-                    WriteQuota -= take;
-                    if (WriteQuota == 0)
-                    {
-                        FreeBytes = 0;
-                        return new AdbResult(1, "", $"adb: error: failed to copy '{source}' to '{target}': remote No space left on device");
-                    }
-                }
+                return new AdbResult(1, "", $"adb: error: failed to copy '{source}' to '{target}': remote No space left on device");
             }
+            ++TarFiles;
         }
         return Ok($"{sources.Count} files pushed.\n");
     }
 
+    /// <summary>Writes, within <see cref="WriteQuota"/>: false when the disk filled up (df then says 0).</summary>
+    bool Copy(Stream input, Stream output)
+    {
+        var buffer = new byte[65536];
+        int n;
+        while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            var take = WriteQuota is { } q ? (int)Math.Min(q, n) : n;
+            output.Write(buffer, 0, take);
+            if (WriteQuota is not null)
+            {
+                WriteQuota -= take;
+                if (WriteQuota == 0 && (take < n || input.Position < input.Length))
+                {
+                    FreeBytes = 0;
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     string Local(string devicePath) => Path.GetFullPath(Path.Combine(DeviceFiles, devicePath.Replace('/', '\\')));
+
+    /// <summary>A headset path (absolute in the app's folder or /data/local/tmp, or relative to the app's folder) on this PC; null elsewhere.</summary>
+    string? Resolve(string path)
+    {
+        if (path == QuestFiles.DeviceRoot)
+        {
+            return DeviceFiles;
+        }
+        if (path.StartsWith(QuestFiles.DeviceRoot + "/", StringComparison.Ordinal))
+        {
+            return Local(path[(QuestFiles.DeviceRoot.Length + 1)..]);
+        }
+        if (path.StartsWith(TmpRoot + "/", StringComparison.Ordinal))
+        {
+            return Path.GetFullPath(Path.Combine(TmpFiles, path[(TmpRoot.Length + 1)..].Replace('/', '\\')));
+        }
+        return path.StartsWith('/') ? null : Local(path);
+    }
+
+    /// <summary>A local path's headset path relative to the app's folder; null outside it (/data/local/tmp).</summary>
+    string? DeviceRel(string local)
+    {
+        var rel = Path.GetRelativePath(DeviceFiles, local);
+        return rel.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(rel) ? null : rel.Replace('\\', '/');
+    }
+
+    static string DirOf(string rel) => rel.Contains('/') ? rel[..rel.LastIndexOf('/')] : "";
 
     AdbResult Shell(string command)
     {
@@ -169,7 +223,19 @@ sealed class FakeAdb(string deviceFiles) : IAdb
             }
             words = words[3..];
         }
+        else if (words is ["cd", var root, "||", "exit", "1", ";", ..])
+        {
+            if (root != QuestFiles.DeviceRoot)
+            {
+                return new AdbResult(1, "", "cd: unexpected folder");
+            }
+            words = words[6..];
+        }
         words = [.. words.Where(w => w != "2>/dev/null")];
+        if (words.Any(w => w is ";" or "&&" or "||") || words[0] is "rm" or "mv" or "echo")
+        {
+            return Compound(words);
+        }
         var sb = new StringBuilder();
         switch (words[0])
         {
@@ -180,7 +246,7 @@ sealed class FakeAdb(string deviceFiles) : IAdb
             case "mkdir":
                 foreach (var d in words.Skip(1).Where(w => !w.StartsWith('-')))
                 {
-                    Directory.CreateDirectory(Local(d == QuestFiles.DeviceRoot ? "" : d));
+                    Directory.CreateDirectory(Resolve(d) ?? throw new Exception($"mkdir outside the fake headset: {d}"));
                 }
                 return Ok("");
             case "df":
@@ -225,6 +291,100 @@ sealed class FakeAdb(string deviceFiles) : IAdb
                 return Ok(sb.ToString());
         }
         return new AdbResult(127, "", $"/system/bin/sh: {words[0]}: not handled by the fake");
+    }
+
+    /// <summary>A shell line of statements (";") of commands joined by "&&" and "||" (left to right, as sh): mv [-f], echo,
+    /// rm -f / -rf, exit. A mv from /data/local/tmp into the app's folder copies (another filesystem: within
+    /// <see cref="WriteQuota"/>, a cut-short copy left behind as toybox would), into a folder the game made is refused.</summary>
+    AdbResult Compound(List<string> words)
+    {
+        var output = new StringBuilder();
+        var error = new StringBuilder();
+        var status = 0;
+        var start = 0;
+        string? op = null;
+        for (var i = 0; i <= words.Count; ++i)
+        {
+            if (i < words.Count && words[i] is not (";" or "&&" or "||"))
+            {
+                continue;
+            }
+            var cmd = words[start..i];
+            if (cmd.Count > 0 && (op is null or ";" || (op == "&&" && status == 0) || (op == "||" && status != 0)))
+            {
+                if (cmd is ["exit", var code])
+                {
+                    return new AdbResult(int.Parse(code), output.ToString(), error.ToString());
+                }
+                status = Simple(cmd, output, error);
+            }
+            op = i < words.Count ? words[i] : null;
+            start = i + 1;
+        }
+        return new AdbResult(status, output.ToString(), error.ToString());
+    }
+
+    int Simple(List<string> cmd, StringBuilder output, StringBuilder error)
+    {
+        switch (cmd[0])
+        {
+            case "echo":
+                output.Append(string.Join(" ", cmd.Skip(1))).Append('\n');
+                return 0;
+            case "rm" when cmd.Count > 1 && cmd[1] is "-f" or "-rf":
+                foreach (var p in cmd.Skip(2))
+                {
+                    var local = Resolve(p) ?? throw new Exception($"rm outside the fake headset: {p}");
+                    if (File.Exists(local))
+                    {
+                        File.Delete(local);
+                        Removed.Add(p);
+                    }
+                    else if (Directory.Exists(local))
+                    {
+                        if (cmd[1] != "-rf")
+                        {
+                            error.Append($"rm: {p}: is a directory\n");
+                            return 1;
+                        }
+                        Directory.Delete(local, true);
+                        Removed.Add(p);
+                    }
+                }
+                return 0;
+            case "mv" when cmd.Count == 4 && cmd[1] == "-f":
+                var from = Resolve(cmd[2]);
+                var to = Resolve(cmd[3]);
+                if (from is null || to is null || !File.Exists(from))
+                {
+                    error.Append($"mv: {cmd[2]}: No such file or directory\n");
+                    return 1;
+                }
+                if (DeviceRel(to) is { } rel && (GameFolders.Contains(DirOf(rel)) || !Directory.Exists(Path.GetDirectoryName(to))))
+                {
+                    error.Append($"mv: {cmd[3]}: Permission denied\n");
+                    return 1;
+                }
+                Removed.Add(cmd[2]);
+                if (DeviceRel(from) is null && DeviceRel(to) is not null)
+                {
+                    using (var input = File.OpenRead(from))
+                    using (var copy = File.Create(to))
+                    {
+                        if (!Copy(input, copy))
+                        {
+                            error.Append($"mv: {cmd[3]}: No space left on device\n");
+                            return 1;
+                        }
+                    }
+                    File.Delete(from);
+                    return 0;
+                }
+                File.Move(from, to, overwrite: true);
+                return 0;
+        }
+        error.Append($"/system/bin/sh: {cmd[0]}: not handled by the fake\n");
+        return 127;
     }
 
     /// <summary>The shell's words: spaces split, '...' quotes (with '\'' inside).</summary>

@@ -177,7 +177,9 @@ struct FreeGrip
     glm::vec3 base{0.f};
     glm::vec3 axis{1.f, 0.f, 0.f};
     float u = 0.f, uMin = -1e9f, uMax = 1e9f;
+    float uFree = 0.f; // (vr_pole_grip_fixed: where the hand would be along it, sliding: the holding hand's slide goes by its change)
     glm::vec3 handPoint{0.f};
+    float handAlong = 0.f; // (the holding hand's own slide then: freeHand)
     // The holding hand's own slide (PoleSlide) when the grip began (uMin/uMax were measured on the weapon drawn so), and
     // the holding hand's limits along the pole from the handle (the butt, the head's start; units).
     float alongAtStart = 0.f;
@@ -435,7 +437,8 @@ void poleTurn(const FreeGrip& g, const RelPose& now, RelPose& on)
 [[nodiscard]] bool flatLetsGo(int holding, int helping)
 {
     return flatplay::punching(helping) || flatplay::shoving(helping) || flatreload::busy(holding) || flatgrenade::letsGo(holding, helping) ||
-           flatswap::gripBlocked() || flatfgrab::busy(helping) || flatswim::freesHand(); // (swimming: vr_flatswim.cpp)
+           flatswap::gripBlocked() || flatfgrab::busy(helping) || flatswim::freesHand() || // (swimming: vr_flatswim.cpp)
+           (flatplay::active() && flatplay::oneHandOnly(holding)); // (flatgrip3: a dagger, an axe, by their options: never two-handed)
 }
 
 // The Blade hotspot of the weapon of `slot` held as a sword (Two-Handed: Sword) into `out`; false for none.
@@ -493,6 +496,18 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     const float length = s.muzzleValid[holding] ? glm::distance(holdingPos, s.muzzle[holding]) : 0.f;
     float bladeDist = 1e9f;
+    // (Flatscreen's guard on a weapon with no Blade hotspot of its own: the shaft's share, swordBlade's fallback,
+    // vr_flat_parry_shaft_at; the default hotspot's span about it.)
+    const bool flatGuard = flatplay::active() && flatplay::bladeAsked(holding);
+    if(float shaftAt = 0.f; flatGuard && bladeAt <= 0.f && swordBlade(slot, shaftAt))
+    {
+        weapons::Hotspot h;
+        h.type = weapons::HotspotType::Blade;
+        h.pos.x = shaftAt;
+        bladeAt = shaftAt;
+        bladeFrom = weapons::bladeFrom(h);
+        bladeTo = weapons::bladeTo(h);
+    }
     // (Flatscreen play: the blade only in the parry's guard, where the pose puts the free hand on it (flatplay::bladeAsked,
     // vr_flat_parry_blade; his notes 2026-11-23), and it lets go as the guard ends. Else never: a melee weapon's two-handed
     // hold is on its grip there (vr_flat_melee_grip; his notes 2026-11-10: it took the blade, the "sword" spot); the view
@@ -504,7 +519,7 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
         // (Flatscreen's guard: the blade from as near the hand as the pose brings a long blade's hotspot in,
         // flatplay::bladeReach.)
-        const float flatReach = flat ? flatplay::bladeReach() : 0.f;
+        const float flatReach = flat ? flatplay::bladeReach(holding) : 0.f;
         const float takeFrom = flatReach > 0.f ? za::min(bladeFrom, flatReach / length - 0.05f) : bladeFrom;
         bladeDist = geom::segmentDistance(s.pos[helping], holdingPos + toTip * takeFrom, holdingPos + toTip * bladeTo, nullptr, 0.f) - bladeBias;
     }
@@ -536,6 +551,12 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
             th().grip[holding] = GRIP_BLADE;
             th().gripLength[holding] = length;
             held = true;
+            if(vr_debug_2h_grip.value)
+            {
+                // (Held throughout, so not the take's line below: the guard's switch, vr_view_hands.cpp's easeGripSwitch.)
+                Con_Printf("2h grip: %s hand took the blade from the grip below the hand (%.1f units off it)\n",
+                    holding == HAND_MAIN ? "off" : "main", bladeDist);
+            }
         }
         else
         {
@@ -795,14 +816,29 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         // handle, along, changes by as much as this hand's place from the holding hand would have).
         const glm::vec3 h = relativeTo(holdingPos, rot0, s.pos[helping], rot0).pos;
         PoleSlide& ps = th().poleSlides[holding];
+        const bool fixed = vr_pole_grip_fixed.value != 0.f;
+        if(fixed)
+        {
+            g.u = g.uFree; // (vr_pole_grip_fixed: the hand's own place, as it would slide, for the holding hand's slide)
+        }
         const float uWas = g.u;
         g.u = poleSlide(g, h, off, ps.along - g.alongAtStart);
+        g.uFree = g.u;
         ps.sliding = false;
         if(holderSlides(holding, helping))
         {
             const float along = za::clamp(ps.along - (g.u - uWas), g.alongMin, g.alongMax);
             ps.sliding = za::abs(along - ps.along) > 1e-4f;
             ps.along = along;
+        }
+        if(fixed)
+        {
+            // vrspear (his VR note 2026-11-26 20:09: "prevents the offhand from sliding up and down the shaft"): its place on
+            // the pole stays where it took hold. The pole moves under it only as the holding hand slides (its place from the
+            // holding hand, u, plus the holding hand's from the handle, along, kept); how far the hand is from that place (as
+            // far from the holding hand) is what lets go of it.
+            g.u = za::clamp(g.alongAtStart - ps.along, g.uMin - (ps.along - g.alongAtStart), g.uMax - (ps.along - g.alongAtStart));
+            off = za::abs(glm::length(h) - glm::length(g.base + g.axis * g.u));
         }
         g.point = g.base + g.axis * g.u;
         if(vr_debug_2h_grip.value >= 2 && vr_gametime >= th().debugPrintAt)
@@ -909,6 +945,7 @@ FreeGrip& beginFree(const hands::State& s, const glm::vec3 (&originalRots)[2], i
             g.uMax = 1e9f;
         }
         g.handPoint = point;
+        g.handAlong = poleSlides[holding].along;
     }
     g.hold = carry2h::record(frameOf(s.pos[holding], originalRots[holding]), bothFrames(s, originalRots).f);
     g.lastOn = vr_gametime;
@@ -1251,7 +1288,11 @@ void applyFixed(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     else if(th().grabStart[helping] == vr_gametime)
     {
-        th().gripArmed[helping] = goodDistance && goodDot;
+        // (A grip closed on the gun's attachment pulls it off (QC vr_attach.qc VR_Attach_Frame): never the gun's grip too.)
+        glm::vec3 mount, tip;
+        const bool onAttachment = view::drawnAttachment(holding, mount, tip) &&
+                                  glm::distance(s.pos[helping], mount) <= vr_attach_pull_radius.value;
+        th().gripArmed[helping] = goodDistance && goodDot && !onAttachment;
     }
     const bool edgeOk = wasHeld || th().gripArmed[helping];
     if(vr_debug_2h_grip.value && !wasHeld && canGrab && goodDistance && goodDot && !edgeOk && !th().gripRefusedSaid[helping])
@@ -1538,14 +1579,30 @@ bool bladeGrip(int hand)
     return th().aimTransition[hand] > 0.f && th().grip[hand] == GRIP_BLADE;
 }
 
-bool swordBlade(int slot, float& at)
+bool swordBlade(int slot, float& at, bool* shaft)
 {
-    weapons::Hotspot h;
-    if(!bladeHotspot(slot, h) || h.pos.x <= 0.f)
+    if(shaft)
+    {
+        *shaft = false;
+    }
+    if(weapons::Hotspot h; bladeHotspot(slot, h) && h.pos.x > 0.f)
+    {
+        at = h.pos.x;
+        return true;
+    }
+    // (flatparry2, his flat notes 2026-11-26: the ogres' hammer and mace, the fury's sword, the judicator's sword (its Blade
+    // hotspot at share 0) had both hands on the handle in the guard: the free hand on the shaft near the head instead, at
+    // vr_flat_parry_shaft_at, until a Blade hotspot of its own is set up.)
+    const float fallback = za::clamp(vr_flat_parry_shaft_at.value, 0.f, 1.f);
+    if(fallback <= 0.f || slot < 0 || static_cast<int>(weapons::value(slot, Key::TwoHMode)) != WPN_2H_SWORD)
     {
         return false;
     }
-    at = h.pos.x;
+    at = fallback;
+    if(shaft)
+    {
+        *shaft = true;
+    }
     return true;
 }
 
@@ -1908,6 +1965,12 @@ int freeMode(int holding)
     return th().freeGrips[holding].on ? th().freeGrips[holding].mode : -1;
 }
 
+float poleHelpShare(int hand)
+{
+    const FreeGrip& g = freeGrips[1 - hand];
+    return freeHelping(hand) && g.mode == FREE_POLE ? za::clamp(g.t, 0.f, 1.f) : 0.f;
+}
+
 bool freeHand(int hand, const glm::vec3& trackedPos, const glm::vec3& trackedRot, const glm::vec3& holderPos,
     const glm::vec3& holderRot, glm::vec3& pos, glm::vec3& rot)
 {
@@ -1920,12 +1983,16 @@ bool freeHand(int hand, const glm::vec3& trackedPos, const glm::vec3& trackedRot
     {
         g.hand = relativeTo(holderPos, holderRot, trackedPos, trackedRot);
         g.handPoint = g.point;
+        g.handAlong = poleSlides[1 - hand].along;
         g.handPending = false;
     }
     RelPose on = g.hand;
     if(g.mode == FREE_POLE)
     {
-        on.pos += g.point - g.handPoint; // (slid along the pole with the hand)
+        // (Slid along the pole with the hand. vrspear: less the holding hand's own slide since -- the weapon, and the holding
+        // hand's drawn place this is from (the view's drawnAs), are drawn moved back along the pole by it: poleShift --, so a
+        // hand that keeps its place on the pole while the holding hand slides is drawn there, not slid along the pole twice.)
+        on.pos += g.point - g.handPoint + g.axis * (poleSlides[1 - hand].along - g.handAlong);
         poleTurn(g, relativeTo(holderPos, holderRot, trackedPos, trackedRot), on);
     }
     fromRelative(holderPos, holderRot, on, pos, rot);

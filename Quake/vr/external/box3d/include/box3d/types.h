@@ -181,7 +181,8 @@ typedef bool b3OverlapResultFcn( b3ShapeId shapeId, void* context );
 typedef float b3CastResultFcn( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t userMaterialId,
 							   int triangleIndex, int childIndex, void* context );
 
-/// Optional world capacities that can be use to avoid run-time allocations
+/// Optional world capacities that can be use to avoid run-time allocations. The biggest benefit of these it to avoid
+/// the associated memory copy costs for large worlds.
 /// @ingroup world
 typedef struct b3Capacity
 {
@@ -316,29 +317,6 @@ typedef enum b3BodyType
 	b3_bodyTypeCount,
 } b3BodyType;
 
-/// Motion locks to restrict the body movement
-/// @ingroup body
-typedef struct b3MotionLocks
-{
-	/// Prevent translation along the x-axis
-	bool linearX;
-
-	/// Prevent translation along the y-axis
-	bool linearY;
-
-	/// Prevent translation along the z-axis
-	bool linearZ;
-
-	/// Prevent rotation around the x-axis
-	bool angularX;
-
-	/// Prevent rotation around the y-axis
-	bool angularY;
-
-	/// Prevent rotation around the z-axis
-	bool angularZ;
-} b3MotionLocks;
-
 /// A body definition holds all the data needed to construct a rigid body.
 /// You can safely re-use body definitions. Shapes are added to a body after construction.
 /// Body definitions are temporary objects used to bundle creation parameters.
@@ -396,8 +374,9 @@ typedef struct b3BodyDef
 	/// Use this to store application specific body data.
 	void* userData;
 
-	/// Motions locks to restrict linear and angular movement
-	b3MotionLocks motionLocks;
+	/// Fully lock the rotation of this body by setting the inverse inertia tensor to zero. This also
+	/// keeps the angular velocity at zero.
+	bool fixedRotation;
 
 	/// Set this flag to false if this body should never fall asleep.
 	bool enableSleep;
@@ -710,6 +689,8 @@ typedef enum b3JointType
 	b3_wheelJoint,
 	b3_moverJoint,
 	b3_pogoJoint,
+	b3_motionLockJoint,
+	b3_tireJoint,
 } b3JointType;
 
 /// Base joint definition used by all joint types. The local frames are measured from the
@@ -942,6 +923,32 @@ typedef struct b3ParallelJointDef
 /// @ingroup parallel_joint
 B3_API b3ParallelJointDef b3DefaultParallelJointDef( void );
 
+/// A motion lock joint is designed to restriction motion to a point, line, plane. It
+/// can also be used to simulate 2D planar motion. All restrictions are relative to the joint
+/// frame in body A.
+/// @ingroup motion_lock_joint
+typedef struct b3MotionLockJointDef
+{
+	/// Base joint definition
+	b3JointDef base;
+
+	/// Lock movement along the x axis.
+	bool lockLinearX;
+
+	/// Lock movement along the y axis.
+	bool lockLinearY;
+
+	/// Lock movement along the z axis.
+	bool lockLinearZ;
+
+	/// Only allow rotation about the frame A z-axis.
+	bool lockAngularXY;
+} b3MotionLockJointDef;
+
+/// Use this to initialize your joint definition.
+/// @ingroup motion_lock_joint
+B3_API b3MotionLockJointDef b3DefaultMotionLockJointDef( void );
+
 /// Prismatic joint definition. Body B may slide along the x-axis in local frame A.
 /// Body B cannot rotate relative to body A. The joint translation is zero when the
 /// local frame origins coincide in world space.
@@ -1039,7 +1046,8 @@ typedef struct b3SphericalJointDef
 	/// Base joint definition
 	b3JointDef base;
 
-	/// Enable a rotational spring that attempts to align the two joint frames.
+	/// Enable a rotational spring that attempts to align the two joint frames. Avoid creating a conflict
+	/// between the spring and the limits. A conflict can lead to undesirable rotation.
 	bool enableSpring;
 
 	/// The spring stiffness Hertz, cycles per second. This may be clamped internally
@@ -1077,15 +1085,85 @@ typedef struct b3SphericalJointDef
 	/// The maximum motor torque, typically in newton-meters. Non-negative number.
 	float maxMotorTorque;
 
-	/// The desired motor angular velocity in radians per second. This is the relative angular
-	/// velocity between the two bodies in world space.
-	/// motorVelocity = angularVelocityB - angularVelocityA
+	/// The desired motor angular velocity in joint frame A in radians per second.
 	b3Vec3 motorVelocity;
 } b3SphericalJointDef;
 
 /// Use this to initialize your joint definition.
 /// @ingroup spherical_joint
 B3_API b3SphericalJointDef b3DefaultSphericalJointDef( void );
+
+/// Tire joint definition. The axle is along the local z-axis in body B.
+/// @ingroup tire_joint
+typedef struct b3TireJointDef
+{
+	/// Base joint definition.
+	b3JointDef base;
+
+	/// The contact normal.
+	b3Vec3 normal;
+
+	/// The wheel radius.
+	float radius;
+
+	/// The wheel half width.
+	float halfWidth;
+
+	/// The maximum suspension length.
+	float maxSuspensionLength;
+
+	/// The rest length can be longer than the suspension length to preload the spring.
+	float restLength;
+
+	/// The supension stiffness in Hertz.
+	float suspensionHertz;
+
+	/// The suspension damping ratio during extension. 1 for critical damping.
+	float suspensionDampingRatio;
+
+	/// The suspension damping ratio under compression.
+	float bumpDampingRatio;
+
+	/// Used to clamp the suspension force.
+	float maxSuspensionForce;
+
+	/// The bottom-out stiffness.
+	float bumpStopHertz;
+
+	/// The bottom-out damping ratio.
+	float bumpStopDampingRatio;
+
+	/// The lateral friction coeffiction.
+	float lateralFriction;
+
+	/// The longitudinal friction coefficient.
+	float rollingFriction;
+
+	/// The tire rolling resistance.
+	float rollingResistance;
+
+	/// The current brake force.
+	float brakeForce;
+
+	/// Used to offset the friction force vertically to reduce the chance of roll-over.
+	float tireForceHeight;
+
+	/// The suspension impulse brought forward from the previous tire joint.
+	float suspensionImpulse;
+
+	/// The bottom-out impulse brought forward from the previous tire joint.
+	float stopImpulse;
+
+	/// The lateral friction impulse brought forward from the previous tire joint.
+	float lateralImpulse;
+
+	/// The longitudinal friction impulse brought forward from the previous tire joint.
+	float rollingImpulse;
+} b3TireJointDef;
+
+/// Use this to initialize your joint definition.
+/// @ingroup tire_joint
+B3_API b3TireJointDef b3DefaultTireJointDef( void );
 
 /// Weld joint definition
 /// Connects two bodies together rigidly. This constraint provides springs to mimic
@@ -2056,7 +2134,7 @@ typedef struct b3BodyTOIResult
 	/// The hit normal. Points from the body to the mover.
 	b3Vec3 normal;
 
-	/// The sweep time of the collision.
+	/// The sweep time of the collision. Returns 1 for a miss.
 	float fraction;
 
 	/// The hit shape.
@@ -2891,13 +2969,13 @@ typedef struct b3Manifold
 	/// The unit normal vector in world space, points from shape A to shape B
 	b3Vec3 normal;
 
-	/// Central friction angular impulse (applied about the normal)
+	/// Central friction angular impulse (applied about the normal). This is the result for the final internal sub-step.
 	float twistImpulse;
 
-	/// Central friction linear impulse
+	/// Central friction linear impulse. This is the result for the final internal sub-step.
 	b3Vec3 frictionImpulse;
 
-	/// Rolling resistance angular impulse
+	/// Rolling resistance angular impulse. This is the result for the final internal sub-step.
 	b3Vec3 rollingImpulse;
 
 	/// The number of contact points, will be 0 to 4

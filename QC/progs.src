@@ -67,6 +67,9 @@ vr_reload.qc
 vr_revgrip.qc
 vr_reload_test.qc
 vr_debris.qc
+vr_bayonet.qc
+// Weapon attachments (the bayonet on the shotguns): after the bayonet's prop and the carrying it uses.
+vr_attach.qc
 vr_material.qc
 vr_crates.qc
 vr_crates_test.qc
@@ -173,6 +176,7 @@ vr_mg3_weapons.qc
 vr_pickup_test.qc
 vr_axestick.qc
 vr_embedhold.qc
+vr_propfire.qc // a weapon fired where it is: a prop the hand holds (embedfire; weapons.qc W_WeaponFrameImpl calls it)
 vr_skewer.qc
 vr_axestick_test.qc
 // Magnetic holsters (after the holsters, the throws, the stuck axes and the chainsaw's props it uses).
@@ -220,12 +224,17 @@ vr_dagger_test.qc
 vr_spear_test.qc // the spear (vr_embed_test 53)
 vr_flatthrust_test.qc // flat V thrusts with the stabbing blades (vr_embed_test 58-59)
 vr_flatembedwalk_test.qc // flat: walking away from a stuck blade, the other hand on it (vr_embed_test 64)
+vr_poleembed_test.qc // flat: the pole's other hand in four states, a held blade's ragdoll smoothing (vr_embed_test 71-72)
+vr_embedfire_test.qc // the Crystal Lance fired while stuck in a body (embedfire: vr_embed_test 77-78; after vr_poleembed_test.qc's helpers)
+vr_attach_test.qc // the bayonet on the shotguns: on, off, kept, stabs, fired and reloaded stuck (attach2: vr_embed_test 79-82)
 vr_revgrip_test.qc
 vr_flipgrip_test.qc
 vr_flipgate_test.qc
 vr_throwgib_test.qc
 vr_throwpoint_test.qc
+vr_revthrow_test.qc // reverse grip throws settle point first (vr_embed_test 73)
 vr_throwdmg_test.qc
+vr_floataxe_test.qc // a thrown axe whose host's head comes off, or the host goes, falls (vr_embed_test 83)
 vr_airskewer_test.qc
 vr_agarmor_fx_test.qc
 vr_agarmor_shot_test.qc

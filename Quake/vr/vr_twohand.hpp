@@ -45,8 +45,10 @@ void apply(hands::State& s);
 [[nodiscard]] bool bladeGrip(int hand);
 // Whether the weapon of `slot` may be held by its blade (Two-Handed: Sword, with a Blade hotspot: the knights' swords, the
 // crowbar...), and where that hotspot holds it (`at`: its share of the way from the hand to the tip). The half-sword
-// grip's (applySword) and the flat guard's (flatplay's blade pin).
-[[nodiscard]] bool swordBlade(int slot, float& at);
+// grip's (applySword) and the flat guard's (flatplay's blade pin). A Two-Handed: Sword weapon with no Blade hotspot (or one
+// at share 0: the judicator's) answers vr_flat_parry_shaft_at instead (flatparry2: the ogres' hammer and mace, the fury's
+// sword), `*shaft` then true; 0 turns that off. Flatscreen's alone (every caller is flatplay's or applySword's flat guard).
+[[nodiscard]] bool swordBlade(int slot, float& at, bool* shaft = nullptr);
 // Whether the other hand holds the weapon in `holding` away from its handle: anywhere on it (a free grip) or by its blade
 // (bladeGrip). The flip grip's gate (ROUND25.md "flipgate"; view::gripFlipBlocked): a sword or dagger held in two hands flips
 // only with both hands on its handle (the other on its two-handed grip hotspot).
@@ -166,6 +168,9 @@ void armFlatGrip(int helping, bool armed);
 // Whether `hand` holds the other hand's weapon anywhere (a free grip), and as what (FreeMode; -1 none).
 [[nodiscard]] bool freeHelping(int hand);
 [[nodiscard]] int freeMode(int holding);
+// vrspear: how far `hand`'s pole grip (FREE_POLE, VR) on the other hand's pole weapon has blended in (0..1; 0 none): the
+// view closes the drawn hand round the shaft as drawn by that much (poleShaftGrip).
+[[nodiscard]] float poleHelpShare(int hand);
 // Where `hand` is drawn holding it: its controller's pose as if it were there (the view then draws it as an empty hand
 // there, its fingers wrapping the weapon), given the pose the other hand's weapon is drawn from (`holderPos`,
 // `holderRot`: the view's drawnAs). `trackedPos`, `trackedRot`: the hand as tracked (its place on the weapon is taken
