@@ -1473,3 +1473,32 @@ smaller, centred, over a 50% black so the previous screen (the console) shows un
 ## menubarreset
 
 The menu shortcut bar (the column beside the menu in the headset and the flat VR-style panel, the row of icons in the classic flat menus) now has half a button of vertical gap before its "-" and "+" buttons (column layouts; the column fit counts it) and a third button, RESET, next to them: the shipped menu size (vr_menu_scale / vr_menu_flat_scale / scr_menuscale by the layout shown) and, for the flat panel, the window centre (vr_menu_flat_x/y back to their defaults, so a saved config drops them). The headset menu has no position setting, only its size. One code path for all three layouts (zoomMenu dir 0, the existing vr_menu_zoom reset); the mouse and the laser hit it like -/+ (new mock spots `vr_mock_mouse zoomreset`, `vr_mock_laser zoomreset`). Gamepad focus: the -/+ buttons were never in the gamepad focus order (pointer only), so RESET is too; vr_menu_zoom reset is the console equivalent. Tests: menu_flat_panel_test.py gained resetbtn steps (flat: moved to 0.4/0.45 at 0.6, RESET back to 0.954/0.5/0.499; VR: 0.4 back to 0.25): 28 passed, 3 failed; the same 3 fail with the unmodified test on this build (Quit menu number 20 vs 21, headset Quit dialog, classic scr_menuscale step: unrelated, not looked into). Screenshots scratch/menubar_{classic,flat,vr}.png.
+
+## flatmelee6: V's two-fisted overhead blow with both hands empty (branch agent/flatmelee6, 2026-11-26)
+
+His item 11 (flat feedback 2026-11-26): "If both hands are empty, the quick melee button should perform a simultaneous
+overhead attack with both hands. Make this an option (on by default)."
+- **Option** `vr_flat_overhand_both` 1 (`CVAR_ARCHIVE | QVR_OWN`; row "Quick Melee: Both Fists", Advanced VR Options >
+  Movement > Locomotion, Desktop Screen Play, after Grab / Pull Key). 0: today's one-fist overhand (vr_flat_overhand).
+- **Motion** (vr_flatplay.cpp startPunch): V's overhand on one hand with the other hand also empty (no weapon, no prop,
+  not punching, shoving, in the quick grenade, the force grab or on a stuck blade) starts the other hand's overhand on the
+  same clock (`fs.punchTwoFist[h]` both): the one overhand path (`overheadSwing`, `fistSwing`), each hand its own side's
+  mirror. Each fist's top `vr_flat_overhand_2h_raise_out` -3 further out (in: the fists 6 from the middle, not 9) and its
+  end `vr_flat_overhand_2h_end_out` 1.5 out at its own side (side by side, not in one another). End_out 3 had the main
+  fist meet the grunt glancing, with its fist and not its knuckles, at 9.3 m/s instead of 12 (half the strength): 1.5
+  keeps the knuckles' 11.8 m/s.
+- **One hit**: the off fist is marked Synthesized all through ("two-fisted blow's other fist": no blow, no gesture); the
+  main fist is the Action as before, plus `handsource::twoFisted()`: the move's `.handsynth` 256 (QC `VR_HANDTWOFIST`,
+  `VR_HandTwoFisted`). `.handsynth` is now a short on the wire (it had all 8 bits used): `QVR_NET_VERSION` 47.
+- **Damage and push** (QC): `VRMeleeDmg` times `vr_flat_overhand_2h_damage` 2 (the two fists' sum; outside the
+  vr_melee_dmg_min/max cap, which bounds strength x zone only), `T_Damage_VRMelee`'s push times
+  `vr_flat_overhand_2h_push` 1 on top of what that damage gives (so by default the push is the sum too, up to VR_Push's
+  own 600 cap). Tunables group Flatscreen > Empty-Hand Overhand (V), the four "Both Fists" rows.
+- **Probe / prints**: `flatplay: main punch (...): melee, overhand blow, both fists`; the melee probe's kind
+  `overhand both` for each hand.
+- **Tests**: new `Misc/quakevr/flatmelee6_test.sh` 9/0 (both empty: the two-fisted blow, both hands' probe lines
+  overlapping, both over the eye 8.0, the off fist synthesized, one melee hit (60 on a grunt 16 ahead; one fist 26-32);
+  option off: one fist, one hit; a gun in the off hand: one fist). Optional 2nd argument: console commands said first
+  (e.g. `"tune vr_flat_overhand_2h_end_out 0"`). `flatmelee4_test.sh` 9/0 and `flatmelee_test.sh` 12/0 (their V with
+  empty hands is now the two-fisted blow; their checks still hold). eval.sh not run: no shared melee code changed
+  (VRMeleeDmg/T_Damage_VRMelee only scale when the flat bit is set). Scene `flat_melee_2fist`.
