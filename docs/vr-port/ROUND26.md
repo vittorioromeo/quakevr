@@ -1318,10 +1318,10 @@ His flat `map vrstart` took 13.3 s with nothing on screen (entities 6.2 s, the m
 - **Runs:** cold vrstart (fresh `vr_cache_dir`, `vr_cache_shipped 0`), mock VR and `-flatscreenmode`: the four shots saved
   at 50% each; the collision wait's own shot still saved (`vr_hull_keep 0; vr_hull_cache 0; vr_hull_build_mb 300`: "Building
   collision for crouching (5 of 6)"); perfload_test: 0 models loaded in play, vrfiringrange's 2.4 s load 13 frames, 3.4 ms.
-- **Not the panel (found while measuring):** in 6 of 17 cold flat vrstart loads (panel on or off: 1 of 4 with it off) the
+- **Not the panel (found while measuring):** in 7 of 22 cold flat vrstart loads (panel on or off: 1 of 7 with it off) the
   light grid's probe pass ran entirely on the main thread, 46-58 s instead of ~3 s: no pool helper ever joined that
-  `parallelFor` (the clear pass right after it got helpers in 50 ms). Seen with the old layer chunks too. Not seen in the
-  3 mock-VR loads. A pool issue (helpers queued behind something, or not posted) for a follow-up; the panel kept moving.
+  `parallelFor` (the clear pass right after it got helpers in 50 ms). Seen with the old layer chunks too. Also in 1 of 4
+  mock-VR loads (54 s). A pool issue (helpers queued behind something, or not posted) for a follow-up; the panel kept moving.
 - Not covered: the start-up before the first frame (the shaders' panel covers its slow part), a save game's load
   (no stages hooked), a client's connect to a remote server past its precache.
 ## logwarn1126: his flat session's console warnings (branch agent/logwarn1126, 2026-11-26)
