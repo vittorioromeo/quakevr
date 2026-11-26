@@ -520,6 +520,7 @@ static qmodel_t *Mod_LoadModelRun (qmodel_t *mod, qboolean crash)
 // load the file
 //
 	t0 = Sys_DoubleTime (); // QVR: a load while a map is in play counted (VR_NoteModelLoad: vr_cache_info)
+	VR_LoadPump (); // QVR: a map load's panel kept drawn through its model loads (flatloadbar; cheap when not due)
 	VR_TracyBegin ("model metadata and file", 0); // QVR: (profiling builds)
 	VR_ModelMetadataChanged (mod); // QVR: alias-cache eviction and explicit reload invalidate copied metadata
 	VR_ModelSourcesForget (mod); // QVR: the files it was made from (a campaign switch's check: recorded below)

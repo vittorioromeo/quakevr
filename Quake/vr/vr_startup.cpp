@@ -285,6 +285,7 @@ extern "C" void VR_TimeQuitEnd(int error)
 extern "C" void VR_TimeMark(const char* stage)
 {
     VR_GLStep("done: %s", stage); // the breadcrumbs (vr_glsafe.cpp)
+    qvr::loadbar::mark(stage);
     qvr::startlog::mark(stage, Sys_DoubleTime());
     if(command.start >= 0.0)
     {
@@ -350,6 +351,7 @@ extern "C" void VR_TimeLoadBegin(const char* what)
         command = Command{};
     }
     load.open = true;
+    qvr::loadbar::begin(load.start); // (a command's load: already begun at the command; kept)
     qvr::startlog::loadBegin(load.what.cStr(), now);
     VR_FileCacheEnable(1);
     VR_CrtHeapLoadHold(1, static_cast<long>(qvr::vr_heap_load_hold.value));
@@ -361,6 +363,7 @@ extern "C" void VR_TimeLoadCommand(const char* what)
     command = Command{};
     command.start = command.last = Sys_DoubleTime();
     command.what = what;
+    qvr::loadbar::begin(command.start);
     qvr::bench::loadCommand(); // (vr_bench_profiler 2: an external profiler collects the load alone)
     if(vr_perf_recording)
     {
@@ -376,10 +379,15 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
     {
         command = Command{}; // (a command that loaded nothing: refused, or a map not found)
         qvr::bench::loadEnded();
+        if(!load.open)
+        {
+            qvr::loadbar::end();
+        }
     }
     if(load.open && idle)
     {
         load.open = false; // a load that failed (Host_Error): not timed; the file lookups ask the file system again
+        qvr::loadbar::end();
         qvr::startlog::loadEnd(now, true, "");
         qvr::bench::loadEnded();
         load.marks.clear();
@@ -406,6 +414,7 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
         }
         mark(load, "first frame drawn", now);
         load.open = false;
+        qvr::loadbar::end();
         qvr::startlog::loadEnd(now, false, workLine(load).cStr());
         qvr::bench::loadEnded();
         VR_ImagePrefetchEnd();

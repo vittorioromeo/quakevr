@@ -2257,7 +2257,9 @@ static void SV_SpawnServerRun (const char *server)
 	VR_TimeMark ("server: submodels, VR before load"); // QVR
 	VR_StepBegin ("server: entities spawned"); // QVR
 	VR_TRACY_DETAIL (1, "spawn: entities", ED_LoadFromFile (sv.worldmodel->entities)); // QVR: (profiling builds: a zone)
+	VR_StepBegin ("server: monsters' limbs and hulls (VR spawned)"); // QVR: (its own step: the loading panel's words)
 	VR_TRACY_DETAIL (1, "spawn: VR spawned", VR_OnSpawnServerSpawned ()); // QVR
+	VR_TimeMark ("server: monsters' limbs and hulls (VR spawned)"); // QVR
 	VR_TimeMark ("server: entities spawned"); // QVR
 
 	sv.active = true;

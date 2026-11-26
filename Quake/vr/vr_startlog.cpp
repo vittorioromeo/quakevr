@@ -557,6 +557,7 @@ void quit()
 
 extern "C" void VR_StepBegin(const char* step)
 {
+    qvr::loadbar::stepBegin(step);
     if(qvr::startlog::trace.phase != qvr::startlog::Phase::Off && qvr::startlog::onMain())
     {
         qvr::startlog::beginStep(step);
@@ -573,6 +574,7 @@ extern "C" void VR_StartupLogOpen(void)
 
 extern "C" void VR_StepEnd(void)
 {
+    qvr::loadbar::stepEnd();
     if(qvr::startlog::trace.phase != qvr::startlog::Phase::Off && qvr::startlog::onMain())
     {
         qvr::startlog::endStep("");

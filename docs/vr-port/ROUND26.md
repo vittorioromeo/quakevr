@@ -1280,6 +1280,50 @@ Updated: menu_banner.png <- vertical_logo_very_pixelated_1 (make_menu_banner.py 
 ## logo1126c
 Remaining old-art copies replaced from art/: docs/images/quakevr-unleashed-square.webp <- square_logo_1, -wide.webp <- horizontal_banner_1 (webp q90), -vertical.png <- vertical_logo_pixelated_1 (all same size as before; matched pixelated_0/square_logo_0/horizontal_banner_0 at diff 0.0/0.4/0.3). README uses the wide one. Installer logo_square/logo_wide and flatpak icon-512 were already _1 (logo1126b). Unchanged: Misc/trenchbroom/QuakeVR/Icon.png (32px headset icon, not the art), no Android icons, no vertical_banner_0 copies in the repo. No game/installer code touched, so no build needed. Compare: scratch/logo1126c_compare.png.
 
+## flatloadbar: the loading panel through the whole map load, flat and VR (branch agent/flatloadbar, 2026-11-26)
+
+His flat `map vrstart` took 13.3 s with nothing on screen (entities 6.2 s, the model light grid rebuilt 5.1 s).
+
+- **What it does:** once a map load has run 1 s (`showAfter`), the same panel as the shaders' and hullwait's (one code
+  path, `vr_shaderload.cpp` `mapPanelFrame`: the window's blit, the headset's quad layer, the early VR start) shows the
+  stage the load is in, in player words: "Spawning the map's monsters and items", "Preparing the monsters' limbs",
+  "Lighting the models" (note "built once for each map version"), "Loading models", "Loading sounds", "Preparing your
+  hands and weapons", "Preparing water, slime and lava", "Preparing effects", "Preparing textures and lightmaps", "Loading
+  the map's geometry", "Loading the game code", "Settling the physics"; else "Loading <map>". The bar: the stage's own
+  count where it counts (`VR_LoadCount`: entities n of N, models, sounds, the light grid's rows as a %), else the share of
+  the load's stages done (`VR_TimeMark`s; the whole is the last load's count, 60 before one). The line under it: the map
+  and the count ("vrstart: 91 of 181 entities", "step 12 of about 55"); the footer the seconds. A load under 1 s shows
+  nothing; `vr_load_panel 0` turns it off (and the collision wait's panel), as before.
+- **How:** `qvr::loadbar` (vr_shaderload.cpp) follows the load's stages from the existing hooks whether or not the
+  start-up trace runs: begin at the load's command (`VR_TimeLoadCommand`) or spawn (`VR_TimeLoadBegin`), end at its first
+  frame drawn or its failure (`VR_TimeFrameEnd`); `VR_StepBegin`/`VR_StepEnd`/`VR_TimeMark` push and pop a small stage
+  stack (8 deep). The panel is drawn from the main thread inside the long work, at most every 100 ms (`drawEvery`): each
+  stage's start and end, each entity (`ED_LoadFromFile`, the count from the entity text's braces), each model and sound
+  precached, each model file loaded (`Mod_LoadModel`: `VR_LoadPump`), each light-grid row the main thread finishes.
+  `toWindow` now puts back the GL state it changes (viewport, scissor, clear colour, framebuffers): it runs mid-load.
+  New nested step "server: monsters' limbs and hulls (VR spawned)" (`VR_OnSpawnServerSpawned`, ~0.7 s of vrstart's spawn).
+- **The light grid a row a chunk** (vr_ambient.cpp `gridBuild`): its two `parallelFor`s were a layer (z) a chunk; the
+  main thread then waited seconds for the last few uneven layers with no frame (a 4.4 s gap). Now a row (z, y) a chunk,
+  the entries merged in the same order: the cached grid file is byte-identical (vrstart's `.mlg` md5 the same), and the
+  build went from 5.4-6.3 s to 3.1-3.4 s on the test machine. `vr_model_light_grid_test` 25/0 (e1m1). developer 1 prints
+  "model light grid: probes N ms (M of R rows on the main thread), clear cells N ms".
+- **Cost** (cold vrstart, Release no-LTO, a loaded machine): 56-99 frames in 11-16 s, 66-163 ms drawing them in all
+  (0.5-1.1% of the load; 1.1-1.8 ms a frame); the end line says so: "loading panel: vrstart's load, 12.1 s: 81 frames (0
+  in the headset), 116.0 ms drawing them, the longest gap 0.81 s (ending in ...)"; developer 1 also names each gap over
+  0.5 s. A/B wall times are noise here (11.6-18.7 s either way). Longest gaps left: 0.5-0.9 s inside the entity spawn
+  (one slow entity), and the collision wait counts as a gap (it draws its own frames).
+- **Test aid:** `vr_load_panel_shot` (Debug > Tests "Save the Loading Panel") now also shows every load's panel from its
+  start and saves `screenshots/load_panel_<entities|lightgrid|models|sounds>.png` when that stage's count reaches the
+  share (the collision wait's `load_panel.png` and its reset to 0 as before). Scene `load_panel_stages` (vrstart with it).
+- **Runs:** cold vrstart (fresh `vr_cache_dir`, `vr_cache_shipped 0`), mock VR and `-flatscreenmode`: the four shots saved
+  at 50% each; the collision wait's own shot still saved (`vr_hull_keep 0; vr_hull_cache 0; vr_hull_build_mb 300`: "Building
+  collision for crouching (5 of 6)"); perfload_test: 0 models loaded in play, vrfiringrange's 2.4 s load 13 frames, 3.4 ms.
+- **Not the panel (found while measuring):** in 7 of 22 cold flat vrstart loads (panel on or off: 1 of 7 with it off) the
+  light grid's probe pass ran entirely on the main thread, 46-58 s instead of ~3 s: no pool helper ever joined that
+  `parallelFor` (the clear pass right after it got helpers in 50 ms). Seen with the old layer chunks too. Also in 1 of 4
+  mock-VR loads (54 s). A pool issue (helpers queued behind something, or not posted) for a follow-up; the panel kept moving.
+- Not covered: the start-up before the first frame (the shaders' panel covers its slow part), a save game's load
+  (no stages hooked), a client's connect to a remote server past its precache.
 ## logwarn1126: his flat session's console warnings (branch agent/logwarn1126, 2026-11-26)
 
 His log `quakevr/logs/2026-11-26_17-50-24/console.log` (VS2026, flat, `-basedir <Steam Quake> -game quakevr -flatscreenmode`).

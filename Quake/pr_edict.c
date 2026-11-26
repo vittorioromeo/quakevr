@@ -1663,17 +1663,31 @@ void ED_LoadFromFile (const char *data)
 	edcopy_t	*pending = NULL; // QVR: Enemy Count's copies to spawn after the map
 	int		npending = 0, maxpending = 0;
 
+	int		entcount = 0, entdone = 0; // QVR: the loading panel's count (flatloadbar)
+	qboolean	quoted = false;
+	const char	*scan;
+
 	pr_global_struct->time = qcvm->time;
+
+	for (scan = data; *scan; scan++) // QVR: the entities, their braces outside quotes (a few hundred KB: well under a ms)
+	{
+		if (*scan == '"')
+			quoted = !quoted;
+		else if (*scan == '{' && !quoted)
+			entcount++;
+	}
 
 	// parse ents
 	while (1)
 	{
+		VR_LoadCount (entdone, entcount); // QVR: the panel drawn when it is due
 		// parse the opening brace
 		data = COM_Parse (data);
 		if (!data)
 			break;
 		if (com_token[0] != '{')
 			Host_Error ("ED_LoadFromFile: found %s when expecting {",com_token);
+		entdone++; // QVR
 
 		if (!ent)
 			ent = EDICT_NUM(0);

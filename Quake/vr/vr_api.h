@@ -310,6 +310,10 @@ void VR_ShadersLoaded (int programs, int frames, double ms, double maxwork, doub
 int VR_MapLoadingWanted (void); // vr_hull.cpp settle: the loading panel can show during the map load's wait (vr_load_panel; VR running, the start's first frame, or a window to draw it in)
 int VR_MapLoadingFrame (const char *heading, const char *detail, double done, double seconds); // ... one frame of it: what is being made, a line under the bar, how much is done (0-1) (nonzero: shown in the headset, the runtime waited on; vr_shaderload.cpp)
 void VR_MapLoadingDone (const char *map, double seconds); // ... the wait over: its frames said (console)
+// The loading panel through a whole map load (flatloadbar, vr_shaderload.cpp): its stages (VR_StepBegin, VR_TimeMark) in
+// player words over a bar, once the load has run a second; drawn from inside the long stages, at most every 100 ms.
+void VR_LoadCount (int done, int total); // the innermost stage's count (entities 312 of 1840, light grid layers, sounds): the bar's; then VR_LoadPump
+void VR_LoadPump (void); // a long loop's point: the panel drawn if it is due (main thread; cheap when not)
 int VR_ShadersLoadingFrame (void); // host.c, SCR_UpdateScreen: while the shaders are queued, the set pumped and (still pending: nonzero) the loading panel's frame (vr_shaderload.cpp)
 void VR_ProgCacheCounts (int *hits, int *misses); // the last batch's programs given back / compiled
 unsigned long long VR_GLShaderHash (unsigned long long h, int count, const char *const *strings); // vr_glsafe.cpp: the text VR_GLShaderSource gives the driver

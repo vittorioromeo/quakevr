@@ -1,0 +1,9 @@
+# load_panel_stages: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The hub loaded with the
+# loading panel shown from the load's start (vr_load_panel_shot: normally only past a load's first second), so its
+# stages show even when the caches make it quick (flatloadbar, ROUND26.md). Its images are saved too
+# (screenshots/load_panel_entities.png, ..._models, ..._sounds, ..._lightgrid when the model lighting is built).
+title Loading panel: the map load's stages over a bar
+map vrstart
+cvar vr_load_panel 1
+cvar vr_load_panel_shot 0.5
+hint While it loads, the panel names each slow part ("Spawning the map's monsters and items: 91 of 181 entities", "Lighting the models", "Loading sounds") over a moving bar, in the window and the headset.
