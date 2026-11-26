@@ -252,8 +252,10 @@ float(float xHand, float xBase) VRMeleeDmg =
     // The damage caps bound this blow's strength (times its zone's multiplier) when it lands (T_Damage_VRMelee).
     vr_mdmg_core = VR_Blow(xHand).mh_core;
     vr_mdmg_hand = xHand;
+    // (Flat V's two-fisted overhead blow: both fists' in one hit, vr_flat_overhand_2h_damage; VR_HandTwoFisted.)
+    float twoFist = VR_HandTwoFisted(self, xHand) ? max(0, cvar_hget(cvarh_vr_flat_overhand_2h_damage)) : 1;
     return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
-           VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+           VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult() * twoFist;
 }
 
 // A hand's blow of `xHand` at `xSpeed` m/s on a corpse or ragdoll (VR_Corpse_Struck), struck with `xThing` (VR_MTHING_*):

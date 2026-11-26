@@ -1037,6 +1037,8 @@ float cvarh_vr_flat_ladder;
 float cvarh_vr_flat_mag_eject;
 float cvarh_vr_flat_mag_eject_delay;
 float cvarh_vr_flat_mag_eject_speed;
+float cvarh_vr_flat_overhand_2h_damage;
+float cvarh_vr_flat_overhand_2h_push;
 float cvarh_vr_flat_parry_cone;
 float cvarh_vr_flat_parry_in_time;
 float cvarh_vr_flat_parry_out_time;
@@ -3244,6 +3246,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_mag_eject = VR_CVar_Make("vr_flat_mag_eject");
     cvarh_vr_flat_mag_eject_delay = VR_CVar_Make("vr_flat_mag_eject_delay");
     cvarh_vr_flat_mag_eject_speed = VR_CVar_Make("vr_flat_mag_eject_speed");
+    cvarh_vr_flat_overhand_2h_damage = VR_CVar_Make("vr_flat_overhand_2h_damage");
+    cvarh_vr_flat_overhand_2h_push = VR_CVar_Make("vr_flat_overhand_2h_push");
     cvarh_vr_flat_parry_cone = VR_CVar_Make("vr_flat_parry_cone");
     cvarh_vr_flat_parry_in_time = VR_CVar_Make("vr_flat_parry_in_time");
     cvarh_vr_flat_parry_out_time = VR_CVar_Make("vr_flat_parry_out_time");
