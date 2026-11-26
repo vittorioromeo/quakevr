@@ -2178,3 +2178,42 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   - MP: not done (out of budget). Aid for it: client command `vr_attach_report` (vr_view.cpp: every attachment drawn
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
+
+## flatparry3: the reverse-grip guard; the flipped pole's other hand tunables; the judicator's two-handed grip on its handle (branch agent/flatparry3, 2026-11-26)
+
+His flat notes 2026-11-26, items 3, 4 and 8.
+- **Reverse-grip guard** (item 3, "the transition from 2H reverse grip to parry pose is too abrupt... we do need reverse
+  grip parry poses"): by default (`vr_flat_parry_rev` 1) a flipped grip's guard keeps the grip flipped and takes its own
+  pose: the fist at its own side, the blade out of the little finger's side laid across the view (a hammer-fist guard).
+  vr_flatplay.cpp `parryPose` now computes a guard from a `GuardSet` (`guardOf`): the upright set (vr_flat_parry_*, the hand
+  first rolled a quarter turn in) and the flipped set (`vr_flat_parry_rev_fwd` 13, `_up` 1, `_out` 6, `_pitch` 5, `_yaw` 0,
+  `_roll` 0; the hand first rolled a quarter turn out), blended by the drawn flip's share (`revGuardShare`), so a flip in
+  the guard goes from one to the other as it turns. Its own times `vr_flat_parry_rev_in_time` / `_out_time` 0.2 s (the
+  upright's 0.05 / 0.1). `revGripPose` (the raised flipped hold) gives way to it by the guard's share. Poles and blades alike
+  (sword, dagger, spear, Crystal Lance). `vr_flat_parry_rev` 0: flatparry2's unflip (`vr_flat_parry_unflip_time`), kept.
+  In the reverse guard a free hand already on the flipped weapon's handle keeps it (`bladeWanted`'s keepsHandle): taking
+  the blade, it let go of it as the guard ended and nothing took the flipped handle again. An empty free hand still takes
+  the blade as in the upright guard. Rows: Tunables > Flatscreen > Parry Guard, "Reverse-Grip Guard" and "Reverse Guard ...".
+  Status: `vr_flatplay_status` "parry flip: ... reverse-grip guard share".
+- **Flipped pole's other hand** (item 4): `vr_flat_revgrip_pole_off_up` / `_off_out` (units, default 0) and `_off_pitch`
+  -40 / `_off_yaw` 34 / `_off_roll` 0 (degrees; the upright's values, so nothing changes by default), by the flip's share in
+  every flipped state (held, guarding, thrust). The turns replace vr_flat_pole_off_pitch/_yaw/_roll by the flip's share
+  (vr_view_hands.cpp, the spear pose's turn); the moves are drawn after the shaft grip (vr_flat_pole_off_snap closed the
+  hand round the shaft again, so a move of the grip point, as the upright's vr_flat_pole_off_up does, moved the drawn
+  hand 0.9 of 4 u). Rows "Flipped Spear Other Hand Up / Out / Pitch / Yaw / Roll".
+- **The judicator's two-handed grip** (item 8): not the shaft fallback (that is the guard's alone, flatplay::bladeAsked):
+  its one Grip hotspot, the death knight's sword's copied, lies 10.7 u up the weapon from the holding hand (its hand sits
+  lower on a longer handle: 2h_hand_av z -14.8 against the knight's -7.5), so vr_flat_melee_grip's "lowest grip" was on the
+  blade. General fix (vr_view_weapon.cpp chooseGrip): flat play, a weapon held as a sword (twohand::swordHeld) whose grip
+  lies above the holding hand or less than `vr_flat_melee_grip_below` (4 u) under it is taken that far below it. Judicator
+  10.7 -> -4.0 u; knight's sword -4.5, hammer -6.1, mace -7.5 unchanged; fury -4.0. (A Grip hotspot he sets below the hand
+  wins.) The judicator in the flipped grip still lets go of its handle at the flip (its grip's angle limit): not changed.
+- Status: `vr_flatplay_status` "two-handed stance: the off hand N u along the weapon from the holding hand ... tip ...;
+  holds its grip" and its drawn offset and angles (melee and pole weapons).
+- Tests: `Misc/quakevr/flatparry2_test.sh` 54/0 (AD mounted): the flip runs under vr_flat_parry_rev 0 (the unflip's most
+  turn a frame into the guard 22.6 / 22.3 degrees); the reverse guard (knight's sword held in two hands then flipped,
+  judicator, spear): flip stays 1.00, guard share 1.00, parries the probe, most turn a frame into it 8.7 / 9.1 / 15.9 and
+  out 8.6 / 8.9 / 15.7 (20 at most); the knight's sword's free hand on the handle in it and after (-5.2 u); every weapon
+  not parrying: the free hand at or below the holding hand; the flipped spear's other hand moved 4.9 u / turned 43.9
+  degrees by _off_up 4 / _off_pitch 0. Open: the judicator's flipped one-handed guard lets go of the blade at its end with
+  the free hand turning 81 degrees in a frame (the upright guard's let-go, not this change's).

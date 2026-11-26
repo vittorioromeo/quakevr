@@ -2287,7 +2287,7 @@ QVR_TUNABLE(vr_flat_parry_yaw, "0") // and this far forward of straight across t
 QVR_TUNABLE(vr_flat_parry_roll, "-5") // and the weapon rolled this far about its own line (degrees; its edge from forward towards up)
 QVR_TUNABLE(vr_flat_parry_in_time, "0.05") // seconds into the guard from the hold (0: at once)
 QVR_TUNABLE(vr_flat_parry_out_time, "0.1") // seconds back to the hold when the button is let go (0: at once)
-QVR_TUNABLE(vr_flat_parry_unflip_time, "0.1") // flatparry2: a flipped (inverted) grip turns back to the normal grip over this long as the guard is raised, and flips again over as long once the guard is down (vr_view_weapon.cpp gripFlipStep; 0: at once; negative: the guard keeps the flipped grip)
+QVR_TUNABLE(vr_flat_parry_unflip_time, "0.1") // flatparry2 (with vr_flat_parry_rev 0, flatparry3): a flipped (inverted) grip turns back to the normal grip over this long as the guard is raised, and flips again over as long once the guard is down (vr_view_weapon.cpp gripFlipStep; 0: at once; negative: the guard keeps the flipped grip)
 QVR_TUNABLE(vr_flat_parry_rev, "1") // flatparry3 (his flat note 2026-11-26: "we do actually need reverse grip parry poses"): 1 a flipped (inverted) grip's guard keeps the grip flipped and takes the reverse-grip guard below (vr_flat_parry_rev_*: the fist at its own side, the blade out of its little finger's side across the view, a hammer-fist guard); 0 the guard draws the grip upright for the normal guard (vr_flat_parry_unflip_time)
 QVR_TUNABLE(vr_flat_parry_rev_fwd, "13") // the reverse-grip guard: the hand this far ahead of the eye (units)
 QVR_TUNABLE(vr_flat_parry_rev_up, "1") // and this far above it (units; negative below)

@@ -29,7 +29,7 @@ ST="vr_flatplay_status"
 BASE="developer 1;map vrtesthall;wait30;god;notarget;vr_flatplay_debug 1;vr_debug_2h_grip 1;vr_parry_stamina 0;setpos 0 300 25 0 90 0;wait5"
 FILTER='^fp2|^flatparry|parry probe|parry flip:|blade grip:|parry guard:|2h grip:|two-handed stance: the|^flat2h: drawn|admelee|ERROR|CRASH'
 # (the drawn hands' most turn a frame in a block's vr_flat_melee_2h_report: main, off)
-turns() { block "$1" "$2" | grep -a "^flat2h: drawn" | head -1 | grep -ao '[0-9.]* deg' | grep -ao '^[0-9.]*' | paste -sd' '; }
+turns() { block "$1" "$2" | grep -a -A1 "^flat2h: drawn" | head -2 | paste -sd" " | grep -ao "main [0-9.]* units [0-9.]* deg, off [0-9.]* units [0-9.]* deg" | grep -ao '[0-9.]* deg' | grep -ao '^[0-9.]*' | paste -sd' '; }
 stance() { block "$1" "$2" | grep -a -A1 "two-handed stance: the off hand .* along" | head -2 | paste -sd' '; }
 along() { stance "$1" "$2" | grep -ao 'hand -\?[0-9.]* u along' | grep -ao -- '-\?[0-9.]*' | head -1; }
 run() { # name script
