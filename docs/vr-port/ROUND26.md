@@ -1405,6 +1405,39 @@ step: base 0.251/0.772/0.293 and 0.229/0.618/0.308 ms, new 0.229/0.702/0.319 and
 200 explosive boxes (`PB_CRATES=0`) stops in both builds at a QC "Program error" after the collapse (VR_PhysicsFrameEnd
 -> a QC function: unrelated, not looked into); its collapse phase: base 0.335 / 0.288 ms, new 0.270 / 0.289 ms. With crates
 (random, new only): collapse 0.263 ms, toss 0.421 ms.
+## flatloadbar2: the flat loading panel small and centred over the last screen dimmed (branch agent/flatloadbar2, 2026-11-26)
+
+His words: the flat progress bars "take most of the screen" on "a completely black background"; asked for them much
+smaller, centred, over a 50% black so the previous screen (the console) shows underneath.
+
+- **Size:** the window's blit of the panel's image (768x192, the same image the headset's quad layer gets: one
+  `drawPanel`) is now at most a third of the window's width (and height x4), at a ratio that keeps the console font sharp
+  (`panelWidth`, GL_NEAREST): half the image (384x96: the image draws in 2x2 blocks, so each lands on one pixel) below
+  2304 px of width, the image's own size (768x192) up to 4608, then whole multiples. His 3440x1441 window: 768x192 (22%
+  wide); 1920x1080: 384x96 (20%); the tests' 960x540: 384x96 (40%: the half-size floor). Centred. Shared by the shaders'
+  panel at a cold start (no backdrop there: nothing drawn yet, black).
+- **Backdrop:** the window's last frame (console, menu, the map before), taken once when the panel first shows after it
+  (`takeBackdrop`): read back from the buffer that holds it (gl_vidsdl.c `VID_LoadingLastFrame`: GL_FRONT once presented,
+  GL_BACK when VR_SkipSwap left it unpresented; ES: none), every channel halved on the CPU (the 50% black), uploaded to a
+  texture, then blitted under every panel frame. So both of the window's buffers get the same backdrop and the panel never
+  dims its own frames. The texture is given back at the load's end (`dropBackdrop`).
+- **No console flashes:** a load from the console (not connected) redrew the console at every print (`Con_Printf`) and
+  every host frame before the signon, alternating with the panel's frames (also before this change: the black panel and
+  the console flickered). While the panel is up in flat (`VR_LoadPanelOwnsWindow`: the loadbar active with a frame drawn, no
+  VR session) neither draws; the first signed-on frame ends the loadbar as before. With VR running nothing changes.
+- **VR:** the headset's panel is unchanged (same image, same quad layer); the desktop window beside VR gets the new look
+  (small, over the mirror's last frame dimmed), the console redraws there unchanged.
+- **Cost:** one readback per load (960x540: 2.3-9.5 ms in low-impact runs; his 3440x1441 ~5x the pixels), then one
+  full-window blit a panel frame. The end line now says the swaps' share: "loading panel: vrstart's load, 22.1 s: 65 frames,
+  1097.7 ms drawing them (11.8 in the window's swaps)" (the drawing times swing 78-1600 ms between identical runs here: the
+  author's game was running, idle priority; the CPU image is unchanged). developer 1: "loading panel: the window's last frame
+  (960x540, the front buffer) taken as its backdrop in 2.3 ms".
+- **Test aid:** `vr_load_panel_shot` also saves the window's image of the same frame, before it is shown:
+  `screenshots/load_panel_<stage>_window.png` ("loading panel: saved ... (the window, 960x540: the panel 384x96, over the
+  last frame dimmed)"). Shots: flat over the console, flat over the menu, mock VR (the headset image unchanged, the
+  window over the mirror). perfload_test (0 models in play, vrfiringrange 368 ms), hub_start_test 7/0.
+- Not done: the window's own scale (scr_menuscale/conscale) isn't read: the size follows the window alone (his settings
+  give the same 768 px).
 
 ## menubarreset
 
