@@ -1,0 +1,11 @@
+# flat_parry_ad: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (flatparry2, ROUND26.md). The parry
+# guard's free hand on AD's melee weapons with no Blade hotspot (the shaft's share, vr_flat_parry_shaft_at); vr_ad_test
+# 171..174 put the fury's sword, the judicator's sword, the ogre hammer or the ogre mace alone in the main hand (needs AD's
+# data).
+title Flat-screen parry guard with the ogre hammer: the free hand on the shaft near the head
+map vrtesthall
+god
+notarget
+cmd vr_ad_test 173
+spawnarmed monster_vr_grunt 13 0 90
+hint Hold the right mouse button: the hammer comes up across your view and your left hand takes its shaft near the head (not the handle). Let go: back to the hold. The Debug menu's "Alone in Hand" rows give the mace, the fury's and the judicator's swords the same way.
