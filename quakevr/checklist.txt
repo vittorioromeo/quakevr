@@ -99,6 +99,8 @@ Flat-screen: hold the Crystal Lance and raise the guard (right mouse button): th
 Flat-screen: walk up to the crate (or an explosive box) and press H: both hands go onto its surface and it drags along as you back away, its far side on the floor, as a grunt's ragdoll does; tune the hands with Grab / Pull: Hold Forward / Out / Down (negative: up). {test:flat_grab_pull}
 Flat-screen: press H at the rock (or a health box, a gib): it goes into your hand as a force grab's catch, no held-out pose; and from further than an arm's reach (Grab / Pull: Reach, 1.25 m) H takes nothing. {test:flat_grab_pull}
 Flat-screen: hold the knight's sword two-handed and hold the right mouse button for the guard: the free hand slides from the handle onto the blade (and back when you let go) instead of snapping over in one frame. {test:flat_parry_ad}
+Flat-screen: hold a crate with H and walk forward: it stays about as far ahead as when you took it, pushed by your hands (not shoved off by your body); back away and it is dragged along; it lets go only if you turn sharply away from it. {test:flat_grab_pull}
+Flat-screen: hold the big explosive box with H and run forward: it is too heavy for that pace and the hands let go; backing away still drags it. Push Strength / Push Max Angle in Flatscreen > Grab / Pull if it feels off. {test:flat_grab_pull}
 
 [4. Tutorial and VR interface]
 Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to Swap Stick Functions): walk forward on the right stick and press X: you jump, and A, B, Y and the two stick clicks do what the other controller's did; Right-handed turns it off, and changing it alone shows Handedness: Custom. {test:hub_start}

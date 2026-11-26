@@ -104,5 +104,35 @@ check $(awk '/flatgrabthrow: rock/{a=1} /flatgrabthrow: far/{exit} a && /flat gr
 check $(awk '/flatgrabthrow: far/{a=1} a && /flat grab: nothing grabbable in reach/{f=1} END{exit !f}' "$L" && echo 1 || echo 0) "reach: a crate 64 units ahead is beyond the reach"
 check $(awk '/flatgrabthrow: far/{a=1} a && /flatkeys: held main - .* off - .* grab 0/{f=1} END{exit !f}' "$L" && echo 1 || echo 0) "reach: nothing taken"
 
+# 6. flatpush: a dragged crate kept at its grab-time distance ahead of the body (vr_flat_grab_push): walking forward pushes it
+#    through the hands, backing away drags it; an explosive box (80 kg) pushed fast is too heavy for that pace and let go of;
+#    turning sharply away from a held crate lets go (too steep). (flatkeys 4: $6 the held prop's y, $14 the grab bits, $20 my y.)
+K="vr_flatkeys_test 4; wait1"
+run push "$BASE; vr_flat_grab_hold 0; \
+    echo flatgrabthrow: pgrab; setpos 0 -200 25 20 90 0; wait5; vr_physics_spawn vr_crate 28; wait25; $HD; wait3; $HU; wait30; $K; \
+    echo flatgrabthrow: pfwd; +forward; wait21; $K; wait7; $K; -forward; wait10; \
+    echo flatgrabthrow: pback; +back; wait35; -back; wait10; $K; $HD; wait3; $HU; wait5; \
+    echo flatgrabthrow: pturn; setpos 120 -200 25 20 90 0; wait5; vr_physics_spawn vr_crate 28; wait25; $HD; wait3; $HU; wait30; $K; setpos 120 -200 25 20 190 0; wait5; $K; \
+    echo flatgrabthrow: pheavy; setpos -100 -200 25 20 90 0; wait5; vr_physics_spawn misc_explobox 28; wait25; $HD; wait3; $HU; wait30; $K; +speed; +forward; wait20; -forward; -speed; wait5; $K"
+L=$S/push.log
+seg() { awk -v a="flatgrabthrow: $1" -v b="flatgrabthrow: $2" 'index($0, a) == 1 {f=1; next} b != "flatgrabthrow: " && index($0, b) == 1 {exit} f' "$L"; }
+check $(grep -aq 'flatgrabthrow: push done' "$L" && echo 1 || echo 0) "push: run completed"
+check $(seg pgrab pfwd | grep -aq 'flat grab: drags vr_crate (40 kg) by its surface with both hands' && echo 1 || echo 0) "push: H drags the crate with both hands"
+G=$(seg pgrab pfwd | awk '/flatkeys: held main vr_crate/{print $6 - $20; exit}')
+P0=$(seg pgrab pfwd | awk '/flatkeys: held main vr_crate/{print $6; exit}')
+W=$(seg pfwd pback | awk '/flatkeys: held main vr_crate/{n++; if(n == 2) {print $6, $6 - $20, $14; exit}}')
+set -- $W
+check $(awk -v a="$P0" -v b="$1" 'BEGIN{exit !(a != "" && b != "" && (b - a) > 60)}' && echo 1 || echo 0) "push: walking forward pushes the crate ahead (y ${P0:-?} -> ${1:-?})"
+check $(awk -v g="$G" -v d="$2" 'BEGIN{exit !(g != "" && d != "" && (g - d) > -14 && (g - d) < 14)}' && echo 1 || echo 0) "push: it stays about its grab distance ahead while walking (${G:-?} -> ${2:-?} units)"
+check $([ "$3" = "3" ] && echo 1 || echo 0) "push: both hands stay on it while pushing (grab ${3:-?})"
+check $(seg pfwd pback | grep -aq 'lets go\|loses its hold' && echo 0 || echo 1) "push: no hand lets go while pushing"
+B1=$(seg pback pturn | awk '/flatkeys: held main vr_crate/{print $6; exit}')
+check $(awk -v a="$1" -v b="$B1" 'BEGIN{exit !(a != "" && b != "" && (a - b) > 30)}' && echo 1 || echo 0) "push: backing away still drags it (y ${1:-?} -> ${B1:-?})"
+check $(seg pturn pheavy | grep -aq 'propdrag: prop [0-9]*: hand [01] lets go, too steep' && echo 1 || echo 0) "push: turning sharply away lets go (too steep)"
+check $(seg pturn pheavy | awk '/flatkeys: held/{n++; if(n == 2 && /grab 0/) f=1} END{exit !f}' && echo 1 || echo 0) "push: no hand holds it after the turn"
+check $(seg pheavy | grep -aq 'flat grab: drags misc_explobox (80 kg) by its surface with both hands' && echo 1 || echo 0) "push: H drags the explosive box (80 kg)"
+check $(seg pheavy | grep -aq 'propdrag: prop [0-9]*: hand [01] lets go, too heavy for that pace' && echo 1 || echo 0) "push: pushed fast it is too heavy for that pace and let go of"
+check $(seg pheavy | awk '/flatkeys: held/{n++; if(n == 2 && /grab 0/) f=1} END{exit !f}' && echo 1 || echo 0) "push: no hand holds the explosive box after"
+
 verdict
 exit $fail

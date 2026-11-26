@@ -1454,12 +1454,82 @@ void endPropBlade(int index)
     return solidProp(h.num) && B3_IS_NON_NULL(h.joint) && b3Joint_IsValid(h.joint) && B3_IS_NON_NULL(h.anchor) && b3Body_IsValid(h.anchor) &&
            B3_ID_EQUALS(b3Joint_GetBodyB(h.joint), world->slots[h.num].body);
 }
+
+// The level forward and left of `player`'s yaw (a pushed prop's arm, PropBlade::arm).
+void yawAxes(const edict_t* player, glm::vec2& forward, glm::vec2& left)
+{
+    const float yaw = player->v.v_angle[1] * (3.14159265f / 180.f);
+    forward = glm::vec2{za::cos(yaw), za::sin(yaw)};
+    left = glm::vec2{-forward.y, forward.x};
+}
+
+// Where a dragged prop's hold `h` asks its point to be now (units; before the lift's limit, syncPropBlades): the hand, its
+// gap still being eased away (holdPropDrag); pushed as well (vr_flat_grab_push: `keep`), level as far ahead of the body as
+// it took hold, turned with him (his note 2026-11-26: "keep the same arm length as when I grabbed it, so that it gets pushed
+// as I move forward"), its height still the hand's.
+[[nodiscard]] glm::vec3 dragTarget(const World::PropBlade& h, edict_t* player, glm::quat& turn)
+{
+    glm::vec3 at;
+    handPose(player, h.hand, at, turn);
+    at += h.gap * gapLeft(h.gapAt, h.gapOver);
+    if(h.keep)
+    {
+        glm::vec2 forward, left;
+        yawAxes(player, forward, left);
+        const glm::vec2 level = glm::vec2{player->v.origin[0], player->v.origin[1]} + forward * h.arm.x + left * h.arm.y;
+        at.x = level.x;
+        at.y = level.y;
+    }
+    return at;
+}
+
+// How far round (degrees, level, seen from the eyes of `player`) a pushed prop's point `held` is from `at`, where the arm
+// reaches for it (vr_flat_grab_push_angle).
+[[nodiscard]] float armAngle(const edict_t* player, const glm::vec3& at, const glm::vec3& held)
+{
+    const glm::vec2 eye = glm::vec2{player->v.origin[0] + player->v.view_ofs[0], player->v.origin[1] + player->v.view_ofs[1]};
+    const glm::vec2 reach = glm::vec2{at.x, at.y} - eye, point = glm::vec2{held.x, held.y} - eye;
+    const float across = glm::length(reach) * glm::length(point);
+    return across > 1.f ? za::acos(za::clamp(glm::dot(reach, point) / across, -1.f, 1.f)) * (180.f / 3.14159265f) : 0.f;
+}
+
+// The hands of `player` dragging prop `num` (PropBlade::need: each its share of the mass).
+[[nodiscard]] int dragHands(int player, int num)
+{
+    int n = 0;
+    for(const World::PropBlade& h : world->propBlades)
+    {
+        n += h.drag && h.player == player && h.num == num ? 1 : 0;
+    }
+    return n;
+}
 } // namespace
+
+bool dragsProp(int player, int num)
+{
+    if(!world || vr_flat_grab_push.value == 0.f)
+    {
+        return false;
+    }
+    for(const World::PropBlade& h : world->propBlades)
+    {
+        if(h.drag && h.keep && h.player == player && h.num == num)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 void releasePropBlade(int player, int hand)
 {
     if(const int index = world ? propBladeIndex(player, hand) : -1; index >= 0)
     {
+        if(const World::PropBlade& h = world->propBlades[static_cast<za::SizeT>(index)]; h.drag && h.keep && vr_debug_ragdoll.value)
+        {
+            Con_Printf("propdrag: prop %d: hand %d let go of; its hold needed %.0f N at most, %.0f degrees round at most\n", h.num, hand,
+                h.needMost, h.angleMost);
+        }
         endPropBlade(index);
     }
 }
@@ -1584,6 +1654,13 @@ float holdPropDrag(int num, edict_t* player, int hand, const glm::vec3& target, 
         h.gap = point - at;
         h.gapAt = qcvm->time;
         h.called = qcvm->time;
+        h.keep = vr_flat_grab_push.value != 0.f;
+        {
+            glm::vec2 forward, left;
+            yawAxes(player, forward, left);
+            const glm::vec2 from = glm::vec2{point.x - player->v.origin[0], point.y - player->v.origin[1]};
+            h.arm = glm::vec2{glm::dot(from, forward), glm::dot(from, left)};
+        }
         b3BodyDef def = b3DefaultBodyDef();
         def.type = b3_kinematicBody;
         def.position = closest;
@@ -1612,8 +1689,9 @@ float holdPropDrag(int num, edict_t* player, int hand, const glm::vec3& target, 
         world->propBlades.pushBack(h);
         if(vr_debug_ragdoll.value)
         {
-            Con_Printf("propdrag: prop %d: hand %d takes hold of it at %.0f %.0f %.0f, %.1f units from the hand, %.0f N at most (%.0f up)\n", num,
-                hand, point.x, point.y, point.z, glm::length(point - at), h.force, h.lift);
+            Con_Printf("propdrag: prop %d: hand %d takes hold of it at %.0f %.0f %.0f, %.1f units from the hand, %.0f N at most (%.0f up)%s\n",
+                num, hand, point.x, point.y, point.z, glm::length(point - at), h.force, h.lift,
+                h.keep ? va(", kept %.1f units ahead, %.1f left of the body", h.arm.x, h.arm.y) : "");
         }
         return 0.f;
     }
@@ -1624,12 +1702,35 @@ float holdPropDrag(int num, edict_t* player, int hand, const glm::vec3& target, 
     h.letGo = za::max(letGo, 1.f);
     h.called = qcvm->time;
     const glm::vec3 held = world->toU(b3Body_GetWorldPoint(body, b3Joint_GetLocalFrameB(h.joint).p));
-    if(glm::distance(held, at) > h.letGo + glm::length(h.gap) * gapLeft(h.gapAt, h.gapOver))
+    const glm::vec3 asked = dragTarget(h, player, turn);
+    // Let go of: pushed or dragged, its point too far round from the arm's reach (vr_flat_grab_push_angle: too steep) or its
+    // hold needing more than vr_flat_grab_push_force for a moment (too heavy for that pace: syncPropBlades); its point too far
+    // off where the hold asks it (caught on something, too heavy).
+    constexpr float strainMost = 0.15f; // s above the push force, times how far over (syncPropBlades)
+    const char* why = nullptr;
+    if(h.keep)
+    {
+        h.angle = armAngle(player, asked, held); // (as he turns now: syncPropBlades' is a frame old)
+        h.angleMost = za::max(h.angleMost, h.angle);
+    }
+    if(h.keep && h.angle > za::max(vr_flat_grab_push_angle.value, 1.f))
+    {
+        why = va("too steep: its point %.0f degrees round from the arm (at most %.0f)", h.angle, vr_flat_grab_push_angle.value);
+    }
+    else if(h.keep && h.strain > strainMost)
+    {
+        why = va("too heavy for that pace: its hold needs %.0f N (at most %.0f)", h.need, vr_flat_grab_push_force.value);
+    }
+    else if(glm::distance(held, asked) > h.letGo + glm::length(h.gap) * gapLeft(h.gapAt, h.gapOver))
+    {
+        why = va("its point %.1f units off the hand (at most %.1f)", glm::distance(held, asked), h.letGo);
+    }
+    if(why)
     {
         if(vr_debug_ragdoll.value)
         {
-            Con_Printf("propdrag: prop %d: hand %d lets go, its point %.1f units off the hand (at most %.1f)\n", num, hand,
-                glm::distance(held, at), h.letGo);
+            Con_Printf("propdrag: prop %d: hand %d lets go, %s; it needed %.0f N at most, %.0f degrees\n", num, hand, why, h.needMost,
+                h.angleMost);
         }
         endPropBlade(index);
         return -1.f;
@@ -1676,8 +1777,15 @@ void syncPropBlades(float dt)
         }
         glm::vec3 at;
         glm::quat turn;
-        handPose(player, h.hand, at, turn);
-        at += h.shift + h.gap * (h.drag ? gapLeft(h.gapAt, h.gapOver) : handleGapLeft(h.gapAt));
+        if(h.drag)
+        {
+            at = dragTarget(h, player, turn);
+        }
+        else
+        {
+            handPose(player, h.hand, at, turn);
+            at += h.shift + h.gap * handleGapLeft(h.gapAt);
+        }
         const b3BodyId body = world->slots[h.num].body;
         // (Up, no more than its lift: by how far up the handle is asked from where it is.)
         const glm::vec3 held = world->toU(b3Body_GetWorldPoint(body, b3Joint_GetLocalFrameB(h.joint).p));
@@ -1699,6 +1807,37 @@ void syncPropBlades(float dt)
         b3MotorJoint_SetMaxSpringTorque(h.joint, h.drag ? 0.f : most * za::max(grabLever, h.lever));
         b3MotorJoint_SetLinearHertz(h.joint, h.drag ? h.hertz : handleHertz());
         b3MotorJoint_SetAngularHertz(h.joint, h.drag ? 0.f : handleHertz());
+        if(h.drag && h.keep && dt > 0.f)
+        {
+            // Pushed or dragged (vr_flat_grab_push): the force this hand's hold would need to keep the point with its
+            // target, level (the spring's, uncapped: its share of the mass by how far and how fast the point lags it),
+            // and how far round from the arm's reach it is, seen from the eyes. holdPropDrag lets go past either.
+            const glm::vec3 was = world->toU(b3Body_GetPosition(h.anchor));
+            const glm::vec3 pointVel = glmv(b3Body_GetWorldPointVelocity(body, world->toM(held))); // m/s
+            const float omega = 2.f * 3.14159265f * h.hertz;
+            glm::vec2 lag = glm::vec2{at.x - held.x, at.y - held.y} / world->m2u;
+            glm::vec2 slip = glm::vec2{at.x - was.x, at.y - was.y} / (world->m2u * dt) - glm::vec2{pointVel.x, pointVel.y};
+            if(glm::distance(was, at) > 0.5f * world->m2u)
+            {
+                lag = glm::vec2{0.f};
+                slip = glm::vec2{0.f}; // (a teleport)
+            }
+            const float share = b3Body_GetMass(body) / static_cast<float>(za::max(dragHands(h.player, h.num), 1));
+            h.need = share * glm::length(lag * (omega * omega) + slip * (2.f * omega));
+            // (Over it for long enough, by how far over: a short jolt is borne, a prop far too heavy goes at once.)
+            const float limit = za::max(vr_flat_grab_push_force.value, 1.f);
+            h.strain = h.need > limit ? h.strain + dt * (h.need / limit) : za::max(h.strain - dt, 0.f);
+            h.angle = armAngle(player, at, held);
+            h.needMost = za::max(h.needMost, h.need);
+            h.angleMost = za::max(h.angleMost, h.angle);
+            if(vr_debug_ragdoll.value >= 2.f && h.hand == 1)
+            {
+                Con_Printf("propdrag: prop %d pushed: lags %.2f m, slips %.2f m/s, it goes %.2f m/s, he %.0f u/s: needs %.0f N a hand, "
+                           "strained %.2f s, %.0f degrees round\n",
+                    h.num, glm::length(lag), glm::length(slip), glm::length(glm::vec2{pointVel.x, pointVel.y}),
+                    glm::length(glm::vec2{player->v.velocity[0], player->v.velocity[1]}), h.need, h.strain, h.angle);
+            }
+        }
         if(glm::distance(world->toU(b3Body_GetPosition(h.anchor)), at) > 0.5f * world->m2u)
         {
             b3Body_SetTransform(h.anchor, world->toM(at), toB3(turn)); // (a jump: a teleport)
