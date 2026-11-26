@@ -81,6 +81,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -98,9 +99,13 @@
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c: a key's number from its bind name (vr_flat_key_swap, ...)
+extern "C" cvar_t scr_fov, scr_fov_adapt; // gl_screen.c (viewSizeReport)
+extern "C" cvar_t r_scale;                // gl_rmain.c
 
 namespace qvr::flatplay
 {
+
+void viewSizeReport(); // (below, beside status_f)
 
 namespace
 {
@@ -110,6 +115,7 @@ struct FlatState
 {
     bool flag{false};            // -flatscreenmode on the command line
     bool announced{false};       // its console line was printed
+    bool viewReported{false};    // viewSizeReport ran at the first map (after the configs, so it has his settings)
     bool backendNoted{false};    // the "-flatscreenmode implies no VR backend" line was printed
     bool wasOn{false};           // last frame: to say so when a headset takes the game back
     float dualT{0.f};            // a gun in each hand, eased as the hands are (handEase): the drawn turn of dualProneTurn
@@ -3780,6 +3786,11 @@ void frame()
                    "held the left mouse button fires it and the right one aims down its sights. vr_flatplay_status says what "
                    "the mode is doing.\n");
     }
+    if(on && !fs.viewReported && cl.worldmodel != nullptr)
+    {
+        fs.viewReported = true;
+        viewSizeReport(); // in every run's console.log: what a "the world looks tiny" report needs (tinyworld)
+    }
     if(!on && fs.wasOn)
     {
         Con_Warning("Quake VR: a headset took the game back: flatscreen play is off.\n");
@@ -5339,10 +5350,50 @@ void modelFovStatus()
     }
 }
 
+// A setting as the player has it against its shipped default (viewSizeReport).
+[[nodiscard]] static bool atDefault(const cvar_t& c)
+{
+    return c.default_string == nullptr || za::fabs(c.value - static_cast<float>(atof(c.default_string))) < 0.001f;
+}
+
+// How big the world looks on the desktop screen, and every setting that changes it (tinyworld, 2026-11-26: a new
+// player's "the monsters and the player are tiiiiny"). Printed once as the mode starts, so it is in every run's
+// console.log (quakevr/logs/), and by vr_flatplay_status. The world's size on the screen is the field of view alone:
+// fov (Quake's 4:3 horizontal degrees, widened to the window's shape by fov_adapt, as gl_screen.c SCR_CalcRefdef does)
+// shrinks the monsters and the walls alike; the eye is Quake's own (the box's view_ofs, 22 over its middle), not
+// scaled. vr_flat_body_height, vr_world_scale and vr_gunmodelscale size only his own body, hands and held weapons.
+void viewSizeReport()
+{
+    constexpr float halfDegree = static_cast<float>(M_PI) / 360.f;
+    const float w = static_cast<float>(za::max(vid.width, 1)), h = static_cast<float>(za::max(vid.height, 1));
+    const float fov = za::clamp(scr_fov.value, 10.f, 170.f);
+    const float halfX = scr_fov_adapt.value != 0.f ? za::atan(w / h * 0.75f * tanf(fov * halfDegree)) : fov * halfDegree;
+    const float fovX = glm::degrees(2.f * halfX);
+    const float fovY = glm::degrees(2.f * za::atan(h / w * tanf(halfX)));
+    Con_Printf("flatscreen view: fov %g%s (fov_adapt %g): %.0f x %.0f degrees in the %dx%d window, r_scale %g; your body "
+               "%g m (vr_flat_body_height), vr_world_scale %g, vr_gunmodelscale %g\n",
+        scr_fov.value, atDefault(scr_fov) ? ", the default" : "", scr_fov_adapt.value, fovX, fovY, vid.width, vid.height,
+        r_scale.value, vr_flat_body_height.value, vr_world_scale.value, vr_gunmodelscale.value);
+    char changed[256] = "";
+    for(const cvar_t* c : {&scr_fov, &scr_fov_adapt, &vr_flat_body_height, &vr_world_scale, &vr_gunmodelscale})
+    {
+        if(!atDefault(*c))
+        {
+            q_strlcat(changed, va(" %s %s (default %s)", c->name, c->string, c->default_string), sizeof(changed));
+        }
+    }
+    if(changed[0] != 0)
+    {
+        Con_Printf("  changed from the defaults:%s%s\n", changed,
+            scr_fov.value > 110.f ? "; a fov over 110 makes the monsters and the rooms look small" : "");
+    }
+}
+
 void status_f()
 {
     Con_Printf("flatscreen play: -flatscreenmode %s, a headset session %s, the mode %s\n", fs.flag ? "given" : "not given",
         vrActive() ? "up" : "none", active() ? "on" : "off");
+    viewSizeReport();
     if(!fs.flag)
     {
         Con_Printf("  start the game with -flatscreenmode to play it on the desktop screen.\n");
