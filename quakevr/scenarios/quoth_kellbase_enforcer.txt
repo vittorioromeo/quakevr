@@ -1,0 +1,11 @@
+# quoth_kellbase_enforcer: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Quoth's kellbase1: its
+# armed enforcers by the first doors (one with the Centurion's plasma rifle), their arms posed as the same enforcer and
+# gun spawned on any other map (agrunt_enf_centurion; quothpose_test.sh compares them). Needs Quoth 2.2 installed.
+title Quoth's kellbase1: the armed enforcers' arms on their guns
+campaign quoth
+map kellbase1
+start 120 260 40 0
+god
+notarget
+cvar vr_agrunt_freeze 1
+hint The enforcers ahead (one holds the Centurion's plasma rifle): their left hands on the guns' fore grips, the elbows in against the body as an enforcer with the same gun spawned elsewhere holds it (Test scenario agrunt_enf_centurion), not flung out.

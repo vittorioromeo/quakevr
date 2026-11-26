@@ -4,14 +4,14 @@
 # (vr_flat_key_pull, uses every available empty hand to grab crates, active/shoved ragdolls and gibs; Toggle default
 # vr_flat_grab_hold 0 and Hold mode vr_flat_grab_hold 1). flathold2: big props (crates, explosive boxes; vr_flat_grab_drag_mass)
 # dragged by their surface with the hands drawn on it, small ones (a health box, a rock, a gib) in the hand as a force grab's,
-# nothing beyond vr_flat_grab_reach (1.25 m).
+# nothing beyond vr_flat_grab_reach (1.25 m). flathold3: the drawn hands stay on the wrists, held far (vr_hold_arm_probe).
 # Prints "flatgrabthrow: N passed, M failed".
 AGENT=${1:?agent}
 QT_NAME=flatgrabthrow
 source "$(dirname "$0")/qvrtest.sh"
 S=$TREE/scratch/flatgrabthrow
 mkdir -p "$S"
-FILTER='^(flatgrabthrow:|flat ?(grab|throw|drop)|propdrag:|ragdoll hand|flatkeys:|ragdoll:|vr_physics_spawn:|force grab:|flatplay:)'
+FILTER='^(flatgrabthrow:|holdarm:|flat ?(grab|throw|drop)|propdrag:|ragdoll hand|flatkeys:|ragdoll:|vr_physics_spawn:|force grab:|flatplay:)'
 
 run() {
     local tag=$1 script=$2
@@ -20,7 +20,9 @@ run() {
         -QuitOn "^flatgrabthrow: $tag done" -Filter "$FILTER" > "$S/$tag.log" 2>&1
 }
 
-BASE="map vrtesthall; god; notarget; developer 1; vr_flat_grenade_debug 1; vr_debug_ragdoll 1; wait15"
+# (vr_flat_grab_reach and vr_flat_grab_hold_down pinned at flathold2's 1.25 m and 0.18: his promoted 0.65 m reaches none of the
+# props placed 28 units ahead, and with Hold Down 0 a crate backed away from lags just past Let Go (38 > 37.8 units).)
+BASE="map vrtesthall; god; notarget; developer 1; vr_flat_grenade_debug 1; vr_debug_ragdoll 1; vr_flat_grab_reach 1.25; vr_flat_grab_hold_down 0.18; wait15"
 BD="vr_mock_key b down"; BU="vr_mock_key b up"
 HD="vr_mock_key h down"; HU="vr_mock_key h up"
 
@@ -133,6 +135,25 @@ check $(seg pturn pheavy | awk '/flatkeys: held/{n++; if(n == 2 && /grab 0/) f=1
 check $(seg pheavy | grep -aq 'flat grab: drags misc_explobox (80 kg) by its surface with both hands' && echo 1 || echo 0) "push: H drags the explosive box (80 kg)"
 check $(seg pheavy | grep -aq 'propdrag: prop [0-9]*: hand [01] lets go, too heavy for that pace' && echo 1 || echo 0) "push: pushed fast it is too heavy for that pace and let go of"
 check $(seg pheavy | awk '/flatkeys: held/{n++; if(n == 2 && /grab 0/) f=1} END{exit !f}' && echo 1 || echo 0) "push: no hand holds the explosive box after"
+
+# 7. flathold3: the drawn hands never leave the wrists. A crate too heavy to follow (Drag Strength 100 N) backed away from until
+#    the hold lets go, and a ragdoll held while backing away then left behind: the hold-arm probe (vr_hold_arm_probe) has
+#    every frame a hand is drawn on it, the wrist past its arm's reach (0) and the hand pulled in to it at full stretch.
+run far "$BASE; vr_flat_grab_hold 0; \
+    echo flatgrabthrow: fcrate; setpos 0 -200 25 20 90 0; wait5; vr_physics_spawn vr_crate 28; wait25; $HD; wait3; $HU; wait30; \
+    vr_hold_arm_probe 1; vr_flat_grab_drag_force 100; +back; wait90; -back; wait10; vr_hold_arm_probe report; vr_flat_grab_drag_force 4000; \
+    echo flatgrabthrow: frag; setpos 200 -200 25 0 90 0; wait5; vr_physics_spawn monster_army 48; wait20; vr_mock_key mouse5 down; wait4; vr_mock_key mouse5 up; wait20; \
+    setpos 200 -175 25 22 90 0; wait5; $HD; wait3; $HU; wait25; vr_hold_arm_probe 1; +back; wait60; -back; wait5; setpos 200 -300 25 22 90 0; wait10; vr_hold_arm_probe report"
+L=$S/far.log
+check $(grep -aq 'flatgrabthrow: far done' "$L" && echo 1 || echo 0) "far: run completed"
+check $(seg fcrate frag | grep -aq 'flat grab: drags vr_crate (40 kg) by its surface with both hands' && echo 1 || echo 0) "far: H drags the crate with both hands"
+check $(seg fcrate frag | grep -aq 'propdrag: prop [0-9]*: hand [01] lets go' && echo 1 || echo 0) "far: backing away from a crate too heavy to follow lets go"
+set -- $(seg fcrate frag | sed -n 's/^holdarm: report \([0-9]*\) frames held, wrist past its arm at most \([0-9.]*\) cm, pulled in to its arm on \([0-9]*\) frames.*/\1 \2 \3/p' | head -1)
+check $(awk -v n="$1" -v g="$2" 'BEGIN{exit !(n != "" && n > 10 && g < 0.5)}' && echo 1 || echo 0) "far: crate: the wrists stay on the arms every frame till the let-go (${1:-?} frames, past by at most ${2:-?} cm)"
+check $(awk -v p="$3" 'BEGIN{exit !(p != "" && p > 0)}' && echo 1 || echo 0) "far: crate: the hands held at full stretch as it falls behind (pulled in on ${3:-?} frames)"
+check $(seg frag | grep -aq 'flat grab: took ragdoll monster_army (active) with both hands' && echo 1 || echo 0) "far: H takes the ragdoll with both hands"
+set -- $(seg frag | sed -n 's/^holdarm: report \([0-9]*\) frames held, wrist past its arm at most \([0-9.]*\) cm.*/\1 \2/p' | head -1)
+check $(awk -v n="$1" -v g="$2" 'BEGIN{exit !(n != "" && n > 10 && g < 0.5)}' && echo 1 || echo 0) "far: ragdoll: the wrists stay on the arms backing away and left behind (${1:-?} frames, past by at most ${2:-?} cm)"
 
 verdict
 exit $fail

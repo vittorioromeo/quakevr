@@ -18,7 +18,7 @@ import sys
 TREE = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] != "--lines" else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
 GAME = os.path.join(TREE, "quakevr")
 DIRECTIVES = {"title", "hint", "map", "start", "god", "notarget", "health", "give", "spawn", "spawnarmed", "cvar", "cmd",
-              "mp", "bot", "campaign"}
+              "mp", "bot", "campaign", "package"}
 CAMPAIGNS = {"id1", "hipnotic", "rogue", "dopa", "mg1", "mg3", "ad", "dwell", "quoth"}
 # (Quoth's own maps, quoth_maps.sh's OWN, as AD's ad_*: a scene on them needs Quoth installed, not a map of ours.)
 EXTERNAL_MAP = re.compile(r"^(start|end|e[1-4]m[1-9]|dm[1-6]|hip[1-3]m[1-6]|hipdm1|hipend|r[12]m[1-8]|ctf\w*|ad_\w+|"
@@ -53,6 +53,7 @@ def check_scene(sid):
     mp = False
     bots = set()
     campaign = None
+    package = None
     for n, raw in enumerate(open(path, encoding="utf-8-sig"), 1):
         line = raw.strip()
         if not line or line.startswith("#") or line.startswith("//"):
@@ -66,6 +67,12 @@ def check_scene(sid):
                 problems.append(f"line {n}: campaign <" + "|".join(sorted(CAMPAIGNS)) + ">")
             else:
                 campaign = w[1].lower()
+        elif d == "package":
+            # package <sha256 prefix> <name>: the map is in that Map Library package (before the map line)
+            if len(w) < 3 or not re.match(r"^[0-9a-fA-F]{8,64}$", w[1]) or maps:
+                problems.append(f"line {n}: package <sha256 prefix, 8+ hex digits> <name>, before the map line")
+            else:
+                package = w[1]
         elif d == "map":
             maps.append(w[1] if len(w) > 1 else "")
         elif d == "start" and not (2 <= len(w) - 1 <= 4 and all(NUM.match(x) for x in w[1:])):
@@ -91,8 +98,10 @@ def check_scene(sid):
         problems.append("bots in two modes (one a scene)")
     if len(maps) != 1:
         problems.append(f"{len(maps)} map lines (one needed)")
-    elif not (os.path.isfile(os.path.join(GAME, "maps", maps[0] + ".bsp")) or EXTERNAL_MAP.match(maps[0]) or campaign):
-        # (a scene naming its campaign: a package or Map Library map played by that campaign's rules)
+    elif not (os.path.isfile(os.path.join(GAME, "maps", maps[0] + ".bsp")) or EXTERNAL_MAP.match(maps[0]) or campaign or
+                                                                                               package):
+        # (a scene naming its campaign: a package or Map Library map played by that campaign's rules; a `package`
+        # line: the Map Library package the map is in)
         problems.append(f"map {maps[0]} not in quakevr/maps nor an id, mission pack, AD or Quoth map")
     check(not problems, f"{sid}: " + "; ".join(problems))
 

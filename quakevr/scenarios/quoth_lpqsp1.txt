@@ -1,6 +1,7 @@
 # quoth_lpqsp1: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Quoth's lpqsp1 from its start (the vore trap and its button).
 title Quoth's lpqsp1: the button by the vore trap
 campaign quoth
+package 50105e2a0c4ffa3d lpqsp1
 map lpqsp1
 god
 hint Quoth's lpqsp1 from its start: find the vore trap, shoot the button by it; about 5 s later its secret door opens.
