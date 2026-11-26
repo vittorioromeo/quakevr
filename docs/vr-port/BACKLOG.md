@@ -166,9 +166,10 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
   (`nav_lift_down`: the lift is called up). Left: a scene for a train (every id train with stops is triggered first:
   e2m6's elevator, e3m4's).
 - **Brushes beyond the world** (ROUND26 vsnav): the navmesh now cuts any brush reaching past the world's box (old
-  vrstart's mesh lost the whole island to one). Left: why vr_hull's clip recovery (`recoverClips`) made a clip brush
-  30,000 units outside that map (an open leaf beyond the sealed box; it may matter to other users of the recovered
-  brushes); `vr_nav_toptest`'s input check takes a cut brush's box top as its top (none on shipped maps).
+  vrstart's mesh lost the whole island to one). The cause is fixed at the source (ROUND26 clipstray: `recoverClips`
+  boxes a sliver piece that lost its faces, and cuts a clip brush to its bounds where its moved faces reach past them;
+  `vr_hull_strays` says 0 and 0 on 21 maps), so the navmesh's cut is now only a safety net. Left: `vr_nav_toptest`'s
+  input check takes a cut brush's box top as its top (none on shipped maps).
 - **Flyers and swimmers**: a 3D grid of open space for scrags and fish (NAVMESH.md 7).
 - **Flanking and cover**: goal slots round the player, extra cost on polygons other monsters' paths use, cover use
   (NAVMESH.md 7, 11).
