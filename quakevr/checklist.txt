@@ -36,6 +36,10 @@ Flat-screen: sprint forward at full speed and press the prone key (X): you trans
 Flat-screen: tap B to gently drop your held weapon right in front of you or let go of a stuck blade (leaving it in the body), and hold B to wind up and throw a held weapon or grabbed object. {test:flat_grab_pull}
 Flat-screen: with empty hand(s), press H near a wooden crate to grab it with every available empty hand, walk to push or pull it around, press H again to release it, or hold B to throw it. {test:flat_grab_pull}
 Flat-screen: shove a grunt into an active ragdoll, press H to grab it with both hands, and hold B to throw it; also try grabbing a non-force-grabbable gib off the ground with H and toggling Locomotion > Grab / Pull Key between Toggle and Hold. {test:flat_grab_pull}
+Flat-screen or VR: flip a melee weapon's grip (dagger, sword, or spear) and throw it; it flies off at the exact inverted angle it was held in the hand without snapping upright on release. {test:embed_throw}
+Flat-screen: equip a two-handed melee weapon (sword, axe, spear, or Crystal Lance) while the off hand is empty; the off hand attaches to the grip right away without needing swings first, while the dagger stays one-handed. {test:flat_melee_grip}
+Flat-screen: flip a dagger, sword, or spear into its raised overhead grip and attack with fire and with V; each strike drives forward and downward onto the crosshair target, connects reliably, and can be tuned under Debug > Tunables > Flatscreen > Flipped Grip. {test:flat_melee_v}
+Flat-screen or VR: step right up against an enemy and swing or thrust with a sword, spear, or Crystal Lance; close-range blows register with the tip or blade rather than as a hilt or shaft strike (while intentional VR pommel strikes and sideways shaft swings still work). {test:flat_spear}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

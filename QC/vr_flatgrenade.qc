@@ -652,7 +652,10 @@ void() VR_FlatThrow_Drop =
     float mG = self.handthrowage;
     vector oV = self.offhandthrowvel, oF = self.offhandthrowflick, oA = self.offhandavel, oP = self.offhandthrowpos, oR = self.offhandrot;
     float oG = self.offhandthrowage;
-    VR_FlatThrow_SetHand(h, dir * dropSpeed, '0 0 0', from, rot);
+    // A melee weapon held in inverted grip keeps its current held hand orientation on drop too.
+    float revHeld = (kind == 1 && !VRIsHandWeaponless(self, h) && VRGetEntWeapon(self, h) == self.vr_flatthrow_wid &&
+                     (VRGetEntWeaponFlags(self, h) & QVR_WPNFLAG_REVGRIP) != 0);
+    VR_FlatThrow_SetHand(h, dir * dropSpeed, '0 0 0', from, revHeld ? (h == cVR_MainHand ? mR : oR) : rot);
 
     entity dropped = world;
     if(kind == 5)
@@ -733,7 +736,10 @@ void(float xHeld) VR_FlatThrow_Throw =
     float mG = self.handthrowage;
     vector oV = self.offhandthrowvel, oF = self.offhandthrowflick, oA = self.offhandavel, oP = self.offhandthrowpos, oR = self.offhandrot;
     float oG = self.offhandthrowage;
-    VR_FlatThrow_SetHand(h, dir * speed, spin, from, rot);
+    // A melee weapon held in inverted grip keeps its current held hand orientation rather than snapping to upright release_pitch.
+    float revHeld = (kind == 1 && !VRIsHandWeaponless(self, h) && VRGetEntWeapon(self, h) == self.vr_flatthrow_wid &&
+                     (VRGetEntWeaponFlags(self, h) & QVR_WPNFLAG_REVGRIP) != 0);
+    VR_FlatThrow_SetHand(h, dir * speed, spin, from, revHeld ? (h == cVR_MainHand ? mR : oR) : rot);
     vr_flatthrow_ammo1 = VR_FlatThrow_Rounds(h);
 
     // One-handed for weapons/props (his call 2026-11-23), two-handed strength for ragdolls held in both hands.

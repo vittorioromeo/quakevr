@@ -123,6 +123,7 @@ struct FlatState
     bool punchOverhead[2]{false, false}; // per hand: that punch is a weapon's overhead swing (vr_flat_swing), not the fist's throw
     bool punchThrust[2]{false, false};   // per hand: that punch is a pole weapon's spear thrust (vr_flat_thrust), not the swing
     bool punchOverhand[2]{false, false}; // per hand: that overhead swing is V's empty-handed overhand blow (vr_flat_overhand)
+    bool punchRevGrip[2]{false, false};  // per hand: that swing or thrust began held in a flipped grip (vr_flat_revgrip_*)
     glm::vec3 thrustWay[2]{};            // per hand: its thrust's line this frame (thrustPose; the probe's tip angle)
     int thrusts{0};                      // spear thrusts begun this session (vr_flatplay_status)
     int grabs{0};                // vr_flatplay_status's counts
@@ -588,11 +589,27 @@ const SwingSet fistSwing{vr_flat_overhand_wind, vr_flat_overhand_top, vr_flat_ov
     vr_flat_overhand_back, vr_flat_overhand_raise_up, vr_flat_overhand_raise_fwd, vr_flat_overhand_raise_out,
     vr_flat_overhand_raise_pitch, vr_flat_overhand_raise_yaw, vr_flat_overhand_raise_roll, vr_flat_overhand_end_pitch,
     vr_flat_overhand_end_down, vr_flat_overhand_end_fwd, vr_flat_overhand_end_out, vr_flat_overhand_end_yaw, vr_flat_overhand_end_roll};
+const SwingSet revSwing{vr_flat_revgrip_swing_wind, vr_flat_revgrip_swing_top, vr_flat_revgrip_swing_strike, vr_flat_revgrip_swing_dwell,
+    vr_flat_revgrip_swing_back, vr_flat_revgrip_swing_raise_up, vr_flat_revgrip_swing_raise_fwd, vr_flat_revgrip_swing_raise_out,
+    vr_flat_revgrip_swing_raise_pitch, vr_flat_revgrip_swing_raise_yaw, vr_flat_revgrip_swing_raise_roll, vr_flat_revgrip_swing_end_pitch,
+    vr_flat_revgrip_swing_end_down, vr_flat_revgrip_swing_end_fwd, vr_flat_revgrip_swing_end_out, vr_flat_revgrip_swing_end_yaw,
+    vr_flat_revgrip_swing_end_roll};
 
 // Hand `h`'s swing's numbers (a bot's always the weapon's).
 [[nodiscard]] const SwingSet& swingSet(int h)
 {
-    return bot == nullptr && h >= 0 && h < HAND_COUNT && fs.punchOverhand[h] ? fistSwing : weaponSwing;
+    if(bot == nullptr && h >= 0 && h < HAND_COUNT)
+    {
+        if(fs.punchOverhand[h])
+        {
+            return fistSwing;
+        }
+        if(fs.punchRevGrip[h])
+        {
+            return revSwing;
+        }
+    }
+    return weaponSwing;
 }
 
 // (A bot's held at its top longer, by its BotPoseIn::windup: its blow telegraphed, his voice note 2026-11-21.)
@@ -1008,10 +1025,11 @@ constexpr float dualProneTurnMost = 45.f;
     // axe missed a knight 24 ahead at every angle past 50: the blow is the strike's, the follow-through only a look.)
     const float downPitch = za::clamp(set.endPitch.value, -30.f, 90.f);
     const glm::vec3 downTurn{-downPitch, angle(set.endYaw, 90.f), angle(set.endRoll, 90.f)};
-    const glm::vec3 followTurn = meleeIn(h) ? glm::vec3{-za::max(downPitch, za::clamp(vr_flat_swing_end_pitch_melee.value, -30.f, 150.f)),
-                                                  downTurn.y + angle(vr_flat_swing_end_yaw_melee, 90.f),
-                                                  downTurn.z + angle(vr_flat_swing_end_roll_melee, 90.f)}
-                                            : downTurn;
+    const glm::vec3 followTurn = meleeIn(h) && !fs.punchRevGrip[h]
+                                     ? glm::vec3{-za::max(downPitch, za::clamp(vr_flat_swing_end_pitch_melee.value, -30.f, 150.f)),
+                                           downTurn.y + angle(vr_flat_swing_end_yaw_melee, 90.f),
+                                           downTurn.z + angle(vr_flat_swing_end_roll_melee, 90.f)}
+                                     : downTurn;
     double k = t;
     if(k < w.wind)
     {
@@ -1237,10 +1255,30 @@ void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
 // weapon (dual wielding), no prop, item or carried thing. The other hand's own trips (E's force grab, the shove, the quick
 // grenade, a punch) keep the stance: the free hand lets go of the grip and takes it again as off a gun's
 // (vr_flatsight.cpp gripWanted, vr_twohand.cpp flatLetsGo), the weapon kept where the stance holds it.
+constexpr int swordKindMask = 3840; // QC QVR_WPNFLAG_SWORD_KIND: bits 8-11, on WID_SWORD only (vr_notectx.cpp swordKindNames)
+constexpr int swordKindDagger = 12;
+
+[[nodiscard]] bool isDagger(int h)
+{
+    const int flags = cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
+    return heldWid(h) == WID_SWORD && (flags & swordKindMask) / 256 == swordKindDagger;
+}
+
+// Hand `h`'s flip as drawn (0..1: view::heldWeaponAxes's, turning over as the flip does); 0 for a bot's or none.
+[[nodiscard]] float revGripShare(int h)
+{
+    glm::vec3 f, u;
+    float flip = 0.f;
+    return bot == nullptr && heldIn(h) >= 0 && view::heldWeaponAxes(h, f, u, flip) ? za::clamp(flip, 0.f, 1.f) : 0.f;
+}
+
 [[nodiscard]] bool twoHandAsked(const hands::State& s, int h)
 {
     const int other = 1 - h;
-    return vr_flat_melee_2h.value != 0.f && swungMelee(h) && loneWeaponHand() == h && s.grip2HValid[h] && !s.grip2HPalm[h] &&
+    // Pole weapons (spear, Crystal Lance) have their own spear pose and pole grip (vr_flatsight.cpp poleGrip);
+    // one-handed-only weapons (dagger) and overhead flipped-grip blades stay 1H.
+    return vr_flat_melee_2h.value != 0.f && swungMelee(h) && !isDagger(h) && !twohand::poleWeapon(heldIn(h)) &&
+           revGripShare(h) < 0.5f && loneWeaponHand() == h && s.grip2HValid[h] && !s.grip2HPalm[h] &&
            !twohand::forbidden(h) && !holdsThing(other) && !twohand::carrying(other) &&
            !flatswim::freesHand(); // (swimming, the free hand swims: vr_flatswim.cpp)
 }
@@ -1407,19 +1445,24 @@ struct ThrustPart
     float out{0.f}, roll{0.f};   // a one-handed blade's: units out to its own side, degrees rolled about the blade
 };
 
-[[nodiscard]] ThrustPart thrustAt(double t, bool pole)
+[[nodiscard]] ThrustPart thrustAt(double t, bool pole, bool rev = false)
 {
-    const auto units = [](const Tunable& c) { return za::clamp(c.value, -30.f, 30.f); };
+    const auto units = [](const Tunable& c) { return za::clamp(c.value, -30.f, 40.f); };
     const auto degrees = [](const Tunable& c) { return za::clamp(c.value, -60.f, 60.f); };
     const ThrustPart rest{0.f, 0.f, 0.f, 0.f};
     // (A one-handed blade's own reach, draw back, turn and times: its fist goes out, not a pole sliding through the other
-    // hand; flatmelee4: all its own, vr_flat_thrust_1h_*.)
-    const ThrustPart wound = pole ? ThrustPart{-units(vr_flat_thrust_wind_back), units(vr_flat_thrust_wind_up),
+    // hand; flatmelee4: all its own, vr_flat_thrust_1h_*. Flipped-grip thrusts use vr_flat_revgrip_thrust_* to drive forward
+    // and down out of the raised overhead pose.)
+    const ThrustPart wound = rev  ? ThrustPart{-units(vr_flat_revgrip_thrust_wind_back), units(vr_flat_revgrip_thrust_wind_up),
+                                        degrees(vr_flat_revgrip_thrust_wind_pitch), 0.f}
+                           : pole ? ThrustPart{-units(vr_flat_thrust_wind_back), units(vr_flat_thrust_wind_up),
                                         degrees(vr_flat_thrust_wind_pitch), degrees(vr_flat_thrust_wind_yaw)}
                                   : ThrustPart{-units(vr_flat_thrust_1h_wind_back), units(vr_flat_thrust_1h_wind_up),
                                         degrees(vr_flat_thrust_1h_wind_pitch), degrees(vr_flat_thrust_1h_wind_yaw),
                                         units(vr_flat_thrust_1h_wind_out), za::clamp(vr_flat_thrust_1h_wind_roll.value, -90.f, 90.f)};
-    const ThrustPart out = pole ? ThrustPart{units(vr_flat_thrust_reach), units(vr_flat_thrust_up), degrees(vr_flat_thrust_pitch),
+    const ThrustPart out = rev  ? ThrustPart{units(vr_flat_revgrip_thrust_reach), units(vr_flat_revgrip_thrust_up),
+                                      degrees(vr_flat_revgrip_thrust_pitch), 0.f}
+                         : pole ? ThrustPart{units(vr_flat_thrust_reach), units(vr_flat_thrust_up), degrees(vr_flat_thrust_pitch),
                                       degrees(vr_flat_thrust_yaw)}
                                 : ThrustPart{units(vr_flat_thrust_1h_reach), units(vr_flat_thrust_1h_up),
                                       degrees(vr_flat_thrust_1h_pitch), degrees(vr_flat_thrust_1h_yaw)};
@@ -1481,7 +1524,8 @@ struct ThrustPart
 }
 
 // A weapon held with its grip flipped (QVR_WPNFLAG_REVGRIP), by its family (flatmelee4, his words 2026-11-25): its hand's
-// place (the view's ahead / up / out), its turn about the fist (drawn only) and its thrust's stab down, per family.
+// place (the view's ahead / up / out), its turn about the fist (on the game hand for blades so swings/thrusts/throws match,
+// drawn only for pole weapons so the Lance's beam keeps to the crosshair) and its thrust's stab down, per family.
 struct RevGripSet
 {
     const Tunable &fwd, &up, &out, &pitch, &yaw, &roll, &down;
@@ -1492,8 +1536,6 @@ const RevGripSet revGripDagger{vr_flat_revgrip_dagger_fwd, vr_flat_revgrip_dagge
     vr_flat_revgrip_dagger_pitch, vr_flat_revgrip_dagger_yaw, vr_flat_revgrip_dagger_roll, vr_flat_revgrip_dagger_down};
 const RevGripSet revGripPole{vr_flat_revgrip_pole_fwd, vr_flat_revgrip_pole_up, vr_flat_revgrip_pole_out, vr_flat_revgrip_pole_pitch,
     vr_flat_revgrip_pole_yaw, vr_flat_revgrip_pole_roll, vr_flat_revgrip_pole_down};
-constexpr int swordKindMask = 3840; // QC QVR_WPNFLAG_SWORD_KIND: bits 8-11, on WID_SWORD only (vr_notectx.cpp swordKindNames)
-constexpr int swordKindDagger = 12;
 
 // Hand `h`'s family's numbers: a pole weapon, the dagger (a WID_SWORD of kind 12), or any other blade (the swords).
 [[nodiscard]] const RevGripSet& revGripSet(int h)
@@ -1502,20 +1544,34 @@ constexpr int swordKindDagger = 12;
     {
         return revGripPole;
     }
-    const int flags = cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
-    return (flags & swordKindMask) / 256 == swordKindDagger ? revGripDagger : revGripSword;
+    return isDagger(h) ? revGripDagger : revGripSword;
 }
 
-// Hand `h`'s flip as drawn (0..1: view::heldWeaponAxes's, turning over as the flip does); 0 for a bot's or none.
-[[nodiscard]] float revGripShare(int h)
+// The flipped-grip turn matrix about the fist (pitch, yaw, roll) scaled by `k` (0..1) for hand `h` with axes (`f`, `u`).
+[[nodiscard]] glm::mat3 revGripTurnMatrix(int h, const glm::vec3& f, const glm::vec3& u, float k)
 {
-    glm::vec3 f, u;
-    float flip = 0.f;
-    return bot == nullptr && heldIn(h) >= 0 && view::heldWeaponAxes(h, f, u, flip) ? za::clamp(flip, 0.f, 1.f) : 0.f;
+    if(k <= 0.f)
+    {
+        return glm::mat3{1.f};
+    }
+    const RevGripSet& g = revGripSet(h);
+    const glm::vec3 across = glm::cross(f, u);
+    if(glm::length(across) < 1e-3f)
+    {
+        return glm::mat3{1.f};
+    }
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const auto deg = [k](const Tunable& c) { return glm::radians(za::clamp(c.value, -180.f, 180.f) * k); };
+    const glm::quat q = glm::angleAxis(deg(g.roll) * side, glm::normalize(f)) *
+                        glm::angleAxis(deg(g.yaw) * side, glm::normalize(u)) * glm::angleAxis(deg(g.pitch), glm::normalize(across));
+    return glm::mat3_cast(q);
 }
 
 // A flipped grip's hand place (vr_flat_revgrip_<family>_fwd / _up / _out; the view's `fwd`, `right`, `up`) by the flip's share:
-// held a bit overhead. The game's hand: the thrust and the swing start from it.
+// held overhead. For melee weapons (dagger, sword, spear), its turn about the fist is applied to `s.rot[h]` here so swings,
+// thrusts, melee hit lines (s.muzzle) and throws all match the posed orientation; pole guns (Crystal Lance: !meleeIn) keep
+// the turn drawn-only at rest so its beam stays aimed at the crosshair. Applied before overheadSwing and thrustPose so both
+// start from the raised flipped pose.
 void revGripPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
 {
     const float k = revGripShare(h);
@@ -1524,8 +1580,14 @@ void revGripPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& 
         return;
     }
     const RevGripSet& g = revGripSet(h);
-    const auto units = [](const Tunable& c) { return za::clamp(c.value, -20.f, 20.f); };
+    const auto units = [](const Tunable& c) { return za::clamp(c.value, -30.f, 30.f); };
     s.pos[h] += (fwd * units(g.fwd) + right * ((h == HAND_OFF ? -1.f : 1.f) * units(g.out)) + up * units(g.up)) * k;
+    if(meleeIn(h) || !twohand::poleWeapon(heldIn(h)))
+    {
+        glm::vec3 f, r, u;
+        hands::angleVectors(s.rot[h], f, r, u);
+        s.rot[h] = turnedBy(revGripTurnMatrix(h, f, u, k), s.rot[h]);
+    }
 }
 
 // The blade in hand `h` as drawn last, in the hand's frame (forward, left, up): the way from its model's origin (its grip)
@@ -1570,12 +1632,15 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
         return;
     }
     const bool pole = twohand::poleWeapon(slot);
-    const ThrustPart p = thrustAt(t, pole);
+    const bool rev = fs.punchRevGrip[h] || revGripShare(h) >= 0.5f;
+    const ThrustPart p = thrustAt(t, pole, rev);
     const float side = h == HAND_OFF ? -1.f : 1.f;
     glm::vec3 way = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
-    if(!pole)
+    // All 1H blades AND flipped melee pole weapons (the spear, whose flipped turn is on s.rot[h]) share one blade-to-target
+    // thrust solver: align the actual drawn blade line (bladeInHand) onto the crosshair target, tilted by revGripSet::down.
+    if(!pole || (rev && meleeIn(h)))
     {
-        const float k = thrustAimShare(h);
+        const float k = !pole ? thrustAimShare(h) : thrustShare(h);
         glm::vec3 local{1.f, 0.f, 0.f};
         (void)bladeInHand(h, local); // (none drawn yet: the hand's forward)
         const glm::vec3 blade = held::axesFromAngles(&s.rot[h][0], true) * local;
@@ -1584,13 +1649,14 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
         const float closest = za::clamp(vr_flat_thrust_1h_near.value, 8.f, 256.f);
         const float dist = za::clamp(glm::dot(flatsight::crosshairHit(s, aim) - org, dir), closest, 4096.f);
         glm::vec3 want = glm::normalize(org + dir * dist - s.pos[h]);
-        glm::vec3 wf, wu;
-        float flip = 0.f;
-        if(view::heldWeaponAxes(h, wf, wu, flip) && flip >= 0.5f)
+        if(rev)
         {
             want = poleTurn(want, -za::clamp(revGripSet(h).down.value, 0.f, 80.f), 0.f, side) * want;
         }
-        s.pos[h] -= right * (side * za::clamp(vr_flat_thrust_1h_in.value, -20.f, 20.f) * k);
+        if(!pole)
+        {
+            s.pos[h] -= right * (side * za::clamp(vr_flat_thrust_1h_in.value, -20.f, 20.f) * k);
+        }
         // (The shortest turn taking the blade onto `want`, by the share.)
         glm::vec3 axis = glm::cross(blade, want);
         const float c = za::clamp(glm::dot(blade, want), -1.f, 1.f);
@@ -1609,12 +1675,25 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
             way = blade;
         }
     }
-    else if(revGripShare(h) >= 0.5f)
+    else if(rev)
     {
-        // (A flipped pole weapon stabs down: the pole turned under the crosshair's line, in and out with the thrust.)
-        const glm::mat3 down = poleTurn(way, -za::clamp(revGripSet(h).down.value, 0.f, 80.f) * thrustShare(h), 0.f, side);
-        s.rot[h] = turnedBy(down, s.rot[h]);
-        way = glm::normalize(down * way);
+        // (A flipped pole gun, e.g. Crystal Lance: apply its flipped turn during thrust while fading revGripDrawnTurn out.)
+        glm::vec3 org, dir;
+        crosshairRay(s, aim, org, dir);
+        const float closest = za::clamp(vr_flat_thrust_1h_near.value, 8.f, 256.f);
+        const float dist = za::clamp(glm::dot(flatsight::crosshairHit(s, aim) - org, dir), closest, 4096.f);
+        const glm::vec3 toTarget = glm::normalize(org + dir * dist - s.pos[h]);
+        const float k = thrustShare(h);
+        const glm::vec3 aimed = glm::normalize(glm::mix(way, toTarget, k));
+        const glm::mat3 down = poleTurn(aimed, -za::clamp(revGripSet(h).down.value, 0.f, 80.f) * k, 0.f, side);
+        const glm::vec3 wantWay = glm::normalize(down * aimed);
+        const glm::vec3 axis = glm::cross(way, wantWay);
+        if(glm::length(axis) > 1e-4f)
+        {
+            const float c = za::clamp(glm::dot(way, wantWay), -1.f, 1.f);
+            s.rot[h] = turnedBy(glm::mat3_cast(glm::angleAxis(za::acos(c), glm::normalize(axis))), s.rot[h]);
+        }
+        way = wantWay;
     }
     glm::vec3 at = s.pos[h] + way * p.along + up * p.up + right * (side * p.out);
     const float most = za::max(4.f, armSpan()) * 0.98f;
@@ -1638,7 +1717,9 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
 [[nodiscard]] glm::mat3 poleDrawnTurn(const hands::State& s, int h, const glm::mat3& handAxes)
 {
     const int slot = heldIn(h);
-    const float pitch = za::clamp(vr_flat_pole_pitch.value, -60.f, 60.f), yaw = za::clamp(vr_flat_pole_yaw.value, -60.f, 60.f);
+    const float upright = 1.f - revGripShare(h);
+    const float pitch = za::clamp(vr_flat_pole_pitch.value, -60.f, 60.f) * upright;
+    const float yaw = za::clamp(vr_flat_pole_yaw.value, -60.f, 60.f) * upright;
     if(bot != nullptr || (pitch == 0.f && yaw == 0.f) || !twohand::poleWeapon(slot))
     {
         return glm::mat3{1.f};
@@ -1657,27 +1738,33 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
 // share (view::heldWeaponAxes: it turns over as the flip does). Drawn only: the beam keeps to the crosshair.
 [[nodiscard]] glm::mat3 revGripDrawnTurn(int h, const glm::mat3& handAxes)
 {
-    glm::vec3 f, u;
-    float flip = 0.f;
-    if(bot != nullptr || !view::heldWeaponAxes(h, f, u, flip) || flip <= 0.f)
+    // Melee weapons (dagger, sword, spear) apply their flipped turn directly to s.rot[h] in revGripPose so melee hit lines
+    // and throws match the drawn weapon; pole guns (Crystal Lance: !meleeIn) keep it drawn-only here so the beam stays on
+    // the crosshair.
+    const float k = revGripShare(h);
+    if(bot != nullptr || k <= 0.f || meleeIn(h) || !twohand::poleWeapon(heldIn(h)))
     {
         return glm::mat3{1.f};
     }
-    // (Per family, flatmelee4: vr_flat_revgrip_<sword|dagger|pole>_pitch, then _yaw about the hand's up, in towards the middle,
-    // then _roll about its forward, mirrored for the off hand.)
+    const float ts = thrustShare(h);
+    if(ts <= 0.f)
+    {
+        return revGripTurnMatrix(h, handAxes[0], handAxes[2], k);
+    }
     const RevGripSet& g = revGripSet(h);
     const glm::vec3 across = glm::cross(handAxes[0], handAxes[2]);
     if(glm::length(across) < 1e-3f)
     {
         return glm::mat3{1.f};
     }
-    // (About cross(forward, up) a positive turn lifts what is ahead: what points back and down comes down and forward.)
-    // (A one-handed blade's thrust turns the game's hand to stab down with it: the drawn turn gives way to it.)
-    const float k = za::clamp(flip, 0.f, 1.f) * (1.f - thrustAimShare(h));
     const float side = h == HAND_OFF ? -1.f : 1.f;
-    const auto deg = [k](const Tunable& c) { return glm::radians(za::clamp(c.value, -180.f, 180.f) * k); };
-    const glm::quat q = glm::angleAxis(deg(g.roll) * side, glm::normalize(handAxes[0])) *
-                        glm::angleAxis(deg(g.yaw) * side, glm::normalize(handAxes[2])) * glm::angleAxis(deg(g.pitch), glm::normalize(across));
+    const float restPitch = za::clamp(g.pitch.value, -180.f, 180.f);
+    const float pitch = (restPitch + (180.f - restPitch) * ts) * k;
+    const float yaw = za::clamp(g.yaw.value, -180.f, 180.f) * (1.f - ts) * k;
+    const float roll = za::clamp(g.roll.value, -180.f, 180.f) * (1.f - ts) * k;
+    const glm::quat q = glm::angleAxis(glm::radians(roll) * side, glm::normalize(handAxes[0])) *
+                        glm::angleAxis(glm::radians(yaw) * side, glm::normalize(handAxes[2])) *
+                        glm::angleAxis(glm::radians(pitch), glm::normalize(across));
     return glm::mat3_cast(q);
 }
 
@@ -1954,6 +2041,7 @@ void startPunch(int h, const char* from, bool vKey = false)
     // with its own numbers, vr_flat_overhand_*; the fire button's straight punch unchanged. flatmelee4, his words 2026-11-25.)
     fs.punchOverhand[h] = vKey && heldIn(h) < 0 && !propInFist(h) && vr_flat_overhand.value != 0.f;
     fs.punchOverhead[h] = fs.punchOverhead[h] || fs.punchOverhand[h];
+    fs.punchRevGrip[h] = heldIn(h) >= 0 && revGripShare(h) >= 0.5f;
     // (A pole weapon, the Crystal Lance or the spear: the spear's thrust instead, vr_flat_thrust; V with a blade stuck in by
     // its point, a sword or a dagger, the same thrust: flatthrust, his decision 2026-11-24. Its fire button keeps the swing.)
     fs.punchThrust[h] = thrustsWith(heldIn(h)) && (vKey || twohand::poleWeapon(heldIn(h)));
@@ -3164,7 +3252,7 @@ glm::vec3 poleThrustTurn(int h, const glm::vec3& rot)
     {
         return rot;
     }
-    const ThrustPart p = thrustAt(vr_gametime - fs.punchAt[h], true);
+    const ThrustPart p = thrustAt(vr_gametime - fs.punchAt[h], true, fs.punchRevGrip[h]);
     const glm::vec3 way = hands::forward(weapons::shotAngles(rot, heldIn(h), h == HAND_OFF));
     return turnedBy(poleTurn(way, p.pitch, p.yaw, h == HAND_OFF ? -1.f : 1.f), rot);
 }
@@ -3193,6 +3281,16 @@ bool swungMelee(int h)
     return h >= 0 && h < HAND_COUNT && meleeIn(h) && heldWid(h) != WID_CHAINSAW;
 }
 
+bool oneHandOnly(int h)
+{
+    return h >= 0 && h < HAND_COUNT && isDagger(h);
+}
+
+bool flippedGrip(int h)
+{
+    return h >= 0 && h < HAND_COUNT && revGripShare(h) >= 0.5f;
+}
+
 float parryShare(int h)
 {
     return h >= 0 && h < HAND_COUNT ? geom::smooth01(fs.parry[h]) : 0.f;
@@ -3214,13 +3312,14 @@ float thrustAlong(int h)
     {
         return 0.f;
     }
-    return thrustAt(vr_gametime - fs.punchAt[h], twohand::poleWeapon(heldIn(h))).along;
+    return thrustAt(vr_gametime - fs.punchAt[h], twohand::poleWeapon(heldIn(h)), fs.punchRevGrip[h]).along;
 }
 
 float thrustOutShare(int h)
 {
-    const Tunable& reach = twohand::poleWeapon(heldIn(h)) ? vr_flat_thrust_reach : vr_flat_thrust_1h_reach;
-    return za::clamp(thrustAlong(h) / za::max(za::clamp(reach.value, -30.f, 30.f), 1.f), 0.f, 1.f);
+    const Tunable& reach = fs.punchRevGrip[h] ? vr_flat_revgrip_thrust_reach
+                                              : (twohand::poleWeapon(heldIn(h)) ? vr_flat_thrust_reach : vr_flat_thrust_1h_reach);
+    return za::clamp(thrustAlong(h) / za::max(za::clamp(reach.value, -30.f, 40.f), 1.f), 0.f, 1.f);
 }
 
 float thrustOffSlide(int h)
@@ -4508,6 +4607,10 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             handsource::guarding(h);
         }
 
+        // A flipped grip's hand held overhead (vr_flat_revgrip_<family>_*), before the swing and thrust so both start from it
+        // rather than shifting the strike's endpoint back/up behind the target.
+        revGripPose(s, h, fwd, right, up);
+
         // A weapon's overhead swing (vr_flat_swing): its own way round the shoulder from where the hand is posed, the
         // weapon turned up over the head and down through the strike (overheadSwing). (A prop's in the fist: below, from
         // the guard it is held in, which stays its rest all through.)
@@ -4524,9 +4627,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         {
             swingOverhead();
         }
-        // A flipped grip's hand held a bit overhead (vr_flat_revgrip_<family>_*), then a spear thrust (vr_flat_thrust): a pole
-        // weapon's along its pole from the spear pose, a stabbing blade's from its own.
-        revGripPose(s, h, fwd, right, up);
+        // A spear thrust (vr_flat_thrust): a pole weapon's along its pole from the spear pose, a stabbing blade's from its own.
         thrustPose(s, h, shoulder(s, h) + nudge, right, up, aim);
 
         // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out

@@ -66,6 +66,8 @@ struct Hand
     bool handKnown{false};           // the hand as drawn last (view::drawnHandPose): its forward and up (world)
     glm::vec3 handForward{0.f};
     glm::vec3 handUp{0.f};
+    bool leaveAnglesKnown{false};    // a held reversed weapon's exact drawn angles (view::leavingAngles; pitch negated for MakeThrown)
+    glm::vec3 leaveAngles{0.f};
 };
 
 // (B11c) Where a player's body has its holsters (body::Holster's order, world): this game's own player's placed by
