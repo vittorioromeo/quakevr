@@ -116,6 +116,7 @@ int checkStatics(const Ctx& ctx, const Args& args, Out& out);
 int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out);
 int checkBuiltins(const Ctx& ctx, const Args& args, Out& out);
 int checkToolgunWeapons(const Ctx& ctx, const Args& args, Out& out);
+int checkClientPrefs(const Ctx& ctx, const Args& args, Out& out);
 int genCvarsQc(const Ctx& ctx, const Args& args, Out& out);
 int checkCanonical(const Ctx& ctx, const Args& args, Out& out);
 int checkReleaseQc(const Ctx& ctx, const Args& args, Out& out);
