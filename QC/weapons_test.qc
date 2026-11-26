@@ -331,7 +331,7 @@ void() VR_GrenShot_TestShoot =
 };
 
 // QVR: impulse 252 with vr_test_held_pick 9-13 (tests): the nearest rock, a hand grenade from the pouch, the nearest box
-// of shells, the nearest brick, the nearest crate or barrel (13) put into the empty off hand (the two-handed re-grip tests: ROUND21.md, "Every prop in
+// of shells, the nearest brick, the nearest crate or barrel (13), the nearest bayonet (14) put into the empty off hand (the two-handed re-grip tests: ROUND21.md, "Every prop in
 // both hands"); the main hand with vr_test_held_hand 1.
 void(float xPick, float xHand) VR_Test_HeldProp =
 {
@@ -368,7 +368,7 @@ void(float xPick, float xHand) VR_Test_HeldProp =
         dprint(sprintf("test: %s (health %.0f) in the off hand\n", crateNear.model, crateNear.health));
         return;
     }
-    string heldClass = xPick == 9 ? "vr_rock" : (xPick == 11 ? "item_shells" : "vr_brick");
+    string heldClass = xPick == 9 ? "vr_rock" : (xPick == 11 ? "item_shells" : (xPick == 14 ? "vr_bayonet" : "vr_brick"));
     entity heldNear = world;
     float heldDist = 100000;
     for(entity heldE = find(world, classname, heldClass); heldE; heldE = find(heldE, classname, heldClass))
