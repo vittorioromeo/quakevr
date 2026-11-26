@@ -105,12 +105,12 @@ Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bo
 Pose Studio Data on that spear grunt: pick Thrust and play its timeline (0.25x, Loop, scrub the bar): the spear is drawn back and driven out at you with both hands on the shaft, and its Ready / Port Arms keys move the whole hold, the sword grunt's hold not at all. {test:pose_grunt_pole}
 
 [8. Quoth]
-Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:hub_start}
+Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:quoth_ne_marb}
 Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason. {test:hub_start}
-Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun. {test:hub_start}
+Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun. {test:quoth_kellbase_buttons}
 Quoth's kellbase1: the doorway's energy field is a sheet of pale blue sparks, and the enforcer behind it stops short instead of walking into it again and again. {test:quoth_kellbase_field}
-Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:hub_start}
-Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere. {test:hub_start}
+Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:quoth_lpqsp1}
+Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere. {test:quoth_metmon}
 
 [9. Arcane Dimensions]
 Arcane Dimensions' rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators and crossbow knights hold their own gun as armed humanoids: disarm them, tug and shoot the guns out. {test:humrepl_variants}
