@@ -2195,6 +2195,130 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
 
+## flatthrow3: flat throw's release carries the thing on before it leaves; an ogre's grenade caught only with a timed H (branch agent/flatthrow3, 2026-11-26)
+
+His flat feedback 2026-11-26 (late), items 5 and 9.
+- **Release follow-through (item 5):** let go of B (or the quick grenade's fire button), the follow-through starts at once
+  with the thing still in the hand; it leaves `vr_flat_throw_release_time` (0.07 s, 0..0.5; 0 = at once, as before) later,
+  from where the hand then is (VR_FlatThrow_From reads the drawn hand: no pop-in) and as hard as it was wound up (the speed
+  by charge, aimed at the crosshair as before). QC: `VR_FlatThrow_Release` / `VR_FlatGrenade_LetGo` set the THROWN phase
+  and `.vr_flatthrow_launch` / `.vr_flatgren_launch`; the frames (`VR_FlatThrow_Frame`, `VR_FlatGrenade_Frame`) throw at
+  that time (`VR_FlatThrow_Throw`, `VR_FlatGrenade_Throw`, unchanged), the follow-through timed from the key's release
+  (`VR_FlatThrow_FollowTime`: never over before the thing has left). Meanwhile the weapon fires nothing
+  (`VR_FlatThrow_WindsUpWeapon`), B and G start nothing. No new stat bits: the client draws the THROWN phase as before,
+  plus `vr_flat_throw_release_arc` (0.1 of the reach, ±0.5: the hand raised halfway from the wind-up into the
+  follow-through, `flatgrenade::apply`). Every throwable: weapons, carried props, ragdolls, the quick grenade (B or fire
+  button). Rows: Flatscreen > Throw "Throw: Release Delay", "Throw: Release Arc". developer 1: "carried on N s into the
+  follow-through", "left the hand N s after the key's release, N units from it".
+- **No auto-catch (item 9):** a flat hand's grip always reads held (vr_client.cpp `gripping`), so an empty hand took any
+  live grenade passing its palm (VR_Grenade_CatchCheck / HandTouch -> Meet -> Take). Now `VR_Grenade_HandCatches` refuses
+  in flat play unless H's catch window is open (`.vr_flatcatch_until`). An H press (toggle 96, or hold mode's first 97,
+  not its retries) opens it for `vr_flat_grab_catch_window` (0.3 s); in it a catchable grenade whose path this frame passes
+  within `vr_flat_grab_catch_reach` (1 m) of his body (origin to eyes) is taken by a free hand, main first
+  (`VR_FlatGrab_CatchTry`, vr_flatgrab.qc; then the quick grenade's state, VR_FlatGrenade_Adopt); a press that catches does
+  nothing else (no grab, no release). The palm's own reach/touch catch in the window too. Rows: Flatscreen > Grab / Pull
+  "Catch Window", "Catch Reach". Other auto-catches in flat: none found (VR_Carry_Handtouch needs a fresh grip press,
+  which flat never makes; force grab is E, deliberate).
+- **VR (asked):** unchanged. A headset's hand catches only with the grip held or closing as the grenade meets the palm (an
+  open palm stops it and waits vr_grenade_catch_window for the grip): already a deliberate grab.
+- **Files:** QC/vr_flatgrenade.qc, vr_flatgrab.qc, vr_grenade.qc, vr_flatitems_test.qc, vr_cvars_gen.qc; Quake/vr/
+  vr_flatgrenade.cpp, vr_tunables.inc, vr_tunables_rows.inc; Misc/quakevr/flatthrow_test.sh, flatthrow_check.py;
+  scenario quakevr/scenarios/flat_ogre_catch.txt.
+- **Tests:** flatthrow_test.sh 54/0: new run `release` (the nail gun with Release Delay 0 leaves at B's release, 3.4 units
+  ahead of the eye; with 0.07 it leaves 0.069 s later, 16.5 ahead, 0.0 units from the hand; the quick grenade's fire-button
+  throw 0.069 s); `guide` = `vr_flatitems_test 12` extended to 13/0 (new cases: a grenade at the free palm flies on without
+  H, caught after an H press; H pressed and its window let go by: flies on; thrown at his face from 90 units: caught with H
+  before it meets him, meets him without); `move` starts standing/running at y -380 (the running throw, now leaving ~35
+  units further on, bounced into what stands at y 350). tunables_test 13/0.
+- **Open:** flatgrabthrow_test.sh fails (27, "nothing grabbable in reach": TryGrab's reach check, untouched here; its
+  crates sit past the promoted `vr_flat_grab_reach` 0.65 m, b5629706a): its distances need updating (not done here).
+- **attach5 (2026-11-26): the MP test.** `mp_test.py attach` (suite `mp_attach`): a listen host A (VR), B and C (flat) in coop
+  e1m1. Server aids (vr_attach_test.qc, `vr_dm_test` 25-27, one-shot): 25 a bayonet into the empty off hand of player
+  `vr_dm_test_who` (an entity number: coop's test impulses are off for clients, deathmatch has none); 26 the server's
+  report, `attachmp: player ent= main=wid,kind off= holsters=...`, `attachmp: lying wid= attach= stuck= speed= at=`, the
+  monsters within 160 units. The clients' side is attach4's `vr_attach_report`; a lying gun is matched by place (within
+  48 units of the server's gun), not entity number.
+  - PASS: J on B's shotgun (record and own hand); A and C draw it on B's gun held, holstered (flat holster menu impulse 74,
+    the left upper holster: the shoulders' are not drawn on the copy and his hips hold his start's axe and shotgun), drawn
+    again, dropped (impulse 79: A, B and C draw it lying); a thrown gun's record keeps it and A and B draw it; B armed again,
+    V sticks the shotgun in a grunt by the bayonet (30 -> 1 health, `stuck=1`, the record's bayonet on it), A and C draw it
+    on the stuck gun; in deathmatch (changelevel: a listen host's `map` drops the remote clients) B draws his holstered
+    shotgun (impulse 71) and J puts a bayonet on it.
+  - Fixed: other players' holstered guns were drawn with their bayonet but never listed by `vr_attach_report`
+    (vr_mpavatar.cpp drawHolsteredParts / wearHolsters now pass the player's entity to drawGunParts).
+  - Green after the follow-up: 26/0. C (flat) takes the dropped gun with H standing beside it looking down (the grab
+    reaches 0.65 m, 20 units, level from his eyes; placing him nudges the gun, so its place is read again before each of up
+    to six tries, from each side in turn); A and B draw the bayonet on his gun; he throws it with the throw key held down
+    (`vr_mock_key b`: his client sends 40 while the key is up, so console impulses 39/40 only dropped it), and A and B draw
+    it where the thrown gun comes to rest (64+ units ahead). Deathmatch has no setpos: `vr_dm_test 27` puts player
+    `vr_dm_test_who` at `vr_dm_test_x/y/z` facing the nearest other living player; B's V thrust then hurts A. The stab's
+    stuck gun is told from the thrown one (which can stick in the level) by place. Found no sync bug. Screenshots dropped
+    (he looks in game).
+## flatxhair2: every melee weapon's crosshair on where its blow lands, either grip; the wound-up throw's on where it lands (branch agent/flatxhair2, 2026-11-26)
+
+His flat notes 2026-11-26, items 1 and 6.
+- **Melee (6).** `flatplay::noteStrikePath` (poseHands, right before the swing and the thrust) rehearses hand h's blow on a
+  copy of the hand as posed now: the running blow's (a V thrust too, a bayonet's), else the one its attack button would
+  start (`punchKindOf`, split out of startPunch and used by it: a melee weapon's overhead swing, upright or flipped; a melee
+  pole's thrust). `PunchRehearsal` sets the hand's punch state and clock for it (and puts them back); the pose's own
+  `swingPose` (overheadSwing + its turn, now also poseHands') and `thrustPose` move the copy to 13 times through the strike;
+  the muzzle as last placed in the hand (`flatsight::muzzleInHand`, the server's blade line's far end) rides on each.
+  `flatplay::strikePath` hands flatxhair the 13 tip points; it traces them segment by segment: the first thing met is where
+  the blow lands, nothing in reach the tip's end. Replaces `noteThrustPath`/`thrustPath` (the flipped spear's sums). A melee
+  weapon's crosshair is now shown whatever its own crosshair mode (swords, daggers, axes had none: the centre).
+  Same tunable, renamed in the menu: `vr_flat_xhair_thrust_path` 1, "Melee Crosshair" (Shot Line / Blow Path).
+  Measured (e1m1's wall, 12 units off; the QC's melee mark against the crosshair as the press went in): sword 2.7, flipped
+  sword 2.5, dagger 2.0, axe 3.4, hammer 5.5, mace 3.0, crowbar 3.7 units apart (the axe, hammer, mace and crowbar have no
+  flipped hold: the same). The flipped sword lands high (the raised fist's blow): its crosshair goes there.
+- **Throw (1).** QC `VR_FlatThrow_Aim` (each server frame from VR_FlatThrow_Frame): while the throw key winds up (a weapon,
+  a carried thing, a body) or the quick grenade is wound up by the key, where letting go now would land it, sent to the view
+  by the new builtin `flatthrowaim(player, hand, at)` (the listen server's own player only; `flatxhair::noteThrowAim`).
+  The release's own pieces, split out and used by the release too: `VR_FlatThrow_Speed` / `_Up` / `_RagVel`,
+  `VR_FlatGrenade_Speed` / `_Up`, `VR_Throw_WeaponVel` (DropWeaponInHandScaled), `VR_Carry_ThrowVel` (VR_Carry_Release);
+  then the throw assist, his own motion and the throw's gravity; `VR_Throw_ArcEnd` steps the arc 0.02 s at a time (4 s at
+  most), a traceline each step (monsters too, past him and the thing in the hand). The spin turns the thing about its middle,
+  not its way: not modelled. The hand's crosshair is shown on it while fresh (0.1 s), whatever it holds, never dimmed by
+  the wall or a reload. Tunable `vr_flat_xhair_throw_aim` 1 ("Throw Crosshair", Debug > Tunables > Flatscreen > Crosshair).
+  `vr_flat_grenade_debug 2` prints `flat throw: aim`; developer 1 prints `flat throw: first hit at` / `hit from` (the frame
+  before) and the landed line now ends with where.
+  Measured (vrtutorial lesson 12's wall; the arc from the frame before the hit on to the wall): sword from 164 units 3.0
+  units apart, axe from 294 units 9.2: its launch and its fall are the prediction's exactly (velocity 25.4 -484.8 25.4,
+  gravity 312), but the thrown axe's origin flies about 10 units over the hand's arc from the start (where the thrown
+  body is placed off the hand: not chased). Open: start the arc from the thrown thing's own place (CreateThrownWeapon's /
+  the rigid body's), not the hand's.
+- Tests: `flatxhair_melee_test.sh` 21/1: new per weapon and grip (11) and the two throws; the one fail is the old `flip24`
+  case, 7.3 units apart (was 2.0 when flatxhair landed): the flipped pole's tunables were promoted since
+  (vr_flat_revgrip_pole_out -2, _roll 0, _down 0); the rehearsal gives the same said point as the old sums did. The flipped
+  dagger's swing at a wall leaves no melee mark (no landing to compare): left out. Not run: the full flat suite.
+- Code shared, not copied: the swing and the thrust are the pose's own functions; the throw's speed, launch velocities and
+  gravity are the release's own helpers.
+
+
+## Map-made armed humanoids hold their guns right: Quoth's kellbase1 enforcers (branch agent/quothpose, 2026-11-26)
+
+His note: kellbase1's enforcer with the Centurion's plasma rifle had its left arm off and its elbow flung out; the same
+enforcer and gun spawned on vrragtriggers was right.
+- Cause: AD's and Quoth's soldiers (eliminator, defender, pyro... `VR_HUM_Replace`) become armed humanoids inside the
+  map's spawn functions, and QC measures the held gun's points then, once (`VR_AGP_Geo`: muzzle, butt, second grip, kept
+  on the weapon entity). During spawn `sv.active` is still false and the client has not connected, so
+  `weapons::modelTransform` (vr_weapons.cpp) saw no Quake VR protocol and gave no transform: every gun was measured at
+  its model's own size (the Centurion's gun's muzzle 33 units ahead instead of 12, the burst rifle variants all alike).
+  The pose code took the long gun's butt and grips from that, the gun sat 10 units across the chest and the left arm
+  reached round it. A toolgun spawn (after spawn) measured right. Not Quoth-only: any armed humanoid made at a map's
+  spawn with a gun (AD's maps too); the id maps' armed grunts get theirs rolled later.
+- Fix: `modelTransform` also takes the server's protocol while the server's QC runs during loading
+  (`sv.state == ss_loading && qcvm == &sv.qcvm`). The comment there already named the same hole for the first frames
+  (thrown weapons' hulls three times too big); hulls and boxes made during spawn are now the drawn size too.
+- Debug: with `vr_agrunt_ik_debug 1`, `vr_agholds_report` (Debug > Armed Humanoids: Weapon Holds Report) adds `agarm`
+  lines: each arm's hand and elbow off its shoulder (model space) and the body's model, frame, scale.
+  `vr_agholds_pose save|pin|check|done` (vr_hitreact.cpp) compares the arms of those holding one gun model to a reference.
+- Test: `Misc/quakevr/quothpose_test.sh` (needs Quoth 2.2): scene `agrunt_enf_centurion` (vrragtriggers, frozen, the
+  reference, pinned within 1 unit), then `quoth_kellbase_enforcer` (campaign quoth, frozen): both kellbase1 eliminators
+  within 1.5 units of it (before the fix about 10 units off). 2/0.
+- Kit: Quoth was missing from the kit's bases; `qvr-kit/links.ps1` now mirrors his Steam `quoth` as it does `ad`
+  (hard links for the paks and txt, no .cfg or .bat) into `qbase/quoth` and links it into each agent's bases.
+- Known, not mine: `reload/pouch_test.sh` fails "super shotgun (main hand, dual-wielded): fills too" with or without
+  this change.
 ## flathold3: hands drawn on what they hold never leave the wrists (branch agent/flathold3, 2026-11-26)
 
 His words (flat feedback 2026-11-26 late, item 2): grabbing crates with H, "the hands detach from the wrists when the player is

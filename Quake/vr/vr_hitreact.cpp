@@ -1878,6 +1878,18 @@ void holdsReport_f()
             base ? base + 1 : name, s.seenSlot, c == 2 ? 0 : two ? 2 : 1, left,
             (s.flags & apLeftFree) ? " ask1" : (s.flags & apTwo) ? " ask2" : "", s.seenSecond.x, s.seenSecond.y,
             s.seenSecond.z);
+        if(vr_agrunt_ik_debug.value >= 1.f)
+        {
+            // Each arm as solved, off its shoulder (model space): its hand and elbow; the body's model, frame, scale.
+            const ArmSeen& as = armSeen[&s - armPoses.slots];
+            const entity_t* b = &cl_entities[s.ent];
+            for(int h = 0; h < 2; h++)
+            {
+                const glm::vec3 hd = as.hand[h] - as.shoulder[h], el = as.elbow[h] - as.shoulder[h];
+                Con_Printf("agarm %d %s: hand %.1f %.1f %.1f elbow %.1f %.1f %.1f (%s f%d sc%d)\n", s.ent, h ? "left" : "right",
+                    hd.x, hd.y, hd.z, el.x, el.y, el.z, b->model ? b->model->name : "-", b->frame, static_cast<int>(b->scale));
+            }
+        }
         glm::vec3 muzzle, butt, second;
         int type = 0;
         if(p && twohand::poleWeapon(s.seenSlot) && view::weaponLocalGeometry(p->model, muzzle, butt, second, type))
@@ -1910,6 +1922,123 @@ void holdsReport_f()
         }
     }
     Con_Printf("agholds: %d armed humanoids, %d one-handed, %d two-handed, %d dual\n", n, counts[0], counts[1], counts[2]);
+}
+
+// vr_agholds_pose (quothpose_test.sh): the arms of the armed humanoids holding one weapon model, as solved (each hand and
+// elbow off its shoulder, model space: left hand, left elbow, right hand, right elbow), against a reference.
+//   save <model>: the first one seen holding it is the reference
+//   pin <model> <tol> <label> <12 numbers>: the reference within `tol` units of those (a case)
+//   check <model> <tol> <label>: every one seen holding it within `tol` of the reference (a case; none seen fails)
+//   done: the cases' verdict (agholdpose: P passed, F failed)
+struct HoldPoseRef
+{
+    bool set{false};
+    glm::vec3 p[4]{};
+};
+HoldPoseRef holdPoseRef;
+testkit::Tally holdPoseTally;
+
+// The arm points of the armed humanoid in slot `s` (left hand, left elbow, right hand, right elbow) if it was seen
+// lately holding a weapon whose model's name ends in `model`.
+bool holdPosePoints(const ArmPose& s, const char* model, glm::vec3 out[4])
+{
+    if(s.ent <= 0 || s.ent >= cl.num_entities || s.seenFrame < 0 || host_framecount - s.seenFrame > 36 || s.prop <= 0 ||
+        s.prop >= cl.num_entities)
+    {
+        return false;
+    }
+    const entity_t* p = &cl_entities[s.prop];
+    const char* name = p->model ? p->model->name : "";
+    const za::SizeT n = ZA_STRLEN(name), m = ZA_STRLEN(model);
+    if(m == 0 || n < m || ZA_STRCMP(name + n - m, model) != 0)
+    {
+        return false;
+    }
+    const ArmSeen& as = armSeen[&s - armPoses.slots];
+    out[0] = as.hand[1] - as.shoulder[1];
+    out[1] = as.elbow[1] - as.shoulder[1];
+    out[2] = as.hand[0] - as.shoulder[0];
+    out[3] = as.elbow[0] - as.shoulder[0];
+    return true;
+}
+
+[[nodiscard]] float holdPoseOff(const glm::vec3 a[4], const glm::vec3 b[4])
+{
+    float most = 0.f;
+    for(int k = 0; k < 4; k++)
+    {
+        most = za::max(most, glm::distance(a[k], b[k]));
+    }
+    return most;
+}
+
+void holdPose_f()
+{
+    const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const char* model = Cmd_Argc() > 2 ? Cmd_Argv(2) : "";
+    const float tol = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 1.f;
+    const char* label = Cmd_Argc() > 4 ? Cmd_Argv(4) : model;
+    if(!q_strcasecmp(what, "done"))
+    {
+        holdPoseTally.verdict("agholdpose");
+        holdPoseTally.reset();
+        holdPoseRef = HoldPoseRef{};
+        return;
+    }
+    if(!q_strcasecmp(what, "save"))
+    {
+        holdPoseRef = HoldPoseRef{};
+        for(const ArmPose& s : armPoses.slots)
+        {
+            if(holdPosePoints(s, model, holdPoseRef.p))
+            {
+                holdPoseRef.set = true;
+                const glm::vec3* r = holdPoseRef.p;
+                Con_Printf("agholdpose ref %s (entity %d): left hand %.1f %.1f %.1f elbow %.1f %.1f %.1f, right hand %.1f %.1f "
+                           "%.1f elbow %.1f %.1f %.1f\n",
+                    model, s.ent, r[0].x, r[0].y, r[0].z, r[1].x, r[1].y, r[1].z, r[2].x, r[2].y, r[2].z, r[3].x, r[3].y, r[3].z);
+                return;
+            }
+        }
+        Con_Printf("agholdpose ref %s: none seen holding it\n", model);
+        return;
+    }
+    if(!q_strcasecmp(what, "pin"))
+    {
+        glm::vec3 pin[4];
+        for(int k = 0; k < 12; k++)
+        {
+            pin[k / 3][k % 3] = Cmd_Argc() > 5 + k ? static_cast<float>(Q_atof(Cmd_Argv(5 + k))) : 0.f;
+        }
+        const float off = holdPoseRef.set ? holdPoseOff(holdPoseRef.p, pin) : 1e9f;
+        const bool ok = holdPoseTally.check(holdPoseRef.set && off <= tol);
+        Con_Printf("agholdpose %s: the reference %.2f units off its pinned pose (most %.2f): %s\n", label, off, tol,
+            ok ? "PASS" : "FAIL");
+        return;
+    }
+    if(!q_strcasecmp(what, "check"))
+    {
+        int seen = 0;
+        float most = 0.f;
+        for(const ArmPose& s : armPoses.slots)
+        {
+            glm::vec3 q[4];
+            if(holdPosePoints(s, model, q))
+            {
+                const float off = holdPoseRef.set ? holdPoseOff(holdPoseRef.p, q) : 1e9f;
+                Con_Printf("agholdpose %s: entity %d %.2f units off the reference (left hand %.1f %.1f %.1f elbow %.1f %.1f "
+                           "%.1f)\n",
+                    label, s.ent, off, q[0].x, q[0].y, q[0].z, q[1].x, q[1].y, q[1].z);
+                most = za::max(most, off);
+                seen++;
+            }
+        }
+        const bool ok = holdPoseTally.check(holdPoseRef.set && seen > 0 && most <= tol);
+        Con_Printf("agholdpose %s: %d holding %s, %.2f units off the reference at most (most %.2f): %s\n", label, seen, model,
+            most, tol, ok ? "PASS" : "FAIL");
+        return;
+    }
+    Con_Printf("vr_agholds_pose save <model> | pin <model> <tol> <label> <12 numbers> | check <model> <tol> <label> | done\n");
 }
 
 // vr_agrunt_armpose_check (and vr_agrunt_ik_err's agslots line): the armed humanoids drawn now (sent this frame, not a
@@ -2024,6 +2153,7 @@ void registerCommands()
     Cmd_AddCommand("vr_agrunt_ik_err", armErr_f);
     Cmd_AddCommand("vr_agrunt_armpose_check", armPoseCheck_f);
     Cmd_AddCommand("vr_agholds_report", holdsReport_f);
+    Cmd_AddCommand("vr_agholds_pose", holdPose_f);
     aggrip::registerCommands();
     agarms::registerCommands();
     aglegs::registerCommands();

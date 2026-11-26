@@ -126,10 +126,13 @@ struct FireRoute
 // none with the holster menu or the wheel open): the throw key's cancel (vr_flatgrenade.cpp).
 [[nodiscard]] int attackButtons(int h);
 
-// A flipped melee pole's (the spear's) thrust from hand `h` as it would go now (flatxhair, his flat notes 2026-11-26 item
-// 9): its tip at the strike's start (`from`) and end (`to`), and the blade's way at the end (`dir`). False for any other
-// hold (its shot's line is its thrust's: the upright pole aimed at the crosshair's point by flatsight).
-[[nodiscard]] bool thrustPath(int h, glm::vec3& from, glm::vec3& to, glm::vec3& dir);
+// Hand `h`'s melee blow as it would go now (flatxhair; his flat notes 2026-11-26 items 9 and 6, "it should always point at
+// the target hit location correctly for both grip types"): the running blow's, else the one its attack button would
+// start (a swing, a thrust; either grip). Its tip's way through the strike, rehearsed by the pose's own swing and thrust
+// (noteStrikePath): `count` points (2 .. strikePathMost) into `pts`, from the strike's start to its end. False: no melee
+// weapon's blow (a gun's fire button shoots: its shot's line is its crosshair's).
+inline constexpr int strikePathMost = 13;
+[[nodiscard]] bool strikePath(int h, glm::vec3 (&pts)[strikePathMost], int& count);
 
 // Hand `h`'s last melee blow (the fist's punch, a weapon's overhead swing or a thrust): seconds since its strike began
 // (negative in its windup), the blows it has begun (a new one: a new count) and its weapon's weight (kg; 0 a fist or a

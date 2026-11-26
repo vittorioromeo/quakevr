@@ -1480,6 +1480,15 @@ void(entity xBox, vector v) VR_Carry_Throw =
 };
 
 // Let go: it keeps the hand's throw (the same estimate thrown weapons use).
+// A carried thing's throw (`xBox`) from a hand moving at `xVel` (m/s; `xFlick` of it the wrist's) in `xHands` hands: the
+// velocity it leaves at (units/s), by the weight rules (throwvelocity), vr_carry_throw_mult and its own Throw (Held Object
+// Offsets, from its mass). VR_Carry_Release's, and the flat throw key's aim (vr_flatgrenade.qc VR_FlatThrow_Aim).
+vector(entity xBox, vector xVel, vector xFlick, float xHands) VR_Carry_ThrowVel =
+{
+    vector v = throwvelocity(xVel, xFlick, propvalue(xBox, "mass"), xHands) * VRMetersToUnits() * cvar_hget(cvarh_vr_carry_throw_mult);
+    return v * propvalue(xBox, "throw"); // a heavy thing leaves the hand slower
+};
+
 void(float xHand, entity xBox) VR_Carry_Release =
 {
     // Thrown with both hands: held in both, or by the other until a moment ago (the hand's estimate is then the prop's
@@ -1498,11 +1507,8 @@ void(float xHand, entity xBox) VR_Carry_Release =
     vector refNow = hands == 2 ? (xBox.absmin + xBox.absmax) * 0.5 : VRGetHandPos(xHand);
     VR_Hand_Release(self, xHand, "letgo");
 
-    float m2u = VRMetersToUnits();
     vector throwVel = VRGetHandThrowVel(xHand);
-    vector v = throwvelocity(throwVel, VRGetHandThrowFlick(xHand), propvalue(xBox, "mass"), hands) * m2u *
-               cvar_hget(cvarh_vr_carry_throw_mult);
-    v = v * propvalue(xBox, "throw"); // a heavy thing leaves the hand slower (Held Object Offsets: Throw, from its mass)
+    vector v = VR_Carry_ThrowVel(xBox, throwVel, VRGetHandThrowFlick(xHand), hands);
 
     // Where it would be by now (VR_Throw_BackProject; still the carrier's: his traces pass through it), and the throw
     // assist's bend towards a monster, as a thrown weapon's (DropWeaponInHandScaled).

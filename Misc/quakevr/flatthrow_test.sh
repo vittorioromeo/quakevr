@@ -26,6 +26,11 @@
 #   move   (flatfb1124, his note 2026-11-24: a health box thrown running forward took a weird path) vrtesthall: a health
 #          box tapped standing, running forward and strafing: each passes through his body as it leaves (box3d's throw
 #          grace), flies clean until it comes down (no knock off his body), and keeps his motion (running: further)
+#   release (flatthrow3, his words 2026-11-26: the hand travels forward with the thing still in it, then lets go) the nail
+#          gun thrown with vr_flat_throw_release_time 0 (it leaves at once, at the wind-up) and with the default (it leaves
+#          that long after B's release, from the hand further forward); the quick grenade's fire-button throw: the same delay
+#   guide also (flatthrow3) no catch without H: a grenade at the palm caught only after an H press, an H press too early
+#          catches nothing, a grenade thrown at him caught with H, not without (vr_flatitems_test 12)
 AGENT=${1:?agent}; ONLY=$2 # (optional: the runs to make, "axe rock twoh")
 source "$(dirname "$0")/qvrtest.sh"
 S=C:/OHWorkspace/qvr-agents/$AGENT/scratch/flatthrow
@@ -50,15 +55,20 @@ run twoh "$BASE; setpos 3200 0 -120 0 0 0; wait5; vr_test_give_wid 6; impulse 14
 run nofire "$BASE; setpos 3200 0 -120 0 0 0; wait5; vr_test_give_wid 6; impulse 149; give n 200; wait60; $J; wait25; $JU; wait60; impulse 149; wait60; +attack; wait20; -attack; wait5; +attack; wait3; $J; wait65; $JU; wait2; -attack; wait60"
 # (flatthrow2) cancel: the throwing hand's attack button pressed while B is held.
 run cancel "$BASE; setpos 3200 0 -120 0 0 0; wait5; vr_test_give_wid 6; impulse 149; give n 200; wait60; echo flatthrow_test: cancel gun; $J; wait30; +attack; wait20; $JU; wait20; -attack; wait10; echo flatthrow_test: cancel gun again; $J; wait30; $JU; wait60; give r 10; vr_mock_key g down; wait2; vr_mock_key g up; wait50; echo flatthrow_test: cancel gren; $J; wait30; +attack; wait10; -attack; wait5; $JU; wait30; vr_flatgrenade_report; wait2"
+# (flatthrow3) release: the throw leaves the hand vr_flat_throw_release_time after B's (or the fire button's) release.
+G6="vr_test_give_wid 6; impulse 149; give n 200; wait60"
+run release "$BASE; setpos 3200 0 -120 0 0 0; wait5; $G6; echo flatthrow_test: release 0; vr_flat_throw_release_time 0; $J; wait40; $JU; wait60; $G6; echo flatthrow_test: release default; vr_flat_throw_release_time 0.07; $J; wait40; $JU; wait60; echo flatthrow_test: release gren; give r 10; vr_mock_key g down; wait2; vr_mock_key g up; wait50; +attack; wait3; -attack; wait3; +attack; wait40; -attack; wait60"
 MB0="map vrtesthall; god; notarget; developer 1; vr_flat_grenade_debug 1; wait60"
 run cancoff "$MB0; impulse 152; wait30; setpos 0 -300 25 26 90 0; wait5; vr_physics_spawn item_health 64; wait30; impulse 46; wait60; echo flatthrow_test: cancoff; $J; wait30; +offhandattack; wait10; $JU; wait10; -offhandattack; wait30; vr_flatgrenade_report; wait2"
 [ -z "$ONLY" ] || [[ " $ONLY " == *" guide "* ]] && bash $KIT/run.sh $AGENT -ExtraArgs -flatscreenmode -Script "$MB0; vr_flatitems_test 12" \
     -QuitOn "^flatitems: [0-9]+ passed" -Timeout 150 -Filter "^(flatitems|FAIL|PASS|flat throw|grenade:)" > "$S/guide.log" 2>&1
 # (flatfb1124) move: a health box (vrtesthall's open floor) thrown standing, running forward, then strafing right.
+# (flatthrow3: standing and running from y -380, not -200: with the release's delay the running throw leaves some 35 units
+# further on, and its first bounce reached what stands at y 350; the strafe stays at -200, clear at its side.)
 MB="map vrtesthall; god; notarget; developer 1; vr_flat_grenade_debug 2; vr_debug_box3d 1; wait60"
 HB="setpos 0 -300 25 26 90 0; wait5; vr_physics_spawn item_health 64; wait30; impulse 46; wait60"
-MV() { echo "$HB; setpos $1 -200 25 0 90 0; wait5; echo flatthrow_test: move $2; $3; wait20; $J; wait18; $JU; wait30; $4; wait150"; }
-run move "$MB; $(MV 0 stand wait1 wait1); $(MV 0 run '+forward;+speed' '-forward;-speed'); $(MV -150 side '+moveright;+speed' '-moveright;-speed'); wait150"
+MV() { echo "$HB; setpos $1 $5 25 0 90 0; wait5; echo flatthrow_test: move $2; $3; wait20; $J; wait18; $JU; wait30; $4; wait150"; }
+run move "$MB; $(MV 0 stand wait1 wait1 -380); $(MV 0 run '+forward;+speed' '-forward;-speed' -380); $(MV -150 side '+moveright;+speed' '-moveright;-speed' -200); wait150"
 run wall "$BASE; vr_debug_axestick 1; setpos 2000 -520 -120 0 270 0; wait5; impulse 152; wait30; $J; wait95; $JU; wait200; setpos 2000 -650 -120 0 270 0; wait5; impulse 163; wait30; $J; wait95; $JU; wait200"
 
 python "$HERE/flatthrow_check.py" "$S"
