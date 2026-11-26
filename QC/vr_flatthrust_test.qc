@@ -159,13 +159,18 @@ void() VR_FT_Frame =
     else if(vr_et_s == 3 && VR_FT_DropCase() && w != world && t > 0.75)
     {
         vr_ft_held = w;
-        localcmd("impulse 47\n"); // (H: flat play's drop key, VR_Forcegrab_FlatDropHand)
+        localcmd("vr_mock_key b down\n"); // (tap B: unified flat throw/drop key lets go of stuck blade)
+        VR_ET_To(6);
+    }
+    else if(vr_et_s == 6 && t > 0.04)
+    {
+        localcmd("vr_mock_key b up\n");
         VR_ET_To(5);
     }
-    else if(vr_et_s == 5 && t > 1) // (H taken, and a second for anything carrying it out)
+    else if(vr_et_s == 5 && t > 1) // (tap B taken, and a second for anything carrying it out)
     {
         float still = vr_ft_held != world && VR_AxeStick_IsStuck(vr_ft_held);
-        VR_Test_Check(w == world && VRIsHandWeaponless(p, h), sprintf("%s: H lets go of the stuck Lance, the hand empty", vr_ft_name));
+        VR_Test_Check(w == world && VRIsHandWeaponless(p, h), sprintf("%s: tap B lets go of the stuck Lance, the hand empty", vr_ft_name));
         VR_Test_Check(still, sprintf("%s: it stays in the grunt (depth %.1f units)", vr_ft_name, still ? vr_ft_held.vr_stick_depth : 0));
         vr_ft_held = world;
         VR_FT_Next();

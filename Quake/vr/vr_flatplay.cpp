@@ -262,7 +262,6 @@ struct FlatKeys
     bool keyCtrl{false};    // a crouch key (vr_flat_key_crouch: C, Left Ctrl; Right Ctrl is Left's key code), last frame
     bool keyFlash{false};   // F, last frame
     bool keyGear{false};    // 9 (vr_flat_key_gearlights), last frame
-    bool keyDrop{false};    // H (vr_flat_key_drop), last frame
     bool keySwap{false};    // Q (vr_flat_key_swap), last frame
     bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
     bool keyHands[6]{};     // 1, 2, 4, 5, 6, 7 (handKeys: the holsters' number keys), last frame
@@ -2657,9 +2656,6 @@ void pollKeysFlat()
     const bool ctrl = inGame && keyHeld(vr_flat_key_crouch);
     const bool flash = inGame && keyHeld(vr_flat_key_flashlight);
     const bool gear = inGame && keyHeld(vr_flat_key_gearlights);
-    // H (vr_flat_key_drop; G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up": G is the quick
-    // grenade now, vr_flatgrenade.cpp).
-    const bool drop = inGame && keyHeld(vr_flat_key_drop);
 
     if(ctrl && !keyState.keyCtrl)
     {
@@ -2692,19 +2688,7 @@ void pollKeysFlat()
         }
     }
     keyState.keyGear = gear;
-    if(drop && !keyState.keyDrop)
-    {
-        keyState.drops++;
-        // The same InsertText as the F above: the drop is asked for now, not after what is already queued. It travels as
-        // the impulse the game code reads (QC weapons.qc ImpulseCommands, vr_wpnforcegrab.qc VR_Forcegrab_FlatDrop), so
-        // `impulse 47` on the console drops the same thing.
-        Cbuf_InsertText("impulse 47\n");
-        if(vr_flatplay_debug.value)
-        {
-            Con_Printf("flatplay: %s: drop\n", vr_flat_key_drop.string);
-        }
-    }
-    // 3 and Z, the keys their cvars name, read like F and H.
+    // 3 and Z, the keys their cvars name, read like F.
     const bool swap = inGame && keyHeld(vr_flat_key_swap);
     const bool slow = inGame && keyHeld(vr_flat_key_bullettime);
     if(swap && !keyState.keySwap)
@@ -2725,7 +2709,6 @@ void pollKeysFlat()
     }
     keyState.keyCtrl = ctrl;
     keyState.keyFlash = flash;
-    keyState.keyDrop = drop;
     keyState.keySwap = swap;
     keyState.keyTime = slow;
     // X (vr_flat_key_prone): lie down, get up (vr_prone_toggle's toggle).
@@ -3310,8 +3293,8 @@ float fistShare(int h)
     {
         return 0.f;
     }
-    // (Opened by E's grab as its palm turns out, and by a prop held up in it: flatfgrab.)
-    const float open = za::max(flatfgrab::openShare(h), flatfgrab::carryShare(h));
+    // (Opened by E's grab as its palm turns out, by a prop held up in it, and during H's reach-out.)
+    const float open = za::max(za::max(flatfgrab::openShare(h), flatfgrab::carryShare(h)), flatgrenade::grabOpenShare(h));
     return (punching(h) ? 1.f : za::clamp(fs.guard[h] * fs.hang[h], 0.f, 1.f)) * (1.f - open);
 }
 

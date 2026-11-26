@@ -357,6 +357,7 @@
         row(opt::vr_flat_grenade_arm_mode),
         row(opt::vr_flat_swap_anim),
         row(opt::vr_flat_grab_preview),
+        row(opt::vr_flat_grab_hold),
         row(opt::vr_flat_shove),
         row(opt::vr_flat_shove_cooldown),
         row(opt::vr_flat_shove_push),

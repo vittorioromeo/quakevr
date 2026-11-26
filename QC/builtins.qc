@@ -435,6 +435,17 @@ float(entity e, entity player, float hand, float what, optional vector grip, opt
 {
     return ragdollgrab(e, player, hand, what + 1, grip, strength, force);
 };
+// Flatscreen Grab / Pull: reach-grab a ragdoll limb nearest `target` within `reach` units (preferring a part != `avoidPart`).
+// Returns part + 1 on success, 0 on failure.
+float(entity e, entity player, float hand, vector target, float reach, float avoidPart) ragdollgrabreach =
+{
+    return ragdollgrab(e, player, hand, -1, target, reach, avoidPart);
+};
+// Flatscreen Grab / Pull: release all hands of `player` holding `e`'s ragdoll and launch all non-cut parts with `vel` (u/s).
+float(entity e, entity player, vector vel) ragdollthrow =
+{
+    return ragdollgrab(e, player, 0, -2, vel, 0, 0);
+};
 // Knockdowns (vr_knockdown.qc; the engine's vr_box3d.cpp, "Knockdowns"): whether e can be knocked down as a ragdoll (a
 // monster with a rig, ragdolls on); e's ragdoll made now, alive (.vr_knockdown 1, touchable, not solid); e getting up
 // from it: the get-up's first frame (frameA, or frameB if that fits how it lies better; -1 none), room for its box

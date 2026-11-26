@@ -4920,8 +4920,8 @@ void() ImpulseCommands =
         return;
     }
 
-    // Flatscreen play: J throws what a hand holds (vr_flatgrenade.cpp reads the key, vr_flat_key_throw: 39 as it goes
-    // down, the wind-up; 40 as it comes up, the throw; vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
+    // Flatscreen play: B drops (quick tap) or throws (held) what a hand holds (vr_flatgrenade.cpp: 39 down, 40 up;
+    // vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
     if((self.impulse == 39 || self.impulse == 40) && VR_FlatPlay(self))
     {
         float throwUp = self.impulse == 40;
@@ -4933,6 +4933,27 @@ void() ImpulseCommands =
         else
         {
             VR_FlatThrow_Press();
+        }
+        return;
+    }
+
+    // Flatscreen play: H (vr_flat_key_pull) grabs/pulls physics props, crates, ragdolls and gibs with every available
+    // empty hand (vr_flatgrenade.cpp: 96 toggle, 97 hold down, 98 hold up; vr_flatgrab.qc). Nobody else's impulses.
+    if((self.impulse == 96 || self.impulse == 97 || self.impulse == 98) && VR_FlatPlay(self))
+    {
+        float grabImp = self.impulse;
+        self.impulse = 0;
+        if(grabImp == 96)
+        {
+            VR_FlatGrab_Toggle();
+        }
+        else if(grabImp == 97)
+        {
+            VR_FlatGrab_HoldStart();
+        }
+        else
+        {
+            VR_FlatGrab_HoldEnd();
         }
         return;
     }
