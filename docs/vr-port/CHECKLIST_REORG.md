@@ -265,3 +265,10 @@ quakevr/checklist.txt: 135 item lines down to 118 (all tagged). No 2026-11-25 vo
 - **New section "[2. Quest Standalone]" (16 lines):** the lines done on the headset itself (logcat, performance, Standalone preset looks, foveation, dynamic resolution, gib thinning, campaigns, dither and bullet time, app loading, data-version warning). The Installer and Setup's Quest step (pushing files from the PC) stay in section 1. Sections 2-12 are now 3-13; names unchanged.
 - **Scenes removed (7, nothing else uses them):** flat_lance, flat_thrust_blades, flat_holster_dagger, flat_embed_axe, flat_zoom_aim, sight_front_hue, dwell_lance_pole.
 - **Tunables promoted (tune_promote.py, 6):** vr_flat_pole_off_along 8, vr_flat_pole_off_out 1, vr_flat_pole_off_pitch -40, vr_flat_thrust_off_slide 2, vr_flat_thrust_arm_stretch 1.35, vr_flat_zoom_up 0; `--check` reports nothing. checklist_tests_check 84 passed, 0 failed.
+
+## Checklist tidy, eighth pass (2026-11-26, cltidy8)
+
+quakevr/checklist.txt: 157 item lines down to 147 (all tagged). cl_retire_ticks found 0 ticked lines to retire (none of the lines match his checklist_ticks.txt).
+- **[New] sorted (33 lines, section gone):** the lift lines joined the Armed humanoids lift line; the flat lines went into Flat screen, ordered controls, swimming and prone, grab and throw, melee V and grips, spear and Lance; the loading and collision lines joined the Installer cache lines.
+- **Merged/dropped (10):** the two second-key lines, the two swim-down lines, the two flipped-grip lines, the spear-hand-on-shaft and N-flip lines (covered by the existing "other hand always closes round the shaft" line), the two guard lines (spear, Lance) into one, tap-B-drop (in the N/B line), the pole elbows line (in the Ropes elbows line), the hub "10% faster" line (superseded by the shipped cache lines), the two crouch-after-load lines into one.
+- **Section removed:** the empty "Dwell" (sections renumbered 1-12). No scene removed (every scene a kept line names stays; unused-scene list unchanged). checklist_tests_check: 107 passed, 0 failed.
