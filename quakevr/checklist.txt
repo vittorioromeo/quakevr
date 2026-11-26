@@ -113,6 +113,7 @@ Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is
 Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun. {test:quoth_kellbase_buttons}
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:quoth_lpqsp1}
 Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere. {test:quoth_metmon}
+Flat-screen or VR: the Quoth metmon Test button without the metmon1d map package installed says to install metmon1d from the Map Library (no "no map" error); install it there and press Test again: metmon starts in Quoth. {test:quoth_metmon}
 
 [9. Arcane Dimensions]
 Arcane Dimensions' rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators and crossbow knights hold their own gun as armed humanoids: disarm them, tug and shoot the guns out. {test:humrepl_variants}
