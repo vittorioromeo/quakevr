@@ -545,14 +545,17 @@ monster moves with Quake's own hull (1 or 2: wider, as tall from the same feet, 
 its narrower box too); `developer 1` prints `hull: 40x88 ready in play ...`. Before, the first move compiled it in the
 frame: ad_tears' 40 x 88 and 28 x 56 stalled the game 1.4-2.1 s each. Off (0): that again.
 
-**After the load** (`vr_hull_defer`, 1; Debug > Tests, "Crouch and Monster Hitboxes"; loadprof2, 2026-11-25): a map load
-waits only for the map's brushes and the standing player's tree; the crouched boxes' trees (tallest first), the lying
-box's and the monsters' sizes (those the spawned map asked for) are then made the same way, in one job on the pool, one
-after another, each usable as soon as it is made. Meanwhile monsters move with Quake's hull (as above) and a crouched or
-lying box's first trace waits for its own tree (the loading panel after a second; `developer 1`: `hull: a 16x36 trace
-waited ...`): never a wrong trace, at worst a pause on a cold load's first crouch. Quest 3, vrstart with a cold player
-cache and no shipped cache: 91 s to 26 s; ad_sepulcher 36 s to 16 s (ROUND26.md, loadprof2). Off (0): every tree waited
-for by the load.
+**After the load** (`vr_hull_defer`, 1; Debug > Tests, "Monster Hitbox Builds"; loadprof2 2026-11-25, hullwait
+2026-11-26): a map load waits for the map's brushes and the player's boxes' trees (standing, crouched, lying: posted
+together at beforeLoad, built at once on the pool within `vr_hull_build_mb`); the monsters' sizes (those the spawned map
+asked for) are then made the same way, in one job on the pool, one after another, each usable as soon as it is made,
+monsters moving with Quake's hull meanwhile (as above). A player's box is never in a job, so play never waits for a
+tree (loadprof2 deferred the crouched and lying ones too: a crouch right after a cold load waited for its tree, 8.6 s
+on a Quest 3's ad_sepulcher; his call: a pause in play is worse than a longer load). `developer 1`'s `hull: a 16x36
+trace waited ...` stays as the guard. While a load waits a second or more, the loading panel (headset and window,
+`vr_load_panel`) shows what is being built ("Building collision for crouching (3 of 6)") and a bar driven by the
+builds' own progress (each tree's brushes grown, then its top's units built, each worth its share of the split).
+Off (0): the monsters' trees waited for by the load too.
 
 Files: `vr_hull.cpp` (the classes, `monsterWidth`, `moveBox`/`entBox`/`touchBox`/`footprint`, the trees by size,
 `vr_mhull_walktest`), `sv_move.c` (`SV_CheckBottom`: `VR_HullFootprint`), `world.c` (`VR_HullNarrowsAgainst` takes the

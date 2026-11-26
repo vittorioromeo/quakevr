@@ -1658,6 +1658,7 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_nav_cache),
         row(opt::vr_hull_async),
         row(opt::vr_hull_defer),
+        row(opt::vr_load_panel_shot),
         header("Teleporters: Crossing One (the start map; developer 1: VR portal: ...)"),
         command("The Gates In This Map", "vr_portals_info")
             .help("vr_portals_info: every teleporter built for this map - its plane, its opening, its trigger brush - and "

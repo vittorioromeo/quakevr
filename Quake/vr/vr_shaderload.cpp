@@ -94,6 +94,7 @@ void text(const char* s, int y, int scale, bool alt)
     }
 }
 
+// The panel: a heading, a bar done/total full, a line under it and a footer (the shaders' and a map load's: shared).
 void drawPanel(const char* heading, int done, int total, const char* last, const char* footer)
 {
     const unsigned background = rgba(18, 14, 10);
@@ -261,12 +262,15 @@ struct MapWait
 MapWait mapWait;
 } // namespace
 
+// The headset (VR running, or started for it at a start) and the window (flat-screen, or the desktop beside VR; not
+// the Quest's immersive app: VR_NoWindow).
 extern "C" int VR_MapLoadingWanted(void)
 {
-    return qvr::vr_load_panel.value != 0.f && cls.state != ca_dedicated && (qvr::backend() || host_framecount == 0);
+    return qvr::vr_load_panel.value != 0.f && cls.state != ca_dedicated &&
+           (qvr::backend() || host_framecount == 0 || !VR_NoWindow());
 }
 
-extern "C" int VR_MapLoadingFrame(const char* map, int done, int total, double seconds)
+extern "C" int VR_MapLoadingFrame(const char* heading, const char* detail, double done, double seconds)
 {
     if(!VR_MapLoadingWanted())
     {
@@ -276,20 +280,31 @@ extern "C" int VR_MapLoadingFrame(const char* map, int done, int total, double s
     {
         mapWait.earlyStarted = true;
     }
-    if(!qvr::loadingFrameBegin())
-    {
-        return 0;
-    }
     mapWait.frames++;
-    char heading[96];
-    q_snprintf(heading, sizeof(heading), "Preparing %s: %d / %d", map, done, total);
-    drawPanel(heading, done, total, "Its collision is built once for this version",
+    constexpr int barSteps = 1000;
+    const double share = za::max(0.0, za::min(done, 1.0));
+    drawPanel(heading, static_cast<int>(share * barSteps), barSteps, detail,
         va("%.0f s - the next loads take it from the cache", seconds));
-    const int before = load.panelFrames;
-    toHeadset();
-    const int shown = load.panelFrames - before;
-    mapWait.panelFrames += shown;
-    return shown; // (none shown, e.g. the headset asleep or a mock backend that doesn't pace: the caller sleeps)
+    if(qvr::vr_load_panel_shot.value > 0.f && share >= qvr::vr_load_panel_shot.value) // (a test aid: the image saved once)
+    {
+        Cvar_SetValueQuick(&qvr::vr_load_panel_shot, 0.f);
+        char path[MAX_OSPATH];
+        q_snprintf(path, sizeof(path), "%s/screenshots/load_panel.png", com_gamedir);
+        COM_CreatePath(path);
+        const bool saved = Image_WritePNGPath(path, load.pixels, imageWidth, imageHeight, 32, false); // (bottom row first: flipped)
+        Con_SafePrintf("loading panel: %s screenshots/load_panel.png at %.0f%% (\"%s\")\n", saved ? "saved" : "couldn't save",
+            share * 100.0, heading);
+    }
+    int shown = 0;
+    if(qvr::loadingFrameBegin())
+    {
+        const int before = load.panelFrames;
+        toHeadset();
+        shown = load.panelFrames - before;
+        mapWait.panelFrames += shown;
+    }
+    toWindow();
+    return shown; // (none shown, e.g. flat-screen, the headset asleep or a mock backend that doesn't pace: the caller sleeps)
 }
 
 extern "C" void VR_MapLoadingDone(const char* map, double seconds)
