@@ -1,0 +1,14 @@
+# pose_spear_humanoids: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The armed enforcer, knight and death knight (hell knight) each with the spear, frozen in vrtesthall's open middle (clear of the New Game buttons on the south wall), the Pose Studio open: tune their spear poses as the spear grunt's.
+title Pose Studio: a frozen spear enforcer, knight and death knight in the open middle of the hall
+map vrtesthall
+start 0 -40 25 90
+god
+notarget
+cvar vr_agrunt_freeze 1
+cvar vr_agrunt_grip_scope 0
+cvar vr_agrunt_dual_chance 0
+spawnarmed monster_vr_enforcer 106 0 200 -190
+spawnarmed monster_vr_knight 106 0 200 0
+spawnarmed monster_vr_hknight 106 0 200 190
+cmd vr_posestudio
+hint The Pose Studio is open on the nearest of three frozen spear holders: the enforcer (right), the knight (middle), the death knight (left), each with plenty of room round it. Walk to one, grip the spear box or the hand boxes and tune its poses (Port Arms, Ready, Run, Pickup, Thrust, Shove) as for the spear grunt; Done prints them as code.
