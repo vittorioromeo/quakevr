@@ -62,6 +62,10 @@ Local changes (not upstream yet: `zancle_vendor.py --update` overwrites them; re
 - `Concurrency/ThreadPool.hpp` and `src/Zancle/Concurrency/ThreadPool.cpp`: `ThreadPool::setIdleHook` (a worker's
   timed wait; the hook runs once a worker has had no job that long): idle job workers give back their heap pages
   (`vr_jobs.cpp`, `vr_crtheap_info.c`; 6e5fc7980). Without it `vr_jobs.cpp` doesn't build.
+- `Concurrency/ParallelFor.hpp`: a call made while every gate is in use (or the helper budget is used up) tries again
+  after each of its chunks and posts its helpers once one frees, instead of running every chunk alone (gridstall: the
+  light grid's probes ran 46-58 s on the main thread while the hull's nested calls held all 64 gates; ROUND26.md);
+  `ParallelForSlots::getOutstandingHelpers` and `getSlotsInUse` (snapshots for `vr_jobs_info` and the stall line).
 - `Base/InterferenceSize.hpp`: the cache line size for GCC/clang targets too (`__aarch64__`, `__x86_64__`,
   `__i386__`, `__arm__`), not only MSVC's macros (96f3490af: the Quest and Linux builds).
 - `Trait/ReferenceConvertsFromTemporary.hpp`: older clang (the Android NDK's clang 18, whose libc++ lacks the trait):
