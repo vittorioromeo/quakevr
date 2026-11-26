@@ -27,6 +27,9 @@ With the bayonet on, stab an ogre: it hurts and sticks; keep your hand on the gu
 Holster, drop, throw and re-take a shotgun with its bayonet, change level and load a save: the bayonet stays on it everywhere and looks right on the gun. {test:attach_bayonet}
 Weapon Offsets > Attachments with the shotgun in hand: the bayonet shows on the gun; move it with the sliders until it sits right under the barrel. {test:attach_bayonet}
 Flat-screen: H takes a bayonet in the free hand, J puts it on the gun (J again takes it off), V stabs with it and fire still shoots. {test:attach_bayonet}
+On the Quest, start the game with your saved settings: it reaches vrstart without crashing and runs smoothly (an old config left at full resolution with OIT on is put back to the Standalone budget, said on the console); open and close the menu a few times. {test:vrstart}
+On the Quest, switch Quest Foveation between High and Off a few times in a map, with the menu open and closed: no crash, and the picture looks the same apart from the sharpness at the edges. {test:quest_foveation}
+On the Quest, pick Graphics Presets > Quake (off), then Standalone: Quake (off) gives the flat original lighting, Standalone brings back the coloured lights, and neither crashes or drops far below 72 fps. {test:vrstart}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

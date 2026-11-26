@@ -1713,7 +1713,11 @@ extern "C" int VR_RenderView()
     // foveated images, and the runtime crashed in xrEndFrame (SIGSEGV 0x30 in libGLESv2_adreno, as C4p: qfovcrash).
     // (vr_xr_foveation_probe 4: from the cvar, the crash's check)
     const bool xrFoveation = VR_Android() && ((fovProbe & 4) ? vr_xr_foveation.value > 0.f : be->eyeImagesFoveated());
-    const bool xrFoveated = xrFoveation && !(fovProbe & 1);
+    // questcrash2: on the Quest the post-process path takes that order with plain images too (Quest Foveation Off, OIT,
+    // bloom). His config's eyes went through the post-process into plain images (late acquire, the invalidate) and every
+    // worn start crashed in xrEndFrame as C4p did (unworn runs never draw enough frames to show it); the order the
+    // foveated images take there (under water in Standalone) has never crashed. (probe 1: the late order, the A/B)
+    const bool xrEarlyOrder = VR_Android() && !(fovProbe & 1);
     // qfov: the runtime's foveation reaches the scene only drawn straight into the images, so with it the eyes are, with
     // framebuffers of each image's own and its depth renderbuffer (2; the tiler keeps it on chip, as Meta's samples do;
     // form 1's unfoveated depth texture keeps the driver from foveating), unless vr_xr_direct says
@@ -1744,7 +1748,7 @@ extern "C" int VR_RenderView()
                                                      : "through the post-process",
             noted < 0 ? notDirect : "", noted < 0 ? ")" : "");
     }
-    const bool late = lateAcquire && !direct && !xrFoveated;
+    const bool late = lateAcquire && !direct && !xrEarlyOrder;
     // vr_eye_rect_place (qeye): an eye drawn straight into a part of its image with framebuffers of the image's own (form
     // 2: its depth at the image's size) placed in it by its lower left corner. The runtime's foveation reduces whole bins
     // of the image (864 x 448 of the Quest 3's 1680 x 1760) round the rect submitted: in the corner the part's bottom rows
@@ -1894,7 +1898,7 @@ extern "C" int VR_RenderView()
         const bool shotFinal = vr_eyeshot.value > 0.f && vr_eyeshot.value < 2.f;
         const bool shotUi = vr_eyeshot.value >= 3.f;
         profile::begin("postprocess", true);
-        if(!stereo::resampling && stereo::invalidating() && !drawnDirect && !xrFoveated) // (foveated: crashed, C4p)
+        if(!stereo::resampling && stereo::invalidating() && !drawnDirect && !xrEarlyOrder) // (the Quest: C4p, questcrash2)
         {
             // The image's old colours: the post-process writes over all of the eye's part of it, the rest unshown.
             constexpr GLenum color0[] = {GL_COLOR_ATTACHMENT0};

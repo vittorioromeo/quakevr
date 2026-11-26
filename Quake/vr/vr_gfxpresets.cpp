@@ -331,6 +331,9 @@ const QuestMust questMusts[] = {
     {&vr_dynres_min, "0.65", "the dynamic resolution's floor above the Quest preset's keeps fights GPU-bound (his saved PC value: 51 -> 63 fps)", true},
     // questcrash: the shadowed map lights cost as the dynamic lights' (Medium and up turn them on)
     {&vr_shadow_maplights, "0", "the map lights' shadow maps cost the Quest 3 as the dynamic lights' do", true},
+    // questcrash2: OIT's programs ran in both of his crashes at vrstart (SIGSEGV in the driver under xrEndFrame, worn);
+    // it also takes the eyes off the Quest's straight-in path (vr_stereo.cpp) and costs a render pass an eye (C4j)
+    {&r_oit, "0", "OIT on the Quest: a render pass more an eye, the eyes through the post-process, and his crashes at vrstart", false},
 };
 
 // questcrash: the must-haves set back (vr_quest_guard 0: only said); `who` names the caller in each line.
@@ -505,6 +508,20 @@ void questCheckCmd()
     }
     migrateQuestMine();
     standaloneKind.printStatus();
+    // questcrash2 (his Quest, 2026-11-27): builds before questcrash put the PC's values back into the Quest's budget rows
+    // when a graphics preset was picked from Standalone (the eyes at full resolution, no dynamic resolution, foveation
+    // off, OIT...), and the config kept them: under 15 fps at vrstart, the eyes through the post-process, a crash at
+    // every start worn. No Quest preset turns OIT on, so OIT saved on the Quest marks such a config: its budget rows go
+    // to the nearest Standalone level once (as a pick does since questcrash), the look's rows (the graphics preset's)
+    // kept.
+    if(r_oit.value != 0.f && vr_quest_guard.value != 0.f)
+    {
+        const int level = nearestStandalone();
+        Con_Printf("vr_quest_check: the config has the PC's values in the Quest's budget rows (OIT on: a build before "
+                   "questcrash left Standalone that way): set at Standalone (%s), the graphics preset's look kept\n",
+            standaloneLevelNames[level]);
+        keepQuestBudget(level);
+    }
     holdQuestMusts("vr_quest_check");
 }
 

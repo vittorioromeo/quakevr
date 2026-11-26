@@ -2414,3 +2414,37 @@ stab only grazed it at the thrust's end, and the off hand's 2H pull (a unit or s
 ogre now spawns at 50: the head lands mid-strike at full speed (12.8 m/s, 58 damage) with his pose and with the old one.
 The "ogre hurt" check compared health against a fixed 200 and passed with nothing landing (ogres there spawn at 180);
 it now reads the health just before the thrust and wants it lower after. Test only, no code. 30/0.
+
+## questcrash2: his Quest config no longer crashes at vrstart; old "left Standalone" configs repaired at start (branch agent/questcrash2, 2026-11-27)
+
+His Quest 3 (bf4eecc2f, beta5-dev build 15431): flat lighting, the menu crashed, then every start crashed at vrstart.
+- **The crashes** (logcat 00:19:29 and 00:19:43, crash reports pulled with `vr_android_export`): both SIGSEGV 0x30 in
+  libGLESv2_adreno under libvrapiimpl from `xrEndFrame` (OpenXrBackend::endFrame <- VR_RenderView), questcrash's
+  signature. The second came at the first world frame, right after the `world|OIT 1` programs; the first a few
+  seconds into vrstart as the menu opened. His `ironwail.cfg` (exported read-only) still held what builds before
+  questcrash left after Standalone -> "Quake (off)": `r_oit 1`, no `vr_xr_foveation` / `vr_render_scale` / `vr_dynres`
+  (Off, full resolution, no dynamic resolution) and Quake (off)'s look rows. So the eyes went through the post-process
+  (OIT keeps them off the straight-in path) into plain images (questcrash's fix made Off plain, which this config then
+  used at every start): late acquire, the image's invalidate, OIT's programs, 14 fps (unworn, measured). Unworn runs
+  never draw enough eye frames to crash (the runtime stops an unworn session after ~10 s), so the cause is reasoned,
+  not reproduced: every crash of this signature since C4p had the post-process path's late order or a switch into it.
+- **Flat lighting**: his config's Quake (off) look (vr_model_lighting 0, vr_colored_lights 0, the light grid off...),
+  not a bug. Headset eyeshots at vrstart: Standalone lightmapped and coloured, Quake (off) flatter and darker; the
+  lightmaps are there in both (questrender's packing fine on ES).
+- **Fixes** (Quest and `-glescompat` only; the PC unchanged):
+  - `vr_quest_check` (every Android start after the config): OIT saved on the Quest marks such a config (no Quest
+    preset turns OIT on), and its budget rows go to the nearest Standalone level once, as a pick does since
+    questcrash; the look's rows stay. Said on the console. His config: 22 rows at Standalone (Quest 2 (72 Hz)): scale
+    0.65, dynamic resolution, foveation Low, OIT off.
+  - `r_oit 0` is a Quest must-have (held at start and after every pick; `vr_quest_guard 0` only says it).
+  - vr_stereo.cpp: on the Quest the post-process path always takes the foveated images' order (the image acquired
+    before the scene, never invalidated), plain images too (Quest Foveation Off, bloom). `vr_xr_foveation_probe 1`
+    gives back the late order (the A/B).
+- **Headset** (Quest 3, 00:21-00:45, unworn, `-noconfigwrite -unattended`, his config): the fixed APK repaired his
+  config at start, vrstart at 72/72 (was 14), menu open/close, Quest Foveation 1 -> 0 (post-process, early order) ->
+  menu with Off -> 3, Quake (off), Off again, Standalone: no crash. Installed the questinst way (APK `install -r`, data
+  already in sync: 0 files); his config file untouched (it is repaired in memory at each start and saved by the game on
+  its next normal quit). Rollback: `scratch/qc2/qc2_installed_before.apk` (bf4eecc2f). **To confirm worn**: start, open
+  the menu, Quest Foveation High <-> Off.
+- Tests: questcrash_preset_test 23/0 (new: an old config repaired by `vr_quest_check`, look rows kept), haze_preset_test
+  8/0, stereo_targets_test 12/0.
