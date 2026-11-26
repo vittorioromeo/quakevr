@@ -74,6 +74,9 @@ Tests:
              and joins.
     pickup   a weapon dropped by one player and picked up by the other, each way: A's shotgun falls from his opened
              hand, B (put beside it) closes his hand on it; then B lets it fall and A takes it.
+    attach   (attach5) the bayonet synced: a listen host A, B (flat) and C; B's bayonet on his shotgun as A and C draw it
+             held, holstered, stuck in a grunt by his V thrust (hurt), dropped; C picks it up (still on), throws it;
+             then deathmatch: B's thrust hurts A (vr_attach_report; the server's vr_dm_test 25/26).
     forcegrab  force grab of a weapon of the level in coop: a super shotgun pickup ahead (vr_test_spawn 116); B's force
              grab (point, trigger, flick, grip) brings it to his hand and the pickup stays for the others; then A's.
     rules    server rules (B6): B joins with his own balance settings and plays by the server's (his rows and the
@@ -4896,6 +4899,232 @@ def pickup(s):
     put_at(srv, a, ea, side_spot(srv, eb))
     hand_over(s, srv, b, a, eb, ea, False)
     srv.cmd("vr_debug_carry 0; developer 0")
+
+
+# attach5 (his words 2026-11-26: "Attachments should also be obviously synced in multiplayer"): the bayonet on B's shotgun as
+# A (the listen host) and C draw it, by their vr_attach_report (vr_view.cpp: every attachment drawn last frame).
+ATTACH_STAB_DIST = 42.0  # units: the grunt spawned ahead of B for V's thrust (vr_attach_test.qc test 80's)
+ATTACH_TRIES = 30        # reports before a drawn bayonet counts as missing (a definite end)
+ATTACH_HOLSTER_IMPULSE = 74  # flat holster menu: holster 4 (left upper) <-> the right hand
+ATTACH_DRAW_IMPULSE = 71     # flat holster menu: holster 3 (right hip: his start's shotgun) <-> the right hand
+ATTACH_THROW_HOLD = 0.6      # game seconds C holds the flat throw key (impulse 39 down, 40 up): a throw, not a drop
+ATTACH_NEAR = 48.0       # units: a lying gun's drawn bayonet within this of the server's gun (its mount is on the gun)
+
+
+def attach_drawn(inst):
+    """vr_attach_report on `inst` -> [{"where", "ent", "kind", "gun", "at"}] (the attachments it drew last frame)."""
+    since = inst.mark()
+    inst.cmd("vr_attach_report")
+    n, _ = inst.wait(r"attach_report: \d+ drawn", 10, since, "%s's drawn attachments" % inst.name)
+    out = []
+    for l in inst.lines[since:n]:
+        m = re.match(r"attach_drawn: where=(\w+) ent=(-?\d+) kind=(\d+) gun=(\S+) at=([-\d.]+) ([-\d.]+) ([-\d.]+)", l)
+        if m:
+            out.append({"where": m.group(1), "ent": int(m.group(2)), "kind": int(m.group(3)), "gun": m.group(4),
+                        "at": [float(m.group(i)) for i in (5, 6, 7)]})
+    return out
+
+
+def attach_server(srv):
+    """vr_dm_test 26 (vr_attach_test.qc) -> ({player ent: {"main": (wid, kind), "off": .., "holsters": [kinds]}},
+    [{"wid", "attach", "stuck", "speed", "at"}] the thrown weapons, [{"class", "health"}] the monsters near players)."""
+    since = srv.mark()
+    srv.cmd("vr_dm_test 26")
+    n, _ = srv.wait(r"attachmp: report done", 10, since, "the server's attachment report")
+    players, lying, monsters = {}, [], []
+    for l in srv.lines[since:n]:
+        m = re.match(r"attachmp: player ent=(\d+) main=(-?\d+),(\d+) off=(-?\d+),(\d+) holsters=([\d,]+)", l)
+        if m:
+            players[int(m.group(1))] = {"main": (int(m.group(2)), int(m.group(3))),
+                                        "off": (int(m.group(4)), int(m.group(5))),
+                                        "holsters": [int(x) for x in m.group(6).split(",")]}
+        m = re.match(r"attachmp: lying wid=(-?\d+) attach=(\d+) stuck=(\d) speed=(\d+) at=([-\d]+) ([-\d]+) ([-\d]+)", l)
+        if m:
+            lying.append({"wid": int(m.group(1)), "attach": int(m.group(2)), "stuck": int(m.group(3)),
+                          "speed": int(m.group(4)), "at": [float(m.group(i)) for i in (5, 6, 7)]})
+        m = re.match(r"attachmp: monster ent=\d+ class=(\S+) health=(-?[\d.]+)", l)
+        if m:
+            monsters.append({"class": m.group(1), "health": float(m.group(2))})
+    return players, lying, monsters
+
+
+def attach_seen_until(s, viewers, want, what, tries=ATTACH_TRIES):
+    """Each viewer's vr_attach_report until want(viewer, its drawn list) holds for all -> True; the check fails after
+    `tries` rounds (a definite end)."""
+    last = {}
+    show = lambda: "; ".join("%s: %s" % (k, [(d["where"], d["ent"], d["kind"], [round(x) for x in d["at"]]) for d in x])
+                             for k, x in last.items())
+    for _ in range(tries):
+        ok = True
+        for v in viewers:
+            last[v.name] = attach_drawn(v)
+            ok = ok and want(v, last[v.name])
+        if ok:
+            s.check(what, True, show())
+            return True
+    s.check(what, False, "not after %d reports: %s" % (tries, show()))
+    return False
+
+
+def has_drawn(where, ent=None, near=None, kind=1):
+    """A want() for attach_seen_until: a bayonet drawn `where`, on entity `ent` (if given), within ATTACH_NEAR of `near`
+    (a server's gun origin, if given)."""
+    return lambda v, drawn: any(d["where"] == where and d["kind"] == kind and (ent is None or d["ent"] == ent) and
+                                (near is None or math.dist(d["at"], near) <= ATTACH_NEAR) for d in drawn)
+
+
+def attach_server_until(srv, done, tries=ATTACH_TRIES):
+    """attach_server until done(players, lying, monsters) -> its last report (a definite end: `tries` reports)."""
+    got = attach_server(srv)
+    for _ in range(tries - 1):
+        if done(*got):
+            break
+        got = attach_server(srv)
+    return got
+
+
+def attach_arm(s, srv, b, eb, label, draw="impulse 154"):
+    """B (flat): a shotgun in his main hand (`draw`: the test give, impulse 154; kept if he has one), a bayonet in his off
+    hand (vr_dm_test 25), J (impulse 52): the server's record has it -> True."""
+    if weapon_until(s, srv, eb, 4, 1)[-1] != 4:
+        b.cmd(draw)
+    held = weapon_until(s, srv, eb, 4)
+    since = srv.mark()
+    srv.cmd("vr_dm_test_who %d; vr_dm_test 25" % eb)
+    got = wait_quietly(srv, r"attachmp: (bayonet in|no) player", 10, since, "the bayonet given")
+    b.cmd("impulse 52")
+    pl, _, _ = attach_server_until(srv, lambda p, l, m: p.get(eb, {}).get("main") == (4, 1))
+    ok = pl.get(eb, {}).get("main") == (4, 1)
+    s.check("%s: B (flat) holds the shotgun, is given a bayonet in his off hand (vr_dm_test 25) and J (impulse 52) puts it "
+            "on (the server's record)" % label, held[-1] == 4 and got is not None and "bayonet in" in got[1] and ok,
+            "main weapon by report %s; %s; B on the server %s" % (held, got[1].strip() if got else "no attachmp line",
+                                                                    pl.get(eb)))
+    return ok
+
+
+def attach(s):
+    """(attach5) The bayonet in multiplayer: a listen host A (VR), B (flat) and C (VR) in coop e1m1. B puts a bayonet on his
+    shotgun (vr_dm_test 25 gives it, J: impulse 52); A and C draw it (vr_attach_report) on his gun held, holstered (impulse
+    62: holster 0 <-> his right hand) and drawn again, and lying when he drops it (impulse 79); C's closed hand takes it (A
+    and B draw it on C's gun, the server's record still has it); C throws it (A and B draw it on the flying gun). B armed
+    again: his V thrust sticks the gun in a grunt by the bayonet's point (hurt; A and C draw it on the stuck gun). Then
+    deathmatch: B's thrust hurts A."""
+    srv, a, b, ea, eb = join(s, listen=True, flat="B")
+    c = s.client("C", flat=True).start()
+    c.cmd("name C; " + s.connect_cmd(c))
+    _, jc = c.wait(r"mp_event: .*joined map=e1m1", 120, what="C joined e1m1")
+    ec = int(fields(jc)["self"])
+    a.wait(r"mp_seen: .*ent=%d self=0" % ec, 20, what="A seeing C")
+    a.cmd("name A")
+    b.cmd("name B")
+    srv.cmd("developer 1; vr_debug_carry 2")  # (the server's grip log: C's take)
+    others = (a, c)
+
+    # Held.
+    attach_arm(s, srv, b, eb, "held")
+    attach_seen_until(s, [b], has_drawn("hand_main"), "B draws the bayonet on the shotgun in his own hand")
+    attach_seen_until(s, others, has_drawn("other_held", eb), "held: A and C draw the bayonet on B's shotgun")
+
+    # Holstered (the flat holster menu's 60 + 3 * 4 + 2: the left upper holster, empty at the start, and his right hand
+    # trade; the shoulders' are not drawn, the hips' hold his axe and shotgun), then drawn again.
+    b.cmd("impulse %d" % ATTACH_HOLSTER_IMPULSE)
+    pl, _, _ = attach_server_until(srv, lambda p, l, m: 1 in p.get(eb, {}).get("holsters", []))
+    s.check("holstered: the server's record in B's holster keeps the bayonet", 1 in pl.get(eb, {}).get("holsters", []),
+            "B on the server: %s" % pl.get(eb))
+    if not attach_seen_until(s, others, has_drawn("other_holster", eb),
+                             "holstered: A and C draw the bayonet on B's holstered shotgun"):
+        (la,) = reports(s, [a])
+        s.note("A's holstered guns of B: %s" % [l.strip() for l in la if l.startswith("mp_holster: ent=%d " % eb)])
+    b.cmd("impulse %d" % ATTACH_HOLSTER_IMPULSE)
+    attach_server_until(srv, lambda p, l, m: p.get(eb, {}).get("main") == (4, 1))
+    attach_seen_until(s, others, has_drawn("other_held", eb), "drawn again: A and C draw the bayonet on B's shotgun")
+
+    # Dropped (the holster menu's 79: the right hand's).
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    b.cmd("impulse 79")
+    gone = weapon_until(s, srv, eb, 0)
+    gun, spot = lying(srv, eb)
+    _, ly, _ = attach_server(srv)
+    dropped = [x for x in ly if x["attach"] == 1 and math.dist(x["at"], spot) <= 8]
+    s.check("dropped: B's shotgun lies on the floor, its record's bayonet on it", gone[-1] == 0 and bool(dropped),
+            "B's main weapon %s; lying %s (the gun at %s)" % (gone, ly, spot))
+    attach_seen_until(s, [a, b, c], has_drawn("lying", near=spot), "dropped: A, B and C draw the bayonet on the lying shotgun")
+
+    # C (flat) walks onto it: it goes into his free hand (weapon_touch); A and B draw it on his gun.
+    put_at(srv, b, eb, (OPEN_SPOT[0], OPEN_SPOT[1] + 120, OPEN_SPOT[2]))  # (out of the way: the way north is open)
+    put_at(srv, c, ec, (spot[0], spot[1], OPEN_SPOT[2]))
+    took = weapon_until(s, srv, ec, 4, ATTACH_TRIES)
+    pl, _, _ = attach_server_until(srv, lambda p, l, m: p.get(ec, {}).get("main") == (4, 1))
+    s.check("C picks up the dropped shotgun and it still carries the bayonet (the server's record)",
+            took[-1] == 4 and pl.get(ec, {}).get("main") == (4, 1), "C's main weapon %s; C on the server %s" % (took, pl.get(ec)))
+    attach_seen_until(s, [a, b], has_drawn("other_held", ec), "A and B draw the bayonet on the shotgun in C's hand")
+    attach_seen_until(s, [c], has_drawn("hand_main"), "C draws the bayonet on the shotgun in his own hand")
+
+    # C throws it (the flat throw key held, then let go).
+    put_at(srv, c, ec, OPEN_SPOT, 90)
+    c.cmd("impulse 39")
+    server_time_past(srv, server_time(srv) + ATTACH_THROW_HOLD)
+    c.cmd("impulse 40")
+    pl, ly, _ = attach_server_until(srv, lambda p, l, m: p.get(ec, {}).get("main", (4,))[0] == 0 and
+                                    any(x["attach"] == 1 and x["speed"] > 0 for x in l))
+    flying = [x for x in ly if x["attach"] == 1 and x["speed"] > 0]
+    s.check("thrown: C's shotgun flies from his hand, the record on the thrown gun keeps the bayonet",
+            pl.get(ec, {}).get("main", (4,))[0] == 0 and bool(flying), "C on the server %s; thrown weapons %s" % (pl.get(ec), ly))
+    attach_seen_until(s, [a, b], has_drawn("lying", near=flying[0]["at"] if flying else None),
+                      "thrown: A and B draw the bayonet on C's thrown shotgun")
+    _, ly, _ = attach_server_until(srv, lambda p, l, m: all(x["speed"] == 0 for x in l if x["attach"] == 1))
+    s.note("the thrown shotgun came to rest: %s" % [x for x in ly if x["attach"] == 1])
+
+    # Stuck: B armed again; a grunt spawned ahead of him (impulse 241, coop's one test impulse); V's thrust.
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    put_at(srv, c, ec, side_spot(srv, eb))
+    attach_arm(s, srv, b, eb, "again")
+    srv.cmd("vr_test_spawn 0; vr_test_spawn_dist %g" % ATTACH_STAB_DIST)
+    b.cmd("impulse 241")
+    _, _, mon = attach_server_until(srv, lambda p, l, m: len(m) > 0)
+    before = min((x["health"] for x in mon), default=None)
+    since = srv.mark()
+    b.cmd("vr_flat_punch v")
+    pl, ly, mon = attach_server_until(srv, lambda p, l, m: any(x["stuck"] and x["attach"] == 1 for x in l))
+    stuck = [x for x in ly if x["stuck"] and x["attach"] == 1]
+    after = min((x["health"] for x in mon), default=None)
+    s.check("V: B's bayonet stab hurts the grunt and the shotgun sticks in it by the bayonet, the bayonet on its record",
+            bool(stuck) and before is not None and (after is None or after < before),
+            "stuck guns: %s; grunt health %s -> %s" % (stuck, before, after))
+    if stuck:
+        attach_seen_until(s, others, has_drawn("lying", near=stuck[0]["at"]),
+                          "stuck: A and C draw the bayonet on B's gun stuck in the grunt")
+    s.note("the server's log of the stab: %s" % [l.strip() for l in srv.lines[since:] if "stick" in l or "damage" in l][:6])
+    srv.cmd("developer 0")
+    attach_dm(s, srv, a, b, c)
+
+
+def attach_dm(s, srv, a, b, c):
+    """attach's deathmatch part: the map again under deathmatch 1 (the clients reconnecting); B's shotgun (his deathmatch
+    holstered one, drawn) given a bayonet; A held in front of him: V's thrust hurts A."""
+    since_a, since_b, since_c = a.mark(), b.mark(), c.mark()
+    # (changelevel: a listen host's "map" drops the remote clients)
+    srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; changelevel e1m1" % DM_TIMELIMIT)
+    _, ja = a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A in the deathmatch game")
+    _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, since_b, "B in the deathmatch game")
+    c.wait(r"mp_event: .*joined map=e1m1", 120, since_c, "C in the deathmatch game")
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    srv.cmd("developer 1")
+    attach_arm(s, srv, b, eb, "deathmatch (his holstered shotgun drawn: no test gives)", "impulse %d" % ATTACH_DRAW_IMPULSE)
+    attach_seen_until(s, [a, c], has_drawn("other_held", eb), "deathmatch: A and C draw the bayonet on B's shotgun")
+    put_at(srv, a, ea, side_spot(srv, eb))
+    put_at(srv, b, eb, MELEE_SPOT, 90)
+    put_at(srv, a, ea, (MELEE_SPOT[0], MELEE_SPOT[1] + ATTACH_STAB_DIST, MELEE_SPOT[2]), 270)
+    a.cmd("give h 100; %s" % EMPTY_HAND)
+    before = health_of(srv, ea)
+    since = srv.mark()
+    b.cmd("vr_flat_punch v")
+    got = wait_quietly(srv, r"damage: player [-\d.]+ by [^\n]*", 10, since, "B's stab landing on A")
+    after = health_of(srv, ea)
+    s.check("deathmatch: B's bayonet thrust hurts A", after < before or got is not None,
+            "A's health %d -> %d; %s" % (before, after, got[1].strip() if got else "no damage line"))
+    srv.cmd("developer 0")
+
 
 
 # The mock's force grab (Misc/quakevr/forcegrab_block_test.sh's): the empty main hand pointing down at a thing 150 units
@@ -10532,6 +10761,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             variantowned(s)
         elif test == "mp_holstersync":
             holstersync(s)
+        elif test == "mp_attach":
+            attach(s)
         elif test == "mp_botrevolver":
             botrevolver(s)
         elif test == "mp_deathlook":
@@ -10632,6 +10863,7 @@ SUITE = [
     ("mp_botgrab", ()),
     ("mp_botgear", ()),
     ("mp_holstersync", ()),
+    ("mp_attach", ()),
     ("mp_variantowned", ()),
     ("mp_botrevolver", ()),
     ("mp_debugviz", ()),
@@ -10665,7 +10897,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10734,7 +10966,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"):
+                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

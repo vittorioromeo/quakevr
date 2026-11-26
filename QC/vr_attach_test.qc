@@ -718,4 +718,80 @@ void() VR_AT_PersistCheck =
     VR_Test_Verdict();
     self = oldself;
 };
+
+// attach5 (mp_test.py attach): the server's side of the multiplayer test, one-shot asks (the cvar set back to 0 after):
+//   vr_dm_test 25: a bayonet spawned into the empty off hand of the player whose entity number is vr_dm_test_who
+//     (coop's test impulses are off for clients, deathmatch has none); `attachmp: bayonet in player N's off hand`.
+//   vr_dm_test 26: every player's carried records' attachments and every thrown weapon's (dropped, thrown, stuck):
+//     `attachmp: player ent=N main=<wid>,<attach> off=<wid>,<attach> holsters=a,b,c,d,e,f`, `attachmp: lying wid=<wid>
+//     attach=<kind> stuck=<0|1> speed=<u/s> at=<x y z>`, the live monsters within 160 units of a player (`attachmp:
+//     monster`), then `attachmp: report done`.
+// (An entity's number: its place among the used edicts, exact for players, whose edicts are never freed.)
+float(entity e) VR_AT_EntNum =
+{
+    float n = 0;
+    for(entity f = world; f != e && n < 8192; f = nextent(f))
+    {
+        n++;
+    }
+    return n;
+};
+
+void() VR_AttachMPTest_Frame =
+{
+    float ask = cvar_hget(cvarh_vr_dm_test);
+    if(ask == 25)
+    {
+        cvar_set("vr_dm_test", "0");
+        float who = cvar_hget(cvarh_vr_dm_test_who);
+        entity oldself = self;
+        for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+        {
+            if(VR_AT_EntNum(p) == who && p.health > 0 && VRIsHandEmpty(p, cVR_OffHand) && VR_Carry_Held(p, cVR_OffHand) == world)
+            {
+                self = p;
+                VR_AT_Bayonet(cVR_OffHand);
+                self = oldself;
+                bprint(sprintf("attachmp: bayonet in player %g's off hand\n", who));
+                return;
+            }
+        }
+        bprint(sprintf("attachmp: no player %g with an empty off hand\n", who));
+    }
+    if(ask == 26)
+    {
+        cvar_set("vr_dm_test", "0");
+        for(entity q = VR_Player(); q; q = VR_NextPlayer(q))
+        {
+            string hol = "";
+            for(float i = 2; i < 8; i++)
+            {
+                hol = sprintf("%s%s%g", hol, i > 2 ? "," : "", VR_Attach_Of(VR_Attach_Carried(q, i)));
+            }
+            bprint(sprintf("attachmp: player ent=%g main=%g,%g off=%g,%g holsters=%s\n", VR_AT_EntNum(q), VRGetEntWeapon(q, cVR_MainHand),
+                VR_Attach_Of(VRGetEntWeaponInst(q, cVR_MainHand)), VRGetEntWeapon(q, cVR_OffHand),
+                VR_Attach_Of(VRGetEntWeaponInst(q, cVR_OffHand)), hol));
+        }
+        for(entity w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+        {
+            bprint(sprintf("attachmp: lying wid=%g attach=%g stuck=%g speed=%.0f at=%.0f %.0f %.0f\n", w.weapon,
+                VR_Attach_Of(w.weaponinst), VR_AxeStick_IsStuck(w) ? 1 : 0, vlen(w.velocity), w.origin_x, w.origin_y, w.origin_z));
+        }
+        for(entity mo = nextent(world); mo; mo = nextent(mo))
+        {
+            if((mo.flags & FL_MONSTER) && mo.health > 0)
+            {
+                for(entity pp = VR_Player(); pp; pp = VR_NextPlayer(pp))
+                {
+                    if(vlen(mo.origin - pp.origin) < 160)
+                    {
+                        bprint(sprintf("attachmp: monster ent=%g class=%s health=%g\n", VR_AT_EntNum(mo), mo.classname, mo.health));
+                        break;
+                    }
+                }
+            }
+        }
+        bprint("attachmp: report done\n");
+    }
+};
 #endif
