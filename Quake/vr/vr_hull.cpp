@@ -2418,6 +2418,60 @@ constexpr za::SizeT shareMin = 48;   // fewer pieces: a subtree of their own (no
 constexpr za::SizeT shareBig = 512;  // below the top's levels: this many pieces or more split further
 constexpr int shareDeepest = -24;    // ... down to this depth (the top's levels count down to 0)
 
+// The map load's collision builds as its loading panel shows them (hullwait, 2026-11-26): each tree the load waits for,
+// with what its build has done so far (its brushes grown; its top's units built, each unit worth its share of the whole:
+// half its parent's, so the leaves add up to shareWhole), written by the pool, read by the panel (settle). The main
+// thread fills an entry before the tree's job is posted and publishes it with `count`; the entries are not changed but
+// for their counters until the load's trees are done (settle empties the list).
+constexpr za::U64 shareWhole = za::U64{1} << 40; // (the deepest unit: shareDepth - shareDeepest = 34 levels down)
+constexpr int maxLoadTrees = 24;
+
+struct LoadTree
+{
+    const Tree* tree = nullptr;
+    const char* what = "";          // the box: "standing", "crouching", "lying down", "monsters"
+    za::Atomic<int> state{0};       // 0 waiting, 1 being read or built, 2 ready
+    za::Atomic<za::U64> brushes{0}; // the brushes it grows (as its build begins)
+    za::Atomic<za::U64> grown{0};   // of those, grown into pieces
+    za::Atomic<za::U64> share{0};   // of shareWhole, its top's units built
+};
+
+struct LoadTrees
+{
+    LoadTree trees[maxLoadTrees];
+    za::Atomic<int> count{0}; // (stored with release once an entry is filled)
+};
+
+LoadTrees loadTrees;
+
+// t's entry, if the load waits for it (any thread).
+LoadTree* loadTreeOf(const Tree* t)
+{
+    const int n = loadTrees.count.loadAcquire();
+    for(int i = 0; i < n; ++i)
+    {
+        if(loadTrees.trees[i].tree == t)
+        {
+            return &loadTrees.trees[i];
+        }
+    }
+    return nullptr;
+}
+
+// How much of t's build is done, 0 to 1 (its brushes grown about a quarter of a build's time, its units the rest).
+double loadTreeDone(const LoadTree& e)
+{
+    const int state = e.state.loadAcquire();
+    if(state != 1)
+    {
+        return state == 2 ? 1.0 : 0.0;
+    }
+    const za::U64 brushes = e.brushes.loadRelaxed();
+    const double grown = brushes ? static_cast<double>(e.grown.loadRelaxed()) / static_cast<double>(brushes) : 0.0;
+    const double units = static_cast<double>(e.share.loadRelaxed()) / static_cast<double>(shareWhole);
+    return za::min(0.95, 0.25 * grown + 0.7 * units);
+}
+
 // A unit's pieces kept for a redo (emit), packed: each face's points as many as it has (a Face holds windingInline in
 // place, 4.5 used on average), the same numbers, unpacked into the same pieces.
 struct PackedFrags
@@ -2637,11 +2691,18 @@ struct Merge
 jobs::Site speculateSite{"hull speculate"}; // (its parallelFor: vr_jobs_sites)
 
 // A unit of the tree's top (its pieces), over base; its sides' units at once below it.
-void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth)
+void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth, LoadTree* progress)
 {
     u.baseCount = base.count();
     TreeBuilder tb{base, u.planes, u.nodes, u.solid, u.empty, u.log};
     u.kept = depth >= 0;
+    const auto built = [&] // (its share of the whole: half its parent's)
+    {
+        if(progress)
+        {
+            progress->share.fetchAddRelaxed(shareWhole >> za::min(shareDepth - depth, 40));
+        }
+    };
     if(frags.size() < shareMin || (depth <= 0 && (frags.size() < shareBig || depth <= shareDeepest)))
     {
         u.kind = 2;
@@ -2653,11 +2714,13 @@ void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth)
         const auto t0 = za::Clock::nowNanoseconds();
         u.root = tb.build(frags);
         u.ms = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
+        built();
     }
     else if(const int contents = tb.leaf(frags))
     {
         u.kind = 0; // (asks for no plane: never done again)
         u.root = contents;
+        built();
     }
     else
     {
@@ -2687,7 +2750,7 @@ void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth)
             {
                 for(za::SizeT i = begin; i < end; ++i)
                 {
-                    speculate(*u.kids[i], tb, ZA_MOVE(sides[i]), depth - 1);
+                    speculate(*u.kids[i], tb, ZA_MOVE(sides[i]), depth - 1, progress);
                 }
             });
     }
@@ -2780,7 +2843,7 @@ bool sameValues(const mplane_t& a, const mplane_t& b)
 }
 
 void growAllOnPool(TreeBuilder& tb, const Brushes& b, const za::Vector<const Brush*>& list, const glm::dvec3& ext,
-    Frags& frags)
+    Frags& frags, LoadTree* progress)
 {
     struct Run
     {
@@ -2845,6 +2908,10 @@ void growAllOnPool(TreeBuilder& tb, const Brushes& b, const za::Vector<const Bru
                     run.rebounded.pushBack(lb.rebounded - before);
                 }
                 run.logStart.pushBack(static_cast<za::U32>(run.log.size()));
+                if(progress)
+                {
+                    progress->grown.fetchAddRelaxed(static_cast<za::U64>(last - r * growRun));
+                }
             }
         });
     za::Vector<za::SizeT> touched; // (a brush's) the run's planes it gave numbers to
@@ -2932,6 +2999,12 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch,
             list.pushBack(&b.brushes[static_cast<za::SizeT>(c)]);
         }
     }
+    LoadTree* progress = sub == 0 && !watch ? loadTreeOf(&t) : nullptr; // (the loading panel's: hullwait)
+    if(progress)
+    {
+        progress->brushes.storeRelaxed(static_cast<za::U64>(list.size()));
+        progress->state.storeRelease(1);
+    }
     Frags frags;
     auto growAll = [&]
     {
@@ -2949,10 +3022,10 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch,
     {
         Merge m;
         const auto g0 = za::Clock::nowNanoseconds();
-        growAllOnPool(tb, b, list, ext, frags);
+        growAllOnPool(tb, b, list, ext, frags, progress);
         const auto g1 = za::Clock::nowNanoseconds();
         Unit top;
-        speculate(top, tb, ZA_MOVE(frags), shareDepth);
+        speculate(top, tb, ZA_MOVE(frags), shareDepth, progress);
         const auto g2 = za::Clock::nowNanoseconds();
         m.start = tb.count();
         m.owner.clear();
@@ -3008,6 +3081,10 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch,
             t.ext.z * 2.f, static_cast<int>(sub));
     }
     t.ms += za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
+    if(progress)
+    {
+        progress->state.storeRelease(2);
+    }
     return tb.rebounded;
 }
 } // namespace detail
@@ -3777,6 +3854,7 @@ void reportTree(const Tree& t, int rebounded)
 constexpr char diskMagic[4] = {'Q', 'V', 'R', 'H'};
 constexpr za::U32 diskVersion = 1;
 constexpr double diskMinMs = 25.0; // (was 250, the PC's: e1m1's small trees took 600 ms on a Quest 3 at every load; loadprof)
+bool writeEveryTree = false;       // setWriteEveryTree: every tree written however quick (set before the jobs are posted)
 
 // The trees' compile version: BUMP IT whenever a change to the compile (growing, the units, speculate, merging, the
 // rebounding, their constants) could change the tree compiled for the same brushes and box. The disk folder is this,
@@ -4307,7 +4385,7 @@ void compileWork(const GateWork& w)
 {
     Tree& t = *w.tree;
     t.cutBack = compileWorldTree(t, *w.brushes);
-    if(w.disk.mode != 0 && t.ms >= diskMinMs && t.heads[0] >= 0)
+    if(w.disk.mode != 0 && (t.ms >= diskMinMs || writeEveryTree) && t.heads[0] >= 0)
     {
         diskWrite(t, w.disk, t.cutBack);
     }
@@ -4381,8 +4459,17 @@ void diskOrCompile(Tree& t, const Brushes& b, GateWork w)
     t.heads.resize(b.subs.size(), -1);
     const auto t0 = za::Clock::nowNanoseconds();
     int rebounded = 0;
+    LoadTree* progress = loadTreeOf(&t); // (the loading panel's: hullwait)
+    if(progress)
+    {
+        progress->state.storeRelease(1);
+    }
     if(diskRead(t, d, rebounded))
     {
+        if(progress)
+        {
+            progress->state.storeRelease(2);
+        }
         const auto ns = za::Clock::nowNanoseconds() - t0;
         diskCounts.read.fetchAddSeqCst(1);
         diskCounts.readUs.fetchAddSeqCst(static_cast<long long>(ns / 1000));
@@ -4410,10 +4497,31 @@ void diskOrCompile(Tree& t, const Brushes& b, GateWork w)
     gatedCompile(ZA_MOVE(w));
 }
 
+const char* boxWhat(const glm::vec3& ext); // (the loading panel's name for a box: below)
+
+// t one of the trees the loading panel follows (before its job is posted: the main thread).
+void addLoadTree(const Tree* t)
+{
+    const int n = loadTrees.count.loadRelaxed();
+    if(n >= maxLoadTrees)
+    {
+        return; // (the panel's bar then counts the trees' jobs alone past these)
+    }
+    LoadTree& e = loadTrees.trees[n];
+    e.tree = t;
+    e.what = boxWhat(t->ext);
+    e.state.storeRelaxed(0);
+    e.brushes.storeRelaxed(0);
+    e.grown.storeRelaxed(0);
+    e.share.storeRelaxed(0);
+    loadTrees.count.storeRelease(n + 1);
+}
+
 // A tree compiled on the pool once the brushes are built (or read from the disk: vr_hull_cache).
 void postTree(Tree* t)
 {
     pending.trees.pushBack(t);
+    addLoadTree(t);
     t->cutBack = 0;
     pending.run.pushBack(jobs::async(
         [t, d = diskJob(*t, sv.worldmodel), budget = buildBudget()]() mutable
@@ -4433,14 +4541,14 @@ void postTree(Tree* t)
 // too: the change over is seamless. While a job runs the main thread touches neither its tree nor `built`'s layout:
 // whatever would (an external model's brushes added, a slot taken past the limit, a setting's prepare, a map change,
 // the diagnostics) waits for it first (joinBackground).
-// The map load's deferred trees (vr_hull_defer, loadprof2) go the same way: the load waits for the standing player's
-// tree alone (the Quest 3's cold hub: 85 s for its 8 trees), then the crouched boxes' (tallest first: a crouch's eyes
-// pass them going down), the lying box's and the monsters' sizes are made in one job, one after another, each ready as
-// soon as it is made (`done`). Meanwhile a monster moves with Quake's hull, as above, and a crouched or lying box's
-// first trace waits for its own tree (joinBackgroundTree; the loading panel after a second): never a wrong trace. One
-// job runs at a time (a size first met in play waits its turn on Quake's hull), and a job's trees are made one after
-// another: the build gate (vr_hull_build_mb) then never queues a compile behind another job's, which would end before
-// the tree it holds is made.
+// The map load's deferred trees (vr_hull_defer, loadprof2) go the same way: the load waits for the player's boxes'
+// trees (standing, crouched, lying: hullwait; the Quest 3's cold hub had 85 s for its 8 trees), then the monsters'
+// sizes are made in one job, one after another, each ready as soon as it is made (`done`), a monster moving with
+// Quake's hull meanwhile, as above. A player's box is never in a job (beforeLoad posts them with the load; a setting's
+// change makes them at once: prepare), so a trace never waits in play: joinBackgroundTree waits only for a diagnostic's
+// box (developer 1 says so: "hull: a ... trace waited"). One job runs at a time (a size first met in play waits its
+// turn on Quake's hull), and a job's trees are made one after another: the build gate (vr_hull_build_mb) then never
+// queues a compile behind another job's, which would end before the tree it holds is made.
 
 // A job's progress (the job writes it, the main thread reads it: on the heap, where a move of its job leaves it).
 struct JobProgress
@@ -4537,20 +4645,33 @@ bool treeRunning(const Tree* t)
     return false;
 }
 
-// Waits until doneCount() reaches total (the futures' jobs on the pool); with the loading panel (vr_load_panel), a panel
-// frame each poll after the first second (the runtime paces it), else short sleeps. The map load's wait (settle) and a
-// deferred tree's first use.
-template <class DoneCount>
-void waitWithPanel(int total, DoneCount&& doneCount)
+// What the loading panel shows of a wait: what is being made, and how much of the whole is done (0 to 1).
+struct PanelText
+{
+    char heading[64] = "";
+    double done = 0.0;
+};
+
+// Waits until poll (the futures' jobs on the pool) says the wait is over, filling the panel's text meanwhile; with the
+// loading panel (vr_load_panel), a panel frame each poll after the first second (the headset's runtime paces it), else
+// short sleeps. The map load's wait (settle) and a tree's first use while a job makes it (joinBackgroundTree).
+template <class Poll>
+void waitWithPanel(Poll&& poll)
 {
     constexpr double panelAfter = 1.0;
     const bool panel = VR_MapLoadingWanted() != 0;
     const char* map = sv.name[0] ? sv.name : "the map";
     const double t0 = Sys_DoubleTime();
-    while(doneCount() < total)
+    PanelText text;
+    while(!poll(text))
     {
         const double waited = Sys_DoubleTime() - t0;
-        if(!panel || waited < panelAfter || !VR_MapLoadingFrame(map, doneCount(), total, waited))
+        char detail[96] = "";
+        if(panel && waited >= panelAfter)
+        {
+            q_snprintf(detail, sizeof(detail), "%s: %.0f%% - built once for this version", map, text.done * 100.0);
+        }
+        if(!panel || waited < panelAfter || !VR_MapLoadingFrame(text.heading, detail, text.done, waited))
         {
             Sys_Sleep(waited < panelAfter ? 1 : 10);
         }
@@ -4672,12 +4793,20 @@ void joinBackgroundTree(const Tree* t)
             {
                 continue;
             }
-            if(static_cast<int>(k) >= readyCount(j)) // (a deferred crouched box's first trace: its tree alone waited for)
+            if(static_cast<int>(k) >= readyCount(j)) // (a diagnostic's box being made: its tree alone waited for)
             {
                 const double t0 = Sys_DoubleTime();
                 if(jobs::workers() > 0)
                 {
-                    waitWithPanel(static_cast<int>(k) + 1, [&j] { return readyCount(j); });
+                    const int wanted = static_cast<int>(k) + 1;
+                    waitWithPanel(
+                        [&j, wanted](PanelText& p)
+                        {
+                            const int ready = readyCount(j);
+                            q_snprintf(p.heading, sizeof(p.heading), "Building collision (%d of %d)", za::min(ready + 1, wanted), wanted);
+                            p.done = static_cast<double>(ready) / static_cast<double>(wanted);
+                            return ready >= wanted;
+                        });
                 }
                 else
                 {
@@ -4736,15 +4865,55 @@ void settle()
     // paces it), else a short sleep. Without the panel (or a pool: then only get() runs them): the waits below as before.
     if(VR_MapLoadingWanted() && jobs::workers() > 0)
     {
-        waitWithPanel(static_cast<int>(run.size()) + 1,
-            [&run]
+        waitWithPanel(
+            [&run](PanelText& p)
             {
-                int done = pending.brushes.ready() ? 1 : 0;
+                const bool brushes = pending.brushes.ready();
+                bool all = brushes;
                 for(const jobs::Future<void>& f : run)
                 {
-                    done += f.ready() ? 1 : 0;
+                    all = all && f.ready();
                 }
-                return done;
+                if(all)
+                {
+                    return true;
+                }
+                // The brushes a step, then each tree as far as its build is (in the order posted: the standing box,
+                // the crouched ones, the lying one, the monsters' when the load makes them)
+                const int n = loadTrees.count.loadAcquire();
+                const int total = 1 + za::max(n, static_cast<int>(run.size()));
+                double sum = brushes ? 1.0 : 0.0;
+                int ready = brushes ? 1 : 0;
+                const char* what = nullptr;     // the first being built
+                const char* waiting = nullptr;  // else the first not ready
+                for(int i = 0; i < n; ++i)
+                {
+                    const LoadTree& e = loadTrees.trees[i];
+                    const double d = loadTreeDone(e);
+                    sum += d;
+                    ready += d >= 1.0 ? 1 : 0;
+                    if(!what && d < 1.0 && e.state.loadAcquire() == 1)
+                    {
+                        what = e.what;
+                    }
+                    if(!waiting && d < 1.0)
+                    {
+                        waiting = e.what;
+                    }
+                }
+                what = what ? what : waiting;
+                const int step = za::min(ready + 1, total);
+                if(!brushes)
+                {
+                    q_snprintf(p.heading, sizeof(p.heading), "Building the map's brushes (%d of %d)", step, total);
+                }
+                else
+                {
+                    q_snprintf(p.heading, sizeof(p.heading), "Building collision for %s (%d of %d)", what ? what : "monsters",
+                        step, total);
+                }
+                p.done = sum / static_cast<double>(total);
+                return false;
             });
     }
     for(jobs::Future<void>& f : run)
@@ -4752,6 +4921,7 @@ void settle()
         f.get(); // (a compile queued by one ends with the job of the compile that ran it: all are done after these)
     }
     pending.brushes.get();
+    loadTrees.count.storeRelease(0); // (the load's trees all made: the panel's list emptied for the next load)
     const double t1 = Sys_DoubleTime();
     VR_TimeAdd("hull: the map's brushes and compiled hulls, waited for (built on the pool)", t1 - t0);
     if(!pending.kept && pending.brushesBegan > 0.0) // where the time went (on the pool: not part of the wait above)
@@ -4894,25 +5064,58 @@ glm::vec3 playerExt(const qmodel_t* world)
 
 // The boxes the trees are wanted for: the player's (first, if on), then each size the level's monsters ask for
 // (vr_mhull), in their order (loading: while the server spawns them).
-za::Vector<glm::vec3> wantedExts(bool loading)
+// The player's boxes (the load always waits for their trees: a trace never waits for one in play, hullwait): the
+// standing one (if on), the crouched ones lowest first, the lying one.
+za::Vector<glm::vec3> playerBoxExts()
 {
     za::Vector<glm::vec3> exts;
     if(vr_hull_width.value > 0.f)
     {
         exts.pushBack(playerExt(sv.worldmodel));
     }
+    float levels[maxCrouchLevels];
+    const int n = crouchLevels(sv.worldmodel, levels);
+    for(int i = 0; i < n; ++i)
     {
-        float levels[maxCrouchLevels];
-        const int n = crouchLevels(sv.worldmodel, levels);
-        for(int i = 0; i < n; ++i)
+        exts.pushBack(crouchExt(levels[i])); // the crouched player's
+    }
+    if(proneOn() && proneHeight(sv.worldmodel) < levels[0])
+    {
+        exts.pushBack(crouchExt(proneHeight(sv.worldmodel))); // lying down (vr_prone)
+    }
+    return exts;
+}
+
+// The loading panel's name for a box's tree (hullwait).
+const char* boxWhat(const glm::vec3& ext)
+{
+    if(!sv.worldmodel)
+    {
+        return "monsters";
+    }
+    if(vr_hull_width.value > 0.f && ext == playerExt(sv.worldmodel))
+    {
+        return "standing";
+    }
+    float levels[maxCrouchLevels];
+    const int n = crouchLevels(sv.worldmodel, levels);
+    for(int i = 0; i < n; ++i)
+    {
+        if(ext == crouchExt(levels[i]))
         {
-            exts.pushBack(crouchExt(levels[i])); // the crouched player's
-        }
-        if(proneOn() && proneHeight(sv.worldmodel) < levels[0])
-        {
-            exts.pushBack(crouchExt(proneHeight(sv.worldmodel))); // lying down (vr_prone)
+            return "crouching";
         }
     }
+    if(proneOn() && ext == crouchExt(proneHeight(sv.worldmodel)))
+    {
+        return "lying down";
+    }
+    return "monsters";
+}
+
+za::Vector<glm::vec3> wantedExts(bool loading)
+{
+    za::Vector<glm::vec3> exts = playerBoxExts();
     if(vr_mhull.value != 0.f && (sv.active || loading))
     {
         for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; ++i)
@@ -4995,9 +5198,11 @@ void prepareBrushModels()
 }
 
 // World and loaded brush hulls for these boxes, prepared before play (or after a width-setting change). The map load's
-// (load) with vr_hull_defer: the standing player's now, the rest after the load on the pool ("Trees compiled in play").
+// (load) with vr_hull_defer: the player's boxes now (the load made them: beforeLoad), the monsters' sizes after the load
+// on the pool ("Trees compiled in play").
 void prepare(bool load)
 {
+    settle(); // (the load's trees made: none claimed twice below)
     joinBackground(); // (every tree's models built below)
     const bool defer = load && pending.deferring;
     pending.deferring = false;
@@ -5018,21 +5223,13 @@ void prepare(bool load)
                 exts.pushBack(ext);
             }
         }
-        // wantedExts' order: the player's (if on), the crouched boxes lowest first, the lying box, the monsters'. Later:
-        // the crouched tallest first (a crouch's eyes pass it first), then the rest as they come.
-        const za::SizeT first = vr_hull_width.value > 0.f ? 1 : 0;
-        float levels[maxCrouchLevels];
-        const za::SizeT crouched = za::min(static_cast<za::SizeT>(crouchLevels(sv.worldmodel, levels)),
-            exts.size() > first ? exts.size() - first : za::SizeT{0});
-        for(za::SizeT i = crouched; i-- > 0;)
-        {
-            later.pushBack(exts[first + i]);
-        }
-        for(za::SizeT i = first + crouched; i < exts.size(); ++i)
+        // wantedExts' order: the player's boxes, then the monsters' sizes as they come: those later
+        const za::SizeT player = za::min(playerBoxExts().size(), exts.size());
+        for(za::SizeT i = player; i < exts.size(); ++i)
         {
             later.pushBack(exts[i]);
         }
-        exts.resize(first);
+        exts.resize(player);
     }
     compileTrees(claimTrees(built.clipnodes, exts), built);
     prepareBrushModels(); // (before the later trees' slots are taken: their brush models are made by their job)
@@ -5117,14 +5314,12 @@ void beforeLoad()
         brushesFromDiskOrBuild(built, world, key, d);
         pending.brushesEnded = Sys_DoubleTime();
     });
-    pending.playerExt = glm::vec3{0.f};
-    if(vr_hull_width.value > 0.f)
+    pending.playerExt = vr_hull_width.value > 0.f ? playerExt(world) : glm::vec3{0.f};
+    // The player's boxes, standing, crouched and lying, all made with the load (hullwait: a crouch right after a cold
+    // load waited for its tree, 8.6 s on a Quest 3's ad_sepulcher), at once on the pool within the build budget
+    for(Tree* t : claimTrees(world->hulls[0].clipnodes, playerBoxExts()))
     {
-        pending.playerExt = playerExt(world);
-        for(Tree* t : claimTrees(world->hulls[0].clipnodes, {pending.playerExt}))
-        {
-            postTree(t);
-        }
+        postTree(t);
     }
 }
 
@@ -5222,6 +5417,11 @@ void keepForReload()
 void afterLoad()
 {
     prepare(true);
+}
+
+void setWriteEveryTree(bool on)
+{
+    writeEveryTree = on;
 }
 
 bool moveBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs)

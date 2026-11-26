@@ -7391,12 +7391,17 @@ QVR_CYCLE(vr_hull_async, "New Monster Sizes in Play",
     "no hitch; In the Frame compiles it at its first move, the game waiting (ad_tears: 1.3-1.9 s) "
     "(vr_hull_async; developer 1 prints the switch).",
     {0.f, "In the Frame"}, {1.f, "On the Pool"})
-QVR_CYCLE(vr_hull_defer, "Crouch and Monster Hitboxes",
-    "After the Load: a map load waits only for the standing player's compiled hull; the crouched, lying "
-    "and monsters' are made after it on the pool (a monster moves with Quake's hull until its own is "
-    "ready; a crouch right after a cold load waits for its own at its first move). With the Load: all "
-    "waited for by the load (vr_hull_defer; developer 1 prints when each is ready).",
+QVR_CYCLE(vr_hull_defer, "Monster Hitbox Builds",
+    "After the Load: a map load waits for the player's compiled hulls (standing, crouched, lying: never "
+    "a wait in play) but not the monsters', made after it on the pool (a monster moves with Quake's "
+    "hull until its own is ready, seamless). With the Load: all waited for by the load (vr_hull_defer; "
+    "developer 1 prints when each is ready).",
     {0.f, "With the Load"}, {1.f, "After the Load"})
+QVR_CYCLE(vr_load_panel_shot, "Save the Loading Panel",
+    "At Half Way: the next map load that shows the loading panel (a cold collision build) saves its "
+    "image as screenshots/load_panel.png when it is half done, then goes back to Off "
+    "(vr_load_panel_shot; a test aid).",
+    {0.f, "Off"}, {0.5f, "At Half Way"})
 QVR_TOGGLE_BYNAME(vr_portals_debug_split, "Print Gate Cuts",
     "vr_portals_debug_split 1: each frame, every entity drawn cut by a teleporter (where, the plane, how far "
     "through), the force grab's beam end, and each thrown or rigid thing's middle and why a gate did not "

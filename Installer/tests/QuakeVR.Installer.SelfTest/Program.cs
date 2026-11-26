@@ -673,6 +673,19 @@ var tests = new List<(string Name, Action Body)>
         Eq(10, r.Relit, "relit");
         Eq(2, r.RelightSkipped, "skipped");
         Eq("10 maps relit, 2 skipped in 0:42", r.RelightStatus, "the game's status line");
+        // The common maps' collision (-preparehulls), at the bar's end after the relight; a failed map a warning.
+        string[] hulls = ["step hulls 1 3 e1m1", "hulls e1m1 ok 1.9 files=7", "step hulls 2 3 e1m2", "hulls e1m2 failed 600.0",
+            "step hulls 3 3 start", "hulls start ok 0.5 files=6", "result hulls ok=2 failed=1 files=13 written=13 mb=4.3 602.4"];
+        var h = new PreparationResult { RelightAsked = true, HullsAsked = true };
+        var hp = hulls.Select(l => GamePreparation.Apply(h, l)).ToList();
+        True(h.HullMapsOk == 2 && h.HullMapsFailed == 1 && h.HullFiles == 13 && Math.Abs(h.HullMegabytes - 4.3) < 1e-9, "hulls: counts, files and size read");
+        True(hp[0]?.Status == "Preparing collision for e1m1 (1 of 3)" && hp[0]!.Fraction is > 0.74 and < 0.76, "hulls' first step: its status, after the relight's part");
+        True(hp[4]?.Status?.Contains("start (3 of 3)") == true && hp[4]!.Fraction is > 0.9 and < 0.95, "hulls' last step: near the end");
+        True(hp[1] is null && hp[3]?.Level == LogLevel.Warning && hp[3]!.Log!.Contains("e1m2"), "a map's ok line: nothing logged; a failed one: a warning");
+        True(hp[6]?.Fraction == 1 && hp[6]!.Log!.Contains("2 of Quake's") && hp[6]!.Log!.Contains("13 files") && hp[6]!.Log!.Contains("1 not prepared"), "the hulls' result: logged with its counts");
+        p = GamePreparation.Apply(new PreparationResult { RelightAsked = true, HullsAsked = true }, "relight 100 x");
+        True(p?.Fraction is > 0.74 and < 0.76, "with the hulls the relight ends at their part's start");
+        True(GamePreparation.Apply(new PreparationResult { HullsAsked = true }, "step hulls 1 2 e1m1")?.Fraction is > 0.74 and < 0.76, "no relight: the hulls after the maps' part");
         True(!Read(true, "result relight ended=1 maps=12 relit=9 skipped=2 failed=1 cancelled=0 own=11 | x", "done").RelightDone, "a map failed: not done");
         True(!Read(true, "result relight ended=1 maps=12 relit=9 skipped=0 failed=0 cancelled=3 own=11 | x", "done").RelightDone, "cancelled: not done");
         True(!Read(true, "result relight ended=0 maps=0 relit=0 skipped=0 failed=0 cancelled=0 own=0 | ericw-tools' light not found", "done").RelightDone, "no light.exe: not done");
@@ -688,11 +701,12 @@ var tests = new List<(string Name, Action Body)>
         }, null, CancellationToken.None);
         var info = GamePreparation.StartInfo(target, quake, relight: true);
         True(info.Arguments.StartsWith(LaunchCommand.Arguments(quake, target, LaunchVariant.Vr), StringComparison.Ordinal), "the shortcut's arguments first");
-        foreach (var a in new[] { "-prepare \"", "-preparerelight", "+vr_backend mock", "-noconfigwrite", "-noautoexec", "-nosound" })
+        foreach (var a in new[] { "-prepare \"", "-preparerelight", "-preparehulls", "+vr_backend mock", "-noconfigwrite", "-noautoexec", "-nosound" })
         {
             True(info.Arguments.Contains(a, StringComparison.Ordinal), $"argument {a}");
         }
         True(!GamePreparation.StartInfo(target, quake, relight: false).Arguments.Contains("-preparerelight"), "no relight: no -preparerelight");
+        True(!GamePreparation.StartInfo(target, quake, relight: true, hulls: false).Arguments.Contains("-preparehulls"), "no hulls: no -preparehulls");
         Eq("1", info.Environment["QVR_TEST_HIDDEN"], "hidden");
         Eq("1", info.Environment["QVR_NO_ERROR_DIALOG"], "no error dialog");
         Eq(target, info.WorkingDirectory, "started in the install");
@@ -710,6 +724,9 @@ var tests = new List<(string Name, Action Body)>
                      src.Contains("line(\"step models\")") && src.Contains("\"result models %d %d %.1f\"") &&
                      src.Contains("\"step campaigns %d %d %s\"") && src.Contains("\"campaign %s ok %.1f models=%d limbs=%d\"") &&
                      src.Contains("\"campaign %s none %.1f\"") && src.Contains("\"campaign %s failed %.1f\""), "the engine's lines");
+                True(src.Contains("\"-preparehulls\"") && src.Contains("\"step hulls %d %d %s\"") && src.Contains("\"hulls %s ok %.1f files=%d\"") &&
+                     src.Contains("\"hulls %s failed %.1f\"") && src.Contains("\"result hulls ok=%d failed=%d files=%d written=%d mb=%.1f %.1f\"") &&
+                     src.Contains("\"setup_hulls.txt\""), "the engine's hulls lines and list");
                 // The installer's relight (this run's and the first-start marker's) is the stock game's and the official
                 // packs' maps only: not the Map Library's nor AD's (the author's decision, 2026-11-17).
                 var relightCpp = File.ReadAllText(Path.Combine(d.FullName, "Quake", "vr", "vr_relight.cpp"));
@@ -725,7 +742,7 @@ var tests = new List<(string Name, Action Body)>
 
         // No game to start (the fixture's package has none that runs): never fatal, the marker stays.
         True(record.RelightPending && FirstStartRelight.Pending(target), "relight pending after the install");
-        var noGame = GamePreparation.Run(target, quake, true, null, CancellationToken.None);
+        var noGame = GamePreparation.Run(target, quake, true, true, null, CancellationToken.None);
         True(!noGame.Finished && noGame.Error is not null, $"no game: not finished ({noGame.Error})");
         True(FirstStartRelight.Pending(target) && InstallRecord.Load(target)!.RelightPending, "no game: the marker and RelightPending stay");
         // A finished run whose relight did not finish leaves them; a finished relight removes them.

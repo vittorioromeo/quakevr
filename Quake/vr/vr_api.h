@@ -307,8 +307,8 @@ void VR_ProgCacheAdd (unsigned long long key, unsigned format, const void *data,
 void VR_ProgCacheEnd (void); // GL_CreateShaders' end: the pack written when one was added (later adds: at once)
 void VR_ProgCacheFlush (void); // GL_ShadersPump: a queued set's programs done so far written (every few seconds)
 void VR_ShadersLoaded (int programs, int frames, double ms, double maxwork, double maxgap); // GL_ShadersPump: a queued set done (vr_shaderload.cpp: its trace mark, the test's verdict)
-int VR_MapLoadingWanted (void); // vr_hull.cpp settle: the loading panel can show during the map load's wait (vr_load_panel; VR running or the start's first frame)
-int VR_MapLoadingFrame (const char *map, int done, int total, double seconds); // ... one frame of it (nonzero: shown, the runtime waited on; vr_shaderload.cpp)
+int VR_MapLoadingWanted (void); // vr_hull.cpp settle: the loading panel can show during the map load's wait (vr_load_panel; VR running, the start's first frame, or a window to draw it in)
+int VR_MapLoadingFrame (const char *heading, const char *detail, double done, double seconds); // ... one frame of it: what is being made, a line under the bar, how much is done (0-1) (nonzero: shown in the headset, the runtime waited on; vr_shaderload.cpp)
 void VR_MapLoadingDone (const char *map, double seconds); // ... the wait over: its frames said (console)
 int VR_ShadersLoadingFrame (void); // host.c, SCR_UpdateScreen: while the shaders are queued, the set pumped and (still pending: nonzero) the loading panel's frame (vr_shaderload.cpp)
 void VR_ProgCacheCounts (int *hits, int *misses); // the last batch's programs given back / compiled

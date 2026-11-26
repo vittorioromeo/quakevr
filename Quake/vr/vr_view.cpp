@@ -5825,6 +5825,7 @@ extern "C" void VR_SetupViewEntities()
         }
         {
             QVR_PROFILE("view weapons");
+            embedSmoothStep(); // (the held blade's drawn place, smoothed, before anything is drawn on it)
             embedPinStep(s, HAND_MAIN); // (a blade just out of a body: the weapon eased into the hand with the hand)
             embedPinStep(s, HAND_OFF);
             setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);

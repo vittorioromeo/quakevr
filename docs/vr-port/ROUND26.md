@@ -893,3 +893,108 @@ Scripts (worktree round25, `scratch/`, not committed): `vsg_count.py` (brushes a
 `vsg_bsp.py` (BSP2: hull 0 leaves by contents, clipnodes per hull), `vsg_qbsp.sh` (qbsp only, then the stats),
 `vsg_bands.py` (terrain triangles by area), `vsg_exp2.py` (terrain variants: tolerances, `VSG_FLOOR`, `VSG_INLAND`,
 `VSG_GEN`).
+## hullwait: no pause in play for a crouch after a cold load; the loading panel says what it builds (branch agent/hullwait, 2026-11-26)
+
+His words: a pause in play is worse than a longer load; loads need clarity (a progress bar like the shaders' one).
+- **The player's boxes with the load again** (`vr_hull_defer` 1, same value, new meaning: no migration; its Debug > Tests
+  row renamed "Monster Hitbox Builds"): beforeLoad posts the standing, crouched (52/44/36) and lying boxes' trees together
+  (`playerBoxExts`), each a job on the pool within `vr_hull_build_mb` as the standing one was, so they build beside the
+  entity spawn and the load (settle) waits for all; afterLoad's job holds the monsters' sizes only (Quake's hull
+  meanwhile, seamless). A player's box is never in a job (a setting's change builds it at once: prepare), so
+  `joinBackgroundTree` can only wait for a diagnostic's box; its `hull: a ... trace waited` line stays as the guard.
+  prepare(true) now settles first. 0: the monsters' trees waited for too, as before.
+- **The loading panel** (`vr_load_panel`, vr_shaderload.cpp, the shaders' `drawPanel` shared): after a second of waiting,
+  "Building the map's brushes (1 of 6)", then "Building collision for standing/crouching/lying down/monsters (k of n)"
+  (the first tree being built), a bar of the real progress, "vrstart: 50% - built once for this version" and the
+  seconds. Progress: the brushes one step, each tree 0-1: its brushes grown (`growAllOnPool`, per run of 256: a quarter)
+  then its top's units built (`speculate`: each leaf unit adds its share of the split, half its parent's, so they sum to
+  1: the rest); a tree read from the disk is done at once (`LoadTrees`: atomics written by the pool, the entries fixed
+  while the load's jobs run). Shown in the headset and now the window too (flat-screen, the desktop beside VR; not the
+  Quest's immersive app: `VR_NoWindow`). `VR_MapLoadingFrame(heading, detail, done, seconds)`.
+- **Test aid** `vr_load_panel_shot` (Debug > Tests "Save the Loading Panel", At Half Way = 0.5): the panel's image saved
+  as `screenshots/load_panel.png` when a load's progress reaches it, then back to 0. Scene `load_collision_cold` (vrstart
+  with `vr_hull_keep 0`, `vr_hull_cache 0`, `vr_hull_build_mb 300`: a cold build every time, nothing written).
+- **PC runs** (Release no-LTO, a loaded machine): cold vrstart (fresh `vr_cache_dir`, `vr_cache_shipped 0`): 5 trees with
+  the load (standing, 3 crouched, lying), built during the 7-20 s entity spawn: waited 0-0.6 s; the 3 monsters' ready
+  6.9-8.9 s after; crouching (box 36) and lying (box 16) a second after the load: no `trace waited` line;
+  `vr_hull_keeptest` PASS (8 trees) cold and read. vrstart again with nothing kept or read: the panel 15.9 s (VR mock,
+  build_mb 300: 951 frames), 8.3 s and 5.8 s (flat), saved at 50% "Building collision for standing (4 of 6)"; flat
+  `+flatcrouch` right after it: box 36, no wait. crouch_speed_test 4/0.
+- Quest: not measured (the optional step 4 skipped). Expected: ad_sepulcher's cold load between loadprof2's 16.1 s and
+  35.8 s (the crouched and lying trees now built beside the spawn), with the panel, instead of an 8.6 s pause in play.
+## Flat stuck blades: free off hand joins, pole shaft grip, ragdoll smoothing (branch agent/flatembed3, 2026-11-26)
+
+His items 3, 7 and 10 (flat notes 2026-11-25/26).
+- **Off hand joins (item 3):** flat play's free, empty other hand takes any two-handed stuck blade (not the dagger, not a
+  2h_mode 2 weapon: `VR_Embed_CanTwoHand`) when the blade's grip/shaft segment (handle to wound) is within its arm's reach
+  from the off shoulder: `VR_EMBED_FLATARM_REACH` 0.6 m plus `vr_flat_embed_other_hand` cm (default 30; 0 never). Checked at
+  the stab (`VR_Embed_Try`) and every hold think while one hand holds it (`VR_Embed_HoldThink`, not during a pull), so a
+  one-handed stab or a later regrab gets the second hand too. A hand `VR_Embed_FlatArm` dropped for reach waits 0.4 s and
+  then needs 85% of the reach (`vr_hold_flatdrop_*`). Both hands' flat anchors are the handle (`VR_Embed_SetG0`). H drops both.
+  Test: vr_embed_test 64 (`embedhold_test.sh`): the spear, the sword stabbed one-handed and the swung axe all assert the
+  other hand on it the whole hold with vr_flat_embed_arm 1, none with 0.
+- **Pole shaft grip (item 7):** one helper, `poleShaftGrip` (vr_view_hands.cpp, on `alignChannel`): the hand's grip channel
+  turned and moved the least onto the pole's line. Held (flat): every state now, by `vr_flat_pole_off_snap` (default 1;
+  0 = only the flipped grip, as before), on the drawn mount-to-muzzle line. Stuck in a body (VR and flat): a hand on a grip
+  hotspot (not the handle) of a spear/Lance goes onto the shaft line through that hotspot (butt-to-tip way,
+  `weaponLocalGeometry`; the model's butt/tip points themselves, placed by `hotspotFrame`, were 13-21 units off the drawn
+  grip); in flat play, out of the arm's reach, it slides down the shaft towards the shoulder (`keepOnArm` along the shaft),
+  and if no shaft point is in reach, as near as the arm gets. Probe: `vr_embed_probe_pdist` / `_pturn` / `_pon` (cm and
+  degrees the channel is off the shaft, frames). The embedded holder frame keeps `reversed=false` on purpose: it is a frame
+  rigid with the blade, not the holder's real hand.
+- **Ragdoll smoothing (item 10):** `view::embedSmoothStep` (before `embedPinStep`): a held blade stuck in a ragdoll is drawn
+  with its place eased and turn slerped (`vr_embed_ragdoll_smooth_time` 0.04 s, 0 off), trailing the body by at most
+  `_max_pos` 2 cm / `_max_deg` 6 degrees. Written into the client entity, so the blade and every hand drawn on it share it.
+  Only ragdolls: STAT_QVR_EMBED* is now edict * 8 + in a ragdoll 4 + reversed 2 + by handle 1 (`ragdoll::published` of the
+  blade's host; `axestick::heldEnt` / `heldInRagdoll`; vr_flatplay.cpp and vr_gadgetlock.cpp use `heldEnt`). Smoothing a
+  standing body's blade broke the flat arm's reach (vr_embed_test 64, ogre case), hence the gate. State reset on map change
+  (`embedPinsReset`) and on a new blade entity or model. Probe: `vr_embed_probe_jraw` / `_jdrawn` (mean frame-to-frame change
+  of velocity in units plus turn rate in degrees, in the body and as drawn), `_jlag` (cm), `_jon`.
+- **flatembed4 (finish):** (a) `vr_flat_pole_off_pitch` turned the drawn other hand 2 of 30 degrees: the shaft grip's least
+  turn undid it. Its shaft-grip share is now turned about the shaft after the grip (`turnAboutShaft`): the hand stays on the shaft
+  and the tunable turns it (flatlance 30 degrees). (b) flatlance's "many thrusts": the Lance left in the ogre. Not the join stealing
+  it: with both hands anchored at the handle (`VR_Embed_SetG0`, item 3) the hold's averaged `far` lost the few units of slack the
+  second hand's own anchor up the shaft had given, and an ogre staggering 19 units back after a fast thrust took it past Hold Reach,
+  where embedholdfix's flat rule let go of a point in a heavy body. Now that rule lets go only when he himself walks off the blade
+  (`VR_Embed_FlatGoingAway`, shared with `VR_Embed_FlatArm`); a point the body carries off comes free into its hand. (c) Out of the
+  arm's reach the stuck shaft's hand went back to its own place, the spear's shaft 38 cm away; now it is pulled from the shaft's
+  nearest point straight towards the shoulder (13 cm off at 42 units, on it when in reach). Probes: `_pdist` / `_pturn` are taken
+  after every placement (`poleProbeNote`), `_hoff` skips frames the flat arm holds the hand short of the handle (pin.lead).
+  Tests: `poleembed_test.sh`: vr_embed_test 71 (spear and Lance, upright, flipped, guarding, stuck: 0.00 cm, 0.0 degrees, 16/0;
+  the spear's grunt at 32, its shaft in reach) and 72 (a sword in a falling ragdoll: smoothed 0.41 of 0.60 jitter drawn, lag 2.00
+  cm = max_pos, hand 0.00 cm off the handle; smoothing 0: the same jitter, no lag; 13/0).
+- Open: the parry pose and the smoothing were not checked visually; at 42 units the stuck spear's hands are drawn short of it
+  (the flat arm's reach), the main hand too.
+## hullinstall: the installer makes the collision of Quake's and the mission packs' maps, and sends it to the Quest (branch agent/hullinstall, 2026-11-26)
+
+His ask: generate the hull trees at install time for the most common maps, as the relight is.
+- **Engine** (vr_prepare.cpp, new step "hulls", `-preparehulls [<map>,...]`): after the relight (or after the maps/campaigns
+  when there is none; also after `-preparemaps`' list), every single-player map of id1, hipnotic and rogue that is installed
+  (`relight::maps::collect(Set::Game)`; start, e1m1..e4m8, end; hip1m1..hipend; r1m1..r2m8; each campaign's own `start`,
+  campaign selected as the player plays it; not dm*, hipdm1, ctf1) is loaded once (skill 2: the most monsters, so their
+  boxes' trees), then `hull::finishLoads()` waits for every tree it asked for, the deferred ones too. The trees are
+  written even when quicker than 25 ms (`hull::setWriteEveryTree`, the one hook in vr_hull.cpp: a Quest takes several
+  times the PC's). Progress lines: `step hulls i n map`, `hulls <map> ok <s> files=N` / `hulls <map> failed <s>`
+  (mapTimeout 600 s, never fatal), `result hulls ok= failed= files= written= mb= <s>`. The files of each map (the world's
+  key prefix, `hull::detail::keyOf`) are listed in `setup_hulls.txt` beside the progress file (cache path, tab, whole path).
+- **Relight order**: relit and original e1m1 have the same entities, planes, nodes, clipnodes and models (only leafs'
+  vis offsets, vis, lighting and faces differ), so the trees' key is the same: a load with `vr_relight_use 0` read the
+  same 7 files. The step still runs after the relight (it loads what the game loads).
+- **Installer**: GamePreparation passes `-preparehulls` (default on; Options "Prepare collision for Quake's maps", ticked,
+  "about a minute", ~150 MB in the disk estimate; CLI `--no-hulls`); the bar: maps 15 %, relight to 75 %, hulls the last
+  25 % (no relight: maps to 75 %); status "Preparing collision for e1m3 (12 of 65)"; one log line at the end, a warning per
+  failed map. **Quest**: QuestFiles.AddHulls sends the listed files that still exist to `cache/hulls/<build>/<file>` under
+  the app's files folder, the headset's own disk cache (`<base>/cache`, the files folder its base), read as files it made
+  itself; list lines outside `hulls/<build>/` are refused. Not run on a headset (headless reasoning only): the keys and the
+  build folder are the map's data and the trees' version, the same on arm64 (prebuiltcache, and loadprof2's Quest read
+  vrstart's shipped trees: 9 shipped reads).
+- **Numbers** (this PC, kit run, fast mode, other agents' runs beside it, cold cache): 65 maps (id1 32, hipnotic 17, rogue
+  16) in 66.7 s, per-map median 0.9 s (slowest r1m5 2.5 s, r1m1 2.1 s, e1m1 2.0 s); 508 files (65 brushes + 443 trees),
+  148.3 MB on disk. Within the hulls' 1 GB cache budget.
+- **Tests**: `-prepare <f> -preparemaps vrcalibration -preparehulls e1m1,e1m2,start` (22 files, 4.3 MB, 2.8 s), then a
+  fresh game on that cache, `vr_hull_defer 0; map e1m1; vr_cache_info`: hulls 7 read, 0 missed, 0 written. Installer
+  self-tests 61/61 (new: the hulls' progress lines and bar shares, `-preparehulls` on the command line and the engine's
+  line formats; Quest: the list's files go to `cache/hulls/<build>/`, missing and outside paths refused).
+- Open: the Options page gained a row (the page was sized for 1366x768: it scrolls if it no longer fits; not looked at in
+  the screenshot harness). A Quest-only install (staging folder) runs no preparation, so it has no list. The trees of
+  dopa/mg1/mg3 and AD are not made (not asked).

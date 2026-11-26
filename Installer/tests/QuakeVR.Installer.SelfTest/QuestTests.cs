@@ -151,6 +151,32 @@ static class QuestTests
                 .InnerException is InstallException, "a zip without adb.exe refused");
         }),
 
+        ("quest: the collision the preparation made (setup_hulls.txt) goes to the headset's cache/hulls/<build>; nothing else of the list", () =>
+        {
+            var s = MakeSetup(dir, "quest-hulls");
+            True(!s.Files.Any(f => f.DevicePath.StartsWith("cache/", StringComparison.Ordinal)), "no list: no collision files");
+            var cache = Directory.CreateDirectory(Path.Combine(s.Install, "cache", "hulls", "64fc31683190f57b")).FullName;
+            string Hull(string name)
+            {
+                var path = Path.Combine(cache, name);
+                File.WriteAllText(path, name);
+                return path;
+            }
+            var hbr = Hull("b1b9857c51e09966.hbr");
+            var hul = Hull("b1b9857c51e09966_8_8_22.hul");
+            var outside = Path.Combine(s.Install, "quakevr", "default.cfg");
+            Directory.CreateDirectory(Path.GetDirectoryName(GamePreparation.HullListPath(s.Install))!);
+            File.WriteAllLines(GamePreparation.HullListPath(s.Install), [
+                $"hulls/64fc31683190f57b/b1b9857c51e09966.hbr\t{hbr}", $"hulls/64fc31683190f57b/b1b9857c51e09966_8_8_22.hul\t{hul}",
+                $"hulls/64fc31683190f57b/gone_8_8_8.hul\t{Path.Combine(cache, "gone_8_8_8.hul")}", // (pruned since: not sent)
+                $"../quakevr/x.cfg\t{outside}", $"hulls/../../x\t{outside}", $"normalmaps/a/b.rgba\t{outside}", "no tab here"]);
+            var files = QuestFiles.Plan(s.Install, s.Quake, []);
+            var hulls = files.Where(f => f.What == "collision").ToList();
+            Eq("cache/hulls/64fc31683190f57b/b1b9857c51e09966.hbr|cache/hulls/64fc31683190f57b/b1b9857c51e09966_8_8_22.hul",
+                string.Join("|", hulls.Select(f => f.DevicePath)), "the listed files there, into the headset's disk cache");
+            Eq(hul, hulls[1].Source, "from the PC's cache");
+            Eq(2, files.Count(f => f.DevicePath.StartsWith("cache/", StringComparison.Ordinal)), "nothing else of the list (paths outside hulls/<build>/ refused)");
+        }),
         ("quest: the files for the headset (game files from the install, id1 lower case, music it plays, relit maps, Armagon, HD textures; no PC programs)", () =>
         {
             var s = MakeSetup(dir, "quest-plan");

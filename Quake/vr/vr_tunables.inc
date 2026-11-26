@@ -2290,6 +2290,7 @@ QVR_TUNABLE(vr_flat_pole_up, "-8.5") // and this far higher (units; negative low
 QVR_TUNABLE(vr_flat_pole_out, "3") // and this far further out at its own side (units; negative in towards the middle)
 QVR_TUNABLE(vr_flat_pole_roll, "0") // and rolled this far about its pole (degrees)
 QVR_TUNABLE(vr_flat_pole_off_along, "8") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
+QVR_TUNABLE(vr_flat_pole_off_snap, "1") // the hand on a spear's or Crystal Lance's shaft closed round the shaft as drawn (its grip channel turned and moved the least onto it), in every state: held, flipped, guarding, the pole stuck in a body (0: only the flipped grip, as before; drawn only)
 QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about its own forward, along the pole, about its palm (degrees; mirrored for the off hand; drawn only)
 // (flatmelee2, his notes 2026-11-23: each hand's place and turn, where they lie along the shaft.)
 QVR_TUNABLE(vr_flat_pole_pitch, "8") // the spear turned about the holding fist, its tip up (degrees; drawn only: the beam keeps to the crosshair)
@@ -2401,7 +2402,7 @@ QVR_TUNABLE(vr_flat_embed_pull_time, "0.2") // seconds of that pull back (and of
 QVR_TUNABLE(vr_flat_embed_pull_hold, "0.25") // seconds held pulled back, the blade following it out by the hold's rules
 QVR_TUNABLE(vr_flat_embed_arm, "1") // flatscreen: a hand on a stuck blade stays on its arm: standing still nothing lets go and the blade stays in; as its holder steps off it (walking away) the arm draws a pointed blade back out of a light body or lets go of a heavy one; a stab goes no deeper than the arm follows (QC VR_Embed_FlatArm; 0: only H lets go)
 QVR_TUNABLE(vr_flat_embed_arm_slip, "10") // flatscreen: cm a hand on a stuck blade may slip off its handle, drawn on its arm, before it lets go or pulls the blade out while going off it (standing still the arm holds however far; vr_flat_embed_arm)
-QVR_TUNABLE(vr_flat_embed_other_hand, "30") // flatscreen: a free other hand within this many cm of a blade stuck by the hand takes it too (the spear's shaft, a sword's two-handed grip; QC VR_Embed_Try; 0: never)
+QVR_TUNABLE(vr_flat_embed_other_hand, "30") // flatscreen: a free, empty other hand takes a two-handed blade stuck by the hand too (or held by one hand later) when its grip or shaft is within the other arm's reach from the shoulder (60 cm) plus this many cm (QC VR_Embed_FlatOtherCanJoin; 0: never)
 QVR_TUNABLE(vr_flat_melee_2h_parry_fwd, "0") // the parry's guard held in two hands: the hand this far further ahead than the one-handed guard (units)
 QVR_TUNABLE(vr_flat_melee_2h_parry_up, "0") // and this far higher (units; negative lower)
 QVR_TUNABLE(vr_flat_melee_2h_parry_out, "0") // and this far further out at its own side (units; negative inwards)
@@ -2682,6 +2683,9 @@ QVR_TUNABLE(vr_embed_move_sword_lift, "1") // times the body's weight a sword ba
 QVR_TUNABLE(vr_embed_move_sword_lift_deep, "2.5") // ... in as far as it goes: a grunt held up over your head
 QVR_TUNABLE(vr_embed_lean_sword, "3") // degrees a sword held in a body turns with the hand on its handle, any way (0: rigid)
 QVR_TUNABLE(vr_embed_free_ease, "0.25") // s the hand and the blade take from where it was in the body to the hand's own place once it comes out
+QVR_TUNABLE(vr_embed_ragdoll_smooth_time, "0.04") // s: a held blade stuck in a body (a ragdoll's jitters most) drawn smoothed, its place and turn eased towards the body's this fast; the hands on it drawn on the smoothed blade (view::embedSmoothStep; 0: off)
+QVR_TUNABLE(vr_embed_ragdoll_smooth_max_pos, "2") // cm the smoothed blade may lag its place in the body at most (vr_embed_ragdoll_smooth_time)
+QVR_TUNABLE(vr_embed_ragdoll_smooth_max_deg, "6") // degrees the smoothed blade may lag its turn in the body at most (vr_embed_ragdoll_smooth_time)
 QVR_TUNABLE(vr_embed_arm_stretch, "1.3") // how far the arm may stretch to a hand held on a blade in a body (vr_body_arm_stretch elsewhere; eased back)
 QVR_TUNABLE(vr_embed_arm_stretch_ease, "0.2") // s it takes to come in and to go back to normal
 QVR_TUNABLE(vr_embed_arm_letgo, "1") // cm past that stretch the drawn hand may be off its arm before the hand lets go of the blade
