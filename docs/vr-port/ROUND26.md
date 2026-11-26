@@ -2160,6 +2160,21 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   0.03 units off. The VR pick-up: a test problem (it failed with the bayonet off too): the mock fist stays ~6 units over a
   gun on the floor; now the open hand onto it (`weaponpalm`, followed a few frames), then the press, with
   `vr_test_handcontact 1 1` (vr_pickup_test 17's aid). The thrown gun sticking: `attach: PENDING ...` (not counted).
-- **Open**: the gun's Box3D body leaves the bayonet out (a thrown bayonet gun bounces: test 79's PENDING line);
-  holstered/lying/other players' SSGs (closed barrels: not checked); VR immersive reloading of a stuck gun (the shell
-  hand's frame doesn't take the prop on); g_shot pickups carry no record.
+- **Open**: ~~the gun's Box3D body leaves the bayonet out~~ (attach4); holstered/lying/other players' SSGs (closed
+  barrels: not checked); ~~VR immersive reloading of a stuck gun~~ (attach4); g_shot pickups carry no record.
+- **attach4 (2026-11-26)**: 79 VR 20/0 (no PENDING), 80 flat 15/0, 81/82 2/0 both ways, menu 6/0; eval.sh no new failures.
+  - Thrown/dropped: a lying or flying gun's Box3D body has the attachment's hull (vr_box3d_mesh.cpp `attachmentHull`: the
+    bayonet model's frame-0 vertices and its tip through the mount and the gun's drawn transform,
+    `held::drawnAttachmentVertices`; one more piece beside the gun's and its seated magazine's, the gun weighing as
+    before; `Slot::attach` remakes the body when it changes). The PENDING throw was mostly the test's geometry: from home
+    the grunt stood on the hall's first mantle block (32 high from y 352) and the gun's stock struck its face first
+    (`axestick: the hilt struck the level first`); now thrown from 160 units back, a real check (stuck by its point).
+  - VR reload of a stuck gun: a shell or pair in the off hand at the stuck gun's port already went in by the lying guns'
+    path (VR_Reload_PropsFrame: a stuck gun is a thrown_weapon); the super shotgun's frame now runs on the stuck gun
+    (vr_reload.qc `VR_Reload_SsgFrameWhere`: VR_PropFire_Begin/End round VR_Reload_SsgFrame, the hand's load point the
+    prop's from `loadportof`): B/Y and the off hand's hit from above break it open where it is, a hit from below shuts it.
+    The flick and the pry stay held-only (the engine reads the hand's own gun's stats). Test 79: the stuck SSG broken
+    open by B, then each stuck gun loaded by the mock off hand bringing a pouch round to its port; still stuck after.
+  - MP: not done (out of budget). Aid for it: client command `vr_attach_report` (vr_view.cpp: every attachment drawn
+    last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
+    then `attach_report: N drawn`). Screenshots not done.
