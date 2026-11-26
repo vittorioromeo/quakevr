@@ -577,6 +577,16 @@ float(entity p, float xHand) VR_HandMotionAction =
     return (p.handsynth & (xHand == cVR_MainHand ? VR_HANDACTION_MAIN : VR_HANDACTION_OFF)) != 0;
 };
 
+// Whether hand `xHand` of `p` strikes this move with flat-screen V's two-fisted overhead blow (the engine's
+// vr_flat_overhand_both, both hands empty; 256 of .handsynth): one hit, the main fist's, for both fists (the off fist's
+// motion is synthesized, no blow of its own): its damage times vr_flat_overhand_2h_damage (VRMeleeDmg), its push times
+// vr_flat_overhand_2h_push (T_Damage_VRMelee). flatmelee6, his words 2026-11-26.
+float VR_HANDTWOFIST = 256;
+float(entity p, float xHand) VR_HandTwoFisted =
+{
+    return xHand == cVR_MainHand && (p.handsynth & VR_HANDTWOFIST) && (p.handsynth & VR_HANDACTION_MAIN);
+};
+
 // The hand of flat-screen player `p` holding its melee weapon up in the parry's guard this move (the engine's
 // vr_flatplay.cpp: the right mouse button held with one melee weapon; 64 and 128 of .handsynth), or -1: none (a headset
 // player never has one). VR_Parry_FlatGuard parries what comes at it from the front.

@@ -28,6 +28,9 @@ bool passing[HAND_COUNT];
 // This frame's hands holding a melee weapon up in the flat-screen parry's guard (guarding).
 bool guards[HAND_COUNT];
 
+// This frame's main hand action is the flat two-fisted blow (twoFisted).
+bool twoFist{false};
+
 [[nodiscard]] bool validHand(int h)
 {
     return h >= 0 && h < HAND_COUNT;
@@ -48,6 +51,7 @@ void beginFrame(bool tracked)
         printed[h] = marks[h];
         passing[h] = false;
         guards[h] = false;
+        twoFist = false;
         marks[h] = tracked ? HandMark{Source::Tracked, "controller"} : HandMark{Source::Synthesized, "flat-screen pose"};
         if(vr_handsource_force.value != 0.f)
         {
@@ -79,9 +83,9 @@ bool gestures(int h)
     return source(h) != Source::Synthesized || vr_handsource_gate.value == 0.f;
 }
 
-za::U8 moveBits()
+za::U16 moveBits()
 {
-    za::U8 bits = 0;
+    za::U16 bits = 0;
     if(!gestures(HAND_OFF))
     {
         bits |= 1; // QC VR_HANDSYNTH_OFF
@@ -114,7 +118,16 @@ za::U8 moveBits()
     {
         bits |= 128; // VR_HANDGUARD_MAIN
     }
+    if(twoFist && source(HAND_MAIN) == Source::Action)
+    {
+        bits |= 256; // VR_HANDTWOFIST
+    }
     return bits;
+}
+
+void twoFisted()
+{
+    twoFist = true;
 }
 
 void passBodies(int h)
