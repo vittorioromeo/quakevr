@@ -1272,3 +1272,7 @@ GL programs warm (program cache read, 100). `developer 1`, then `map <map>`; com
   folder through /data/local/tmp is reported, the rest copied). `NothingRemoved` now checks every `rm` and every moved-away
   path is Setup's own and no staging or `.qvrpart` is left. Files: `Installer/src/QuakeVR.Installer.Core/Quest/QuestInstaller.cs`,
   `Installer/tests/QuakeVR.Installer.SelfTest/FakeAdb.cs`, `QuestTests.cs`, `Installer/README.md`.
+
+## logo1126
+Shipped-asset matches (premultiplied mean diff vs art): menu_banner.png = vertical_logo_pixelated_0 (1.8; NOT very_pixelated_0, 17), scaled Lanczos to 2048 tall; Windows/QuakeVR.ico, Installer app.ico, docs/images/quakevr-unleashed-icon.webp = qvru_icon_0 (0.8/0.8/2.0); installer logo_square.png and flatpak icon-512.png = square_logo_0 (3.4); installer logo_wide.png = horizontal_banner_0 (2.0). TrenchBroom Icon.png unmatched; no Android icons in repo.
+Updated: menu_banner.png <- vertical_logo_very_pixelated_1 (make_menu_banner.py now scales to fit, as the shipped one was made), both .ico and the docs webp <- qvru_icon_1. Left for him: logo_square, flatpak icon-512, logo_wide (square_logo_1 / horizontal_banner_1 exist).
