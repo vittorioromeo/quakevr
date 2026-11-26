@@ -1605,6 +1605,11 @@ float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try
     float other = VRGetOtherHand(xHand);
     float helping = VR_HandGrabUtil_IsHandGrabbing(self, other) && VR_Hand_Free(self, other, VR_HANDFREE_GUNGRIP | VR_HANDFREE_LOCKED) &&
                     VRIsHandWeaponless(self, other) && (VRGet2HAiming(self) || weaponanygrip(self, other) != 0);
+    // Flatscreen with vr_flat_embed_arm 0 has no arm-limit release for the off hand: never attach an undroppable off hand.
+    if(VR_FlatPlay(self) && cvar_hget(cvarh_vr_flat_embed_arm) == 0)
+    {
+        helping = FALSE;
+    }
     if(cvar_hget(cvarh_vr_debug_axestick))
     {
         dprint(sprintf("embedhold: the other hand helps %g (grabbing %g, free %g, weaponless %g, 2H aiming %g, any grip %g, busy kind %g)\n", helping,

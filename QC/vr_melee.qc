@@ -487,6 +487,10 @@ float(float xThing) VR_Melee_PommelWeight =
 // velocities are): for landing and sticking vr_mbody_hit (vr_melee_body_speed), for its damage vr_mbody_dmg (vr_melee_body_damage).
 vector vr_mbody_hit;
 vector vr_mbody_dmg;
+// Close-range blade-side target hint for VR_Melee_Decide (set by VR_Melee_DecideOn): TRUE when the struck entity's
+// centre lies ahead of the grip along the weapon's blade/shaft, so a close-range sword or spear blow touching with the
+// pommel/butt registers with the tip/blade rather than as a hilt strike.
+float vr_mclose_blade;
 
 // Whether the blow of `xHand` (point `xI`, of kind `xKind`, on `xEnt`) lands, and as what: sets mh_kind, mh_speed,
 // mh_strength, mh_part and mh_way. FALSE: nothing (too slow, or no blow).
@@ -553,11 +557,21 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     }
     else if(xKind == VR_MPT_EDGE || xKind == VR_MPT_BLUNT)
     {
-        // The far end driven point first, along the line (its outer half striking): a stab (a jab). Else a swing: the
-        // arm must drive it (VR_MELEE_ARM), however fast the head goes round. (Held anywhere on it, its pommel, hilt,
-        // handle or butt: struck with as a swing is, a pommel (butt) strike.)
-        if(xKind == VR_MPT_EDGE && along >= VR_MELEE_STAB_ALONG && f >= 0.5 && b.mh_thing != VR_MTHING_AXE &&
-           b.mh_thing != VR_MTHING_CROWBAR)
+        float swordOrPole = ((b.mh_thing == VR_MTHING_SWORD || b.mh_pole > 0) && !b.mh_free);
+        // The far end driven point first, along the line (its outer half striking): a stab (a jab). A close-range
+        // forward thrust with a pole weapon (within 45 deg of the shaft, along >= 0.7) whose head is already past
+        // the target promotes a shaft contact to a tip stab (sideways/diagonal shaft swings keep along < 0.7 and stay blunt).
+        if(xKind == VR_MPT_BLUNT && swordOrPole && along >= 0.7)
+        {
+            xKind = VR_MPT_EDGE;
+            f = 1;
+            b.mh_c_f = 1;
+            b.mh_part = "the tip";
+            kind = VR_MKIND_STAB;
+            need = minSpeed * VR_MELEE_STAB_SPEED;
+        }
+        else if(xKind == VR_MPT_EDGE && along >= VR_MELEE_STAB_ALONG && f >= 0.5 && b.mh_thing != VR_MTHING_AXE &&
+                b.mh_thing != VR_MTHING_CROWBAR)
         {
             kind = VR_MKIND_STAB;
             need = minSpeed * VR_MELEE_STAB_SPEED;
@@ -583,29 +597,56 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     }
     else
     {
-        // The pommel, the handle's end, a gun's butt: a pommel (butt) strike, unless the blade proper follows it into
-        // the thing at once (VR_Melee_Sweep: a cut from close by).
-        float sp = vlen(vp);
-        lead = sp > 0 ? (vp * axis) / -sp : 0;
-        kind = VR_MKIND_POMMEL;
-        way = vp;
-        speed = sp;
-        if(vgrip < minSpeed * (b.mh_thing == VR_MTHING_GUN ? VR_MELEE_GUN_BUTT : 1))
+        float swordOrPoleNear = ((b.mh_thing == VR_MTHING_SWORD || b.mh_pole > 0) && !b.mh_free);
+        // Close-range sword/spear thrusts (tip first) or blade-side attacks (or flatscreen attacks) that overlap near
+        // the hilt/butt because the target is very close register with the tip/blade instead of as a hilt blow.
+        // Intentional VR pommel strikes (blade pointed away from target, not thrusting tip-first) stay pommel strikes.
+        if(swordOrPoleNear && (along >= VR_MELEE_STAB_ALONG || VR_FlatPlay(self) || vr_mclose_blade))
         {
-            return FALSE; // the arm drives it too (a sword waved round swings its guard fast)
-        }
-        // A gun's butt is struck with by carrying the gun at the thing (vr_melee_butt_run): a gun wiggled turns about the
-        // hand, which hardly travels, and flings its butt round faster than the hand (round 21 wigglefix). Not a sword's
-        // pommel: turned hilt first from close by, the author's pommel strikes come 0.36-0.54 m.
-        if(b.mh_thing == VR_MTHING_GUN && meleerun(b, TRUE) < cvar_hget(cvarh_vr_melee_butt_run))
-        {
-            if(cvar_hget(cvarh_developer) >= 2)
+            xKind = VR_MPT_EDGE;
+            f = 1;
+            b.mh_c_f = 1;
+            b.mh_part = "the tip";
+            way = b.mh_vfar;
+            speed = vgrip;
+            weight = 1;
+            if(along >= VR_MELEE_STAB_ALONG)
             {
-                dprint(sprintf("melee debug: the butt came %.2f m, under vr_melee_butt_run: no butt strike\n", meleerun(b, TRUE)));
+                kind = VR_MKIND_STAB;
+                need = minSpeed * VR_MELEE_STAB_SPEED;
             }
-            return FALSE;
+            else
+            {
+                kind = VR_MKIND_SLASH;
+                need = minSpeed * VR_MELEE_ARM;
+            }
         }
-        weight = VR_Melee_PommelWeight(b.mh_thing);
+        else
+        {
+            // The pommel, the handle's end, a gun's butt: a pommel (butt) strike, unless the blade proper follows it into
+            // the thing at once (VR_Melee_Sweep: a cut from close by).
+            float sp = vlen(vp);
+            lead = sp > 0 ? (vp * axis) / -sp : 0;
+            kind = VR_MKIND_POMMEL;
+            way = vp;
+            speed = sp;
+            if(vgrip < minSpeed * (b.mh_thing == VR_MTHING_GUN ? VR_MELEE_GUN_BUTT : 1))
+            {
+                return FALSE; // the arm drives it too (a sword waved round swings its guard fast)
+            }
+            // A gun's butt is struck with by carrying the gun at the thing (vr_melee_butt_run): a gun wiggled turns about the
+            // hand, which hardly travels, and flings its butt round faster than the hand (round 21 wigglefix). Not a sword's
+            // pommel: turned hilt first from close by, the author's pommel strikes come 0.36-0.54 m.
+            if(b.mh_thing == VR_MTHING_GUN && meleerun(b, TRUE) < cvar_hget(cvarh_vr_melee_butt_run))
+            {
+                if(cvar_hget(cvarh_developer) >= 2)
+                {
+                    dprint(sprintf("melee debug: the butt came %.2f m, under vr_melee_butt_run: no butt strike\n", meleerun(b, TRUE)));
+                }
+                return FALSE;
+            }
+            weight = VR_Melee_PommelWeight(b.mh_thing);
+        }
     }
     if(cvar_hget(cvarh_developer) >= 2)
     {
@@ -764,6 +805,16 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
 // weapon, a punch). Only that way: what you go past or away from gets nothing.
 float(float xHand, entity b, float xI, float xKind, entity xThing, vector xAt) VR_Melee_DecideOn =
 {
+    vr_mclose_blade = FALSE;
+    if(xThing != world && !b.mh_free && (b.mh_thing == VR_MTHING_SWORD || b.mh_pole > 0))
+    {
+        vector lineW = b.mh_far - b.mh_grip;
+        if(vlen(lineW) > 0.01)
+        {
+            vector tctr = xThing.origin + (xThing.mins + xThing.maxs) * 0.5;
+            vr_mclose_blade = (((tctr - b.mh_grip) * normalize(lineW)) > 0);
+        }
+    }
     float toward = 0;
     if(xThing != world && VR_Melee_BodyCarries(xHand, b.mh_thing))
     {
@@ -774,14 +825,18 @@ float(float xHand, entity b, float xI, float xKind, entity xThing, vector xAt) V
     if(toward <= 0)
     {
         b.mh_bodyspeed = 0;
-        return VR_Melee_Decide(xHand, b, xI, xKind);
+        float did0 = VR_Melee_Decide(xHand, b, xI, xKind);
+        vr_mclose_blade = FALSE;
+        return did0;
     }
     // A weapon's blow (blade, pommel, handle; not a punch) that lands only by your body's speed counts on its outer part only (vr_melee_body_min_part): nearer the
     // hand it stands as the hand alone makes it.
     if(xKind != VR_MPT_FIST && vr_mpt_f[xI] < cvar_hget(cvarh_vr_melee_body_min_part))
     {
         b.mh_bodyspeed = 0;
-        return VR_Melee_Decide(xHand, b, xI, xKind);
+        float did1 = VR_Melee_Decide(xHand, b, xI, xKind);
+        vr_mclose_blade = FALSE;
+        return did1;
     }
     vector play = VR_Blow_ToPlaySpace(normalize(xAt - self.origin)) * toward;
     vector add = play * max(0, cvar_hget(cvarh_vr_melee_body_speed));
@@ -793,6 +848,7 @@ float(float xHand, entity b, float xI, float xKind, entity xThing, vector xAt) V
     b.mh_vfar = gfar + add;
     b.mh_bodyspeed = toward;
     float did = VR_Melee_Decide(xHand, b, xI, xKind);
+    vr_mclose_blade = FALSE;
     b.mh_vnear = gnear;
     b.mh_vgrip = ggrip;
     b.mh_vfar = gfar;
@@ -1799,7 +1855,7 @@ float(float xHand, entity b) VR_Melee_SweepNow =
     // was.
     if(edgeI >= 0 && VR_Melee_DecideOn(xHand, b, edgeI, vr_mpt_kind[edgeI], edgeEnt, edgeAt) && VR_Melee_SlapLands(b, edgeEnt))
     {
-        if(b.mh_pend_ent == world || b.mh_pend_ent != edgeEnt || vr_mpt_f[edgeI] >= VR_Blade_From(b.mh_thing, b.mh_bfrom))
+        if(b.mh_pend_ent == world || b.mh_pend_ent != edgeEnt || b.mh_c_f >= VR_Blade_From(b.mh_thing, b.mh_bfrom))
         {
             b.mh_pend_ent = world;
             b.mh_c_ent = edgeEnt;
@@ -1815,6 +1871,10 @@ float(float xHand, entity b) VR_Melee_SweepNow =
         b.mh_c_pos = hiltAt;
         b.mh_c_dir = hiltDir;
         b.mh_c_normal = b.mh_c_dir * -1;
+        if(b.mh_kind != VR_MKIND_POMMEL)
+        {
+            return TRUE;
+        }
         b.mh_pend_ent = hiltEnt;
         b.mh_pend_time = VR_PlayerTime();
         b.mh_pend_pos = hiltAt;

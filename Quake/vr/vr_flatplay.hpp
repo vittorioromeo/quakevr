@@ -111,6 +111,12 @@ struct FireRoute
 // blades): its two-handed grip is the lowest on that handle (vr_view_weapon.cpp's chooseGrip).
 [[nodiscard]] bool swungMelee(int h);
 
+// Whether hand `h` holds a one-handed-only melee weapon (e.g. the dagger) that must stay 1H in flatscreen even when empty off hand.
+[[nodiscard]] bool oneHandOnly(int h);
+
+// Whether hand `h` currently holds a weapon in flipped (reverse) grip (flip share >= 0.5).
+[[nodiscard]] bool flippedGrip(int h);
+
 // The parry's guard (vr_flat_parry_*: the right mouse button held with one melee weapon, meleeIn): its share for hand
 // `h` (0 at rest .. 1 in the guard), eased in and out over vr_flat_parry_in_time / _out_time.
 [[nodiscard]] float parryShare(int h);

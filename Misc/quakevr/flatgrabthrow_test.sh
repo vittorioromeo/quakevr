@@ -27,7 +27,7 @@ run weapon "$BASE; setpos 0 -200 25 0 90 0; wait5; impulse 152; wait20; echo fla
 L=$S/weapon.log
 check $(grep -aq 'flatgrabthrow: weapon done' "$L" && echo 1 || echo 0) "weapon: run completed"
 DROP_V=$(tr '\r\n' ' ' < "$L" | sed -n 's/.*flat drop: thrown_weapon dropped[^,]*, it leaves at \([0-9]*\) *u\/s.*/\1/p')
-THROW_V=$(tr '\r\n' ' ' < "$L" | sed -n 's/.*flat throw: thrown_weapon thrown[^)]*), it leaves at \([0-9]*\) *u\/s.*/\1/p')
+THROW_V=$(tr '\r\n' ' ' < "$L" | sed -n 's/.*flat throw: thrown_weapon thrown[^,]*, it leaves at \([0-9]*\) *u\/s.*/\1/p')
 check $([ -n "$DROP_V" ] && [ "$DROP_V" -lt 120 ] && echo 1 || echo 0) "weapon tap B: drops axe gently (${DROP_V:-none} u/s)"
 check $(grep -aq 'flatkeys: held main - .* wpn 0 0' "$L" && echo 1 || echo 0) "weapon tap B: hand is empty after tap drop"
 check $([ -n "$THROW_V" ] && [ "$THROW_V" -gt 300 ] && echo 1 || echo 0) "weapon hold B: throws axe at full speed (${THROW_V:-none} u/s)"

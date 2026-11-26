@@ -990,6 +990,18 @@ float view::leavingFlip(int hand)
     return drawnFlip(hand);
 }
 
+bool view::leavingAngles(int hand, glm::vec3& rot)
+{
+    if(hand < 0 || hand > 1 || weaponCarried[hand] || !entities.weapon[hand].visible || !entities.weapon[hand].ent.model ||
+        drawnFlip(hand) <= 0.f)
+    {
+        return false;
+    }
+    const entity_t& e = entities.weapon[hand].ent;
+    rot = glm::vec3{-e.angles[0], e.angles[1], e.angles[2]};
+    return true;
+}
+
 glm::vec3 view::leavingTurn(int slot, bool mirrored, float flip, const glm::vec3& handRot, glm::vec3& shift)
 {
     flip = slot >= 0 ? flip : 0.f;
@@ -999,7 +1011,7 @@ glm::vec3 view::leavingTurn(int slot, bool mirrored, float flip, const glm::vec3
         return handRot;
     }
     shift = reverseShift(slot, mirrored, flip, handRot);
-    return uprightTurnOf(handRot, slot, mirrored, flip);
+    return weaponTurn(handRot, slot, mirrored, flip);
 }
 
 bool view::heldWeaponLine(int hand, glm::vec3& handle, glm::vec3& tip)

@@ -4568,6 +4568,10 @@ void() VR_Embed_TestFrame =
         {
             VR_FT_Begin(59); // (flat V thrusts with what the hand holds: vr_flatthrust_test.qc)
         }
+        if(ask == 60)
+        {
+            VR_FM5_Begin(); // (flatmelee5: 2H equip, inverted throw angle, flipped attacks, close-range tip hits: vr_flatthrust_test.qc)
+        }
         if(ask == 64)
         {
             VR_FW_Begin(); // (flat: walking away from a stuck blade: vr_flatembedwalk_test.qc)
@@ -4832,6 +4836,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 58 || vr_et_on == 59)
     {
         VR_FT_Frame(); // (flat V thrusts: vr_flatthrust_test.qc)
+    }
+    else if(vr_et_on == 60)
+    {
+        VR_FM5_Frame(); // (flatmelee5: vr_flatthrust_test.qc)
     }
     else if(vr_et_on == 64)
     {
