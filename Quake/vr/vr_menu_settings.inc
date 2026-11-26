@@ -157,7 +157,8 @@ constexpr const char* flatHeightWhy = "Playing on the desktop screen the body ha
         action("Holster Setup (drag and drop)", holsterSetupStart)
             .help("Recommended: the game pauses and every holster and pouch shows as a box on your body. Grip one and "
                   "drag it where you want it; grip it with both hands and spread them to make it bigger (or push the "
-                  "stick up or down). Symmetry moves the other one of the pair mirrored. Done keeps it, Cancel puts "
+                  "stick up or down). The belt flashlight too: turn your hand to turn it; resizing it sizes its grab zone, "
+                  "not the torch. Symmetry moves the other one of the pair mirrored. Done keeps it, Cancel puts "
                   "everything back. Seated, it sets the seated places. Single player only."),
         row(opt::vr_menu_holster_hip_x)
             .help(holsterHelp),
@@ -785,7 +786,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         row(opt::vr_stick_swap),
         row(opt::vr_button_swap),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
-        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}}).help("The side of your belt the torch hangs on (Chest Flashlight; Always on Head: the temple it is worn at)."),
+        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}}).help("The side of your belt the torch hangs on (Chest Flashlight; Always on Head: the temple it is worn at). Its place and turn from Holster Setup are mirrored to the other side."),
 
         header("Body"),
         slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f)
