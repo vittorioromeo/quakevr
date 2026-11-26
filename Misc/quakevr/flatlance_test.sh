@@ -11,8 +11,8 @@
 #      vr_flat_pole_off_pitch 30 turns the drawn other hand 30 degrees and vr_flat_pole_hand_roll 30 rolls the fist 30 about
 #      its forward (flatmelee3: "spear hands:", each hand's drawn forward and up);
 #   3. V: the spear thrust (vr_flat_thrust: "spear thrust"), drawn back, thrust out along the pole and back (the probe's
-#      "flatmelee: main thrust" line), a stab by the head (QC "dwlance: a thrust, the head") on an ogre 52 units ahead,
-#      which is hurt.
+#      "flatmelee: main thrust" line), a stab by the head (QC "dwlance: a thrust, the head") on an ogre 50 units ahead,
+#      which is hurt (its health lower than just before the thrust).
 #   7. lanceoffhand (his flat note 2026-11-24): the other hand on the pole every frame (vr_flat_pole_track: its distance
 #      off the drawn pole and its place along it from the fist), standing, walking forward and back, strafing, turning,
 #      walking while turning and through a whole thrust (its place with the thrust's slide put back): within 1 unit off,
@@ -42,7 +42,10 @@ SC="$SC; echo flt: hbase; $ST; tune vr_flat_pole_hand_fwd 4; tune vr_flat_pole_h
 PULL="+attack; wait3; -attack; wait50"
 # (lancepull: the blows' push off (vr_melee_push, back after section 5): its 38 units a blow sent the first ogre ~100 off
 # and out of reach, some runs not one thrust of section 5 landing; staggers and the ogres' pain frames still move them.)
-SC="$SC; vr_melee_push 0; vr_test_spawn 1; vr_test_spawn_dist 52; impulse 241; wait20; echo flt: thrust; vr_flat_punch main v; wait50; vr_test_hurt -1; wait5; $PULL; $PULL"
+# (lancestab 2026-11-27: the first ogre 50 ahead, not 52: with his pose (Other Hand Up 0 since 900606064) the tip's full
+# reach, 38 ahead, just met the ogre's belly at 52, a graze at the thrust's end, some poses none; at 50 the head stabs it
+# at full speed. Its health read before the thrust and after, not against a fixed 200: an ogre here spawns at 180.)
+SC="$SC; vr_melee_push 0; vr_test_spawn 1; vr_test_spawn_dist 50; impulse 241; wait20; echo flt: thrust; vr_test_hurt -1; wait2; vr_flat_punch main v; wait50; vr_test_hurt -1; wait5; $PULL; $PULL"
 # (lance4, flatembed: thrust after thrust into it, each pulled out by fire presses if it stuck, then a second one; the
 # Lance never let go of in a body, never a plain lightning gun.)
 SC="$SC; echo flt: many"
@@ -111,9 +114,11 @@ check $(grep -aq "main punch (.*spear thrust" <<<"$th" && echo 1 || echo 0) "V w
 check $(grep -aq "^flatmelee: main thrust" <<<"$th" && echo 1 || echo 0) "the probe saw the thrust ($(grep -a '^flatmelee: main thrust' <<<"$th" | head -1 | cut -c1-90))"
 d=$(grep -a "dwlance: a thrust" <<<"$th" | head -1)
 check $(grep -aq "the head" <<<"$d" && echo 1 || echo 0) "the thrust is the head's stab (${d:-no thrust})"
-h=$(grep -a "test hurt:" <<<"$th" | head -1)
+h0=$(grep -a "test hurt:" <<<"$th" | head -1)
+h=$(grep -a "test hurt:" <<<"$th" | sed -n 2p)
+hp0=$(grep -ao "health [0-9.]*" <<<"$h0" | head -1 | awk '{ print $2 }')
 hp=$(grep -ao "health [0-9.]*" <<<"$h" | head -1 | awk '{ print $2 }')
-check $(grep -aq "monster_ogre" <<<"$h" && ok "\"$hp\" != \"\" && $hp < 200") "the ogre ahead hurt by it (${h:-none})"
+check $(grep -aq "monster_ogre" <<<"$h" && ok "\"$hp\" != \"\" && \"$hp0\" != \"\" && $hp < $hp0") "the ogre ahead hurt by it (${hp0:-?} before, ${h:-none})"
 
 # 4. lance4 (his flat note 2026-11-24): the holding hand alone moved by vr_flat_pole_hand_fwd 3 and _up 2 (the "spear
 #    places:" line: the fist and the tip): the fist about 3.6 from where it was, the Lance's tip where it was.
