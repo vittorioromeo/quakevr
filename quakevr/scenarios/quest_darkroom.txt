@@ -1,0 +1,6 @@
+# quest_darkroom: # see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". questrender (ROUND26.md): vrtutorial's dark course (lesson 9), at its entrance looking down the first corridor, for the flashlight in the Standalone preset (the faces no map light reaches lit by the beam).
+title Dark course: the tutorial's lesson 9, looking down its first corridor
+map vrtutorial
+god
+notarget
+cmd setpos 4390 330 -100 12 270 0

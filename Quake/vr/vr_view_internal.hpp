@@ -924,6 +924,7 @@ struct LimbHold
     const grasp::Shape* shape{nullptr}; // the limb's (its rest pose's triangles)
     glm::mat4 toWorld{1.f};             // drawn there
     bool tug{false};                    // a tug-of-war's hold: the hand on the weapon in the limb's hand (box3d::RagdollHold)
+    bool drag{false};                   // a big prop dragged by its surface (box3d::PropDragHold; num the prop, part -1)
 };
 [[nodiscard]] bool limbHold(int hand, LimbHold& out);
 

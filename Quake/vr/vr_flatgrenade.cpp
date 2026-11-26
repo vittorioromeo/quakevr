@@ -26,6 +26,7 @@
 
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
+#include "vr_box3d.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -154,6 +155,15 @@ void report_f()
         vr_flat_grab_hold.value != 0.f ? "hold" : "toggle", gs.grabHeld[HAND_OFF] ? 1 : 0, gs.grabHeld[HAND_MAIN] ? 1 : 0,
         gs.grabHoldPose ? 1 : 0, gs.hand[HAND_OFF].grabReach, gs.hand[HAND_MAIN].grabReach, gs.hand[HAND_OFF].grabHold,
         gs.hand[HAND_MAIN].grabHold, gs.pullPresses);
+    // (A big prop dragged by its surface, a listen server's: each hand's prop and how far its held point is from the hand.)
+    box3d::PropDragHold d[2];
+    const bool dragOff = sv.active && box3d::propDragHold(cl.viewentity, HAND_OFF, d[HAND_OFF]);
+    const bool dragMain = sv.active && box3d::propDragHold(cl.viewentity, HAND_MAIN, d[HAND_MAIN]);
+    if(dragOff || dragMain)
+    {
+        Con_Printf("flatgrab: drags off %d (%.1f u off the hand) main %d (%.1f u off the hand)\n", dragOff ? d[HAND_OFF].num : 0,
+            d[HAND_OFF].off, dragMain ? d[HAND_MAIN].num : 0, d[HAND_MAIN].off);
+    }
 }
 
 // The throw key's hand while the key is held, as the server's STAT_QVR_FLATGREN `stat` says: its tap window, its wind-up,

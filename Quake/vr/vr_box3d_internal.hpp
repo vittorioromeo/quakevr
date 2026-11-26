@@ -914,6 +914,13 @@ struct World
         glm::vec3 gap{0.f};   // the handle from there as it took hold: eased away (vr_embed_move_match)
         double gapAt{0.0};
         double called{0.0};   // the QC's last call (a hold it no longer makes ends)
+        // A big prop dragged by a point of its surface (flat-screen Grab / Pull, QC propdrag; no blade): the joint's spring
+        // is linear only (it hangs and swings from the hand, as a ragdoll's limb does), at `hertz`, its gap eased over
+        // `gapOver` s; it ends when that point stays more than `letGo` units off the hand.
+        bool drag{false};
+        float hertz{0.f};
+        float gapOver{0.f};
+        float letGo{0.f};
     };
     za::Vector<PropBlade> propBlades;
     // Ragdolls made in each other (two grunts dying on one spot, vr_ragdoll_collide_each): they pass through each other
@@ -1438,6 +1445,8 @@ void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s);
 [[nodiscard]] int looseHolder(const ragdoll::Rig& rig, int loose);
 void syncRagdollGrabs(float dt);
 void syncPropBlades(float dt);
+float holdPropDrag(int num, edict_t* player, int hand, const glm::vec3& target, float force, float lift, float hertz, float letGo);
+[[nodiscard]] bool propDragOf(int player, int hand, int& num, glm::vec3& at, glm::quat& turn, float& off);
 [[nodiscard]] float grabReach(int player, int hand);
 inline unsigned shapeGeneration = 1;
 
