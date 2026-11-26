@@ -1923,6 +1923,14 @@ resizing the model.
   mounted:0, returning, otherweapon 7/0, flash_trigger 6/0, tunables_test, holstersetup_test.
 - Known, not this branch: `holstersetup_test.sh` "gun at the right hip (drag) + 0 out: DROP (want IN)" fails with this
   branch's flashlight/setup files reverted to origin/next too.
+- **Follow-up, no closed-hand grab** (agent/noclosedgrab, his word 2026-11-26: "disable/remove that functionality altogether,
+  also for the flashlight"): `vr_flashlight_closed_grab` and its row are gone, and so is the belt branch of the late grip
+  (`startLate`/`lateGrips`; the late grip stays for the head only). The belt torch now takes a grip only pressed with the hand
+  in its grab zone (moving or not: the instant grab stays). The holsters were checked: `StartedHandGrabbing`'s 0.125 s is
+  a press-timing window (hand in the hotspot within 0.125 s of the press edge), a hand closed earlier does not draw, so
+  nothing to remove there (the mid-air catch window is for weapons flying through the air, not the holsters). Tests: slot
+  17/0 (`closed` and `stale` are controls now; `quick`/`quickfast` press at the middle); timing 87 reaches taken, 15 controls
+  (presses beyond ~9 cm out, the closed arrivals, are controls) 0 wrong; returning, otherweapon 7/0, tunables_test 13/0.
 ## revthrow: reverse grip throws settle point first more readily (branch agent/revthrow, 2026-11-26)
 
 His words (VR, 20:11): a spear thrown overhead from the reverse grip spun with "even the smallest amount of wrist snap"; he wants
@@ -2028,3 +2036,35 @@ before the stab or after it; not a Lance special case, a system for every weapon
   embed_fire. flatlance_test 29/1: "the thrust is the head's stab" (section 3's V at an
   ogre 52 ahead lands nothing); the same with `vr_embed_fire 0` (the new path off), so not this change as far as that
   shows; not checked against an origin/next build.
+## flatpush: H's big props pushed by the hands as you walk into them, kept at the grab's arm length; let go of when too heavy or too steep (branch agent/flatpush, 2026-11-26)
+
+His words (2026-11-26): hold a crate and move towards it: keep the arm length it was grabbed at, so it gets pushed; too heavy
+and too fast, or the positions/angles too steep, and the hands come off. Follows flathold2 (its open gap: walking into a
+dragged prop shoved it off the hands).
+- **Kept at the grab's arm** (`vr_flat_grab_push` 1; vr_box3d_ragparts.cpp `dragTarget`, `World::PropBlade::keep/arm`): a
+  dragged prop's held point is asked to stay level where it was taken relative to the body (along his yaw's forward and
+  left, turned with him; measured: the crate 38 units ahead), not eased in to the hold-pose hand; its height is still the
+  hand's (the lift's limit as before). The joint is the same spring (4 Hz, `vr_flat_grab_drag_force` level): it pushes as
+  well as pulls. 0 = the old pull to the hand.
+- **The push comes through the hands**: the player's capsule makes no contact with a prop he drags (preSolve, `dragsProp`),
+  and Quake's move bumping it doesn't shove it (`shoveBumped`). (His move passes through what he holds, so a prop that
+  can't keep up ends in him: the let-gos below come first.)
+- **Let go of** (holdPropDrag, debug `vr_debug_ragdoll 1` prints why; 2 prints the push each frame): (1) too steep: the held
+  point more than `vr_flat_grab_push_angle` (60 deg) round from where the arm reaches, level from the eyes (turning sharply
+  away, walking past it); (2) too heavy for that pace: the force each hand's hold would need, `need` = its share of the mass
+  x (w^2 x lag + 2w x slip) (the spring's, uncapped: how far and how fast the point lags its target), above
+  `vr_flat_grab_push_force` (8000 N) long enough: 0.15 s weighted by how far over (a jolt is borne, a prop far too heavy goes
+  at once); (3) as before, the point more than `vr_flat_grab_drag_letgo` off its target (now the kept arm's).
+- **The hands drawn on it** reach `vr_flat_grab_drag_letgo` + `vr_flat_grab_reach` from the hand (vr_view_hands.cpp), since
+  the point now stays up to the reach ahead.
+- **Measured** (vrtesthall, needs a hand): crate 40 kg run forward 6.5k N peak (kept: 28 -> 17..26 units ahead, pushed 120
+  units), backed away fine; explosive box 80 kg: pushed at 60 u/s 6.5-9.7k, walking 17k, running 25-27k (all let go at 8000:
+  pushed at its top edge it tips and digs in rather than slides), dragged backing at full speed kept (at 5000 N it let go,
+  why the default is 8000). So: crates, barrels and the small explosive box push at a run; the big one only drags.
+- New tunables (Flatscreen > Grab / Pull): `vr_flat_grab_push` 1 (Push Held Props), `vr_flat_grab_push_force` 8000 N (Push
+  Strength), `vr_flat_grab_push_angle` 60 (Push Max Angle). `vr_flatkeys_test 4` now ends with the player's origin (`me x y z`).
+- Tests: flatgrabthrow_test.sh 46/0 (new run `push`: a crate pushed 68 units ahead while walking, 28 -> 22 units ahead, both
+  hands on it, none let go; backing away drags it 63 back; an instant 100-degree turn lets go "too steep"; the explosive box
+  run into lets go "too heavy for that pace"); tunables_test 13/0 (stages), 20/0, 3/0.
+- Open: ragdolls not changed (their own hold, `RagdollGrab`, eases the limb to the hand: a follow-up if wanted); the big
+  explosive box can't be pushed even slowly (Push Strength up to ~10000 lets it at a slow walk).

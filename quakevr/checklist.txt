@@ -15,7 +15,6 @@ On the Quest, switch Quest Foveation from High to Off and back a few times mid-g
 On the Quest, from Standalone pick "Quake (off)", then Low, then Medium on the Graphics Presets page mid-game: the frame rate stays playable, the menu stays usable, and Standalone can be picked again. {test:hub_start}
 Flip the spear to the reverse grip (B / Y) and throw it overhead with a bit of wrist snap: it should come round and fly point first almost at once; tune Debug > Tunables "Reverse Grip Settling: Spears" (0.8) and "Reverse Grip Settling: Blades" (0.3, swords and daggers) to taste. {test:spear}
 Reach for the belt flashlight quickly and grip as your hand passes it, without stopping: it comes into your hand at once, like a holstered gun. {test:start_shotgun}
-Close your hand on the way to the belt flashlight and arrive with it already closed: it takes the torch as soon as your hand is in its glow (within a second of closing); a fist held closed longer does not. {test:start_shotgun}
 Holster Setup: the belt flashlight shows as a box; grip it and drag it somewhere else, turn your hand to turn it, push the stick to grow its grab zone (the torch itself stays the same size); after Done, grabbing it works at the new place and the new size. {test:start_shotgun}
 Set Flashlight Side to Right after placing the torch in Holster Setup: it hangs at the mirrored place and turn on the right hip. {test:start_shotgun}
 Body and Display: click Handedness to Left-handed, then click it again: it goes back to Right-handed (Comfort and Gore Preset cycle the same way, never sticking on Custom). {test:hub_start}
@@ -26,6 +25,7 @@ Hold the shotgun up to your eye: its front sight post now shows in the new defau
 Take the spear and grab its shaft with your other hand a little off the shaft (above or beside it): the drawn hand snaps so the shaft lies in the palm with the fingers wrapped round it, at the point along the shaft where you grabbed. {test:spear}
 With the spear or the Crystal Lance held in both hands, move your other hand up and down the shaft while gripping: the drawn hand stays where it grabbed (Other Hand Fixed on Poles, on by default); turn the option off in Physics and Interaction and it slides again. {test:spear}
 Thrust the spear held in both hands into the grunt so it sticks: your other hand stays on the shaft where it was, round it, and does not let go or jump to another spot; the same with the Crystal Lance. {test:spear}
+Close your hand on the way to the belt flashlight and arrive with it already closed: it does not take the torch; open and press the grip at it and it comes at once, moving or not. {test:start_shotgun}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -99,6 +99,8 @@ Flat-screen: hold the Crystal Lance and raise the guard (right mouse button): th
 Flat-screen: walk up to the crate (or an explosive box) and press H: both hands go onto its surface and it drags along as you back away, its far side on the floor, as a grunt's ragdoll does; tune the hands with Grab / Pull: Hold Forward / Out / Down (negative: up). {test:flat_grab_pull}
 Flat-screen: press H at the rock (or a health box, a gib): it goes into your hand as a force grab's catch, no held-out pose; and from further than an arm's reach (Grab / Pull: Reach, 1.25 m) H takes nothing. {test:flat_grab_pull}
 Flat-screen: hold the knight's sword two-handed and hold the right mouse button for the guard: the free hand slides from the handle onto the blade (and back when you let go) instead of snapping over in one frame. {test:flat_parry_ad}
+Flat-screen: hold a crate with H and walk forward: it stays about as far ahead as when you took it, pushed by your hands (not shoved off by your body); back away and it is dragged along; it lets go only if you turn sharply away from it. {test:flat_grab_pull}
+Flat-screen: hold the big explosive box with H and run forward: it is too heavy for that pace and the hands let go; backing away still drags it. Push Strength / Push Max Angle in Flatscreen > Grab / Pull if it feels off. {test:flat_grab_pull}
 
 [4. Tutorial and VR interface]
 Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to Swap Stick Functions): walk forward on the right stick and press X: you jump, and A, B, Y and the two stick clicks do what the other controller's did; Right-handed turns it off, and changing it alone shows Handedness: Custom. {test:hub_start}

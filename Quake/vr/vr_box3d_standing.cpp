@@ -222,9 +222,9 @@ void shoveBumped(float dt)
     const float g = -b3World_GetGravity(world->id).z;
     for(const World::Bump& b : world->bumps)
     {
-        if(share <= 0.f || (!solidProp(b.num) && !pushableCorpse(b.num)))
+        if(share <= 0.f || (!solidProp(b.num) && !pushableCorpse(b.num)) || dragsProp(b.player, b.num))
         {
-            continue;
+            continue; // (what he pushes with his hands: the push comes through them, holdPropDrag)
         }
         const b3BodyId body = world->slots[b.num].body;
         const RagdollBodies* rag = ragdollOf(b.num); // (a ragdoll: shoved whole, each part its share)

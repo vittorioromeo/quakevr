@@ -56,8 +56,8 @@ void() VR_FlatKeysTest_Frame =
             hMain == world ? 0 : hMain.origin_x, hMain == world ? 0 : hMain.origin_y, hMain == world ? 0 : hMain.origin_z));
         bprint(sprintf("off %s %.0f %.0f %.0f ", hOff == world ? "-" : hOff.classname,
             hOff == world ? 0 : hOff.origin_x, hOff == world ? 0 : hOff.origin_y, hOff == world ? 0 : hOff.origin_z));
-        bprint(sprintf("grab %g wpn %g %g\n", player.vr_flatgrab_hands, VRGetEntWeapon(player, cVR_MainHand),
-            VRGetEntWeapon(player, cVR_OffHand)));
+        bprint(sprintf("grab %g wpn %g %g me %.0f %.0f %.0f\n", player.vr_flatgrab_hands, VRGetEntWeapon(player, cVR_MainHand),
+            VRGetEntWeapon(player, cVR_OffHand), player.origin_x, player.origin_y, player.origin_z));
         cvar_set("vr_flatkeys_test", "0");
         return;
     }
