@@ -11,7 +11,6 @@ Quest standalone (Standalone preset): in the tutorial's dark course take the fla
 Quest standalone: Debug > Show Foveation on, with Quest Foveation at High: the eyes' edges should show yellow (half resolution) and red (quarter) zones round a clear centre; at Low only the far corners. On the PC, Show Foveation "Quest Pattern" shows the same zones. {test:quest_foveation}
 On the Quest, switch Quest Foveation from High to Off and back a few times mid-game, then quit and start again with Off saved: no crash, the game reaches vrstart and plays. {test:hub_start}
 On the Quest, from Standalone pick "Quake (off)", then Low, then Medium on the Graphics Presets page mid-game: the frame rate stays playable, the menu stays usable, and Standalone can be picked again. {test:hub_start}
-Flip the spear to the reverse grip (B / Y) and throw it overhead with a bit of wrist snap: it should come round and fly point first almost at once; tune Debug > Tunables "Reverse Grip Settling: Spears" (0.8) and "Reverse Grip Settling: Blades" (0.3, swords and daggers) to taste. {test:spear}
 Reach for the belt flashlight quickly and grip as your hand passes it, without stopping: it comes into your hand at once, like a holstered gun. {test:start_shotgun}
 Holster Setup: the belt flashlight shows as a box; grip it and drag it somewhere else, turn your hand to turn it, push the stick to grow its grab zone (the torch itself stays the same size); after Done, grabbing it works at the new place and the new size. {test:start_shotgun}
 Set Flashlight Side to Right after placing the torch in Holster Setup: it hangs at the mirrored place and turn on the right hip. {test:start_shotgun}
@@ -19,14 +18,10 @@ Body and Display: click Handedness to Left-handed, then click it again: it goes 
 Climb a rope, a chain and a pole hand over hand: no grunt on any pull. {test:ropes}
 Flat-screen or VR: walk right up against a crate and punch it repeatedly with your fist: every punch lands and wears it, not just the first. {test:nav_props}
 In an Arcane Dimensions map with crossbow knights: they are AD's own crossbow knights, while the other AD soldier variants are still armed humanoids. {test:humrepl_variants}
-Hold the shotgun up to your eye: its front sight post now shows in the new default hue (90 degrees off the rear notches). {test:start_shotgun}
 Take the spear and grab its shaft with your other hand a little off the shaft (above or beside it): the drawn hand snaps so the shaft lies in the palm with the fingers wrapped round it, at the point along the shaft where you grabbed. {test:spear}
 With the spear or the Crystal Lance held in both hands, move your other hand up and down the shaft while gripping: the drawn hand stays where it grabbed (Other Hand Fixed on Poles, on by default); turn the option off in Physics and Interaction and it slides again. {test:spear}
 Thrust the spear held in both hands into the grunt so it sticks: your other hand stays on the shaft where it was, round it, and does not let go or jump to another spot; the same with the Crystal Lance. {test:spear}
 Close your hand on the way to the belt flashlight and arrive with it already closed: it does not take the torch; open and press the grip at it and it comes at once, moving or not. {test:start_shotgun}
-Crystal Lance: hold the trigger to charge it, stab an ogre with its tip and let go once it is full: the bolt fires from the stuck Lance's tip through the ogre, the charge's sparks and hum stay on it the whole time, 6 cells spent. {test:embed_fire}
-Crystal Lance: stab an ogre first, keep your grip on it, then hold the trigger to charge and let go: it fires from where it is stuck; pull it out while charging and the charge goes on in your hand; open your hand on it and the trigger does nothing. {test:embed_fire}
-Flat-screen: Crystal Lance: hold fire then V into an ogre, or V then hold fire: releasing a full charge fires from the stuck Lance (no pull); a quick tap of fire still pulls it out. {test:embed_fire}
 Hold a bayonet in your left hand and bring its socket under the shotgun's muzzle: it snaps on; grip it with the empty hand and pull it off; the same on the super shotgun. {test:attach_bayonet}
 With the bayonet on, stab an ogre: it hurts and sticks; keep your hand on the gun and pull the trigger: it fires there; reload and (super shotgun) break it open while it is stuck. {test:attach_bayonet}
 Holster, drop, throw and re-take a shotgun with its bayonet, change level and load a save: the bayonet stays on it everywhere and looks right on the gun. {test:attach_bayonet}
@@ -84,36 +79,15 @@ On the Quest, close the game from the system menu (also after taking the headset
 On the Quest, after running only part of an update (a new app with the old game data), the start says "The game data on the Quest is from Quake VR X; this app is Y" in the middle of the view; running Setup's Quest step again makes it go away. {test:hub_start}
 
 [3. Flat screen]
-Flat-screen: in Options > Controls, on a "Quake VR (flat screen)" row press Right, Enter and a key: the row shows both keys and both work in play, also after quitting and starting again; Backspace on either clears only that one. {test:hub_start}
 Flat-screen: with empty hand(s), press H near a wooden crate to grab it with every available empty hand, walk to push or pull it around, press H again to release it, or hold B to throw it. {test:flat_grab_pull}
-Flat-screen or VR: flip a melee weapon's grip (dagger, sword, or spear) and throw it; it flies off at the exact inverted angle it was held in the hand without snapping upright on release. {test:embed_throw}
-Flat-screen: with the spear and with the Crystal Lance, the shaft's line points at the crosshair (not off towards the holding hand), held and through a V thrust; both behave the same. {test:flat_spear}
 Flat-screen: hold the spear and the Crystal Lance normally, in the flipped grip and while guarding with the right mouse button, then stab one into a grunt and hold it: the other hand should always close round the shaft, never float beside it or twist (Spear Other Hand On Shaft, 0 to compare). {test:flat_spear}
 Flat-screen: with the spear or Crystal Lance held, move Spear Other Hand Pitch: the other hand should turn round the shaft and stay on it. {test:flat_spear}
-Flat-screen: with both hands empty, press V near a grunt: both fists rise over your head together and come down onto the crosshair side by side, one hard hit (about twice one fist's damage and push). {test:flat_melee_2fist}
-Flat-screen: holding something in one hand, or with Locomotion > Quick Melee: Both Fists off, V is the one-fist overhand blow as before. {test:flat_melee_2fist}
 Flat-screen: flip a sword or the dagger to the inverted grip (B), then hold the right mouse button: the blade turns quickly back to the normal grip for the guard, and flips back to inverted when you let go. {test:flat_parry}
 Flat-screen: hold the right mouse button with the ogre hammer, the ogre mace, the death fury's sword or the judicator's sword: your left hand takes the shaft or blade near the head/tip, not the handle. {test:flat_parry_ad}
-Flat-screen: hold B with the sword, a gun, a prop or the quick grenade and press that hand's attack button: the throw is cancelled, the thing stays in the hand, and the press neither swings, fires nor arms; letting go of B afterwards does nothing. {test:flat_throw_cancel}
-Flat-screen: hold B with your off hand empty while the ogre lobs grenades at you: the guiding off hand never catches one (without B it still can). {test:flat_throw_cancel}
-Flat-screen: flip the sword's grip and hold B: the inverted wind-up pose is unchanged until you tune it with Flatscreen > Throw > "Throw: Flipped Grip Forward/Out/Up/Pitch/Yaw/Roll". {test:flat_throw_cancel}
-Flat-screen: flip the spear's grip and thrust at the ogre and at a wall from close up: the visor crosshair sits where the stab lands (low, ahead of the raised fist), and out of reach it sits at the spear tip's end. {test:flat_spear}
-Flat-screen: swing or thrust any melee weapon, and punch with an empty hand: the visor crosshair's lines kick out at the strike and ease back like a shot's recoil, a fist less than a heavy weapon. {test:flat_melee_v}
-Flat-screen: hold the axe with your other hand empty, then raise the guard with the right mouse button: it stays one-handed, the free hand never goes to its handle; Daggers One-Handed and Axes One-Handed (Locomotion > Desktop Screen Play) off gives the two-handed stance back. {test:flat_melee_grip}
-Flat-screen: hold the spear upright, flip its grip (B) and raise the guard (right mouse button), then stab a grunt with V: in every pose the other hand's fingers close round the shaft, not beside or below it. {test:flat_spear}
-Flat-screen: hold the Crystal Lance and raise the guard (right mouse button): the other hand wraps its shaft. {test:flat_lance_parry}
-Flat-screen: walk up to the crate (or an explosive box) and press H: both hands go onto its surface and it drags along as you back away, its far side on the floor, as a grunt's ragdoll does; tune the hands with Grab / Pull: Hold Forward / Out / Down (negative: up). {test:flat_grab_pull}
-Flat-screen: press H at the rock (or a health box, a gib): it goes into your hand as a force grab's catch, no held-out pose; and from further than an arm's reach (Grab / Pull: Reach, 1.25 m) H takes nothing. {test:flat_grab_pull}
-Flat-screen: hold the knight's sword two-handed and hold the right mouse button for the guard: the free hand slides from the handle onto the blade (and back when you let go) instead of snapping over in one frame. {test:flat_parry_ad}
-Flat-screen: hold a crate with H and walk forward: it stays about as far ahead as when you took it, pushed by your hands (not shoved off by your body); back away and it is dragged along; it lets go only if you turn sharply away from it. {test:flat_grab_pull}
-Flat-screen: hold the big explosive box with H and run forward: it is too heavy for that pace and the hands let go; backing away still drags it. Push Strength / Push Max Angle in Flatscreen > Grab / Pull if it feels off. {test:flat_grab_pull}
 
 [4. Tutorial and VR interface]
 Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to Swap Stick Functions): walk forward on the right stick and press X: you jump, and A, B, Y and the two stick clicks do what the other controller's did; Right-handed turns it off, and changing it alone shows Handedness: Custom. {test:hub_start}
 Flat-screen or VR: climb the tutorial's lesson 3 ladder: each hand closes round its round rung (the rung through the fist, the fingers over its top) instead of sitting on top of it; square rungs elsewhere (vrtesthall's) are still held like ledges. Hand Round Thin Rungs (Climbing settings, Hand on a Hold) switches it off. {test:tutorial_ladder}
-On the tutorial's ladder block, hug the jump wall and jump: nothing catches your head under the striped lip (it is flush with the wall now); jump and grab the lip to mantle up. {test:tutorial_ladder}
-In the tutorial's dark course, the third block is now taller (clearly not jumpable) with a hazard-striped lip: grab the stripes and pull yourself up. {test:tutorial_darkblock}
-The tutorial's rope pit and its rope and chain are lit now (lamps on the pit's walls and by the rope): check they no longer look too dark. {test:tutorial_ropepit}
 
 [5. Weapons and holsters]
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
