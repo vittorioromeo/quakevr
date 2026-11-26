@@ -219,7 +219,8 @@ enum Stat : int
     STAT_QVR_MAGOUT,
     // Flat-screen play's reload (QC vr_flatreload.qc .vr_flatrl; vr_flatreload.cpp): the hands whose gun is on its trip to the
     // hip holster and back, bit 0 the off hand, 1 the main. Set for the whole trip; cleared at its end or when it is
-    // cancelled (the weapon changed).
+    // cancelled (the weapon changed). Bits 2 (off) and 3 (main): that hand's reload is in place, no trip drawn (a gun stuck
+    // by its bayonet: the hand stays on it).
     STAT_QVR_FLATRELOAD,
     STAT_QVR_AMMOLAVA,   // Rogue's lava nails, multi-rockets and plasma carried (QC .ammo_lava_nails, .ammo_multi_rockets, .ammo_plasma): the
     STAT_QVR_AMMOMULTI,  // flat-screen visor's ammo grid (vr_gadget_visor.inc); 0 outside the mission pack

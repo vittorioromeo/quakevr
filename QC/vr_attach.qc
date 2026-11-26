@@ -5,7 +5,7 @@
 //
 // Putting one on: VR, the hand holding it brings its mount (its model's origin) within vr_attach_snap_radius of the gun's
 // mount in the other hand, pointing along the gun (within vr_attach_snap_angle), and it snaps on as a magazine seats;
-// flat play, the Attach key (vr_flat_key_attach, J: impulse 70) with it in the other hand. Taking it off: VR, the other
+// flat play, the Attach key (vr_flat_key_attach, J: impulse 52) with it in the other hand. Taking it off: VR, the other
 // hand, empty, grips it (within vr_attach_pull_radius of the mount) and pulls it off: it is in that hand; flat play, the
 // Attach key with that hand empty.
 //
@@ -165,7 +165,7 @@ void(entity p) VR_Attach_Frame =
     }
 };
 
-// The Attach key (flat play's vr_flat_key_attach, impulse 70; any mode): the attachment one hand holds put on the gun in
+// The Attach key (flat play's vr_flat_key_attach, impulse 52; any mode): the attachment one hand holds put on the gun in
 // the other (the main hand's gun first), else a gun's attachment taken off into the empty other hand.
 void(entity p) VR_Attach_Key =
 {

@@ -1197,6 +1197,13 @@ float() VR_Embed_HoldThink =
         e.vr_stick_shake = 0;
         return FALSE;
     }
+    // Flat play's R on a gun stuck by its bayonet (vr_flatreload.qc: the in-place bits, 4 off, 8 main): it reloads where it is,
+    // the hand on it; nothing it does then pulls it (a bayonet's tip is in shallow: the hand's least move would).
+    if(p.vr_flatrl & (e.vr_hold_hands * 4))
+    {
+        e.vr_stick_shake = 0;
+        return FALSE;
+    }
     // (The hand's own time, what its pull and the resistance to it go by: bullet time's hands move at their real speed, 3 times as far
     // a game second at 0.3. By the game's seconds a blade would hold 3 times as hard, and a real pull of 3 m/s read as a jump.)
     float dt = max(0, time - e.vr_hold_last) * (vr_hand_time_scale > 0 ? 1 / vr_hand_time_scale : 1);

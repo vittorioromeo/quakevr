@@ -9,7 +9,7 @@
 //   stabbed into a grunt with the shotgun and with the super shotgun (hurt, stuck by its point, the hand on it), the trigger
 //   then fires it where it is (one shot from the prop, the grunt hit); the shotgun with its bayonet fired in the hand.
 //   Ends `attach: N passed, M failed`.
-// `vr_embed_test 80` (flat-screen, -flatscreenmode): J (impulse 70) puts the bayonet the off hand carries on the shotgun, J
+// `vr_embed_test 80` (flat-screen, -flatscreenmode): J (impulse 52) puts the bayonet the off hand carries on the shotgun, J
 //   takes it off into the off hand, J on again; V's thrust sticks it in a grunt; fire shoots where it is; R reloads it there
 //   (its clip back up). The super shotgun likewise: stuck, fired empty it breaks open there, R loads and shuts it.
 //   Ends `attachflat: N passed, M failed`.
@@ -192,7 +192,7 @@ void(float xOn) VR_AT_Trigger =
 void() VR_AT_HoldGrunt =
 {
     VR_PE_HoldStill();
-    if(vr_et_m != world && vr_et_m.health > 0 && vr_et_m.health < VR_AT_HEALTH - 1000)
+    if(vr_et_m != world && vr_et_m.health > 0 && vr_et_m.health < 1000) // (low: a spawned grunt may stand at 4000, and a hit reads against it)
     {
         vr_et_m.health = VR_AT_HEALTH;
     }
@@ -456,21 +456,21 @@ void() VR_AT_FlatFrame =
         VR_AT_Give(WID_SHOTGUN, FALSE);
         VR_AT_Bayonet(cVR_OffHand);
         vr_at_count = vr_att_attached;
-        VR_Attach_Key(p); // (J's impulse 70, weapons.qc: a console "impulse 70" never reaches flat play's game)
+        localcmd("impulse 52\n"); // (J: vr_flatplay.cpp sends the same impulse; weapons.qc runs VR_Attach_Key)
         VR_AT_To(1);
     }
     else if(vr_at_s == 1 && u > 0.1)
     {
         VR_Test_Check(vr_at_rec.wi_attach == VR_ATT_BAYONET && VR_Carry_Held(p, cVR_OffHand) == world && vr_att_attached == vr_at_count + 1,
             "J: the bayonet in the off hand goes on the shotgun");
-        VR_Attach_Key(p);
+        localcmd("impulse 52\n");
         VR_AT_To(2);
     }
     else if(vr_at_s == 2 && u > 0.1)
     {
         entity c = VR_Carry_Held(p, cVR_OffHand);
         VR_Test_Check(vr_at_rec.wi_attach == 0 && c != world && c.classname == "vr_bayonet", "J again: taken off into the empty off hand");
-        VR_Attach_Key(p);
+        localcmd("impulse 52\n");
         VR_AT_To(3);
     }
     else if(vr_at_s == 3 && u > 0.1)
@@ -494,6 +494,7 @@ void() VR_AT_FlatFrame =
     }
     else if(vr_at_s == 11 && u > 0.6)
     {
+        vr_at_health = vr_et_m != world ? vr_et_m.health : 0; // (now: the spawned grunt's own setup may have changed it since)
         localcmd("vr_flat_punch v\n");
         VR_AT_To(12);
     }
@@ -563,6 +564,11 @@ void() VR_AT_FlatFrame =
         {
             VR_Test_Check(w != world && !(w.weaponflags & QVR_WPNFLAG_SSG_OPEN), "and shut again");
         }
+        VR_AT_To(28);
+    }
+    else if(vr_at_s == 28 && u > 0.3)
+    {
+        VR_Test_Check(w == vr_at_w && w != world && VR_PropFire_Held(p, h) == w, "and still stuck, the hand on it, after the reload");
         VR_AT_To(29);
     }
     else if(vr_at_s == 29)

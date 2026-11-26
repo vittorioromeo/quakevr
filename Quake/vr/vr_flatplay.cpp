@@ -2903,12 +2903,12 @@ void pollKeysFlat()
         }
     }
     keyState.keyGear = gear;
-    // J (vr_flat_key_attach): weapon attachments (QC vr_attach.qc VR_Attach_Key, impulse 70): the bayonet the other hand
+    // J (vr_flat_key_attach): weapon attachments (QC vr_attach.qc VR_Attach_Key, impulse 52): the bayonet the other hand
     // holds put on the gun in one hand, or the gun's taken off into the empty other hand. Queued the F's way.
     const bool attachKey = inGame && keyHeld(vr_flat_key_attach);
     if(attachKey && !keyState.keyAttach)
     {
-        Cbuf_InsertText("impulse 70\n");
+        Cbuf_InsertText("impulse 52\n");
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatplay: %s: attach\n", vr_flat_key_attach.string);

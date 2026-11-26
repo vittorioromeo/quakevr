@@ -35,7 +35,7 @@ agent/attach1's (posebake); this file holds the attachments' models and their me
 - **Putting it on / taking it off.** VR: hold the bayonet, bring its socket (its model origin) within
   `vr_attach_snap_radius` (5) of the gun's mount, pointing within `vr_attach_snap_angle` (50 deg) of the gun's way: it
   snaps on (`VR_Attach_Frame`). The empty hand's grip pressed within `vr_attach_pull_radius` (6) of the mount pulls it
-  off into that hand. Flat play: the Attach key (`vr_flat_key_attach`, J; impulse 70, any mode) puts the bayonet the
+  off into that hand. Flat play: the Attach key (`vr_flat_key_attach`, J; impulse 52, any mode) puts the bayonet the
   other hand holds on, or takes it off into the empty other hand. Server-side points: `attachinfo(model, kind, what)`
   (the mount and the tip from the muzzle in the gun's axes) along the hand's axes from its muzzle.
 
