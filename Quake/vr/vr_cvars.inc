@@ -1495,6 +1495,8 @@ QVR_CVAR(vr_embed_probe_hturn, "-1", CVAR_NONE)        // and degrees the most i
 QVR_CVAR(vr_embed_probe_pdist, "-1", CVAR_NONE)        // cm the most a hand on a pole weapon's shaft (spear, Crystal Lance) had its grip channel off the drawn shaft line (flatembed3)
 QVR_CVAR(vr_embed_probe_pturn, "-1", CVAR_NONE)        // degrees the most its grip channel was turned off the shaft
 QVR_CVAR(vr_embed_probe_pon, "0", CVAR_NONE)           // frames a hand was drawn on a pole weapon's shaft
+QVR_CVAR(vr_embed_probe_pmet, "-1", CVAR_NONE)         // the fewest of its four fingers closed on the pole those frames (flatgrip3)
+QVR_CVAR(vr_embed_probe_shots, "0", CVAR_NONE)         // 1: vr_embed_test 71 takes a screenshot of each pole state it measures (flatgrip3)
 QVR_CVAR(vr_embed_probe_jraw, "0", CVAR_NONE)          // a held stuck blade's jitter in the body, the mean of its frame-to-frame change of velocity (units) and of turn rate (degrees) summed (flatembed3)
 QVR_CVAR(vr_embed_probe_jdrawn, "0", CVAR_NONE)        // ... and as drawn, smoothed (vr_embed_ragdoll_smooth_time)
 QVR_CVAR(vr_embed_probe_jlag, "-1", CVAR_NONE)         // cm the most the drawn blade trailed its place in the body
