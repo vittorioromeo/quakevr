@@ -10,6 +10,7 @@
 Kill a few grunts, knights and an ogre with gunfire and watch them die (physics updated): the dying bodies should follow their death animations at least as well as before, settle without jitter, and still clutch their wounds. {test:ragdoll_behaviours}
 Knock monsters down at the pool's edge and let them lie, then watch them stir and get up (physics updated): getting up should look as before, without a long stall on the ground. {test:ragdoll_behaviours}
 Throw crates and gibs around, stack and topple a few and carry one through a pile (physics updated): they should tumble, rest and slide as before, with nothing jittering, sinking into floors or flying off. {test:grunts_to_throw}
+Open the menu in the headset, then on the flat screen with the VR-style menu and with the classic menus: the shortcut bar has a gap above "-" and "+", and a RESET button next to them; zoom or drag the panel, press RESET and the menu returns to its default size and (flat panel) the middle of the window. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
