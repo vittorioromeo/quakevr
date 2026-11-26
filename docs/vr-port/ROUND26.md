@@ -1240,3 +1240,35 @@ GL programs warm (program cache read, 100). `developer 1`, then `map <map>`; com
 - **Restored:** the APK the headset had (1.2.0-beta5, pulled from it, `install -r -d`) and the 9 data files the sync
   replaced (progs.dat 8242a8d4, vrstart's maps...): the headset held beta5, not beta2, and beta2's re-signed APK is gone
   (its parked folder no longer exists). Beta6's `cache_shipped` stays (beta5's vrstart keys miss it: harmless).
+
+## questpush: Setup's Quest copy never loses a file (branch agent/questpush, 2026-11-26)
+
+- **The risk (questb6's finding, read in adbd's sync code):** adbd unlinks a push's target before writing it, and when
+  the push then fails ("remote fchown failed: Operation not permitted" on questb6's Quest 3, a pulled cable, a full
+  disk) the target stays unlinked. Setup pushed straight onto the files: a failed push lost the headset's copy of a
+  shipped file it was replacing (progs.dat, a map, a pak: the game broken until a copy that works), and an fchown failure
+  stopped the whole install with "Copying to the Quest failed" (so every later run failed the same way). Saves and
+  configs were never at risk (never shipped, so never pushed onto); the size check after did not see a same-size file
+  left as its old copy.
+- **Now (`QuestInstaller.Push`):** every batch (same batching: several files of a folder a push, 256 MB) goes into
+  Setup's staging folder `files/.quakevr-setup` (made, chgrp ext_data_rw, 2777 like the others), then one shell line per
+  batch moves each file beside its target (`.name.qvrpart`) and renames it over the target, printing a marker per file
+  placed. The target is only replaced by a complete copy. If a push into the app's folder fails (anything but transient
+  or a full disk: adbd then unlinked only the staged copy), that batch and every later one go through
+  `/data/local/tmp/quakevr-setup` (one warning in the log); the move from there is a copy (another filesystem), still
+  into the `.qvrpart` name, so a copy cut short leaves the target as it was (the half copy is removed). Both staging
+  folders are removed before and after every copy (`rm -rf` of the two constant paths); those and `.qvrpart` are the
+  only things Setup ever removes.
+- **Reports:** a file not moved in counts as not arrived (even at the right size); a full disk says so, a failed push or
+  move says "Nothing on the Quest was replaced or removed" / "Those files are as they were". A folder the game made itself
+  (quakevr/doom: the move is refused, "Permission denied") still only has its files listed as not copied (the Done
+  page's warning), the others go on.
+- **Cost:** one extra shell command per batch and a rename per file; through /data/local/tmp, a copy on the headset per
+  file (flash speed, well above USB). Not measured on the headset (he was testing on it); not tried there yet.
+- **Tests (Installer self-tests, `quest` filter, 11/11):** new "adb refusing the app's folder" (the fake adb now unlinks a
+  push's target like adbd and, with `FchownFails`, fails "remote fchown failed" in the app's folder; it proves a direct
+  push loses the file, then: a release with two changed files arrives through /data/local/tmp with one failed try, saves
+  and configs kept; a disk filling during the move from /data/local/tmp keeps the old progs.dat byte for byte; a game
+  folder through /data/local/tmp is reported, the rest copied). `NothingRemoved` now checks every `rm` and every moved-away
+  path is Setup's own and no staging or `.qvrpart` is left. Files: `Installer/src/QuakeVR.Installer.Core/Quest/QuestInstaller.cs`,
+  `Installer/tests/QuakeVR.Installer.SelfTest/FakeAdb.cs`, `QuestTests.cs`, `Installer/README.md`.
