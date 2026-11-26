@@ -4908,6 +4908,7 @@ ATTACH_TRIES = 30        # reports before a drawn bayonet counts as missing (a d
 ATTACH_HOLSTER_IMPULSE = 74  # flat holster menu: holster 4 (left upper) <-> the right hand
 ATTACH_DRAW_IMPULSE = 71     # flat holster menu: holster 3 (right hip: his start's shotgun) <-> the right hand
 ATTACH_THROW_HOLD = 0.6      # game seconds C holds the flat throw key (impulse 39 down, 40 up): a throw, not a drop
+ATTACH_GRAB_GAP = 14.0       # units north of the dropped gun C stands, facing it, for his grab (H)
 ATTACH_NEAR = 48.0       # units: a lying gun's drawn bayonet within this of the server's gun (its mount is on the gun)
 
 
@@ -5050,9 +5051,10 @@ def attach(s):
             "B's main weapon %s; lying %s (the gun at %s)" % (gone, ly, spot))
     attach_seen_until(s, [a, b, c], has_drawn("lying", near=spot), "dropped: A, B and C draw the bayonet on the lying shotgun")
 
-    # C (flat) walks onto it: it goes into his free hand (weapon_touch); A and B draw it on his gun.
+    # C (flat) takes it with H (the grab key) into his free hand; A and B draw it on his gun.
     put_at(srv, b, eb, (OPEN_SPOT[0], OPEN_SPOT[1] + 120, OPEN_SPOT[2]))  # (out of the way: the way north is open)
-    put_at(srv, c, ec, (spot[0], spot[1], OPEN_SPOT[2]))
+    put_at(srv, c, ec, (spot[0], spot[1] + ATTACH_GRAB_GAP, OPEN_SPOT[2]), 270)
+    c.cmd("impulse 96")  # (flat H, the grab toggle: a loose weapon in front taken into a free hand, vr_flatgrab.qc)
     took = weapon_until(s, srv, ec, 4, ATTACH_TRIES)
     pl, _, _ = attach_server_until(srv, lambda p, l, m: p.get(ec, {}).get("main") == (4, 1))
     s.check("C picks up the dropped shotgun and it still carries the bayonet (the server's record)",
@@ -5076,8 +5078,8 @@ def attach(s):
     s.note("the thrown shotgun came to rest: %s" % [x for x in ly if x["attach"] == 1])
 
     # Stuck: B armed again; a grunt spawned ahead of him (impulse 241, coop's one test impulse); V's thrust.
+    put_at(srv, c, ec, (OPEN_SPOT[0], OPEN_SPOT[1] + 72, OPEN_SPOT[2]))  # (off the spot first)
     put_at(srv, b, eb, OPEN_SPOT, 90)
-    put_at(srv, c, ec, side_spot(srv, eb))
     attach_arm(s, srv, b, eb, "again")
     srv.cmd("vr_test_spawn 0; vr_test_spawn_dist %g" % ATTACH_STAB_DIST)
     b.cmd("impulse 241")
