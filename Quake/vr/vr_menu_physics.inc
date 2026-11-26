@@ -62,6 +62,7 @@
         row(opt::vr_weapon_grab_anywhere_min),
         row(opt::vr_weapon_anygrip_mode),
         row(opt::vr_pole_slide),
+        row(opt::vr_pole_grip_fixed),
         row(opt::vr_pole_slide_grip),
         row(opt::vr_carry_local),
         row(opt::vr_carry_two_hands),

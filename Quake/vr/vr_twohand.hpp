@@ -168,6 +168,9 @@ void armFlatGrip(int helping, bool armed);
 // Whether `hand` holds the other hand's weapon anywhere (a free grip), and as what (FreeMode; -1 none).
 [[nodiscard]] bool freeHelping(int hand);
 [[nodiscard]] int freeMode(int holding);
+// vrspear: how far `hand`'s pole grip (FREE_POLE, VR) on the other hand's pole weapon has blended in (0..1; 0 none): the
+// view closes the drawn hand round the shaft as drawn by that much (poleShaftGrip).
+[[nodiscard]] float poleHelpShare(int hand);
 // Where `hand` is drawn holding it: its controller's pose as if it were there (the view then draws it as an empty hand
 // there, its fingers wrapping the weapon), given the pose the other hand's weapon is drawn from (`holderPos`,
 // `holderRot`: the view's drawnAs). `trackedPos`, `trackedRot`: the hand as tracked (its place on the weapon is taken
