@@ -57,11 +57,4 @@ void clientClear();         // a new server
 void serverFrame();               // the records whose attachment changed, to every client (reliable)
 void serverWriteAll(sizebuf_t* msg); // with the spawn state: every record's that has one
 
-// The Weapon Offsets > Attachments page's preview: the kind drawn on the edited weapon in `hand` while the page is open,
-// even if it has none (menu::attachPreview); None otherwise.
-[[nodiscard]] int previewKind(int hand);
-
-void registerCvars();
-void registerBuiltins();
-
 } // namespace qvr::attach

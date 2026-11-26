@@ -21,7 +21,7 @@ float vr_pfire_frames; // (the tests: trigger frames run on props)
 float(entity w) VR_PropFire_Capable =
 {
     return w != world && w.weaponinst != world && w.model != string_null && cvar_hget(cvarh_vr_embed_fire) &&
-           weaponvalue(w.model, "embed_fire") > 0;
+           VR_Attach_EmbedFire(w.model, w.weaponinst) > 0; // (a gun with a bayonet: vr_attach.qc)
 };
 
 // The weapon prop `xHand` of `p` holds and drives (its trigger fires it): a blade stuck in a body that the hand holds by

@@ -166,6 +166,7 @@ void() SetChangeParms =
     parm49 = qvr_weaponinst_next;
     parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
     parm76 = DW_PackWeaponVariants(self); // Dwell support: the carried weapons' variants (dwell/dw_items.qc)
+    parm77 = VR_Attach_Pack(self); // the carried weapons' attachments (vr_attach.qc)
     WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
     parm50 = self.vr_flashlight_state; // (bits 0..18: the engine's lamp; bit 19: a chainsaw's cord pulled)
     if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
@@ -331,6 +332,7 @@ void() SetNewParms =
     parm48 = 0;
     parm49 = qvr_weaponinst_next;
     parm64 = 0; // (AD support: no upgrades)
+    parm77 = 0; // (no attachments)
     parm65 = 0; parm66 = 0; parm67 = 0; parm68 = 0; parm69 = 0; parm70 = 0; parm71 = 0; parm72 = 0; // (cold)
     parm50 = 0;
     parm73 = 0; // (no magnetic holster bindings)
@@ -456,6 +458,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
     AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
     DW_UnpackWeaponVariants(self, parm76); // Dwell support: their variants (dwell/dw_items.qc)
+    VR_Attach_Unpack(self, parm77); // their attachments (vr_attach.qc)
     WeaponInst_UnpackHot(self);
     VR_MagHolster_DecodeParms(); // (parm73: the bindings, to the carried weapons' records)
     VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
@@ -2537,6 +2540,7 @@ void() PlayerPostThink =
 
     CheckPowerups();
     WeaponInst_OwnedSync(self, TRUE); // his weapons as the variants he owns (every path does it: one missed, counted)
+    VR_Attach_Frame(self); // an attachment brought to a gun snaps on; one pulled off (vr_attach.qc)
     AD_PlayerPostThink(); // AD support: AD's first frame, spawn targets and debuffs in an AD map (vr_ad_bridge.qc)
     VR_RN_PlayerFrame(); // the ruleset's one megahealth rot a player (Copper's: vr_rules_numbers.qc)
     VR_Grapple_GunFrames(); // QVR: a grappling gun whose hook is out drawn empty (vr_grapple.qc)

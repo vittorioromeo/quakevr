@@ -340,6 +340,10 @@ vector(entity e, vector handangles, vector offset) carryfrontpouch = #0;
 // Weapon Offsets and Weapon Weights (vr_weapons.inc) of the weapon drawn with `model` (WeaponIdToModel), by the key its
 // cvars have: "w_mass" (kg), "w_meleedmg", "w_throwdmg" (its damage multipliers)... (0: no such weapon or key).
 float(string model, string key) weaponvalue = #0;
+// Weapon attachments (vr_attach.qc; the engine's vr_attach.cpp): attachment `kind` on the weapon drawn with `model`: what 0
+// '1 0 0' if it fits (weapons.txt attN_ok), what 1 its mount and 2 its tip from the weapon's muzzle in its own axes as
+// drawn in a hand (x forward, y left, z up); '0 0 0' if it doesn't fit.
+vector(string model, float kind, float what) attachinfo = #0;
 // The name of the progs' function `i` ("" past the last; 0 is none): VR_MonsterKinds_Unclassified walks them.
 string(float i) functionname = #0;
 // Runs the function `name` (a spawn function, void()) on self as a map's entity of that class spawns; FALSE: no such

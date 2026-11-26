@@ -187,6 +187,7 @@ QVR_FIELD(weaponinst)  // the weapons' records (QC vr_weaponinst.qc): the main h
 QVR_FIELD(weaponinst2) // the off hand's
 QVR_FIELD(wi_uid)      // a record's id (networked: the hands' STAT_QVR_WEAPONUID*, a prop's U_QVR_WEAPONUID)
 QVR_FIELD(wi_clip)     // a record's magazine
+QVR_FIELD(wi_attach)   // a record's attachment (QC vr_attach.qc; vr_attach.cpp: networked by its id, QVR_SVC_WEAPONATTACH)
 QVR_FIELD(weaponclipsize)
 QVR_FIELD(weaponclipsize2)
 QVR_FIELD(currentammo2)

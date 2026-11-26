@@ -13,7 +13,7 @@ namespace qvr::progs
 {
 
 inline constexpr int firstExtSpawnParm = 17;
-inline constexpr int lastExtSpawnParm = 76; // (51..56: Dawn of the Machine's upgrades and bloody weapons, QC/vr_mg3_defs.qc; 57..72: Arcane Dimensions' level state, QC/vr_ad_bridge.qc; 73: the magnetic holsters' bindings, QC/vr_magholster.qc; 74: bullet time's meter, QC/client.qc; 75: the armour plates shown, QC/client.qc; 76: Dwell's weapon variants carried, QC/dwell/dw_items.qc)
+inline constexpr int lastExtSpawnParm = 77; // (77: the carried weapons' attachments, QC/vr_attach.qc; 51..56: Dawn of the Machine's upgrades and bloody weapons, QC/vr_mg3_defs.qc; 57..72: Arcane Dimensions' level state, QC/vr_ad_bridge.qc; 73: the magnetic holsters' bindings, QC/vr_magholster.qc; 74: bullet time's meter, QC/client.qc; 75: the armour plates shown, QC/client.qc; 76: Dwell's weapon variants carried, QC/dwell/dw_items.qc)
 inline constexpr int numExtSpawnParms = lastExtSpawnParm - firstExtSpawnParm + 1;
 
 // Offsets (in floats, from edict_t::v) of the VR entity fields; -1 when absent.

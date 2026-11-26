@@ -116,9 +116,10 @@ struct VrGunLook
     za::U8 clipSize{0}; // its magazine's size (the ammo screen's warning colour)
     za::I32 revolver{0}; // QC .vr_rv_hud (vr_view.cpp setupRevolverParts: chambers, swung out, the rod)
     float cylinder{0.f}; // QC .vr_rv_cyl, degrees (written in 256ths of a turn)
+    za::U8 attach{0};    // its attachment (vr_attach.hpp Kind: its record's .wi_attach; 0 none)
     [[nodiscard]] bool has(za::U8 bit) const { return (bits & bit) != 0; }
 };
-// Written as the bits, then with a gun its flags, clip and clip size (4 B), with a revolver its state and turn (4 B).
+// Written as the bits, then with a gun its flags, clip, clip size and attachment (5 B), with a revolver its state and turn (4 B).
 void writeGunLook(sizebuf_t* buf, const VrGunLook& l);
 [[nodiscard]] VrGunLook readGunLook();
 

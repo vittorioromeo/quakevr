@@ -1177,6 +1177,8 @@ const WeaponOffsetsPartPage weaponOffsetsPartPages[] = {
     {pageWofsEffects, "Effects", "Recoil, a muzzle flash and tracers, for a model without its own; a test."},
     {pageWofsFlashlight, "Flashlight", "Where the flashlight sits clipped on this weapon and how it is turned, on top of "
         "every weapon's place (Flashlight > On a Gun or Head), with a preview."},
+    {pageWofsAttachments, "Attachments", "Which attachments fit this weapon (the bayonet) and where each sits on it: its "
+        "mount, shown on the weapon while you tune it."},
 };
 static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0]) == WofsParts - 1);
 
@@ -5958,6 +5960,16 @@ bool qvr::menu::holsterPreview(int& hand, int& kind)
     hand = weaponOffsetsHand;
     kind = weaponOffsetsHolster;
     return on;
+}
+
+int qvr::menu::attachPreview(int hand)
+{
+    if(m_state != m_vr || ui().page != pageIndex(pageWofsAttachments) || hand != weaponOffsetsHand ||
+        weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
+    {
+        return 0; // not on the page, the empty hand, another hand, or the hand holds another weapon now
+    }
+    return wofsAttachKind;
 }
 
 bool qvr::menu::flashlightMountPreview(int& hand)

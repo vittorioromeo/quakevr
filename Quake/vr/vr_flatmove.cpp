@@ -3016,10 +3016,10 @@ namespace
 // space between ("c CTRL"), read by flatplay::keyNum / keyIs / keyHeld, set by flatplay::setKey.
 cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_crouch, &vr_flat_key_prone, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_shove, &vr_flat_key_punch,
     &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_pull, &vr_flat_key_cycle_left, &vr_flat_key_cycle_right,
-    &vr_flat_key_holster_left, &vr_flat_key_holster_right, &vr_flat_key_drop_left, &vr_flat_key_drop_right, &vr_flat_key_grenade, &vr_flat_key_throw, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_gearlights, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
+    &vr_flat_key_holster_left, &vr_flat_key_holster_right, &vr_flat_key_drop_left, &vr_flat_key_drop_right, &vr_flat_key_grenade, &vr_flat_key_throw, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_gearlights, &vr_flat_key_attach, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
     &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust};
 const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Crouch / slide", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Grab / pull",
-    "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Throw / drop", "Bullet time", "Flashlight", "Gear lights", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
+    "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Throw / drop", "Bullet time", "Flashlight", "Gear lights", "Attach / detach", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
 static_assert(za::getArraySize(flatKeyList) == za::getArraySize(flatKeyLabels), "a label for every flat key");
 static_assert(flatplay::keySlots == VR_FLATKEY_SLOTS, "the menu's slots are the keys'");
 

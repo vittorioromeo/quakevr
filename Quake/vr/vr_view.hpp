@@ -102,6 +102,7 @@ struct GunParts
         Well,
         Button,
         Front,
+        Attach,   // its attachment (vr_attach.hpp: the bayonet), held or holstered
         PumpBody, // (mpopen) a held shotgun's auto pump stroking: the gun without its fore-end, and the fore-end slid back
         Pump,
         Count
@@ -299,6 +300,13 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 // (for modelPoint), and how far its barrels are drawn down (a super shotgun lying open: setupWorldSsgs); false if it is
 // not there or not a gun with a load point. Shells loaded into it sliding in (vr_collectfx.cpp).
 [[nodiscard]] bool propGun(int num, ViewEntity& out, float& ssgOpen);
+
+// Weapon attachments (vr_attach.hpp): `out` drawn as attachment `kind` on the gun entity `gun` (held, holstered, lying,
+// another player's), at its Weapon Offsets mount, following the gun's frame (its muzzle's anchor) and, `ssgHand` >= 0, that
+// hand's super shotgun's barrels as they drop open; false (hidden) if none, or it doesn't fit that gun.
+bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand);
+// A mount's turn (pitch up, yaw left, roll: the hands' order) as the model's axes (forward, left, up).
+[[nodiscard]] glm::mat3 mountBasis(const glm::vec3& angles);
 
 // World position of a point given in `ve`'s model space (as its frames' vertices).
 [[nodiscard]] glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);

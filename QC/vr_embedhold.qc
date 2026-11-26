@@ -1624,7 +1624,9 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
         return;
     }
     // (Dwell's Crystal Lance is drawn with its own model, not the lightning gun's: its slot's keys.)
-    float how = weaponvalue(DW_LanceHeld(xHand) ? "progs/dw_lance.mdl#vr" : WeaponIdToModel(wid, flags), "embed");
+    // (a bayonet on a gun: a point, VR_Attach_Embed)
+    float how = DW_LanceHeld(xHand) ? weaponvalue("progs/dw_lance.mdl#vr", "embed") :
+                                      VR_Attach_Embed(WeaponIdToModel(wid, flags), VRGetEntWeaponInst(self, xHand));
     if(how != AXESTICK_POINT && how != AXESTICK_EDGE)
     {
         return;

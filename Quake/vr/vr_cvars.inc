@@ -193,6 +193,9 @@ QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE | QVR_RULE)             // on
 // Embedded blades (vr_axestick.cpp, QC/vr_axestick.qc; ROUND23.md, "Embedded blades"; Combat > Embedded Blades): off
 // restores thrown axes as they were and nothing else sticks.
 QVR_CVAR(vr_embed, "1", CVAR_ARCHIVE | QVR_RULE)                // on (his decision 2026-11-08); 0: axes alone
+QVR_CVAR(vr_attach_snap_radius, "5", CVAR_ARCHIVE | QVR_RULE)  // weapon attachments (QC vr_attach.qc): how near (units) an attachment's mount comes to a gun's mount in the other hand to snap on
+QVR_CVAR(vr_attach_snap_angle, "50", CVAR_ARCHIVE | QVR_RULE)  // and within how many degrees of the gun's way it must point
+QVR_CVAR(vr_attach_pull_radius, "6", CVAR_ARCHIVE | QVR_RULE)  // how near (units) the empty hand grips an attachment on the other hand's gun to pull it off
 QVR_CVAR(vr_embed_fire, "1", CVAR_ARCHIVE | QVR_RULE)           // embedfire (his VR note 2026-11-26 20:24): a weapon stuck in a body that you hold fires there when weapons.txt embed_fire says it can (the Crystal Lance; QC vr_propfire.qc); 0 never
 // Blade Hold Strength (his 2026-11-08): how hard a hand on a blade stuck in a body moves it, all at once: times every Moving:
 // force and lift (QC VR_Embed_Spring), the stance's give, and the spring's stiffness (its Hz by the square root: its N per
@@ -4673,6 +4676,7 @@ QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the 
 QVR_CVAR(vr_flat_holsters, "1", CVAR_ARCHIVE | QVR_PREF)           // flatscreen play carries what a headset does: six holsters and two hands, the weapon keys doing nothing (3 swaps the hands), the wheel's button holding the holster menu (vr_flatholster.cpp, QC vr_flatholster.qc); 0: the number keys and the wheel cycle through every weapon collected, as before 2026-11-10
 QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Options > Controls, Quake VR (flat screen))
 QVR_CVAR(vr_flat_key_gearlights, "9", CVAR_ARCHIVE)    // the key that dims and lights the gear (vr_gear_lights_toggle: the visor, the guns' ammo screens; the wrist gadget's side button in VR), by its bind name; "" none (9: bound to nothing by default.cfg)
+QVR_CVAR(vr_flat_key_attach, "j", CVAR_ARCHIVE)        // weapon attachments (QC vr_attach.qc, impulse 70): the key that puts the attachment the other hand holds (a bayonet) on the gun in one hand, or takes the gun's off into the empty other hand, by its bind name; "" none
 QVR_CVAR(vr_flat_key_punch, "v", CVAR_ARCHIVE)         // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
 QVR_CVAR(vr_flat_key_voicechat, "CAPSLOCK", CVAR_ARCHIVE) // multiplayer voice chat's push-to-talk key, held (vr_voicechat.cpp; flat play owns it, VR reads it too); by its bind name; "" none
 QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)

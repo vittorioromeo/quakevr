@@ -23,6 +23,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_agarms.hpp"
 #include "vr_axestick.hpp"
+#include "vr_attach.hpp"
 #include "vr_box3d.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_carry2h.hpp"
@@ -975,6 +976,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"propvalue", PF_propvalue},
     {"propgrip", PF_propgrip},
     {"weaponvalue", PF_weaponvalue},
+    {"attachinfo", PF_attachinfo},
     {"functionname", PF_functionname},
     {"callspawn", PF_callspawn},
     {"weightdamage", PF_weightdamage},

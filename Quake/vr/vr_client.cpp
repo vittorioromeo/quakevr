@@ -13,6 +13,7 @@
 #include "vr_clientprefs.hpp"
 #include "vr_moveguard.hpp"
 #include "vr_arenaxray.hpp"
+#include "vr_attach.hpp"
 #include "vr_humlook.hpp"
 #include "vr_climbrope.hpp"
 #include "vr_modelmetadata.hpp"
@@ -1213,6 +1214,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_RAGPOSE: netrag::clientParse(); break;
         case QVR_SVC_ARMOR: agarmor::parseEvent(); break;
         case QVR_SVC_XRAY: arenaxray::parseEvent(); break;
+        case QVR_SVC_WEAPONATTACH: attach::parseEvent(); break;
         case QVR_SVC_HUMLOOK: humlook::parseEvent(); break;
         case QVR_SVC_CLIMBROPE: climbrope::parse(); break;
         case QVR_SVC_LANCECHARGE: lancecharge::parse(); break; // Dwell's Crystal Lance's charge (vr_lancecharge.cpp)

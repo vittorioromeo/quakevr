@@ -588,6 +588,12 @@ float(entity p, float xHand) VR_Melee_Thing =
     {
         return VR_MTHING_SAW;
     }
+    // A gun with a bayonet on it (vr_attach.qc) strikes as a blade: a sword's blows, its line to the bayonet's tip
+    // (VR_Melee_Line).
+    if(VR_Attach_Hand(p, xHand) == VR_ATT_BAYONET)
+    {
+        return VR_MTHING_SWORD;
+    }
     return VR_MTHING_GUN;
 };
 
@@ -958,6 +964,17 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
         {
             m = vr_mline_grip + VRForwardOf(VRGetEntHandRot(p, xHand)) * 8;
         }
+    }
+    if(VR_Attach_Hand(p, xHand) == VR_ATT_BAYONET)
+    {
+        // A bayonet on the gun (vr_attach.qc): the line from the hand to its tip, its blade from where the bayonet's
+        // blade starts (the gun's own Line Start and Tip left out).
+        vr_mline_grip = h;
+        m = VR_Attach_TipOf(p, xHand);
+        vector bb = VR_Attach_HandPoint(p, xHand, VR_ATT_BAYONET, 1);
+        float ll = vlen(m - h);
+        vr_mline_from_x = ll > 1 ? min(0.95, max(0.05, ((bb - h) * (m - h)) / (ll * ll))) : -1;
+        vr_mline_bend = 0;
     }
     vector a = m - vr_mline_grip;
     vr_mline_far = m;

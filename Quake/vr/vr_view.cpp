@@ -9,6 +9,8 @@
 #include "vr_blender.hpp" // (blender::addPreview: vr_model_show's model)
 #include "vr_ambient.hpp"
 #include "vr_axestick.hpp"
+#include "vr_attach.hpp"
+#include "vr_menu.hpp"
 #include "vr_kickcancel.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_dirparryviz.hpp"
@@ -2744,6 +2746,41 @@ void setupHeldMagazines()
 
 // Every frame, after the guns are placed: their magazines (immersive reloading: the server's mode, the guns' flags; a
 // lying gun's U_QVR_NOMAG); with Show Load Points, a held magazine's reference point and radius (orange).
+// Every frame, after the guns are placed (before the open super shotgun hides its gun for its parts): the guns'
+// attachments (vr_attach.hpp): your hands' (by their ids' kinds; Weapon Offsets > Attachments shows the edited one's),
+// your holsters', the lying guns' (dropped, thrown, stuck in a body). Another player's: drawGunParts.
+void setupAttachments()
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const int preview = menu::attachPreview(hand);
+        const int kind = preview != attach::None ? preview : view::ownGunLook(hand).attach;
+        (void)view::placeAttachment(entities.attach[hand], entities.weapon[hand], kind, hand);
+    }
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        (void)view::placeAttachment(entities.holsterAttach[h], entities.holster[h],
+            attach::kindOfUid(holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONUID0)), -1);
+    }
+    for(int i = 0; i < maxWorldWeapons; i++)
+    {
+        const entity_t* e = worldWeaponsNear[i];
+        const bool numbered = e && e >= cl_entities && e < cl_entities + cl_max_edicts;
+        const client::EntityVr* net = numbered ? client::entityVr(static_cast<int>(e - cl_entities)) : nullptr;
+        const int kind = net ? attach::kindOfUid(net->weaponUid) : attach::None;
+        entities.worldAttach[i].visible = false;
+        if(kind == attach::None)
+        {
+            continue;
+        }
+        view::ViewEntity gun;
+        gun.ent = *e;
+        gun.visible = true;
+        gun.netEntity = static_cast<int>(e - cl_entities);
+        (void)view::placeAttachment(entities.worldAttach[i], gun, kind, -1);
+    }
+}
+
 void setupMagazines()
 {
     const bool on = magazinesShown();
@@ -3728,7 +3765,89 @@ VrGunLook ownGunLook(int hand)
         static_cast<za::U8>(CLAMP(0, cl.stats[main ? protocol::STAT_QVR_WEAPONCLIPSIZE : protocol::STAT_QVR_WEAPONCLIPSIZE2], 255));
     l.revolver = rv;
     l.cylinder = cl.statsf[main ? protocol::STAT_QVR_REVOLVERCYL : protocol::STAT_QVR_REVOLVERCYL2];
+    l.attach = static_cast<za::U8>(
+        attach::kindOfUid(cl.stats[main ? protocol::STAT_QVR_WEAPONUID : protocol::STAT_QVR_WEAPONUID2]));
     return l;
+}
+
+glm::mat3 mountBasis(const glm::vec3& angles)
+{
+    return anglesBasis(angles);
+}
+
+bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand)
+{
+    out.visible = false;
+    const attach::KindInfo* const k = attach::info(kind);
+    if(!k || !gun.visible || !gun.ent.model || gun.ent.model->type != mod_alias)
+    {
+        return false;
+    }
+    const int slot = weapons::slotForModel(gun.ent.model);
+    const attach::Mount m = attach::mount(slot, kind);
+    qmodel_t* const model = m.fits ? viewModel(k->model) : nullptr;
+    if(!model)
+    {
+        return false;
+    }
+    // Its axes as the gun's model is drawn (its place, turn, Scale, mirroring; a lying gun's networked scale).
+    const ModelSpace space{gun};
+    const glm::mat3 r = anglesBasis(m.angles);
+    glm::vec3 o = space.point(m.pos);
+    const glm::vec3 ax = space.point(m.pos + r[0]) - o;
+    glm::vec3 ay = space.point(m.pos + r[1]) - o;
+    const glm::vec3 az = space.point(m.pos + r[2]) - o;
+    const float size = glm::length(ax);
+    if(size < 1e-5f || glm::length(ay) < 1e-5f || glm::length(az) < 1e-5f)
+    {
+        return false;
+    }
+    // The mounts are frame 0's; the guns' firing frames move their fronts (ATTACHMENTS.md: up to 17 units): moved as the
+    // muzzle's anchor is drawn now against frame 0.
+    if(const char* const a = weapons::anchor(slot, weapons::Key::MuzzleAnchor); a && *a)
+    {
+        o += anchorPosition(gun.ent, gun.mirrored, gun.zeroBlend, a, glm::vec3{0.f}) -
+             anchorPosition(gun.ent, gun.mirrored, 1.f, a, glm::vec3{0.f});
+    }
+    if(gun.mirrored)
+    {
+        ay = -ay; // (drawn mirrored as the gun: the renderer mirrors it back)
+    }
+    glm::mat3 b{ax / size, glm::normalize(ay), glm::normalize(az)};
+    glm::vec3 hinge;
+    glm::mat3 turn;
+    if(ssgHand >= 0 && ssgBarrelsCarry(ssgHand, o, hinge, turn))
+    {
+        o = hinge + turn * (o - hinge); // (under the barrels: it drops open with them)
+        b = turn * b;
+    }
+    out = gun;
+    out.ent.model = model;
+    out.ent.frame = 0;
+    out.ent.skinnum = 0;
+    out.ent.lerpflags |= LERP_RESETANIM;
+    out.lastModel = nullptr;
+    out.zeroBlend = 0.f;
+    out.morph = 0.f;
+    out.poseFrame[0] = out.poseFrame[1] = -1;
+    out.poseBlend = 0.f;
+    out.netEntity = 0;
+    out.scale = glm::vec3{size * m.scale};
+    glm::vec3 ang = basisAngles(b);
+    ang.x = -ang.x; // (an entity's pitch)
+    for(int i = 0; i < 3; i++)
+    {
+        out.ent.angles[i] = ang[i];
+        out.ent.origin[i] = o[i];
+    }
+    // (its origin where the mount is: its model's header origin moved onto it, as setGunPart's corner)
+    const glm::vec3 corner = o - modelPoint(out, glm::vec3{0.f});
+    for(int i = 0; i < 3; i++)
+    {
+        out.ent.origin[i] += corner[i];
+    }
+    out.visible = true;
+    return true;
 }
 
 void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen, int player, int side)
@@ -3760,6 +3879,10 @@ void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held
     else
     {
         p[GunParts::PumpBody].visible = p[GunParts::Pump].visible = false;
+    }
+    (void)placeAttachment(p[GunParts::Attach], gun, look.attach, -1); // (before the gun is hidden for its parts)
+    if(!held)
+    {
         // As your own holsters' (setupSsgParts, setupMagazines): no revolver in parts, no magazine sliding.
         parts = ssgHolsterParts(gun, g.ssg, look.flags, look.clip, breaks, p[GunParts::SsgFrame], p[GunParts::SsgBarrels]);
         setMagazine(p[GunParts::MagIn], gun, look.has(VrGunLook::magsShownBit) && !(look.flags & weaponFlagNoMag), false,
@@ -4138,7 +4261,8 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(worldSsgBarrels, VR_DRAW_LYING), QVR_DRAW_RANGE(rvFrame, VR_DRAW_HELD), QVR_DRAW_RANGE(rvCrane, VR_DRAW_HELD),
         QVR_DRAW_RANGE(rvCyl, VR_DRAW_HELD), QVR_DRAW_RANGE(rvShell, VR_DRAW_HELD), QVR_DRAW_RANGE(sawHandle, VR_DRAW_HELD), QVR_DRAW_RANGE(button, VR_DRAW_HELD),
         QVR_DRAW_RANGE(frontButton, VR_DRAW_HELD), QVR_DRAW_RANGE(ghost, VR_DRAW_OTHER), QVR_DRAW_RANGE(ghostHand, VR_DRAW_OTHER), QVR_DRAW_RANGE(muzzleFlash, VR_DRAW_HELD),
-        QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER), QVR_DRAW_RANGE(adBolt, VR_DRAW_HELD)};
+        QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER), QVR_DRAW_RANGE(adBolt, VR_DRAW_HELD), QVR_DRAW_RANGE(attach, VR_DRAW_HELD),
+        QVR_DRAW_RANGE(holsterAttach, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldAttach, VR_DRAW_LYING)};
 #undef QVR_DRAW_RANGE
     // Every member in a range (the heavy revolver's parts were not: drawn as OTHER, flatscreen play's model FOV missed them).
     static_assert(
@@ -6116,6 +6240,7 @@ extern "C" void VR_SetupViewEntities()
     {
         QVR_PROFILE("view weapon parts");
         setupMagazines();
+        setupAttachments();
         setupPumps();
         adcrossbow::frame(entities.weapon, entities.adBolt); // AD support: the crossbow's string and bolt
         adweapons::spinFrame(entities.weapon); // AD support: the Widowmaker's barrels turning

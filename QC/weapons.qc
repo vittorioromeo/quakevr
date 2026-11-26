@@ -4880,6 +4880,10 @@ void() ImpulseCommands =
 
     // Flatscreen play (-flatscreenmode): H (vr_flat_key_drop) drops what a hand holds, the off hand's first (vr_flatplay.cpp reads the key
     // and sends the impulse; vr_wpnforcegrab.qc does it). Nobody else's impulse: it stays unused in a headset game.
+    if(self.impulse == 70)
+    {
+        VR_Attach_Key(self); // weapon attachments: flat play's Attach key (vr_flat_key_attach; vr_attach.qc)
+    }
     if(self.impulse == 47 && VR_FlatPlay(self))
     {
         self.impulse = 0;

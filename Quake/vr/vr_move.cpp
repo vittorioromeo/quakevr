@@ -156,6 +156,7 @@ void writeGunLook(sizebuf_t* buf, const VrGunLook& l)
     MSG_WriteShort(buf, l.flags);
     MSG_WriteByte(buf, l.clip);
     MSG_WriteByte(buf, l.clipSize);
+    MSG_WriteByte(buf, l.attach);
     if(bits & VrGunLook::revolverBit)
     {
         const int rv = l.revolver & 0xFFFFFF; // (18 bits used: vr_protocol.hpp, STAT_QVR_REVOLVER)
@@ -178,6 +179,7 @@ VrGunLook readGunLook()
     l.flags = static_cast<za::U16>(MSG_ReadShort());
     l.clip = static_cast<za::U8>(MSG_ReadByte());
     l.clipSize = static_cast<za::U8>(MSG_ReadByte());
+    l.attach = static_cast<za::U8>(MSG_ReadByte());
     if(l.bits & VrGunLook::revolverBit)
     {
         const int b0 = MSG_ReadByte();

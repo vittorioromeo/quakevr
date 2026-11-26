@@ -68,6 +68,8 @@ vr_revgrip.qc
 vr_reload_test.qc
 vr_debris.qc
 vr_bayonet.qc
+// Weapon attachments (the bayonet on the shotguns): after the bayonet's prop and the carrying it uses.
+vr_attach.qc
 vr_material.qc
 vr_crates.qc
 vr_crates_test.qc

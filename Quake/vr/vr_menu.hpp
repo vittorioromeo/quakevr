@@ -184,6 +184,9 @@ bool scroll(int rows);
 // Weapon Offsets > Flashlight: while it is shown (Show the Torch's Place on), the hand whose weapon the page edits (still
 // holding it): the flashlight draws the torch's place on it (vr_flashlight.cpp drawMountPreview); false otherwise.
 [[nodiscard]] bool flashlightMountPreview(int& hand);
+// Weapon Offsets > Attachments: the attachment kind drawn on the edited weapon in `hand` while the page is open (whether
+// or not it has one: its mount is being placed); 0 (none) otherwise.
+[[nodiscard]] int attachPreview(int hand);
 
 // The body's mirror image (vr_bodyclone.cpp): a VR page that tweaks something worn on the body is shown (Flashlight - On a
 // Gun or Head, Weapon Offsets - Holstered), or a row of such a setting has been chosen on the page shown (the holsters',
