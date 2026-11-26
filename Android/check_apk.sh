@@ -38,7 +38,7 @@ manifest="$("$aapt2" dump xmltree --file AndroidManifest.xml "$(win "$apk")" 2>&
 listing="$(unzip -l "$apk" 2>&1)"
 
 grep -q "package: name='com.vittorioromeo.quakevr'" <<< "$badging"; check "the package name" $?
-grep -q "application: label='Quake VR: Unleashed'" <<< "$badging"; check "the app's name (Quake VR: Unleashed)" $?
+grep -q "application: label='Quake VR: UNLEASHED'" <<< "$badging"; check "the app's name (Quake VR: UNLEASHED)" $?
 grep -q "native-code: 'arm64-v8a'" <<< "$badging"; check "arm64-v8a native code" $?
 grep -q "uses-gl-es: '0x30002'" <<< "$badging"; check "OpenGL ES 3.2" $?
 grep -q "launchable-activity: name='com.vittorioromeo.quakevr.QuakeVRActivity'" <<< "$badging"; check "the launchable activity" $?

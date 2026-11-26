@@ -132,6 +132,6 @@ void PL_ErrorDialog(const char *errorMsg)
 		msg = L"An unknown error occurred";
 	else
 		msg = error_buffer;
-	MessageBoxW (NULL, msg, L"Quake VR: Unleashed - Error", MB_OK | MB_SETFOREGROUND | MB_ICONSTOP);
+	MessageBoxW (NULL, msg, L"Quake VR: UNLEASHED - Error", MB_OK | MB_SETFOREGROUND | MB_ICONSTOP);
 }
 

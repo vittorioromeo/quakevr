@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The Quake VR: Unleashed installer's window (WPF): Welcome, Detect, Options, Install, Play, Thanks. All the work
+  <!-- The Quake VR: UNLEASHED installer's window (WPF): Welcome, Detect, Options, Install, Play, Thanks. All the work
        is in QuakeVR.Installer.Core; this project is the wizard around it, and its skin. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>

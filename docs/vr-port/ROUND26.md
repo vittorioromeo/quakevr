@@ -1588,3 +1588,15 @@ The Quest app is now "Quake VR: Unleashed" (the PC's casing: quakedef.h title, Q
 check: aapt2 badging label), the installer's Quest texts (`QuestInstaller.cs` done and uninstall hints), `docs/INSTALL.md`,
 `ANDROID_RELEASE.md`, `RELEASE_NOTES_1.2.md`. Package id unchanged. PC title, exe description and shortcuts already used
 the name. APK rebuilt with package_apk.sh: badging says label 'Quake VR: Unleashed'; check_apk 21/0.
+
+## brandcaps
+
+The product name is now "Quake VR: UNLEASHED" (all caps) everywhere user-visible: quakedef.h titles, error/crash
+dialogs and reports, QuakeVR.rc, the menus' version box and update notice, Android manifest labels + check_apk.sh label
+check, the installer (window, texts, uninstall display name, Quest texts, shortcut names/descriptions), make_release
+(.py/.ps1 titles), README, INSTALL, RELEASING, ANDROID_RELEASE, FEATURES and other current docs, release notes 1.2.
+Left alone: ROUND*.md, PATCH_NOTES_1.1*, RELEASE_NOTES_1.1, RELEASE_1_1, the checklist history, trailer scripts, the
+gameplay preset "Unleashed", the uninstall key `QuakeVRUnleashed`, file names and package ids.
+Shortcut migration: Windows keeps the old letter case of an existing file/folder, so `ShellLink.Save` now renames an
+existing Start menu folder / deletes an existing .lnk that differs only in case before writing (self-test "shortcuts of
+the old letter case are renamed"; installer self-tests 63/63).

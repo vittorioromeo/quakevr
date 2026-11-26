@@ -10,15 +10,15 @@ public sealed class ShortcutOptions
     public bool Log { get; set; } = true;
     /// <summary>Where the desktop shortcut goes (the real desktop, or a test folder).</summary>
     public string? DesktopDir { get; set; }
-    /// <summary>The Start menu's Programs folder (the real one, or a test folder); a "Quake VR Unleashed" folder is made in it.</summary>
+    /// <summary>The Start menu's Programs folder (the real one, or a test folder); a "Quake VR UNLEASHED" folder is made in it.</summary>
     public string? StartMenuDir { get; set; }
 }
 
 /// <summary>The shortcuts of section 7 of docs/vr-port/INSTALLER.md, for a given install.</summary>
 public static class ShortcutPlanner
 {
-    /// <summary>The product's name, "Quake VR: Unleashed", as a file name (Windows refuses ':' in names).</summary>
-    public const string Name = "Quake VR Unleashed";
+    /// <summary>The product's name, "Quake VR: UNLEASHED", as a file name (Windows refuses ':' in names).</summary>
+    public const string Name = "Quake VR UNLEASHED";
     public const string StartMenuFolder = Name;
     /// <summary>The Start menu folder of installs made before the "Unleashed" name (removed once empty).</summary>
     public const string LegacyStartMenuFolder = "Quake VR";
@@ -38,10 +38,10 @@ public static class ShortcutPlanner
         };
         if (o.Desktop && o.DesktopDir is not null)
         {
-            list.Add(Launch(o.DesktopDir, Name, LaunchVariant.Vr, "Play Quake VR: Unleashed in your headset"));
+            list.Add(Launch(o.DesktopDir, Name, LaunchVariant.Vr, "Play Quake VR: UNLEASHED in your headset"));
             if (o.DesktopFlat)
             {
-                list.Add(Launch(o.DesktopDir, Name + " (Flat Screen)", LaunchVariant.Flat, "Play Quake VR: Unleashed on the monitor, without a headset"));
+                list.Add(Launch(o.DesktopDir, Name + " (Flat Screen)", LaunchVariant.Flat, "Play Quake VR: UNLEASHED on the monitor, without a headset"));
             }
         }
         // The variants go in the Start menu; without one, beside the desktop shortcut.
@@ -49,26 +49,26 @@ public static class ShortcutPlanner
             : o.Desktop ? o.DesktopDir : null;
         if (o.StartMenu && o.StartMenuDir is not null)
         {
-            list.Add(Launch(variants!, Name, LaunchVariant.Vr, "Play Quake VR: Unleashed in your headset"));
+            list.Add(Launch(variants!, Name, LaunchVariant.Vr, "Play Quake VR: UNLEASHED in your headset"));
         }
         if (variants is not null)
         {
             // Beside the desktop shortcut, the flat one is already there when DesktopFlat is on.
             if (o.Flat && !(o.DesktopFlat && variants == o.DesktopDir))
             {
-                list.Add(Launch(variants, Name + " (Flat Screen)", LaunchVariant.Flat, "Play Quake VR: Unleashed on the monitor, without a headset"));
+                list.Add(Launch(variants, Name + " (Flat Screen)", LaunchVariant.Flat, "Play Quake VR: UNLEASHED on the monitor, without a headset"));
             }
             if (o.Log)
             {
                 list.Add(Launch(variants, Name + " (log for bug reports)", LaunchVariant.Log,
-                    "Play Quake VR: Unleashed and write qconsole.log for a bug report"));
+                    "Play Quake VR: UNLEASHED and write qconsole.log for a bug report"));
             }
         }
         if (o.StartMenu && o.StartMenuDir is not null)
         {
             // Diagnostics mode, for a bug report: in the Start menu only (never on the desktop).
             list.Add(Launch(variants!, Name + " (diagnostics)", LaunchVariant.Diagnostics,
-                "Play Quake VR: Unleashed in diagnostics mode: every log for a bug report in quakevr\\diagnostics"));
+                "Play Quake VR: UNLEASHED in diagnostics mode: every log for a bug report in quakevr\\diagnostics"));
             // The bug report from the last run (after a crash), without starting the game: in the Start menu only.
             list.Add(Launch(variants!, Name + " (Create Bug Report)", LaunchVariant.BugReport,
                 "Zip the last run's logs into quakevr\\bugreports for a bug report (the game is not started)"));

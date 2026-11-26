@@ -291,7 +291,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public const string KofiUrl = "https://ko-fi.com/vittorioromeovee";
     public const string DiscordUrl = "https://discord.me/quakevr";
-    public const string ProductName = "Quake VR: Unleashed";
+    public const string ProductName = "Quake VR: UNLEASHED";
     public SoundSettings Sound => UiSounds.Settings;
 
     // ---- Pages and navigation ------------------------------------------------------------------------------------
@@ -352,7 +352,7 @@ public sealed partial class MainViewModel : ObservableObject
         Page.Statement => Statement.AllYes ? "Your answers are not saved or sent anywhere." : "Continue needs YES to both.",
         Page.Detect => "Your Quake files are only read, never changed.",
         Page.Options => "Free and open source. No telemetry: nothing is sent about you.",
-        Page.Support => "Quake VR: Unleashed is free, and it stays free.",
+        Page.Support => "Quake VR: UNLEASHED is free, and it stays free.",
         Page.Settings => "Set once, at the next start: what you change in the game later is kept.",
         _ => "",
     };
@@ -540,7 +540,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ---- Welcome: an existing install ----------------------------------------------------------------------------
 
-    // The Update screen: "Quake VR: Unleashed 0.9.0 is installed", Update to the newer package (or Repair with the same
+    // The Update screen: "Quake VR: UNLEASHED 0.9.0 is installed", Update to the newer package (or Repair with the same
     // or an older one) with the one primary button, Install again from scratch (two choices, a backup first), Remove.
 
     public bool HasExisting => _existing is not null;
@@ -889,25 +889,25 @@ public sealed partial class MainViewModel : ObservableObject
             Application.Current.Shutdown();
             return;
         }
-        if (MessageBox.Show($"Remove Quake VR: Unleashed from {InstallDir}?\n\nYour settings, saves, screenshots and relit maps are kept, and your Quake folder is not touched.",
-                "Remove Quake VR: Unleashed", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+        if (MessageBox.Show($"Remove Quake VR: UNLEASHED from {InstallDir}?\n\nYour settings, saves, screenshots and relit maps are kept, and your Quake folder is not touched.",
+                "Remove Quake VR: UNLEASHED", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
         {
             return;
         }
         var textures = _existing.Files.Any(f => f.Component == Components.HdTextures) &&
-                       MessageBox.Show("Also remove the HD textures (about 0.6 GB)?", "Remove Quake VR: Unleashed", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+                       MessageBox.Show("Also remove the HD textures (about 0.6 GB)?", "Remove Quake VR: UNLEASHED", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         try
         {
             var dir = InstallDir;
             var registry = RegistryFor(_options);
             var result = await Task.Run(() => Uninstaller.Uninstall(dir, new UninstallOptions { RemoveHdTextures = textures, Registry = registry }));
             var left = result.PlayerFilesLeft.Count > 0 ? $"\n\n{result.PlayerFilesLeft.Count} of your own files are still in {dir} (settings, saves...): delete the folder yourself if you no longer want them." : "";
-            MessageBox.Show($"Quake VR: Unleashed was removed: {result.FilesRemoved} files and {result.ShortcutsRemoved} shortcuts.{left}", "Remove Quake VR: Unleashed",
+            MessageBox.Show($"Quake VR: UNLEASHED was removed: {result.FilesRemoved} files and {result.ShortcutsRemoved} shortcuts.{left}", "Remove Quake VR: UNLEASHED",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception e) when (e is InstallException or IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            MessageBox.Show(e.Message, "Remove Quake VR: Unleashed", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(e.Message, "Remove Quake VR: UNLEASHED", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         LoadExisting();
     }

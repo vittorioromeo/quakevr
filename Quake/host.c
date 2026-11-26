@@ -1635,7 +1635,7 @@ static void UpdateWindowTitle (void)
 		Mod_SanitizeMapDescription (cleanname, sizeof (cleanname), cl.levelname);
 
 		UTF8_FromQuake (utf8name, sizeof (utf8name), cleanname);
-		// QVR: the window title stays "Quake VR: Unleashed | by Vittorio Romeo"; cl_titlestats 1 (the
+		// QVR: the window title stays "Quake VR: UNLEASHED | by Vittorio Romeo"; cl_titlestats 1 (the
 		// default) only feeds the Steam status, 2 also appends the level stats after the title
 		if (cl_titlestats.value >= 2.f)
 		{
