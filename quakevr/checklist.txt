@@ -26,6 +26,9 @@ Take the spear and grab its shaft with your other hand a little off the shaft (a
 With the spear or the Crystal Lance held in both hands, move your other hand up and down the shaft while gripping: the drawn hand stays where it grabbed (Other Hand Fixed on Poles, on by default); turn the option off in Physics and Interaction and it slides again. {test:spear}
 Thrust the spear held in both hands into the grunt so it sticks: your other hand stays on the shaft where it was, round it, and does not let go or jump to another spot; the same with the Crystal Lance. {test:spear}
 Close your hand on the way to the belt flashlight and arrive with it already closed: it does not take the torch; open and press the grip at it and it comes at once, moving or not. {test:start_shotgun}
+Crystal Lance: hold the trigger to charge it, stab an ogre with its tip and let go once it is full: the bolt fires from the stuck Lance's tip through the ogre, the charge's sparks and hum stay on it the whole time, 6 cells spent. {test:embed_fire}
+Crystal Lance: stab an ogre first, keep your grip on it, then hold the trigger to charge and let go: it fires from where it is stuck; pull it out while charging and the charge goes on in your hand; open your hand on it and the trigger does nothing. {test:embed_fire}
+Flat-screen: Crystal Lance: hold fire then V into an ogre, or V then hold fire: releasing a full charge fires from the stuck Lance (no pull); a quick tap of fire still pulls it out. {test:embed_fire}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

@@ -18,6 +18,7 @@
         header("Thrown Axes"),
         row(opt::vr_axestick),
         row(opt::vr_embed),
+        row(opt::vr_embed_fire),
         open("Each Monster Group's Skewer", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Skewer)>))
             .help("How far a blade stuck in each monster group throws it about: a stab's stagger, how hard the blade moves its ragdoll."),
         header("Flung Props"),

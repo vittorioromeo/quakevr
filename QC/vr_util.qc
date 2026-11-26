@@ -108,6 +108,23 @@ vector(float xHand) VRGetWeaponFireRotFwd =
     return v_forward;
 }
 
+// The weapon prop a shot being fired comes from (world: the shooter's hand): an armed grunt's gun (vr_armedgrunt.qc
+// VR_AG_ShootProp), a weapon stuck in a body that the player's hand holds (vr_propfire.qc, embedfire). Set around the
+// fire code, which reads the hand's fields as the prop's: its beams drawn from the prop, its flash on it.
+entity vr_fire_prop;
+
+// weaponfired (its muzzle flash, the client's shot effects) for the shot of `xHand`: on the prop a player's hand fires
+// (vr_fire_prop), else on the hand's weapon.
+void(float xHand) VR_WeaponFired =
+{
+    if(vr_fire_prop != world && (self.flags & FL_CLIENT))
+    {
+        weaponfired(vr_fire_prop, -1);
+        return;
+    }
+    weaponfired(self, xHand);
+};
+
 // The forward vector of `xAngles`, leaving v_forward (and v_right, v_up) as they were: for code
 // that runs while a caller still needs them.
 vector(vector xAngles) VRForwardOf =

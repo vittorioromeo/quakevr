@@ -1792,6 +1792,7 @@ vr_throw_wrist_dist|2|Throwing and Physics|Wrist to Controller|Advanced VR Optio
 vr_throw_spin_drag|2|Throwing and Physics|Spin Drag|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Spin Drag
 vr_axestick|2|Throwing and Physics|Axes Stick|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Axes Stick
 vr_embed|2|Throwing and Physics|Embedded Blades|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Embedded Blades
+vr_embed_fire|2|Throwing and Physics|Stuck Weapons Fire|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Stuck Weapons Fire
 vr_prop_impact_damage|2|Throwing and Physics|Flung Props Hurt|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Flung Props Hurt
 vr_prop_impact_players|2|Throwing and Physics|Flung Props Hurt Players|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Flung Props Hurt Players
 vr_gib_spawn_harmless|2|Throwing and Physics|Fresh Gibs Harmless For|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Fresh Gibs Harmless For
@@ -4774,6 +4775,7 @@ vr_flat_revgrip_pole_off_along|2|Tunables|Flipped Spear Other Hand Along|Advance
 vr_flat_embed_pull|2|Tunables|Stuck Blade Pull|Advanced VR Options > Debug > Tunables > Stuck Blade Pull
 vr_flat_embed_pull_time|2|Tunables|Stuck Blade Pull Time|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Time
 vr_flat_embed_pull_hold|2|Tunables|Stuck Blade Pull Hold|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Hold
+vr_flat_embed_fire_tap|2|Tunables|Stuck Weapon Fire Tap|Advanced VR Options > Debug > Tunables > Stuck Weapon Fire Tap
 vr_flat_embed_arm|2|Tunables|Stuck Blade: Hand On Arm|Advanced VR Options > Debug > Tunables > Stuck Blade: Hand On Arm
 vr_flat_embed_arm_slip|2|Tunables|Stuck Blade: Hand Slip|Advanced VR Options > Debug > Tunables > Stuck Blade: Hand Slip
 vr_flat_embed_other_hand|2|Tunables|Stuck Blade: Other Hand|Advanced VR Options > Debug > Tunables > Stuck Blade: Other Hand

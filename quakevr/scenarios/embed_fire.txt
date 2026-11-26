@@ -1,0 +1,13 @@
+# embed_fire: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". embedfire (ROUND26.md): Dwell's
+# Crystal Lance held as a lance fires while it is stuck in a body you hold. Needs Dwell installed.
+title Crystal Lance stuck in an enemy: charge and fire it there
+cvar vr_embed 1
+cvar vr_embed_fire 1
+map vrtesthall
+god
+notarget
+cmd vr_ad_test 207
+spawn "Ogre" 140 -60
+spawn "Ogre" 140 60
+spawn "Shambler" 320 0
+hint Right hand: the Crystal Lance. Hold the trigger to charge it, stab an ogre with its tip and let go once it is full: the bolt fires from the stuck Lance's tip, through the ogre. Or stab first, keep your grip on it, then charge and let go. Pull it out while charging: the charge goes on in your hand. Open your hand on it: its trigger does nothing. Flat-screen: hold fire then V, or V then hold fire; a tap of fire pulls it instead.

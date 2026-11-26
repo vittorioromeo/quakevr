@@ -667,7 +667,7 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   - **Armed grunts**: a grunt taking a Dwell weapon already kept its record (`VR_AG_TakeUp` hands it to `VR_AG_Arm`),
     but fired our weapon's shot (the Rotary the Widowmaker's: `AD_Widowmaker` is true for it). `VR_AG_ShootProp` now
     fires Dwell's (`DW_FireVariant`, the player's own code: its clip spent as your ammo, as every grunt gun), the
-    Lance's beam drawn from the grunt's prop (`dw_beam_prop`, disambiguator 0 as its lightning); its prop is named
+    Lance's beam drawn from the grunt's prop (`vr_fire_prop`, disambiguator 0 as its lightning); its prop is named
     as Dwell's (`VR_AG_NameOf`, `DW_VariantName`). Its drop carries the record, so the variant comes back to you.
   - **Screen tints**: Dwell stuffs `v_cshift` (its `client.qc`: Haste 255 255 0 at 10, Berserk 255 0 0 at 20, both
     255 128 0 at 20, the Wetsuit none); ours go through AD's tint (`VR_AD_Tint`: a stat the engine eases in, times

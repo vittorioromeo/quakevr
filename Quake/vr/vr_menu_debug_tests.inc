@@ -1538,6 +1538,11 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: in the open with god and notarget (vrtesthall): a sword stabbed into a grunt and held as it dies, lifted "
                   "20 units, level and with the wrist turning: the handle stays in the real hand, the body comes; the hand on the handle "
                   "is drawn as it held the sword. Prints embedgrip: N passed, M failed."),
+        command("Crystal Lance Fired While Stuck Check", "vr_embed_test 77")
+            .help("Headset (mock or real) with Dwell's data, destructive: in the open with god and notarget (vrtesthall): the "
+                  "Lance charged in the hand then stabbed into a grunt, and stabbed then charged: let go full, one bolt from the "
+                  "stuck Lance's tip, 6 cells, the grunt hit; the hand off it fires nothing; pulled out charging, fired from the "
+                  "hand. Flat-screen: vr_embed_test 78. Prints embedfire: N passed, M failed."),
         command("Flat Dual Wielding: an Embedded Blade Keeps Its Hand Check", "vr_embed_test 52")
             .help("Flat-screen play only, destructive: in the open with god and notarget (vrtesthall): an axe in one hand and a shotgun "
                   "in the other, the axe swung into a grunt and held: the hand stays drawn on it, the gun one-handed, the ironsight "
