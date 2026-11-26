@@ -20,6 +20,7 @@ qvr_checks [--tree DIR] [--fteqcc PATH] <check> [arguments]      (--tree: the re
   release_qc                     the release flavour's QC (-DQVR_NO_TESTS) compiles clean, tests guarded
   qc_precedence                  no QC expression that reads differently under C priorities (two compiles at once)
   progs_format [progs.dat]       progs.dat is FTE's 32-bit format
+  client_prefs                   every QVR_PREF setting (vr_cvars.inc) is sent (vr_clientprefs.cpp prefNames), and back
   fgd [args]                     Misc/trenchbroom/fgdgen.py (still Python), as a process
   all [--qchash H] [--times]     every check at once, a thread each; prints each failing check's last lines and a
                                  "... FAILED" line, in a fixed order; exit 1 when one fails (the FGD check only warns)

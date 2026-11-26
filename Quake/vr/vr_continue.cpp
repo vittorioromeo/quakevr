@@ -43,6 +43,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -62,7 +63,8 @@ struct SaveContext
     int campaign{-1};          // -1: the save doesn't say
     bool packageKnown{false};  // the save says which map package (none included)
     char package[72]{};        // its sha256 ("": none)
-    char packageTitle[64]{};
+    char packageTitle[64]{};   // its title; none known: "map package <id>" (packageName: the id alone)
+    char packageId[9]{};       // its sha256's first 8 characters, for a sentence that says "the map package" already
     char mapTitle[64]{};       // the level's title ("The Gateway"); the map's name when it has none
 };
 
@@ -254,7 +256,8 @@ void readContext(const char* text, const char* path, SaveContext& ctx)
     {
         packageTitleNow(ctx.package, ctx.packageTitle, sizeof(ctx.packageTitle));
         if(!ctx.packageTitle[0]) { contextLine(text, "qvr_package_title", ctx.packageTitle, sizeof(ctx.packageTitle)); }
-        if(!ctx.packageTitle[0]) { q_snprintf(ctx.packageTitle, sizeof(ctx.packageTitle), "map package %.8s", ctx.package); }
+        q_snprintf(ctx.packageId, sizeof(ctx.packageId), "%.8s", ctx.package);
+        if(!ctx.packageTitle[0]) { q_snprintf(ctx.packageTitle, sizeof(ctx.packageTitle), "map package %s", ctx.packageId); }
     }
     if(!contextLine(text, "qvr_map_title", ctx.mapTitle, sizeof(ctx.mapTitle)) || !ctx.mapTitle[0])
     {
@@ -268,6 +271,13 @@ void readContext(const char* text, const char* path, SaveContext& ctx)
 }
 
 // What a save was played as, for the player: its map package's title, else its campaign's.
+// Its map package named after "the map package" in a sentence: its title, else its id (not "the map package map
+// package <id>").
+const char* packageName(const SaveContext& ctx)
+{
+    return ZA_STRNCMP(ctx.packageTitle, "map package ", 12) ? ctx.packageTitle : ctx.packageId;
+}
+
 const char* contextTitle(const SaveContext& ctx)
 {
     if(ctx.package[0]) { return ctx.packageTitle; }
@@ -382,7 +392,7 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose, bool coopToo =
         if(verbose || !warned)
         {
             Con_Printf("Continue: %s passed over: it was made in the map package %s, which is not installed\n",
-                c.relname, ctx.packageTitle);
+                c.relname, packageName(ctx));
         }
         if(!warned && warnedCount < maxWarned)
         {
@@ -984,8 +994,8 @@ extern "C" int VR_SavePackageReady(const char* text, const char* savepath)
         qvr::files::isDirectory(qvr::mapinstall::packageFolder(za::String{ctx.package}).cStr()))
     { return 1; }
     Con_Printf("Saves: this save was made in the map package %s (%.16s), which is not installed: not loaded. Install it "
-               "again from Single Player > Map Library to load it.\n", ctx.packageTitle, ctx.package);
-    SCR_CenterPrint(va("This save needs the map package\n%s\nwhich is not installed: not loaded", ctx.packageTitle));
+               "again from Single Player > Map Library to load it.\n", packageName(ctx), ctx.package);
+    SCR_CenterPrint(va("This save needs the map package\n%s\nwhich is not installed: not loaded", packageName(ctx)));
     return 0;
 }
 
