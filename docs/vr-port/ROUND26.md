@@ -2403,3 +2403,14 @@ His flat notes 2026-11-26, items 3, 4 and 8.
   grunt's chest (then gibbed whole, or removed) and a zombie's chest (then gibbed). 1 s later, in every case, it never
   floated (held still in nothing or in a gone body for no more than 3 frames) and it fell at least 8 units. 15/0. Without
   the fix: 11/4 (both head cases floating, 0 units fallen).
+
+## flatlance_test: the Lance's flat thrust test ogre within reach (branch agent/lancestab, 2026-11-27)
+
+`Misc/quakevr/flatlance_test.sh` failed 29/1 on next ("the thrust is the head's stab": no thrust landed). Culprit:
+900606064 "tunables: promote his values" (in merge 363f0b1ab), `vr_flat_pole_off_up` 5 -> 0 (the other hand on the pole,
+not 5 above it). Not a code bug: the thrust's game line and the drawn Lance agree (the QC sweep's tip and the drawn tip
+both reach about 38 units ahead of the player, belly height); an ogre at 52 has its belly right at that reach, so the
+stab only grazed it at the thrust's end, and the off hand's 2H pull (a unit or so sideways) decided graze or miss. The
+ogre now spawns at 50: the head lands mid-strike at full speed (12.8 m/s, 58 damage) with his pose and with the old one.
+The "ogre hurt" check compared health against a fixed 200 and passed with nothing landing (ogres there spawn at 180);
+it now reads the health just before the thrust and wants it lower after. Test only, no code. 30/0.
