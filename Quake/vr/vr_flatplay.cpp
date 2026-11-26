@@ -1896,7 +1896,7 @@ struct PoleTrack
     const glm::vec3 n = glm::cross(u, v);
     return glm::length(n) > 1e-5f ? za::fabs(glm::dot(b - a, glm::normalize(n))) : lineMiss(a, u, b);
 }
-PoleTrack poleTrack;
+PoleTrack poleTrack; // seat-shared: a test's probe (vr_flat_pole_track, flatlance_test.sh)
 
 void probePole()
 {

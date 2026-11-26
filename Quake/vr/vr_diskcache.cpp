@@ -220,7 +220,7 @@ struct Shipped
     za::Vector<za::String> names; // the cache names (`<kind>/<build>/<key>.<ext>`)
     za::Vector<za::String> paths; // their files (the folder's)
 };
-Shipped shipped;
+Shipped shipped; // seat-shared: one disk cache, the shipped files
 
 void shippedLoad()
 {

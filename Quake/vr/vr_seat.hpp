@@ -52,7 +52,7 @@ enum class Part
     Crosshair, // vr_crosshair.cpp: the flat crosshair's queued frame
     // Phase 4a: flat play's own.
     FlatPlay,    // vr_flatplay.cpp: the hands' pose, punches, shove, guard, two-handed stance, the drawn hands' feel, the
-                 // mode's keys and the crouch and prone eases, the CTRL bind taken, the slide's turn, the toolgun's keys
+                 // mode's keys and the crouch and prone eases, the slide's turn, the toolgun's keys
     FlatHolster, // vr_flatholster.cpp: the holster menu
     FlatSight,   // vr_flatsight.cpp: the ironsight, the grips, the weapon at walls; the crosshair's memo
     FlatTp,      // vr_flattp.cpp: the third-person camera

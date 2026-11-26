@@ -20,7 +20,7 @@ constexpr float exitPast = 8.f;   // an escape or a cleared point goes this far 
 constexpr int maxCorners = 64;    // a train's path corners looked at
 
 // The map's shafts (afterLoad).
-za::Vector<Shaft> mapShafts;
+za::Vector<Shaft> mapShafts; // seat-shared: the one map loaded
 
 float margin()
 {
@@ -160,8 +160,8 @@ void afterLoad()
         {
             return;
         }
-        const char* cls = e->v.classname ? PR_GetString(e->v.classname) : "";
-        if(!ZA_STRCMP(cls, "train") || !ZA_STRCMP(cls, "func_train"))
+        const char* klass = e->v.classname ? PR_GetString(e->v.classname) : "";
+        if(!ZA_STRCMP(klass, "train") || !ZA_STRCMP(klass, "func_train"))
         {
             // (a train's stops: its path corners; Quake's train_next puts its absmin at each)
             float zlo = 1e30f, ztop = -1e30f, spread = 0.f;

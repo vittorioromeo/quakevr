@@ -471,7 +471,7 @@ struct DataVersion
     bool mismatch = false;  // not the app's
     bool noticeShown = false;
 };
-DataVersion dataVersion;
+DataVersion dataVersion; // seat-shared: one app install, its data version
 
 // A version as compared: its first word (a development package's "1.2.0-beta5-dev (date commit)"), a development
 // build's "-dev" dropped.

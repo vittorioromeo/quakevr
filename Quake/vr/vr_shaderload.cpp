@@ -258,7 +258,7 @@ struct MapWait
     int frames = 0, panelFrames = 0; // this wait's frames: pumped, shown in the headset
     bool earlyStarted = false;       // the VR session started for it
 };
-MapWait mapWait;
+MapWait mapWait; // seat-shared: the one map load's shader wait
 } // namespace
 
 extern "C" int VR_MapLoadingWanted(void)

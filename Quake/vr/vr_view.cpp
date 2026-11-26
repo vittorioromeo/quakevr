@@ -993,7 +993,7 @@ float view::leavingFlip(int hand)
 
 bool view::leavingAngles(int hand, glm::vec3& rot)
 {
-    if(hand < 0 || hand > 1 || weaponCarried[hand] || !entities().weapon[hand].visible || !entities().weapon[hand].ent.model ||
+    if(hand < 0 || hand > 1 || weaponCarried()[hand] || !entities().weapon[hand].visible || !entities().weapon[hand].ent.model ||
         drawnFlip(hand) <= 0.f)
     {
         return false;
@@ -2707,7 +2707,7 @@ struct HeldMagDebug
     bool magVis[2]{false, false};
     bool noMag[2]{false, false};
 };
-HeldMagDebug heldMagDebug;
+HeldMagDebug heldMagDebug; // seat-shared: a debug print's latch (vr_flat_reload_debug)
 
 void setupHeldMagazines()
 {

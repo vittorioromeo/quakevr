@@ -3233,7 +3233,7 @@ float crouchSlowShare[crouchSlots]{};
 // low ceiling after he lets go.
 bool crouchFlat[crouchSlots]{};
 bool crouchFlatHeld[crouchSlots]{};
-bool crouchFlatProne[crouchSlots]{};
+bool crouchFlatProne[crouchSlots]{}; // seat-shared: the server's, by client slot
 // Lying down (vr_prone; ROUND24.md, "Lying down and crawling"): per client, whether he lies -- the lying box's own
 // slot: his box is then proneHeight tall (crouchTopNum, so every box above follows), and crouchBox keeps the crouched
 // box he gets up into -- and the crawl's slowing share (eased like the crouch's); cleared at each map's load.

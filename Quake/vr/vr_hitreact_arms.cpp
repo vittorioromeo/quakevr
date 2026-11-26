@@ -12,7 +12,7 @@ namespace hitreact_detail
 {
 
 ArmPoses armPoses;
-ArmSeen armSeen[maxArmPoses];
+ArmSeen armSeen[maxArmPoses]; // seat-shared: a report's record by arm pose slot, like armPoses
 
 } // namespace hitreact_detail
 

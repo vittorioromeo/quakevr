@@ -92,7 +92,7 @@ constexpr Option options[] = {
 };
 
 // The headset-only settings' screens drawn greyed last frame (flatscreen play: drawOptionScreens), for vr_setup_option list.
-int greyedScreensDrawn = 0;
+int greyedScreensDrawn = 0; // seat-shared: a diagnostic count (vr_setup_option list)
 
 // The option's cvar as the settings are now (Classic Quake's is a state of three presets, not a saved setting).
 void syncOption(const Option& o)

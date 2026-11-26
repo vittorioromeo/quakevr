@@ -2880,7 +2880,7 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
 
 void embedPinsReset()
 {
-    for(EmbedPin& pin : embedPins)
+    for(EmbedPin& pin : vh().embedPins)
     {
         pin = EmbedPin{};
     }
@@ -2984,17 +2984,17 @@ void embedPinStep(const hands::State& s, int hand)
 
 glm::vec3 embedPinSeenOf(int hand)
 {
-    return hand == HAND_OFF || hand == HAND_MAIN ? embedPins[hand].seen : glm::vec3{0.f};
+    return hand == HAND_OFF || hand == HAND_MAIN ? vh().embedPins[hand].seen : glm::vec3{0.f};
 }
 
 glm::vec3 embedPinLeadOf(int hand)
 {
-    return hand == HAND_OFF || hand == HAND_MAIN ? embedPins[hand].lead : glm::vec3{0.f};
+    return hand == HAND_OFF || hand == HAND_MAIN ? vh().embedPins[hand].lead : glm::vec3{0.f};
 }
 
 bool embedPinEasingOf(int hand)
 {
-    return (hand == HAND_OFF || hand == HAND_MAIN) && (embedPins[hand].easing || embedPins[hand].release > 0.f);
+    return (hand == HAND_OFF || hand == HAND_MAIN) && (vh().embedPins[hand].easing || vh().embedPins[hand].release > 0.f);
 }
 
 bool embedEase(int hand, EmbedEase& out)
@@ -3835,7 +3835,7 @@ void setupHand(const hands::State& s, int hand)
         {
             pos = ease.pivot + ease.offset + turn * (pos - ease.pivot);
         }
-        else if(const EmbedPin& pin = embedPins[hand]; pin.bodyEase)
+        else if(const EmbedPin& pin = vh().embedPins[hand]; pin.bodyEase)
         {
             // Empty hand in flat play (e.g., dropped blade, or off-hand pinned onto a pole): ease directly from its body-carried
             // release point to its current pose, kept on its arm (matches ease.pivot + ease.offset when pos == s.pos[hand]).

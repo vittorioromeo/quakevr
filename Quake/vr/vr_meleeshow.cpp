@@ -75,7 +75,7 @@ struct FoeShows
     FoeShow slots[foeMost];
     int drawnFrames = 0; // the frames draw drew any (foeDrawnFrames)
 };
-FoeShows foeShows;
+FoeShows foeShows; // seat-shared: a debug overlay's swings by edict (the server's foes)
 
 [[nodiscard]] float showNow()
 {

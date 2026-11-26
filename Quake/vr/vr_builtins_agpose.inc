@@ -1530,7 +1530,7 @@ void agkKeys(edict_t* g, edict_t* p) // VR_AGK_Keys
         }
         else if(act == agSwing)
         {
-            pose = cls == VR_AGK_POLE ? VR_AGK_THRUST : VR_AGK_OVERHEAD + agMin(3.f, k);
+            pose = kclass == VR_AGK_POLE ? VR_AGK_THRUST : VR_AGK_OVERHEAD + agMin(3.f, k);
             if(agHas(AFE(g, vr_ag_prop2)) && AF(g, vr_ag_act_hand) == 2.f)
             {
                 pose = VR_AGK_DUAL;

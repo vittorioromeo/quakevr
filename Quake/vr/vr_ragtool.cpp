@@ -328,7 +328,7 @@ struct FlatLines
     int swingFrames{0};
     int foeSeen{0};
 };
-FlatLines flatLines;
+FlatLines flatLines; // seat-shared: a test's probe (vr_flat_debug_lines_probe)
 
 void flatLinesProbe_f()
 {

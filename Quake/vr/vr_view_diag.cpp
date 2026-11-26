@@ -55,7 +55,7 @@ bool onFlatPole(int hand)
 
 float drawnGripCurl(int hand)
 {
-    if(hand < 0 || hand > 1 || !rigHands[hand].drawn)
+    if(hand < 0 || hand > 1 || !rigHands()[hand].drawn)
     {
         return -1.f;
     }
@@ -64,7 +64,7 @@ float drawnGripCurl(int hand)
     {
         for(int j = 0; j < handrig::jointsPerFinger; j++)
         {
-            sum += rigHands[hand].pose.curl[f][j];
+            sum += rigHands()[hand].pose.curl[f][j];
         }
     }
     return sum / (4.f * static_cast<float>((handrig::FingerCount - handrig::Index) * handrig::jointsPerFinger));
