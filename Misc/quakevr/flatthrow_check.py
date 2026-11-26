@@ -48,7 +48,7 @@ done(ls, "axe")
 t = find(ls, THROWN)
 check(bool(t) and t[0].group(1) == "thrown_weapon", "axe: J held, let go: the axe is thrown (%s)" % (t[0].group(0) if t else "none"))
 check(bool(find(ls, r'button: .*\(target "r12b_open"\) pressed by (player: )?thrown_weapon')), "axe: it presses lesson 12's high target (r12b_open)")
-landed = find(ls, r"flat throw: landed: thrown_weapon (\d+) units level from where it left, (-?\d+) down, (.*)")
+landed = find(ls, r"flat throw: landed: thrown_weapon (\d+) units level from where it left, (-?\d+) down, (.*?)(?: at .*)?$")
 check(bool(landed) and landed[0].group(3) == "stuck", "axe: it sticks (%s)" % (landed[0].group(0) if landed else "no landing"))
 LEFT = r"flat throw:   left (-?[\d.]+) forward, (-?[\d.]+) right, (-?[\d.]+) up of the eye"
 AMMO = r"flat throw:   ammo (\d+) at the wind-up, (\d+) now; fire refused (\d+) frames"
@@ -63,7 +63,7 @@ v = find(ls, LEAVES)
 ROCKS = ("vr_rock", "vr_brick", "vr_debris_piece")
 check(len(d) >= 1 and d[0].group(1) in ROCKS and len(t) >= 1 and t[0].group(1) in ROCKS,
       "rock: quick tap drops rock, held charge throws rock (dropped=%s, thrown=%s)" % ([m.group(1) for m in d], [m.group(1) for m in t]))
-landed = find(ls, r"flat throw: landed: vr_(?:rock|brick|debris_piece) (\d+) units level from where it left, (-?\d+) down, (.*)")
+landed = find(ls, r"flat throw: landed: vr_(?:rock|brick|debris_piece) (\d+) units level from where it left, (-?\d+) down, (.*?)(?: at .*)?$")
 check(bool(landed) and int(landed[0].group(1)) < 90, "rock: the quick tap drops gently near the player (%s)" % (landed[0].group(0) if landed else "none"))
 if len(d) >= 1 and len(t) >= 1 and len(v) >= 2:
     tap, full = float(d[0].group(3)), float(t[0].group(3))
@@ -117,7 +117,7 @@ check(not find(ls, r"throw: a weapon held in both hands"), "twoh: one-handed: no
 
 ls = lines("wall")
 done(ls, "wall")
-landed = find(ls, r"flat throw: landed: thrown_weapon (\d+) units level from where it left, (-?\d+) down, (.*)")
+landed = find(ls, r"flat throw: landed: thrown_weapon (\d+) units level from where it left, (-?\d+) down, (.*?)(?: at .*)?$")
 check(len(find(ls, r"bladespinto: thrown_weapon meets something")) >= 2, "wall: both throws' spins timed (bladespinto)")
 check(len(landed) >= 1 and landed[0].group(3) == "stuck" and int(landed[0].group(1)) > 250,
       "wall: the axe from 280 units sticks in the plain wall (%s)" % (landed[0].group(0) if landed else "no landing"))
