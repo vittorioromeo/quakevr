@@ -5061,6 +5061,8 @@ weapon 55
     // muzzle): a stab there stays in, very shallow (vr_dw_lance_embed_length, _tip, _speed); thrown it flies point
     // first, settling in the air as a sword (vr_box3d_step.cpp pointAlign).
     embed "1"
+    // embedfire (his VR note 2026-11-26 20:24): stuck in a body and held, its charged bolt still fires, from its tip.
+    embed_fire "1"
 }
 
 // slot 56: progs/dw_rotary.mdl#vr (vr_wofs_*_57)

@@ -173,6 +173,7 @@ vr_mg3_weapons.qc
 vr_pickup_test.qc
 vr_axestick.qc
 vr_embedhold.qc
+vr_propfire.qc // a weapon fired where it is: a prop the hand holds (embedfire; weapons.qc W_WeaponFrameImpl calls it)
 vr_skewer.qc
 vr_axestick_test.qc
 // Magnetic holsters (after the holsters, the throws, the stuck axes and the chainsaw's props it uses).
@@ -221,6 +222,7 @@ vr_spear_test.qc // the spear (vr_embed_test 53)
 vr_flatthrust_test.qc // flat V thrusts with the stabbing blades (vr_embed_test 58-59)
 vr_flatembedwalk_test.qc // flat: walking away from a stuck blade, the other hand on it (vr_embed_test 64)
 vr_poleembed_test.qc // flat: the pole's other hand in four states, a held blade's ragdoll smoothing (vr_embed_test 71-72)
+vr_embedfire_test.qc // the Crystal Lance fired while stuck in a body (embedfire: vr_embed_test 77-78; after vr_poleembed_test.qc's helpers)
 vr_revgrip_test.qc
 vr_flipgrip_test.qc
 vr_flipgate_test.qc

@@ -193,6 +193,7 @@ QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE | QVR_RULE)             // on
 // Embedded blades (vr_axestick.cpp, QC/vr_axestick.qc; ROUND23.md, "Embedded blades"; Combat > Embedded Blades): off
 // restores thrown axes as they were and nothing else sticks.
 QVR_CVAR(vr_embed, "1", CVAR_ARCHIVE | QVR_RULE)                // on (his decision 2026-11-08); 0: axes alone
+QVR_CVAR(vr_embed_fire, "1", CVAR_ARCHIVE | QVR_RULE)           // embedfire (his VR note 2026-11-26 20:24): a weapon stuck in a body that you hold fires there when weapons.txt embed_fire says it can (the Crystal Lance; QC vr_propfire.qc); 0 never
 // Blade Hold Strength (his 2026-11-08): how hard a hand on a blade stuck in a body moves it, all at once: times every Moving:
 // force and lift (QC VR_Embed_Spring), the stance's give, and the spring's stiffness (its Hz by the square root: its N per
 // m times this).

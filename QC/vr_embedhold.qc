@@ -90,6 +90,11 @@ void(entity p) VR_Skewer_AllOff; // (vr_skewer.qc)
 .float  vr_hold_flatr;        // the hand(s) pulled back by this now (units)
 .float  vr_hold_flatfire;     // the fire buttons of the hands on it last frame (VR_Embed_Bit's)
 .float  vr_hold_flatpulls;    // pulls started on it (the debug line's, the test's)
+// (embedfire: a stuck weapon that fires there, the Crystal Lance: its fire button is its trigger, vr_propfire.qc; a tap
+// pulls, VR_Embed_FlatPull.)
+.float  vr_hold_flatpress;    // its last fresh press of a hand's fire button on it
+.float  vr_pfire_shot;        // when its trigger frame last fired (or clicked) it (vr_propfire.qc VR_PropFire_Frame)
+float(entity w) VR_PropFire_Capable; // (vr_propfire.qc)
 // (Its hands on their posed arms, VR_Embed_FlatArm; embedhold2, his flat notes 2026-11-25.)
 .vector vr_hold_flathandle;   // the handle as drawn (its origin) at the last think
 .vector vr_hold_flatroot;     // its holder's eyes then
@@ -194,6 +199,20 @@ void(entity e, entity p) VR_Embed_FlatPull =
 {
     float fire = VR_Embed_FlatFire(e, p);
     float fresh = fire & ~e.vr_hold_flatfire;
+    if(VR_PropFire_Capable(e))
+    {
+        // embedfire: a weapon that fires where it is stuck (the Crystal Lance; vr_propfire.qc): its fire button is its trigger
+        // (held: charged, let go charged: fired, as in the hand), and a tap pulls it: let go within vr_flat_embed_fire_tap s of
+        // its press, nothing fired since. (A button held from before the hold, the charge it brought in: no tap.)
+        if(fresh)
+        {
+            e.vr_hold_flatpress = time;
+        }
+        float released = e.vr_hold_flatfire & ~fire;
+        float tapped = released && e.vr_hold_flatpress > 0 && time - e.vr_hold_flatpress <= max(0.01, cvar_hget(cvarh_vr_flat_embed_fire_tap)) &&
+                       e.vr_pfire_shot < e.vr_hold_flatpress;
+        fresh = tapped ? released : 0;
+    }
     e.vr_hold_flatfire = fire;
     float dist = max(0, cvar_hget(cvarh_vr_flat_embed_pull));
     float tp = max(0.01, cvar_hget(cvarh_vr_flat_embed_pull_time));
@@ -353,6 +372,7 @@ void(entity e, entity xPlayer, float xHand) VR_Embed_TakeHand =
     }
     e.vr_hold_last = time;
     e.vr_hold_flatfire = VR_Embed_FlatFire(e, xPlayer); // (a fire button still held from the blow is no pull: a fresh press is)
+    e.vr_hold_flatpress = 0; // (nor its let-go a tap: embedfire)
     e.vr_hold_tugv = 0;
     e.vr_hold_carried = 0;
     e.vr_hold_carrying = FALSE;
