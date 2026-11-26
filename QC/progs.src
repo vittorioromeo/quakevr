@@ -234,6 +234,7 @@ vr_throwgib_test.qc
 vr_throwpoint_test.qc
 vr_revthrow_test.qc // reverse grip throws settle point first (vr_embed_test 73)
 vr_throwdmg_test.qc
+vr_floataxe_test.qc // a thrown axe whose host's head comes off, or the host goes, falls (vr_embed_test 83)
 vr_airskewer_test.qc
 vr_agarmor_fx_test.qc
 vr_agarmor_shot_test.qc

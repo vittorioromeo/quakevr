@@ -359,6 +359,11 @@ void relinkSkinnedEnd(SkinWork& w)
         ArmSeen& as = armSeen[seen - armPoses.slots];
         as.hand[0] = placed.hand[0].pos;
         as.hand[1] = placed.hand[1].pos;
+        for(int h = 0; h < 2; h++)
+        {
+            as.elbow[h] = placed.elbow[h];
+            as.shoulder[h] = placed.shoulder[h];
+        }
         as.weapon = placed.weapon[0];
     }
     if(posestudio::active() || rigstudio::wantsNotes() || weaponstudio::wantsNotes())

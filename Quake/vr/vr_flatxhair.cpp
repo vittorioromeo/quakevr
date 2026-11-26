@@ -71,6 +71,7 @@ constexpr float markLength = 0.55f;   // two crosshairs: each one's mark on its 
 constexpr int discSegments = 40;      // a circle or a dot, drawn as this many pieces round it
 constexpr float blockedDim = 0.35f;   // a gun the wall stops from firing (flatsight::wallBlocksFire): its crosshair this dim
 constexpr float dimEase = 0.06f;      // its dimming (the wall, a reload) eases in and out with this time constant (seconds)
+constexpr double throwFresh = 0.1;    // a throw's aim (noteThrowAim) holds this long (seconds of game time) past its last word
 
 // The last move's shot line for each hand (noteMove).
 struct ShotLine
@@ -79,11 +80,11 @@ struct ShotLine
     glm::vec3 muzzle{0.f};
     glm::vec3 hand{0.f};
     glm::vec3 dir{0.f};
-    // A flipped spear's thrust (flatplay::thrustPath): its tip's way through the strike, what it meets or its end (muzzle
-    // and hand both at `pathTo`, `dir` the blade's way there).
+    // A melee weapon's blow (flatplay::strikePath: a swing or a thrust, either grip): its tip's way through the strike, what
+    // it meets or its end (muzzle and hand both at its end, `dir` its last step's way).
     bool path{false};
-    glm::vec3 pathFrom{0.f};
-    glm::vec3 pathTo{0.f};
+    int pathCount{0};
+    glm::vec3 pathPts[flatplay::strikePathMost]{};
 };
 
 // One hand's crosshair this frame, in the view's pixels from its top left.
@@ -121,6 +122,9 @@ struct State
     ShotLine shot[HAND_COUNT];
     Aim aim[HAND_COUNT];
     Pellets pellets[HAND_COUNT];
+    int throwHand{-1};          // the hand winding up a throw (noteThrowAim), where it would land, and when that was said
+    glm::vec3 throwAt{0.f};
+    double throwWhen{-1.0};
     glm::vec3 meleeLanded{0.f}; // where the last melee blow on the world struck (noteMeleeMark)
     int meleeMarks{0};          // blows noted, and the ones the probe has reported
     int meleeMarksSeen{0};
@@ -204,10 +208,19 @@ template <typename T>
 {
     if(s.path)
     {
-        // (What the tip meets in the strike is what it strikes; nothing in its reach: where its tip ends, the place on the
-        // view a thing must be for the blow to land on it. Not on along the blade: tilted down, that is the floor ahead.)
-        const auto part = worldtrace::shotLine(s.pathFrom, s.pathTo, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
-        return part && part->gates == 0 ? *part : worldtrace::ShotStop{s.pathTo, s.pathTo, 0};
+        // (What the tip meets in the strike is what it strikes, step by step along its way; nothing in its reach: where its
+        // tip ends, the place on the view a thing must be for the blow to land on it. Not on along the blade: tilted down,
+        // that is the floor ahead.)
+        for(int i = 1; i < s.pathCount; i++)
+        {
+            const auto part = worldtrace::shotLine(s.pathPts[i - 1], s.pathPts[i], MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
+            if(part && part->gates == 0 && glm::distance(part->at, s.pathPts[i]) > 0.01f)
+            {
+                return *part;
+            }
+        }
+        const glm::vec3 end = s.pathPts[za::max(s.pathCount - 1, 0)];
+        return worldtrace::ShotStop{end, end, 0};
     }
     const glm::vec3 src = backPoint(s);
     const glm::vec3 end = src + s.dir * (shotRange + glm::distance(s.muzzle, src));
@@ -230,6 +243,13 @@ template <typename T>
     }
     out = {(c.x / c.w * 0.5f + 0.5f) * st.view.x, (0.5f - c.y / c.w * 0.5f) * st.view.y};
     return true;
+}
+
+// Hand `h` winds up a throw now (noteThrowAim, fresh): its crosshair is on where it would land.
+[[nodiscard]] bool throwing(int h)
+{
+    return h == st.throwHand && st.throwWhen >= 0.0 && vr_gametime - st.throwWhen <= throwFresh && vr_gametime >= st.throwWhen &&
+           vr_flat_xhair_throw_aim.value != 0.f;
 }
 
 // The hand holds a gun its crosshair is for: a weapon, not the fist, not one whose crosshair is forbidden (melee).
@@ -386,19 +406,22 @@ void update(int w, int h)
         const float spreadTo =
             za::min(tune(vr_flat_xhair_kick, 0.f, 10.f) * a.kick + a.melee, tune(vr_flat_xhair_kick_max, 0.f, 64.f)) * px;
         a.spread = kickTau > 0.f ? a.spread + (spreadTo - a.spread) * (1.f - za::exp(-dt / kickTau)) : spreadTo;
-        a.shown = st.shot[k].valid && gunIn(k);
+        // (A melee weapon's too, whatever its own crosshair setting: on where its blow lands, flatplay::strikePath. And a
+        // hand winding up a throw, whatever it holds: on where the throw would land, noteThrowAim.)
+        const bool throws = throwing(k);
+        a.shown = st.shot[k].valid && (gunIn(k) || st.shot[k].path || throws);
         if(!a.shown)
         {
             a.had = false;
             continue;
         }
-        a.blocked = flatsight::wallBlocksFire(k);
+        a.blocked = !throws && flatsight::wallBlocksFire(k);
         // (Or drawn open, its muzzle turned away by its open pose: it can't fire either.)
-        a.reloading = flatreload::busy(k) || flatreload::openShare(k) > 0.f;
+        a.reloading = !throws && (flatreload::busy(k) || flatreload::openShare(k) > 0.f);
         // Dimmed while the wall stops it or it is away reloading, eased both ways (a gun that can't fire now).
         const float dimTo = za::min(a.blocked ? blockedDim : 1.f, a.reloading ? tune(vr_flat_xhair_reload_alpha, 0.f, 1.f) : 1.f);
         a.dim = a.had ? a.dim + (dimTo - a.dim) * (1.f - za::exp(-dt / dimEase)) : dimTo;
-        a.hit = shotHit(st.shot[k]);
+        a.hit = throws ? st.throwAt : shotHit(st.shot[k]);
         if(!project(a.hit, a.raw, st.shotViewProj))
         {
             a.raw = st.centre;
@@ -718,11 +741,17 @@ void probe_f()
         Con_Printf("flatxhair: %s dim %.2f reload %d wall %.2f\n", name, a.dim, a.reloading ? 1 : 0, flatsight::wallShot(k));
         Con_Printf("flatxhair: %s kick %.2f spread %.2f px\n", name, a.kick, a.spread);
         Con_Printf("flatxhair: %s melee kick %.2f px blows %d path %d\n", name, a.melee, a.strikeCount, st.shot[k].path ? 1 : 0);
+        if(throwing(k))
+        {
+            Con_Printf("flatxhair: %s throw aim %.1f %.1f %.1f\n", name, st.throwAt.x, st.throwAt.y, st.throwAt.z);
+        }
         if(st.shot[k].path)
         {
             const ShotLine& s = st.shot[k];
-            Con_Printf("flatxhair: %s path %.1f %.1f %.1f to %.1f %.1f %.1f\n", name, s.pathFrom.x, s.pathFrom.y, s.pathFrom.z,
-                s.pathTo.x, s.pathTo.y, s.pathTo.z);
+            const glm::vec3& p0 = s.pathPts[0];
+            const glm::vec3& p1 = s.pathPts[za::max(s.pathCount - 1, 0)];
+            Con_Printf("flatxhair: %s path %.1f %.1f %.1f to %.1f %.1f %.1f points %d\n", name, p0.x, p0.y, p0.z, p1.x, p1.y, p1.z,
+                s.pathCount);
         }
         // The gun as drawn: where its barrel's line (the weapon's Shot Pitch and Yaw on its drawn angles) goes from its drawn
         // muzzle, against the shot's line as sent (degrees between the two ways; the barrel's hit on the view).
@@ -824,17 +853,24 @@ void noteMove(const VrMove& move)
         s.muzzle = move.muzzlePos[k];
         s.hand = move.hands[k].pos;
         s.dir = hands::forward(move.shotRot[k]);
-        // (A flipped spear strikes along its thrust's way, not its reversed pole's line: the crosshair goes on that.)
-        glm::vec3 from{0.f}, to{0.f}, way{0.f};
-        s.path = vr_flat_xhair_thrust_path.value != 0.f && flatplay::thrustPath(k, from, to, way);
+        // (A melee weapon strikes where its blow takes it, a swing or a thrust in either grip, not along its shot's line
+        // (a flipped spear's pointed back over the shoulder): the crosshair goes on that.)
+        s.path = vr_flat_xhair_thrust_path.value != 0.f && flatplay::strikePath(k, s.pathPts, s.pathCount) && s.pathCount >= 2;
         if(s.path)
         {
-            s.pathFrom = from;
-            s.pathTo = to;
-            s.muzzle = s.hand = to;
-            s.dir = way;
+            const glm::vec3& end = s.pathPts[s.pathCount - 1];
+            const glm::vec3 step = end - s.pathPts[s.pathCount - 2];
+            s.muzzle = s.hand = end;
+            s.dir = glm::length(step) > 1e-3f ? glm::normalize(step) : s.dir;
         }
     }
+}
+
+void noteThrowAim(int hand, const glm::vec3& at)
+{
+    st.throwHand = hand >= 0 && hand < HAND_COUNT ? hand : -1;
+    st.throwAt = at;
+    st.throwWhen = vr_gametime;
 }
 
 void noteMeleeMark(const glm::vec3& at)

@@ -963,6 +963,18 @@ struct LimbEase
     glm::vec3 drawnPos{0.f}; // where the hand was drawn last (its controller's place moved; vr_ragdoll_hand_probe)
 };
 inline LimbEase limbEase[2];
+// flathold3: the hold-arm probe (vr_hold_arm_probe; flatgrabthrow_test.sh): while a hand is drawn on a held limb or a dragged
+// prop (LimbEase::blend > 0), every frame, how far its wrist was past its arm's reach (avatar::embedArmGapCm, last solved) and
+// how far placeController pulled the drawn hand in to keep it on its arm (keepOnArm), at most since the last report.
+struct HoldArmTrack
+{
+    bool on{false};
+    int frames{0};
+    float gapHi{0.f};    // cm
+    int pulled{0};       // frames the hand was pulled in
+    float pulledHi{0.f}; // cm
+};
+inline HoldArmTrack holdArmTrack;
 // A hand holding a blade in a body (vr_view_hands.cpp): each frame before the weapons, whether it holds one and, just off it, the ease
 // (vr_embed_free_ease) the drawn hand and the weapon in it share: turned by `turn` about `pivot`, then moved by `offset`.
 struct EmbedEase

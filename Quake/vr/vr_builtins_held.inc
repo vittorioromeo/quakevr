@@ -1025,6 +1025,18 @@ void PF_meleeshowfoe()
     G_FLOAT(OFS_RETURN) = static_cast<float>(meleeshow::foeDrawnFrames());
 }
 
+// void(entity player, float hand, vector at) flatthrowaim: the flat throw key's aim (QC vr_flatgrenade.qc
+// VR_FlatThrow_Aim, each frame): where the hand's wound-up throw would land let go now (hand -1: none). This listen
+// server's own player only: the visor crosshair goes there (flatxhair::noteThrowAim).
+void PF_flatthrowaim()
+{
+    edict_t* p = G_EDICT(OFS_PARM0);
+    if(sv.active && cls.state == ca_connected && NUM_FOR_EDICT(p) == cl.viewentity)
+    {
+        flatxhair::noteThrowAim(static_cast<int>(G_FLOAT(OFS_PARM1)), geom::vec(G_VECTOR(OFS_PARM2)));
+    }
+}
+
 // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the player asked
 // since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound weapon home at
 // once: vr_magholster_return; another player's as his client sent them: heldpose::magPoll, B3f). vector(entity player,
