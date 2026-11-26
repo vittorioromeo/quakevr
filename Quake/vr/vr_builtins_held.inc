@@ -371,7 +371,11 @@ void PF_weapondrawnpose()
         // (every player's: the reverse grip his view drew it with, from his slot; on the hand of the move the server runs: B11c)
         glm::vec3 shift{0.f};
         const heldpose::Hand* r = heldpose::slotHand(player, hand);
-        const glm::vec3 rot = r ? view::leavingTurn(r->leaveSlot, hand == 0, r->leaveFlip, handRot, shift) : handRot;
+        glm::vec3 rot = r ? view::leavingTurn(r->leaveSlot, hand == 0, r->leaveFlip, handRot, shift) : handRot;
+        if(what == 49 && r && r->placed && r->leaveAnglesKnown && r->leaveFlip > 0.f)
+        {
+            rot = r->leaveAngles;
+        }
         progs::returnVec(what == 49 ? rot : shift);
         return;
     }
@@ -980,6 +984,20 @@ void PF_meleeshow()
     const float* b = G_VECTOR(OFS_PARM3);
     meleeshow::add(static_cast<int>(G_FLOAT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
         geom::vec(a), geom::vec(b), G_FLOAT(OFS_PARM4));
+}
+
+// float(entity weapon, float what, vector a, vector b, float v) meleeshowfoe: Show Melee Arcs' armed humanoid swings
+// (vr_meleeshow.hpp addFoe; QC vr_meleerules.qc VR_MeleeArc_ShowSwings, sent only while vr_enemy_melee_arc_show is on);
+// world records nothing. Returns the frames the view drew any (meleeshow::foeDrawnFrames: the tests).
+void PF_meleeshowfoe()
+{
+    edict_t* w = G_EDICT(OFS_PARM0);
+    if(w != qcvm->edicts)
+    {
+        meleeshow::addFoe(NUM_FOR_EDICT(w), static_cast<int>(G_FLOAT(OFS_PARM1)), geom::vec(G_VECTOR(OFS_PARM2)),
+            geom::vec(G_VECTOR(OFS_PARM3)), G_FLOAT(OFS_PARM4));
+    }
+    G_FLOAT(OFS_RETURN) = static_cast<float>(meleeshow::foeDrawnFrames());
 }
 
 // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the player asked

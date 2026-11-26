@@ -187,6 +187,7 @@ float(entity targ) VR_AD_SetCurrentAmmo;
 float(entity xItem) VR_AD_ArtifactItems;
 .float vr_climb_ladder; // a ladder's volume, climbed by hand (the engine's vr_climb.cpp ladderHold; VR_AD_LadderSpawned)
 void() VR_AD_LadderSpawned;
+void(entity xBlocker) VR_AD_ShaftBlocked; // AD support: AD's plats, doors and trains blocked: lift shafts kept clear (vr_ad_bridge.qc)
 vector(entity e) VR_AD_ViewOfs; // AD's sight (reviewed patches): a crouched VR player's real eyes (ai.qc VR_SightOfs)
 float(entity targ) VR_AD_BurnDebuff;
 float(entity targ, vector colour, float density, float fade) VR_AD_Tint; // AD's v_cshift (vr_ad_player.qc)

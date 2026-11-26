@@ -1531,9 +1531,13 @@ void chooseGrip(const WeaponFrame& wf)
             // (From the holding fist: its place on the pole, the weapon drawn moved along it by vr_flat_pole_along.)
             const glm::vec3 way = glm::normalize(s.muzzle[hand] - held.pos);
             const glm::vec3 fist = held.pos + way * glm::dot(s.pos[hand] - held.pos, way);
-            // (In a spear thrust the other hand stays put, a guide the pole slides through: flatplay::thrustAlong. Carried with
-            // the thrusting hand, its fist struck the target first and the head's stab was lost.)
-            s.grip2H[hand] = fist + way * (za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f) - flatplay::thrustAlong(hand));
+            // (In a spear thrust's draw the other hand stays put, the pole sliding back through it; thrust out, it rides with
+            // the pole, sliding back along it: flatplay::thrustOffSlide.)
+            // (polepose: held reversed, by the flip's share, vr_flat_revgrip_pole_off_along: the flipped Crystal Lance's other hand
+            // at the upright's 8 met its head's housing and stayed open, curl 0.32; at 4, 0.72.)
+            const float offAlong = glm::mix(za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f),
+                za::clamp(vr_flat_revgrip_pole_off_along.value, -40.f, 60.f), za::clamp(drawnFlip(hand), 0.f, 1.f));
+            s.grip2H[hand] = fist + way * (offAlong - flatplay::thrustOffSlide(hand));
             // (Moved off the pole by vr_flat_pole_off_up / _off_out: up, and out to that hand's own side, level across it.)
             if(const glm::vec3 across = glm::cross(way, glm::vec3{0.f, 0.f, 1.f}); glm::length(across) > 1e-3f)
             {
@@ -1675,21 +1679,17 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     }
 
     // Just out of a body into the hand (vr_view_hands.cpp embedEase): eased from where the blade was, as the hand holding it is, by
-    // the same turn about the controller and the same move (his note 2026-11-06: the hand lagged behind the axe).
-    if(glm::vec3 easeOff{0.f}; !floating && own && !carried && model && slot >= 0)
+    // the same turn about the same pivot and the same arm-clamped move (his note 2026-11-06: the hand lagged behind the axe).
+    if(EmbedEase ease; !floating && own && !carried && model && slot >= 0 && embedEase(hand, ease))
     {
-        glm::quat easeTurn{1.f, 0.f, 0.f, 0.f};
-        if(embedEase(hand, easeOff, easeTurn))
-        {
-            const glm::vec3 prePos = held.pos;
-            const glm::mat3 preTurn = anglesBasis(wt);
-            const glm::mat3 turn = glm::mat3_cast(easeTurn);
-            wt = basisAngles(turn * preTurn);
-            held.pos += easeOff;
-            held.rot = basisAngles(turn * anglesBasis(held.rot));
-            drawnAs()[hand] = held;
-            embedEaseWeapon(hand, prePos, preTurn, held.pos, anglesBasis(wt));
-        }
+        const glm::vec3 prePos = held.pos;
+        const glm::mat3 preTurn = anglesBasis(wt);
+        const glm::mat3 turn = glm::mat3_cast(ease.turn);
+        wt = basisAngles(turn * preTurn);
+        held.pos = ease.pivot + ease.offset + turn * (held.pos - ease.pivot);
+        held.rot = basisAngles(turn * anglesBasis(held.rot));
+        drawnAs()[hand] = held;
+        embedEaseWeapon(hand, prePos, preTurn, held.pos, anglesBasis(wt));
     }
 
     // Held reversed: what follows the weapon as drawn (the hand-off's carry by the other hand, a hand holding it anywhere) has the

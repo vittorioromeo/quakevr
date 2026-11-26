@@ -1,7 +1,7 @@
 # Backlog: agreed work for the next rounds
 
 Work the author approved or asked about, not yet done, one or two lines each, with the doc that holds the detail.
-Remove an item when it ships (git history keeps it); keep new ones as short. Last cleanup 2026-11-12 (ROUND25.md).
+Remove an item when it ships (git history keeps it); keep new ones as short. Last cleanup 2026-11-24 (ROUND25.md).
 Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk pack, TAA/DLSS.
 Checked, by design (2026-11-19, tester "Joyeuse"'s two hand-off reports, closed): the old hand "keeps aiming"
 after a hand-to-hand swap is the designed two-handed hand-off (vr_2h_handoff 1: the gun hangs from its foregrip until
@@ -9,6 +9,27 @@ the free hand grips the handle), kept as is by his decision, no hints; a toss to
 mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.2 s vr_box3d_throw_grace).
 
 ## 1. Open bugs and failing tests
+
+Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md sections until then):
+- **Lance pull-out flake**: the test's chance checks moved to flatthrust 59 (ROUND26 "lancepull"); one real loss in 10 flat runs (2026-11-26: the hand empty after a shaft hit on a touching ogre, cause unknown). Lean aim is not wired for Copper, rogue eel/lavaman or AD's own checkattack. Was: `flatlance_test` section 5 fails ~1 run in 6 ("Lance gone after a pull-out"; the H case found
+  no Lance stuck). ROUND25.md "lance4", "flatembed".
+- **VR embed test 24 and test 33 case 46 still fail** (ROUND25.md "embedregress"): 24's mock axe swing is aimed by the old
+  pitch 0 (the axe ships 15.5); 33 case 46: a dead grunt held by the handle doesn't come to the hand (the ragdoll
+  handle-hold motor).
+- **Spears**: a thrown spear sticks in a grunt ~1 in 3 (skids at ~44 deg); armed grunts' spear pose is the sword pose;
+  no spear .blend. ROUND25.md "spear", "spearblunt".
+- **Lance against a wall**: it tilts up and the off hand sits ~10 u off the pole, then lets go. ROUND25.md "lanceoffhand".
+- **Rope slide**: one elbow snap ~10 frames in (elbow IK). ROUND25.md "flatfb1124b".
+- **Dog wedged against a wall**: it can stay standing wedged with the wiggle off. ROUND25.md "wallglue".
+- **Flat: no low or sideways swing, so no flat leg sweeps** (his call 2026-11-24: not now).
+- **Splitscreen**: agent/split (a4e1262d5) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next.
+- **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache is open; LRZ still dead in the opaque entity pass (some alias batch; next: bisect by batch); CPU-bound big fights
+  (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
+- **Baseline failures, 2026-11-26 list**: `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14; agrunt 203 case 12 (knight swords "undrawn"; full run only); agrunt 74 (78 vs 80%); the recoil test has 4 slots off the old defaults; `ragdoll_grab` 18/1 once.
+- **Spear/Lance numbers differ between trees** (quest vs mp, same commit): find what differs in quest's game folder before trusting quest's spear/flatthrust results. The relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` now points to `qvr-kit/relit`); the numbers need one recheck.
+- **menu_paths.txt**: a full regeneration loses the Held Weapon pages (workers add rows by hand).
+- **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
+- **Melee arcs**: armed humanoids' swing trail is drawn on the host view only, not on remote MP clients (ROUND25.md "Show Melee Arcs").
 
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
   (one earlier run of two failed with faulty-frame counts on the blades' stance cases while it timed out under the
@@ -34,8 +55,8 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 - Stale, passing 3 of 3 (2026-11-12, seeded where the runner seeds): agrunt 47/63/66/67/71/72/76/86/209, ragdoll_grab,
   ragdoll_guard, rv_1, judo, nail_1, teleporters_chase, parry_pose, weapon_catch, dead_gear (removed from this list;
   `test_flaky.txt` still names some: take them off after more runs unseeded).
-- **Embedded blades** (`vr_embed` on since 2026-11-08): recheck `vr_embed_test` 7, 13 and 21 (failing 2026-11-06);
-  real heavy monsters, saves, level change and multiplayer unproven (tests 14-20 written).
+- **Embedded blades** (`vr_embed` on since 2026-11-08): real heavy monsters, saves, level change and multiplayer
+  unproven (tests 14-20 written); tests 24 and 33 as above.
 - **Embedded blades, the handle hold** (2026-11-12, ROUND25.md "embedgrip"): his VR check of the handle staying in the
   hand; a stab's own gap along the blade now moves the body to the hand (keep it as slack if that reads wrong); the
   off hand's pose on a handle isn't probed; `vr_embed_test` 7 had 2 more failures in one run with the hold on.

@@ -13,6 +13,8 @@ line is about 48 degrees under the controller's pitch):
                / back to front: it faces you, so away is along its back, towards along its front
   slow         lr over 1.9 s (under 1 m/s)
   hilt         a sword held blade up and back past the vertical, the hand low: its pommel sweeps
+  pole / polehead  a pole weapon (the spear, the Crystal Lance) near level, 0.4 m lower: its shaft across the shins
+               (down) / the hand further back, the spear's head across them (a cut: not swept)
 PASS: down or not as expected; down, its feet slid along the sweep (legsweep fell: ... feet slid > 0) and its head lies
 against the sweep from its feet (toppled the other way); the side sweeps: away falls forward, toward backward (its own
 facing). The logs go to <agent>/scratch/legsweep_<case>.txt.
@@ -63,6 +65,12 @@ HOLD = {
     "shotgun": (W % 154, GUN), "supershotgun": (W % 155, GUN), "grenadel": (W % 158, GUN), "rocketl": (W % 160, GUN),
     "lightning": (W % 161, GUN), "nailgun": (W % 156, GUN), "laser": (W % 162, LASER), "axe": (W % 152, MELEE), "crowbar": (W % 167, MELEE),
     "sword": (W % 163, MELEE), "plank": (P % 114, MELEE), "crate": (P % 107, MELEE), "brick": (P % 115, MELEE),
+    # Pole weapons (spearblunt: the shaft sweeps, the head cuts): the spear (the knight's sword of kind 13, flags 3328) and
+    # Dwell's Crystal Lance (vr_ad_test 207: alone in the main hand). Their pole lies 22 degrees over the controller's
+    # pitch (dwell_lance_test's -22 lays it level): POLE tilts it 8 degrees up, so the lowest point that meets the shins
+    # is nearest the hand.
+    "spear": ("vr_test_give_wid 13;vr_test_give_flags 3328;impulse 149;wait10", -14),
+    "lance": ("vr_ad_test 207;wait10", -14),
 }
 # Metres lower and further forward the hand sweeps (else at the grunt's origin's height, 0.35 m short of it: where a held
 # line pointing forward and down reaches its shins): a crate or a brick in the hand reaches nothing beyond it, so it
@@ -84,6 +92,9 @@ CASES = [
     ("crate_lr", "crate", "lr", False), ("brick_lr", "brick", "lr", False),
     # (a gun held still, walked into its legs; pushed slowly into them: no sweep)
     ("shotgun_walk", "shotgun", "walk", False), ("shotgun_brush", "shotgun", "brush", False),
+    # (pole weapons swept low and level across the shins: by the shaft, down; by the spear's head, a cut)
+    ("spear_shaft", "spear", "pole", True), ("spear_head", "spear", "polehead", False),
+    ("lance_shaft", "lance", "pole", True),
 ]
 SPAWN_DIST = {"walk": 48}  # units (36: GRUNT's place); walk: 12 further, walked up to
 
@@ -111,6 +122,13 @@ def sweep(kind, pitch, shift=(0.0, 0.0)):
         # into them (0.45 m in 0.6 s: 0.75 m/s)
         a, b, turn = (-0.17, 0.0, 0.75 if kind == "brush" else 0.35), (-0.17, 0.0, 0.3 if kind == "brush" else 0.35), (pitch, 0)
         dur = 0.6
+    elif kind in ("pole", "polehead"):
+        # a pole weapon (its line about 0.9 m) swept left to right 0.4 m lower than lr, near level: pole, the hand 0.35 m
+        # short of the grunt's origin (its shaft across the shins, its head past them); polehead, 0.55 m further back
+        # (its head across them)
+        back = 0.35 if kind == "pole" else 0.9
+        a, b, turn = (-0.75, -0.4, back), (0.75, -0.4, back), (pitch, 0)
+        dur = 0.25
     elif kind in ("away", "toward"):
         z0, z1 = (0.75, -0.75) if kind == "away" else (-0.75, 0.75)
         a, b, turn = (0.45, 0.0, z0), (0.45, 0.0, z1), (pitch, 90)

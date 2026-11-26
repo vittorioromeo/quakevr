@@ -20,6 +20,7 @@
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_seat.hpp"
@@ -71,7 +72,7 @@ struct ReloadState
     Trip trip[2];
     OpenPose openPose[2];
     bool keyDown{false};   // R, last frame
-    bool ammoDown{false};  // B (vr_flat_key_ammo), last frame
+    bool ammoDown{false};  // N (vr_flat_key_ammo), last frame
     int presses{0};
     double lastTime{-1e9};
 };
@@ -182,8 +183,7 @@ void frame(bool on)
     openFrame(static_cast<float>(dt));
 
     // R: the game reloads every hand whose gun can take rounds (QC VR_FlatReload_Key).
-    const int k = vr_flat_key_reload.string[0] ? Key_StringToKeynum(vr_flat_key_reload.string) : -1;
-    const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
+    const bool down = key_dest == key_game && flatplay::keyHeld(vr_flat_key_reload);
     if(down && !rs().keyDown)
     {
         rs().presses++;
@@ -195,10 +195,9 @@ void frame(bool on)
     }
     rs().keyDown = down;
 
-    // B: the main hand's weapon to its other ammo (impulse 43: the headset's weapon button, QC VR_Impulse_WeaponButton;
-    // a weapon without one: nothing). Not with the toolgun in hand: B is its adjust key there (vr_flat_key_toolgun_adjust).
-    const int ka = vr_flat_key_ammo.string[0] ? Key_StringToKeynum(vr_flat_key_ammo.string) : -1;
-    const bool ammoDown = key_dest == key_game && ka > 0 && ka < MAX_KEYS && Key_Seat()->down[ka] != 0;
+    // N: the main hand's weapon to its other ammo (impulse 43: the headset's weapon button, QC VR_Impulse_WeaponButton;
+    // a weapon without one: nothing). Not with the toolgun in hand: N is its adjust key there (vr_flat_key_toolgun_adjust).
+    const bool ammoDown = key_dest == key_game && flatplay::keyHeld(vr_flat_key_ammo);
     if(ammoDown && !rs().ammoDown && toolgun::heldHand() != HAND_MAIN)
     {
         Cbuf_InsertText("impulse 43\n");

@@ -201,6 +201,7 @@ void() ad_func_plat_disable =
 //----------------------------------------------------------------------
 void() ad_func_plat_blocked =
 {
+	VR_AD_ShaftBlocked(other);
 	ad_T_Damage (other, self, self, 1, ad_DAMARMOR);
 	
 	if (self.state == ad_STATE_UP) ad_func_plat_go_down ();

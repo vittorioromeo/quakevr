@@ -1,0 +1,12 @@
+# nav_shaft: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". e1m1's first lift (the thin plat at
+# 792 512 that goes 400 units down to the room below; vr_shaft, NAVMESH.md 24): you stand beside it below, a grunt
+# behind you (an armed one with armed replacements on). Ride the lift up: the grunt after you waits beside the shaft (never under the raised lift),
+# boards once the lift is down and rides up after you; ride it down with a grunt below: no bounce. The shaft's floor is
+# drawn pink while the lift is up (vr_nav_debug 2).
+title Lift shafts: monsters keep out from under a raised lift
+map e1m1
+start 900 512 -312 180
+god
+spawn "Grunt" -30 0
+cvar vr_nav_debug 2
+hint Ride the lift up and down: the grunt waits beside the shaft while the lift is up (its floor pink), never under it, then rides it; the lift never bounces back.

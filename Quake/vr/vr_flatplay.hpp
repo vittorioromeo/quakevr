@@ -98,10 +98,24 @@ struct FireRoute
 // Whether this hand holds a melee weapon (the axe, mjolnir, a sword, the chainsaw, the crowbar, the super axe; AD's melee
 // weapons are these ids too): at a wall it only goes back, never turns muzzle up (vr_flatsight.cpp).
 [[nodiscard]] bool meleeIn(int h);
+// Whether hand `h` holds a pole gun (the Crystal Lance) whose right mouse button parries as the spear's (vr_flat_pole_rmb_parry):
+// no ironsight then (vr_flatsight.cpp adsApplies).
+[[nodiscard]] bool poleParries(int h);
+// Whether hand `h` is in a pole weapon's thrust (V; vr_flat_thrust), and `rot` turned by the thrust's own tip turn at this
+// moment (vr_flat_thrust_wind_pitch .. _yaw, about the fist): flatsight aims the pole's line at the crosshair's point through
+// the thrust too, then turns it so (polepose).
+[[nodiscard]] bool poleThrusts(int h);
+[[nodiscard]] glm::vec3 poleThrustTurn(int h, const glm::vec3& rot);
 
 // meleeIn less the chainsaw: a melee weapon swung by a handle (the axe, mjolnir, a sword, the crowbar, the super axe, AD's
 // blades): its two-handed grip is the lowest on that handle (vr_view_weapon.cpp's chooseGrip).
 [[nodiscard]] bool swungMelee(int h);
+
+// Whether hand `h` holds a one-handed-only melee weapon (e.g. the dagger) that must stay 1H in flatscreen even when empty off hand.
+[[nodiscard]] bool oneHandOnly(int h);
+
+// Whether hand `h` currently holds a weapon in flipped (reverse) grip (flip share >= 0.5).
+[[nodiscard]] bool flippedGrip(int h);
 
 // The parry's guard (vr_flat_parry_*: the right mouse button held with one melee weapon, meleeIn): its share for hand
 // `h` (0 at rest .. 1 in the guard), eased in and out over vr_flat_parry_in_time / _out_time.
@@ -117,8 +131,17 @@ struct FireRoute
 // width, the crowbar's hotspot; a long sword's hotspot is brought in to it); 0 no limit.
 [[nodiscard]] float bladeReach();
 // How far hand `h`'s spear thrust (vr_flat_thrust) has moved it along its pole now (units; negative drawn back), 0 outside
-// one. The other hand on the pole stays where it was, the pole sliding through it (vr_view_weapon.cpp chooseGrip).
-[[nodiscard]] float thrustAlong(int h);// The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
+// one.
+[[nodiscard]] float thrustAlong(int h);
+// How far out it is now, 0 (the pose, or drawn back) .. 1 (vr_flat_thrust_reach): the arms' IK stretch eases in by it
+// (vr_flat_thrust_arm_stretch, vr_avatar.cpp armStretchNow).
+[[nodiscard]] float thrustOutShare(int h);
+// How far the other hand on the pole is moved back along it from its place by hand `h`'s thrust now (units; negative
+// forward): drawn back, by the whole draw (it stays put, the pole sliding back through it); thrust out, by
+// vr_flat_thrust_off_slide times thrustOutShare (it rides with the pole, sliding back along it). Any pole weapon held as a
+// spear (vr_view_weapon.cpp chooseGrip).
+[[nodiscard]] float thrustOffSlide(int h);
+// The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
 // over its grip's pin and before vr_twohand takes the hold).
 void bladePin(hands::State& s);
 
@@ -150,11 +173,16 @@ void seatFrame();
 // vr_hands.cpp's flat branch lowers his head and his height with it, view.c's VR_FlatViewDrop the drawn view. 0 standing,
 // and 0 outside the mode (a headset player crouches with his own tracked head).
 [[nodiscard]] float crouchRatio();
-// Whether the crouch key (Left Ctrl, +flatcrouch) is held now: the move's word for the server (protocol::moveFlatCrouchBit),
-// which keeps his box crouched under a low ceiling after it is let go (vr_hull.cpp updateCrouch). False outside the mode.
+// Whether the crouch key (Left Ctrl, +flatcrouch) is held now (not prone, and not while crouch only swims down under
+// water): the move's word for the server (protocol::moveFlatCrouchBit), which also gates sliding. False outside the mode.
 [[nodiscard]] bool crouchHeld();
 // vr_seat_test: the current seat's +flatcrouch held (the command alone, in or out of the mode).
 [[nodiscard]] bool crouchCommand();
+// Whether the prone toggle (vr_flat_key_prone, vr_prone_toggle) is active now (protocol::moveFlatProneBit). Separate from
+// crouchHeld so lying down at speed never starts a slide. False outside the mode or under water.
+[[nodiscard]] bool proneHeld();
+// The crouch keys held in water, flat play and vr_flat_crouch_swim on: 1 (they swim down only, CL_BaseMove); else 0.
+[[nodiscard]] float crouchSwim();
 // vr_flat_crouch_trace's sample, once a frame from VR_FlatViewDrop with the drawn eye's height (world z).
 void traceCrouch(float eyeZ);
 
@@ -196,12 +224,6 @@ void traceBody(bool on);
 // vr_api.h). Outside the mode the angle comes back as it was, so plain play and a headset are bounded only by
 // cl_maxpitch / cl_minpitch, as they were.
 [[nodiscard]] float pitchClamp(float pitch);
-
-// Quake/host.c's Host_WriteConfigurationToFile, just before it writes the key bindings (VR_FlatKeysForConfigWrite,
-// vr_api.h): the config on disk is the plain game's, so while flatscreen play holds Ctrl (+flatcrouch, the crouch key
-// that must not fire: vr_flat_crouch_fire) the bind is given back for the write and taken up again on the mode's next
-// frame. Nothing to give back when the mode is not holding it.
-void keysForConfigWrite();
 
 // vr_hands.cpp's flat-screen branch: where each hand goes and how it is turned, in world space: the hands placed in the
 // body's frame off the shoulders the arms hang from (handOnBody, vr_flat_body_pose; 0: the view's frame held to vr_flat_pose_pitch), each hand's punch a swing of that arm about its shoulder (punchSwing). The
@@ -327,6 +349,14 @@ void flickTestFrame();
 // Controls' "Quake VR (flat screen)" group (menu.c, through VR_FlatKeyGet/Set: rebinding, conflicts) read this one list
 // (vr_flatmove.cpp).
 [[nodiscard]] za::Span<cvar_t* const> keyCvars();
+// Each key cvar holds up to keySlots keys ("c CTRL": bind names, a space between; his words 2026-11-25, two bindings per
+// action). One way to read and set them, for every action: keyNum (slot's key, -1 none), keyIs (one of its keys), keyHeld
+// (one of them down now), setKey (a slot set, or cleared with key <= 0: the slots stay packed, a key in one slot only).
+constexpr int keySlots = 2; // (VR_FLATKEY_SLOTS, vr_api.h)
+[[nodiscard]] int keyNum(const cvar_t& c, int slot);
+[[nodiscard]] bool keyIs(const cvar_t& c, int key);
+[[nodiscard]] bool keyHeld(const cvar_t& c);
+void setKey(cvar_t& c, int slot, int key);
 // Whether key cvar `c` is read now: the holsters' number keys (vr_flat_key_cycle_*, _holster_*, _drop_left/_right) only
 // with vr_flat_holsters on (off, the number keys pick weapons as before).
 [[nodiscard]] bool keyActive(const cvar_t& c);

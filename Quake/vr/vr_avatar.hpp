@@ -198,6 +198,20 @@ struct ForearmFrame
 // vr_embed_arm_stretch_ease); how far (cm) the drawn wrist is past that, as last solved (0: within it, or no blade). QC lets go past
 // vr_embed_arm_letgo (.vr_embed_armgap).
 [[nodiscard]] float embedArmGapCm(int hand);
+// The same signed (embedhold2): cm the drawn wrist is past the most its arm reaches now (the stretch it may take, the shoulder's
+// reach), negative while within it (the reach it has left). QC flat play's VR_Embed_FlatGap (.vr_embed_armpast).
+[[nodiscard]] float embedArmPastCm(int hand);
+// What embedArmPastCm was measured against: the blade `hand` was on as that frame drew it, and the eye (world).
+void embedArmPastFrom(int hand, glm::vec3& seen, glm::vec3& eye);
+// Flat play (embedhold2/embedholdfix): the shoulder of `hand` now (its last solve's place from the eye in player-yaw-local axes,
+// rotated to current yaw at `eye`) and the most the wrist may be from it on the arm (units); false: not solved yet.
+[[nodiscard]] bool embedReachNow(int hand, const glm::vec3& eye, glm::vec3& shoulder, float& most);
+// The stretch the arm of `hand` took to reach its drawn wrist, as last solved: 1 none, up to vr_body_arm_stretch (or the
+// blade's, or a flat spear thrust's vr_flat_thrust_arm_stretch).
+[[nodiscard]] float armStretched(int hand);
+// (climbfix) How far (world units) the drawn hand's wrist is from the end of its drawn arm, as last solved for your own body:
+// 0 while the arm reaches it; past all of the arm's reach (stretch, shoulder, soft reach) the hand shows off the wrist.
+[[nodiscard]] float armWristGap(int hand);
 
 // A body build's proportions (vr_body_build: 0 lean, 1 athletic, 2 brawny, 3 feminine; make_vrbody.py's BUILDS), for
 // what is fitted to the body: the factors are 1 for the athletic build, and multiply the engine's athletic numbers.

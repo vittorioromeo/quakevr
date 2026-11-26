@@ -415,7 +415,9 @@ QVR_TOGGLE(vr_enemy_melee_arc, "Melee Arc",
 QVR_TOGGLE(vr_enemy_melee_arc_show, "Show Melee Arcs",
     "Debug: each melee monster after you (within 600 units) draws on the floor its arc and reach as they "
     "are now (a fan; its sweeping blows' wider fan once it has swung one), red with you inside it (its blow "
-    "would land), orange inside only a sweeping blow's, green outside. Its kind, arc and reach above it.")
+    "would land), orange inside only a sweeping blow's, green outside. Its kind, arc and reach above it. An armed "
+    "one's swinging blade also leaves its swept trail, as Show Melee Blades draws yours (yellow in its swing, red "
+    "when it lands).")
 QVR_TOGGLE(vr_enemy_aim_show, "Show Aim Cones",
     "Debug: each ranged monster after you (within 1000 units) draws its aim cone ahead of it, red with you "
     "inside (its shot comes straight at you), green outside, and its fire cone past it, orange with you "
@@ -6397,6 +6399,10 @@ QVR_TOGGLE(vr_stereo_single, "Single-Pass Stereo (Experimental)",
     "vr_stereo_single: the opaque world, brush models and the models away from the eyes drawn once for both "
     "eyes (GL_OVR_multiview2) instead of once per eye; the rest is still drawn per eye. Less CPU per frame, "
     "the same images (docs/vr-port/STEREO.md). Off with MSAA, or when the driver lacks multiview.")
+QVR_TOGGLE(vr_cache_shipped, "Read the Shipped Cache",
+    "On: the derived data shipped for Quake VR's own maps (the hub's collision trees and light grid, made at "
+    "release time: quakevr/cache_shipped) is read where your own cache has no file. Off: made as if it weren't "
+    "there (to time a first load; vr_cache_shipped).")
 QVR_TOGGLE(vr_cache_warmup, "Cache Warm-up",
     "On: the derived-data cache is filled in the background (every installed game's models' occlusion bakes) on "
     "one low-priority worker, paused while a map loads or a frame runs late; it carries on next session where "
@@ -6560,9 +6566,12 @@ QVR_TOGGLE(vr_xr_skip_incompatible_layers, "Skip Incompatible API Layers",
     "vr_xr_skip_incompatible_layers, from the next VR start: the implicit OpenXR API layers known not to "
     "work with this OpenGL game (OBS's OpenXR mirror: Direct3D only) are turned off by their own switch, "
     "each said in the console and qvr_openxr.txt. Off: allowed.")
-QVR_TOGGLE(vr_flat_crouch_fire, "Left Ctrl Also Fires",
-    "Playing on the desktop screen (-flatscreenmode), Left Ctrl crouches. Off: that is all it does. On: it keeps its own "
-    "bind too, so it fires as it crouches (vr_flat_crouch_fire).")
+QVR_TOGGLE(vr_flat_crouch_fire, "Crouch Keys Keep Binds",
+    "Playing on the desktop screen (-flatscreenmode), the crouch keys (C and Left Ctrl: Options > Controls) crouch. Off: "
+    "that is all they do. On: they keep their own binds too, so Left Ctrl fires as it crouches (vr_flat_crouch_fire).")
+QVR_TOGGLE(vr_flat_crouch_swim, "Crouch Keys Swim Down",
+    "Playing on the desktop screen (-flatscreenmode), in water: on, the crouch keys (C and Left Ctrl) also swim down, as "
+    "C did before it crouched; off, they only crouch (vr_flat_crouch_swim).")
 QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
     "Playing on the desktop screen (-flatscreenmode) with one weapon held, in either hand, and the other hand empty: the "
     "left mouse button fires it and the right one aims down its sights. Hold: aimed while the button is held. Toggle: a "
@@ -6576,6 +6585,13 @@ QVR_CYCLE(vr_flat_aim_zoom, "Right Click Aim",
     "crosshair stays. Per Weapon: each gun's own (Weapon Offsets > Sights, Flat-Screen Aim: zoom for the guns with no "
     "sights to look down: the nailguns, the grenade, rocket and proximity launchers, the laser cannon) (vr_flat_aim_zoom).",
     {-1.f, "Per Weapon"}, {0.f, "Ironsight"}, {1.f, "Zoom"})
+QVR_SLIDER(vr_flat_zoom_centre, "Zoom Aim Gun To Centre", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "Playing on the desktop screen, aiming by zoom (a gun with no sights to look down): the gun comes this share of the way "
+    "sideways to the middle of the screen as the view narrows (0: it stays in its pose; 1: under the crosshair). The shots "
+    "still go through the crosshair. Its height, distance and time: Tunables, Zoom Aim Gun Up / Forward / Time (vr_flat_zoom_centre).")
+QVR_SLIDER(vr_flat_zoom_visor, "Zoom Aim Visor Look", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "Playing on the desktop screen, aiming by zoom: the helmet visor's zoom look over the view (the lens edge tinted and "
+    "lined, a thin frame round the middle, a shimmer as it engages). 0: off (vr_flat_zoom_visor).")
 QVR_SLIDER(vr_flat_aim_sens,"Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
     "Playing on the desktop screen: the mouse's, gyro's and stick's look speed while aiming down the sights, times this, "
     "on top of the slowing the narrower view brings (Aim Sensitivity Match). It comes in with the sights (vr_flat_aim_sens).")
@@ -6867,6 +6883,11 @@ QVR_SLIDER(vr_flat_visor_glass_desat, "Glass Colour Drained", 0.f, 1.f, 0.05f, "
 QVR_TOGGLE(vr_flat_grab_preview, "Force Grab Preview",
     "Playing on the desktop screen: what the grab key (mouse 4) would take now glows with the force grab's outline, as "
     "an open hand's aim shows it in the headset. Off: no glow until it flies (vr_flat_grab_preview).")
+QVR_CYCLE(vr_flat_grab_hold, "Grab / Pull Key",
+    "Playing on the desktop screen (-flatscreenmode): how the Grab / Pull key (H by default) grabs and carries physics "
+    "props, crates, ragdolls and gibs with your available empty hands. Toggle: press to grab, press again to release. "
+    "Hold: hold the key to grab and carry, let go to release (vr_flat_grab_hold).",
+    {0.f, "Toggle"}, {1.f, "Hold"})
 QVR_TOGGLE(vr_flat_shove, "Shove Key (Mouse 5)",
     "Playing on the desktop screen (-flatscreenmode): the shove key (mouse 5, vr_flat_key_shove) pushes an open hand out in "
     "front of you, the headset's one-hand shove: what it reaches is thrown back and staggered. Off: the key does nothing "
@@ -7370,6 +7391,12 @@ QVR_CYCLE(vr_hull_async, "New Monster Sizes in Play",
     "no hitch; In the Frame compiles it at its first move, the game waiting (ad_tears: 1.3-1.9 s) "
     "(vr_hull_async; developer 1 prints the switch).",
     {0.f, "In the Frame"}, {1.f, "On the Pool"})
+QVR_CYCLE(vr_hull_defer, "Crouch and Monster Hitboxes",
+    "After the Load: a map load waits only for the standing player's compiled hull; the crouched, lying "
+    "and monsters' are made after it on the pool (a monster moves with Quake's hull until its own is "
+    "ready; a crouch right after a cold load waits for its own at its first move). With the Load: all "
+    "waited for by the load (vr_hull_defer; developer 1 prints when each is ready).",
+    {0.f, "With the Load"}, {1.f, "After the Load"})
 QVR_TOGGLE_BYNAME(vr_portals_debug_split, "Print Gate Cuts",
     "vr_portals_debug_split 1: each frame, every entity drawn cut by a teleporter (where, the plane, how far "
     "through), the force grab's beam end, and each thrown or rigid thing's middle and why a gate did not "

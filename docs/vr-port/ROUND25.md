@@ -12545,6 +12545,28 @@ His flatscreen feedback 2026-11-24 (two items), and the coordinator's: his tunab
   installer self-tests 60/60; check_apk 28/0; smoke launch; published as a prerelease with QuakeVR.zip,
   QuakeVR-Setup.exe, QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed; Latest still v1.1.0.
 
+## flipgrip: FLIP GRIP on the weapon wheel; flat B flips a grip with no other ammo (agent/flipgrip, 2026-11-24)
+
+His ask 2026-11-24. Follows "flatwheel", "wheelpolish", "revgrip", "dwellweap".
+- **Wheel (both modes, one path):** a third action, FLIP GRIP (`keyFlip` -4; QC `VR_WHEEL_FLIP`: `VR_Wheel_Pick` runs
+  `VR_RevGrip_Flip`, the eject button's and the MMB menu's flip, with its sound, pulse, two-hand gate and MP per-slot
+  checks), at the bottom between DROP and UNLOAD: ten slots 36 degrees apart, the ring 106 -> 109 (EMPTY HAND clears the
+  shoulders' slots by 2 pixels). Lit by `flatholster::canFlip` (the MMB menu's FLIP GRIP test: `view::heldGripFlippable`,
+  not foregrip-carried), greyed for guns. New `MenuIcon::FlipGrip` (two blades, one point up and one down, an arc over
+  them), also on the MMB menu's FLIP GRIP button. Footer "Let go: flip its grip". The headset's B hold that opens the wheel
+  never flips (holsterammo's held-back bit; checked).
+- **Flat B** (`VR_Impulse_WeaponButton`, flat play only): a weapon without other ammo (`VR_HasOtherAmmo`: the old
+  ToggleSecondaryAmmo early returns, no secondary, AD's plasma gun, the Lance) flips its grip instead; weapons with other
+  ammo cycle as before; neither: nothing. The Lance (no other ammo since flatmelee2) flips on B.
+- **Flat pose flipped:** a reversed weapon pointed back and down out of the flat hand, off the screen. A drawn-only turn
+  about the fist (vr_flatplay.cpp `revGripDrawnTurn`, by the flip's drawn share): `vr_flat_revgrip_pitch` 90 (blades),
+  `vr_flat_revgrip_pole_pitch` 165 (the Lance: head forward, 10.7 degrees down); Tunables > Flatscreen, "Flipped Blade
+  Pitch" / "Flipped Spear Pitch". `view::heldShotAngles` keeps a flat Lance's beam to the crosshair (no flip turn in flat
+  play; the headset's unchanged: the shot from the head the way it points).
+- **Tests:** weaponwheel_test VR 25/0 (ten slots; FLIP GRIP greyed for the shotgun, lit for the dagger; the hold flips
+  nothing; let go: reversed), flat 21/0 (the same by the mouse, a screenshot of it lit); flat_ammo_key_test 7/0 (rocket
+  launcher cycles; the dagger's B reversed then upright; the shotgun's nothing); flatlance_test 19/1 (B flips the Lance
+  and back; the failing check is the HUD one after impulse 1 / 8, not looked into: it may predate this branch).
 ## sighthue: the front sight post in its own hue (agent/sighthue, 2026-11-24)
 
 His ask: on the guns with coloured iron sights (two rear notches, one front post) the front post a different hue
@@ -12610,3 +12632,261 @@ the saved config keeps it, Right-handed clears it. Installer manifest (help text
 - Tests: seat_render_test.sh 255/0, seat_play_test.sh 63/0, vr_seat_test 70/0, split_join_test.sh 113/0 (all as
   split13), flat smoke on e1m1 clean, mp_coop 12/0, checklist_tests_check 90/0, checklist_fold_check 33/0,
   scenario_check 179/181 (the 2 Quoth kellbase scenes: the kit base has no kellbase1.bsp; not the merge's).
+## flatembed: flat blades stick again, the hand stays on the grip, fire pulls it out (agent/flatembed, 2026-11-24)
+
+His decision (2026-11-24): bring back flatscreen embedding; attack with a blade stuck and the hand on it retracts the hand
+to try to pull it out.
+- **lance4's blanket "no embedding in flat play" removed** (QC VR_Embed_Try). What lost the Lance then: the hold let flat
+  play's hand go at once ("out of the arm's reach": flat play's posed arm is no measure). Now in flat play nothing lets go
+  of a stuck blade but H or another weapon put in the hand: no arm-gap let-go, no grip-open let-go (VR_Embed_HandOpen),
+  a too-slow corpse pull or too-gentle axe tug keeps the hand on it for another press.
+- **The hold's hand in flat play** (`VR_Embed_HandPos`, vr_embedhold.qc): not the posed controller but a headset hand held
+  still: the handle's place as it took hold (the other hand's own place), carried by his walking (`p.origin`). Everything
+  else is VR's hold (VR_Embed_HoldThink): the slide's stick / rate / depth, the axe's tug and its speed, a dead body's tug,
+  a body moving off past `vr_embed_hold_reach` (the blade then comes back into the hand), the drag of a light standing
+  body as he walks. The engine already draws the hand on the blade (embedDrawnHand).
+- **The pull** (`VR_Embed_FlatPull`): a fresh press of a fire button of a hand on it (a button still held from the blow
+  is no press) moves the hold's hand back along the blade `vr_flat_embed_pull` 12 units over `vr_flat_embed_pull_time`
+  0.2 s, holds it `vr_flat_embed_pull_hold` 0.25 s (the blade following by its rules), then back onto the grip where the
+  blade has come to (the hand's place moved out by what slid, so coming back pushes nothing in). Out: the hand has it
+  back (VR_Embed_Free, the record's Lance variant kept). Not out: still held, press again. Tunables > Flatscreen, after
+  Thrust Recover Time ("Stuck Blade Pull", "... Pull Time", "... Pull Hold"). `vr_debug_axestick 1` prints
+  "embedhold: flat pull N on <blade>, X units in".
+- **Other keys:** the engine starts no punch (V or fire) with a hand on a stuck blade (vr_flatplay.cpp startPunch; the
+  fire button is the game's pull). H (`VR_Forcegrab_FlatDropHand`, off hand first as ever): lets go, the blade stays in
+  the body (taken again with a grab or the force grab). Switching weapons / the wheel / the holster keys: as VR, the new
+  weapon in the hand lets go of the blade (VR_Embed_HandFrame), which stays in the body; the owned variant
+  (variantowned) means the Lance's key gives the Lance.
+- **What sticks in flat play by default:** the Lance's thrust (its tip's stab) reliably; axes now and then (the flat
+  overhead swing drives the axe head first along its handle at contact, "along the handle 0.97 (most 0.80)" in
+  vr_embed_test 52's runs: embeddual's swings stick 1 or 2 times in 3 runs, not 16/0 as on 11-22: the flat swing's poses
+  since, not this change); swords and daggers never: flat play has no stab with them (the overhead swing is a slash, a
+  pointed blade sticks only by a stab; `vr_flat_swing 0`'s straight punch reads "no stab", the blade 60-70 degrees off
+  the thrust). Open: a sword thrust like the Lance's (`vr_flat_thrust` for swords) if he wants flat swords to stick.
+- **Tests:** flatlance_test.sh section 5 reworked: ten thrusts into two ogres, two fire presses after each: 23 passed, 0
+  failed (3 stuck, 3 pulls, back in the hand each time: 1 pulled out by a press, 2 by the staggering ogre going past
+  the hold's reach; the hand never let go; still the Lance after a press of 8; no magazine). New: H with the Lance stuck
+  (its stagger off, the reach long) lets go, it stays in. The first thrust's: 2 pulls, out ("pulled out: slid"). VR
+  embed tests 33 (embedgrip) 11/4 and 24 (embedfeel) 16/3: the same 11/4 on origin/next's QC (checked): not this change
+  (VR paths are unchanged: every change is behind VR_FlatPlay). New scene `flat_embed_axe`.
+
+## lanceoffhand: the flat spear's other hand on the pole every frame; its slide and the arms' stretch in a thrust (agent/lanceoffhand, 2026-11-24)
+
+His flat feedback 2026-11-24 (the Lance's off hand lags and leaves the pole as he moves; detaches in the thrust). Any pole
+weapon (twohand::poleWeapon): a spear will share it.
+- **Measured** (new `vr_flat_pole_track [1|2|0|report]`, Debug-free console probe in vr_flatplay.cpp: the drawn other hand
+  against the drawn pole each frame: off its line, along it from the fist, its place with the thrust's slide put back, the
+  other arm's stretch). Before (old defaults): standing off 2.6-2.7; walking off 1.8-4.2; strafing 0.8-9.9 and along
+  -9.2..6.6 (behind the fist); turning 2.6-10.3; the thrust off up to 25, along to 35.
+- **Causes**: (1) the view's per-hand drawn offsets (flatplay::drawnOffset's sway, bob, turn lag; a kick, a knock) moved
+  the pinned hand by its own, not the pole's: vr_view.cpp now moves a hand pinned on a flat pole with the holding hand's
+  offsets (one rigid piece, folded into shakePos/shakeAngles so the restore is unchanged). (2) flatsight's pin used last
+  frame's grip carried by translation: vr_view_hands.cpp setupHand puts the pinned hand on this frame's grip (chooseGrip,
+  placed just before). (3) In the strike the grip came near the fist and flatsight's "grip ahead" test (vr_2h_angle_threshold)
+  dropped the pin: a pole grip is exempt (`poleGrip`).
+- **Thrust**: drawn back, the other hand stays put (as before); thrust out it rides with the pole, sliding back along it by
+  `vr_flat_thrust_off_slide` 8 at the full reach (flatplay::thrustOffSlide; 16 = the old "stays put"); the arms' IK stretch
+  eases to `vr_flat_thrust_arm_stretch` 1.3 by the thrust's out share (vr_avatar.cpp armStretchNow, beside the blade's).
+  Tunables > Spear thrust rows "Thrust Other Hand Slide", "Thrust Arm Stretch". New `avatar::armStretched`.
+- **Defaults**: his tunables.cfg promoted (`tune_promote.py --check`: nothing left): `vr_flat_pole_off_pitch` -60, and his
+  newer `_off_along` 12, `_off_up` 5.
+- **After** (flatlance_test section 7, from e1m1's start, clear of walls): standing off 2.30 / along 9.14; forward and back
+  2.30 / 9.13-9.14; strafe 2.10-2.41 / 8.96-9.15; turn 2.21-2.37 / 8.12-9.14; walk+turn 2.02-2.58 / 7.70-9.45; thrust
+  1.70-2.31 / place 8.39-9.51 (along 24.7 drawn back, 1.5 out), the other arm at x1.30. Not covered: at a wall the Lance
+  tilts up (flatsight's wall tilt) and the hand still sits ~10 off the tilted pole, and the wall state lets go of it.
+- **flatlance_test's HUD check** (failing on next): with the flat holsters on (the default since 2026-11-10) `impulse 1` /
+  `8` draw nothing (VR_FlatHolster_Impulses), and vr_ad_test 207's give never set the hand's `.currentammo`: ammo type 0,
+  nothing shown. It passed only when something else (a pickup) ran updateAmmoCounters. The give (dw_test.qc 206-207) now
+  calls W_SetCurrentAmmoFor, as a draw does. flatlance_test 27/0.
+## flatads: the zoom aim brings the gun to the middle, and a visor zoom look (branch agent/flatads, 2026-11-24)
+
+His ask: for the guns with no sights (weapons.txt `fsight_mode` 1, or `vr_flat_aim_zoom 1`) the right button's zoom also moves
+the gun towards the middle of the screen, and a subtle visor effect while zoomed. Guns with sights are unchanged.
+- **The move** (vr_flatsight.cpp `zoomCentre`, called from `centreOnSight` where a zoom gun used to return): the holding hand,
+  in the view's frame from the crosshair ray's origin, goes `vr_flat_zoom_centre` (0.5) of its sideways offset to the middle,
+  `vr_flat_zoom_up` (tunable, 2 units) up and `vr_flat_zoom_fwd` (tunable, 0) out, over `st.zoomT` smoothstepped; `st.zoomT`
+  runs over `vr_flat_zoom_time` (tunable, -1 = `vr_flat_aim_time`, the zoom's own travel). A pinned free hand and its grip go
+  with it. It is a pose move (the game's hand too), so `aimAtPoint` turns the gun from the moved muzzle at the crosshair point:
+  the shot is unchanged, the drawn gun follows through `flatplay::drawnOffset`. `poseShare` stays 0 for zoom guns (the walk bob,
+  keepNear, recoil as before).
+- **The visor look** (`vr_flat_zoom_visor`, 0.5; 0 off): in the flat look's one pass (vr_flatlook.cpp, uniform `Visor`), eased
+  in with the zoom's travel (`flatsight::zoomVisor`): a red/blue fringe at the lens edge (1.5 px, more as it engages), the edge
+  darkened towards a cool tint and lined every 4 pixels, four thin corner brackets round the middle, and for 0.4 s after it
+  engages a scan line down the view and a shimmer of lines. The pass also runs for it alone (`flatlook::active`). Flat only.
+- Menu: Locomotion > Desktop Screen Play, Zoom Aim Gun To Centre and Zoom Aim Visor Look (flat-only rows, `vr_flat_zoom_*`);
+  Tunables Zoom Aim Gun Up / Forward / Time. `vr_flat_sight_check` prints `flatzoomcentre: t, move, visor, shimmer`.
+- Test: flatads_test.sh section f (grenade launcher): hand right 4.97 -> 2.46 and up -5.01 -> -3.00 zoomed, back on release, the
+  shot 0.0 px off the centre hipfire and zoomed, visor 0.15 / shimmer 0.90 four frames in, 0.50 / 0 zoomed, 0 released.
+  Scene `flat_zoom_aim`. Screenshots (hipfire, zoom as before, zoom now): qvr-kit/scratch/flatads_zoom.png.
+## plasmabolt: AD's Plasma Gun draws no lightning stream (agent/plasmabolt, 2026-11-24)
+
+His report: holding the trigger on AD's Plasma Gun drew a continuous lightning bolt, as the lightning gun's.
+
+- **Cause:** `FrameDrawLightningTrail` (weapons.qc) draws the lightning gun's per-frame stream (TE_LIGHTNING2) for any
+  held `WID_LIGHTNING` on its primary ammo with the trigger held. AD's Plasma Gun is that record upgraded (`wi_adup`
+  `ad_IT_UPGRADE_LG`, `AD_PlasmaGun`), so it drew the stream on top of its plasma bolts. Not tonight's Lance work:
+  the condition is the import's, unchanged until lancecharge added `!DW_LanceInHand`; the Plasma Gun has fired through
+  that record since AD P1b (6267ce7d2c, 2026-10-11). Confirmed by running the new test on 2e6565fb4 (before every
+  Crystal Lance charge/lance3/lance4/variantowned commit): 72 stream draws in 72 held frames.
+- **Fix:** the stream skips `AD_PlasmaGun(hand, flags)` as it skips the Lance. Other variants checked: the Lance's
+  beam (`DW_FireVariant`) gates on the record's `wi_dwvar`, and `WeaponInst_Owned` keeps a record one or the other
+  (an owned Lance clears `wi_adup`; an AD upgrade picked up disowns the variant), so the Plasma Gun never takes the
+  Lance's shot; the Widowmaker's spin and the Rotary gate on their own record; Rogue's plasma (secondary ammo) was
+  already excluded. The stream is the only per-frame LG draw (`PlayerLightningGunEffect` has one caller).
+- **Test:** `vr_ad_test 106` (vr_ad_upgrades_test.qc; counters `vr_lg_trail_draws`, `ad_plasma_shots`): the Plasma
+  Gun in the main hand, the run's `+attack` held 72 frames: 0 stream draws, 4 plasma bolts; then the same record a
+  plain lightning gun 72 more frames: 72 draws, 0 bolts. Verdict `adplasmabolt: 4 passed, 0 failed` (before the fix
+  2 failed: 72 drawn). Run: `vr_ad_upgrades 2;map e1m1;vr_ad_test 106;wait5;+attack`, `-QuitOn "adplasmabolt: [0-9]+
+  passed"`. Scene `ad_plasmabolt`. `dwell_lance_test.sh` could not run here (Dwell's data not in this base dir:
+  "Dwell's data found: FAIL"); the Lance's path is untouched.
+## Show Melee Arcs: armed humanoids' swings drawn (branch agent/meleearcs, 2026-11-24)
+
+His report: Show Melee Arcs "still displays nothing for armed humanoids" (ROUND24, "Melee rules": the cause was never
+found). The floor fan (fight.qc `VR_MeleeArc_ShowFrame`, vr_bodycontact.cpp `meleeArcDraw`) does draw for them headless
+(test 212, the agrunt_melee_spacing and agrunt_repl_gunaxe scenes: `meleearcviz: drawn arc 2`, an eyeshot), so no
+filtering bug was found; what was missing is the swing itself. Now, while the option is on, an armed humanoid swinging a
+melee weapon at a player (a swing or a saw) leaves the same trail Show Melee Blades draws for your hands (vr_meleeshow.cpp:
+its look and 0.3 s fade shared, `drawHand`): its blade's line as drawn (`VR_AG_WeaponLine`, butt to tip) each frame it is
+posed, white winding up, yellow in the swing-through, red with a dot at the tip when its blow lands.
+- QC: vr_meleerules.qc `VR_MeleeArc_ShowSwings` (from `VR_AGP_Pose`: the native and the QC pose) and
+  `VR_MeleeArc_ShowLanded` (`VR_AGP_Strike`). New builtin `meleeshowfoe(weapon, what, a, b, v)` (8 slots by edict; returns
+  the frames drawn, for the test). Off: QC skips it on one cvar read, the engine keeps nothing.
+- Punches and gun butts: the floor fan only. Drawn by the host's view (SP, a listen server's host), as the floor fan is.
+- `vr_enemy_melee_arc_status` adds "armed swings drawn N frames".
+- Tests: `vr_agrunt_test 216` 2/0 (on: 28 frames sent, 7 in the swing-through, 28 drawn; off: 0 and 0); 212 still 6/0.
+  Scene `agrunt_melee_arcs`.
+## embedregress: flat axes stick again; why VR embed tests 24 and 33 fail (agent/embedregress, 2026-11-24)
+
+His report: "I am struggling to embed bladed weapons into enemies in flatscreen, it used to happen quite frequently before."
+- **Bisect:** tests 24 and 33 fail the same way at every merge from 57c316399 (embeddual, 11-22, where they read 22/0 and
+  15/0) to origin/next, and at 57c316399 itself: no commit since 11-22 broke them. What changed is the tests' config:
+  baselinecfg (6d47923dec, 2026-11-22 09:44) made every test start from the shipped defaults (`test_baseline.cfg`) instead
+  of the 14k-line config agents had (his settings of about 11-10). With that old config execed: 57c316399 24 = 22/0, head
+  24 = 21/1 (the known flaky "out into the hand eased", ROUND24.md). Narrowed to the axe's Weapon Offsets: his old config
+  had the axe at pitch 0, weapons.txt ships 15.5 (since c646caa734, 11-06, "his weapon offsets as the shipped defaults");
+  head + `vr_wofs_pitch_01 0` alone: 24 = 20/1 (case 3 back, case 2 still off with x/y). The test's mock swing goes "across"
+  by an assumed edge facing; pitched 15.5 the edge leads by 0.14 (least 0.25: "side on 82, edge first 0.14"). A test
+  assumption, not the game: a real swing follows the axe as drawn. Test 33 case 46 (a dead grunt's handle comes to the
+  hand) fails 11/4 with the old config too, also at 57c316399: not code since 11-22; the ragdoll is held by the handle
+  ("hand 1 holds it by the blade's handle, 11.6 units from the wound, 14.2 from the hand") but the body does not come
+  (strain 1.0, the wound 0.3 of 20 units). Both open (below).
+- **The flat cause (fixed):** `axestick::stickHeld` (vr_axestick.cpp) judged a held blow's edge / along-the-handle /
+  point by the weapon's *drawn* place (`view::drawnWeaponPlace`), while the blow's way, the melee's line and contact are
+  the game hand's (QC VR_Melee_FreeLine: the drawn weapon in the hand placed on the server's hand). In VR the two nearly
+  agree; flat play draws its swing on a pose of its own, the drawn axe up to 90 degrees off the game's hand mid-swing
+  (`vr_debug_axestick 2` diagnostic: QC angles -43 114 14, drawn 63 78 21: the blow's way 0.96 along the edge with the
+  hand's pose, 0.81 along the handle with the drawn one). So edge-first flat swings read "along the handle 0.97 (most
+  0.80)" and missed. Now the weapon is the drawn one in the hand (`view::DrawnWeapon::inHand`) placed on the server's
+  hand (`heldpose::handPose`), the melee's own way, in both modes (one path; the drawn place stays the fallback). Not the
+  flat swing's poses nor lance3: lance3's tip rules are the Lance's only (`pointLength`, QC `DW_LanceHeld`).
+- **Numbers (flat, vr_embed_test 52 swings, vr_debug_axestick 1):** before 5 of 14 swings stuck over 4 runs (the rest
+  "along the handle 0.82-0.99", or 15-22 cm off the model as the drawn blade lagged); after 6 of 6 over 3 runs, each case
+  on its first swing; embeddual 16/0 each run. flatlance_test 24/0 (section 5's flake not seen). VR tests 24 (17/2) and
+  33 (11/4): the same counts and failures before and after.
+- **Flat swords:** VR's rules never let a sword slash stay in: swords, daggers and the Lance are `embed 1` (weapons.txt:
+  by the point), only a stab sticks (QC VR_Embed_StabWhy: kind STAB, speed, within vr_embed_stab_angle of the line, by the
+  tip); axes are `embed 2` (edge). Flat swords have no stab (the swing is a slash), so they never stick, as in VR. Proposal
+  for him: a flat sword thrust like the Lance's (`vr_flat_thrust` for every `embed 1` blade, V or a held-fire variant).
+- **Open:** test 24 cases 2/3: aim the mock axe swing by the axe's edge as held (or set the axe pose the test was laid out
+  on); test 33 case 46: why a dead grunt held by the handle no longer comes to the hand on this machine (fails on 11-22's
+  code too: data or physics, look at the ragdoll hold's motor joint).
+
+## spear: a plain spear on the Crystal Lance's systems (agent/spear, 2026-11-24)
+
+His ask (2026-11-24): a normal spear with a metal point that embeds, no ammo, no special attack, reusing the Lance's
+code and poses so improvements to either reach the other.
+- **Design: one pole-weapon path, the differences as data.** A pole weapon is a weapons.txt slot with Other Hand
+  Anywhere 3 (`twohand::poleWeapon`): every engine path was already keyed on that (VR pole grip and slide, flat spear
+  pose `vr_flat_pole_*`, flat thrust `vr_flat_thrust_*`, the off hand pinned on the pole, the pole track, the arms'
+  stretch, the flip pitch): the spear gets all of it by its slot. The QC blow was the Lance's alone (`DW_LanceMelee`):
+  it moved to `QC/vr_poleweapon.qc` as `VR_PoleMelee` (unchanged for the Lance), dispatched first in client.qc by
+  `VR_PoleHeld` (the Lance or the spear). Its head's place on the line: the slot's Blade Start (`bl_from`), else
+  `vr_dw_lance_head` (the Lance: none set); the thrust and poke multipliers (`vr_dw_lance_thrust`, `_poke`) are every
+  pole weapon's. What stays the Lance's own (a gun): the charge, bolt, cord, cells, its tip-only embed cvars.
+- **The spear** = the knight's sword of kind 13 (`VR_SWORDKIND_SPEAR`, weapon flags 3328), as the dagger is kind 12:
+  so no ammo (a sword's; `VR_HasOtherAmmo` false, B flips the grip), holsters, throws point first, sticks in by its
+  point (embed 1: the sword's stab rules, its blade the head alone by `bl_from` 0.728, so a stab goes in a share of the
+  head, 1.3 of 7.3 units), the flip grip (`rev 1`), the toolgun's armed grunts (code 106). Dwell's Lance untouched (its
+  own record and variant).
+- **Model** `progs/v_spear.mdl` (`Misc/quakevr/make_spear.py`, from scratch: ash shaft, leather wrap at the fist, iron
+  ferrule and socket with a collar, a leaf steel head with a midrib; 360 vertices, 314 triangles; full-colour skin
+  2048x512 plus the 8-bit one). It is laid exactly where the Lance's pole is (the dw_lance recipe's frame, then the
+  recipe's keepScale move about the axe's corner, written with that origin), so **slot 57** copies slot 55's hold
+  (hand, offsets, 2H, hotspots, holsters, Scale, Shot Pitch 92.5: flat aims the pole by it) with its anchors moved by
+  the packing (+0.1455 -5.18 +0.0836); lighter (w_mass 2.4, w_com 28), no shot effects, pickup_tier -1. Not made: its
+  .blend (blend_build.py runs Blender: left to a human) and its normal map.
+- **How to get it:** `weapon_spear` (FGD), the toolgun (Weapons > Spear; Monsters > Armed Grunts > Armed Grunt: Spear,
+  appended), the firing range's swords row (x 264, past the dagger). Not in the armed grunts' random pool, not a
+  randomized pickup: nothing in the shipped game changes until he asks.
+- **Engine:** numSlots/weaponSlotCount 58, model id `VSpear`, always phases as a melee weapon, no sights, note names.
+- **Tests:** `Misc/quakevr/spear_test.sh` (vr_embed_test 53, `QC/vr_spear_test.qc`): 4 passed, 0 failed (VR mock 12/0:
+  pole blow, thrust 50 damage stuck by its point 1.3 in, its blade 7.3 (the head), drawn back out into the hand, a
+  swing 14, thrown into a wall point first, thrown at a grunt hurts it, no ammo, flip and back; flat 6/0: posed as a
+  spear (tip 27.6 from the fist, as the Lance's), the fire button's punch the spear thrust, 23 damage, stuck, one
+  fire press pulls it out, B flips and back). The Lance unchanged: `dwell_lance_test.sh` 51/0, `flatlance_test.sh`
+  32/0. Screenshots `qvr-kit/scratch/spear_flat.png`, `spear_range.png`. Scene `spear`.
+- **Open:** a spear thrown at a grunt stays in it about 1 run in 3 (the rest meet the moving model 44 degrees off
+  straight in and skid: the sword's incidence rule); the test prints it as a note. Armed grunts holding it use the
+  sword's pose (not checked).
+
+## flatthrust: flatscreen V thrusts with every stabbing blade (agent/flatthrust, 2026-11-24)
+
+His decision (2026-11-24): flatscreen V thrusts with any stabbing blade (V was already the Lance's thrust key).
+- **Before:** V (`startPunch` from pollKeys / `vr_flat_punch v` / `vr_flat_punch main v`) was the same punch as the fire
+  button: a held weapon's overhead swing (`vr_flat_swing`), a pole weapon's spear thrust (`vr_flat_thrust`); never a pommel
+  bash, so nothing is displaced: a sword's swing stays on its fire button.
+- **Now** (vr_flatplay.cpp `thrustsWith`): V with a pole weapon or a blade stuck in by its point (weapons.txt `embed 1`:
+  the knight's sword and AD's swords of that kind, the dagger) is the spear's thrust, through the same clock, times and
+  tunables (`thrustTimes`, `thrustAt`, `thrustPose`, the handsource strike window, the arms' stretch); the fire button
+  keeps the swing for blades (a pole weapon thrusts from both, as before). Axes, clubs, guns: unchanged (V their swing).
+  `vr_flat_thrust_blades` 1 (0: V swings blades again). One-handed variant (`thrustPose`, `!pole`): over the windup the
+  blade (`bladeInHand`: the drawn weapon's grip-to-tip line in the hand's frame, view::DrawnWeapon `inHand`, so the game
+  hand's blade line is QC's VR_Melee_FreeLine one) turns by the shortest turn onto what the crosshair is on (never nearer
+  than `vr_flat_thrust_1h_near` 48 along its ray), the fist comes `_1h_in` 3 in towards the middle, then the thrust along
+  the blade: `_1h_wind_back` 8, `_1h_wind_up` 2, `_1h_reach` 14 (the pole's `vr_flat_thrust_wind_back` / `_wind_up` /
+  `_reach` stay the pole's; pitch / yaw / times shared); back over the recover time. Tunables > Flatscreen after Thrust
+  Arm Stretch ("Blade Thrust ...").
+- **Flipped grip** (QVR_WPNFLAG_REVGRIP: the blade out of the fist's bottom): a stab down: the blade aimed
+  `vr_flat_thrust_1h_rev_down` 40 degrees under the crosshair's line, the fist raised `_1h_rev_up` 6; the flip's drawn-only
+  turn (`revGripDrawnTurn`) fades out by the thrust's aim share so the drawn blade is the game's. QC reads it "stab
+  (diagonal, down) with the tip" and it sticks.
+- **Sticking:** VR's rules unchanged (QC VR_Embed_StabWhy: a stab by the tip); flatembed's hold and fire-to-pull-out
+  as they were. Shared, not copied: the one thrust path for poles and blades (only the aim/turn step is one-hand only).
+- **Tests:** new `Misc/quakevr/flatthrust_test.sh` 7/0 (`vr_embed_test 58-59`, QC/vr_flatthrust_test.qc): sword 48
+  damage, stuck 3.9 deep, out in 2 presses; dagger 38, 1.6, 1 press; spear 21, 1.0, 1; flipped dagger 28 (a stab down),
+  1.1, 1; the axe's V "overhead swing"; the Lance (vr_ad_test 207) 73, 1.0, 1 press. flatkeys 37/0, spear 4/0,
+  flatmelee 12/0, flatlance 32/0 (a first run 31/1: its H case found no Lance stuck: the known stick-chance flake; the pole
+  path's logic is unchanged). `scratch1 1` with test 58 takes the pose screenshots.
+  Scene `flat_thrust_blades`. Screenshots `qvr-kit/scratch/flatthrust_poses.png`.
+## spearblunt: a pole weapon's shaft hits as a staff (agent/spearblunt, 2026-11-24)
+
+His ask (2026-11-24): "Can you ensure that hitting an enemy with the spear's body counts as a blunt hit and e.g. allows
+leg sweeps?"
+- **Before:** the spear's melee points were its sword layout's (`VR_Melee_Layout` SWORD squeezed to its Blade Start
+  0.728): the pommel, the hilt and the guard (the guard at 0.44 of the line strikes nothing) and six edge points on the
+  head, so its shaft mostly passed through bodies, and what it struck was a blade's. The Crystal Lance's were a gun's:
+  its whole barrel an edge, every blow dealt by `VR_PoleMelee` as a blade (cut sounds). The leg sweep (engine,
+  `vr_legsweep.cpp`) took the spear as a staff end to end: its head swept legs too.
+- **One pole path (QC):** the blow's state keeps `mh_pole` (the head's share, `VR_PoleHeadFrom`: the slot's Blade Start,
+  else `vr_dw_lance_head`), and `VR_Melee_LayoutOf` lays a pole weapon's points by `VR_Melee_PoleLayout`: the butt
+  (near end), the grip, three shaft points (0.3, 0.6, 0.85 of the head's start) of kind `VR_MPT_BLUNT`, four head points
+  (edges) to the tip; carried off its handle, the free layout's points short of the head turn blunt. A blunt point lands
+  as the pommel kind (`VR_Melee_Decide`; for a pole at full weight, not a pommel's 0.6), so `VR_Melee_Deal` sets
+  `vr_melee_blunt` and every blunt rule follows: the hit's class (`VR_SmallGib_Kind` / `VR_Hit_Class` BLUNT: round
+  wounds and dents, no blade bleeding, the knockdown rules' blunt blow `VR_KdTrig_Blunt`), the pommel knock
+  (`VR_Melee_HitSound`), a round wall dent (`mh_c_blunt`), never a stab, so never an embed. `VR_PoleMelee` deals a
+  shaft blow as a club: `vr_dmg_gun_bash` (12) instead of the axe's 20, the blunt layer (`VR_Blunt_HitLayer`), a
+  developer print "spear: the shaft, a blunt blow (...)". The head is as before: the spear's point stabs and sticks, its
+  edges cut; the Lance's head its thrust. As ever the outermost point that meets a body decides: a swing that takes
+  it with both lands with the head.
+- **Leg sweeps (engine):** `vr_legsweep.cpp` `edgeShare` gives a pole weapon (`twohand::poleWeapon`) its head from the
+  same place (its slot's `bl_from`, else `vr_dw_lance_head`; cached per model): the shaft sweeps, the head is a cut.
+- **Flat play:** a pole weapon's fire button is the spear thrust (`vr_flat_thrust` 1): it lands with the head, and with
+  the shaft only on a body nearer than the head (then blunt). With `vr_flat_thrust` 0 the overhead swing comes down
+  with the head or, close in, the shaft (blunt). No flat attack sweeps legs (flat play has no low or sideways swing
+  for any weapon; it comes down vertically, "not level" to the sweep): not built, a question for him.
+- **Tests:** `spear_test.sh` 4/0 (VR 23/0: new case 1 check "with its head: a cut", new cases 6 and 7: the spear's and
+  the Lance's shaft swung across a grunt: the pommel kind "the shaft", 13 and 11 damage, nothing stuck, the wound kind
+  3.5 (+0.5 blunt); flat 6/0). `foegrab/legsweep_test.py` new cases `spear_shaft` (down), `spear_head` (not: "the
+  blade (sharp from 0.7x): a cut"), `lance_shaft` (down): 3/0. The embed tests' swing takes `vr_eh_along` (the share of
+  the line that meets the body). `dwell_lance_test.sh` 51/0, `flatlance_test.sh` 32/0.

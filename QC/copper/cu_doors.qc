@@ -34,6 +34,7 @@ THINK FUNCTIONS
 
 void() cu_door_blocked =
 {
+	VR_CU_ShaftBlocked(other); // QVR: lift shafts kept clear (vr_copper_bridge.qc)
 	cu_T_Damage (other, self, self, self.dmg, cu_DMGTYPE_CRUSH);
 	
 	// if a door has a negative wait, it would never come back if blocked,

@@ -467,9 +467,7 @@ void pressAt()
 
 [[nodiscard]] bool keyHeld()
 {
-    const char* k = vr_flat_key_holster_menu.string;
-    const int key = k[0] ? Key_StringToKeynum(k) : -1;
-    return key > 0 && key < MAX_KEYS && Key_Seat()->down[key] != 0;
+    return flatplay::keyHeld(vr_flat_key_holster_menu);
 }
 
 // vr_flat_holster_menu_mode 1: a press opens it, clicks, the next press closes it; 0: held, let go on a button.
@@ -658,6 +656,12 @@ bool canUnload(int hand)
     return enabled(b, contents());
 }
 
+bool canFlip(int hand)
+{
+    const Button b{Act::FlipGrip, hand == 0 ? 0 : 1, {}, {}};
+    return enabled(b, contents());
+}
+
 HolsterSlot handSlot(int hand)
 {
     HolsterSlot out;
@@ -757,7 +761,7 @@ void draw()
         case Act::DropBoth: g.icon = gadget::MenuIcon::Drop; g.label = "DROP BOTH"; break;
         case Act::Swap: g.icon = gadget::MenuIcon::Swap; break;
         case Act::Unload: g.icon = gadget::MenuIcon::Unload; g.label = "UNLOAD"; break;
-        case Act::FlipGrip: g.icon = gadget::MenuIcon::None; g.label = "FLIP GRIP"; break;
+        case Act::FlipGrip: g.icon = gadget::MenuIcon::FlipGrip; g.label = "FLIP GRIP"; break;
         }
     }
     gadget::HolsterMenuView v;

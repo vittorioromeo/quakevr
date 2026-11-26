@@ -456,4 +456,23 @@ void() VR_BotsTest_Frame =
     float ask = cvar_hget(cvarh_vr_dm_test);
     if(ask >= 13 && ask <= 15) { VR_BT_Run(ask); }
 };
+// vr_stealth_test 134 (vr_stealth_test7.qc): the bot's goal. what 0: none (its targets and ai flags cleared); 1: a temp
+// waypoint at `at`; 2: that, kept on (FrikBot gives a goal up after 5 s, or when it stands still a while).
+void(entity b, float what, vector at) VR_STT7_BotGoal =
+{
+    if(what == 0)
+    {
+        b.target1 = b.target2 = b.target3 = b.target4 = b.enemy = world;
+        b.b_aiflags = 0;
+        return;
+    }
+    entity os = self;
+    self = b;
+    SpawnTempWaypoint(at);
+    self = os;
+    if(what == 2)
+    {
+        b.search_time = time + 5;
+    }
+};
 #endif

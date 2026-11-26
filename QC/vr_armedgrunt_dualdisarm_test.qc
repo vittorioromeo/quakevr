@@ -22,6 +22,7 @@ float vr_agdd_undrawn;      // frames a held weapon wasn't drawn
 float vr_agdd_bad;          // frames its slots didn't agree
 string vr_agdd_badwhy;
 entity vr_agdd_kept;        // the weapon that should be left
+entity vr_agdd_spare;       // the one dropped by it for it to go for (methods 1, 2)
 
 // Cases 0..6: knocked out by nobody (it stays calm); 7..9 by you (it turns on you, staggers); 10..12 your hand on its left
 // weapon: a tug, won.
@@ -269,8 +270,12 @@ void() VR_AGDD_Frame =
             VR_AGAW_Calm(g);
             if(VR_AGDD_Method(c))
             {
-                entity src = VR_AGT_Spawn(VR_AGDD_Wid(c), 25);
-                VR_AG_DropHeld(src, '0 0 0');
+                // (dropped off to your side, clear of you: one spawned 25 ahead stood inside you, its weapon's drop at
+                // your back, and the walk to it round you made no headway; seed 1's cases 11, 12 since vr1116d's grips)
+                pl.angles_y = pl.angles_y + 35;
+                entity src = VR_AGT_Spawn(VR_AGDD_Wid(c), 60);
+                pl.angles_y = pl.angles_y - 35;
+                vr_agdd_spare = VR_AG_DropHeld(src, '0 0 0');
                 VR_AGT_Remove(src);
             }
         }
@@ -280,6 +285,11 @@ void() VR_AGDD_Frame =
     {
         if(!(g.vr_ag_prop2 && g.vr_ag_took_at <= 0) && time < vr_agdd_until) { return; }
         entity lh = g.vr_ag_prop.vr_ag_left ? g.vr_ag_prop : g.vr_ag_prop2;
+        if(!lh && VR_AGDD_Method(c))
+        {
+            VR_AGT_Print(sprintf("dualdisarm %g: not taken up: it at %v, the spare at %v (%s), you at %v", c, g.origin,
+                vr_agdd_spare.origin, vr_agdd_spare.classname, pl.origin));
+        }
         VR_AGDD_Phase(sprintf("going for the fallen one: left hand %s", lh ? lh.netname : "empty"), g.vr_ag_prop && g.vr_ag_prop2 && lh);
         vr_agt_step = 4;
         return;

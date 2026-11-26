@@ -307,6 +307,9 @@ void VR_ProgCacheAdd (unsigned long long key, unsigned format, const void *data,
 void VR_ProgCacheEnd (void); // GL_CreateShaders' end: the pack written when one was added (later adds: at once)
 void VR_ProgCacheFlush (void); // GL_ShadersPump: a queued set's programs done so far written (every few seconds)
 void VR_ShadersLoaded (int programs, int frames, double ms, double maxwork, double maxgap); // GL_ShadersPump: a queued set done (vr_shaderload.cpp: its trace mark, the test's verdict)
+int VR_MapLoadingWanted (void); // vr_hull.cpp settle: the loading panel can show during the map load's wait (vr_load_panel; VR running or the start's first frame)
+int VR_MapLoadingFrame (const char *map, int done, int total, double seconds); // ... one frame of it (nonzero: shown, the runtime waited on; vr_shaderload.cpp)
+void VR_MapLoadingDone (const char *map, double seconds); // ... the wait over: its frames said (console)
 int VR_ShadersLoadingFrame (void); // host.c, SCR_UpdateScreen: while the shaders are queued, the set pumped and (still pending: nonzero) the loading panel's frame (vr_shaderload.cpp)
 void VR_ProgCacheCounts (int *hits, int *misses); // the last batch's programs given back / compiled
 unsigned long long VR_GLShaderHash (unsigned long long h, int count, const char *const *strings); // vr_glsafe.cpp: the text VR_GLShaderSource gives the driver
@@ -410,6 +413,10 @@ void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status, vr_gle
 void VR_GLESInstallForms (void);	// GL_Init, the functions loaded: -glescompat: glMultiDrawElementsIndirect as a glDrawElementsIndirect loop
 const char *VR_AndroidStart (int argc, char **argv);	// main, first: on Android (or -fakeandroid on the PC) the base folder and the crash reports' folder (<base>/quakevr/crash; the handler: vr_crash.cpp's); the base folder to use, or NULL (vr_android.cpp; QUEST_PLAN.md C2c, C3)
 int VR_Android (void);	// nonzero: an Android build, or the PC's fake-Android mode (-fakeandroid, QVR_FAKE_ANDROID)
+void VR_AndroidDataCheck (void);	// Host_Init: the game data's version stamp (quakevr/data_version.txt, Setup's) against the app's, a warning if not (vr_android.cpp)
+void VR_AndroidDataNote (void);	// ... that warning again (Host_Error: missing files are its likely cause)
+const char *VR_AndroidDataNotice (void);	// ... its centre print, once (null: none; vr_progs.cpp loadNoticeFrame)
+void VR_AndroidQuitBound (void);	// Host_Shutdown on Android, once the config and the save are written: the rest bounded (a watchdog ends the process 2.5 s on: vr_android.cpp)
 void VR_AndroidLog (const char *text);	// Sys_Printf on Android: the console's text into logcat, a line a message (vr_android.cpp)
 int VR_AndroidFirstRun (void);	// Host_Init's end: nonzero on Android's first run (no config in the game folder yet): vr_standalone_preset 0 follows quake.rc
 int VR_HideMirror (void);	// nonzero: -hidemirror (old name -vr-hide-mirror): no desktop window, always "focused" (a standalone headset's, the Steam Frame's; vr_main.cpp)
@@ -713,14 +720,17 @@ float VR_CrouchSpeedMax (struct edict_s *ent, float maxspeed); // SV_AirMove: cr
 int VR_SlideStepUp (struct edict_s *ent); // SV_WalkMove: nonzero while a slide is on the ground (flatscreen or vr_slide; vr_slide.cpp): a step it meets is climbed on every move (Quake's "don't stair up while jumping" took FL_ONGROUND, off every other move at a slide's speed, and the step's face stopped the slide)
 int VR_SlideMove (struct edict_s *ent, int onground, const float *wishdir, float wishspeed, float *velocity); // SV_AirMove: a slide (vr_flat_slide flatscreen, vr_slide a headset; vr_slide.cpp): nonzero when it moved him on the ground this frame (no friction, no walk)
 int VR_LeanHitBoxes (struct edict_s *touch, float (*boxes)[6]); // SV_MoveRun: a flat-screen player's leant upper body (vr_flat_lean_hit; vr_flatmove.cpp), world boxes (mins, maxs) out of his own box; their count (0: none)
+float VR_FlatCrouchSwim (void); // CL_BaseMove: flat play's crouch keys held in water swim down too (vr_flat_crouch_swim; vr_flatplay.cpp): 1, else 0
 int VR_FlatKeyOwned (int key); // Key_Event: a key flatscreen play reads itself (vr_flatmove.cpp): its bind does not run while the mode runs
 // The flat keys (vr_flat_key_*; vr_flatmove.cpp), Options > Controls' "Quake VR (flat screen)" group (menu.c): index i in the
-// menu's order. Get: the key (-1 none); Set: key -1 clears; For: the flat key on `key` other than `skip` (-1 none).
+// menu's order, each with VR_FLATKEY_SLOTS keys (slot 0, 1). Get: a slot's key (-1 none); Set: a slot's key, -1 clears it (the
+// slots stay packed); For: the flat key on `key` other than `skip` (-1 none).
+#define VR_FLATKEY_SLOTS 2 // (flatplay::keySlots)
 int VR_FlatKeyCount (void);
 const char *VR_FlatKeyLabel (int i);
 const char *VR_FlatKeyCvarName (int i);
-int VR_FlatKeyGet (int i);
-void VR_FlatKeySet (int i, int key);
+int VR_FlatKeyGet (int i, int slot);
+void VR_FlatKeySet (int i, int slot, int key);
 int VR_FlatKeyFor (int key, int skip);
 void VR_FlatKeysReset (void); // every flat key back to its default
 void M_Menu_Keys_At (const char *row); // menu.c: Options > Controls with the cursor on a row (a command, a name, a vr_flat_key_* cvar): the VR menu's Flat Keys button
@@ -756,6 +766,8 @@ int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmin
 	trace_t *trace);								// SV_ClipMoveToEntity for SOLID_BSP: nonzero if it traced (else the hull)
 int VR_HullEntBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if the player's box meets other entities' boxes narrowed (vr_hull_ent_width)
 int VR_MonsterAvoidsField (struct edict_s *ent, const float *from, const float *to); // SV_movestep: a monster's step nearer a hurting field (QC .vr_monster_avoid; vr_hull.cpp): nonzero refuses it
+int VR_MonsterShaftStep (struct edict_s *ent, const float *from, const float *to); // SV_movestep: a monster's step into (or deeper into) a raised lift's shaft with no reason there (vr_navshaft.cpp, vr_shaft): nonzero refuses it
+float VR_MonsterShaftOut (struct edict_s *ent); // SV_MoveToGoal: the yaw a monster on the ground walks out of a raised lift's shaft by (no reason there, or it blocked the lift), -1 none (vr_navshaft.cpp)
 int VR_HullFootprint (struct edict_s *ent, float *absmins, float *absmaxs); // SV_CheckBottom: a monster's corners narrowed to its width (vr_mhull_ledges): nonzero if narrowed
 int VR_HullTouchBox (struct edict_s *touch, struct edict_s *mover, float *boxmins, float *boxmaxs); // a player's box, narrowed, as a body moving into it meets it: nonzero if narrowed
 float VR_HullTouchTop (struct edict_s *ent); // SV_TouchLinks: the top triggers meet (lying down: the lying box's; else absmax)
@@ -887,7 +899,6 @@ int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons t
 void VR_MenuBounds (int *left, int *top, int *width, int *height);	// M_UpdateBounds: the menus laid out from the canvas's bounds beside the corner's buttons
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
 void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile, the game folder's config: another copy's changes in it kept (vr_cvars.cpp)
-void VR_FlatKeysForConfigWrite (void);					// Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind (+flatcrouch, the crouch key that does not fire: vr_flat_crouch_fire) given back, so the config keeps the plain game's CTRL (vr_flatplay.cpp)
 void VR_ConfigNoteWrite (void);						// Host_WriteConfigurationToFile, the game folder's config: its settings as just written (kept for VR_ConfigWritten)
 void VR_ConfigWritten (const char *path);				// and after writing it (in place: not after a failed write)
 int VR_ConfigSaves (const struct cvar_s *var);			// Cvar_WriteVariables, an archived cvar: nonzero if the config gets its line (a vr_ one only if changed from its default)

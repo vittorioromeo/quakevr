@@ -4,7 +4,8 @@
 // qcpu2; vr_agpose_native 2 compares them). Included by vr_builtins.cpp (qvr::progs, its anonymous namespace), after
 // vr_builtins_held.inc and vr_builtins_hitmodel.inc (their builtins are called here as QuakeC calls them).
 // Left to QuakeC (agpose answers FALSE before doing anything): the toolgun's ghost (vr_agp_quiet), the debug prints
-// (vr_agrunt_debug 2), the Pose Studio's holds and Live mode, the Grip Editor's freeze, test 90's hold.
+// (vr_agrunt_debug 2), the Pose Studio's holds and Live mode, the Grip Editor's freeze, test 90's hold, a pole weapon
+// (the spear's two-handed hold and thrust: VR_AGP_Pole).
 
 // QuakeC's float arithmetic (pr_exec.c's ops, pr_cmds.c's builtins): float steps, -ffp-contract=off (quakevr.props).
 struct AgV
@@ -420,6 +421,10 @@ void agBody(edict_t* g) // VR_AGP_Body
         return false;
     }
     const float h = agHands(owner, p);
+    if(twohand::poleWeapon(weapons::slotForName(PR_GetString(p->v.model))))
+    {
+        return AG(vr_agh_set) != 1.f;
+    }
     return h != 0.f ? (h == 2.f) : agHeavy(p);
 }
 
@@ -1321,6 +1326,10 @@ void agPhase(edict_t* g) // VR_AGP_Phase
     }
     if(c == VR_AG_CLASS_MELEE)
     {
+        if(p->v.weapon != WID_CHAINSAW && twohand::poleWeapon(weapons::slotForName(PR_GetString(p->v.model))))
+        {
+            return VR_AGK_POLE; // (QC's: a pole weapon's own keys; its holder posed by QuakeC, agPose)
+        }
         return p->v.weapon == WID_CHAINSAW ? VR_AGK_SAW : (agTwoHanded(p) ? VR_AGK_MELEE2 : VR_AGK_MELEE);
     }
     const AgV h = agWdp(agWorld(), AF(g, vr_ag_kind) * 1000.f + agHoldCode(p), 24.f);
@@ -1521,7 +1530,7 @@ void agkKeys(edict_t* g, edict_t* p) // VR_AGK_Keys
         }
         else if(act == agSwing)
         {
-            pose = VR_AGK_OVERHEAD + agMin(3.f, k);
+            pose = cls == VR_AGK_POLE ? VR_AGK_THRUST : VR_AGK_OVERHEAD + agMin(3.f, k);
             if(agHas(AFE(g, vr_ag_prop2)) && AF(g, vr_ag_act_hand) == 2.f)
             {
                 pose = VR_AGK_DUAL;
@@ -1621,6 +1630,12 @@ AgpCoverage agpCov; // (the server's VM: the main thread)
 [[nodiscard]] bool agPose(edict_t* g, edict_t* p)
 {
     if(AG(vr_agp_quiet) != 0.f || ACV(vr_agrunt_debug) >= 2 || AG(vr_agk_test_hold) != 0.f || vr_agposesend.value == 0.f)
+    {
+        return false;
+    }
+    // A pole weapon (the spear: its slot's Other Hand Anywhere 3; QC VR_AGP_Pole): its two-handed hold and thrust are
+    // QuakeC's alone (spearfix: rare, one copy of the pose).
+    if(p && p != qcvm->edicts && twohand::poleWeapon(weapons::slotForName(PR_GetString(p->v.model))))
     {
         return false;
     }

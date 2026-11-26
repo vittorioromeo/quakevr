@@ -696,8 +696,11 @@ void weaponBox(const Note& n, int p, glm::vec3& lo, glm::vec3& hi)
         case PWeaponR: return ses.weaponGrip ? "Weapon (right): its grip" : "Weapon (right): its place";
         case PWeaponL: return ses.weaponGrip ? "Weapon (left): its grip" : "Weapon (left): its place";
         case PHandR: return freeHand(n, 0) ? "Right fist" : "Right hand: its grip";
-        case PHandL: return freeHand(n, 1) ? (n.prop > 0 ? "Left hand (free)" : "Left fist") : heldL(n) ? "Left hand: its grip"
-                                                                                                    : "Left hand (second grip)";
+        case PHandL:
+            return freeHand(n, 1)
+                       ? (classOf(n.ent) == agpose::Pole ? "Left hand (on shaft)" : (n.prop > 0 ? "Left hand (free)" : "Left fist"))
+                   : heldL(n) ? "Left hand: its grip"
+                              : "Left hand (second grip)";
         case PElbowR: return "Right elbow";
         case PElbowL: return "Left elbow";
         case PChest: return "Chest: the body's turn";

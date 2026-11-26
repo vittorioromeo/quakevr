@@ -5,6 +5,9 @@
 //   one root serves every game (id1's grunt read through hipnotic is the same file). Nothing in it is ever committed.
 // - <product>: one folder per kind of work (Product below), each with its own verify setting (0 off, 1 read and write,
 //   2 made anyway and compared with the file).
+// - the shipped cache: read-only files made at release time for Quake VR's own maps (`quakevr/cache_shipped`, its
+//   index.txt naming them by the same `<kind>/<build>/<key>.<ext>`), read where the player's cache has no file
+//   (vr_cache_shipped; CACHES.md, "The shipped cache"). Never written nor pruned.
 // - <build>: the maker's own version (a constant its owner bumps when the maker changes: a changed maker never reads an
 //   old file; a new build of the same maker keeps them). Made once a session at its first use; the product's other
 //   builds' folders are removed then, and its oldest files past its budget.
@@ -69,6 +72,11 @@ void noteMiss(Product p, const char* what);
 void noteWrite(Product p, za::SizeT bytes);
 void noteRejected(Product p); // a file there but amiss (made again and written over)
 void noteChecked(Product p, bool same, const char* what);
+void noteShippedHit(Product p); // (with noteHit) the hit's file was the shipped cache's
+
+// The shipped cache's file named `<kind>/<build><name>` (name `/<key>.<ext>`, the player's cache's), or "" (none, or
+// vr_cache_shipped 0). The main thread (its first call reads the index). read() looks there by itself.
+[[nodiscard]] za::String shippedFileOf(Product p, const char* build, const char* name);
 
 // The main thread, each frame (VR_HostFrameEnd): whether a map is in play (signed on, not loading): misses from now on
 // are "in play".
@@ -77,7 +85,7 @@ void setInPlay(bool inPlay);
 
 // The file of `key` (`<folder>/<key 16 hex>.<ext>`): 4 bytes of magic, the layout's version, two numbers of the
 // caller's, then the data. read: its two numbers and its data, or false (none, another version, short); a hit or a
-// miss is counted. write: on the pool (its folder made here), counted when written.
+// miss is counted (no file in the player's cache, or one amiss: the shipped cache's, when it has one). write: on the pool (its folder made here), counted when written.
 [[nodiscard]] bool read(Product p, const char* build, unsigned long long key, const char* ext, const char (&magic)[5],
     unsigned& a, unsigned& b, za::Vector<char>& data, const char* what = nullptr);
 void write(Product p, const char* build, unsigned long long key, const char* ext, const char (&magic)[5], unsigned a,

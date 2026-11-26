@@ -414,6 +414,12 @@ struct WeaponFrame
 
 // How curled a drawn finger is (0 open .. 1 curled): `finger` 0 thumb, 1 index, 2 middle, 3 ring, 4 pinky.
 [[nodiscard]] float fingerCurl(int hand, int finger);
+// How closed the jointed hand's four fingers were as last drawn (0 open .. 1 the tightest fist): their joints' mean, with
+// any grasp (fingerCurl is the controller's curl alone). -1: no jointed hand drawn. (polepose: the pole track's grip check.)
+[[nodiscard]] float drawnGripCurl(int hand);
+// Flatscreen play: `hand` pinned on the other hand's pole weapon held as a spear (flatsight::pinShare, twohand::poleWeapon):
+// drawn closed round its shaft (polepose).
+[[nodiscard]] bool onFlatPole(int hand);
 
 // The weapons' hotspots (round 21): the hotspot point (the weapon's model space, weapons::Hotspot) of a world point
 // `p` on the weapon in `hand`; false when the hand holds none.
@@ -494,12 +500,15 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 // The same for the weapon `hand` carries off its handle as drawn now (twohand's HS_CARRIED_GRIP: taken back either way).
 [[nodiscard]] bool carriedReversedHandPoint(int hand, glm::vec3& point);
 // A weapon of `slot` leaving a player's hand (`mirrored`: his off hand) held with `flip` of the reverse grip (leavingFlip: as
-// his view drew it; a drop, a throw: QC weapondrawnpose 49, 50): the angles (a view's, as the hand's `handRot`) that the weapon
-// lying about keeps the way it is drawn by (the reverse grip's turn baked in: rot Rev), and the move of its origin from the
-// hand's point (reverseShift). `handRot` and nothing for a weapon held upright.
+// his view drew it; a drop, a throw: QC weapondrawnpose 49, 50): the angles (a view's, as MakeThrown takes them, the pitch
+// negated) that the weapon lying about keeps the way it is drawn by (the reverse grip's and weapon's angle offsets baked in:
+// weaponTurn), and the move of its origin from the hand's point (reverseShift). `handRot` and nothing for a weapon held upright.
 [[nodiscard]] glm::vec3 leavingTurn(int slot, bool mirrored, float flip, const glm::vec3& handRot, glm::vec3& shift);
 // The reverse grip's share the weapon in the local player's `hand` is drawn with (0 upright; a carried one's: 0).
 [[nodiscard]] float leavingFlip(int hand);
+// The local player's held reversed weapon's drawn angles (a view's: pitch negated for MakeThrown), matching how it is currently
+// held in the hand in both VR and flatscreen (including flatscreen's drawn turn); false if none or upright.
+[[nodiscard]] bool leavingAngles(int hand, glm::vec3& rot);
 
 // The same weapon's handle and tip in the frame of the hand that carries it as it was drawn (its position and `rot`:
 // forward, right, up), for the server to place on the hand of the move it runs (QC's melee: VR_Melee_FreeLine). False if
@@ -559,6 +568,15 @@ enum class HandPart : unsigned char
 
 // Where `hand` was drawn this or last frame, and how turned; false: it wasn't.
 [[nodiscard]] bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot);
+
+// A hand going onto a blade stuck in a body (embedDrawnHand, easing in): how far it has still to go to be on it, as last drawn
+// (world units; 0 on it or off it). The avatar's embedArmPastCm measures the arm from where it will be (embedhold2).
+[[nodiscard]] glm::vec3 embedPinLead(int hand);
+// The blade it is on as that frame drew it (its origin; the client draws entities a frame or more behind the server).
+[[nodiscard]] glm::vec3 embedPinSeen(int hand);
+// Whether `hand` is currently easing off a stuck blade (vr_embed_free_ease): keeps arm stretch from shrinking out
+// from under keepOnArm before the hand finishes easing back to rest.
+[[nodiscard]] bool embedEasing(int hand);
 
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,

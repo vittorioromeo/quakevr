@@ -48,6 +48,9 @@ vr_embed_test    1        vr_embed_test.qc                 embedded blades: thro
 vr_embed_test    2        vr_embed_test.qc                 the pictures' scene: a sword in the wall, one in a corpse
 vr_embed_test    3        vr_embed_test.qc                 the save's scene: the same plus one in a live grunt
 vr_embed_test    4        vr_embed_test.qc                 after the load: each still stuck where it was
+vr_embed_test    58-60    vr_flatthrust_test.qc            flat V thrusts with every stabbing blade (flatthrust): 58 the sword, the dagger, the spear, the flipped dagger: V hurts a grunt, sticks by the point, fire pulls it out; the axe's V its swing; 59 the same with what the hand holds (the Lance), then H with it stuck: let go, it stays in (lancepull); 60 flatmelee5: 2H equip without swinging (dagger stays 1H), inverted-grip throw angle, flipped dagger/sword/spear attacks, close-range tip hits
+vr_embed_test    64       vr_flatembedwalk_test.qc         flat (embedhold2/embedholdfix): 7 cases (crate, ragdoll, live grunt, ogre, spear, sword+off, swung axe): standing still hand stays within arm and blade stays in; walking away with vr_flat_embed_arm 1 keeps hands on wrists and weapon+hand locked during release ease, draws pointed blades out of light hosts (ragdoll, grunt, spear, sword+off), lets go on heavy hosts (ogre) and swung edge embeds (axe) so the blade stays in; spear attaches off hand only when vr_flat_embed_arm 1
+vr_embed_test    53       vr_spear_test.qc                 the spear (a pole weapon on the Crystal Lance's systems): a thrust sticks by its point no deeper than its head, drawn back it comes out; a swing; thrown at a wall and a grunt point first; the flip grip, no ammo; the spear's and the Lance's shaft a blunt blow; flat: the thrust, fire pulls it out, B flips
 vr_embed_test    40       vr_dagger_test.qc                the dagger: a swing, a stab (less deep than the sword's), thrown at a wall and a grunt
 vr_embed_test    47       vr_throwpoint_test.qc            his 2026-11-15: thrown swords and daggers settle point first in the air (good and VR-style overhand throws point first, spun swords stay a spin, extremes steady all; axes unchanged; daggers let go any way as often as swords); then vr_throwdmg_test.qc: thrown blades at max speed at grunts, knights, ogres never gib, point first stay in the body, else blunt; no blade left floating off a body
 vr_embed_test    48       vr_airskewer_test.qc             his 2026-11-15: a gib tossed up skewered in the air by a fast thrust (not a slow push, not a swing across; a hanging one the same)
@@ -125,6 +128,7 @@ vr_ad_test       66       vr_ad_test.qc                    (VR_AD_Skybox)
 vr_ad_test       70-102   vr_ad_test.qc                    (AD_GunTest)
 vr_ad_test       103      vr_ad_test.qc                    (AD_UpgradesTest: the toolgun's Plasma Gun's model, its first ball's hit)
 vr_ad_test       104-105  vr_ad_test.qc                    (AD_UpgradesTest: the Plasma Gun carried through a save and load or a level change, its first ball loads nothing)
+vr_ad_test       106      vr_ad_test.qc                    (AD_UpgradesTest: the Plasma Gun held firing draws no lightning stream, a plain lightning gun does; plasmabolt)
 vr_ad_test       110-129  vr_ad_test.qc                    (AD_MeleeTest)
 vr_ad_test       130      vr_ad_test.qc                    (AD_ProjHitTest)
 vr_ad_test       131-139  vr_ad_test.qc                    (AD_MeleeTest)
@@ -254,6 +258,7 @@ vr_agrunt_test   225      vr_ragthud_test.qc               living ragdolls' thud
 vr_agrunt_test   226-227  vr_armedgrunt_lod_test.qc        the armed grunts' QC cost by state (idle unseen or seen, alert, fighting, dead), the map as it stands (226) or all woken at the player (227): a measurement
 vr_agrunt_test   228      vr_armedgrunt_lod_test.qc        a far, unseen armed grunt (posed once in vr_agrunt_pose_lod_frames) seen or shot, an unarmed one heard or shot: posed that frame and every frame after, alert and attacking; its trace the same as with the old LOD and none (aglod_test.sh)
 vr_agrunt_test   229      vr_armedgrunt_lod_test.qc        a worn pack's LOD as its wearer leaves his PVS (placed while the pack is in view) and comes back (placed the first frame)
+vr_agrunt_test   230      vr_armedgrunt_spear_test.qc      an armed grunt with the spear: two-handed, its head at you, both hands on the shaft (agpole), its thrust hurts you
 vr_agrunt_test   203      vr_armedgrunt_dualdisarm_test.qc a dual wielder disarmed of its off hand, then its main: slots, each weapon drawn on its hand, its pick-up
 vr_agrunt_test   204      vr_ogre_friends_test.qc          ogres (and MG3 rocket ogres) behind a friend: friendly hits careless, careful, its attack rate, one always in the way
 vr_agrunt_test   205      vr_armedgrunt_gunlag_test.qc     a held gun stays with its body as it walks
@@ -264,6 +269,7 @@ vr_agrunt_test   201      vr_armedgrunt_test.qc            dual wielders' both g
 vr_agrunt_test   211      vr_armedgrunt_second_test.qc     Pick Up a Second, smarter: idle near takes, far ignored, in a fight past the combat range ignored, very near taken (downtime), taken away: gives up
 vr_agrunt_test   212      vr_meleerules_test.qc            the shared melee rules: an armed sword's blow lands from ahead, a side-step dodges it; Show Melee Arcs shows each kind's rule (arc, leap, all round, shove)
 vr_agrunt_test   213      vr_meleerules_test.qc            the nearest monster's bite parried (AD's lost soul; your crowbar's guard held)
+vr_agrunt_test   216      vr_meleerules_test.qc            Show Melee Arcs draws an armed sword grunt's swing as your own sweeps are drawn (on: sent and drawn; off: none)
 vr_agrunt_test   215      vr_armedgrunt_coopdisarm_test.qc a grunt disarmed by shooting its gun still dies of blasts on its body (single player; coop with a bot)
 vr_agrunt_test   214      vr_armedgrunt_extent_test.qc    a held weapon's drawn extent (agweaponextent) follows vr_gunmodelscale changed mid-map, and back
 
@@ -338,6 +344,7 @@ vr_reload_test   43       vr_reload_test.qc                (VR_Reload_TestMagFor
 vr_reload_test   44       vr_reload_test.qc                (VR_Reload_TestPouchCatch)
 vr_reload_test   45-48    vr_reload_test.qc                (VR_Reload_TestStartGun)
 vr_reload_test   49       vr_reload_test.qc                a holstered gun keeps its rounds, every path and reload mode (VR_HolsterAmmo_Test, vr_holsterammo_test.qc)
+vr_reload_test   50       vr_reload_test.qc                switching ammo type ejects old magazine before flags/model flip, flat and VR (VR_AmmoSwitch_Test, vr_holsterammo_test.qc)
 
 vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)

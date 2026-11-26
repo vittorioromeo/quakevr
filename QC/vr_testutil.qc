@@ -164,6 +164,7 @@ void() VR_TestsFrame =
     VR_Rag1108_TestFrame(); // VR: the 11-08 round's ragdoll fixes (vr_rag1108_test, vr_rag1108_test.qc)
     VR_RagSmash_TestFrame(); // VR: a ragdoll smashed into a wall: its sound and blood (vr_ragsmash_test, vr_ragsmash_test.qc)
     VR_Footstep_TestFrame(); // VR: the enemies' footsteps' test (vr_footstep_test, vr_footstep_test.qc)
+    VR_SphitTest_Frame(); // VR: the player's body-shape hit rate (vr_sphit_test, vr_crouch_test.qc)
     VR_CrouchTest_Frame(); // VR: the crouched box's shots test (vr_crouch_test, vr_crouch_test.qc)
     VR_SelfShotTest_Frame(); // VR: shooting yourself (vr_selfshot_test, vr_selfshot_test.qc)
     VR_V1116Test_Frame(); // VR: his 11-16 notes: looping sounds stopped, no wet shine on the never wet (vr_v1116_test, vr_v1116_test.qc)

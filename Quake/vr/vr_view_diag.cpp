@@ -4,6 +4,8 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_admelee.hpp"
+#include "vr_flatplay.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
 #include "vr_progs.hpp"
 #include "vr_sightalign.hpp"
@@ -43,6 +45,29 @@ float fingerCurl(int hand, int finger)
     }
     // As drawn without a grasp: the curl (frames 0..5) with a held weapon's finger tweak.
     return rigCurl(hand, FingerThumb + finger) / 5.f;
+}
+
+bool onFlatPole(int hand)
+{
+    return flatplay::active() && hand >= 0 && hand < 2 && flatsight::pinShare(hand) > 0.f &&
+           twohand::poleWeapon(weapons::heldSlot(1 - hand));
+}
+
+float drawnGripCurl(int hand)
+{
+    if(hand < 0 || hand > 1 || !rigHands[hand].drawn)
+    {
+        return -1.f;
+    }
+    float sum = 0.f;
+    for(int f = handrig::Index; f < handrig::FingerCount; f++)
+    {
+        for(int j = 0; j < handrig::jointsPerFinger; j++)
+        {
+            sum += rigHands[hand].pose.curl[f][j];
+        }
+    }
+    return sum / (4.f * static_cast<float>((handrig::FingerCount - handrig::Index) * handrig::jointsPerFinger));
 }
 
 void resetCaches()
@@ -1007,6 +1032,21 @@ int chosenGripSpot(int hand, int& type)
     }
     type = static_cast<int>(worldHotspots()[hand][chosenGrip()[hand]].type);
     return chosenGrip()[hand];
+}
+
+glm::vec3 embedPinSeen(int hand)
+{
+    return embedPinSeenOf(hand);
+}
+
+glm::vec3 embedPinLead(int hand)
+{
+    return embedPinLeadOf(hand);
+}
+
+bool embedEasing(int hand)
+{
+    return embedPinEasingOf(hand);
 }
 
 bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot)

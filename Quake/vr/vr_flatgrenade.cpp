@@ -30,9 +30,11 @@
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_seat.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
+#include "vr_held.hpp"
 #include "vr_protocol.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
@@ -55,12 +57,15 @@ constexpr int phaseArmed = 3;
 constexpr int phaseWind = 4;
 constexpr int phaseThrown = 5;
 
-// The throw key's (QC VR_FLATTHROW_*: STAT_QVR_FLATGREN's bits 16 and 32; 64 the main hand's, 128 held in both hands).
+// The throw key's (QC VR_FLATTHROW_*: STAT_QVR_FLATGREN's bits 16 and 32; 64 the main hand's, 128 held in both hands;
+// 256 off hand H-grabbed, 512 main hand H-grabbed, 1024 H-grabbed 2H prop or ragdoll hold pose).
 constexpr int throwWind = 1;
 constexpr int throwThrown = 2;
+constexpr int throwPending = 3; // tap-drop vs hold-throw window (< vr_flat_throw_tap_time): no wind-up shown yet
 
-// The throw key's impulses (QC weapons.qc): 39 the key down (the wind-up), 40 up (the throw).
+// The throw key's impulses (QC weapons.qc): 39 the key down, 40 up. Grab / pull (H): 96 toggle, 97 hold down, 98 hold up.
 constexpr int throwResendFrames = 8; // the key up while the server still winds up: 40 again this many frames on
+constexpr int pullRetryFrames = 6;   // hold mode: retry grab impulse while key held and nothing grabbed yet
 
 // Each hand's shares (0..1, before their ease).
 struct Shares
@@ -69,11 +74,14 @@ struct Shares
     float hold{0.f};
     float wind{0.f};
     float follow{0.f};
-    float charge{0.f}; // the wind-up's charge (its share of the full wind-up): drawn further back
-    float guide{0.f};  // the other hand, free, guiding the throw (forward, its palm away, open: vr_flat_throw_guide_*)
+    float charge{0.f};    // the wind-up's charge (its share of the full wind-up): drawn further back
+    float guide{0.f};     // the other hand, free, guiding the throw (forward, its palm away, open: vr_flat_throw_guide_*)
+    float grabReach{0.f}; // Grab / Pull (H): brief forward reach-out animation
+    float grabHold{0.f};  // Grab / Pull (H): comfortable forward hold-out pose while carrying a 2H crate or ragdoll
+    float grabPulse{0.f}; // remaining seconds of the brief reach-out pulse
 };
 
-// The grenade and the throw key as drawn (no function-local statics: a named file-scope struct, CODE_STYLE.md).
+// The grenade, throw/drop and grab/pull as drawn (no function-local statics: a named file-scope struct, CODE_STYLE.md).
 struct GrenadeState
 {
     Shares hand[2];
@@ -83,15 +91,22 @@ struct GrenadeState
     int printed{0};      // (vr_flat_grenade_debug) the places whose arrival was printed this grenade: bit per place
     int presses{0};
     double lastTime{-1e9};
-    // The throw key.
-    int throwPhase{0};       // the server's, this frame
-    int throwHand{-1};       // its hand (kept while it eases back)
-    bool throwBoth{false};   // held in both hands as it wound up: the other hand let go (letsGo)
+    // The throw / drop key (B).
+    int throwPhase{0};         // the server's, this frame
+    int throwHand{-1};         // its hand (kept while it eases back)
+    bool throwBoth{false};     // held in both hands as it wound up: the other hand let go (letsGo)
     bool throwKeyDown{false};
-    bool throwKeyWound{false}; // J went down on a quick grenade: its wind-up is J's (QC .vr_flatgren_bykey)
+    bool throwKeyWound{false}; // B went down on a quick grenade: its wind-up is B's (QC .vr_flatgren_bykey)
     int throwPresses{0};
-    int throwResend{0};      // frames to the next 40 while the key is up and the server still winds up
-    double windStart{-1.0};  // (vr_gametime) when the shown wind-up began
+    int throwResend{0};        // frames to the next 40 while the key is up and the server still winds up
+    double windStart{-1.0};    // (vr_gametime) when the shown wind-up began
+    // The Grab / Pull key (H).
+    bool grabHeld[2]{false, false}; // server reports this hand holds an H-grabbed prop or ragdoll
+    bool grabHoldPose{false};       // server reports 2H prop or ragdoll held (extended hold-out pose)
+    bool pullKeyDown{false};
+    int pullPresses{0};
+    int pullResend{0};              // frames to resend impulse 38 in hold mode if server still holds
+    int pullRetry{0};               // frames to retry impulse 37 in hold mode while searching
 };
 
 // splitscreen (SPLITSCREEN.md, phase 4a): the current seat's (seat::Part::FlatGrenade)
@@ -112,7 +127,7 @@ struct GrenadeState
 
 [[nodiscard]] bool anyShare(const Shares& a)
 {
-    return a.away > 0.f || a.hold > 0.f || a.wind > 0.f || a.follow > 0.f || a.guide > 0.f;
+    return a.away > 0.f || a.hold > 0.f || a.wind > 0.f || a.follow > 0.f || a.guide > 0.f || a.grabReach > 0.f || a.grabHold > 0.f;
 }
 
 // `v` towards `want` (0 or 1) at 1 / `up` a second rising and 1 / `down` falling.
@@ -128,19 +143,23 @@ void report_f()
         gs().phase, gs().hand0 < 0 ? "none" : handName(gs().hand0), gs().hand[HAND_OFF].away, gs().hand[HAND_OFF].hold,
         gs().hand[HAND_OFF].wind, gs().hand[HAND_OFF].follow, gs().hand[HAND_MAIN].away, gs().hand[HAND_MAIN].hold,
         gs().hand[HAND_MAIN].wind, gs().hand[HAND_MAIN].follow, gs().presses);
-    Con_Printf("flatthrow: phase %d, hand %s%s; charge off %.2f main %.2f; J presses %d\n", gs().throwPhase,
+    Con_Printf("flatthrow: phase %d, hand %s%s; charge off %.2f main %.2f; B presses %d\n", gs().throwPhase,
         gs().throwHand < 0 ? "none" : handName(gs().throwHand), gs().throwBoth ? " (was in both hands: the other let go)" : "", gs().hand[HAND_OFF].charge,
         gs().hand[HAND_MAIN].charge, gs().throwPresses);
+    Con_Printf("flatgrab: mode %s, held off %d main %d (holdPose %d); reach off %.2f main %.2f; hold off %.2f main %.2f; H presses %d\n",
+        vr_flat_grab_hold.value != 0.f ? "hold" : "toggle", gs().grabHeld[HAND_OFF] ? 1 : 0, gs().grabHeld[HAND_MAIN] ? 1 : 0,
+        gs().grabHoldPose ? 1 : 0, gs().hand[HAND_OFF].grabReach, gs().hand[HAND_MAIN].grabReach, gs().hand[HAND_OFF].grabHold,
+        gs().hand[HAND_MAIN].grabHold, gs().pullPresses);
 }
 
-// The throw key (vr_flat_key_throw): 39 as it goes down, 40 as it comes up, and 40 again while the server still winds up
-// with it up (an impulse lost to another in the same move).
+// The throw / drop key (vr_flat_key_throw, default B): 39 as it goes down, 40 as it comes up, and 40 again while the
+// server still waits or winds up with it up (an impulse lost to another in the same move).
 void throwKey(int stat)
 {
-    const int k = vr_flat_key_throw.string[0] ? Key_StringToKeynum(vr_flat_key_throw.string) : -1;
-    const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
+    const bool down = key_dest == key_game && flatplay::keyHeld(vr_flat_key_throw);
     const int grenPhase = stat & 7;
-    const bool serverWinds = ((stat >> 4) & 3) == throwWind || (gs().throwKeyWound && grenPhase == phaseWind);
+    const int tPhase = (stat >> 4) & 3;
+    const bool serverWinds = tPhase == throwWind || tPhase == throwPending || (gs().throwKeyWound && grenPhase == phaseWind);
     if(down && !gs().throwKeyDown)
     {
         gs().throwPresses++;
@@ -148,7 +167,7 @@ void throwKey(int stat)
         Cbuf_InsertText("impulse 39\n");
         if(vr_flat_grenade_debug.value)
         {
-            Con_Printf("flatthrow: %s down: wind up\n", vr_flat_key_throw.string);
+            Con_Printf("flatthrow: %s down: pending/wind up\n", vr_flat_key_throw.string);
         }
     }
     else if(!down && gs().throwKeyDown)
@@ -157,7 +176,7 @@ void throwKey(int stat)
         gs().throwResend = throwResendFrames;
         if(vr_flat_grenade_debug.value)
         {
-            Con_Printf("flatthrow: %s up: throw\n", vr_flat_key_throw.string);
+            Con_Printf("flatthrow: %s up: drop/throw\n", vr_flat_key_throw.string);
         }
     }
     else if(!down && serverWinds && --gs().throwResend <= 0)
@@ -170,6 +189,66 @@ void throwKey(int stat)
         gs().throwKeyWound = false;
     }
     gs().throwKeyDown = down;
+}
+
+// The Grab / Pull key (vr_flat_key_pull, default H): uses every available empty hand to grab physics props, crates,
+// ragdolls and gibs in front of the player. Toggle mode (default, vr_flat_grab_hold 0): impulse 96 on press;
+// Hold mode (vr_flat_grab_hold 1): impulse 97 on press (and retry while searching), impulse 98 on release.
+void pullKey(int stat)
+{
+    const bool down = key_dest == key_game && flatplay::keyHeld(vr_flat_key_pull);
+    const bool holdMode = vr_flat_grab_hold.value != 0.f;
+    const bool grabOff = (stat & 256) != 0;
+    const bool grabMain = (stat & 512) != 0;
+    const bool serverHeld = grabOff || grabMain;
+    gs().grabHeld[HAND_OFF] = grabOff;
+    gs().grabHeld[HAND_MAIN] = grabMain;
+    gs().grabHoldPose = (stat & 1024) != 0;
+
+    if(down && !gs().pullKeyDown)
+    {
+        gs().pullPresses++;
+        gs().pullRetry = pullRetryFrames;
+        if(holdMode || !serverHeld)
+        {
+            const float pulse = secs(vr_flat_grab_reach_time);
+            for(int h : {HAND_OFF, HAND_MAIN})
+            {
+                if(held::handEmpty(h) && !flashlight::holds(h))
+                {
+                    gs().hand[h].grabPulse = pulse;
+                }
+            }
+        }
+        Cbuf_InsertText(holdMode ? "impulse 97\n" : "impulse 96\n");
+        if(vr_flat_grenade_debug.value || vr_flatplay_debug.value)
+        {
+            Con_Printf("flatgrab: %s down (%s)\n", vr_flat_key_pull.string, holdMode ? "hold grab" : (serverHeld ? "toggle release" : "toggle grab"));
+        }
+    }
+    else if(down && holdMode && !serverHeld && --gs().pullRetry <= 0)
+    {
+        Cbuf_InsertText("impulse 97\n");
+        gs().pullRetry = pullRetryFrames;
+    }
+    else if(!down && gs().pullKeyDown)
+    {
+        if(holdMode)
+        {
+            Cbuf_InsertText("impulse 98\n");
+            gs().pullResend = throwResendFrames;
+            if(vr_flat_grenade_debug.value || vr_flatplay_debug.value)
+            {
+                Con_Printf("flatgrab: %s up (hold release)\n", vr_flat_key_pull.string);
+            }
+        }
+    }
+    else if(!down && holdMode && serverHeld && --gs().pullResend <= 0)
+    {
+        Cbuf_InsertText("impulse 98\n");
+        gs().pullResend = throwResendFrames;
+    }
+    gs().pullKeyDown = down;
 }
 
 // A place off the shoulder `sh`: `fwd` along `f`, `out` along the hand's own side of `r`, `up` along `u`, in shares of the
@@ -208,15 +287,16 @@ void frame(bool on)
     {
         const int presses = gs().presses;
         const int throwPresses = gs().throwPresses;
-        gs() = GrenadeState{};
+        const int pullPresses = gs().pullPresses;
+        gs() =GrenadeState{};
         gs().presses = presses;
         gs().throwPresses = throwPresses;
+        gs().pullPresses = pullPresses;
         return;
     }
 
     // G: the game picks the hand and runs it (QC VR_FlatGrenade_Key).
-    const int k = vr_flat_key_grenade.string[0] ? Key_StringToKeynum(vr_flat_key_grenade.string) : -1;
-    const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && Key_Seat()->down[k] != 0;
+    const bool down = key_dest == key_game && flatplay::keyHeld(vr_flat_key_grenade);
     if(down && !gs().keyDown)
     {
         gs().presses++;
@@ -229,7 +309,8 @@ void frame(bool on)
     gs().keyDown = down;
 
     const int stat = cl.stats[protocol::STAT_QVR_FLATGREN];
-    throwKey(stat); // J: the throw key
+    throwKey(stat); // B: unified throw / drop key
+    pullKey(stat);  // H: Grab / Pull key
     const int phase = stat & 7;
     if(phase != gs().phase && vr_flat_grenade_debug.value)
     {
@@ -244,7 +325,8 @@ void frame(bool on)
     {
         gs().printed = 0;
     }
-    const int throwPhase = (stat >> 4) & 3;
+    const int rawThrowPhase = (stat >> 4) & 3;
+    const int throwPhase = rawThrowPhase == throwPending ? 0 : rawThrowPhase; // (pending: no wind-up shown on tap)
     if(throwPhase != gs().throwPhase && vr_flat_grenade_debug.value)
     {
         Con_Printf("flatthrow: phase %d -> %d (%s hand%s)\n", gs().throwPhase, throwPhase, (stat & 64) ? "main" : "off",
@@ -283,9 +365,22 @@ void frame(bool on)
     const int thrower = throwPhase == throwWind ? gs().throwHand : phase == phaseWind ? gs().hand0 : -1;
     const int guider = thrower >= 0 ? 1 - thrower : -1;
     const bool guides = guider >= 0 && vr_flat_throw_guide.value != 0.f && flatsight::handEmpty(guider) && !busy(guider);
+    const bool holdMode = vr_flat_grab_hold.value != 0.f;
+    const bool anyGrabHeld = gs().grabHeld[HAND_OFF] || gs().grabHeld[HAND_MAIN];
+    const float grabUp = secs(vr_flat_grab_reach_time);
+    const float grabDown = secs(vr_flat_grab_back_time);
     for(int h : {HAND_OFF, HAND_MAIN})
     {
         Shares& a = gs().hand[h];
+        if(a.grabPulse > 0.f)
+        {
+            a.grabPulse = za::max(0.f, a.grabPulse - t);
+        }
+        const bool searching = holdMode && gs().pullKeyDown && !anyGrabHeld && held::handEmpty(h) && !flashlight::holds(h);
+        const bool wantReach = (a.grabPulse > 0.f || searching) && !gs().grabHeld[h];
+        const bool wantHold = gs().grabHeld[h] && gs().grabHoldPose;
+        step(a.grabReach, wantReach, grabUp, grabDown, t);
+        step(a.grabHold, wantHold, grabUp, grabDown, t);
         step(a.guide, guides && h == guider, secs(vr_flat_throw_wind_time), secs(vr_flat_throw_back_time), t);
         const bool mine = phase != 0 && h == gs().hand0;
         const bool throws = throwPhase != 0 && h == gs().throwHand; // (the other hand of a thing held in both goes with it: apply)
@@ -339,6 +434,23 @@ void apply(hands::State& s)
         const glm::vec3 fetchAt = place(sh, lf, lr, lu, side, span, vr_flat_grenade_fetch_fwd.value, vr_flat_grenade_fetch_out.value,
             -vr_flat_grenade_fetch_down.value);
         const auto pitch = [](const Tunable& t) { return za::clamp(t.value, -90.f, 90.f); };
+
+        // Grab / Pull (H): hold-out pose for 2H props/ragdolls, and subtle forward reach-out animation when grabbing.
+        // Applied before throw wind/follow so winding up B smoothly overrides from a held grab pose.
+        if(a.grabHold > 0.f)
+        {
+            const glm::vec3 grabHoldAt = place(sh, vf, vr, vu, side, span, vr_flat_grab_hold_fwd.value,
+                vr_flat_grab_hold_out.value, -vr_flat_grab_hold_down.value);
+            const glm::vec3 palmIn = glm::normalize(-vr * (side * 0.85f) - vu * 0.5f);
+            blend(s, h, grabHoldAt, flatplay::handFacing(h, vf, palmIn), geom::smooth01(a.grabHold));
+        }
+        if(a.grabReach > 0.f)
+        {
+            const glm::vec3 grabReachAt = place(sh, vf, vr, vu, side, span, vr_flat_grab_reach_fwd.value,
+                vr_flat_grab_reach_out.value, -vr_flat_grab_reach_down.value);
+            const glm::vec3 palmReach = glm::normalize(-vr * (side * 0.6f) - vu * 0.8f);
+            blend(s, h, grabReachAt, flatplay::handFacing(h, vf, palmReach), geom::smooth01(a.grabReach));
+        }
 
         blend(s, h, holdAt, {look.x + pitch(vr_flat_grenade_hold_pitch), look.y, 0.f}, geom::smooth01(a.hold));
         // (The wind-up's yaw turns the fingers out to the hand's side, its roll mirrored by side.)
@@ -396,8 +508,11 @@ bool busy(int h)
 {
     // (The phases only: on the way back after the throw the hand may take the grip again, so it eases from the
     // follow-through straight onto it.)
-    // The throw key's hand too (the other hand of a thing held in both lets go of it: letsGo).
-    return h >= 0 && h < 2 && ((gs().phase != 0 && gs().hand0 == h) || (gs().throwPhase != 0 && gs().throwHand == h));
+    // The throw key's hand too (the other hand of a thing held in both lets go of it: letsGo), and Grab / Pull (H)
+    // reaching or holding.
+    return h >= 0 && h < 2 &&
+           ((gs().phase != 0 && gs().hand0 == h) || (gs().throwPhase != 0 && gs().throwHand == h) || gs().grabHeld[h] ||
+               gs().hand[h].grabPulse > 0.f || gs().hand[h].grabReach > 0.1f);
 }
 
 bool letsGo(int holding, int helping)
@@ -413,6 +528,11 @@ bool throwsWith(int h)
 float guideShare(int h)
 {
     return h >= 0 && h < 2 ? geom::smooth01(gs().hand[h].guide) : 0.f;
+}
+
+float grabOpenShare(int h)
+{
+    return h >= 0 && h < 2 && !gs().grabHeld[h] ? geom::smooth01(gs().hand[h].grabReach) : 0.f;
 }
 
 } // namespace qvr::flatgrenade

@@ -241,3 +241,27 @@ quakevr/checklist.txt: 223 lines down to 157. His ticks file and notes read from
 - **[New] sorted (47 lines left):** into Installer, Flat screen, Weapons and holsters, Ropes and chains, Dwell, Multiplayer; the Quest lines (Standalone, foveation, music) joined Installer, start-up and platforms. [New] is empty.
 - **Merged:** the Quest install and Quest rendering duplicates, the Lance charge, slide and thrust lines, the three parry-palm lines, the wheel DROP/UNLOAD/icon lines, the foveation lines, the ropes two-player lines.
 - **Sections reordered:** Installer, Flat screen, Tutorial and VR interface, Weapons and holsters, Ropes and chains, Armed humanoids, Dwell, Quoth, AD, Survival Arena, Multiplayer and bots, Recording and dev tools. No scene retired (unused ones left). checklist_tests_check: 99 passed, 0 failed.
+
+## Checklist tidy, fifth pass (2026-11-24, cltidy5)
+
+quakevr/checklist.txt: 168 lines down to 143 (110 test lines). His ticks file and notes were read from his checkout (nothing written).
+- **Retired (19):** every ticked line except the flat Lance pose line ("hold the Crystal Lance with a fresh config", kept: he reported the flat Lance off hand on the pole and thrust IK broken today). 12 of the 19 had a 2026-11-23 voice note (rope thumbs, wheel click, Lance B and empty click, SSG muzzle, ad_crucial, holsters, centre message, revolver, super nailgun, Lance weight and thrust); all were addressed by a later fix and then ticked. Kept unticked: "Show Melee Arcs" (failed), the Lance pole and flipped-grip lines. No line for flat blade embedding exists.
+- **Merged:** five Quest foveation lines into one, the two Quest hub lines, the Quest campaigns + install-again lines, the wheel follow + quick-tap lines. Stale text fixed ("1.2.0-beta2" now "the latest pre-release", Foveation "Low by default").
+- **[New] sorted (all):** Installer (Quest lines), Flat screen (flat Lance pose), Tutorial and VR interface (tutorial in MP, centre message, Swap Face Buttons), Weapons and holsters (wheel), Dwell (Lance HUD). [New] is empty.
+- **Scenes removed (5, nothing else uses them):** ropes_flat, flat_weapon_wheel, revolver_swing, sng_spin, ssg_muzzle. checklist_tests_check: 76 passed, 0 failed.
+
+## Checklist tidy, sixth pass (2026-11-25, cltidy6)
+
+quakevr/checklist.txt: 162 lines down to 132 (all tagged). His ticks file read from his checkout; there were no 2026-11-24/25 voice notes.
+- **Retired (13):** every ticked line (rope thumbs and slide, wheel pick sound, flat Lance never a lightning gun, SSG muzzle, ad_crucial lift, bots' holsters, wall shoves, rope slide hands/arms, Lance fresh-config pose, flat wheel 0.15 s). "Show Melee Arcs" (in the fail list) kept.
+- **Merged/removed (19):** the three Quest foveation lines (kept by the Installer line), the Quest campaigns / GL-safe / hub-three-times duplicates, the two wheel lines (already in Weapons), the two hub-load-time lines (superseded by the shipped-cache line), Lance stuck + H release, axe embed pair, spear take/throw/stick trio, the two lift-ride lines, the two Melee Arcs lines.
+- **[New] sorted (all):** Installer, Flat screen (now 9 lines), Tutorial and VR interface (3), Weapons, Ropes, Armed humanoids, Dwell. The [New] section is gone.
+- **Scene removed:** wall_shove (nothing else used it). ssg_muzzle kept (Misc/quakevr/make_ssg_muzzle.py and docs use it). checklist_tests_check: 93 passed, 0 failed.
+
+## Checklist tidy, seventh pass (2026-11-25, cltidy7)
+
+quakevr/checklist.txt: 135 item lines down to 118 (all tagged). No 2026-11-25 voice notes exist (latest are the 11-24 flat-feedback files).
+- **Retired (17):** every line whose exact text is in his checklist_ticks.txt (the flat Lance pose/thrust/grip lines, flat axe stick, pole slide, flat zoom, tutorial in MP, wheel default, sights hue, wheel button with blades, spear, Dwell Lance pole/flip/HUD). The centre-message line stays: its text changed ("20% smaller") after his tick.
+- **New section "[2. Quest Standalone]" (16 lines):** the lines done on the headset itself (logcat, performance, Standalone preset looks, foveation, dynamic resolution, gib thinning, campaigns, dither and bullet time, app loading, data-version warning). The Installer and Setup's Quest step (pushing files from the PC) stay in section 1. Sections 2-12 are now 3-13; names unchanged.
+- **Scenes removed (7, nothing else uses them):** flat_lance, flat_thrust_blades, flat_holster_dagger, flat_embed_axe, flat_zoom_aim, sight_front_hue, dwell_lance_pole.
+- **Tunables promoted (tune_promote.py, 6):** vr_flat_pole_off_along 8, vr_flat_pole_off_out 1, vr_flat_pole_off_pitch -40, vr_flat_thrust_off_slide 2, vr_flat_thrust_arm_stretch 1.35, vr_flat_zoom_up 0; `--check` reports nothing. checklist_tests_check 84 passed, 0 failed.

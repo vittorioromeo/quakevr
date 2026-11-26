@@ -4,6 +4,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_seat.hpp"
+#include "vr_avatar.hpp"
 #include "vr_axestick.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_flatplay.hpp"
@@ -2547,13 +2548,22 @@ struct EmbedPin
     float releaseFrom{1.f};  // its weight then
     glm::vec3 relPos{0.f};
     glm::quat relTurn{1.f, 0.f, 0.f, 0.f};
+    // (Flat play, embedhold2/embedholdfix: eased from where it was on it as carried by his body, not by its controller, whose posed
+    // place jumps as the hand gets its weapon back: both hand and weapon share the same arm-clamped ease.)
+    bool bodyEase{false};
+    glm::vec3 bodyRel{0.f};     // where it left the blade, from the player in his yaw's axes
+    glm::mat3 bodyRelTurn{1.f}; // and its orientation there, in his yaw's axes
+    float bodyW{0.f};           // the ease's weight this frame
+    glm::vec3 lead{0.f};        // on it: from the drawn (arm-clamped) hand to the unclamped blade grip target (embedPinLead)
+    glm::vec3 seen{0.f};        // on it: the blade's origin as drawn this frame (embedPinSeen)
     glm::vec3 lastOnPos{0.f}, lastOnRot{0.f}, lastCtlPos{0.f}, lastCtlRot{0.f}; // the last frame on it
     float lastOffset{0.f};   // (vr_embed_probe: the drawn hand's offset from its controller last frame, units)
-    // This frame (embedPinStep, before the weapons are placed): on it; off it, the ease's offset and turn about the controller,
+    // This frame (embedPinStep, before the weapons are placed): on it; off it, the ease's pivot, offset and turn,
     // one transform for the drawn hand and the weapon in it (his note 2026-11-06: "both the axe and the hand should smoothly
     // travel together").
     bool on{false};
     bool easing{false};
+    glm::vec3 easePivot{0.f};
     glm::vec3 easeOff{0.f};
     glm::quat easeTurn{1.f, 0.f, 0.f, 0.f};
     // (vr_embed_probe: the drawn weapon's origin from its controller last frame, the blade's while on it; its pose as placed
@@ -2737,6 +2747,64 @@ void embedHandleRoll(EmbedPin& pin, const entity_t& e, const glm::vec3& ctlRot, 
     return best;
 }
 
+// The player as the flat release ease carries a hand by him (EmbedPin::bodyEase): his origin, his yaw's axes.
+[[nodiscard]] glm::vec3 embedBodyPos()
+{
+    const entity_t& p = cl_entities[cl.viewentity];
+    return glm::vec3{p.origin[0], p.origin[1], p.origin[2]};
+}
+
+[[nodiscard]] glm::mat3 embedBodyTurn()
+{
+    return anglesBasis(glm::vec3{0.f, cl.viewangles[YAW], 0.f});
+}
+
+// Offset from controller pose `pos` to the drawn wrist joint at controller angles `ctlRot` (world units).
+[[nodiscard]] glm::vec3 wristOffsetFor(int hand, const glm::vec3& ctlRot)
+{
+    const bool mirrored = hand == HAND_OFF;
+    const int fist = weapons::fistSlot();
+    const glm::vec3 handRot = basisAngles(anglesBasis(ctlRot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
+    if(handrig::usable(viewModel(handrig::modelName())))
+    {
+        const glm::mat4 m = rigPlacement(hand, glm::vec3{0.f}, handRot, mirrored, nullptr);
+        return glm::vec3{m * glm::vec4{vec3Of(handrig::data::wrist), 1.f}};
+    }
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(ctlRot, fwd, right, up);
+    return -fwd * 4.f;
+}
+
+// Flat play (embedhold2/embedholdfix, his flat note 2026-11-25: "the hand can become detached from the wrist"): `pos`, a hand of
+// `hand` drawn on a blade or easing off one at controller angles `ctlRot`, brought back along its way from `from` (its own place)
+// so its actual wrist joint (`pos + wristOffsetFor`) stays within the arm's reach from the shoulder (avatar::embedReachNow). VR: unchanged.
+void keepOnArm(int hand, const glm::vec3& from, glm::vec3& pos, const glm::vec3& ctlRot)
+{
+    glm::vec3 shoulder{0.f};
+    float most = 0.f;
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    if(!flatplay::active() || !avatar::embedReachNow(hand, eye, shoulder, most))
+    {
+        return;
+    }
+    const glm::vec3 wristOff = wristOffsetFor(hand, ctlRot);
+    if(glm::distance(pos + wristOff, shoulder) <= most)
+    {
+        return;
+    }
+    float in = 0.f, out = 1.f;
+    for(int i = 0; i < 12; ++i)
+    {
+        const float t = (in + out) * 0.5f;
+        (glm::distance(glm::mix(from, pos, t) + wristOff, shoulder) <= most ? in : out) = t;
+    }
+    if(vr_debug_axestick.value >= 3)
+    {
+        Con_Printf("embedpin: hand %d past its arm by %.1f units: drawn %.2f of the way from its own place\n", hand, glm::distance(pos + wristOff, shoulder) - most, in);
+    }
+    pos = glm::mix(from, pos, in);
+}
+
 // `pos`, `rot` (the controller's pose of `hand`) moved onto the blade it holds, as if its controller were there. The second hand on it
 // on the weapon's grip hotspot nearest it, as a two-handed hold has it (his notes 2026-11-05: not 20 cm off, not anywhere), placed from
 // the blade as drawn each frame; with none, where it took hold.
@@ -2789,6 +2857,13 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
     pin.lastCtlRot = rot;
     pos = glm::mix(pos, onPos, w);
     rot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(rot)), glm::quat_cast(anglesBasis(onRot)), w)));
+    pin.seen = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    // (Flat play: never drawn past its arm. The blade gone out of the arm's reach, the body going off or his walking away, before the
+    // game lets go or pulls it out, QC VR_Embed_FlatArm, a frame or two on: the hand slips off it towards its own place.)
+    keepOnArm(hand, pin.lastCtlPos, pos, rot);
+    // Computed after keepOnArm so wrist + embedPinLead always measures the true unclamped blade grip target
+    // (both during ease-in and while clamped on the arm sphere).
+    pin.lead = onPos - pos;
     pin.lastOnPos = pos;
     pin.lastOnRot = rot;
     pin.lastOffset = glm::distance(pos, pin.lastCtlPos);
@@ -2802,6 +2877,14 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
     embedProbeWrite();
 }
 } // namespace
+
+void embedPinsReset()
+{
+    for(EmbedPin& pin : embedPins)
+    {
+        pin = EmbedPin{};
+    }
+}
 
 // Each frame, before the weapons are placed: whether `hand` holds a blade in a body (STAT_QVR_EMBED*), and off it, the ease back to
 // its controller (vr_embed_free_ease) that the drawn hand and the weapon in it share (embedEase).
@@ -2820,6 +2903,9 @@ void embedPinStep(const hands::State& s, int hand)
         pin.rollChosen = false;
         pin.spot = -1;
         pin.release = 0.f;
+        pin.bodyEase = false;
+        pin.lead = glm::vec3{0.f};
+        pin.seen = glm::vec3{0.f};
         if(embedPinUsable(pin))
         {
             const entity_t& e = cl_entities[pin.ent];
@@ -2830,46 +2916,95 @@ void embedPinStep(const hands::State& s, int hand)
         }
     }
     pin.on = stat > 0 && embedPinUsable(pin);
+    if(!pin.on)
+    {
+        pin.lead = glm::vec3{0.f};
+        pin.seen = glm::vec3{0.f};
+    }
     if(!pin.on && pin.weight > 0.f)
     {
         // Off it: from where it was drawn on it, eased to its controller.
         pin.releaseFrom = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
         pin.relPos = pin.lastOnPos - pin.lastCtlPos;
         pin.relTurn = glm::normalize(glm::quat_cast(anglesBasis(pin.lastOnRot)) * glm::inverse(glm::quat_cast(anglesBasis(pin.lastCtlRot))));
+        pin.bodyEase = flatplay::active();
+        const glm::mat3 invBody = glm::transpose(embedBodyTurn());
+        pin.bodyRel = invBody * (pin.lastOnPos - embedBodyPos());
+        pin.bodyRelTurn = invBody * anglesBasis(pin.lastOnRot);
         pin.release = 1.f;
         pin.weight = 0.f;
     }
     pin.easing = false;
     if(pin.on)
     {
+        pin.bodyEase = false;
         pin.weight = za::fmin(1.f, pin.weight + dt / embedPinIn);
         return;
     }
     if(pin.release <= 0.f)
     {
+        pin.bodyEase = false;
         pin.weaponOffValid = false;
         return;
     }
     pin.release = za::fmax(0.f, pin.release - dt / za::fmax(vr_embed_free_ease.value, 0.001f));
     const float w = pin.releaseFrom * pin.release * pin.release * (3.f - 2.f * pin.release);
     pin.easing = true;
-    pin.easeOff = pin.relPos * w;
-    pin.easeTurn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, pin.relTurn, w);
-    const float offset = glm::length(pin.relPos) * w;
+    pin.bodyW = w;
+    pin.easePivot = s.pos[hand];
+    if(pin.bodyEase)
+    {
+        // Flat play: one shared arm-clamped ease from where the hand left the blade (carried by the player's body)
+        // to the current controller pose, applied identically to both the drawn weapon and the drawn hand.
+        const glm::mat3 bodyTurn = embedBodyTurn();
+        const glm::mat3 wantTurn = bodyTurn * pin.bodyRelTurn;
+        const glm::mat3 ctlBasis = anglesBasis(s.rot[hand]);
+        glm::quat relTurn = glm::normalize(glm::quat_cast(wantTurn * glm::transpose(ctlBasis)));
+        if(relTurn.w < 0.f)
+        {
+            relTurn = -relTurn;
+        }
+        pin.easeTurn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, relTurn, w);
+        const glm::vec3 easedRot = basisAngles(glm::mat3_cast(pin.easeTurn) * ctlBasis);
+        const glm::vec3 from = embedBodyPos() + bodyTurn * pin.bodyRel;
+        glm::vec3 easedPos = glm::mix(pin.easePivot, from, w);
+        keepOnArm(hand, pin.easePivot, easedPos, easedRot);
+        pin.easeOff = easedPos - pin.easePivot;
+    }
+    else
+    {
+        pin.easeOff = pin.relPos * w;
+        pin.easeTurn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, pin.relTurn, w);
+    }
+    const float offset = glm::length(pin.easeOff);
     embedProbe.step = za::fmax(embedProbe.step, za::fmax(offset - pin.lastOffset, pin.lastOffset - offset) / units::metresToUnits() * 100.f);
     pin.lastOffset = offset;
     embedProbeWrite();
 }
 
-bool embedEase(int hand, glm::vec3& offset, glm::quat& turn)
+glm::vec3 embedPinSeenOf(int hand)
+{
+    return hand == HAND_OFF || hand == HAND_MAIN ? embedPins[hand].seen : glm::vec3{0.f};
+}
+
+glm::vec3 embedPinLeadOf(int hand)
+{
+    return hand == HAND_OFF || hand == HAND_MAIN ? embedPins[hand].lead : glm::vec3{0.f};
+}
+
+bool embedPinEasingOf(int hand)
+{
+    return (hand == HAND_OFF || hand == HAND_MAIN) && (embedPins[hand].easing || embedPins[hand].release > 0.f);
+}
+
+bool embedEase(int hand, EmbedEase& out)
 {
     const EmbedPin& pin = vh().embedPins[hand];
     if(!pin.easing)
     {
         return false;
     }
-    offset = pin.easeOff;
-    turn = pin.easeTurn;
+    out = {pin.easePivot, pin.easeOff, pin.easeTurn};
     return true;
 }
 
@@ -3508,9 +3643,10 @@ void ropeHeld(int hand, Held& held)
             }
         }
     }
-    else if(freeHelp && entities().weapon[other].ent.model)
+    else if((freeHelp || (!otherSubject && view::onFlatPole(hand))) && entities().weapon[other].ent.model)
     {
-        // The other hand's weapon, held anywhere: wrapped where the hand is on it.
+        // The other hand's weapon, held anywhere: wrapped where the hand is on it. (polepose: so is flat play's hand pinned on
+        // a pole weapon held as a spear, its shaft, closed round it.)
         held = {&entities().weapon[other].ent, entities().weapon[other].mirrored, 0, true};
         held.overlap = otherSlot >= 0 ? CLAMP(0.f, weapons::value(otherSlot, Key::GripOverlap), 1.f) * weapons::maxOverlapCm : -1.f;
     }
@@ -3639,6 +3775,16 @@ void setupHand(const hands::State& s, int hand)
     glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     const bool own = !otherSubject; // (another player's, a bot's: his hand on his weapon, none of your own holds)
     const bool freeHelp = own && placeController(s, hand, mirrored, fist, controllerPos, controllerRot);
+    // Flatscreen play, the free hand pinned on the other hand's pole weapon held as a spear (any: twohand::poleWeapon):
+    // solved on the pole as drawn this frame, its grip as the view placed it now (chooseGrip, just before), by the pin's
+    // share. flatsight pinned it to last frame's grip carried with the holding hand, which trailed or led the pole as he
+    // turned; a thrust's slide (flatplay::thrustOffSlide) is in the grip. (lanceoffhand, his flat note 2026-11-24; its
+    // turn moves with the holding hand's: vr_view.cpp, the hands' drawn offsets.)
+    if(const float pin = own && flatplay::active() ? flatsight::pinShare(hand) : 0.f;
+        pin > 0.f && twohand::poleWeapon(weapons::slotForModel(entities().weapon[1 - hand].ent.model)))
+    {
+        controllerPos = glm::mix(controllerPos, s.grip2H[1 - hand], pin);
+    }
 
     // The hand turned from the controller by the fist's angle offsets, rigidly (round 21, second pass: added as Euler
     // angles, the hand slid round what it held as the wrist turned, and its grasp was solved again and again).
@@ -3680,15 +3826,28 @@ void setupHand(const hands::State& s, int hand)
         ropeGrip(hand, mirrored, pos, handRot); // (ropes8a: on a climbable rope or pole, round it)
     }
     // Just off a blade in a body: eased from where it was on it, the weapon in it with it (setupWeapon), one turn about the
-    // controller and one move for both (his note 2026-11-06: the axe stays in the drawn hand all the way).
-    glm::vec3 easeOff{0.f};
-    glm::quat easeTurn{1.f, 0.f, 0.f, 0.f};
-    if(own && embedEase(hand, easeOff, easeTurn))
+    // same pivot and one arm-clamped move for both (his note 2026-11-06: the axe stays in the drawn hand all the way).
+    if(EmbedEase ease; own && embedEase(hand, ease))
     {
-        const glm::vec3 pivot = armed ? s.pos[hand] : pos;
         const glm::vec3 pre = pos;
-        const glm::mat3 turn = glm::mat3_cast(easeTurn);
-        pos = pivot + easeOff + turn * (pos - pivot);
+        const glm::mat3 turn = glm::mat3_cast(ease.turn);
+        if(armed)
+        {
+            pos = ease.pivot + ease.offset + turn * (pos - ease.pivot);
+        }
+        else if(const EmbedPin& pin = embedPins[hand]; pin.bodyEase)
+        {
+            // Empty hand in flat play (e.g., dropped blade, or off-hand pinned onto a pole): ease directly from its body-carried
+            // release point to its current pose, kept on its arm (matches ease.pivot + ease.offset when pos == s.pos[hand]).
+            const glm::vec3 from = embedBodyPos() + embedBodyTurn() * pin.bodyRel;
+            const glm::vec3 easedRot = basisAngles(turn * anglesBasis(controllerRot));
+            pos = glm::mix(pre, from, pin.bodyW);
+            keepOnArm(hand, pre, pos, easedRot);
+        }
+        else
+        {
+            pos += ease.offset;
+        }
         handRot = basisAngles(turn * anglesBasis(handRot));
         if(armed)
         {
@@ -3796,6 +3955,22 @@ void setupHand(const hands::State& s, int hand)
                 za::clamp(vr_flat_pole_hand_up.value, -10.f, 10.f)};
         }
         moveDrawnHand(hand, mirrored, handRot, move, turn, hand == HAND_OFF, pos, handRot);
+        // (polepose, flatmelee4's flipped grips: the pole held reversed is drawn turned half round about the fist
+        // (vr_flat_revgrip_pole_*), and the hand pinned on it, carried with that turn and turned by its own pose above, ended
+        // off the drawn shaft. By the flip's share its grip channel goes onto the pole as drawn, the least turn and move
+        // (alignChannel), so it closes round the shaft.)
+        glm::vec3 wf, wu;
+        float flip = 0.f;
+        if(view::WeaponMount m; onPole > 0.f && otherSlot >= 0 && twohand::poleWeapon(otherSlot) &&
+                                view::heldWeaponAxes(other, wf, wu, flip) && flip > 0.f && view::weaponMount(other, m) &&
+                                glm::distance(m.muzzle, m.pos) > 1.f)
+        {
+            glm::vec3 at = pos, onTurn = handRot;
+            alignChannel(hand, mirrored, m.pos, m.muzzle - m.pos, at, onTurn);
+            const float k = za::clamp(flip, 0.f, 1.f) * za::min(onPole, 1.f);
+            pos = glm::mix(pos, at, k);
+            handRot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)), glm::quat_cast(anglesBasis(onTurn)), k)));
+        }
     }
 
     // What the fingers wrap (vr_hand_fit): the gun in the hand, the other hand's gun it helps hold (its foregrip, a

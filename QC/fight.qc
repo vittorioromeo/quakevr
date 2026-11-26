@@ -51,7 +51,7 @@ float() CheckAttack =
     traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
 //MED 10/17/96 added charmed stuff
-    if((trace_ent != targ) && (!self.charmed))
+    if((trace_ent != targ) && (!self.charmed) && !VR_Lean_Clear(targ)) // (QVR: or seen leaning: vr_leanaim.qc)
         return FALSE;     // don't have a clear shot
 
     if(trace_inopen && trace_inwater)
@@ -635,7 +635,7 @@ float() SoldierCheckAttack =
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if(trace_ent != targ)
+    if(trace_ent != targ && !VR_Lean_Clear(targ)) // (QVR: or seen leaning from cover: vr_leanaim.qc)
         return FALSE;    // don't have a clear shot
 
 
@@ -711,7 +711,7 @@ float() ShamCheckAttack =
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if(trace_ent != targ)
+    if(trace_ent != targ && !VR_Lean_Clear(targ)) // (QVR: or seen leaning from cover: vr_leanaim.qc)
     {
         return FALSE;    // don't have a clear shot
     }
@@ -767,7 +767,7 @@ float() OgreCheckAttack =
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if(trace_ent != targ)
+    if(trace_ent != targ && !VR_Lean_Clear(targ)) // (QVR: or seen leaning from cover: vr_leanaim.qc)
     {
         return FALSE;    // don't have a clear shot
     }

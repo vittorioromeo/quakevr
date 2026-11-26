@@ -168,8 +168,10 @@ void updateFingerFrames()
         // two-handed hotspot (the stance's and the ironsight's look hand), grips as a headset's does with its grip
         // pressed and the index finger resting on the trigger (on the fore-end, the helper's index closes with the grip).
         const int flatSlot = flatplay::active() ? weapons::heldSlot(hand) : -1;
-        const bool flatGrips =
-            flatplay::active() && ((flatSlot >= 0 && flatSlot != weapons::fistSlot()) || twohand::drawnHelping(hand));
+        // (polepose, his flat note 2026-11-25: and a hand pinned on the other hand's pole weapon, held as a spear: closed round
+        // its shaft, not open.)
+        const bool flatGrips = flatplay::active() && ((flatSlot >= 0 && flatSlot != weapons::fistSlot()) || twohand::drawnHelping(hand) ||
+                                                         view::onFlatPole(hand));
         // (An empty hand in flatscreen play closes into a fist by its share of the guard, and while it punches:
         // flatplay::fistShare.)
         HandInput fist = input.hands[hand];
@@ -914,7 +916,9 @@ glm::vec3 view::heldShotAngles(const glm::vec3& rot, int hand)
 {
     const int slot = weapons::heldSlot(hand);
     const glm::vec3 shot = weapons::shotAngles(rot, slot, hand == HAND_OFF);
-    if(!twohand::poleWeapon(slot))
+    // (Flatscreen play: the flipped pole weapon drawn turned about the fist into view (vr_flatplay.cpp revGripDrawnTurn),
+    // its beam still to the crosshair, from its head as drawn: flipgrip, 2026-11-24.)
+    if(!twohand::poleWeapon(slot) || flatplay::active())
     {
         return shot;
     }
@@ -987,6 +991,18 @@ float view::leavingFlip(int hand)
     return drawnFlip(hand);
 }
 
+bool view::leavingAngles(int hand, glm::vec3& rot)
+{
+    if(hand < 0 || hand > 1 || weaponCarried[hand] || !entities().weapon[hand].visible || !entities().weapon[hand].ent.model ||
+        drawnFlip(hand) <= 0.f)
+    {
+        return false;
+    }
+    const entity_t& e = entities().weapon[hand].ent;
+    rot = glm::vec3{-e.angles[0], e.angles[1], e.angles[2]};
+    return true;
+}
+
 glm::vec3 view::leavingTurn(int slot, bool mirrored, float flip, const glm::vec3& handRot, glm::vec3& shift)
 {
     flip = slot >= 0 ? flip : 0.f;
@@ -996,7 +1012,7 @@ glm::vec3 view::leavingTurn(int slot, bool mirrored, float flip, const glm::vec3
         return handRot;
     }
     shift = reverseShift(slot, mirrored, flip, handRot);
-    return uprightTurnOf(handRot, slot, mirrored, flip);
+    return weaponTurn(handRot, slot, mirrored, flip);
 }
 
 bool view::heldWeaponLine(int hand, glm::vec3& handle, glm::vec3& tip)
@@ -2683,13 +2699,46 @@ void heldMagazines(const view::ViewEntity& gun, const VrGunLook& look, MagSlide&
     setMagazine(well, gun, on, true);
 }
 
+struct HeldMagDebug
+{
+    bool valid[2]{false, false};
+    const qmodel_t* gun[2]{nullptr, nullptr};
+    const qmodel_t* mag[2]{nullptr, nullptr};
+    bool magVis[2]{false, false};
+    bool noMag[2]{false, false};
+};
+HeldMagDebug heldMagDebug;
+
 void setupHeldMagazines()
 {
     for(int hand = 0; hand < 2; hand++)
     {
         const view::ViewEntity& gun = entities().weapon[hand];
+        const VrGunLook look = view::ownGunLook(hand);
         magSlideStep(hand, gun.ent.model);
-        heldMagazines(gun, view::ownGunLook(hand), magSlides()[hand], entities().mag[hand], entities().magOut[hand], entities().well[hand]);
+        heldMagazines(gun, look, magSlides()[hand], entities().mag[hand], entities().magOut[hand], entities().well[hand]);
+        if(vr_flat_reload_debug.value != 0.f && developer.value)
+        {
+            const qmodel_t* const gModel = gun.visible ? gun.ent.model : nullptr;
+            const qmodel_t* const mModel = entities().mag[hand].visible ? entities().mag[hand].ent.model : nullptr;
+            const bool mVis = entities().mag[hand].visible;
+            const bool noMag = (look.flags & weaponFlagNoMag) != 0;
+            if(!heldMagDebug.valid[hand] || heldMagDebug.gun[hand] != gModel || heldMagDebug.mag[hand] != mModel ||
+                heldMagDebug.magVis[hand] != mVis || heldMagDebug.noMag[hand] != noMag)
+            {
+                heldMagDebug.valid[hand] = true;
+                heldMagDebug.gun[hand] = gModel;
+                heldMagDebug.mag[hand] = mModel;
+                heldMagDebug.magVis[hand] = mVis;
+                heldMagDebug.noMag[hand] = noMag;
+                Con_Printf("flatmag: hand %d weapon %s mag %s (visible %d, nomag %d)\n", hand,
+                    gModel ? gModel->name : "none", mModel ? mModel->name : "none", mVis ? 1 : 0, noMag ? 1 : 0);
+            }
+        }
+        else
+        {
+            heldMagDebug.valid[hand] = false;
+        }
     }
 }
 
@@ -5223,6 +5272,7 @@ HandImpact handImpacts[2];
 void view::resetClientState()
 {
     drawblend::reset();
+    embedPinsReset();
     for(HandImpact& h : handImpacts)
     {
         h = HandImpact{};
@@ -5747,6 +5797,36 @@ extern "C" void VR_SetupViewEntities()
         s.pos[hand] += knockPos[hand] + shakePos[hand];
         s.rot[hand] += knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] += knockAngles[hand] + shakeAngles[hand];
+    }
+    // Flatscreen play, the free hand pinned on the other hand's pole weapon held as a spear (any pole weapon): drawn moved
+    // with the holding hand by its offsets above (the looks' sway, bob and turn's lag, a kick, a knock), the two hands and
+    // the pole one piece, rather than by its own, which put it off the pole as he walked, strafed and turned (lanceoffhand,
+    // his flat note 2026-11-24). Its own share of the pin; restored with the rest below.
+    for(int hand = 0; hand < 2 && flatplay::active() && !posingNow; hand++)
+    {
+        const int holder = 1 - hand;
+        const float share = flatsight::pinShare(hand);
+        if(share <= 0.f || !twohand::poleWeapon(flatplay::heldIn(holder)))
+        {
+            continue;
+        }
+        const glm::vec3 holderPos = s.pos[holder] - knockPos[holder] - shakePos[holder];
+        const glm::mat3 moved = anglesBasis(s.rot[holder]) * glm::transpose(anglesBasis(s.rot[holder] - knockAngles[holder] - shakeAngles[holder]));
+        const glm::vec3 ownPos = s.pos[hand] - knockPos[hand] - shakePos[hand];
+        const glm::vec3 ownRot = s.rot[hand] - knockAngles[hand] - shakeAngles[hand];
+        const glm::vec3 pos = glm::mix(s.pos[hand], s.pos[holder] + moved * (ownPos - holderPos), share);
+        const glm::quat drawnTurn = glm::quat_cast(anglesBasis(s.rot[hand]));
+        const glm::vec3 rot = basisAngles(glm::mat3_cast(glm::slerp(drawnTurn, glm::quat_cast(moved * anglesBasis(ownRot)), share)));
+        glm::vec3 turned;
+        for(int i = 0; i < 3; i++)
+        {
+            turned[i] = za::remainder(rot[i] - s.rot[hand][i], 360.f);
+        }
+        shakePos[hand] += pos - s.pos[hand];
+        shakeAngles[hand] += turned;
+        s.pos[hand] = pos;
+        s.rot[hand] += turned;
+        s.visualRot[hand] += turned;
     }
     // Flatscreen play: a prop held in one hand drawn in that hand as drawn here (made again from this view, its sway, bob
     // and turn's lag in it), not where the frame's start placed it (vr_held.cpp followDrawnHands; vr_flat_carry_drawn).

@@ -1345,9 +1345,12 @@ void conversionTest(const Check& check)
         asLong += fabsf(weapons::recoilKickSeconds(n.returnTime) - za::max(o.time, 0.02f) * o.recovery) < 1e-5f;
     }
     const float slots = static_cast<float>(weapons::numSlots);
-    // (27 slots took his recoil of 2026-10-30 as their defaults: ROUND23.md, "His tweaks of 2026-10-30 as defaults")
-    check(asShipped == weapons::numSlots - 27, "every slot's old defaults converted are its shipped ones, but his 27 (slots)",
-        static_cast<float>(asShipped), slots - 27.f);
+    // (27 slots took his recoil of 2026-10-30 as their defaults: ROUND23.md, "His tweaks of 2026-10-30 as defaults"; 4 more
+    // slots' shipped recoil in weapons.txt has moved off their old defaults since: 31 in all, as of 2026-11-25)
+    constexpr int slotsOffOldDefaults = 31;
+    check(asShipped == weapons::numSlots - slotsOffOldDefaults,
+        "every slot's old defaults converted are its shipped ones, but his 31 (slots)", static_cast<float>(asShipped),
+        slots - static_cast<float>(slotsOffOldDefaults));
     check(same == weapons::numSlots, "and draw the old kick, every ms of a second (slots)", static_cast<float>(same), slots);
     check(asLong == weapons::numSlots, "its kick as long as the old Return Time (the haptic tail; slots)",
         static_cast<float>(asLong), slots);

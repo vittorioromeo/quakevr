@@ -73,6 +73,29 @@ void(entity p) VR_Skewer_AllOff; // (vr_skewer.qc)
 .float  vr_embed_quiet_off;  // on a player: the hand strikes nothing until then (it just came out)
 .float  vr_embed_quiet_main;
 
+// Flatscreen play (flatembed, his decision 2026-11-24: "pressing the attack key when a blade is embedded and the hand is
+// attached to it retracts it to try and pull out the blade"). Flat play's posed hands are not a pull: a hand on a stuck
+// blade stays on its grip (the engine draws it there: vr_view_hands.cpp embedDrawnHand) and its place for the hold is
+// VR_Embed_HandPos's, as a headset's hand held still by your side: where it took hold, carried by your walking. Its fire
+// button pulls it back along the blade (vr_flat_embed_pull units over vr_flat_embed_pull_time, held vr_flat_embed_pull_hold,
+// then back onto the grip where the blade has come to): the same hold (VR_Embed_HoldThink) then slides it out by its
+// stick, rate and depth, tugs an axe, frees it into the hand once all of it is out; not, it stays in for another press.
+// Never let go of but by H (VR_Forcegrab_FlatDropHand) or another weapon put in the hand (lance4's Lance lost: the hand
+// opened at once, "out of the arm's reach").
+.vector vr_hold_flatrel_off;  // the off hand's place for the hold from its player's origin (VR_Embed_HandPos)
+.vector vr_hold_flatrel_main; // the main hand's
+.float  vr_hold_flatt;        // its pull's start (0: none)
+.float  vr_hold_flatslide0;   // how far it had slid as the pull started
+.float  vr_hold_flatback;     // the way back onto the grip as the pull's back part began (units; -1 not yet)
+.float  vr_hold_flatr;        // the hand(s) pulled back by this now (units)
+.float  vr_hold_flatfire;     // the fire buttons of the hands on it last frame (VR_Embed_Bit's)
+.float  vr_hold_flatpulls;    // pulls started on it (the debug line's, the test's)
+// (Its hands on their posed arms, VR_Embed_FlatArm; embedhold2, his flat notes 2026-11-25.)
+.vector vr_hold_flathandle;   // the handle as drawn (its origin) at the last think
+.vector vr_hold_flatroot;     // its holder's eyes then
+.float  vr_hold_flatslid;     // and how far it had slid
+.float  vr_hold_flatarmed;    // the last think's set them (0: the hold's first)
+
 // Wooden crates and barrels (his notes 2026-11-08, items 13 and 14; vr_embed_props): a held stab or swing hard enough stays in one as in
 // a body (the engine's stickHeld: its Box3D body met, kind AXESTICK_PROP, riding its origin and angles). The hold is a body's but for its
 // moving: no ragdoll to hold, no monster to drag, but a pull on the crate's body at the wound towards where the hand has it
@@ -135,10 +158,137 @@ float(entity p, float xHand) VR_Embed_HandMayStrike =
     return time >= (xHand == cVR_MainHand ? p.vr_embed_quiet_main : p.vr_embed_quiet_off);
 };
 
+// Where `xHand` of `p` is for the hold of the blade `e`: its tracked place; in flat play the place it took hold at,
+// carried by his walking, pulled back along the blade by VR_Embed_FlatPull.
+vector(entity e, entity p, float xHand) VR_Embed_HandPos =
+{
+    if(!VR_FlatPlay(p))
+    {
+        return VRGetEntHandPos(p, xHand);
+    }
+    return p.origin + (xHand == cVR_MainHand ? e.vr_hold_flatrel_main : e.vr_hold_flatrel_off) - e.vr_stick_dir * e.vr_hold_flatr;
+};
+
+// The fire buttons of the hands on `e` now (VR_Embed_Bit's).
+float(entity e, entity p) VR_Embed_FlatFire =
+{
+    float bits = 0;
+    if((e.vr_hold_hands & 1) && VRGetEntFireButtonPressed(p, cVR_OffHand))
+    {
+        bits = bits | 1;
+    }
+    if((e.vr_hold_hands & 2) && VRGetEntFireButtonPressed(p, cVR_MainHand))
+    {
+        bits = bits | 2;
+    }
+    return bits;
+};
+
+// Each hold frame in flat play: a fresh press of a fire button of a hand on it starts a pull; the pull's way now
+// (.vr_hold_flatr). Its back part starts from where the blade has come to: the hands' places move out with it, so coming
+// back onto the grip pushes nothing in.
+void(entity e, entity p) VR_Embed_FlatPull =
+{
+    float fire = VR_Embed_FlatFire(e, p);
+    float fresh = fire & ~e.vr_hold_flatfire;
+    e.vr_hold_flatfire = fire;
+    float dist = max(0, cvar_hget(cvarh_vr_flat_embed_pull));
+    float tp = max(0.01, cvar_hget(cvarh_vr_flat_embed_pull_time));
+    float th = max(0, cvar_hget(cvarh_vr_flat_embed_pull_hold));
+    if(fresh && !e.vr_hold_flatt && dist > 0)
+    {
+        e.vr_hold_flatt = time;
+        e.vr_hold_flatslide0 = e.vr_stick_slide;
+        e.vr_hold_flatback = -1;
+        e.vr_hold_flatpulls = e.vr_hold_flatpulls + 1;
+        if(cvar_hget(cvarh_vr_debug_axestick))
+        {
+            dprint(sprintf("embedhold: flat pull %g on %s, %.1f units in\n", e.vr_hold_flatpulls, e.netname, e.vr_stick_depth + e.vr_stick_slide));
+        }
+        VR_Embed_Say(sprintf("flat pull %g: %.1f units in", e.vr_hold_flatpulls, e.vr_stick_depth + e.vr_stick_slide));
+    }
+    if(!e.vr_hold_flatt)
+    {
+        e.vr_hold_flatr = 0;
+        return;
+    }
+    float t = time - e.vr_hold_flatt;
+    if(t < tp)
+    {
+        e.vr_hold_flatr = dist * t / tp;
+        return;
+    }
+    if(t < tp + th)
+    {
+        e.vr_hold_flatr = dist;
+        return;
+    }
+    if(e.vr_hold_flatback < 0)
+    {
+        vector out = e.vr_stick_dir * min(0, e.vr_stick_slide - e.vr_hold_flatslide0);
+        e.vr_hold_flatrel_off = e.vr_hold_flatrel_off + out;
+        e.vr_hold_flatrel_main = e.vr_hold_flatrel_main + out;
+        e.vr_hold_flatback = max(0, dist + min(0, e.vr_stick_slide - e.vr_hold_flatslide0));
+    }
+    float back = (t - tp - th) / tp;
+    if(back >= 1)
+    {
+        e.vr_hold_flatt = 0;
+        e.vr_hold_flatr = 0;
+        return;
+    }
+    e.vr_hold_flatr = e.vr_hold_flatback * (1 - back);
+};
+
+// Flat play, a hold think's (VR_Embed_FlatArmGaps). The engine's .vr_embed_armpast comes from a frame drawn some frames behind this think
+// (the measure a frame late, the client's entities drawn a frame or two behind the server's): it says what it measured against, the blade
+// as drawn (.vr_embed_armseen*) and the eye (.vr_embed_armeye). The gap is that one, the handle where the server has it now (the drawing
+// catches up with it) and the eye two of his steps on.
+float  vr_embed_fgarmed; // the last think noted the handle (0: the hold's first)
+vector vr_embed_fgroot;  // its holder's eyes at the last think (his step: from there to now)
+vector vr_embed_fgwent;  // the handle's way last frame by the body's moving (not a slide's)
+
+// Flat play: cm `xHand` of `p` will be past the most its arm reaches drawn on the blade `e`, signed (negative: the reach it has left), the
+// handle gone `xWent` more by the body and `xIn` units further along the blade (a stab going on to its depth).
+float(entity e, entity p, float xHand, float xIn, vector xWent) VR_Embed_FlatGap =
+{
+    float gap = xHand == cVR_MainHand ? p.vr_embed_armpast_y : p.vr_embed_armpast_x;
+    vector seen = xHand == cVR_MainHand ? p.vr_embed_armseenmain : p.vr_embed_armseenoff;
+    if(!vr_embed_fgarmed || seen == '0 0 0')
+    {
+        return gap;
+    }
+    vector step = p.origin + p.view_ofs - vr_embed_fgroot;
+    vector eyeNext = p.vr_embed_armeye + step;
+    vector next = e.origin + xWent + e.vr_stick_dir * xIn;
+    float more = (vlen(next - eyeNext) - vlen(seen - p.vr_embed_armeye)) / (0.01 * VRMetersToUnits());
+    if(cvar_hget(cvarh_vr_debug_axestick) >= 4 && xIn == 0)
+    {
+        dprint(sprintf("embedhold: flat gap hand %g: %.1f cm measured, %.1f more (the blade %.1f units from where it was drawn, the eye %.1f)\n", xHand, gap, more,
+            vlen(next - seen), vlen(eyeNext - p.vr_embed_armeye)));
+    }
+    return gap + more;
+};
+
 // Where `xHand` holds it from now on: nothing pending.
 void(entity e, entity p, float xHand) VR_Embed_SetG0 =
 {
-    vector at = VRGetEntHandPos(p, xHand);
+    if(VR_FlatPlay(p))
+    {
+        // (Flat play: the handle's hand on its handle as drawn, the other where it is; no pull under way.)
+        vector rel = (VR_Embed_Bit(xHand) == e.vr_hold_handle ? e.origin : VRGetEntHandPos(p, xHand)) - p.origin;
+        if(xHand == cVR_MainHand)
+        {
+            e.vr_hold_flatrel_main = rel;
+        }
+        else
+        {
+            e.vr_hold_flatrel_off = rel;
+        }
+        e.vr_hold_flatt = 0;
+        e.vr_hold_flatr = 0;
+    }
+    vector at = VR_Embed_HandPos(e, p, xHand);
     // (From the drawn hand if the real one is nearer the wound than it: coming back to it is no going further. e.origin: the drawn hand
     // on its handle, vr_view_hands.cpp embedDrawnHand.)
     float from = max(vlen(at - e.vr_stick_at), vlen(e.origin - e.vr_stick_at)) + e.vr_stick_slide;
@@ -198,6 +348,7 @@ void(entity e, entity xPlayer, float xHand) VR_Embed_TakeHand =
         e.vr_hold_handle = bit;
     }
     e.vr_hold_last = time;
+    e.vr_hold_flatfire = VR_Embed_FlatFire(e, xPlayer); // (a fire button still held from the blow is no pull: a fresh press is)
     e.vr_hold_tugv = 0;
     e.vr_hold_carried = 0;
     e.vr_hold_carrying = FALSE;
@@ -385,7 +536,7 @@ void(entity e, entity p, float xHand) VR_Embed_HandFrame =
     {
         VR_Embed_DropHand(e, xHand, "the hand has something else");
     }
-    else if(VR_Embed_HandOpen(e, p, xHand))
+    else if(!VR_FlatPlay(p) && VR_Embed_HandOpen(e, p, xHand)) // (flat play: H lets go, VR_Forcegrab_FlatDropHand)
     {
         VR_Embed_DropHand(e, xHand, "let go");
     }
@@ -754,12 +905,141 @@ void(entity e, entity p, entity h) VR_Embed_Brake =
     vr_embed_braked = (along - now) / VRMetersToUnits();
 };
 
+// Flat play (embedhold2, his flat note 2026-11-25 item 4): a hand drawn on the stuck blade `e` never leaves its arm. The engine draws it
+// on the handle (embedDrawnHand), the avatar's arm reaching for it stretched up to Hold: Arm Stretch (vr_embed_arm_stretch, eased in).
+// Before the next frame would take it past that by Hold: Let Go Past (vr_embed_arm_letgo) plus Hold: Hand Slip (vr_flat_embed_arm_slip),
+// walking away or the body going: the handle's hand pulls a light body's blade out (a standing monster's Light Hold, VR_Embed_Light; a
+// ragdoll that can be skewered; a crate the pull moves), else lets go of a heavy or anchored one, which keeps it; a second hand lets go.
+// (Only once he is the one stepping off the blade: `VR_FLATARM_STEP` units of his own step away from it in a think. Standing still nothing
+// here ends the hold, nothing draws the blade out: his item 4, "the blade comes out about 0.1 s after the stab"; the hand slips on its
+// handle and the engine keeps it drawn on its arm, view::keepOnArm.) vr_flat_embed_arm 0: as before (only H or another weapon lets go). TRUE: it came out (in the hand).
+float vr_embed_fgoff;  // (this think's VR_Embed_FlatGap: the off hand's)
+float vr_embed_fgmain; // (the main hand's)
+float vr_embed_fgper;  // (the handle's hand's more, cm, a unit further in)
+float VR_FLATARM_STEP = 0.5; // units this think's holder's own step, off the blade, that is him walking away (not the blade's origin jittering, not his eye easing in)
+
+// Whether a stuck blade `e` in host `h` yields to the holder's arm pulling away in flat play
+// (a light standing monster, a skewerable ragdoll, or a crate/barrel whose pull isn't maxed out).
+float(entity e, entity h) VR_Embed_HostYields =
+{
+    if(VR_Embed_InProp(e))
+    {
+        return e.vr_hold_strain < 0.95;
+    }
+    return h.health > 0 ? VR_Embed_Light(h) : (VR_Embed_Skewer(h) > 0);
+};
+
+// Flat play, each hold think first: the gaps the next frame will have (the body going on as it went), and what the next think's go from.
+void(entity e, entity p) VR_Embed_FlatArmGaps =
+{
+    vr_embed_fgarmed = e.vr_hold_flatarmed;
+    vr_embed_fgroot = e.vr_hold_flatroot;
+    vr_embed_fgwent = e.origin - e.vr_hold_flathandle - e.vr_stick_dir * (e.vr_stick_slide - e.vr_hold_flatslid);
+    vr_embed_fgoff = (e.vr_hold_hands & 1) ? VR_Embed_FlatGap(e, p, cVR_OffHand, 0, vr_embed_fgwent) : 0;
+    vr_embed_fgmain = (e.vr_hold_hands & 2) ? VR_Embed_FlatGap(e, p, cVR_MainHand, 0, vr_embed_fgwent) : 0;
+    float hand = e.vr_hold_handle == 1 ? cVR_OffHand : cVR_MainHand;
+    vr_embed_fgper = VR_Embed_FlatGap(e, p, hand, 1, vr_embed_fgwent) - VR_Embed_FlatGap(e, p, hand, 0, vr_embed_fgwent);
+    e.vr_hold_flathandle = e.origin;
+    e.vr_hold_flatroot = p.origin + p.view_ofs;
+    e.vr_hold_flatslid = e.vr_stick_slide;
+    e.vr_hold_flatarmed = TRUE;
+};
+
+// (After the hold's drag this think: a standing body's way is what it went this think, `xHostWas` its origin before; a ragdoll's or a
+// crate's, as it went last frame.)
+float(entity e, entity p, entity h, vector xHostWas) VR_Embed_FlatArm =
+{
+    if(!cvar_hget(cvarh_vr_flat_embed_arm))
+    {
+        return FALSE;
+    }
+    // (A standing body: its step this think, the drag as he walks.)
+    vector hostGo = (h.health > 0 && !h.vr_knockdown && !VR_Embed_InProp(e)) ? h.origin - xHostWas : '0 0 0';
+    vector went = hostGo; // (not the pose's way extrapolated: a body staggering under the stab read as going off. The engine keeps the drawn hand on its arm meanwhile, view::embedDrawnHand.)
+    vr_embed_fgoff = (e.vr_hold_hands & 1) ? VR_Embed_FlatGap(e, p, cVR_OffHand, 0, went) : 0;
+    vr_embed_fgmain = (e.vr_hold_hands & 2) ? VR_Embed_FlatGap(e, p, cVR_MainHand, 0, went) : 0;
+    float letgo = max(0, cvar_hget(cvarh_vr_embed_arm_letgo));
+    float slip = max(0, cvar_hget(cvarh_vr_flat_embed_arm_slip));
+    float limit = letgo + slip;
+    float gapOff = vr_embed_fgoff;
+    float gapMain = vr_embed_fgmain;
+    float handleGap = e.vr_hold_handle == 2 ? gapMain : gapOff;
+    float per = vr_embed_fgper;
+    // (Only when he is the one going off the blade: his own eye stepped `VR_FLATARM_STEP` units or more away from it this think. Standing
+    // still nothing here ends the hold and nothing draws the blade out (his item 4: "the blade comes out about 0.1 s after the stab"), and
+    // a body staggering or settling under the stab, which mostly comes back and moves the blade's drawn place about by tens of units, is no
+    // pull: the hand slips on its handle while the engine keeps it drawn on its arm, view::keepOnArm.)
+    vector stepAway = p.origin + p.view_ofs - vr_embed_fgroot;
+    vector toBlade = e.origin - (p.origin + p.view_ofs);
+    float away = (vr_embed_fgarmed && vlen(toBlade) > 0.01 && (stepAway * normalize(toBlade)) < -VR_FLATARM_STEP);
+    if(away && handleGap > limit)
+    {
+        float point = (e.vr_stick_embed == AXESTICK_POINT);
+        float yields = VR_Embed_HostYields(e, h);
+        if(point && yields)
+        {
+            if(per > 1)
+            {
+                float u = (handleGap - limit) / per;
+                if(u >= e.vr_stick_depth + e.vr_stick_slide)
+                {
+                    VR_Embed_Free(e, VR_Embed_Why("pulled out by the arm", u, e.vr_stick_depth + e.vr_stick_slide, "units"));
+                    return TRUE;
+                }
+                vector back = e.vr_stick_dir * -u;
+                e.vr_stick_slide = e.vr_stick_slide - u;
+                e.vr_hold_flatrel_main = e.vr_hold_flatrel_main + back;
+                e.vr_hold_flatrel_off = e.vr_hold_flatrel_off + back;
+                e.vr_hold_lastmain = e.vr_hold_lastmain + back;
+                e.vr_hold_lastoff = e.vr_hold_lastoff + back;
+                VR_Embed_SlideFlesh(e, -u, 0.01 * VRMetersToUnits());
+                if(cvar_hget(cvarh_vr_debug_axestick))
+                {
+                    dprint(sprintf("embedhold: flat arm draws %s back %.1f units (%.1f cm past it), %.1f in\n", e.netname, u, handleGap, e.vr_stick_depth + e.vr_stick_slide));
+                }
+                gapOff = gapOff - u * per;
+                gapMain = gapMain - u * per;
+            }
+            else
+            {
+                if(cvar_hget(cvarh_vr_debug_axestick))
+                {
+                    dprint(sprintf("embedhold: flat arm runs out on %s (%.1f cm past it): it comes out\n", e.netname, handleGap));
+                }
+                VR_Embed_Free(e, VR_Embed_Why("pulled out as the arm ran out", handleGap, limit, "cm"));
+                return TRUE;
+            }
+        }
+        else
+        {
+            string why = point ? "a heavy body" : "by its edge";
+            if(cvar_hget(cvarh_vr_debug_axestick))
+            {
+                dprint(sprintf("embedhold: flat arm runs out on %s (%.1f cm past it, %s): the hand lets go\n", e.netname, handleGap, why));
+            }
+            VR_Embed_Say(VR_Embed_Why("the arm can't reach the hand on it: it lets go", handleGap, limit, "cm"));
+            VR_Embed_DropHands(e, sprintf("out of the arm's reach (%.1f cm past it, %s)", handleGap, why));
+            return FALSE;
+        }
+    }
+    if(away && (e.vr_hold_hands & 1) && e.vr_hold_handle != 1 && gapOff > limit)
+    {
+        VR_Embed_DropHand(e, cVR_OffHand, sprintf("out of the arm's reach (%.1f cm past it)", gapOff));
+    }
+    if(away && (e.vr_hold_hands & 2) && e.vr_hold_handle != 2 && gapMain > limit)
+    {
+        VR_Embed_DropHand(e, cVR_MainHand, sprintf("out of the arm's reach (%.1f cm past it)", gapMain));
+    }
+    return FALSE;
+};
+
 // The hold, each think of a blade held (self). TRUE: it is gone (in the hand).
 float() VR_Embed_HoldThink =
 {
     entity e = self;
     entity p = e.vr_hold_player;
     entity h = e.vr_stick_ent;
+    vector hostWas = h.origin; // (flat play's VR_Embed_FlatArm: the drag's way this think)
     if(!cvar_hget(cvarh_vr_embed))
     {
         VR_Embed_Free(e, "vr_embed off");
@@ -788,6 +1068,14 @@ float() VR_Embed_HoldThink =
         e.vr_hold_gapmain = min(e.vr_hold_gapmain, p.vr_embed_armgap_y);
     }
     // (Only an arm that reached the hand on it at some point: the mock hands of the tests are held further than any arm.)
+    // (Not in flat play: its hand stays on the grip, its arm posed by the game, lance4's lost Lance.)
+    // (Flat play has its own, VR_Embed_FlatArm: the hand there is on its posed arm from the start.)
+    float flat = VR_FlatPlay(p);
+    if(flat)
+    {
+        letgo = 1000000;
+        VR_Embed_FlatArmGaps(e, p);
+    }
     if((e.vr_hold_hands & 1) && e.vr_hold_gapoff <= letgo && p.vr_embed_armgap_x > e.vr_hold_gapoff + letgo)
     {
         VR_Embed_Say(VR_Embed_Why("the arm can't reach the hand on it: it lets go", p.vr_embed_armgap_x - e.vr_hold_gapoff, letgo, "cm"));
@@ -817,8 +1105,25 @@ float() VR_Embed_HoldThink =
     {
         float toGo = e.vr_stick_goal - (e.vr_stick_depth + e.vr_stick_slide);
         float step = e.vr_stick_goal / max(0.01, cvar_hget(cvarh_vr_embed_enter_time)) * dt;
+        float reached = FALSE;
+        if(flat && cvar_hget(cvarh_vr_flat_embed_arm) != 0 && e.vr_stick_embed == AXESTICK_POINT)
+        {
+            // (Flat play: no deeper than the hand on its handle can follow on its arm, VR_Embed_FlatArm's reach: it stops there.)
+            float handGap = e.vr_hold_handle == 1 ? vr_embed_fgoff : vr_embed_fgmain;
+            float room = max(0, cvar_hget(cvarh_vr_embed_arm_letgo)) * 0.5 - handGap; // (half: the hold's own check after has room)
+            if(vr_embed_fgper > 0.001 && step * vr_embed_fgper > room)
+            {
+                step = max(0, room / vr_embed_fgper);
+                reached = TRUE;
+                if(cvar_hget(cvarh_vr_debug_axestick))
+                {
+                    dprint(sprintf("embedhold: flat stab into %s stops at the arm's reach, %.1f units in (going to %.1f)\n", h.classname,
+                        e.vr_stick_depth + e.vr_stick_slide + step, e.vr_stick_goal));
+                }
+            }
+        }
         e.vr_stick_slide = e.vr_stick_slide + min(max(0, toGo), step);
-        if(toGo <= step)
+        if(toGo <= step || reached)
         {
             e.vr_stick_goal = 0;
             if(e.vr_hold_hands & 1)
@@ -836,13 +1141,17 @@ float() VR_Embed_HoldThink =
     // The hand(s)' own motion this frame, along its axis and off it. (Not the blade's: a body flinching swings the hilt about by
     // more than a hand's pull, and that is no pull; too far from the hand, it comes free below.) What the body moved with the hand
     // (where it went in: it follows the hold, it is dragged) is no pull either; nor, off the axis, is your walking: that is `far`'s.
+    if(VR_FlatPlay(p))
+    {
+        VR_Embed_FlatPull(e, p);
+    }
     vector moved3 = '0 0 0';
     float far = 0; // how much further the hand is from where it went in than it held it from
     float hands = 0;
     vector atHandNow = '0 0 0';
     if(e.vr_hold_hands & 1)
     {
-        vector atOff = VRGetEntHandPos(p, cVR_OffHand);
+        vector atOff = VR_Embed_HandPos(e, p, cVR_OffHand);
         atHandNow = atOff;
         moved3 = moved3 + atOff - e.vr_hold_lastoff;
         far = far + vlen(atOff - e.vr_stick_at) - (e.vr_hold_distoff - e.vr_stick_slide);
@@ -851,7 +1160,7 @@ float() VR_Embed_HoldThink =
     }
     if(e.vr_hold_hands & 2)
     {
-        vector atMain = VRGetEntHandPos(p, cVR_MainHand);
+        vector atMain = VR_Embed_HandPos(e, p, cVR_MainHand);
         atHandNow = atMain;
         moved3 = moved3 + atMain - e.vr_hold_lastmain;
         far = far + vlen(atMain - e.vr_stick_at) - (e.vr_hold_distmain - e.vr_stick_slide);
@@ -889,8 +1198,13 @@ float() VR_Embed_HoldThink =
     {
         wound = '0 0 0';
     }
+    // Flat play: edge embeds are never slid/tugged out by walking away (only explicit Fire pulls, moved3 - walk),
+    // and with vr_flat_embed_arm on, heavy/anchored hosts are never slid out by walking away either (VR_Embed_FlatArm lets go).
+    float flatArm = (flat && cvar_hget(cvarh_vr_flat_embed_arm) != 0);
+    float flatNoWalkSlide = (flat && (e.vr_stick_embed != AXESTICK_POINT || (flatArm && !VR_Embed_HostYields(e, h))));
+    vector slideMove = flatNoWalkSlide ? (moved3 - walk) : moved3;
     // The hand's pull out along it, averaged over the last moments (not the last frame alone): an axe's tug, a dead body's.
-    float pullv = dt > 0 ? -(moved3 * dir) / dt / VRMetersToUnits() : 0;
+    float pullv = dt > 0 ? -(slideMove * dir) / dt / VRMetersToUnits() : 0;
     float tw = max(0.01, cvar_hget(cvarh_vr_embed_hold_axe_tug_time));
     e.vr_hold_tugv = e.vr_hold_tugv + (pullv - e.vr_hold_tugv) * min(1, dt / tw);
     // (A dead body gives it up to a firm tug of the arm, however it comes along: only your walking drags it. A slower pull carries the
@@ -912,7 +1226,7 @@ float() VR_Embed_HoldThink =
     }
     float carry = corpseTug > 0 && e.vr_hold_tugv < corpseTug;
     float tugged = (h.health <= 0 && !carry) ? (moved3 - walk) * dir : 0;
-    float stepAlong = moved3 * dir - tugged;
+    float stepAlong = slideMove * dir - tugged;
     float woundAlong = wound * dir;
     stepAlong = tugged + stepAlong - (stepAlong > 0 ? max(0, min(stepAlong, woundAlong)) : min(0, max(stepAlong, woundAlong)));
     vector arm = moved3 - walk;
@@ -989,6 +1303,11 @@ float() VR_Embed_HoldThink =
     e.vr_hold_farmost = max(0, cvar_hget(cvarh_vr_embed_hold_reach)) * reachBy;
     if(far > max(0, cvar_hget(cvarh_vr_embed_hold_reach)) * cm * reachBy)
     {
+        if(flat && (e.vr_stick_embed != AXESTICK_POINT || !VR_Embed_HostYields(e, h)))
+        {
+            VR_Embed_DropHands(e, VR_Embed_Why("too far from the hand: lets go", far / cm, cvar_hget(cvarh_vr_embed_hold_reach) * reachBy, "cm"));
+            return FALSE;
+        }
         VR_Embed_Free(e, VR_Embed_Why("too far from the hand", far / cm, cvar_hget(cvarh_vr_embed_hold_reach) * reachBy, "cm"));
         return TRUE;
     }
@@ -996,10 +1315,22 @@ float() VR_Embed_HoldThink =
     // The resistance: a stick, then a slide at most so fast, both by how deep (a dead body: less).
     float corpse = h.health <= 0;
 
-    // Standing, dragged along as you walk.
+    // Standing, dragged along as you walk (in flat play with vr_flat_embed_arm, partial drag so walking away still opens arm reach
+    // instead of dragging a light monster indefinitely).
     if(!sprung)
     {
-        VR_Embed_Drag(e, h, atHandNow, far, walk);
+        VR_Embed_Drag(e, h, atHandNow, far, flatArm ? walk * 0.4 : walk);
+    }
+    if(flat)
+    {
+        if(VR_Embed_FlatArm(e, p, h, hostWas))
+        {
+            return TRUE;
+        }
+        if(!e.vr_hold_hands)
+        {
+            return FALSE;
+        }
     }
     // (A dead body counts while you walk away from it, past a little: it fell at your hand, and holding on with it there is no tether.)
     float tetherAt = max(0, cvar_hget(cvarh_vr_embed_tether_far)) * cm;
@@ -1039,7 +1370,7 @@ float() VR_Embed_HoldThink =
             over = fabs(along) - stick;
         }
         float slip = max(0, cvar_hget(cvarh_vr_embed_hold_corpse_slip)) * cm;
-        if(over > slip)
+        if(over > slip && !VR_FlatPlay(p)) // (flat play: the hand stays on it, for another press)
         {
             VR_Embed_Say(VR_Embed_Why("pulled too slowly, the body won't come: the hand slips off", e.vr_hold_tugv, corpseTug, "m/s"));
             VR_Embed_DropHands(e, sprintf("the body won't come (%.1f cm ahead, %.2f of %.2f m/s)", over / cm, e.vr_hold_tugv, corpseTug));
@@ -1098,6 +1429,10 @@ float() VR_Embed_HoldThink =
                 if(needs > 0 && e.vr_hold_tugv < needs)
                 {
                     e.vr_stick_shake = 0;
+                    if(VR_FlatPlay(p))
+                    {
+                        return FALSE; // (flat play: the hand stays on it, for another press)
+                    }
                     VR_Embed_Say(VR_Embed_Why("tug too gentle: the hand comes off", e.vr_hold_tugv, needs, "m/s"));
                     VR_Embed_DropHands(e, sprintf("tugged too gently (%.2f of %.2f m/s)", e.vr_hold_tugv, needs));
                     return FALSE;
@@ -1240,14 +1575,8 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
 // helps hold it): 1 it is; 0 it won't; -1 not yet: the blade as drawn is `vr_embed_gap` units off its drawn model.
 float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try =
 {
-    // Flatscreen play's hands can neither hold a weapon stuck in a body nor pull it out: one left in was let go at once
-    // ("out of the arm's reach"), the hand empty. (lance4, his flat note 2026-11-24: the Crystal Lance's thrust left it in
-    // an ogre; the next weapon key gave a plain lightning gun, empty, which dropped its magazine.) It stays in the hand.
-    if(VR_FlatPlay(self))
-    {
-        VR_Embed_Say("NOT STUCK: flatscreen play (the weapon stays in the hand)");
-        return 0;
-    }
+    // (Flat play too: its hand stays on the grip and its fire button pulls it, VR_Embed_FlatPull. lance4 had none stick
+    // in flat play: the hand let go at once, "out of the arm's reach", the Crystal Lance left in an ogre.)
     if(m.vr_gib || m.modelindex != xModel || m.model == string_null || VRIsHandWeaponless(self, xHand))
     {
         VR_Embed_Say(sprintf("NOT STUCK: %s", VRIsHandWeaponless(self, xHand) ? "the hand holds nothing now" : "the blow gibbed it or took its model"));
@@ -1276,6 +1605,17 @@ float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try
     float other = VRGetOtherHand(xHand);
     float helping = VR_HandGrabUtil_IsHandGrabbing(self, other) && VR_Hand_Free(self, other, VR_HANDFREE_GUNGRIP | VR_HANDFREE_LOCKED) &&
                     VRIsHandWeaponless(self, other) && (VRGet2HAiming(self) || weaponanygrip(self, other) != 0);
+    // Flatscreen with vr_flat_embed_arm 0 has no arm-limit release for the off hand: never attach an undroppable off hand.
+    if(VR_FlatPlay(self) && cvar_hget(cvarh_vr_flat_embed_arm) == 0)
+    {
+        helping = FALSE;
+    }
+    if(cvar_hget(cvarh_vr_debug_axestick))
+    {
+        dprint(sprintf("embedhold: the other hand helps %g (grabbing %g, free %g, weaponless %g, 2H aiming %g, any grip %g, busy kind %g)\n", helping,
+            VR_HandGrabUtil_IsHandGrabbing(self, other), VR_Hand_Free(self, other, VR_HANDFREE_GUNGRIP | VR_HANDFREE_LOCKED), VRIsHandWeaponless(self, other),
+            VRGet2HAiming(self), weaponanygrip(self, other), VR_Hand_Kind(self, other)));
+    }
     entity w = CreateThrownWeapon(self, wid, flags - (flags & QVR_WPNFLAG_SAW_STATE), inst, VRGetHandPos(xHand), VRGetHandRot(xHand),
         '0 0 0', '0 0 0', FALSE, FALSE, 0);
     if(w == world)
@@ -1300,6 +1640,23 @@ float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try
         VR_Embed_Say(sprintf("NOT STUCK: the part it went into is cut off (bone %g)", w.vr_stick_bone));
         remove(w);
         return 0;
+    }
+    // Flat play (embedhold2/embedholdfix, his flat note 2026-11-25 item 11): VR's helping hand is one gripping it two-handed; flat play's
+    // posed other hand, empty and free, takes it too if vr_flat_embed_arm is on and it is within vr_flat_embed_other_hand (> 0) cm of the
+    // blade's line: the engine draws it on the grip nearest it (embedDrawnHand). VR_Embed_FlatArm drops it when its arm runs out.
+    float flatOther = max(0, cvar_hget(cvarh_vr_flat_embed_other_hand));
+    if(!helping && VR_FlatPlay(self) && cvar_hget(cvarh_vr_flat_embed_arm) != 0 && flatOther > 0 &&
+       VR_Hand_Free(self, other, (VR_HANDFREE_GUNGRIP | VR_HANDFREE_LOCKED)) && VRIsHandWeaponless(self, other))
+    {
+        vector rel = VRGetHandPos(other) - w.origin;
+        float relAlong = rel * w.vr_stick_dir;
+        float relOff = vlen(rel - w.vr_stick_dir * relAlong) / (0.01 * VRMetersToUnits());
+        helping = (relOff <= flatOther && fabs(relAlong) / (0.01 * VRMetersToUnits()) <= flatOther * 2);
+        if(cvar_hget(cvarh_vr_debug_axestick))
+        {
+            dprint(sprintf("embedhold: flat: the other hand %.1f cm off the blade's line, %.1f along it from the handle (most %g): %s\n", relOff,
+                relAlong / (0.01 * VRMetersToUnits()), flatOther, helping ? "takes it too" : "stays off"));
+        }
     }
     VRSetHandEmpty(self, xHand);
     VRHandStopFiring(self, xHand);

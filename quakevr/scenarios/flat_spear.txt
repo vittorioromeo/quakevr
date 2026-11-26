@@ -1,0 +1,6 @@
+# flat_spear: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Flat-screen: the spear held as a pole weapon (its other hand's grip, its aim, the right mouse button's parry)
+map vrtesthall
+god
+give "Spear" main
+spawn "Ogre" 120 0

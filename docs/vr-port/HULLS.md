@@ -248,7 +248,7 @@ the removed PROFILING_2026-10.md (git history), "Hull build, follow-up".
 
 ### Kept on disk (`vr_hull_cache`, 2026-10-07)
 
-The world's compiled trees that took 250 ms or more to build are also written to
+The world's compiled trees that took 25 ms or more to build (250 until loadprof) are also written to
 `<gamedir>/cache/hulls/<build>/<world>_<box>.hul` (<world>: `keyOf`, the world's content; <box>: the tree's half size;
 <build>: vr_hull.cpp's compile time, so changed code never reads an old tree) and read at the next load of the same
 map in any session instead of being compiled: vrstart's (then vrstart2) cold start 10.4 s to 1.3 s (four trees of 1.2-1.4 million
@@ -544,6 +544,15 @@ models live edicts can meet, one size at a time (a big map's compile holds over 
 monster moves with Quake's own hull (1 or 2: wider, as tall from the same feet, so wherever it stands then is free for
 its narrower box too); `developer 1` prints `hull: 40x88 ready in play ...`. Before, the first move compiled it in the
 frame: ad_tears' 40 x 88 and 28 x 56 stalled the game 1.4-2.1 s each. Off (0): that again.
+
+**After the load** (`vr_hull_defer`, 1; Debug > Tests, "Crouch and Monster Hitboxes"; loadprof2, 2026-11-25): a map load
+waits only for the map's brushes and the standing player's tree; the crouched boxes' trees (tallest first), the lying
+box's and the monsters' sizes (those the spawned map asked for) are then made the same way, in one job on the pool, one
+after another, each usable as soon as it is made. Meanwhile monsters move with Quake's hull (as above) and a crouched or
+lying box's first trace waits for its own tree (the loading panel after a second; `developer 1`: `hull: a 16x36 trace
+waited ...`): never a wrong trace, at worst a pause on a cold load's first crouch. Quest 3, vrstart with a cold player
+cache and no shipped cache: 91 s to 26 s; ad_sepulcher 36 s to 16 s (ROUND26.md, loadprof2). Off (0): every tree waited
+for by the load.
 
 Files: `vr_hull.cpp` (the classes, `monsterWidth`, `moveBox`/`entBox`/`touchBox`/`footprint`, the trees by size,
 `vr_mhull_walktest`), `sv_move.c` (`SV_CheckBottom`: `VR_HullFootprint`), `world.c` (`VR_HullNarrowsAgainst` takes the

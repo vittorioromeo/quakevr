@@ -56,6 +56,7 @@
 #include "vr_portals.hpp"
 #include "vr_nav.hpp"
 #include "vr_navfollow.hpp"
+#include "vr_navshaft.hpp"
 #include "vr_props.hpp"
 #include "vr_propthink.hpp"
 #include "vr_protocol.hpp"
@@ -950,6 +951,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"admeleebend", PF_admeleebend},
     {"admeleehead", PF_admeleehead},
     {"meleeshow", PF_meleeshow},
+    {"meleeshowfoe", PF_meleeshowfoe},
     {"embedsay", PF_embedsay},
     {"bladewound", PF_bladewound},
     {"bladewoundage", PF_bladewoundage},
@@ -1103,6 +1105,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"navobstacles", PF_navobstacles},
     {"navbot", PF_navbot},
     {"navreach", PF_navreach},
+    {"navshaft", PF_navshaft},
+    {"navshaftclear", PF_navshaftclear},
+    {"navshaftbot", PF_navshaftbot},
     {"bodyshock", PF_bodyshock},
     {"bodyshockdeath", PF_bodyshockdeath},
     {"collectfx", PF_collectfx},
@@ -1147,6 +1152,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"selfhit_point", selfshot::PF_selfhit_point},
     {"debughitzone", PF_debughitzone},
     {"playerhitzone", PF_playerhitzone},
+    {"playerbodypoint", PF_playerbodypoint},
     {"debugdisarm", disarmviz::PF_debugdisarm},
     {"debugdisarmnote", disarmviz::PF_debugdisarmnote},
     {"blowline", blowline::PF_blowline},

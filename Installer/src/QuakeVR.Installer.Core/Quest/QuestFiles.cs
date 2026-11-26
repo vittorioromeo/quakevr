@@ -152,7 +152,37 @@ public static class QuestFiles
         }
 
         AddRelit(installDir, files);
+        if (DataStamp(record.Version) is { } stamp)
+        {
+            files[DataVersionPath] = new QuestFile(DataVersionPath, stamp, new FileInfo(stamp).Length, "version stamp");
+        }
         return [.. files.Values.OrderBy(f => f.DevicePath, StringComparer.Ordinal)];
+    }
+
+    /// <summary>The game data's version stamp on the headset: the install's version, which the game on the Quest compares
+    /// with its own (vr_android.cpp VR_AndroidDataCheck): an app of another version than its data (a newer APK sideloaded,
+    /// an older install's files) says "run Setup's Quest step again" instead of a hub that fails to load.</summary>
+    public const string DataVersionPath = "quakevr/data_version.txt";
+
+    /// <summary>The stamp's text (the install's version: "1.2.0-beta5", a development package's "1.2.0-beta5-dev (...)";
+    /// the game compares its first word, "-dev" dropped) in a file of its own (the temporary folder, one per version), or
+    /// null without a version ("unverified": a package without a manifest).</summary>
+    static string? DataStamp(string version)
+    {
+        version = version.Trim();
+        if (version.Length == 0 || !char.IsAsciiDigit(version[0]))
+        {
+            return null;
+        }
+        var dir = Path.Combine(Path.GetTempPath(), "QuakeVR-Setup");
+        Directory.CreateDirectory(dir);
+        var name = string.Concat(version.Select(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' ? c : '_'));
+        var path = Path.Combine(dir, $"data_version-{name}.txt");
+        if (!File.Exists(path) || File.ReadAllText(path) != version + "\n")
+        {
+            File.WriteAllText(path, version + "\n");
+        }
+        return path;
     }
 
     /// <summary>A mod copy's files for the headset (device path, PC source, its folder's name), the player's own left out.

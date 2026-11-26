@@ -365,6 +365,11 @@ float vr_agpt_t0;
 float vr_agpt_seen;   // test 35: your damage counted so far
 float vr_agpt_m0;   // test 34's: the most the weapon moved before its hand closed
 float vr_agpt_n0;   // test 35's: weapon index,
+float VR_AGPT_PARRY_BLOWS = 6; // ... each case's landed blows that give the next one its time,
+float vr_agpt_actat;   // ... its swing last seen begin (its vr_ag_act_at),
+vector vr_agpt_porg;   // ... where you stood at its start,
+float vr_agpt_kmask;   // ... the swing kinds seen land (bit 1 << kind) and where their blades were (the grunt's frame)
+vector vr_agpt_kl0, vr_agpt_kl1, vr_agpt_kl2, vr_agpt_kl3, vr_agpt_kl4;
 float vr_agpt_grip0;   // ... your vr_weapon_grip_mode before it (as it was again at the end),
 float vr_agpt_gripset; // ... 1 while it holds vr_weapon_grip_mode at 1
 float vr_agpt_keep_scale; // test 38's: vr_agrunt_tug_downed_scale before (0 during: the down grab at once)
@@ -749,6 +754,27 @@ float(float i) VR_AGPT_MeleeWid =
            i == 5 ? WID_FIST : -2;
 };
 
+// Test 35's kept ways, by swing kind (0..4: a swing's 4, a punch's 5).
+float(float k) VR_AGPT_KindBit =
+{
+    return k == 0 ? 1 : k == 1 ? 2 : k == 2 ? 4 : k == 3 ? 8 : 16;
+};
+
+vector(float k) VR_AGPT_KindLine =
+{
+    return k == 0 ? vr_agpt_kl0 : k == 1 ? vr_agpt_kl1 : k == 2 ? vr_agpt_kl2 : k == 3 ? vr_agpt_kl3 : vr_agpt_kl4;
+};
+
+void(float k, vector v) VR_AGPT_KindKeep =
+{
+    vr_agpt_kmask = vr_agpt_kmask | VR_AGPT_KindBit(k);
+    if(k == 0) { vr_agpt_kl0 = v; }
+    else if(k == 1) { vr_agpt_kl1 = v; }
+    else if(k == 2) { vr_agpt_kl2 = v; }
+    else if(k == 3) { vr_agpt_kl3 = v; }
+    else { vr_agpt_kl4 = v; }
+};
+
 void() VR_AGPT_Parry =
 {
     entity p = vr_agt_player;
@@ -787,6 +813,9 @@ void() VR_AGPT_Parry =
         VR_AGPT_Watch(vr_agt_grunt);
         vr_agpt_m0 = vr_ag_parried_n;
         vr_agpt_t0 = 0;
+        vr_agpt_porg = p.origin;
+        vr_agpt_actat = 0;
+        vr_agpt_kmask = 0;
         vr_agpt_seen = vr_ag_player_dmg;
         vr_agt_step = 1;
         vr_agt_until = time + 6;
@@ -794,18 +823,45 @@ void() VR_AGPT_Parry =
     }
     // Your weapon held still is on most swings' way, not on all (Mjolnir's passes 20 units off: the directional parry is
     // right that it lands, vr_dirparry.qc; it met the crowbar only with its old blow line and a test's monster hunting with
-    // no turning speed, ROUND23.md "Regressions of 2026-11-03"). A blow that landed moves it onto that blow's way, as a player would: the
-    // next one meets it. (Test 78 reads the angles and the margins; this one the parry's outcome per weapon.)
+    // no turning speed, ROUND23.md "Regressions of 2026-11-03"). A blow that landed moves it onto that blow's way, as a player would.
+    // Its next swing is another kind (VR_AGP_Begin never picks the last one twice), not along that way: so, as a player
+    // reads a swing coming, each landed blow's way is kept by its kind (where its blade was, in the grunt's frame), and a
+    // swing of a kind seen land moves your weapon there as it begins; each landed blow gives the next one its time (up to
+    // VR_AGPT_PARRY_BLOWS). Which swings come first is the server's random numbers' (agfix2: seed 1's axe grunt swung kinds
+    // 3 then 0, neither on the weapon held across, after findings-qc's ammo-box roll moved the numbers), not the parry's.
+    // (Test 78 reads the angles and the margins; this one the parry's outcome per weapon.)
+    if(g.vr_ag_act != 0 && g.vr_ag_act_at > vr_agpt_actat)
+    {
+        vr_agpt_actat = g.vr_ag_act_at;
+        float kb = VR_AGPT_KindBit(g.vr_ag_act_kind);
+        if((vr_agpt_kmask & kb) && vr_ag_parried_n == vr_agpt_m0 && VR_DRP_PlayerSeg(p, cVR_MainHand))
+        {
+            vector kl = VR_AGPT_KindLine(g.vr_ag_act_kind);
+            makevectors([0, g.angles_y, 0]);
+            vector to = p.handpos + g.origin + v_forward * kl_x + v_right * kl_y + v_up * kl_z - (vr_drp_pa + vr_drp_pb) * 0.5;
+            localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", to_x, to_y, to_z));
+        }
+    }
     if(vr_ag_player_dmg > vr_agpt_seen)
     {
         vr_agpt_seen = vr_ag_player_dmg;
+        VR_AGT_Print(sprintf("parry: a blow landed (swing %g, %.0f away)", g.vr_ag_act_kind, vlen(g.origin - p.origin)));
+        // (You stand your ground: its blow's knockback would put you further off each time, its blade's way then
+        // short of your weapon.)
+        setorigin(p, vr_agpt_porg);
+        p.velocity = '0 0 0';
+        if(g.vr_ag_strikes - vr_agpt_s0 < VR_AGPT_PARRY_BLOWS)
+        {
+            vr_agt_until = max(vr_agt_until, time + 3.5);
+        }
         if(g.vr_ag_prop && vr_ag_parried_n == vr_agpt_m0 && VR_DRP_PlayerSeg(p, cVR_MainHand))
         {
-            VR_AG_WeaponLine(g.vr_ag_prop); // (the frame after its blow: its blade where it met nothing)
-            VR_AG_SegDist(vr_ag_wa, vr_ag_wb, vr_drp_pa, vr_drp_pb);
-            vector to = p.handpos + (vr_ag_wa + (vr_ag_wb - vr_ag_wa) * vr_ag_seg_s) -
-                        (vr_drp_pa + (vr_drp_pb - vr_drp_pa) * vr_ag_seg_t);
-            localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", to_x, to_y, to_z));
+            // (Its blow's reading, VR_DRP_Eval: the nearest points of its blade on its way and of your weapon.)
+            vector to2 = p.handpos + vr_drp_ne - vr_drp_np;
+            localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", to2_x, to2_y, to2_z));
+            makevectors([0, g.angles_y, 0]);
+            vector d = vr_drp_ne - g.origin;
+            VR_AGPT_KindKeep(g.vr_ag_act_kind, [d * v_forward, d * v_right, d * v_up]);
         }
     }
     if(vr_ag_parried_n > vr_agpt_m0 && vr_agpt_t0 == 0)

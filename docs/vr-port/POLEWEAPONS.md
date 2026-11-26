@@ -67,3 +67,21 @@ tip (a gun), a spear a pole with a blade tip (melee only), a staff a pole with t
   cells). The clients draw the charge at the crystal tip (`vr_lancecharge.cpp`: sparks gathering in, a violet light
   growing, a rising hum) for the player and every other player's copy (`QVR_SVC_LANCECHARGE`), and keep its bolt
   `vr_dw_lance_bolt` s (0.35). ROUND25.md "lancecharge" has the detail.
+
+## Built in spear (2026-11-24)
+
+- **The plain spear** (part 3 above): `progs/v_spear.mdl` (make_spear.py), the knight's sword of kind 13
+  (`VR_SWORDKIND_SPEAR`), weapons.txt slot 57 (the Lance's hold: its model lies where the Lance's pole does). The blow is
+  shared: `VR_PoleMelee` (QC/vr_poleweapon.qc, the Lance's former `DW_LanceMelee`), its head from the slot's `bl_from`.
+  Impale (part 1) is the sword's point embed with the head as the blade. ROUND25.md "spear".
+
+## The shaft (spearblunt, 2026-11-24)
+
+- Every pole weapon is **a head and a shaft**: the head from `VR_PoleHeadFrom` (the slot's Blade Start, else
+  `vr_dw_lance_head`) to the tip strikes as its kind's blade (the spear's point stabs and sticks, its edges cut; the
+  Lance's crystal head its thrust); the shaft from the hand to the head, and the butt behind the hand, strike as a staff:
+  blunt. One path for both: QC `VR_Melee_PoleLayout` (the melee points: the shaft's of kind `VR_MPT_BLUNT`, landing as
+  the pommel kind at full weight), so `vr_melee_blunt` and every blunt rule (the hit's class, round wounds and dents, the
+  knock, the knockdown rules' blunt blow, no stab and no embed); `VR_PoleMelee` deals it as a club (`vr_dmg_gun_bash`,
+  the blunt layer). The engine's leg sweep (`vr_legsweep.cpp` `edgeShare`) has the same head: the shaft sweeps legs,
+  the head cuts. A staff (part 4) would be the shaft's rule at both ends. ROUND25.md "spearblunt".

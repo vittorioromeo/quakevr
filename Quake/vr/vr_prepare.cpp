@@ -65,6 +65,9 @@ struct Run
     int campaignsOk{0};
     int campaignsNone{0};
     int campaignsFailed{0};
+    // -preparemaps <map>[,<map>...]: only these maps (the shipped cache's generator, Misc/release/make_shipped_cache.py:
+    // one map a run, its files then all its own), then the end: no guns, models, campaigns nor relight.
+    za::Vector<za::String> onlyMaps;
 };
 Run run;
 
@@ -188,6 +191,31 @@ za::Vector<za::String> modelNames(const char* folder)
     return names;
 }
 
+// The maps' step's maps: -preparemaps', else the first start's.
+[[nodiscard]] za::SizeT mapCount()
+{
+    return run.onlyMaps.empty() ? za::getArraySize(firstMaps) : run.onlyMaps.size();
+}
+
+[[nodiscard]] const char* mapName(za::SizeT i)
+{
+    return run.onlyMaps.empty() ? firstMaps[i].name : run.onlyMaps[i].cStr();
+}
+
+// Its command: the first start's for one of its maps (the tutorial's skill), else a single-player game's.
+[[nodiscard]] za::String mapCommand(za::SizeT i)
+{
+    const char* name = mapName(i);
+    for(const FirstMap& m : firstMaps)
+    {
+        if(!q_strcasecmp(m.name, name))
+        {
+            return za::String{m.command};
+        }
+    }
+    return za::String{"maxplayers 1; deathmatch 0; coop 0; map "} + name + "\n";
+}
+
 void line(const char* text)
 {
     Con_Printf("Prepare: %s\n", text);
@@ -274,6 +302,25 @@ void start()
         }
     }
     run.relight = COM_CheckParm("-preparerelight") != 0;
+    const int only = COM_CheckParm("-preparemaps");
+    if(only && only + 1 < com_argc)
+    {
+        const char* list = com_argv[only + 1];
+        while(*list)
+        {
+            const char* end = strchr(list, ',');
+            const za::SizeT n = end ? static_cast<za::SizeT>(end - list) : ZA_STRLEN(list);
+            if(n > 0 && n < 64)
+            {
+                char name[64];
+                memcpy(name, list, n);
+                name[n] = 0;
+                run.onlyMaps.pushBack(za::String{name});
+            }
+            list += end ? n + 1 : n;
+        }
+        run.relight = false;
+    }
     // No tips: one shown to the mock headset would be marked seen in tips_seen.txt and never shown to the player (the
     // config, where this would stay, is not written: -noconfigwrite).
     Cvar_Set("vr_tips", "0");
@@ -291,10 +338,14 @@ void frame()
         case Step::Done: return;
         case Step::Map:
         {
-            if(run.map >= za::getArraySize(firstMaps))
+            if(run.map >= mapCount())
             {
                 line(va("result maps ok=%d failed=%d", static_cast<int>(run.map) - run.failedMaps, run.failedMaps));
-                if(inPlay(firstMaps[za::getArraySize(firstMaps) - 1].name))
+                if(!run.onlyMaps.empty())
+                {
+                    finish();
+                }
+                else if(inPlay(firstMaps[za::getArraySize(firstMaps) - 1].name))
                 {
                     run.step = Step::Guns;
                 }
@@ -304,10 +355,9 @@ void frame()
                 }
                 return;
             }
-            const FirstMap& map = firstMaps[run.map];
-            line(va("step maps %d %d %s", static_cast<int>(run.map) + 1, static_cast<int>(za::getArraySize(firstMaps)),
-                map.name));
-            Cbuf_AddText(map.command);
+            const char* name = mapName(run.map);
+            line(va("step maps %d %d %s", static_cast<int>(run.map) + 1, static_cast<int>(mapCount()), name));
+            Cbuf_AddText(mapCommand(run.map).cStr());
             run.since = now;
             run.signedOn = -1.0;
             run.step = Step::MapWait;
@@ -315,7 +365,7 @@ void frame()
         }
         case Step::MapWait:
         {
-            const char* map = firstMaps[run.map].name;
+            const char* map = mapName(run.map);
             if(inPlay(map))
             {
                 if(run.signedOn < 0.0)

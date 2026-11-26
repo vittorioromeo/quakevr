@@ -111,6 +111,7 @@ void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
 void() VR_FlatThrow_Release;
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
+void(float xHand) VR_FlatReload_AmmoSwitch;
 
 // A hand whose weapon takes no ammo (a melee weapon, a fist: AID_NONE) has none. A firing loop's think can outlive the
 // gun it began with: a bot's nailgun loop ran on into the sword its hand was given and asked for AID_NONE's count
@@ -4586,24 +4587,34 @@ ImpulseCommands
 
 ============
 */
+// The weapon in `xHand` has another ammo its button (ToggleSecondaryAmmo) switches to.
+float(float xHand) VR_HasOtherAmmo =
+{
+    float weapon = VRGetWeapon(xHand);
+    if(!WeaponSupportsSecondaryAmmoFlag(weapon) ||
+       (weapon != WID_SWORD && !VR_Pack_WeaponFlags(weapon, QVR_WPNFLAG_USE_SECONDARY_AMMO))) // (its secondary's projectile not here)
+    {
+        return FALSE;
+    }
+    if(weapon == WID_LIGHTNING && AD_PlasmaGun(xHand, VRGetWeaponFlags(xHand)))
+    {
+        return FALSE; // AD support: AD's Plasma Gun fires cells only (AD's W_FirePlasma), no button (vr_weapons.inc slot 35)
+    }
+    // Dwell's Crystal Lance (the lightning gun's record with its variant): no other ammo, flat or headset (his note
+    // 2026-11-23: B made it the lightning gun). (One left on the other ammo by an older game still switches back.)
+    return !DW_LanceInHand(xHand);
+};
+
 void(float xHand) ToggleSecondaryAmmo =
 {
     float weapon = VRGetWeapon(xHand);
 
-    if(!WeaponSupportsSecondaryAmmoFlag(weapon) ||
-       (weapon != WID_SWORD && !VR_Pack_WeaponFlags(weapon, QVR_WPNFLAG_USE_SECONDARY_AMMO))) // (its secondary's projectile not here)
+    if(!VR_HasOtherAmmo(xHand))
     {
-        return;
-    }
-    if(weapon == WID_LIGHTNING && AD_PlasmaGun(xHand, VRGetWeaponFlags(xHand)))
-    {
-        return; // AD support: AD's Plasma Gun fires cells only (AD's W_FirePlasma), no button (vr_weapons.inc slot 35)
-    }
-    if(DW_LanceInHand(xHand))
-    {
-        // Dwell's Crystal Lance (the lightning gun's record with its variant): no other ammo, flat or headset (his note
-        // 2026-11-23: B made it the lightning gun). (One left on the other ammo by an older game still switches back.)
-        dprint("ammo switch: refused, the Crystal Lance has no other ammo\n"); // (flat_ammo_key_test.sh)
+        if(DW_LanceInHand(xHand))
+        {
+            dprint("ammo switch: refused, the Crystal Lance has no other ammo\n"); // (flatlance_test.sh)
+        }
         return;
     }
 
@@ -4621,8 +4632,11 @@ void(float xHand) ToggleSecondaryAmmo =
     if(VR_Reload_MagIn(self, xHand))
     {
         // Immersive reloading: the magazine of the old ammo drops out (its rounds in it); one of the new goes in by hand.
-        makevectors(VRGetEntHandRot(self, xHand));
-        VR_Reload_Eject(self, xHand, VRGetEntHandVel(self, xHand) * VRMetersToUnits() - v_up * 40, -1, "the ammo changed");
+        VR_Reload_EjectOut(self, xHand, 40, "the ammo changed");
+    }
+    else if(VR_FlatPlay(self))
+    {
+        VR_FlatReload_AmmoSwitch(xHand);
     }
     else
     {
@@ -4697,11 +4711,20 @@ void(float xHand, float xReverse) VR_Impulse_CycleHand =
     }
 };
 
-// The button of the weapon in `xHand` pressed: a grappling hook's detach, else its secondary ammo.
+// The button of the weapon in `xHand` pressed: a grappling hook's detach, else its secondary ammo. Flatscreen play's
+// Next Ammo Type key (B, vr_flat_key_ammo; his words 2026-11-24): a weapon with no other ammo whose grip may be flipped (a
+// sword, a dagger, the Crystal Lance) has its grip turned over instead (VR_RevGrip_Flip: the headset's eject button's and
+// the weapon wheel's FLIP GRIP); a weapon with neither: nothing.
+void(float xHand) VR_RevGrip_Flip; // (vr_revgrip.qc)
 void(float xHand) VR_Impulse_WeaponButton =
 {
     if(VRGetWeapon(xHand) == WID_GRAPPLE) { VR_Grapple_Detach(xHand); }
-    else                                  { ToggleSecondaryAmmo(xHand); }
+    else if(VR_FlatPlay(self) && !VR_HasOtherAmmo(xHand) && !VRIsHandWeaponless(self, xHand))
+    {
+        dprint(sprintf("ammo switch: no other ammo, hand %g's grip flipped (if it may be)\n", xHand)); // (flat_ammo_key_test.sh)
+        VR_RevGrip_Flip(xHand);
+    }
+    else { ToggleSecondaryAmmo(xHand); }
 };
 void(entity ent) VR_FlatSwapHands; // (vr_wpnholster.qc: flatscreen play's Q)
 float() VR_FlatHolster_Impulses; // (vr_flatholster.qc: flatscreen play's holster menu, the weapon keys swallowed)
@@ -4897,8 +4920,8 @@ void() ImpulseCommands =
         return;
     }
 
-    // Flatscreen play: J throws what a hand holds (vr_flatgrenade.cpp reads the key, vr_flat_key_throw: 39 as it goes
-    // down, the wind-up; 40 as it comes up, the throw; vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
+    // Flatscreen play: B drops (quick tap) or throws (held) what a hand holds (vr_flatgrenade.cpp: 39 down, 40 up;
+    // vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
     if((self.impulse == 39 || self.impulse == 40) && VR_FlatPlay(self))
     {
         float throwUp = self.impulse == 40;
@@ -4910,6 +4933,27 @@ void() ImpulseCommands =
         else
         {
             VR_FlatThrow_Press();
+        }
+        return;
+    }
+
+    // Flatscreen play: H (vr_flat_key_pull) grabs/pulls physics props, crates, ragdolls and gibs with every available
+    // empty hand (vr_flatgrenade.cpp: 96 toggle, 97 hold down, 98 hold up; vr_flatgrab.qc). Nobody else's impulses.
+    if((self.impulse == 96 || self.impulse == 97 || self.impulse == 98) && VR_FlatPlay(self))
+    {
+        float grabImp = self.impulse;
+        self.impulse = 0;
+        if(grabImp == 96)
+        {
+            VR_FlatGrab_Toggle();
+        }
+        else if(grabImp == 97)
+        {
+            VR_FlatGrab_HoldStart();
+        }
+        else
+        {
+            VR_FlatGrab_HoldEnd();
         }
         return;
     }
@@ -5130,16 +5174,19 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 
 float(entity ent, float xHand) VRWeaponLeavingHand;
 
+float vr_lg_trail_draws; // (the tests: the lightning gun's stream drawn, a hand's frame each; vr_ad_test 106)
 void(float xHand, float xButton) FrameDrawLightningTrail =
 {
     // Lightning effect (per-frame). Not Dwell's Crystal Lance's: its shots are single (dw_items.qc DW_LanceChargeFrame;
-    // the stream drawn while its trigger was held, its damage in pulses: his note 2026-11-23).
+    // the stream drawn while its trigger was held, its damage in pulses: his note 2026-11-23). Nor AD's Plasma Gun's (the
+    // lightning gun's record upgraded: its shots are plasma bolts, AD_FirePlasma; plasmabolt, his report 2026-11-24).
     if(xButton &&
        VRGetWeapon(xHand) == WID_LIGHTNING &&
        (!(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)) &&
-       getCurrentAmmoOrClip(xHand) > 0 && !DW_LanceInHand(xHand))
+       getCurrentAmmoOrClip(xHand) > 0 && !DW_LanceInHand(xHand) && !AD_PlasmaGun(xHand, VRGetWeaponFlags(xHand)))
     {
         PlayerLightningGunEffect(VRGetMuzzlePos(xHand), xHand);
+        vr_lg_trail_draws++;
     }
 }
 

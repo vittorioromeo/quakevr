@@ -1067,7 +1067,10 @@ void() BotAI =
     if(self.b_skill < 2)
     {
         if(self.ai_time > time)
+        {
+            BotShaft(); // QVR: each frame, not only each AI frame: its keys stay on between (vr_shaft, bot_nav.qc)
             return;
+        }
 
         self.ai_time = time + 0.05;
         if(bot_count > 0)
@@ -1196,4 +1199,5 @@ void() BotAI =
         bot_handle_ai();
     else
         bot_chat(); // don't want chat to screw him up if he's rjing or something
+    BotShaft(); // QVR: out of a raised lift's shaft, or waiting at its edge (vr_shaft, bot_nav.qc)
 };

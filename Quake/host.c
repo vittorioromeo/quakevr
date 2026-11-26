@@ -401,6 +401,7 @@ void Host_ReportError (const char *error, ...)
 	q_vsnprintf (string, sizeof(string), error, argptr);
 	va_end (argptr);
 	Con_Printf ("Host_Error: %s\n",string);
+	VR_AndroidDataNote (); // QVR: the Quest's game data from another version than the app: said again (vr_android.cpp)
 	{
 		// QVR: where it came from (the caller's stack, symbols from ironwail.pdb; vr_crash.cpp)
 		char stack[1024];
@@ -535,7 +536,6 @@ qboolean Host_WriteConfigurationToFile (const char *name)
 
 		//VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
 
-		VR_FlatKeysForConfigWrite (); // QVR: flatscreen play's Ctrl bind given back for the write (vr_flatplay.cpp)
 		Key_WriteBindings (f);
 		VR_MenuSavePositions (); // QVR: the VR pages' selections and scrolls, into their cvar
 		VR_ScenarioConfigWrite (1); // QVR: a test scene's settings written as they were before it (vr/vr_scenario.cpp)
@@ -2259,6 +2259,7 @@ void Host_Init (void)
 			cmd_before_stuffcmds = "vr_standalone_preset 0\n";
 		else if (VR_Android ()) // QVR: later runs: the saved settings checked against the Quest's (vr/vr_gfxpresets.cpp)
 			cmd_before_stuffcmds = "vr_quest_check\n";
+		VR_AndroidDataCheck (); // QVR: the game data's version stamp (Setup's) against the app's (vr_android.cpp)
 		// QVR: both after the configs, before the command line's +map/+exec (cmd.c Cmd_StuffCmds_f; they ran after
 		// them all, a +exec'd file's waits too: the guard's rows missed a scripted session, QUEST_PLAN.md 6zk)
 	}
@@ -2316,6 +2317,9 @@ void Host_Shutdown(void)
 	VR_TimeQuitMark ("save on quit"); // QVR
 	Host_WriteConfiguration ();
 	VR_TimeQuitMark ("configuration written"); // QVR
+#ifdef __ANDROID__
+	VR_AndroidQuitBound (); // QVR: the rest bounded: a close stuck in the sound's (after a pause) ends the process (vr_android.cpp)
+#endif
 
 // stop downloads before shutting down networking
 	Modlist_ShutDown ();
@@ -2332,8 +2336,9 @@ void Host_Shutdown(void)
 		BGM_Shutdown();
 		CDAudio_Shutdown ();
 		S_Shutdown ();
+		VR_TimeQuitMark ("history, music, sound"); // QVR
 		IN_Shutdown ();
-		VR_TimeQuitMark ("history, music, sound, input"); // QVR
+		VR_TimeQuitMark ("input"); // QVR
 		VR_Shutdown (); // QVR
 		VR_TimeQuitMark ("VR shut down (backend, pool, caches)"); // QVR
 		VID_Shutdown();

@@ -52,16 +52,17 @@ namespace
 
 // The image's virtual pixels (the holster menu's renderer: its header on top, its footer at the bottom), the ring's
 // middle, its radius (the slots' middles), a slot's size, and where the hand counts as in the middle (nothing lit) or
-// outside (let go: cancelled). Nine slots fit (the holsters' provider: the empty hand, six holsters, DROP, UNLOAD): side by
-// side 68 wide (the longest title, "RIGHT CHEST", 11 characters of 6 pixels), and the steep pairs (120 and 160 degrees)
-// clear above one another.
+// outside (let go: cancelled). Ten slots fit (the holsters' provider: the empty hand, six holsters, DROP, FLIP GRIP,
+// UNLOAD; 36 degrees apart): side by side 68 wide (the longest title, "RIGHT CHEST", 11 characters of 6 pixels), the steep
+// pairs (36 and 72 degrees) clear above one another, and the top and bottom actions beside their neighbours (a ring of 109:
+// 2 pixels between EMPTY HAND and the shoulders' slots, 8 between FLIP GRIP and DROP / UNLOAD) inside the header and footer.
 constexpr float panelW = 280.f;
 constexpr float panelH = 282.f;
 constexpr glm::vec2 ringMid{140.f, 144.f};
-constexpr float ringR = 106.f;
+constexpr float ringR = 109.f;
 constexpr float slotW = 68.f;
 constexpr float slotH = 46.f;
-constexpr float actionW = 56.f; // an action's (EMPTY HAND, DROP, UNLOAD: the holster menu's buttons, smaller than a slot)
+constexpr float actionW = 56.f; // an action's (EMPTY HAND, DROP, FLIP GRIP, UNLOAD: the holster menu's buttons, smaller than a slot)
 constexpr float actionH = 32.f;
 constexpr float innerR = 26.f;
 constexpr float outerR = ringR + 46.f;
@@ -104,10 +105,10 @@ struct WheelState
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The holsters' provider: the holster menu's model (flatholster::holsterSlot), clockwise from the top: the empty hand,
-// then the right shoulder, chest and hip, DROP and UNLOAD at the bottom, then the left hip, chest and shoulder (the body's
-// own places round the hand).
+// then the right shoulder, chest and hip, DROP, FLIP GRIP (at the bottom) and UNLOAD, then the left hip, chest and
+// shoulder (the body's own places round the hand).
 
-constexpr int holsterOrder[] = {1, 5, 3, keyDrop, keyUnload, 2, 4, 0};
+constexpr int holsterOrder[] = {1, 5, 3, keyDrop, keyFlip, keyUnload, 2, 4, 0};
 
 void copyText(char* to, za::SizeT size, const char* from)
 {
@@ -139,15 +140,15 @@ int listHolsters(int hand, Choice* out, int max)
         Choice& c = out[n++];
         c = Choice{};
         c.key = i;
-        if(i == keyDrop || i == keyUnload)
+        if(i == keyDrop || i == keyUnload || i == keyFlip)
         {
-            // The hand's actions (the holster menu's DROP and UNLOAD, its own tests): what the hand holds, greyed when
-            // nothing would happen.
-            const bool drop = i == keyDrop;
-            copyText(c.title, sizeof(c.title), drop ? "DROP" : "UNLOAD");
-            c.usable = drop ? flatholster::canDrop(hand) : flatholster::canUnload(hand);
+            // The hand's actions (the holster menu's DROP, UNLOAD and FLIP GRIP, its own tests): what the hand holds,
+            // greyed when nothing would happen.
+            const bool drop = i == keyDrop, flip = i == keyFlip;
+            copyText(c.title, sizeof(c.title), drop ? "DROP" : flip ? "FLIP GRIP" : "UNLOAD");
+            c.usable = drop ? flatholster::canDrop(hand) : flip ? flatholster::canFlip(hand) : flatholster::canUnload(hand);
             copyText(c.name, sizeof(c.name), handFull ? held.name : drop && c.usable ? "carried" : "");
-            c.icon = drop ? gadget::MenuIcon::Drop : gadget::MenuIcon::Unload;
+            c.icon = drop ? gadget::MenuIcon::Drop : flip ? gadget::MenuIcon::FlipGrip : gadget::MenuIcon::Unload;
             continue;
         }
         const flatholster::HolsterSlot s = flatholster::holsterSlot(i);
@@ -290,6 +291,7 @@ struct Test
     int nailgunAt{-1};
     int clip{0}, ammo{0}; // the rounds in the gun and the reserve before UNLOAD
     int nailClip{0};      // the nailgun's rounds before the wheel's hold
+    int flags0{0};        // the dagger's flags before the wheel's hold (FLIP GRIP: its reverse grip's bit turned over)
     bool flat{false};     // "flat": flatscreen play's (flatTestStep)
     int shotgunAt{-1};    // flat: the shotgun's holster
     int firstWid{0};      // flat: the weapon 2's first tap drew (the first holstered)
@@ -302,6 +304,14 @@ struct Test
 };
 Test test; // seat-shared: the test's own
 constexpr int walkFrames = 36; // the walk's length (counted frames: about 0.5 s of slowed time)
+constexpr int revGripFlag = 8192; // QC QVR_WPNFLAG_REVGRIP: the weapon held reversed (STAT_QVR_WEAPONFLAGS)
+// The dagger into the right hand (the tests' impulse 149: id 13 with its kind's flags).
+constexpr const char* giveDagger = "vr_test_give_wid 13; vr_test_give_flags 3072; impulse 149\n";
+
+[[nodiscard]] int mainFlags()
+{
+    return cl.stats[protocol::STAT_QVR_WEAPONFLAGS];
+}
 
 void result(bool ok, const char* what)
 {
@@ -384,8 +394,9 @@ void press(int hand, bool down)
 // vr_flat_mouse_move. The shotgun put away (impulse 89); 2 tapped twice: the right hand cycles to the first holstered
 // weapon, then the next, no wheel; 2 held: the wheel opens for the right hand (nine slots), time slows; the mouse onto the
 // first weapon's slot, 2 let go: the right hand takes it; 1 held, the mouse off the wheel, let go: nothing; 1 held, UNLOAD:
-// the nailgun's rounds back in the reserve; 2 held, DROP: the right hand's weapon dropped; 1 held, an empty holster: the
-// nailgun put in it; vr_flat_wheel 0: 1 cycles on the press and a long hold opens nothing; time back at 1.
+// the nailgun's rounds back in the reserve (its FLIP GRIP greyed); 2 held, DROP: the right hand's weapon dropped; 1 held, an
+// empty holster: the nailgun put in it; the dagger in the right hand, 2 held, FLIP GRIP: its grip turned over; vr_flat_wheel
+// 0: 1 cycles on the press and a long hold opens nothing; time back at 1.
 
 void flatKey(int hand, bool down)
 {
@@ -480,7 +491,7 @@ void flatTestStep()
         if(waitFor(ws().hand == main, "2 held: the wheel open for the right hand"))
         {
             result(ws().flat && frames >= 10, va("2 held: the wheel opens for the right hand (after %d frames), on the window", frames));
-            result(ws().count == 9, va("nine slots (%d)", ws().count));
+            result(ws().count == 10, va("ten slots (%d)", ws().count));
         }
         break;
     }
@@ -545,6 +556,8 @@ void flatTestStep()
             test.clip = cl.stats[protocol::STAT_QVR_WEAPONCLIP2];
             test.ammo = cl.stats[STAT_NAILS];
             result(ws().choices[want].usable && test.clip > 0, va("UNLOAD lit (%d rounds in the nailgun, %d nails)", test.clip, test.ammo));
+            const int flip = choiceOfKey(keyFlip);
+            result(flip >= 0 && !ws().choices[flip].usable, "FLIP GRIP greyed: the nailgun's grip does not flip");
             flatKey(off, false);
         }
         break;
@@ -587,8 +600,51 @@ void flatTestStep()
         if(waitFor(handWeapon(off) == WID_FIST && test.nailgunAt >= 0 && holsterStat(test.nailgunAt) == WID_NAILGUN, "the nailgun holstered"))
         {
             result(true, "1 let go on an empty holster: the left hand's nailgun put in it");
+            Cbuf_AddText(giveDagger); // (FLIP GRIP: steps 50 .. 54, then back to 24)
+            test.step = 50;
+        }
+        break;
+    case 50:
+        if(waitFor(handWeapon(main) == WID_SWORD, "the dagger in the right hand"))
+        {
+            test.flags0 = mainFlags();
+            flatKey(main, true);
+        }
+        break;
+    case 51:
+        if(waitFor(ws().hand == main, "2 held with the dagger: the wheel open for the right hand"))
+        {
+            result((mainFlags() & revGripFlag) == (test.flags0 & revGripFlag), "2 held: the hold flipped nothing");
+        }
+        break;
+    case 52:
+    {
+        const int want = choiceOfKey(keyFlip);
+        if(flatPointed(want, "the cursor onto FLIP GRIP"))
+        {
+            result(ws().choices[want].usable, "FLIP GRIP lit: the right hand holds the dagger");
+        }
+        break;
+    }
+    case 53:
+        // (the screenshot of FLIP GRIP lit, a few frames after the cursor settled)
+        if(++test.mark == 4)
+        {
+            Cbuf_AddText("screenshot\n");
+        }
+        if(waitFor(test.mark >= 9, "the screenshot"))
+        {
+            flatKey(main, false);
+        }
+        break;
+    case 54:
+        if(waitFor((mainFlags() & revGripFlag) != (test.flags0 & revGripFlag), "the dagger's grip flipped"))
+        {
+            result(handWeapon(main) == WID_SWORD, va("2 let go on FLIP GRIP: the dagger's grip turned over (%s)",
+                                                      (mainFlags() & revGripFlag) ? "reversed" : "upright"));
             Cbuf_AddText("vr_flat_wheel 0\n");
             test.opens = ws().opens;
+            test.step = 24;
         }
         break;
     case 24:
@@ -673,7 +729,7 @@ void testStep()
                 va("the hold kept the nailgun's magazine in (%d rounds, %d before)", cl.stats[protocol::STAT_QVR_WEAPONCLIP],
                     test.nailClip));
             result(frames > 1, va("held, the wheel opens round that hand (after %d frames)", frames));
-            result(ws().count == 9, va("nine slots: the empty hand, the six holsters, DROP and UNLOAD (%d)", ws().count));
+            result(ws().count == 10, va("ten slots: the empty hand, the six holsters, DROP, FLIP GRIP and UNLOAD (%d)", ws().count));
         }
         break;
     }
@@ -760,6 +816,8 @@ void testStep()
             test.ammo = cl.stats[STAT_SHELLS];
             result(ws().choices[want].usable && test.clip > 0,
                 va("UNLOAD lit for the right hand's shotgun (%d shells in it, %d in the reserve)", test.clip, test.ammo));
+            const int flip = choiceOfKey(keyFlip);
+            result(flip >= 0 && !ws().choices[flip].usable, "FLIP GRIP greyed: the shotgun's grip does not flip");
             press(main, false);
         }
         break;
@@ -899,6 +957,41 @@ void testStep()
         if(waitFor(handWeapon(off) == WID_FIST, "the nailgun dropped"))
         {
             result(true, "DROP: the left hand's nailgun dropped");
+            Cbuf_AddText(giveDagger); // (FLIP GRIP: steps 50 .. 53, then on to 25)
+            test.step = 50;
+        }
+        break;
+    case 50:
+        if(waitFor(handWeapon(main) == WID_SWORD, "the dagger in the right hand"))
+        {
+            test.flags0 = mainFlags();
+            press(main, true);
+        }
+        break;
+    case 51:
+        // (B is the dagger's flip too (the eject button's, vr_revgrip.qc): the hold that opens the wheel must not flip it)
+        if(waitFor(ws().hand == main, "the wheel open round the right hand with the dagger"))
+        {
+            result((mainFlags() & revGripFlag) == (test.flags0 & revGripFlag), "the hold flipped nothing");
+        }
+        break;
+    case 52:
+    {
+        const int want = choiceOfKey(keyFlip);
+        aimAt(main, want);
+        if(waitFor(want >= 0 && ws().hovered == want, "the right hand onto FLIP GRIP"))
+        {
+            result(ws().choices[want].usable, "FLIP GRIP lit: the right hand holds the dagger");
+            press(main, false);
+        }
+        break;
+    }
+    case 53:
+        if(waitFor((mainFlags() & revGripFlag) != (test.flags0 & revGripFlag), "the dagger's grip flipped"))
+        {
+            result(ws().hand < 0 && handWeapon(main) == WID_SWORD, va("let go on FLIP GRIP: the dagger's grip turned over (%s)",
+                                                                   (mainFlags() & revGripFlag) ? "reversed" : "upright"));
+            test.step = 25;
         }
         break;
     case 25:
@@ -926,7 +1019,7 @@ void serverPick_f()
         return;
     }
     const int hand = atoi(Cmd_Argv(1)), slot = atoi(Cmd_Argv(2));
-    if((hand != 0 && hand != 1) || slot < keyUnload || slot >= flatholster::holsterSlots)
+    if((hand != 0 && hand != 1) || slot < keyFlip || slot >= flatholster::holsterSlots)
     {
         return;
     }
@@ -1240,6 +1333,7 @@ void render()
     v.footer = !lit                 ? (ws().outside ? "Let go here: cancel" : ws().flat ? "Point at a slot" : "Move the hand to a slot")
                : litKey == keyDrop   ? "Let go: drop it"
                : litKey == keyUnload ? "Let go: unload it"
+               : litKey == keyFlip   ? "Let go: flip its grip"
                                      : "Let go: take it";
     const gadget::VisorImage img = gadget::renderHolsterMenu(v);
     ws().texture = img.shown ? img.texture : 0;

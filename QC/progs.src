@@ -37,6 +37,8 @@ vr_ad_mondefs.qc
 // Armed grunts: their fields and hooks (ai.qc, combat.qc and the grunt's file call them; vr_armedgrunt.qc defines them).
 vr_armedgrunt_defs.qc
 vr_armedgrunt_shot_defs.qc
+// Monsters see and aim at a leaning player's visible parts (ai.qc's visible(), the CheckAttacks, vr_aimcone.qc).
+vr_leanaim.qc
 ai.qc
 combat.qc
 combat_test.qc
@@ -105,6 +107,7 @@ vr_stealth_test3.qc
 vr_stealth_test4.qc
 vr_stealth_test5.qc
 vr_stealth_test6.qc
+vr_stealth_test7.qc
 vr_stealth_test.qc
 // Holding enemies (the engine calls it; after the stealth AI and the grapple, whose functions it uses).
 vr_foegrab.qc
@@ -142,8 +145,10 @@ vr_flatreload.qc
 vr_flatholster.qc
 // A holstered gun keeps its rounds, every path (vr_reload_test 49): after vr_flatholster.qc's keys and wheel pick.
 vr_holsterammo_test.qc
-// Flat-screen play's quick grenade (G): after vr_grenade.qc's pouch grenade and vr_flatreload.qc.
+// Flat-screen play's quick grenade (G) and unified throw/drop (B): after vr_grenade.qc's pouch grenade and vr_flatreload.qc.
 vr_flatgrenade.qc
+// Flat-screen play's Grab / Pull (H): uses every available empty hand to grab props, crates, ragdolls and gibs.
+vr_flatgrab.qc
 // The single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first).
 vr_impulse_test.qc
 weapons_test.qc
@@ -212,6 +217,9 @@ vr_skewerlist_test.qc // the skewered gibs' list the shots walk (vr_embed_test 4
 vr_embed_prop_test.qc
 vr_embeddual_test.qc // flat dual wielding: an embedded blade keeps its hand (vr_embed_test 52)
 vr_dagger_test.qc
+vr_spear_test.qc // the spear (vr_embed_test 53)
+vr_flatthrust_test.qc // flat V thrusts with the stabbing blades (vr_embed_test 58-59)
+vr_flatembedwalk_test.qc // flat: walking away from a stuck blade, the other hand on it (vr_embed_test 64)
 vr_revgrip_test.qc
 vr_flipgrip_test.qc
 vr_flipgate_test.qc
@@ -634,6 +642,7 @@ vr_ragsmash_test.qc // a ragdoll smashed into a wall: its sound and blood (vr_ra
 vr_armedgrunt_glitch_test.qc
 vr_armedgrunt_play_test.qc
 vr_meleerules_test.qc // the shared melee rules' tests (vr_agrunt_test 212, 213)
+vr_armedgrunt_spear_test.qc // an armed grunt with the spear: its hold and thrust (vr_agrunt_test 230)
 vr_armedgrunt_shot_test.qc
 vr_armedgrunt_coopdisarm_test.qc // test 215: a grunt disarmed by shots still dies (single player, coop with a bot)
 vr_armedgrunt_twohand_test.qc
@@ -757,6 +766,7 @@ copper/cu_m_oldone.qc
 vr_copper_bridge.qc
 // Dwell's own entities, rebuilt on Copper and Quake VR (DWELL.md P2a): dw_<classname>, spawned by the engine's DWELL row.
 dwell/dw_common.qc
+vr_poleweapon.qc // pole weapons' shared blow: the Crystal Lance, the spear (before dw_items.qc's callers)
 dwell/dw_items.qc
 dwell/dw_monsters.qc
 dwell/dw_bosses.qc

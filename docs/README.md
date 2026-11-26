@@ -90,7 +90,7 @@ happens; the durable parts belong in a guide or topic note.
 
 ## Round log
 
-[vr-port/ROUND22.md](vr-port/ROUND22.md): the current round (after 1.0.0), a running log of every change, newest at the end.
+[vr-port/ROUND22.md](vr-port/ROUND22.md): round 22 (after 1.0.0; the current round is [ROUND26.md](vr-port/ROUND26.md)), a running log of every change, newest at the end.
 [vr-port/ROUND21.md](vr-port/ROUND21.md): round 21, up to the 1.0.0 release.
 Search it for a cvar's or a feature's name to find why it is the way it is. Its sections up to 2026-10-03 are in the
 archive below; ROUND21.md's index lists each title and its file.

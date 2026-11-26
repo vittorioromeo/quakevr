@@ -41,11 +41,15 @@ enum Class : int
     Sprayer = VR_AGK_SPRAYER,  // a sprayer (the flamethrower, the poison sprayer)
     LaserCannon = VR_AGK_LASERCANNON, // the laser cannon (its own)
     Widowmaker = VR_AGK_WIDOWMAKER,  // the Widowmaker (its own)
+    // A pole weapon (2026-11-25, agent/agspearpose; ROUND26.md, "agspearpose"): the spear (any slot with Other Hand
+    // Anywhere 3: QC VR_AGP_Pole), both hands on its shaft, its head at the target, thrust. Its keys lie on QC's pole pose
+    // (VR_AGP_Melee: VR_AGP_POLE_READY ...); none ship, so it starts as spearfix posed it. Its strike the Thrust (Overhead's number).
+    Pole = VR_AGK_POLE,
     NumClasses = VR_AGK_NUM_CLASSES   // (the numbers' bound: isClass says which are classes)
 };
 [[nodiscard]] constexpr bool isClass(int klass)
 {
-    return (klass >= Fists && klass <= TwoGuns) || (klass >= Pistol && klass <= Widowmaker);
+    return (klass >= Fists && klass <= TwoGuns) || (klass >= Pistol && klass <= Widowmaker) || klass == Pole;
 }
 // A single gun's class (the categories, Gun first).
 [[nodiscard]] constexpr bool isGunCategory(int klass)
@@ -62,8 +66,8 @@ inline constexpr int gunCategories[] = {Gun, Pistol, Launcher, Sprayer, LaserCan
 inline constexpr int numGunCategories = 6;
 // The classes in the windows' order (the guns, the melee weapons, the fists).
 inline constexpr int classOrder[] = {Gun, Pistol, Launcher, Sprayer, LaserCannon, Widowmaker, TwoGuns, Melee, Melee2,
-    Saw, TwoMelee, Fists};
-inline constexpr int numClassOrder = 12;
+    Pole, Saw, TwoMelee, Fists};
+inline constexpr int numClassOrder = 13;
 
 // The poses (QC VR_AGK_*: both from vr_agpose_shared.h); a strike's keys are its phases, a stance's phase 0 only.
 enum Pose : int
@@ -77,7 +81,7 @@ enum Pose : int
     Cross = VR_AGK_CROSS,
     Hook = VR_AGK_HOOK, // (the right's; a left hook mirrors it)
     Uppercut = VR_AGK_UPPERCUT,
-    Overhead = VR_AGK_OVERHEAD,
+    Overhead = VR_AGK_OVERHEAD, // (a pole weapon's Thrust: the same number, Thrust below)
     Diagonal = VR_AGK_DIAGONAL,
     Horizontal = VR_AGK_HORIZONTAL,
     Backhand = VR_AGK_BACKHAND, // (two held: a left hand's swing mirrors the right's key)
@@ -89,6 +93,7 @@ enum Pose : int
     Shove = VR_AGK_SHOVE,
     NumPoses = VR_AGK_NUM_POSES
 };
+inline constexpr int Thrust = VR_AGK_THRUST; // a pole weapon's thrust (its class's one strike: Overhead's number and act)
 
 inline constexpr int numPhases = 3; // a strike's: 0 the wind-up, 1 the blow, 2 the follow-through (the shove's: push, recover)
 

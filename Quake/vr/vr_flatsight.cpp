@@ -119,6 +119,10 @@ struct Sight
     bool heldOffPose{false};    // last frame: vr_twohand held the free hand on a grip no pose carries it to (keptGrip)
     bool keptGrip{false};       // ... it did, or did until its let-go, and gripT is still easing the hand off that grip
     float adsT{0.f};            // how far the held weapon has come onto the crosshair
+    float zoomT{0.f};           // how far a zoom-only gun has come towards the middle of the screen (vr_flat_zoom_centre)
+    bool zoomWas{false};        // last frame: the zoom-only aim was asked for (its engaging edge: the visor's shimmer)
+    double zoomEngageAt{-1e9};  // when it was last engaged (vr_gametime)
+    glm::vec3 zoomShift{0.f};   // how far zoomCentre moved the holding hand this pose (world, units)
 
     int holding{-1};            // this frame: the hand that holds a weapon while the other is empty (-1: neither)
     int helping{-1};            // ... and the empty hand that holds on to it
@@ -276,6 +280,7 @@ constexpr float stanceEase = 2.5f;    // and how fast the torso turns, the same
 constexpr float longGunMuzzle = 9.5f; // a gun's muzzle this far from the hand holding it (units) makes it a long gun.
                                       // Measured: revolver 8.4, nail pistol 3.9; nail gun 10.8, super shotgun 11.4, shotgun 14.0
 constexpr float lookBack = 0.03f;     // the free hand goes back on the hotspot under lookKeep less this share of the arm
+constexpr float visorShimmerSeconds = 0.4f; // the zoom visor's shimmer and scan as it engages (zoomVisor)
 constexpr float aimTimeMin = 0.05f;  // vr_flat_aim_time's shortest travel, and what a smaller nonzero setting reads as
 constexpr float aimTimeMax = 1.f;    // and its longest
 constexpr float aimFar = 4096.f;     // nothing on the crosshair's ray: the gun points this far along it
@@ -440,8 +445,8 @@ constexpr float floorMarginMax = 6.f;    // vr_flat_prone_floor_margin's range (
     return sightKnown(h) && !zoomOnly(h);
 }
 
-// How far the held weapon has come onto its sights: the travel (st.adsT), none for a zoom-only gun (whose travel is the
-// view's narrowing alone: fovNarrowNow still reads st.adsT).
+// How far the held weapon has come onto its sights: the travel (st().adsT), none for a zoom-only gun (whose travel is the
+// view's narrowing alone: fovNarrowNow still reads st().adsT).
 [[nodiscard]] float posedT()
 {
     return st().holding >= 0 && !zoomOnly(st().holding) ? za::clamp(st().adsT, 0.f, 1.f) : 0.f;
@@ -517,7 +522,7 @@ struct Sighted
 }
 
 // vr_flat_aim_time: how long the ironsight's whole travel takes -- onto the crosshair, and back off it -- in seconds
-// (0.05..1.00; 0: at once). How far that travel has gone is st.adsT, which is also what the field of view is narrowed
+// (0.05..1.00; 0: at once). How far that travel has gone is st().adsT, which is also what the field of view is narrowed
 // by (fovNarrowNow), so the view closes and opens with the weapon rather than at the press.
 [[nodiscard]] float aimSeconds()
 {
@@ -610,8 +615,20 @@ struct Sighted
 {
     // (Not while it swings or shoves: the swing turns the weapon over the head and down, the shove palms out; aimed at
     // the point, a gun swung with V stayed level all the way, 2026-11-10.)
+    // (polepose: nor in the parry guard, which lays the weapon across: the Crystal Lance's guard.)
     return flatplay::heldIn(h) >= 0 && s.muzzleValid[h] && st().muzzleKnown[h] && sightalign::alignable(h) &&
-           !flatplay::punching(h) && !flatplay::shoving(h);
+           !flatplay::punching(h) && !flatplay::shoving(h) && flatplay::parryShare(h) <= 0.f;
+}
+
+// (polepose, his flat note 2026-11-25) A pole weapon with no sight line (the spear) aimed as a sighted one is: its tip's line
+// on what the crosshair is on (vr_flat_pole_aim_point), last, after the pose's other moves of the hand (the two hands' grip
+// brings the holding hand in), as the Crystal Lance's is; through a thrust too (the thrust's own tip turn after it:
+// flatplay::poleThrustTurn), the Lance's as the spear's. Its shot's start (shotMuzzle, keepMuzzle) is untouched: no shot.
+[[nodiscard]] bool poleAimsAtPoint(const hands::State& s, int h)
+{
+    return vr_flat_pole_aim_point.value != 0.f && flatplay::heldIn(h) >= 0 && s.muzzleValid[h] && st().muzzleKnown[h] &&
+           twohand::poleWeapon(flatplay::heldIn(h)) && (!flatplay::punching(h) || flatplay::poleThrusts(h)) && !flatplay::shoving(h) &&
+           flatplay::parryShare(h) <= 0.f && !(flatplay::flippedGrip(h) && (flatplay::meleeIn(h) || flatplay::poleThrusts(h)));
 }
 
 // The muzzle the shot is handed (shotFrom).
@@ -670,13 +687,14 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
     const glm::vec3 point = crosshairPoint(s, aim);
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        if(!aimsAtPoint(s, h))
+        const bool poleAim = poleAimsAtPoint(s, h);
+        if(!aimsAtPoint(s, h) && !poleAim)
         {
             continue;
         }
         // (Leaning or sliding, the gun's up rolled as the pose rolls it: flatplay::gunRoll.)
         hands::angleVectors(aim + glm::vec3{0.f, 0.f, flatplay::gunRoll(h)}, viewFwd, viewRight, viewUp);
-        // In the sight the muzzle stays on the drawn gun's (st.sightMuzzle, the same travel); else it goes where the hand's
+        // In the sight the muzzle stays on the drawn gun's (st().sightMuzzle, the same travel); else it goes where the hand's
         // turn takes it.
         const bool onSight = h == st().holding && posedT() > 0.f;
         const glm::vec3 place = onSight ? st().sightMuzzle : muzzleNow(s, h);
@@ -698,6 +716,10 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
                     s.pos[st().helping] += back;
                 }
             }
+        }
+        if(poleAim)
+        {
+            s.rot[h] = flatplay::poleThrustTurn(h, s.rot[h]); // (a thrust's own tip turn, over the aimed line)
         }
     }
 }
@@ -770,7 +792,8 @@ bool adsApplies()
     // (Nor with the other hand busy, from the console too: a prop in it, or a blade it holds stuck in a body, flatplay::holdsThing;
     // his words 2026-11-21: "ADS also becomes possible in that state". The sight comes back once it is free.)
     return flatplay::active() && st().ads && st().holding >= 0 && sightalign::alignable(st().holding) && !tilted &&
-           !flatreload::busy(st().holding) && !flatgrenade::throwsWith(st().holding) && emptyHand(st().helping);
+           !flatreload::busy(st().holding) && !flatgrenade::throwsWith(st().holding) && emptyHand(st().helping) &&
+           !flatplay::poleParries(st().holding); // (polepose: the Lance's right button is its parry)
 }
 
 // The weapon's way back from a wall, a unit vector in the view's frame: towards the hand's shoulder in hipfire, along the
@@ -849,9 +872,9 @@ struct Turned
 }
 
 // Along a wall (vr_flat_wall_slide): the weapon in `h` as the pose holds it, from `head` with its hand at `at`, met a wall
-// (st.slideMet): the angle between its level way and the wall's makes the share (st.slideWanted, 1 up to
+// (st().slideMet): the angle between its level way and the wall's makes the share (st().slideWanted, 1 up to
 // vr_flat_wall_slide_from, smooth down to 0 at vr_flat_wall_slide_to), and the level turn that lays it along the wall,
-// the least that clears it of the wall up to that share of all the way (st.flatYawNeed; none for a melee weapon, which
+// the least that clears it of the wall up to that share of all the way (st().flatYawNeed; none for a melee weapon, which
 // only goes back). Met nothing: both kept as they were (only the push's own measure, 0, matters there). The share is of
 // the angle, not of how deep: the gun reaching the wall at a slant starts with no turn and no push, and they grow with
 // how far it goes in, so the pose has no step anywhere along the angle.
@@ -1103,7 +1126,7 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
     // The wall wins over the eyes: no place both clears the wall and keeps the gun wallEyeLeastCm off the eyes when he
     // stands at it (the eyes are that near the wall). Tried: capping the way back there left the rifle's hand 1.2 cm in the
     // wall (crouched, 45 degrees) at 8 cm; and going further back till the gun was 15 cm off them took it out of the view,
-    // down at the shoulder. st.eyeCapped only says it is that near (the status).
+    // down at the shoulder. st().eyeCapped only says it is that near (the status).
     if(need > 0.f)
     {
         st().probes++;
@@ -1293,7 +1316,7 @@ void pushBack(hands::State& s, const glm::vec3& aim)
             // level gun needed (the turn's least was measured there): the gun comes forward again, in the view and off the
             // eyes. Turning in, more: the walk-in's frames with the turn still easing in were the gun's worst, up to 26 cm in.
             // (Pulled back as the level gun needs and then turned, the rifle stood 9 cm before the eyes and a pistol went
-            // below the view.) st.roomNeed: how much more than the level gun's way back (negative: less).
+            // below the view.) st().roomNeed: how much more than the level gun's way back (negative: less).
             st().roomNeed[h] = 0.f;
             st().eyeCapped[h] = false;
             if(wall > 0.f)
@@ -1515,7 +1538,7 @@ void freeOffWall(hands::State& s)
 }
 
 // How much of the field of view the ironsight is taking this frame: vr_flat_aim_fov's degrees times how far the weapon
-// has travelled onto the crosshair (st.adsT, over vr_flat_aim_time) -- so the view closes over those same seconds and
+// has travelled onto the crosshair (st().adsT, over vr_flat_aim_time) -- so the view closes over those same seconds and
 // opens back off them, whatever the toggle says meanwhile, and nothing is taken outside flatscreen play or once the
 // travel is back to nothing.
 // vr_flat_aim_fov's degrees are counted at vr_flat_aim_fov_ref: the ironsight's field of view for a view of `base` is the same
@@ -1655,9 +1678,36 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
 
 // The held weapon brought to the sight's place, over the travel: the hand where the solve has it (sighted), in the frame
 // of the crosshair's ray, and the muzzle the shots go from where that gun's muzzle is.
+// The zoom-only aim (his ask 2026-11-24: "make the weapon move a bit closer to the center of the screen"): no sights to put on
+// the ray, so the holding hand is brought vr_flat_zoom_centre of the way sideways to the middle of the screen from the eye
+// `org`, raised by vr_flat_zoom_up and pushed out by vr_flat_zoom_fwd (the view's frame), over st().zoomT eased. A pinned free
+// hand and its grip go with it, as centreOnSight's do. The hand's turn is aimAtPoint's afterwards, from the moved muzzle, so the
+// shots still go through the crosshair; the drawn hand follows the pose (flatplay::drawnOffset).
+void zoomCentre(hands::State& s, const glm::vec3& aim, const glm::vec3& org)
+{
+    st().zoomShift = glm::vec3{0.f};
+    const float t = geom::smooth01(za::clamp(st().zoomT, 0.f, 1.f));
+    if(t <= 0.f || st().holding < 0 || !zoomOnly(st().holding))
+    {
+        return;
+    }
+    const glm::mat3 view = axesOf(aim);
+    const glm::vec3 local = glm::transpose(view) * (s.pos[st().holding] - org);
+    const glm::vec3 move{za::clamp(vr_flat_zoom_fwd.value, -8.f, 8.f), -local.y * za::clamp(vr_flat_zoom_centre.value, 0.f, 1.f),
+        za::clamp(vr_flat_zoom_up.value, -8.f, 8.f)};
+    st().zoomShift = view * move * t;
+    s.pos[st().holding] += st().zoomShift;
+    if(st().pinned)
+    {
+        s.grip2H[st().holding] += st().zoomShift;
+        s.pos[st().helping] += st().zoomShift;
+    }
+}
+
 void centreOnSight(hands::State& s, const glm::vec3& aim)
 {
     st().shift = glm::vec3{0.f};
+    st().zoomShift = glm::vec3{0.f};
     st().offBefore = st().offAfter = st().offAsked = st().sightAngle = 0.f;
     if(st().holding < 0)
     {
@@ -1675,6 +1725,7 @@ void centreOnSight(hands::State& s, const glm::vec3& aim)
     if(!sightPosed(st().holding))
     {
         st().relief = 0.f;
+        zoomCentre(s, aim, org);
         return;
     }
     const glm::mat3 view = axesOf(aim);
@@ -1873,7 +1924,10 @@ void forget()
     {
         st().ads = st().keyWas = false;
         st().gripWanted = st().adsWanted = false;
-        st().gripT = st().adsT = 0.f;
+        st().gripT = st().adsT = st().zoomT = 0.f;
+        st().zoomWas = false;
+        st().zoomEngageAt = -1e9;
+        st().zoomShift = glm::vec3{0.f};
         st().heldOffPose = st().keptGrip = false;
         st().lastTime = -1e9;
         st().holding = st().helping = st().lastHolding = st().lastHelping = -1;
@@ -1936,6 +1990,18 @@ void frame()
     const float aim = aimSeconds();
     st().adsT = aim <= 0.f ? (st().adsWanted ? 1.f : 0.f)
                          : za::clamp(st().adsT + (st().adsWanted ? 1.f : -1.f) * dt / aim, 0.f, 1.f);
+    // The zoom-only aim's move of the gun to the middle (zoomCentre), over vr_flat_zoom_time (-1: the zoom's own travel), and
+    // the moment it engages (the visor's shimmer, zoomVisor).
+    {
+        const bool zoomOn = st().adsWanted && st().holding >= 0 && zoomOnly(st().holding);
+        const float zs = vr_flat_zoom_time.value < 0.f ? aim : za::clamp(vr_flat_zoom_time.value, 0.f, aimTimeMax);
+        st().zoomT = zs <= 0.f ? (zoomOn ? 1.f : 0.f) : za::clamp(st().zoomT + (zoomOn ? 1.f : -1.f) * dt / zs, 0.f, 1.f);
+        if(zoomOn && !st().zoomWas)
+        {
+            st().zoomEngageAt = t;
+        }
+        st().zoomWas = zoomOn;
+    }
     st().probesLast = st().probes;
     st().probes = 0;
     // A wall met: back at once, nearly; cleared: out again over a moment, whichever way the view or the player moved.
@@ -2055,9 +2121,14 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // axe's up its handle, a sword's below the hand), the free hand put on it by the pose rather than found there by a
     // swing's end; the stance's pose is what makes the hands' line, so no line is asked of it (nor by vr_twohand.cpp).
     const bool meleeStance = st().holding >= 0 && flatplay::melee2HShare(st().holding) > 0.f;
+    // A pole weapon held as a spear: its grip is on the pole wherever the pose and a thrust put it (vr_view_weapon.cpp
+    // chooseGrip), so no line is asked of it either: thrust out, the grip came near the fist (off the pole by Other Hand
+    // Up) and the hand let go for the strike (lanceoffhand, his flat note 2026-11-24).
+    const bool poleGrip = st().holding >= 0 && twohand::poleWeapon(flatplay::heldIn(st().holding));
     const bool carryToGrip = st().holding >= 0 && st().helping >= 0 && s.grip2HValid[st().holding] &&
+                             !flatplay::oneHandOnly(st().holding) &&
                              (!s.grip2HCup[st().holding] || meleeCup) && !s.grip2HPalm[st().holding] &&
-                             (st().gripFwd > vr_2h_angle_threshold.value * st().gripReach || meleeStance);
+                             (st().gripFwd > vr_2h_angle_threshold.value * st().gripReach || meleeStance || poleGrip);
     // A punch of the free hand takes it off the grip, as fast as it came (gripEase: done before the throw), and it goes back
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
     // The gun's reload trip takes it off the grip the same way (vr_flatreload.cpp), and it goes back when the gun is back.
@@ -2079,6 +2150,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // force grab's palm turn (vr_flat_fg_detach_time), the shove's, the grenade's and the swap's poses start from the grip.
     // (vr_flat_melee_letgo 0: as before, the hand off the grip at once.)
     const bool heldOffPose = vr_flat_melee_letgo.value != 0.f && st().holding >= 0 && st().helping >= 0 && !carryToGrip && s.grip2HValid[st().holding] &&
+                             !flatplay::oneHandOnly(st().holding) &&
                              flatplay::meleeIn(st().holding) && twohand::helping(st().helping) && emptyHand(st().helping) &&
                              !twohand::bladeGrip(st().holding) && flatplay::bladeShare(st().holding) <= 0.f;
     if(freshFrame)
@@ -2099,7 +2171,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // The grip's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
     // leaves it or the weapon changes. applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own
     // Two-Handed setting decide the hold from here on, exactly as they do for a controller's grip button.
-    const bool inside = gripArrival(s, st().gripOff, st().gripDot, carryToGrip && meleeCup, carryToGrip && meleeStance);
+    const bool inside = gripArrival(s, st().gripOff, st().gripDot, carryToGrip && meleeCup, carryToGrip && (meleeStance || poleGrip));
     st().handGap = st().muzzleGap = 0.f;
     if(st().holding >= 0 && st().helping >= 0)
     {
@@ -2505,6 +2577,13 @@ float wallLetGo(int h)
     // (Tried staying on, turned up with the gun, 2026-11-07: twohand's hold then took the gun and its hand back into the
     // wall, rifle head-on 4 and 5 cm, the free hand's gun 18: it lets go.)
     // (Along a wall it keeps hold: the wall state's share is off the slide's, vr_flat_wall_slide.)
+    // (A pole weapon held as a spear keeps hold too (polewall, lanceoffhand's open end): its other hand is pinned on the
+    // pole as drawn, the wall's tilt in it (vr_view.cpp moves it with the holding hand's drawn offsets, setupHand puts it on
+    // this frame's grip), so it rides up with the pole; let go, it was left some 10 units off the tilted pole.)
+    if(h >= 0 && h < HAND_COUNT && twohand::poleWeapon(flatplay::heldIn(h)))
+    {
+        return 0.f;
+    }
     return flatplay::active() && h >= 0 && h < HAND_COUNT ? geom::smooth01(st().wallOn[h]) * (1.f - st().slide[h]) : 0.f;
 }
 
@@ -2529,6 +2608,19 @@ float poseShare()
 bool zoomAim()
 {
     return flatplay::active() && st().holding >= 0 && zoomOnly(st().holding);
+}
+
+float zoomVisor(float& shimmer)
+{
+    shimmer = 0.f;
+    const float strength = za::clamp(vr_flat_zoom_visor.value, 0.f, 1.f);
+    if(strength <= 0.f || !zoomAim() || st().adsT <= 0.f)
+    {
+        return 0.f;
+    }
+    const float since = static_cast<float>(vr_gametime - st().zoomEngageAt);
+    shimmer = since >= 0.f && since < visorShimmerSeconds ? 1.f - since / visorShimmerSeconds : 0.f;
+    return strength * geom::smooth01(za::clamp(st().adsT, 0.f, 1.f));
 }
 
 float fov(float basefov)
@@ -2642,7 +2734,7 @@ bool shotOff(const hands::State& s, int h, float& degrees, float& apart)
 void print(const hands::State& s)
 {
     // Measured afresh here, on the pose the move is about to send: where the muzzle the shots go from stands off the
-    // crosshair's ray, and what that is as an angle. st.offBefore is the same measurement before the ironsight moved
+    // crosshair's ray, and what that is as an angle. st().offBefore is the same measurement before the ironsight moved
     // the hand to it; flatplay::printMove's own line above says which way the shot is going.
     const int h = st().holding >= 0 ? st().holding : HAND_MAIN;
     glm::vec3 org, dir;
@@ -2742,8 +2834,12 @@ static void check_f()
     const bool zoom = h == st().holding && zoomOnly(h);
     if(zoom)
     {
+        float shimmer = 0.f;
+        const float visor = zoomVisor(shimmer);
         Con_Printf("flatsightcheck: %s zoom t %.2f fov %.2f hip %.2f shift %.3f xhair %.2f\n",
             wf.model->name, st().adsT, r_refdef.fov_x, st().baseFov, glm::length(st().shift), crosshairFade());
+        Con_Printf("flatzoomcentre: t %.2f move %.2f visor %.2f shimmer %.2f\n", st().zoomT, glm::length(st().zoomShift), visor,
+            shimmer);
     }
     {
         // Where the weapon is drawn in the camera's frame (forward, right, up; and its pitch on the screen, degrees, up

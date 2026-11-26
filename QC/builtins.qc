@@ -435,6 +435,17 @@ float(entity e, entity player, float hand, float what, optional vector grip, opt
 {
     return ragdollgrab(e, player, hand, what + 1, grip, strength, force);
 };
+// Flatscreen Grab / Pull: reach-grab a ragdoll limb nearest `target` within `reach` units (preferring a part != `avoidPart`).
+// Returns part + 1 on success, 0 on failure.
+float(entity e, entity player, float hand, vector target, float reach, float avoidPart) ragdollgrabreach =
+{
+    return ragdollgrab(e, player, hand, -1, target, reach, avoidPart);
+};
+// Flatscreen Grab / Pull: release all hands of `player` holding `e`'s ragdoll and launch all non-cut parts with `vel` (u/s).
+float(entity e, entity player, vector vel) ragdollthrow =
+{
+    return ragdollgrab(e, player, 0, -2, vel, 0, 0);
+};
 // Knockdowns (vr_knockdown.qc; the engine's vr_box3d.cpp, "Knockdowns"): whether e can be knocked down as a ragdoll (a
 // monster with a rig, ragdolls on); e's ragdoll made now, alive (.vr_knockdown 1, touchable, not solid); e getting up
 // from it: the get-up's first frame (frameA, or frameB if that fits how it lies better; -1 none), room for its box
@@ -667,6 +678,9 @@ void(entity e, float zone, vector lo, vector hi, float radius) debughitzone = #0
 // (hitzones) The zone (VR_REGION_*) of player e's body as drawn (vr_playerhit.cpp: what shots meet) that a shot along dir
 // entering at p met; VR_REGION_NONE: he has no such shape (vr_hit_player_shape 0, single player, his body id's ranger).
 float(entity e, vector p, vector dir) playerhitzone = #0;
+// (leanaim) Sample point i of player e's drawn body (world): 0 the head's centre, 1 the neck, 2 the torso's middle, 3 and
+// 4 the shoulders (off, main), 5 and 6 the hands; '0 0 0': no shape (vr_hit_player_shape 0) or no such point.
+vector(entity e, float i) playerbodypoint = #0;
 // Debug > Show Disarm Volumes (vr_debug_disarm; vr_disarmviz.qc, the engine's vr_disarmviz.cpp): a shape this server
 // frame (world units: a capsule of `radius` round a..b, a sphere where they meet; `kind` VR_DV_*), and a note: `what` 0
 // e's state this frame (a label at `at`), 1-5 a disarm-relevant hit there (VR_DV_PARRY...: marked a moment). Nothing
@@ -807,6 +821,10 @@ float(entity b, float xFloor) meleearc = #0;
 // end (xA); 2 a swept line (xA to xB); 3 a head's box (admeleehead's corners); 4 the head's line; 5 its model +y (xA);
 // 6 a blow landed (xA where, xV its damage or -1).
 void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
+// Show Melee Arcs (vr_enemy_melee_arc_show): an armed humanoid's swinging weapon `xWeapon` this frame, drawn as a hand's
+// sweep is (meleeshow's `xWhat` 0, 1, 6; vr_meleerules.qc VR_MeleeArc_ShowSwings); world records nothing. Returns the
+// frames the view drew any armed humanoid's swing (the tests).
+float(entity xWeapon, float xWhat, vector xA, vector xB, float xV) meleeshowfoe = #0;
 // A line on Embedded Blades' debug panel (vr_debug_embed; axestick::debugDraw).
 void(string xText) embedsay = #0;
 void(entity xBlade, entity xBody, vector xAt, vector xDir, float xStrength) bladewound = #0;
@@ -873,6 +891,9 @@ vector(float gate, vector value, float direction) portal_ai_map = #0;
 entity(entity observer) portal_ai_client = #0;
 float(float gate, float what) portal_ai_gateinfo = #0;     // QVR: what 0 the gates' count (0: off), 1 a gate's flags (1 active, 2 paired, 4 monsters walk through), 2 its face (an exit: its pair's side; 0 none)
 float(entity monster, entity goal) navsteer = #0; // QVR: the yaw toward the next corner of its navmesh path to goal (vr_nav), -1: Quake's chase
+float(entity m, float what) navshaft = #0; // QVR: the yaw out of the raised lift's shaft m stands in, -1: in none or it has a reason there (its enemy or goal entity in it); what 1: its reasons set aside (vr_navshaft.cpp)
+vector(entity m, vector at) navshaftclear = #0; // QVR: a place for m to walk to, moved out of any raised lift's shaft (vr_navshaft.cpp)
+float(entity bot, entity goal, vector wish, float what) navshaftbot = #0; // QVR: a FrikBot bot and the raised lifts' shafts: the yaw out of one it is in with no reason there (its enemy, or goal: its target1 when a thing, world for a waypoint), -2 wait at the edge (its move along wish would take it in), -1 nothing; what 1: it blocked a lift (vr_navshaft.cpp)
 float(entity monster) navlink = #0; // QVR: what its last navsteer asks besides the yaw: 0 walk, 1 walk off the ledge (a drop link), 2 stand (waiting for or riding a lift, falling)
 float(entity monster, entity goal) navreach = #0; // QVR: 1 a whole navmesh path from the monster's feet to the goal's (vr_nav), 0 none, -1 no navmesh for it (yet)
 vector(entity bot, entity goal, float what) navbot = #0; // QVR: a bot's walk on the navmesh (vr_bot_navmesh, frikbot/bot_nav.qc): what 0 plan and steer -> the corner to walk to; 1 that step '<state 1 on, 2 building, 3 no path> <flags 1 walk, 2 hop, 4 arrived, 8 partial> <path left>'; 2 drop its plan; 3 probe '<1 whole, 0 none or partial, -1 building> <length> <corners>'

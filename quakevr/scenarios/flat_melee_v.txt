@@ -1,0 +1,11 @@
+# flat_melee_v: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): V's
+# one-handed blade thrust (its windup further back, vr_flat_thrust_1h_*), V's overhand blow with an empty hand
+# (vr_flat_overhand_*) and the flipped grips held a bit overhead, stabbing down (vr_flat_revgrip_<sword|dagger|pole>_*);
+# flatmelee4_test.sh. A dagger in the main hand, a grunt ahead.
+title Flat-screen: V's blade thrust, empty-handed overhand and flipped-grip stabs
+map vrtesthall
+god
+notarget
+give "Dagger" main
+cmd vr_physics_spawn monster_army 72 0
+hint Play with -flatscreenmode. V with the dagger: a thrust drawn well back first. B flips its grip: held a bit overhead, V stabs down. Holster it (empty hands): V is an overhand blow, the fist over the shoulder and down onto the crosshair; the fire button still the straight punch. Tunables: Debug > Tunables > Flatscreen > Thrust (V): Spear and Blade, Flipped Grip, Empty-Hand Overhand (V).

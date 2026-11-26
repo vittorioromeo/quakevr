@@ -1,0 +1,12 @@
+# flat_aim_sway: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): the
+# hands' sway and turn lag kept at vr_flat_ads_sway_side / _up (0.3) while aiming, an ironsight (the shotgun) and a zoom gun
+# (the grenade launcher) alike (vr_flatplay.cpp drawnOffset); flatads_test.sh section g.
+title Flat-screen: aiming steadies the gun's sway, ironsight and zoom alike
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+cmd give 6
+cmd give s 50
+cmd give r 30
+hint Play with -flatscreenmode. Strafe, jump and turn at the hip, then holding the right mouse button with the shotgun and with the grenade launcher (key 6): aimed, the gun sways and trails the turn far less. Tune it in Debug > Tunables > Flatscreen > Looks: Aim Sway Horizontal and Aim Sway Vertical (1 as at the hip).

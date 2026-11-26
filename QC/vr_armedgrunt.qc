@@ -665,6 +665,7 @@ float VR_AG_CODE_WIDOWMAKER = 102;
 float VR_AG_CODE_PLASMAGUN = 103;
 float VR_AG_CODE_HKSWORD = 104;  // the death knight's (hell knight's) sword: the knight's sword with its secondary flag
 float VR_AG_CODE_DAGGER = 105;   // the dagger: the knight's sword of its kind (VR_SWORDKIND_DAGGER; every campaign)
+float VR_AG_CODE_SPEAR = 106;    // the spear: the knight's sword of its kind (VR_SWORDKIND_SPEAR; the toolgun's, not the pool's)
 float VR_AG_CODE_ADMELEE = 110; // 111..120: kind 1..10 (VR_ADMELEE_*; not the flail, 11: its head on its chain is only
                                 // a player's hand's, vr_box3d_flail.cpp: a grunt would swing a bare handle)
 
@@ -694,6 +695,12 @@ float(float code) VR_AG_Decode =
     {
         vr_ag_dec_wid = WID_SWORD;
         vr_ag_dec_flags = VR_ADMelee_Flags(VR_SWORDKIND_DAGGER); // (weapon_dagger's)
+        return TRUE;
+    }
+    if(code == VR_AG_CODE_SPEAR)
+    {
+        vr_ag_dec_wid = WID_SWORD;
+        vr_ag_dec_flags = VR_ADMelee_Flags(VR_SWORDKIND_SPEAR); // (weapon_spear's)
         return TRUE;
     }
     if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE) // (the flail, 11: not a grunt's)
@@ -1010,8 +1017,13 @@ void() VR_AG_PropThink =
 // A weapon one hand swings (dual wielding pairs these: VR_AG_ArmLeft): a sword (not AD's hammer and mace), the crowbar,
 // the axe (two-handed alone: vr_armedgrunt_pose.qc VR_AGP_TwoHanded). No gun: they are long guns its animations hold in
 // both hands (the grunt's and the enforcer's rifle lines).
+float(float xWid, float xFlags) VR_PoleWeapon; // (vr_poleweapon.qc)
 float(float wid, float flags) VR_AG_OneHanded =
 {
+    if(VR_PoleWeapon(wid, flags))
+    {
+        return FALSE; // (a pole weapon, the spear: both hands on its shaft, never paired)
+    }
     if(wid == WID_SWORD)
     {
         return !VR_ADMelee_Heavy(VR_ADMelee_Kind(flags));
@@ -1552,7 +1564,16 @@ vector(entity t, float i, vector side, vector toward) VR_AG_XPoint =
     else if(i == 8 || i == 9) { z = -12; s = i == 8 ? -sd : sd; }
     else { z = -18; }
     z = max(t.mins_z + 2, min(z, top - 2));
-    return side * s + '0 0 1' * z;
+    // QVR (leanaim): the upper body's points where his drawn body is, leaning (his head off his origin; the chest and
+    // shoulders part way): what shots meet (vr_hit_player_shape).
+    vector lean = '0 0 0';
+    if(t.headpos != '0 0 0' && i <= 7 && i != 3)
+    {
+        lean = t.headpos - t.origin;
+        lean_z = 0;
+        lean = lean * ((i == 2 || i == 6 || i == 7) ? 1 : 0.6);
+    }
+    return lean + side * s + '0 0 1' * z;
 };
 
 // Where its line starts: its gun's muzzle (in a wall, its eyes).
@@ -1697,6 +1718,7 @@ vector(vector from) VR_AG_AimDir =
 {
     vector dir = normalize(VR_AG_AimPoint() - from);
     float err = cvar_hget(cvarh_vr_agrunt_aim_error) * (1 + vr_ag_aim_mult) / VR_AGAI_Accuracy(); // (vr_agrunt_ai_accuracy)
+    err = err + VR_Lean_Spread(self) * VR_AIMCONE_DEG; // QVR: you leaning from cover, partly hidden (vr_leanaim.qc)
     if(err > 0)
     {
         vector a = VR_AG_Angles(dir);
@@ -2612,6 +2634,7 @@ void() VR_AG_TakeBegin =
     if(!w || w.classname != "thrown_weapon" || vlen(w.origin - self.origin) > VR_AG_PICKUP_REACH * 1.5 ||
        !VR_AM_Takes(self, w.weapon) || (self.vr_ag_prop && (self.vr_ag_prop2 || !VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, w.weapon, w.weaponflags))))
     {
+        VR_AG_Log(sprintf("take of %s called off (%s, %.0f away)", w.netname, w.classname, vlen(w.origin - self.origin)));
         return;
     }
     entity inst = w.weaponinst;
@@ -2776,7 +2799,7 @@ entity() VR_AG_FindWeapon =
             }
             if(safe && d < bestDist && fabs(e.origin_z - self.origin_z) < 64 && !VR_AG_Shunned(self, e))
             {
-                traceline(self.origin + '0 0 16', e.origin, TRUE, self);
+                traceline(self.origin + '0 0 16', e.origin + '0 0 4', TRUE, self); // (+4: its origin may lie on the floor's plane)
                 if((trace_fraction == 1 || trace_ent == e) && VR_AG_Reachable(self, e)) // (walkable: vr_armedgrunt_play.qc)
                 {
                     best = e;
@@ -2964,7 +2987,7 @@ float(entity targ) VR_AM_SpellTry =
         return FALSE;
     }
     traceline(self.origin + self.view_ofs, VR_AI_Origin(targ) + targ.view_ofs, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
-    if(trace_ent != targ || (trace_inopen && trace_inwater))
+    if((trace_ent != targ && !VR_Lean_Clear(targ)) || (trace_inopen && trace_inwater)) // (QVR: vr_leanaim.qc)
     {
         return FALSE;
     }
@@ -3084,7 +3107,7 @@ float() VR_AG_CheckAttack =
             VR_AG_FriendHold(self.origin + self.view_ofs, 0); // (a friend in its sight line: a step aside)
             return FALSE;
         }
-        if(!exposed)
+        if(!exposed && !VR_Lean_Clear(targ)) // (QVR: or seen leaning from cover: vr_leanaim.qc)
         {
             return FALSE;
         }

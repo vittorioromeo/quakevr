@@ -328,6 +328,7 @@ float (entity client) visible =
     if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK))) { res = bbox_visible(self, spot2); }
     else                                   { res = point_visible(spot1, spot2); }
     if(res && VR_Crate_HidesFrom(self, client, spot1)) { res = FALSE; }
+    else if(!res && track && VR_Lean_Sight(client, spot1)) { res = TRUE; } // QVR: his body's points (leaning: vr_leanaim.qc)
     // Through a gate: not across a water surface either (point_visible's rule: one end in a liquid, the other not).
     // Ranged monsters through every gate; under the stealth rules every monster through paired ones (vr_stealth_gates:
     // a melee one walks through to him, VR_Stealth_ChaseGate).
@@ -858,6 +859,18 @@ void(float dist) ai_walk =
     if(self.vr_ag && VR_AG_Idle()) // QVR: an unarmed armed grunt off to a weapon lying near, first (vr_armedgrunt.qc)
         return;
 
+    if(VR_Shaft_Leave(dist)) // QVR: out of a raised lift's shaft it has no reason to be in (vr_ai_props.qc)
+        return;
+    if(self.vr_shaft_walked) // QVR: put to its walk to leave a shaft from its stand: out, back to its stand
+    {
+        self.vr_shaft_walked = 0;
+        if(self.stl_state != STL_ALERT)
+        {
+            self.th_stand();
+            return;
+        }
+    }
+
     if(VR_Stealth_Walk(dist)) // QVR: Alert: walking to what it noticed, or back to its post (vr_stealth.qc)
         return;
 
@@ -887,6 +900,9 @@ void() ai_stand =
 
    if(FindTarget ())
       return;
+
+    if(VR_Shaft_Stand()) // QVR: standing in a raised lift's shaft for no reason: to its walk, out (vr_ai_props.qc)
+        return;
 
     if(self.vr_ag && VR_AG_Idle()) // QVR: an unarmed armed grunt off to a weapon lying near, first (vr_armedgrunt.qc)
         return;

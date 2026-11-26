@@ -1034,7 +1034,9 @@ void() VR_AGTest_DualGuns =
         VR_AGT_PairCheck(WID_SHOTGUN, WID_ROCKET_LAUNCHER, FALSE);
         VR_AGT_PairCheck(WID_ROCKET_LAUNCHER, WID_SHOTGUN, FALSE);
         VR_AGT_PairCheck(WID_SHOTGUN, WID_CHAINSAW, FALSE);
-        VR_AGT_PairCheck(WID_SHOTGUN, WID_AXE, FALSE);
+        // (a gun and then a one-handed blade: both held since flat1116, fought as the replacements' gun and axe:
+        // VR_AM_ArmAll's vr_ag_gunaxe, the toolgun's gun+blade pairs; a blade and then a gun still not)
+        VR_AGT_PairCheck(WID_SHOTGUN, WID_AXE, TRUE);
         VR_AGT_PairCheck(WID_AXE, WID_SHOTGUN, FALSE);
         VR_AGT_PairCheck(WID_AXE, WID_SWORD, TRUE);
         // (the big weapons' flag itself: the packs' Mjolnir and Laser Cannon whether or not their data is here)
@@ -1547,6 +1549,8 @@ void() VR_AGAW_Frame; // (vr_armedgrunt_aware_test.qc)
 void() VR_AGDD_Frame; // (vr_armedgrunt_dualdisarm_test.qc)
 void() VR_MRT_Frame; // (vr_meleerules_test.qc)
 void() VR_MRT_ParryFrame;
+void() VR_MRT_SwingFrame;
+void() VR_AGSP_Frame; // (vr_armedgrunt_spear_test.qc)
 void() VR_AGXT_Frame; // (vr_armedgrunt_extent_test.qc)
 void() VR_AGCD_Frame; // (vr_armedgrunt_coopdisarm_test.qc)
 void() VR_OGFT_Frame; // (vr_ogre_friends_test.qc)
@@ -1644,6 +1648,7 @@ void() VR_AGTest_Frame =
     else if(t == 78) { VR_DRPT_Frame(); } // (the directional parry of its swing: vr_dirparry_test.qc)
     else if(t == 212) { VR_MRT_Frame(); } // (the shared melee rules: a side-step, Show Melee Arcs: vr_meleerules_test.qc)
     else if(t == 213) { VR_MRT_ParryFrame(); } // (a lost soul's bite parried: vr_meleerules_test.qc)
+    else if(t == 216) { VR_MRT_SwingFrame(); } // (Show Melee Arcs draws an armed humanoid's swing: vr_meleerules_test.qc)
     else if(t == 215) { VR_AGCD_Frame(); } // (a grunt disarmed by shots still dies, coop too: vr_armedgrunt_coopdisarm_test.qc)
     else if(t == 214) { VR_AGXT_Frame(); } // (a held weapon's drawn extent after a tune: vr_armedgrunt_extent_test.qc)
     else if(t == 94) { VR_AGST_Frame(); } // (a deliberate strike or throw on its weapon or hand: vr_armedgrunt_strike_test.qc)
@@ -1659,6 +1664,7 @@ void() VR_AGTest_Frame =
     else if(t == 202) { VR_AGIT_Frame(); } // (the impact rule: vr_armedgrunt_impact_test.qc)
     else if(t == 226 || t == 227) { VR_AGLOD_Frame(t); } // (the armed grunts' cost by state: vr_armedgrunt_lod_test.qc)
     else if(t == 228) { VR_AGLOD_WakeFrame(); } // (a far, unseen one wakes and fights as before: vr_armedgrunt_lod_test.qc)
+    else if(t == 230) { VR_AGSP_Frame(); } // (an armed grunt with the spear: vr_armedgrunt_spear_test.qc)
     else if(t == 229) { VR_AGLOD_PackFrame(); } // (a worn pack's LOD as its wearer leaves his PVS: vr_armedgrunt_lod_test.qc)
     else if(t == 210) { VR_LST_Frame(); } // (humanoids shoved off a ledge: vr_ledgeshove_test.qc)
     else if(t == 225) { VR_RTH_Frame(); } // (living ragdolls' thuds: vr_ragthud_test.qc)

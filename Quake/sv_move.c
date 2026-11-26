@@ -147,6 +147,8 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 					return false;	// swim monster left water
 				if (VR_MonsterAvoidsField (ent, oldorg, trace.endpos))
 					return false;	// QVR: never nearer a hurting field (vr/vr_hull.cpp)
+				if (VR_MonsterShaftStep (ent, oldorg, trace.endpos))
+					return false;	// QVR: not into a raised lift's shaft (vr/vr_navshaft.cpp)
 
 				VectorCopy (trace.endpos, ent->v.origin);
 				if (relink)
@@ -198,6 +200,8 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 
 	if (VR_MonsterAvoidsField (ent, oldorg, trace.endpos))
 		return false;	// QVR: never nearer a hurting field (a togglewall that hurts: vr/vr_hull.cpp)
+	if (VR_MonsterShaftStep (ent, oldorg, trace.endpos))
+		return false;	// QVR: not into a raised lift's shaft where it has no reason to be (vr/vr_navshaft.cpp)
 
 // check point traces down for dangling corners
 	VectorCopy (trace.endpos, ent->v.origin);
@@ -418,6 +422,17 @@ void SV_MoveToGoal (void)
 // if the next step hits the enemy, return immediately
 	if ( PROG_TO_EDICT(ent->v.enemy) != qcvm->edicts &&  SV_CloseEnough (ent, goal, dist) )
 		return;
+
+// QVR: out of a raised lift's shaft first, when it has no reason there (vr/vr_navshaft.cpp; NAVMESH.md 24)
+	{
+		const float out = VR_MonsterShaftOut (ent);
+		if (out >= 0.f)
+		{
+			if (!SV_StepDirection (ent, out, dist) && !SV_StepDirection (ent, out + 45.f, dist))
+				SV_StepDirection (ent, out - 45.f, dist);
+			return;
+		}
+	}
 
 // bump around...
 	if ( (VR_ServerRandom()&3)==1 ||

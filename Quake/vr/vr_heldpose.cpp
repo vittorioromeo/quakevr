@@ -633,6 +633,7 @@ void publishOwn()
         {
             hands::angleVectors(rot, h.handForward, right, h.handUp);
         }
+        h.leaveAnglesKnown = view::leavingAngles(hand, h.leaveAngles);
         slots.slot[own][hand] = h;
         if(vr_weapon_grab_hotspots.value || vr_weapon_grab_anywhere.value)
         {

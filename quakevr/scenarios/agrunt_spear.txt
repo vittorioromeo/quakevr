@@ -1,0 +1,6 @@
+# agrunt_spear: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". An armed grunt with the spear (spearfix): held two-handed as a spear, thrust at you.
+title An armed grunt with the spear coming at you (god)
+map vrtesthall
+god
+spawn "Armed Grunt: Spear" 320 0
+hint Its spear held low and level in both hands, the head at you; it thrusts (drawn back, driven out, the front hand letting the shaft slide); throw a spear back at it and it stays in.

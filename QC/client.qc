@@ -3100,8 +3100,8 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
     return FALSE;
 }
 
-float(float xHand) DW_LanceHeld; // (dwell/dw_items.qc)
-void(float xHand) DW_LanceMelee;
+float(float xHand) VR_PoleHeld; // (vr_poleweapon.qc: the Crystal Lance, the spear)
+void(float xHand) VR_PoleMelee;
 float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, float xKind) VR_Skewer_Blow; // (vr_skewer.qc)
 void(float xHand, entity b) VR_Skewer_SwingHit;
 float(float xHand, entity b) VR_Skewer_GoesBy;
@@ -3150,16 +3150,16 @@ void(float xHand) VR_Melee_Deal =
         vr_melee_slap = b.mh_kind == VR_MKIND_SLAP; // a slap's sound, no blood or gore (W_FistMelee, vr_smallgibs.qc)
         vr_sgib_at = b.mh_c_pos; // where small gibs are torn out (vr_smallgibs.qc)
         vr_melee_blowhand = xHand + 1; // a prop it breaks by the impact rule (T_Damage_VRMelee, VR_Prop_BlowDamage)
-        if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
+        // (A pole weapon first: the spear is a sword's kind, the Crystal Lance a gun's; both strike as a pole.)
+        if(VR_PoleHeld(xHand))
+            DoXHandMeleeImpl(xHand, "", VR_PoleMelee);
+        else if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
             if(!DoXHandMelee(xHand, WID_AXE, "", W_FireAxe))
                 if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
                 if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
                 if(!DoXHandMelee(xHand, WID_CHAINSAW, "", W_ChainsawMelee))
                 if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
                 if(!DoXHandMelee(xHand, WID_SUPERAXE, "", W_SuperAxeMelee)) // vr_mg3_weapons.qc
-                if(DW_LanceHeld(xHand)) // Dwell support: the Crystal Lance as a lance, its crystal head (dw_items.qc)
-                    DoXHandMeleeImpl(xHand, "", DW_LanceMelee);
-                else
                     DoXHandMeleeImpl(xHand, "", W_GunMelee);
         vr_melee_blowhand = 0;
         vr_melee_blunt = FALSE;

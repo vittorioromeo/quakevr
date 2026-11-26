@@ -6016,6 +6016,7 @@ static struct
 	int					maxitems;
 	menukeybind_t		*custom_items;			// mod-specific key bindings, loaded from bindlist.lst
 	menukeybind_t		*filtered_items;		// list of items corresponding to active input device
+	int					flatslot;				// QVR: a flat key row's key picked (Left/Right): 0 the first, 1 the second (M_Keys_FlatSlot)
 } keysmenu;
 
 static qboolean	bind_grab;
@@ -6243,6 +6244,7 @@ void M_Menu_Keys_f (void)
 	keysmenu.list.isactive_fn = M_Keys_IsSelectable;
 	keysmenu.list.search.match_fn = M_Keys_Match;
 	keysmenu.devicemask = (lastactive == KD_GAMEPAD) ? KDM_GAMEPAD : KDM_KEYBOARD_AND_MOUSE;
+	keysmenu.flatslot = 0;
 
 	M_Keys_Populate ();
 	M_List_ClearSearch (&keysmenu.list);
@@ -6321,17 +6323,29 @@ static int M_Keys_FlatIndex (const menukeybind_t *item)
 	return item->flatkey > 0 ? item->flatkey - 1 : -1;
 }
 
-// QVR: a row's keys (a flat key's row: its one key)
+// QVR: a row's keys (a flat key's row: its VR_FLATKEY_SLOTS keys, packed, -1 past the last)
 static void M_Keys_GetKeys (const menukeybind_t *item, int *threekeys)
 {
 	int flat = M_Keys_FlatIndex (item);
+	int slot;
 	if (flat < 0)
 	{
 		M_FindKeysForCommand (item->command, threekeys);
 		return;
 	}
-	threekeys[0] = VR_FlatKeyGet (flat);
-	threekeys[1] = threekeys[2] = -1;
+	for (slot = 0; slot < 3; slot++)
+		threekeys[slot] = slot < VR_FLATKEY_SLOTS ? VR_FlatKeyGet (flat, slot) : -1;
+}
+
+// QVR: the flat key row's slot Enter and Backspace act on: the one picked with Left/Right, but never past the first empty
+// one (the slots stay packed: a second key only once there is a first)
+static int M_Keys_FlatSlot (const menukeybind_t *item)
+{
+	int keys[3], used = 0;
+	M_Keys_GetKeys (item, keys);
+	while (used < VR_FLATKEY_SLOTS && keys[used] != -1)
+		used++;
+	return q_min (keysmenu.flatslot, q_min (used, VR_FLATKEY_SLOTS - 1));
 }
 
 // QVR: a bound command's name as the list shows it (else the command itself)
@@ -6387,6 +6401,43 @@ static qboolean M_Keys_Clash (const menukeybind_t *item, int key, char *out, siz
 
 extern qpic_t	*pic_up, *pic_down;
 
+// QVR: a flat key row's keys, from x = 136: each slot (an empty one "???"; the empty second only on the cursor's row),
+// the cursor row's picked slot (M_Keys_FlatSlot) in white, "???" while it waits for its key; "!" after a clashing key
+static void M_Keys_DrawFlatKeys (const menukeybind_t *item, qboolean cursor, int y)
+{
+	int keys[3], slot, x = 136;
+	int picked = cursor ? M_Keys_FlatSlot (item) : -1;
+	M_Keys_GetKeys (item, keys);
+	for (slot = 0; slot < VR_FLATKEY_SLOTS; slot++)
+	{
+		qboolean waiting = slot == picked && bind_grab;
+		qboolean empty = keys[slot] == -1 || waiting;
+		const char *name = empty ? "???" : Key_KeynumToFriendlyString (keys[slot]);
+		if (slot > 0 && keys[slot] == -1 && !cursor)
+			break;
+		if (slot > 0)
+		{
+			GL_SetCanvasColor (1.f, 1.f, 1.f, 0.375f);
+			M_Print (x, y, ",");
+			GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
+			x += 16;
+		}
+		if (empty && slot != picked)
+			GL_SetCanvasColor (1.f, 1.f, 1.f, 0.375f);
+		if (slot == picked)
+			M_PrintWhite (x, y, name);
+		else
+			M_Print (x, y, name);
+		GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
+		x += strlen (name) * 8;
+		if (!empty && M_Keys_Clash (item, keys[slot], NULL, 0)) // a flat key and a bind on one key
+		{
+			M_PrintWhite (x, y, "!");
+			x += 8;
+		}
+	}
+}
+
 void M_Keys_Draw (void)
 {
 	int			firstvis, numvis;
@@ -6439,6 +6490,11 @@ void M_Keys_Draw (void)
 			COM_TintSubstring (keysmenu.filtered_items[i].description, keysmenu.list.search.text, buf, sizeof (buf));
 			M_PrintDotFill (0, y, buf, 17, !active);
 
+			if (M_Keys_FlatIndex (&keysmenu.filtered_items[i]) >= 0) // QVR: a flat key's row, its two keys
+			{
+				M_Keys_DrawFlatKeys (&keysmenu.filtered_items[i], i == keysmenu.list.cursor, y);
+				goto drawn;
+			}
 			M_Keys_GetKeys (&keysmenu.filtered_items[i], keys);
 			// If we already have 3 keys bound to this action
 			// they will all be unbound when a new one is assigned.
@@ -6479,6 +6535,7 @@ void M_Keys_Draw (void)
 		else if (keysmenu.filtered_items[i].description[0]) // QVR: a group's title (white) or note
 			M_PrintAlignedEx (160, y, ALIGN_CENTER, 8, keysmenu.filtered_items[i].flatkey != -1, keysmenu.filtered_items[i].description);
 
+	drawn:
 		if (i == keysmenu.list.cursor)
 		{
 			if (bind_grab)
@@ -6498,6 +6555,9 @@ void M_Keys_Draw (void)
 		hint = keysmenu.devicemask == KDM_GAMEPAD ?
 			va ("Press new button, or %s to cancel", Key_KeynumToFriendlyString (K_START)) :
 			va ("Press new key, or %s to cancel", Key_KeynumToFriendlyString (K_ESCAPE)) ;
+	else if (keysmenu.list.cursor >= 0 && keysmenu.list.cursor < keysmenu.list.numitems &&
+			 M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]) >= 0) // QVR: a flat key's row: its two keys
+		hint = "Enter=set Bksp=clear Left/Right=1st/2nd";
 	else
 		hint = IN_GetLastActiveDeviceType () == KD_GAMEPAD ?
 			va ("%s = change, %s = clear", Key_KeynumToFriendlyString (K_ABUTTON), Key_KeynumToFriendlyString (K_YBUTTON)):
@@ -6545,7 +6605,8 @@ void M_Keys_Key (int k)
 			command = keysmenu.filtered_items[keysmenu.list.cursor].command;
 			if (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]) >= 0) // QVR: a flat key's row: its cvar takes the key
 			{
-				VR_FlatKeySet (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]), k);
+				VR_FlatKeySet (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]),
+							   M_Keys_FlatSlot (&keysmenu.filtered_items[keysmenu.list.cursor]), k);
 				bind_grab = false;
 				IN_DeactivateForMenu ();
 				return;
@@ -6582,6 +6643,17 @@ void M_Keys_Key (int k)
 		M_Menu_Options_f ();
 		break;
 
+	case K_LEFTARROW:	// QVR: a flat key's row: its first or second key
+	case K_RIGHTARROW:
+		if (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]) >= 0)
+		{
+			M_ThrottledSound ("misc/menu1.wav");
+			keysmenu.flatslot = k == K_RIGHTARROW ? 1 : 0;
+			keysmenu.flatslot = M_Keys_FlatSlot (&keysmenu.filtered_items[keysmenu.list.cursor]);
+			Con_DPrintf ("menu_keys: %s key %d\n", keysmenu.filtered_items[keysmenu.list.cursor].description, keysmenu.flatslot + 1); // (the tests)
+		}
+		break;
+
 	case K_TAB:
 	case K_LSHOULDER:
 	case K_RSHOULDER:
@@ -6609,7 +6681,8 @@ void M_Keys_Key (int k)
 	case K_YBUTTON:
 		M_ThrottledSound ("misc/menu2.wav");
 		if (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]) >= 0) // QVR: a flat key's row: its cvar emptied
-			VR_FlatKeySet (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]), -1);
+			VR_FlatKeySet (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]),
+						   M_Keys_FlatSlot (&keysmenu.filtered_items[keysmenu.list.cursor]), -1);
 		else
 			M_UnbindCommand (keysmenu.filtered_items[keysmenu.list.cursor].command);
 		break;

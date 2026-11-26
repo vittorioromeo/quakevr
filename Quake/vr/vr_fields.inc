@@ -166,6 +166,10 @@ QVR_FIELD(vr_hold_stick)  // QC's: cm the hand moves before it does, now
 QVR_FIELD(vr_embed_off)    // on a player: the blade its off hand holds in a body (VR_HOLD_EMBED: QC, world none)
 QVR_FIELD(vr_embed_main)   // the main hand's
 QVR_FIELD(vr_embed_armgap) // on a player, the engine's: cm each hand drawn on a blade is past its stretched arm (x the off hand, y the main)
+QVR_FIELD(vr_embed_armpast) // on a player, the engine's: cm each hand's drawn wrist is past the most its arm reaches, signed (x the off hand, y the main; QC flat play's VR_Embed_FlatGap)
+QVR_FIELD(vr_embed_armseenoff) // on a player, the engine's: the blade the off hand was on as the frame of .vr_embed_armpast drew it (its origin)
+QVR_FIELD(vr_embed_armseenmain) // the main hand's
+QVR_FIELD(vr_embed_armeye) // and the eye in that frame
 QVR_FIELD(vr_embed_handle) // bits, 1 the off hand, 2 the main: that hand holds it by its handle (else where it took hold)
 
 // Model transforms (networked as entity update extras).
@@ -340,6 +344,7 @@ QVR_FIELD(vr_shock_len) // ... the shock's length (s): the convulsions fade over
 
 // The firing range's training dummy (QC vr_dummy.qc): 1 + its enemy (vr_dummy_type) while it stands, else 0.
 QVR_FIELD(vr_dummy_kind)
+QVR_FIELD(vr_shaft_flee) // lift shafts: till then a monster walks out of one, its reasons set aside (vr_navshaft.cpp)
 
 // When the entity was made (ED_Alloc: VR_OnEdictAlloc, vr_cheats.cpp): the map's own and those placed as it loads
 // before its first second is out; vr_scene_clean props (QC VR_Scene_Clean) removes the loose props made later.

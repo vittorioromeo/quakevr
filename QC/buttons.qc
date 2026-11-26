@@ -937,6 +937,13 @@ sticks in and is thrown as a sword does). It falls from its origin and settles o
 weapon 13, weaponflags 3072). AS_PLACED: it lies as "angles" turn it (none: any way).
 */
 void() weapon_dagger = { VR_WeaponClass_Spawn(WID_SWORD, VR_ADMelee_Flags(VR_SWORDKIND_DAGGER)); };
+/*QUAKED weapon_spear (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
+A spear lying ready to be picked up (Quake VR): an ash shaft with a steel head, held as a pole weapon as the Crystal Lance
+is (the other hand anywhere on it); it thrusts, sticks in by its point, is thrown point first and uses no ammo. It falls
+from its origin and settles on the floor (func_weapon_grabbable with weapon 13, weaponflags 3328). AS_PLACED: it lies as
+"angles" turn it (none: any way).
+*/
+void() weapon_spear = { VR_WeaponClass_Spawn(WID_SWORD, VR_ADMelee_Flags(VR_SWORDKIND_SPEAR)); };
 /*QUAKED weapon_chainsaw (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
 An ogre's chainsaw lying ready to be picked up (Quake VR): a melee weapon with a full tank of fuel. It falls from its
 origin and settles on the floor (func_weapon_grabbable with weapon 14). AS_PLACED: it lies as "angles" turn it (none:

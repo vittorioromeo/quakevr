@@ -188,6 +188,58 @@ void() VR_MRT_Frame =
     cvar_set("vr_agrunt_test", "0");
 };
 
+// 216 (vrtesthall; his 2026-11-24: "Show Melee Arcs still displays nothing for armed humanoids"): their swings drawn as
+// your own sweeps are (vr_meleerules.qc VR_MeleeArc_ShowSwings, vr_meleeshow.cpp addFoe). Case 0, the option on: an
+// armed sword grunt 56 units ahead swings at you: its swing's frames sent, some in its swing-through, and the view drew
+// them (meleeshowfoe's count); case 1, the option off: its swing sends and draws none (no cost).
+float vr_mrt_sent0;  // (216: the frames sent at the case's start)
+float vr_mrt_fast0;  // (... in a swing-through)
+float vr_mrt_drawn0; // (... the frames the view drew any)
+void() VR_MRT_SwingFrame =
+{
+    entity g = vr_agt_grunt;
+    float c = vr_mrt_case;
+    if(vr_agt_step == 0)
+    {
+        if(c == 0)
+        {
+            vr_mrt_keep_show = cvar_hget(cvarh_vr_enemy_melee_arc_show);
+        }
+        cvar_set("vr_enemy_melee_arc_show", c == 0 ? "1" : "0");
+        VR_AGPT_Clear();
+        vr_agt_grunt = g = VR_AGT_Spawn(WID_SWORD, 56);
+        VR_AGT_Hunt(g);
+        vr_mrt_s0 = g.vr_ag_strikes;
+        vr_mrt_sent0 = vr_meleearc_swing_sent;
+        vr_mrt_fast0 = vr_meleearc_swing_fast;
+        vr_mrt_drawn0 = meleeshowfoe(world, -1, '0 0 0', '0 0 0', 0);
+        vr_agt_until = time + 8;
+        vr_agt_step = 1;
+        return;
+    }
+    float struck = g.vr_ag_strikes > vr_mrt_s0;
+    if(!struck && time < vr_agt_until)
+    {
+        return;
+    }
+    float sent = vr_meleearc_swing_sent - vr_mrt_sent0;
+    float fast = vr_meleearc_swing_fast - vr_mrt_fast0;
+    float drawn = meleeshowfoe(world, -1, '0 0 0', '0 0 0', 0) - vr_mrt_drawn0;
+    if(c == 0)
+    {
+        VR_AGT_Check(sprintf("meleerules: Show Melee Arcs on: an armed sword's swing drawn (struck %g; %g frames sent, %g in "
+            "its swing-through; drawn %g frames)", struck, sent, fast, drawn), struck && sent > 0 && fast > 0 && drawn > 0);
+        vr_mrt_case = 1;
+        vr_agt_step = 0;
+        return;
+    }
+    VR_AGT_Check(sprintf("meleerules: Show Melee Arcs off: its swing neither sent nor drawn (struck %g; %g sent, %g drawn)",
+        struck, sent, drawn), struck && sent == 0 && drawn == 0);
+    cvar_set("vr_enemy_melee_arc_show", ftos(vr_mrt_keep_show));
+    vr_mrt_case = 0;
+    cvar_set("vr_agrunt_test", "0");
+};
+
 // 213: the nearest monster (a lost soul) bites you, your guard held: at least one bite parried within 8 s (it charges
 // from where it spawns, then bites; a parried charge alone does not count).
 entity vr_mrt_mon;

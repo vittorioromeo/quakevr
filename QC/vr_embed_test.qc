@@ -903,6 +903,7 @@ vector vr_eh_start;          // where the blow starts from
 vector vr_eh_home;           // where you stood as the test began
 float vr_eh_ahead;           // how far ahead the body stands (0: as these cases have it)
 float vr_eh_down;            // the blow goes down so steeply (0: level; a body lying)
+float vr_eh_along;           // a swing meets the body this share of the line out (0: with its far end; a spear's shaft)
 entity vr_ee_target;         // the body the blow is at (world: a grunt spawned; vr_embed_edge_test.qc)
 
 void(float xWid, float xFlags) VR_EH_Give =
@@ -1008,7 +1009,16 @@ float(float xWid, float xSpeed, float xOff, float xSwing, float t) VR_EH_Blow =
         {
             // (Across you: as the mock hand holds it, its edges face that way.)
             vector across = VR_AxeStick_Turn(vr_eh_fw, '0 0 1', 90);
-            vr_eh_end = chest2 - line + across * (vr_eh_ahead > 0 ? 14 : 8);
+            // (The axe's edge faces as the hand holds it: its Weapon Offset pitch tips the head, so the way across is the hand's
+            // forward turned square to the blade's line, not the level side of the way. Level: as the mock hand laid it out.)
+            makevectors(VRGetHandRot(cVR_MainHand));
+            vector ln = normalize(line);
+            vector facing = v_forward - ln * (v_forward * ln);
+            if(xWid == WID_AXE && vlen(facing) > 0.2)
+            {
+                across = normalize(facing) * -1; // (the edge leads the way it is swung: the hand's forward turned back)
+            }
+            vr_eh_end = chest2 - line * (vr_eh_along > 0 ? vr_eh_along : 1) + across * (vr_eh_ahead > 0 ? 14 : 8);
             vr_eh_start = vr_eh_end - across * dist;
             VR_EH_HandTo(vr_eh_start, 0);
         }
@@ -1061,6 +1071,7 @@ void() VR_EH_NextCase =
     }
     VRSetHandEmpty(self, cVR_MainHand);
     vr_eh_flags = 0;
+    vr_eh_along = 0;
     VR_EH_ClearGibs();
     VR_ET_NextCase();
 };
@@ -3689,7 +3700,7 @@ void() VR_EF_Step =
         {
             if(VR_EH_Blow(WID_AXE, 7, 0, TRUE, t))
             {
-                VR_Test_Check(w != world, sprintf("case %g: the axe stays in", vr_et_case));
+                VR_Test_Check(w != world, sprintf("case %g: the axe stays in (hand kind %g, hold %g)", vr_et_case, VR_Hand_Kind(self, cVR_MainHand), VR_HOLD_EMBED));
                 if(w == world)
                 {
                     VR_EH_NextCase();
@@ -3699,7 +3710,7 @@ void() VR_EF_Step =
                 vr_ef_max = 0;
                 cvar_set("vr_embed_probe", "reset");
                 vr_ef_hand = VRGetHandPos(cVR_MainHand);
-                vr_ef_at = vr_ef_hand - w.vr_stick_dir * (w.vr_stick_depth + cvar_hget(cvarh_vr_embed_hold_axe_stick) * cm + 30 * cm);
+                vr_ef_at = vr_ef_hand - w.vr_stick_dir * (w.vr_stick_depth + cvar_hget(cvarh_vr_embed_hold_axe_stick) * cm + 30 * cm + max(0, w.vr_hold_err)); // (the hand may have run on past the blade: that gap first)
                 localcmd("vr_mock_hand_glide 0\n");
                 VR_ET_To(10);
             }
@@ -4545,6 +4556,26 @@ void() VR_Embed_TestFrame =
         {
             VR_DG_Begin(); // (the dagger: vr_dagger_test.qc)
         }
+        if(ask == 53)
+        {
+            VR_SP_Begin(); // (the spear: vr_spear_test.qc)
+        }
+        if(ask == 58)
+        {
+            VR_FT_Begin(58); // (flat V thrusts with the stabbing blades: vr_flatthrust_test.qc)
+        }
+        if(ask == 59)
+        {
+            VR_FT_Begin(59); // (flat V thrusts with what the hand holds: vr_flatthrust_test.qc)
+        }
+        if(ask == 60)
+        {
+            VR_FM5_Begin(); // (flatmelee5: 2H equip, inverted throw angle, flipped attacks, close-range tip hits: vr_flatthrust_test.qc)
+        }
+        if(ask == 64)
+        {
+            VR_FW_Begin(); // (flat: walking away from a stuck blade: vr_flatembedwalk_test.qc)
+        }
         if(ask == 42)
         {
             vr_rg_scene = FALSE;
@@ -4797,6 +4828,22 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 40)
     {
         VR_DG_Frame(); // (the dagger: vr_dagger_test.qc)
+    }
+    else if(vr_et_on == 53)
+    {
+        VR_SP_Frame(); // (the spear: vr_spear_test.qc)
+    }
+    else if(vr_et_on == 58 || vr_et_on == 59)
+    {
+        VR_FT_Frame(); // (flat V thrusts: vr_flatthrust_test.qc)
+    }
+    else if(vr_et_on == 60)
+    {
+        VR_FM5_Frame(); // (flatmelee5: vr_flatthrust_test.qc)
+    }
+    else if(vr_et_on == 64)
+    {
+        VR_FW_Frame(); // (flat: walking away from a stuck blade: vr_flatembedwalk_test.qc)
     }
     else if(vr_et_on == 42)
     {

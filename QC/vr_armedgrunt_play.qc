@@ -1580,7 +1580,9 @@ void(entity m, float xSpeed) VR_AG_FallLanded =
 // Whether `g` can walk to the weapon `w`.
 float(entity g, entity w) VR_AG_Reachable =
 {
-    if(pointcontents(w.origin) != CONTENT_EMPTY)
+    // (a little above its origin: a weapon at rest may have it on the floor's plane or a hair under it, a crowbar kicked
+    // about by feet at z -0.14 on a floor at 0, read as solid, "in a liquid", and was never gone for again)
+    if(pointcontents(w.origin + '0 0 4') != CONTENT_EMPTY)
     {
         vr_ag_reach_why = "in a liquid";
         return FALSE; // (floating, sunk)

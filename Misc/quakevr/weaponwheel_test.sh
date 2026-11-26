@@ -4,15 +4,17 @@
 # the test's own verdict line (-QuitOn "weaponwheel_test: N passed, M failed").
 #   (headset, the mock) vr_weaponwheel_test: a nailgun in the right hand (its grip held), a shotgun in the right shoulder
 #   holster; B held opens the wheel round the right hand (its press kept from the server: the nailgun's magazine stays
-#   in, the same rounds once holstered and drawn; a 2-frame tap of Y later still ejects it: ROUND25 "holsterammo") (nine slots: the empty hand, six holsters, DROP, UNLOAD) and time
+#   in, the same rounds once holstered and drawn; a 2-frame tap of Y later still ejects it: ROUND25 "holsterammo") (ten slots: the empty hand, six holsters, DROP, FLIP GRIP, UNLOAD) and time
 #   slows to vr_weaponwheel_timescale; the hand moved onto the right shoulder's slot lights it (a haptic tick), B let go:
 #   the shotgun in the right hand, the nailgun into a holster; the left hand's Y held, the hand moved off the wheel, let
 #   go: nothing moves; Y again onto the nailgun's slot: the left hand (its grip not held) takes it and keeps it; the right
 #   hand's EMPTY HAND: the shotgun back in its shoulder holster; the left hand's UNLOAD: the nailgun's rounds back into
-#   the reserve (then greyed); its DROP: the nailgun dropped; time back at 1.
+#   the reserve (then greyed); its DROP: the nailgun dropped; the dagger in the right hand: FLIP GRIP lit (greyed for the
+#   shotgun), the hold flips nothing, let go on it: its grip turned over; time back at 1.
 #   (flat) vr_weaponwheel_test flat (-flatscreenmode, the holsters on, the shotgun in the right hand and the nailgun in the
 #   left): 2 tapped cycles, 2 held opens the wheel where the right hand is, the mouse picks the shotgun's holster; 1 held,
-#   off the wheel: nothing; UNLOAD, DROP, an empty holster; vr_flat_wheel 0: 1 cycles on the press, no wheel.
+#   off the wheel: nothing; UNLOAD (FLIP GRIP greyed), DROP, an empty holster; the dagger: FLIP GRIP turns its grip over;
+#   vr_flat_wheel 0: 1 cycles on the press, no wheel.
 # Two screenshots (the lit slot; off the wheel) composed into -Out.
 AGENT=${1:?agent}
 MODE=${2:-vr}

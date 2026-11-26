@@ -549,8 +549,9 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // The crouched pose's share, from the crouch under the standing neck (the neck's own crouched offset then lowers it
     // a little more, which the pose below follows).
     // (ropepose: hanging on a rope, no crouch -- no floor under him: another's copy, his head lower than his standing
-    // height, took a fifth of it, the trunk further back off the rope)
-    b.crouchPose = crouchPose ? crouchPoseWeight(depthUnder(standingTop)) * (1.f - lying) * (1.f - onRope) : 0.f;
+    // height, took a fifth of it, the trunk further back off the rope; swimming too: keep the regular swimming pose)
+    b.crouchPose =
+        crouchPose ? crouchPoseWeight(depthUnder(standingTop)) * (1.f - lying) * (1.f - onRope) * (1.f - detail::water.swim) : 0.f;
     const float w = b.crouchPose;
     glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     // Flatscreen play: the crouch takes his shoulders further down off the eye than his head goes (world units, as the mode's own).
@@ -1112,6 +1113,15 @@ struct ArmLengths
     return strength * folded * ahead * below;
 }
 
+// Player yaw axes (forward, left, up): used to store/restore the shoulder offset in player-yaw-local space
+// so turning quickly while holding a stuck blade keeps keepOnArm's shoulder sphere aligned with the body.
+[[nodiscard]] glm::mat3 playerYawAxes()
+{
+    glm::vec3 f, r, u;
+    hands::angleVectors({0.f, cl.viewangles[YAW], 0.f}, f, r, u);
+    return glm::mat3{f, -r, u};
+}
+
 // The arms' easing from one frame to the next, per side (solveArm: the main thread's frame).
 struct ArmEase
 {
@@ -1123,6 +1133,15 @@ struct ArmEase
     float embed[2]{0.f, 0.f};          // 0..1: the hand on a blade in a body, its arm's stretch eased in (vr_embed_arm_stretch)
     double embedTime[2]{-1.0, -1.0};   // when it was last eased
     float embedGapCm[2]{0.f, 0.f};     // cm the wrist was past that stretch, last solved
+    float embedPastCm[2]{0.f, 0.f};    // cm the wrist was past the most the arm reaches (signed: negative within it), last solved
+    float flatHeld[2]{1.f, 1.f};       // flat play: the stretch kept while the hand is on a blade (armStretchNow)
+    glm::vec3 pastSeen[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the blade each hand was on as drawn as embedPastCm was measured
+    glm::vec3 pastEye{0.f};                                 // and the eye then
+    glm::vec3 reachShoulder[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // (embedReachNow) the shoulder from the eye, in player-yaw-local axes
+    float reachMost[2]{0.f, 0.f};                               // the most the arm's wrist reaches then (units)
+    bool reachValid[2]{false, false};
+    float stretched[2]{1.f, 1.f};      // the arm's stretch taken, last solved (1: none; up to armStretchNow)
+    float wristGap[2]{0.f, 0.f};       // (climbfix) units from the drawn wrist to the arm's end, your own body last solved
 };
 ArmEase armEase;
 
@@ -1139,7 +1158,21 @@ ArmEase armEase;
     w = onBlade ? za::min(1.f, w + dt / ease) : za::max(0.f, w - dt / ease);
     const float normal = za::max(1.f, vr_body_arm_stretch.value);
     const float smooth = w * w * (3.f - 2.f * w);
-    return glm::mix(normal, za::max(normal, vr_embed_arm_stretch.value), smooth);
+    const float stretch = glm::mix(normal, za::max(normal, vr_embed_arm_stretch.value), smooth);
+    // (Flatscreen play's spear thrust: both arms towards vr_flat_thrust_arm_stretch as it goes out, so the other hand keeps
+    // on the pole; lanceoffhand, his flat note 2026-11-24. The thrust's own ease is the ease.)
+    if(posingOther() || !localFlat())
+    {
+        return stretch;
+    }
+    const float out = za::max(flatplay::thrustOutShare(HAND_MAIN), flatplay::thrustOutShare(HAND_OFF));
+    const float now = out > 0.f ? glm::mix(stretch, za::max(stretch, za::clamp(vr_flat_thrust_arm_stretch.value, 1.f, 2.f)), out) : stretch;
+    // (A thrust that stuck: the most the arm had as it went in it keeps while the hand is on the blade or easing off it,
+    // not shrinking out from under keepOnArm while smoothstep is still near 1; eased back once off it. embedhold2/embedholdfix.)
+    float& held = armEase.flatHeld[side];
+    const bool keepStretch = onBlade || view::embedEasing(side);
+    held = keepStretch ? za::max(held, now) : za::max(now, held - dt / ease * 0.5f);
+    return za::max(now, held);
 }
 
 // Body tracking's fit of the arm (vr_bodytrack_arm_fit): the clavicle turns at most this far (degrees) towards the
@@ -1267,6 +1300,23 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     float l = lengths.fore;
     float d = glm::distance(wrist, u.pos);
     const float maxStretch = armStretchNow(side);
+    // (embedArmPastCm: from where the hand is going on a blade, view::embedPinLead, not where it is drawn on its way there.)
+    const float dOn = posingOther() ? d : glm::distance(wrist + view::embedPinLead(side), u.pos);
+    armEase.embedPastCm[side] = (dOn - (a + l) * maxStretch - za::max(0.f, vr_body_shoulder_reach.value) * b.m2w) / b.m2w * 100.f;
+    if(!posingOther())
+    {
+        armEase.pastSeen[side] = view::embedPinSeen(side); // (what that was measured against: embedArmPastFrom)
+        armEase.pastEye = qvr::geom::vec(r_refdef.vieworg);
+        // (embedReachNow: the shoulder from the eye in player-yaw-local axes, and the most the arm's wrist reaches.)
+        armEase.reachShoulder[side] = glm::transpose(playerYawAxes()) * (u.pos - armEase.pastEye);
+        armEase.reachMost[side] = (a + l) * maxStretch + za::max(0.f, vr_body_shoulder_reach.value) * b.m2w;
+        armEase.reachValid[side] = true;
+    }
+    if(vr_debug_axestick.value >= 4 && !posingOther() && axestick::handOnBlade(side))
+    {
+        Con_Printf("embedarm: side %d wrist %.1f %.1f %.1f shoulder %.1f %.1f %.1f: %.1f (on it %.1f) of %.1f x%.2f, past %.1f cm\n", side, wrist.x,
+            wrist.y, wrist.z, u.pos.x, u.pos.y, u.pos.z, d, dOn, a + l, maxStretch, armEase.embedPastCm[side]);
+    }
     const auto reachOut = [&] {
         if(const float excess = d - (a + l); excess > 0.f)
         {
@@ -1280,6 +1330,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         reachOut();
     }
     const float stretch = CLAMP(1.f, d / (a + l), maxStretch);
+    armEase.stretched[side] = stretch;
     a *= stretch;
     l *= stretch;
     if(!lengths.calibrated)
@@ -1289,6 +1340,28 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // (Always: QC measures from what it was as the hand took hold, the stretch not yet eased in.)
     armEase.embedGapCm[side] = za::max(0.f, d - (a + l)) / b.m2w * 100.f;
 
+    // A soft reach (vr_body_arm_soft; polewall, his flat note 2026-11-24): over the last share `s` of the arm's length the
+    // elbow eases straight (the solved reach goes on towards the arm's length, never quite to it) and the bones lengthen by
+    // as little as keeps the wrist where it is: 1 / (1 - 0.37 s) at the full length, on top of the stretch and the
+    // shoulder's reach. A two-bone elbow swings ever faster as its arm comes straight: the shoulders lowered under a hand
+    // locked on a pole snapped it 9 cm in a frame (the flat pole slide). Past all of it (the hand off the arm) the arm
+    // goes on easing straight towards the wrist, solved for the soft reach's point on the way to it (`ikWrist`), not
+    // straight at once (which snapped the other arm 8 cm as its shoulder's reach ran out).
+    glm::vec3 ikWrist = wrist;
+    if(const float s = CLAMP(0.f, vr_body_arm_soft.value, 0.5f); s > 0.f && d > (a + l) * (1.f - s))
+    {
+        const float reach = a + l, from = reach * (1.f - s), band = reach * s;
+        const auto soft = [&](float at) { return from + band * (1.f - za::exp(-(at - from) / band)); };
+        const float at = za::min(d, reach);
+        const float k = at / soft(at);
+        a *= k;
+        l *= k;
+        if(d > reach)
+        {
+            ikWrist = u.pos + (wrist - u.pos) * (soft(d) * k / d);
+        }
+    }
+
     // The hand turns the elbow by its roll about the forearm only (vr_body_elbow_hand): the side of the thumb across
     // the forearm that the rest of the pole gives. Bending the wrist (the hand tilted along the forearm: deviation, or
     // Hand Calibration's pitch) doesn't move the elbow; a real one stays put.
@@ -1296,7 +1369,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     const glm::vec3 bodyPole = -cUp + lateral * (vr_body_elbow_out.value + vr_body_crouch_elbow_out.value * crouched) -
                                cFwd * (vr_body_elbow_back.value + vr_body_crouch_elbow_back.value * crouched);
     glm::vec3 bend;
-    const glm::vec3 foreGuess = safeNormalize(wrist - twoBone(u.pos, wrist, a, l, bodyPole, lateral, bend), cFwd);
+    const glm::vec3 foreGuess = safeNormalize(wrist - twoBone(u.pos, ikWrist, a, l, bodyPole, lateral, bend), cFwd);
     const glm::vec3 thumbAcross = safeNormalize(handUp - foreGuess * glm::dot(handUp, foreGuess), handUp);
     glm::vec3 pole = bodyPole - thumbAcross * vr_body_elbow_hand.value;
     float spreadBy = 0.f; // (easeWrist)
@@ -1375,16 +1448,40 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         pole = glm::mix(pole, way * glm::length(pole), b.seenAds);
         flatElbow = za::max(flatElbow, b.seenAds);
     }
-    // (ropes10, his flat note 2026-11-23: on a rope the elbow swung in, in front of the view) On a climbable rope or pole
-    // (ropeHang, last frame's; yours and another player's copy alike): the elbow out at its side, a little down and back,
-    // by vr_rope_elbow_out, and the wrist's ease below swings it back in by as little of that share.
-    if(const float share = za::clamp(vr_rope_elbow_out.value, 0.f, 1.f) * ropeHang(); share > 0.f)
+    // (ropes10, climbfix, flatwaterclimb) On a climbable rope or pole (local per-hand ropeLine for 0-lag VR/flatscreen
+    // detection even without legs/climb_feet, combined with ropeHang for the reaching hand and other players' copies):
+    // build the elbow pole directly in the swivel plane perpendicular to the shoulder-to-wrist line so the elbow always
+    // flares outwards away from the torso centerline and stays comfortably below/level with the shoulder (never rising
+    // into eye level or folding inward across the chest/camera).
+    float handRopeW = 0.f;
+    if(!posingOther())
     {
-        const glm::vec3 way = safeNormalize(lateral - cUp * 0.35f - cFwd * 0.2f, lateral);
-        pole = glm::mix(pole, way * glm::length(pole), share);
-        flatElbow = za::max(flatElbow, share);
+        glm::vec3 ropeAt{0.f}, ropeUp{0.f};
+        float ropeThick = 0.f, w = 0.f;
+        if(climb::ropeLine(side == 0 ? HAND_OFF : HAND_MAIN, ropeAt, ropeUp, ropeThick, w))
+        {
+            handRopeW = w;
+        }
     }
-    glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
+    const glm::vec3 worldOut = side == 0 ? b.left : -b.left;
+    const float ropeShare = za::clamp(vr_rope_elbow_out.value, 0.f, 1.f) * za::max(ropeHang(), handRopeW);
+    if(ropeShare > 0.f)
+    {
+        const glm::vec3 armDir = safeNormalize(ikWrist - u.pos, -UP);
+        const glm::vec3 uOut = safeNormalize(worldOut - armDir * glm::dot(worldOut, armDir), worldOut);
+        // Down and back in the player's upright frame (not the tilted chest's cUp, which leans back on a swinging rope
+        // so -cUp pointed forward into the camera). Kept unnormalized after orthogonalization against armDir and uOut so
+        // it vanishes smoothly (never sign-flipping during a pole slide) and still has dot(uDown, worldOut) == 0.
+        const glm::vec3 downRef = glm::normalize(-UP - b.fwd * 0.5f);
+        const glm::vec3 uDown = downRef - armDir * glm::dot(downRef, armDir) - uOut * glm::dot(downRef, uOut);
+        const float wide = za::clamp(vr_rope_elbow_wide.value, 0.f, 10.f);
+        const float downEffect = za::max(0.f, -glm::dot(uDown, UP));
+        const float downW = 0.8f + za::max(0.f, glm::dot(uOut, UP)) * downEffect * wide * 0.9f;
+        const glm::vec3 way = safeNormalize(uOut * wide + uDown * downW, uOut);
+        pole = glm::mix(pole, way * glm::length(pole), ropeShare);
+        flatElbow = za::max(flatElbow, ropeShare);
+    }
+    glm::vec3 elbow = twoBone(u.pos, ikWrist, a, l, pole, ropeShare > 0.f ? worldOut : lateral, bend);
 
     // The hand bone's axes: the drawn hand's (or, without one, the wrist's roll only).
     const glm::mat3 handRot = glm::length(handPose.forward) > 0.5f
@@ -1555,6 +1652,10 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     h = Bone{};
     h.pos = elbow + foreDir * l;
     h.rot = handRot;
+    if(!posingOther())
+    {
+        armEase.wristGap[side] = glm::distance(wrist, h.pos);
+    }
 
     // Bare forearms: their ends, fitted round the hand at the default sizes, as big as the hand is drawn against the
     // body (the hand bone's axes are the hand's: x its x, y its y either way, z its -z); the wrist's ring across.
@@ -2537,6 +2638,38 @@ bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
 float embedArmGapCm(int hand)
 {
     return hand == 0 || hand == 1 ? armEase.embedGapCm[hand] : 0.f;
+}
+
+float embedArmPastCm(int hand)
+{
+    return hand == 0 || hand == 1 ? armEase.embedPastCm[hand] : 0.f;
+}
+
+bool embedReachNow(int hand, const glm::vec3& eye, glm::vec3& shoulder, float& most)
+{
+    if((hand != 0 && hand != 1) || !armEase.reachValid[hand])
+    {
+        return false;
+    }
+    shoulder = eye + playerYawAxes() * armEase.reachShoulder[hand];
+    most = armEase.reachMost[hand];
+    return most > 0.f;
+}
+
+void embedArmPastFrom(int hand, glm::vec3& seen, glm::vec3& eye)
+{
+    seen = hand == 0 || hand == 1 ? armEase.pastSeen[hand] : glm::vec3{0.f};
+    eye = armEase.pastEye;
+}
+
+float armWristGap(int hand)
+{
+    return hand == 0 || hand == 1 ? armEase.wristGap[hand] : 0.f;
+}
+
+float armStretched(int hand)
+{
+    return hand == 0 || hand == 1 ? armEase.stretched[hand] : 1.f;
 }
 
 bool forearmFrame(int hand, float along, ForearmFrame& out)
