@@ -67,6 +67,7 @@ vr_reload.qc
 vr_revgrip.qc
 vr_reload_test.qc
 vr_debris.qc
+vr_bayonet.qc
 vr_material.qc
 vr_crates.qc
 vr_crates_test.qc

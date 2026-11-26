@@ -7317,7 +7317,7 @@ QVR_CYCLE(vr_test_held_pick, "Which Gib",
     {-1.f, "Each in Turn"}, {0.f, "Small Gib (gib1)"}, {1.f, "Player's Head"}, {2.f, "Torso (gib2)"},
     {3.f, "Big Chunk (gib3)"}, {4.f, "Grunt's Head"}, {5.f, "Ogre's Head"}, {6.f, "Knight's Head"},
     {7.f, "Zombie's Head"}, {8.f, "Fiend's Head"}, {9.f, "Nearest Rock"}, {10.f, "Hand Grenade"},
-    {11.f, "Nearest Shells Box"}, {12.f, "Nearest Brick"})
+    {11.f, "Nearest Shells Box"}, {12.f, "Nearest Brick"}, {13.f, "Nearest Crate or Barrel"}, {14.f, "Nearest Bayonet"})
 QVR_TOGGLE(vr_test_held_hand, "Into the Main Hand",
     "vr_test_held_hand: Gib in the Off Hand fills the main hand instead (hold its grip): a prop to hit the "
     "super shotgun's barrels open or shut with, the gun in the off hand (reload_test.sh section 11).")

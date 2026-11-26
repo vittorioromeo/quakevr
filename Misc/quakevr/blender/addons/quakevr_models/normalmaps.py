@@ -27,8 +27,9 @@ BODY = "body"
 BODY_BUILDS = ("vrbody.md5mesh", "vrbody_lean.md5mesh", "vrbody_brawny.md5mesh", "vrbody_fem.md5mesh")
 GENERATED = ("vrflashlight.mdl", "vrgadget.mdl", "vrgadget_strap.mdl", "vr_shell.mdl", "legholster.mdl",
              "vrpauldron.mdl", "vrpauldron_arm.mdl", "vrpouch.mdl") + tuple("vr_rock%d.mdl" % k for k in range(1, 6)) + \
-            tuple("vr_brick%d.mdl" % k for k in range(1, 5)) +             tuple("vr_crate%d.mdl" % k for k in range(1, 3)) + tuple("vr_plank%d.mdl" % k for k in range(1, 5)) + ("vr_barrel.mdl",) +             tuple("gib_brain%d.mdl" % k for k in range(1, 4))
-# (make_debris.py's rocks and bricks; make_crates.py's crates, their pieces and the barrel; make_brains.py's brain chunks)
+            tuple("vr_brick%d.mdl" % k for k in range(1, 5)) +             tuple("vr_crate%d.mdl" % k for k in range(1, 3)) + tuple("vr_plank%d.mdl" % k for k in range(1, 5)) + ("vr_barrel.mdl",) +             tuple("gib_brain%d.mdl" % k for k in range(1, 4)) + ("bayonet.mdl",)
+# (make_debris.py's rocks and bricks; make_crates.py's crates, their pieces and the barrel; make_brains.py's brain chunks;
+# make_bayonet.py's bayonet)
 # Models drawn in place of another's parts, made from its file with its skin and texture coordinates (polish_weapons.py
 # split_auto_pump: the shotgun's auto pump's moving fore-end and the gun without it): its map, copied, so the parts
 # shade exactly as the whole gun does.

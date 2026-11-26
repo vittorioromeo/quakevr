@@ -43,6 +43,18 @@
   "by": "backpack.blend",
   "source": "Misc/quakevr/src_models/blend/backpack/backpack.blend"
  },
+ "quakevr/progs/bayonet.mdl": {
+  "sha256": "8dd500b5eb787ee082bcd6f818c3369fef30db8f799db20992973bf202add479",
+  "by": "make_bayonet.py"
+ },
+ "quakevr/progs/bayonet.mdl_0.png": {
+  "sha256": "fa153f8bbf9b1b640088901f8834acda72cb44e7450ab8f6c0a4ad5ccee0ab08",
+  "by": "make_bayonet.py"
+ },
+ "quakevr/progs/bayonet.mdl_0_norm.png": {
+  "sha256": "02e7bb10926146f8e87870db42c0a5f7798abbd1535eb13bdcfcffe4061b47cb",
+  "by": "bake_normals.py"
+ },
  "quakevr/progs/beam.mdl": {
   "by": "beam.blend",
   "source": "Misc/quakevr/src_models/blend/beam/beam.blend"

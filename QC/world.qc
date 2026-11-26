@@ -265,6 +265,7 @@ void() VR_World_Precache =
     VR_MG3_Weapons_Precache(); // VR: Dawn of the Machine's weapons, when its data is there (vr_mg3_weapons.qc)
     VR_EnemyGuns_Precache(); // VR: the grunts' shotguns and the enforcers' laser rifles (vr_enemyguns.qc)
     VR_Debris_Precache(); // VR: rocks and bricks lying about (vr_debris.qc)
+    VR_Bayonet_Precache(); // VR: the bayonet (vr_bayonet.qc: a prop on its own; the shotguns' attachment)
     VR_SmallGib_Precache(); // VR: small gibs' squishes (vr_smallgibs.qc)
     VR_Crates_Precache(); // VR: wooden crates (vr_crates.qc)
     VR_Reload_Precache(); // VR: immersive reloading's shells and sounds (vr_reload.qc)

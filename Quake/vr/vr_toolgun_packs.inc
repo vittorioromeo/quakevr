@@ -220,4 +220,8 @@ QVR_PACK("Props", "Ropes", "Pole", "vr_pole", "progs/beam.mdl", 0.f, nullptr, 0.
     {"Weapons", "Spear", "weapon_spear", "progs/v_spear.mdl", 8.f, nullptr, 0.f, 0, false},
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Spear", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 106.f, 0, 0, nullptr, 0)
 
+// The bayonet on its own (QC vr_bayonet.qc; Misc/quakevr/make_bayonet.py): a small knife-like prop, appended so the
+// entries' numbers stay.
+QVR_PACK("Props", nullptr, "Bayonet", "vr_bayonet", "progs/bayonet.mdl", 4.f, nullptr, 0.f, 0, 0, nullptr, 0)
+
 #undef QVR_PACK
