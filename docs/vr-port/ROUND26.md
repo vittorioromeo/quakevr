@@ -1811,6 +1811,22 @@ Shortcut migration: Windows keeps the old letter case of an existing file/folder
 existing Start menu folder / deletes an existing .lnk that differs only in case before writing (self-test "shortcuts of
 the old letter case are renamed"; installer self-tests 63/63).
 
+## revthrow: reverse grip throws settle point first more readily (branch agent/revthrow, 2026-11-26)
+
+His words (VR, 20:11): a spear thrown overhead from the reverse grip spun with "even the smallest amount of wrist snap"; he wants
+it to "almost immediately stabilize with its point forward", a little of that for swords and daggers too, each tweakable.
+- A thrown weapon keeps QVR_WPNFLAG_REVGRIP (DropWeaponInHandScaled). The engine's Point-First Settling (vr_box3d_step.cpp
+  `pointAlign`) reads it at the release and takes a leniency L: `vr_throw_point_rev_pole` 0.8 for pole weapons (the spear,
+  the Crystal Lance: `axestick::pointPole`), `vr_throw_point_rev_blade` 0.3 for swords and daggers. With L the release's
+  tumble across the blade is cut by L (all at 1), the spring is (1 + 2L) times as stiff (still critically damped), tumbles
+  up to (1 + 3L) times Point-First Settling: Tumble are steadied, and full help applies from its slowest speed (3 m/s).
+  L 0, or an upright throw: the same maths as before. Rows: Debug > Tunables, "Reverse Grip Settling: Spears / Blades".
+- Flat-screen reversed throws carry the flag too, so they get the same leniency (shared path).
+- Test `vr_embed_test 73` (QC/vr_revthrow_test.qc, vrtesthall; ends `revthrow: N passed, M failed`): scripted reverse grip
+  releases (point 10 degrees up, the snap turning it down; spears at 8..20 rad/s and 10..16 m/s, sword and dagger at
+  14..22 rad/s) at a wall, three passes: at the settings every spear is point first within 150 ms and stays so and sticks by
+  its point (mean 6 degrees against 59 at L 0); sword and dagger steadier than at L 0; upright throws match the L 0 reversed
+  ones exactly. 6/6.
 ## scenes
 
 His report (2026-11-26 20:21): checklist Test buttons "don't take me to the right places"; the Quoth lines went to AD's

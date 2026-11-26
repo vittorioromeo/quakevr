@@ -226,6 +226,7 @@ vr_flipgrip_test.qc
 vr_flipgate_test.qc
 vr_throwgib_test.qc
 vr_throwpoint_test.qc
+vr_revthrow_test.qc // reverse grip throws settle point first (vr_embed_test 73)
 vr_throwdmg_test.qc
 vr_airskewer_test.qc
 vr_agarmor_fx_test.qc
