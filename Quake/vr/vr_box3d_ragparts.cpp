@@ -1483,6 +1483,16 @@ void yawAxes(const edict_t* player, glm::vec2& forward, glm::vec2& left)
     return at;
 }
 
+// How far round (degrees, level, seen from the eyes of `player`) a pushed prop's point `held` is from `at`, where the arm
+// reaches for it (vr_flat_grab_push_angle).
+[[nodiscard]] float armAngle(const edict_t* player, const glm::vec3& at, const glm::vec3& held)
+{
+    const glm::vec2 eye = glm::vec2{player->v.origin[0] + player->v.view_ofs[0], player->v.origin[1] + player->v.view_ofs[1]};
+    const glm::vec2 reach = glm::vec2{at.x, at.y} - eye, point = glm::vec2{held.x, held.y} - eye;
+    const float across = glm::length(reach) * glm::length(point);
+    return across > 1.f ? za::acos(za::clamp(glm::dot(reach, point) / across, -1.f, 1.f)) * (180.f / 3.14159265f) : 0.f;
+}
+
 // The hands of `player` dragging prop `num` (PropBlade::need: each its share of the mass).
 [[nodiscard]] int dragHands(int player, int num)
 {
@@ -1693,22 +1703,27 @@ float holdPropDrag(int num, edict_t* player, int hand, const glm::vec3& target, 
     h.called = qcvm->time;
     const glm::vec3 held = world->toU(b3Body_GetWorldPoint(body, b3Joint_GetLocalFrameB(h.joint).p));
     const glm::vec3 asked = dragTarget(h, player, turn);
-    // Let go of: its point too far off where the hold asks it (caught on something, too heavy); pushed or dragged, its hold
-    // needing more than vr_flat_grab_push_force for a moment (too heavy for that pace: syncPropBlades), or its point too far
-    // round from the arm's reach (vr_flat_grab_push_angle: too steep).
+    // Let go of: pushed or dragged, its point too far round from the arm's reach (vr_flat_grab_push_angle: too steep) or its
+    // hold needing more than vr_flat_grab_push_force for a moment (too heavy for that pace: syncPropBlades); its point too far
+    // off where the hold asks it (caught on something, too heavy).
     constexpr float strainMost = 0.15f; // s above the push force, times how far over (syncPropBlades)
     const char* why = nullptr;
-    if(glm::distance(held, asked) > h.letGo + glm::length(h.gap) * gapLeft(h.gapAt, h.gapOver))
+    if(h.keep)
     {
-        why = va("its point %.1f units off the hand (at most %.1f)", glm::distance(held, asked), h.letGo);
+        h.angle = armAngle(player, asked, held); // (as he turns now: syncPropBlades' is a frame old)
+        h.angleMost = za::max(h.angleMost, h.angle);
+    }
+    if(h.keep && h.angle > za::max(vr_flat_grab_push_angle.value, 1.f))
+    {
+        why = va("too steep: its point %.0f degrees round from the arm (at most %.0f)", h.angle, vr_flat_grab_push_angle.value);
     }
     else if(h.keep && h.strain > strainMost)
     {
         why = va("too heavy for that pace: its hold needs %.0f N (at most %.0f)", h.need, vr_flat_grab_push_force.value);
     }
-    else if(h.keep && h.angle > za::max(vr_flat_grab_push_angle.value, 1.f))
+    else if(glm::distance(held, asked) > h.letGo + glm::length(h.gap) * gapLeft(h.gapAt, h.gapOver))
     {
-        why = va("too steep: its point %.0f degrees round from the arm (at most %.0f)", h.angle, vr_flat_grab_push_angle.value);
+        why = va("its point %.1f units off the hand (at most %.1f)", glm::distance(held, asked), h.letGo);
     }
     if(why)
     {
@@ -1812,11 +1827,7 @@ void syncPropBlades(float dt)
             // (Over it for long enough, by how far over: a short jolt is borne, a prop far too heavy goes at once.)
             const float limit = za::max(vr_flat_grab_push_force.value, 1.f);
             h.strain = h.need > limit ? h.strain + dt * (h.need / limit) : za::max(h.strain - dt, 0.f);
-            const glm::vec3 eye = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]} +
-                                  glm::vec3{player->v.view_ofs[0], player->v.view_ofs[1], player->v.view_ofs[2]};
-            const glm::vec2 reach = glm::vec2{at.x - eye.x, at.y - eye.y}, point = glm::vec2{held.x - eye.x, held.y - eye.y};
-            const float across = glm::length(reach) * glm::length(point);
-            h.angle = across > 1.f ? za::acos(za::clamp(glm::dot(reach, point) / across, -1.f, 1.f)) * (180.f / 3.14159265f) : 0.f;
+            h.angle = armAngle(player, at, held);
             h.needMost = za::max(h.needMost, h.need);
             h.angleMost = za::max(h.angleMost, h.angle);
             if(vr_debug_ragdoll.value >= 2.f && h.hand == 1)
