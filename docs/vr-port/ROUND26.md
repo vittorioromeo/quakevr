@@ -864,5 +864,18 @@ His items 3, 7 and 10 (flat notes 2026-11-25/26).
   standing body's blade broke the flat arm's reach (vr_embed_test 64, ogre case), hence the gate. State reset on map change
   (`embedPinsReset`) and on a new blade entity or model. Probe: `vr_embed_probe_jraw` / `_jdrawn` (mean frame-to-frame change
   of velocity in units plus turn rate in degrees, in the body and as drawn), `_jlag` (cm), `_jon`.
-- Open: no automated assertions yet for item 7 across the four states or for item 10 on/off (the probes above are there for
-  them); the parry pose and the smoothing were not checked visually.
+- **flatembed4 (finish):** (a) `vr_flat_pole_off_pitch` turned the drawn other hand 2 of 30 degrees: the shaft grip's least
+  turn undid it. Its shaft-grip share is now turned about the shaft after the grip (`turnAboutShaft`): the hand stays on the shaft
+  and the tunable turns it (flatlance 30 degrees). (b) flatlance's "many thrusts": the Lance left in the ogre. Not the join stealing
+  it: with both hands anchored at the handle (`VR_Embed_SetG0`, item 3) the hold's averaged `far` lost the few units of slack the
+  second hand's own anchor up the shaft had given, and an ogre staggering 19 units back after a fast thrust took it past Hold Reach,
+  where embedholdfix's flat rule let go of a point in a heavy body. Now that rule lets go only when he himself walks off the blade
+  (`VR_Embed_FlatGoingAway`, shared with `VR_Embed_FlatArm`); a point the body carries off comes free into its hand. (c) Out of the
+  arm's reach the stuck shaft's hand went back to its own place, the spear's shaft 38 cm away; now it is pulled from the shaft's
+  nearest point straight towards the shoulder (13 cm off at 42 units, on it when in reach). Probes: `_pdist` / `_pturn` are taken
+  after every placement (`poleProbeNote`), `_hoff` skips frames the flat arm holds the hand short of the handle (pin.lead).
+  Tests: `poleembed_test.sh`: vr_embed_test 71 (spear and Lance, upright, flipped, guarding, stuck: 0.00 cm, 0.0 degrees, 16/0;
+  the spear's grunt at 32, its shaft in reach) and 72 (a sword in a falling ragdoll: smoothed 0.41 of 0.60 jitter drawn, lag 2.00
+  cm = max_pos, hand 0.00 cm off the handle; smoothing 0: the same jitter, no lag; 13/0).
+- Open: the parry pose and the smoothing were not checked visually; at 42 units the stuck spear's hands are drawn short of it
+  (the flat arm's reach), the main hand too.
