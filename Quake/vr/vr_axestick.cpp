@@ -42,6 +42,7 @@
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_protocol.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -2020,9 +2021,16 @@ void calcStats(edict_t* player, int* statsi)
             const edict_t* w = PROG_TO_EDICT(fieldInt(player, ofs));
             if(w != qcvm->edicts && !w->free)
             {
-                // (The edict * 4, held by its handle 1, reversed 2: QC's QVR_WPNFLAG_REVGRIP on it, blade down; view::embedStat*.)
+                // (The edict * 8, held by its handle 1, reversed 2: QC's QVR_WPNFLAG_REVGRIP on it, blade down; in a ragdoll 4: its
+                // drawn smoothing, view::embedSmoothStep; view::embedStat*, heldEnt.)
                 const int flags = static_cast<int>(fieldFloatOr(const_cast<edict_t*>(w), f.weaponflags, 0.f));
-                stat = NUM_FOR_EDICT(const_cast<edict_t*>(w)) * 4 + ((flags & 8192) ? 2 : 0) + ((handle & (1 << h)) ? 1 : 0);
+                bool inRagdoll = false;
+                if(f.vr_stick_ent >= 0)
+                {
+                    const edict_t* host = PROG_TO_EDICT(fieldInt(const_cast<edict_t*>(w), f.vr_stick_ent));
+                    inRagdoll = host != qcvm->edicts && !host->free && ragdoll::published(NUM_FOR_EDICT(const_cast<edict_t*>(host)));
+                }
+                stat = NUM_FOR_EDICT(const_cast<edict_t*>(w)) * 8 + (inRagdoll ? 4 : 0) + ((flags & 8192) ? 2 : 0) + ((handle & (1 << h)) ? 1 : 0);
             }
         }
         statsi[h ? STAT_QVR_EMBEDMAIN : STAT_QVR_EMBEDOFF] = stat;
@@ -2248,6 +2256,16 @@ void debugDraw(const glm::vec3& eye, const glm::vec3& headAngles)
 int heldStat(int hand)
 {
     return hand == HAND_MAIN || hand == HAND_OFF ? cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] : 0;
+}
+
+int heldEnt(int hand)
+{
+    return heldStat(hand) / 8;
+}
+
+bool heldInRagdoll(int hand)
+{
+    return (heldStat(hand) & 4) != 0;
 }
 
 bool handOnBlade(int hand)

@@ -186,6 +186,7 @@ public sealed partial class MainViewModel : ObservableObject
     List<ReliefTarget> _reliefTargets = [];
     bool _reliefsOnlyRun;
     bool _relight = true;
+    bool _prepareHulls = true;
     bool _desktopShortcut = true;
     bool _desktopFlatShortcut = true;
     bool _startMenuShortcuts = true;
@@ -1137,7 +1138,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         get
         {
-            var need = (_coreSize ?? 200L << 20) + (HdTextures ? 650L << 20 : 0) + (Relight ? 220L << 20 : 0) +
+            var need = (_coreSize ?? 200L << 20) + (HdTextures ? 650L << 20 : 0) + (Relight ? 220L << 20 : 0) + (PrepareHulls ? 150L << 20 : 0) +
                        (InstallAd ? ArcaneDimensions.InstalledSize + (320L << 20) : 0) +
                        (InstallDwell ? Dwell.InstalledSize + (385L << 20) : 0) +
                        (InstallQuoth ? Quoth.InstalledSize + (53L << 20) : 0);
@@ -1177,6 +1178,10 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool HdTextures { get => _hdTextures; set { if (Set(ref _hdTextures, value)) { Raise(nameof(DiskText)); } } }
     public bool Relight { get => _relight; set { if (Set(ref _relight, value)) { Raise(nameof(DiskText)); } } }
+    /// <summary>Ticked (the default): the preparation run also makes the collision of Quake's and the mission packs'
+    /// maps (GamePreparation, -preparehulls: about a minute, ~150 MB in the game's cache), so their first visits load
+    /// faster, on the PC and on the Quest (the Quest step copies them).</summary>
+    public bool PrepareHulls { get => _prepareHulls; set { if (Set(ref _prepareHulls, value)) { Raise(nameof(DiskText)); } } }
 
     // ---- Arcane Dimensions (experimental, off by default: ARCANE_DIMENSIONS.md section 10) ----
 
@@ -1771,7 +1776,7 @@ public sealed partial class MainViewModel : ObservableObject
                 }
             });
             var relight = record.RelightPending;
-            var result = await GamePreparation.RunAsync(InstallDir, record.QuakeDir, relight, progress, ct);
+            var result = await GamePreparation.RunAsync(InstallDir, record.QuakeDir, relight, PrepareHulls, progress, ct);
             PrepareResult = result;
             var later = relight ? "the game does it at its first start instead, and relights the maps then." : "the game does it at its first start instead.";
             if (result.Cancelled)

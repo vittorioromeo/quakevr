@@ -3183,7 +3183,7 @@ constexpr float probeOnBlade = 16.f; // units
 // How far `h` is drawn from the blade stuck in a body it holds (units); -1: none, or not drawn.
 [[nodiscard]] float drawnFromBlade(int h)
 {
-    const int ent = axestick::heldStat(h) / 4;
+    const int ent = axestick::heldEnt(h);
     glm::vec3 pos, rot;
     if(ent <= 0 || ent >= cl.num_entities || !view::drawnHandPose(h, pos, rot))
     {
