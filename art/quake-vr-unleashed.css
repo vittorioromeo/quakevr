@@ -1,0 +1,643 @@
+/* =====================================================================
+   QUAKE VR: UNLEASHED  -  ModDB profile theme
+   Palette taken from the logo: blood red on dark gore-stained steel.
+   ===================================================================== */
+
+/*  Palette key
+    page bg       #0c0707     panel        #140c0c     panel alt  #1a1010
+    border        #2e1414     border hot   #5a1212
+    blood         #b3141a     blood bright #e3262c     blood dark #6e0b0f
+    bone (text)   #e6ddd5     steel        #b5aaa3     muted      #7d706a  */
+
+/* ---------- page background & hero ---------- */
+/* the hero art sits on html (its top 90px is empty wall, so it is shifted
+   up to put the logo just under the top bar) */
+html {
+	background-color: #0c0707;
+	background-image: url("https://vittorioromeo.com/Misc/Linked/qvr-hero.jpg?v=2");
+	background-position: center -90px;
+	background-repeat: no-repeat;
+}
+
+/* rising embers, ash and smoke: pinned to the bottom of the window, behind
+   everything, fading as they rise. The animation is stored at half size
+   and scaled up 2x (it is soft anyway). */
+body {
+	background-color: transparent;
+	background-image: url("https://vittorioromeo.com/Misc/Linked/qvr-ash.webp?v=2");
+	background-size: 810px 900px;
+	background-position: center bottom;
+	background-repeat: repeat-x;
+	background-attachment: fixed;
+	color: #b5aaa3;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* two transparent overlays lined up with the hero (all centred, overlay
+   top = page top): the logo's breathing red glow on #body (stored at
+   quarter size, scaled up), and the blood dripping from the logo on the
+   .container just inside it, so the drips sit above the glow */
+#body {
+	background-color: transparent;
+	background-image: url("https://vittorioromeo.com/Misc/Linked/qvr-glow.webp?v=2");
+	background-size: 900px 640px;
+	background-position: center 0;
+	background-repeat: no-repeat;
+}
+
+.container {
+	background-color: transparent;
+	background-image: url("https://vittorioromeo.com/Misc/Linked/qvr-drips.webp?v=2");
+	background-position: center 0;
+	background-repeat: no-repeat;
+}
+
+::selection { color: #fff; background: #b3141a; }
+::-moz-selection { color: #fff; background: #b3141a; }
+
+a, a:visited { color: #e3262c; }
+a:hover { color: #ff5a5e; }
+
+/* ---------- top bar (replaces ModDB's big red header) ---------- */
+/* a dark panel the width of the page column (body now carries the ash) */
+#header {
+	height: 32px;
+	padding: 0 10px;
+	background: rgba(22, 12, 12, 0.88);
+	border-bottom: 1px solid #5a1212;
+	border-radius: 0 0 8px 8px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+	/* room for the logo in the hero art */
+	margin-bottom: 330px;
+}
+
+#header ul.tabs,
+#subheader {
+	display: none !important;
+}
+
+#header a.logo {
+	float: left;
+	width: 84px;
+	height: 32px;
+	background-size: contain;
+	background-position: left center;
+	background-repeat: no-repeat;
+	opacity: 0.85;
+}
+
+#header a.logo:hover { opacity: 1; }
+
+#searchbox {
+	float: right;
+	height: 26px;
+	padding: 6px 0 0;
+	background: none;
+	font-size: 11px;
+	font-weight: bold;
+}
+
+#searchbox span,
+#searchbox span a {
+	color: #b5aaa3;
+	text-decoration: none;
+}
+
+#searchbox span a:hover { color: #e3262c; }
+
+#searchbox form { background: transparent; }
+
+#searchbox input.text {
+	background: #0c0707;
+	border: 1px solid #3a1a1a;
+	border-radius: 10px;
+	color: #e6ddd5;
+	/* narrower than ModDB's 150px so field + button fit the 175px form;
+	   right padding leaves room for the button tucked inside the field */
+	width: 140px;
+	padding: 2px 26px 2px 8px;
+	outline: none;
+}
+
+#searchbox input.text:focus { border-color: #b3141a; }
+
+#searchbox form.search input.button {
+	border-radius: 10px;
+	outline: none;
+	margin-left: -24px;
+	margin-top: 1px;
+}
+
+/* ---------- profile header: no banner, no title (the logo is in the art),
+   just centred tabs floating over the background ---------- */
+div.headerbox {
+	background: transparent !important;
+	border: none;
+	box-shadow: none;
+}
+
+div.headerbox div.headercorner {
+	background: transparent;
+	border: none !important;
+	text-align: center;
+}
+
+div.headerbox div.title {
+	display: none;
+}
+
+/* the tabs are one continuous blood band, like the box headings, with the
+   same drip strip hanging under it. The bar shrinks to the tabs' width
+   (inline-block) so the drips line up with the band; font-size 0 removes
+   the gaps between the inline-block tabs. */
+div.headerbox ul.menu {
+	display: inline-block;
+	font-size: 0;
+	background-color: transparent !important;
+	background-image: url("https://vittorioromeo.com/Misc/Linked/qvr-divider.png") !important;
+	background-repeat: repeat-x;
+	background-position: left bottom;
+	border: none;
+	box-shadow: none !important;
+	height: auto;
+	padding: 0 0 12px;
+}
+
+div.headerbox ul.menu li {
+	float: none;
+	display: inline-block;
+	vertical-align: top;
+	font-size: 13px;
+	border: none;
+	margin: 0;
+}
+
+div.headerbox ul.menu li a {
+	display: block;
+	padding: 0 22px;
+	line-height: 40px;
+	font-size: 14px;
+	font-family: "Cinzel", "Trajan Pro", "Times New Roman", Georgia, serif;
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 1.5px;
+	color: #f2e8e2;
+	background: linear-gradient(#36040a 0%, #7a0c11 50%, #b3141a 100%);
+	border: none;
+	border-right: 1px solid rgba(0, 0, 0, 0.45);
+	box-shadow: inset 0 1px 0 rgba(255, 120, 120, 0.18);
+	text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 140, 140, 0.25), 0 0 8px rgba(0, 0, 0, 0.7);
+	transition: background 0.2s, color 0.2s;
+}
+
+div.headerbox ul.menu li a:hover {
+	color: #fff;
+	background: linear-gradient(#4a060c 0%, #9c1016 50%, #cf1a20 100%);
+}
+
+/* selected tab: brighter blood, pulsing glow (4s cycle, in time with the
+   logo's breathing glow) */
+div.headerbox ul.menu li.on a {
+	color: #fff;
+	background: linear-gradient(#6e0b0f 0%, #c8191f 55%, #e3262c 100%);
+	box-shadow: inset 0 1px 0 rgba(255, 160, 160, 0.35);
+	animation: qvrpulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes qvrpulse {
+	from { box-shadow: inset 0 1px 0 rgba(255, 160, 160, 0.35), 0 0 4px rgba(227, 38, 44, 0.4); }
+	to { box-shadow: inset 0 1px 0 rgba(255, 160, 160, 0.35), 0 0 18px rgba(227, 38, 44, 0.95); }
+}
+
+/* tabs we don't use, by position: 4 = files, 7 = forum, 8 = polls
+   (order: summary, articles, reviews, files, videos, images, forum, polls).
+   If ModDB ever adds a tab (e.g. addons), these numbers shift. */
+div.headerbox ul.menu li:nth-child(4),
+div.headerbox ul.menu li:nth-child(7),
+div.headerbox ul.menu li:nth-child(8) {
+	display: none;
+}
+
+div.headerbox ul.menu li.off a {
+	color: #5a4c47;
+	background: rgba(12, 7, 7, 0.5);
+}
+
+/* ---------- intro / description: centred text over the art ---------- */
+div.normalbox.headernormalbox {
+	background: transparent;
+	border: none;
+	box-shadow: none !important;
+	margin-top: 18px;
+}
+
+div.normalbox.headernormalbox div.inner,
+div.normalbox.headernormalbox div.body {
+	background: transparent !important;
+}
+
+div.normalbox.headernormalbox div.body {
+	border-top: 1px solid rgba(179, 20, 26, 0.5);
+	padding-top: 14px;
+	text-align: center;
+	font-size: 1.15em;
+	color: #d8cfc8;
+	text-shadow: 0 1px 2px #000;
+}
+
+#profiledescription {
+	text-align: center;
+	font-size: 1.15em;
+	line-height: 1.6;
+	color: #d8cfc8;
+	text-shadow: 0 1px 2px #000;
+}
+
+#profiledescription p { color: #d8cfc8; }
+
+#profiledescription h1, #profiledescription h2,
+#profiledescription h3, #profiledescription h4 {
+	font-family: "Cinzel", "Trajan Pro", "Times New Roman", Georgia, serif;
+	color: #e3262c;
+	letter-spacing: 1px;
+	text-shadow: 0 1px 2px #000;
+}
+
+#profiledescription strong, #profiledescription b { color: #e6ddd5; }
+
+/* bullet lists stay left-aligned, as a centred block */
+#profiledescription ul {
+	display: inline-block;
+	text-align: left;
+	margin: 0 auto;
+}
+
+#profiledescription iframe {
+	max-width: 100%;
+	border: 1px solid #2e1414;
+	box-shadow: 0 0 20px rgba(0, 0, 0, 0.85);
+}
+
+#profiledescription img {
+	border: 1px solid #2e1414;
+	box-shadow: 0 0 16px rgba(0, 0, 0, 0.8);
+	max-width: 100%;
+	height: auto;
+}
+
+#profiledescription blockquote {
+	border-left: 3px solid #b3141a;
+	background: rgba(26, 16, 16, 0.8);
+	color: #cfc6bf;
+	text-align: left;
+}
+
+div.readmore a {
+	background: linear-gradient(#d11d23, #7a0c10);
+	color: #fff !important;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	font-weight: bold;
+	text-shadow: 0 1px 1px #000;
+}
+
+/* ---------- screenshot strip: translucent band with chevrons ---------- */
+div.imagebox {
+	background: rgba(0, 0, 0, 0.45);
+	border: 1px solid rgba(90, 18, 18, 0.5);
+	border-radius: 10px;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+	padding: 8px 0;
+	height: auto;
+	text-align: center;
+}
+
+div.imagebox ul {
+	display: inline-block;
+	float: none;
+}
+
+div.imagebox li {
+	background: transparent;
+	margin: 0;
+	padding: 5px;
+}
+
+div.imagebox li img {
+	border: 1px solid #000;
+	opacity: 0.75;
+	transition: opacity 0.25s, box-shadow 0.25s;
+}
+
+div.imagebox li img:hover,
+div.imagebox li.on img {
+	opacity: 1;
+	box-shadow: 0 0 10px rgba(227, 38, 44, 0.7);
+}
+
+div.imagebox li.previous a,
+div.imagebox li.next a {
+	border-radius: 6px;
+	opacity: 0.7;
+}
+
+div.imagebox li.previous a:hover,
+div.imagebox li.next a:hover {
+	opacity: 1;
+	box-shadow: 0 0 10px rgba(227, 38, 44, 0.7);
+}
+
+div.imagebox li.previousoff a,
+div.imagebox li.nextoff a { opacity: 0.3; }
+
+/* ---------- boxes ---------- */
+/* outlines are drawn with a 1px shadow, not a border: a border would steal
+   2px from ModDB's fixed-width layouts and push sidebar values / rating
+   bars onto a new line */
+div.normalbox {
+	background: #140c0c;
+	border: none;
+	box-shadow: 0 0 0 1px #2e1414, 0 2px 14px rgba(0, 0, 0, 0.75);
+}
+
+/* box headings: a band of blood (on div.title) with drips hanging off its
+   bottom edge (tiled strip in the 12px below the band) */
+div.normalbox div.normalcorner {
+	background-color: #140c0c;
+	background-image: url("https://vittorioromeo.com/Misc/Linked/qvr-divider.png");
+	background-repeat: repeat-x;
+	background-position: left bottom;
+	border-bottom: none;
+	padding-bottom: 12px;
+	box-shadow: none;
+}
+
+/* the blood band; its bottom colour matches the drip strip below it */
+div.normalbox div.title {
+	background: linear-gradient(#36040a 0%, #7a0c11 50%, #b3141a 100%);
+	box-shadow: inset 0 1px 0 rgba(255, 120, 120, 0.18);
+}
+
+/* heading text carved into the blood: bone-coloured letters with a dark
+   lip on the upper edge (the cut) and a soft dark halo for contrast */
+div.normalbox div.title,
+div.normalbox div.title span.heading,
+div.normalbox div.title h2,
+div.normalbox div.title h3,
+div.normalbox div.title a {
+	font-family: "Cinzel", "Trajan Pro", "Times New Roman", Georgia, serif;
+	font-weight: bold;
+	color: #f2e8e2;
+	text-transform: uppercase;
+	letter-spacing: 1.5px;
+	text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 140, 140, 0.25), 0 0 8px rgba(0, 0, 0, 0.7);
+}
+
+div.normalbox div.title span.heading {
+	font-size: 17px;
+}
+
+div.normalbox div.inner,
+.inner {
+	background: transparent !important;
+	color: #b5aaa3;
+}
+
+div.normalbox div.body {
+	background: transparent;
+	color: #b5aaa3;
+}
+
+div.tooltip { background: transparent; }
+
+p.viewbrowse a {
+	color: #e3262c;
+	text-transform: uppercase;
+	font-weight: bold;
+	letter-spacing: 1px;
+}
+
+/* ---------- tables / rows ---------- */
+div.normalbox div.table div.row,
+div.normalbox div.table div.rowalt {
+	background-color: transparent;
+	border-color: #2e1414;
+}
+
+div.normalbox div.table div.row:nth-of-type(2n-1) {
+	background-color: #1a1010;
+}
+
+div.normalbox div.table div.row div.content p,
+div.normalbox div.table div.rowalt div.content p {
+	border-color: #2e1414;
+}
+
+div.normalbox div.table h4 a,
+div.normalbox div.table span.heading a,
+div.normalbox div.table a.heading { color: #e6ddd5; }
+
+div.normalbox div.table h4 a:hover,
+div.normalbox div.table span.heading a:hover { color: #e3262c; }
+
+div.normalbox div.table span.subheading,
+div.normalbox div.table span.date,
+div.normalbox div.table span.summary,
+div.normalbox div.table span.subheading a,
+div.normalbox div.table span.date a { color: #7d706a; }
+
+div.normalbox div.table span.summary a { color: #b5aaa3; }
+div.normalbox div.table span.summary a:hover { color: #e3262c; }
+
+/* sidebar key/value boxes */
+div.normalbox div.tablemenu h5 { color: #7d706a; }
+
+div.normalbox div.tablemenu span.summary,
+div.normalbox div.tablemenu span.summary a { color: #e6ddd5; }
+
+div.normalbox div.tablemenu span.summary a:hover { color: #e3262c; }
+
+/* buttons (download, follow, etc) */
+div.normalbox div.tablerelated a.button,
+div.normalbox div.tablemenu a.button,
+div.normalbox div.tablemenu span.button,
+div.normalbox div.tableform input.button,
+div.normalbox div.buttons input,
+a.buttonfull {
+	background: linear-gradient(#c8191f, #7a0c10);
+	border: 1px solid #3a0608 !important;
+	color: #fff !important;
+	text-shadow: 0 1px 1px #000;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+
+div.normalbox div.tablerelated a.button:hover,
+div.normalbox div.tablemenu a.button:hover,
+div.normalbox div.tableform input.button:hover,
+div.normalbox div.buttons input:hover,
+a.buttonfull:hover {
+	background: linear-gradient(#ee2a30, #9c1015);
+	color: #fff !important;
+}
+
+/* shimmer: a light band sweeps across the big buttons every few seconds.
+   The band sits in the middle of a 300%-wide gradient; sliding the
+   background from one end to the other carries it across the button. */
+a.buttonfull,
+a.buttonlarge {
+	background: linear-gradient(110deg, #8a0e13 0%, #c8191f 42%, #ff7378 50%, #c8191f 58%, #8a0e13 100%);
+	background-size: 300% 100%;
+	background-position: 100% 0;
+	animation: qvrshimmer 4s ease-in-out infinite;
+}
+
+@keyframes qvrshimmer {
+	0% { background-position: 100% 0; }
+	70% { background-position: 100% 0; }
+	100% { background-position: 0% 0; }
+}
+
+/* box header option icons (watch, report, rss, add) */
+span.options a {
+	background-color: #1a1010;
+	border-color: #2e1414;
+	color: #b5aaa3;
+}
+
+span.options a:hover {
+	background-color: #b3141a;
+	border-color: #b3141a;
+	color: #fff;
+}
+
+/* ---------- forms ---------- */
+div.normalbox div.tableform input.text,
+div.normalbox div.tableform textarea,
+div.normalbox div.tablemenu input.text,
+div.normalbox form.filter input,
+div.normalbox form.filter select {
+	background: #0c0707;
+	border: 1px solid #2e1414;
+	color: #e6ddd5;
+	outline: none;
+}
+
+div.normalbox div.tableform input.text:focus,
+div.normalbox div.tableform textarea:focus {
+	border-color: #b3141a;
+	box-shadow: 0 0 6px rgba(179, 20, 26, 0.5);
+}
+
+div.normalbox div.tableform p,
+div.normalbox div.tableform label { color: #7d706a; }
+
+div.normalbox div.tableform div.row a { color: #e6ddd5; }
+
+/* ---------- rating ---------- */
+div.normalbox div.tablerating div.score,
+div.normalbox div.body span.rating {
+	background: #0c0707;
+	border: none;
+	box-shadow: inset 0 0 0 1px #5a1212;
+	color: #e3262c;
+	text-shadow: 0 0 10px rgba(227, 38, 44, 0.6);
+}
+
+/* embed codes centred over their buttons */
+#modsbuttons textarea,
+#modsbuttons input.textembed {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+/* ---------- comments ---------- */
+div.normalbox div.tablecomments div.row,
+div.normalbox div.tablecomments div.rowalt {
+	background-color: transparent !important;
+}
+
+div.normalbox div.tablecomments div.comment {
+	background: #1a1010;
+	border: 1px solid #2e1414;
+	color: #cfc6bf;
+}
+
+div.normalbox div.tablecomments span.heading { color: #7d706a; }
+div.normalbox div.tablecomments span.heading a.author { color: #e6ddd5; }
+div.normalbox div.tablecomments span.heading a.author:hover { color: #e3262c; }
+div.normalbox div.tablecomments span.new { background: #b3141a; color: #fff; }
+
+div.normalbox div.mediapreview a img {
+	border: 1px solid #000;
+	transition: box-shadow 0.25s;
+}
+
+div.normalbox div.mediapreview a:hover img {
+	box-shadow: 0 0 10px rgba(227, 38, 44, 0.7);
+}
+
+/* ---------- pagination ---------- */
+div.pagination div.pages a,
+div.pagination div.pages span {
+	background: #1a1010;
+	border-color: #2e1414;
+	color: #b5aaa3;
+}
+
+div.pagination div.pages a:hover,
+div.pagination div.pages span.current {
+	background: #b3141a;
+	border-color: #b3141a;
+	color: #fff;
+}
+
+/* ---------- hover effects ---------- */
+div.imagebox li img,
+div.normalbox div.table div.row img,
+#profiledescription img {
+	transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+}
+
+div.imagebox li img:hover,
+div.normalbox div.table div.row img:hover {
+	transform: scale(1.06);
+	box-shadow: 0 0 14px rgba(227, 38, 44, 0.8);
+}
+
+#profiledescription img:hover {
+	box-shadow: 0 0 22px rgba(227, 38, 44, 0.6);
+}
+
+div.normalbox div.tablemenu div.row,
+div.normalbox div.table div.row {
+	transition: background-color 0.2s;
+}
+
+div.normalbox div.tablemenu div.row:hover,
+div.normalbox div.table div.row:hover {
+	background-color: #261212;
+}
+
+/* ---------- fade-in on load: tabs, intro, screenshots, then the boxes ---------- */
+@keyframes qvrrise {
+	from { opacity: 0; transform: translateY(18px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+div.headerbox { animation: qvrrise 0.7s ease-out both; }
+div.normalbox { animation: qvrrise 0.7s ease-out 0.45s both; }
+div.normalbox.headernormalbox { animation: qvrrise 0.7s ease-out 0.15s both; }
+div.imagebox { animation: qvrrise 0.7s ease-out 0.3s both; }
+
+/* ---------- footer ---------- */
+#footer {
+	background: #0c0707;
+	border-top: 2px solid #b3141a;
+	color: #7d706a;
+}
+
+#footer a { color: #b5aaa3; }
+#footer a:hover { color: #e3262c; }

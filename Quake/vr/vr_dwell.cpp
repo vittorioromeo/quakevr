@@ -16,7 +16,7 @@ namespace
 struct Shadowed
 {
     const char* name;
-    int owner; // 0 id1, 1 hipnotic, 2 rogue
+    int owner; // 0 id1, 1 hipnotic, 2 rogue, 3 ad (Dwell's mon_knight, mon_enforcer... are other meshes than AD's rigs')
 };
 
 #define VR_DWELL_SHADOWED(name, owner) {name, owner},
@@ -25,6 +25,7 @@ constexpr Shadowed shadowedFiles[] = {
 };
 #undef VR_DWELL_SHADOWED
 
+constexpr const char* ownerStatus[] = {nullptr, "vr_hipnotic_status", "vr_rogue_status", "vr_ad_status"};
 bool versionWarned = false; // (the "another version" line said once)
 
 } // namespace
@@ -53,10 +54,10 @@ bool skipInFolder(const char* filename)
     {
         return true;
     }
-    for(const Shadowed& s : shadowedFiles) // (64 names, sorted; a lookup per file search while Dwell is active)
+    for(const Shadowed& s : shadowedFiles) // (78 names, sorted; a lookup per file search while Dwell is active)
     {
         if(q_strcasecmp(filename, s.name)) { continue; }
-        return s.owner == 0 || Cvar_VariableValue(s.owner == 1 ? "vr_hipnotic_status" : "vr_rogue_status") == 1.f;
+        return s.owner == 0 || Cvar_VariableValue(ownerStatus[s.owner]) == 1.f;
     }
     return false;
 }
