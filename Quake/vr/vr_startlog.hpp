@@ -17,3 +17,17 @@ void glStep(const char* text);                  // VR_GLStep: the step's progres
 void quit();                                    // the quit: the watchdog stops
 
 } // namespace qvr::startlog
+
+// The whole-load panel's stages (vr_shaderload.cpp, flatloadbar), from the same hooks whether or not the trace runs: a
+// load begins (its command's start), a step begins or ends, a stage ends (VR_TimeMark), the load ends (its first frame
+// drawn, or it failed). Main thread only.
+namespace qvr::loadbar
+{
+
+void begin(double start);
+void stepBegin(const char* step);
+void stepEnd();
+void mark(const char* stage);
+void end();
+
+} // namespace qvr::loadbar
