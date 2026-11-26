@@ -1036,3 +1036,41 @@ Tests: `vr_hull_keeptest` vrstart PASS 8/8 on the pool and with `vr_jobs_paralle
 `vr_hull_cache 2` vrstart 8 the same, 0 different; `vr_hull_holes_test` vrbrushholes 29/0; `vr_mhull_walktest 30` e1m2 in
 solid 0, stuck 10-16 (base 10: the deferred trees' timing varies it); lowceil 16/0, crouch speed 4/0, prone 26/6 and crawl
 17/1 (the same fails on the base exe: flat prone's crawl/jump cases and crawl's "stick standing", pre-existing).
+
+## hullcull: culling buried brushes from the hull trees gains nothing on vrstart; the exact version measured and reverted (branch agent/hullcull, 2026-11-26)
+
+His OK: build the collision trees faster by not building what hullspeed's fold throws away. **Result: nothing to cut.**
+vrstart's hull 0 solid leaves are short cells on the surface, not deep solid, so a cull based on buried solid finds
+almost nothing. Nothing ships: the code is in history only (commit 0f56f35f5, reverted by the next commit; the diff is
+also in `scratch/hc_cut_experiment.diff`). treeVersion stays 2, so the shipped cache doesn't change.
+
+**What was measured** (PC, Release no-LTO, cold, `vr_hull_cache 0; vr_hull_defer 0`, other jobs running beside it):
+- vrstart: 20,698 world brushes (24,736 per tree with the clip and hole brushes). Mean height **73 units**. **20,269** of
+  them are open right down to their bottom: some face reaching their lowest point has air or water just past it. **18**
+  are shut on every face (the world's margin counts as shut). e1m1 is the same: 1,181 of 1,208 failed on an open face.
+- Trees (8): 525,833 to 610,633 nodes, 285,635 to 396,911 folded per tree (about 40% of the nodes before the fold),
+  14.6-14.9 s summed. These are the same counts hullspeed reported.
+
+**Tried, in order (both exact, both checked by the new point test):**
+1. The brief's cull. Leave out a brush when every face is covered by another world brush's solid (a 1/16-unit slab past
+   each face, walked down hull 0, every piece inside its leaf's brush), no box fits inside it, and none of its neighbours
+   is left out. Then any box reaching into it also reaches into a kept neighbour. Result: **0 brushes** left out of any tree.
+2. The general form: grow only the parts a box can reach open space from. A grown point outside the solid S has its box
+   crossing S's open surface, so the solid it touches lies within 2B of that surface. Below the lowest open face in reach,
+   minus 2B, a brush can go in ungrown. Each brush was cut there (heights rounded down to 32): the upper part grown, the
+   lower part as it is, a brush with nothing open in reach not grown at all. Result: **9 brushes cut and 1 not grown** per
+   tree. Nodes moved by -0.7% to +0.9%, fold counts by under 1%, and finding the open faces cost 95-114 ms per cold load.
+   Not kept.
+- Not tried: stopping a split early when a node is "solid-enclosed". The folded nodes are overlaps between neighbouring
+  surface cells' grown copies (a band one box wide on each side of their shared faces, mostly in solid). The only exact
+  test I found needs each node's region walked down hull 0. That means carrying the region through the pool's units and
+  merge (`speculate`/`emit`) and keeping the bytes identical to the one-thread build, which is more than this task's
+  budget. The real remaining lever is vrstartgeo's: fewer terrain faces (its ranked items 1 and 2).
+
+**Test (in the reverted commit)**: `vr_hull_culltest [points]` (Debug > Tests "Check Buried Brushes"). For each server
+tree it builds a reference from every brush grown, then compares 100,000 random points (half anywhere in the world's
+bounds, half around a random brush, all inside the world's margin) and 10,000 random moves from them. A move that starts
+in solid compares startsolid only, because Quake's allsolid/fraction for such moves depends on the tree's splits, not on
+the shape. A difference within 0.1 units of the reference's boundary counts as "on a plane". vrstart: PASS, 8 trees,
+0 differences (moves 0-2 on a plane per tree). ad_sepulcher could not be run: neither kit base has it now ("Couldn't spawn
+server maps/ad_sepulcher.bsp" on qbase and qrp). hullspeed's numbers stand for it.
