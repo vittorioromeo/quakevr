@@ -9,3 +9,12 @@ docs/vr-port/ROUND25.md merge=union
 docs/vr-port/ROUND26.md merge=union
 # The installer's reliefs models (Misc/quakevr/pbr_export_onnx.py): binary.
 *.onnx binary
+# Append-only lists where parallel branches each add lines (a number, a row, an allowlist entry): a merge keeps both
+# sides' lines (union) instead of stopping on a conflict. Safe because every line stands alone (no closing bracket, no
+# order, nothing generated) and a line both sides added is caught by the build (test_numbers, the QVR_TUNABLE
+# redefinition, the rows check). NOT here: quakevr/checklist.txt (numbered sections, cl_insert.py places the lines),
+# Misc/quakevr/menu_paths.txt (generated: rebuild it), scripts and sources.
+QC/test_numbers.txt merge=union
+Quake/vr/vr_tunables.inc merge=union
+Quake/vr/vr_tunables_rows.inc merge=union
+Misc/quakevr/std_uses_allowlist.txt merge=union
