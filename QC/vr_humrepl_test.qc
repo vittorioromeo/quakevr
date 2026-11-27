@@ -27,6 +27,7 @@ entity(float v, vector at) VR_HUMT_Spawn =
     else if(v == VR_HUM_V_ELIMINATOR) { ad_monster_eliminator(); }
     else if(v == VR_HUM_V_PYRO)       { ad_monster_pyro(); }
     else if(v == VR_HUM_V_FUMIGATOR)  { ad_monster_fumigator(); }
+    else if(v == VR_HUM_V_DGUARD)     { ad_monster_dguard(); }
     else                              { ad_monster_dcrossbow(); }
     self = os;
     return e;
@@ -104,7 +105,8 @@ void(entity p) VR_HUM_Test =
     cvar_set("vr_agrunt_repl_ad", "1");
     cvar_set("vr_agrunt_repl_variants", "1");
     cvar_set("vr_agknight", "1");
-    cvar_set("vr_agrunt_repl_crossbow", "1"); // (vrmisc: its own switch, off by default; on for the rows below)
+    cvar_set("vr_agrunt_repl_crossbow", "1"); // (its own switch, on by default since adknights; on for the rows below)
+    cvar_set("vr_agrunt_repl_dguard", "1");
     makevectors([0, p.v_angle_y, 0]);
     vector hf = v_forward; // (kept: each spawn makes its own vectors)
     vector hr = v_right;
@@ -121,8 +123,16 @@ void(entity p) VR_HUM_Test =
             VR_HUM_ClassName(v), e.vr_ag_kind, kind, e.vr_ag));
         VR_Test_Check(e.vr_ag_wid == wid && e.vr_ag_prop != world, sprintf("%s: holds %g (want %g)", VR_HUM_ClassName(v), e.vr_ag_wid, wid));
         VR_Test_Check(e.health == VR_HUM_Health(v), sprintf("%s: health %g (want %g)", VR_HUM_ClassName(v), e.health, VR_HUM_Health(v)));
-        VR_Test_Check(e.vr_hum_look == kind * 16 + VR_HUMT_Cat(v), sprintf("%s: look %g (want %g)", VR_HUM_ClassName(v),
-            e.vr_hum_look, kind * 16 + VR_HUMT_Cat(v)));
+        float look = kind < VR_AM_DGUARD ? kind * 16 + VR_HUMT_Cat(v) : 0; // (AD's armed knights: AD's skins)
+        VR_Test_Check(e.vr_hum_look == look, sprintf("%s: look %g (want %g)", VR_HUM_ClassName(v), e.vr_hum_look, look));
+        VR_AM_Row(kind);
+        VR_Test_Check(e.model == vr_am_model, sprintf("%s: model %s (want %s)", VR_HUM_ClassName(v), e.model, vr_am_model));
+        if(v == VR_HUM_V_DGUARD)
+        {
+            // (adknights: its own sword kept, the Death Guard's)
+            VR_Test_Check(VR_ADMelee_Kind(e.vr_ag_wflags) == VR_ADMELEE_DGUARD, sprintf("monster_dguard: its sword's kind %g (want %g)",
+                VR_ADMelee_Kind(e.vr_ag_wflags), VR_ADMELEE_DGUARD));
+        }
         VR_Test_Check(total_monsters == before + 1, sprintf("%s: counted once (%g -> %g)", VR_HUM_ClassName(v), before, total_monsters));
     }
     // A death fires its target and counts (killed in VR_HUMT_ClientThink once it is up).
@@ -137,7 +147,13 @@ void(entity p) VR_HUM_Test =
     cvar_set("vr_agrunt_repl_variants", "1");
     VR_Test_Check(!off.vr_ag && off.classname == "monster_army_plasma", sprintf("off: the plasma soldier AD's (%s, armed %g)",
         off.classname, off.vr_ag));
-    // (vrmisc, his note 2026-11-26) The crossbow knight's own switch off (the default): AD's own.
+    // The death guard's own switch off: AD's own (adknights).
+    cvar_set("vr_agrunt_repl_dguard", "0");
+    entity dg = VR_HUMT_Spawn(VR_HUM_V_DGUARD, at + hf * 160 - hr * 64);
+    cvar_set("vr_agrunt_repl_dguard", "1");
+    VR_Test_Check(!dg.vr_ag && dg.classname == "monster_dguard", sprintf("dguard off: the death guard AD's (%s, armed %g)",
+        dg.classname, dg.vr_ag));
+    // (vrmisc, his note 2026-11-26) The crossbow knight's own switch off: AD's own.
     cvar_set("vr_agrunt_repl_crossbow", "0");
     entity xb = VR_HUMT_Spawn(VR_HUM_V_CROSSBOW, at + hf * 160 + hr * 64);
     cvar_set("vr_agrunt_repl_crossbow", "1");

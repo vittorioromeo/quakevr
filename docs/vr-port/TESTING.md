@@ -73,6 +73,12 @@ the mock-file builders (`hand`, `button`, `grip`, `waits`, `motion`) and the par
 hand-made tally, verdict line, `def verdict(`, spelt-out kit path or shell `check()` copy (today's sites are in its
 allowlist; migrate them when you touch a test, then `--tighten`).
 
+**setpos turns noclip on** (Quake's own `setpos`, host_cmd.c: "noclip ON"). A test that places the player with setpos and
+then walks must turn it off: `setpos ...; noclip 0` (a bare `noclip` toggles). Walking in setpos's noclip flies along the view: pitched down, through
+the floor (flatsink, ROUND26: z 25 -> -24 over 28 frames at pitch 40); level, through walls. qvr_checks `setpos_walk`
+fails the build on a test script line that walks (+forward, +back, +moveleft, +moveright) after a setpos with no
+`noclip 0` (or `noclip`) between; a line that means it says `setpos-noclip-walk`. Lines that hide the setpos in a variable are not seen.
+
 ## Test numbers
 
 The numbered test cvars (`vr_agrunt_test N`, `vr_ad_test N`, `vr_rv_test`, `vr_np_test`, `vr_flare_test`,

@@ -489,8 +489,11 @@ extern "C" void VR_GLStartupBegin(void)
     }
     glsafe.started = true;
     char dir[1024];
-    q_snprintf(dir, sizeof(dir), "%s/crash", com_gamedir);
-    Sys_mkdir(dir);
+    // (its game folder made too: a mod's folder only in the first base dir, "-basedir <Quake> -basedir <Quake VR>
+    // -game <mod>", has com_gamedir in the last one, not there yet: Sys_mkdir alone stopped the start, nogamedir)
+    q_snprintf(dir, sizeof(dir), "%s/crash/", com_gamedir);
+    COM_CreatePath(dir);
+    dir[ZA_STRLEN(dir) - 1] = '\0';
     q_snprintf(glsafe.logPath, sizeof(glsafe.logPath), "%s/gl_startup.log", dir);
     const LastStart last = readLastStart(glsafe.logPath);
 

@@ -1068,8 +1068,14 @@ void qvr::progs::loadNoticeFrame()
     }
     if(notice.empty())
     {
-        // (else the Quest's game data from another version, once: vr_android.cpp)
-        if(const char* data = VR_AndroidDataNotice())
+        // (else Quake VR's game data not found at start, once: vr_gamedir.cpp; or the Quest's game data from another
+        // version, once: vr_android.cpp)
+        if(const char* missing = VR_GameDataMissingNotice())
+        {
+            MSG_WriteByte(&svs.clients[0].message, svc_centerprint);
+            MSG_WriteString(&svs.clients[0].message, missing);
+        }
+        else if(const char* data = VR_AndroidDataNotice())
         {
             MSG_WriteByte(&svs.clients[0].message, svc_centerprint);
             MSG_WriteString(&svs.clients[0].message, data);

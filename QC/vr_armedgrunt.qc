@@ -3416,7 +3416,7 @@ float() VR_AG_Dying =
     VR_EnemyHeld_Scenery(VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70'));
     VR_EnemyHeld_Scenery(VR_AG_DropHeld(self, v_forward * 25 + v_right * 20 + v_right * (crandom() * 15) + '0 0 70')); // (its other, if two)
     VR_AG_DropMain(self, v_forward * 15 + v_right * (crandom() * 25) + '0 0 60'); // (its own, stowed behind a flare gun)
-    if(self.vr_ag_kind == VR_AM_KNIGHT || self.vr_ag_kind == VR_AM_DKNIGHT)
+    if(VR_AM_PoseKind(self.vr_ag_kind) == VR_AM_KNIGHT || self.vr_ag_kind == VR_AM_DKNIGHT)
     {
         VR_AG_SoldierDrop(); // (their deaths drop no loot of their own: what's left of its rounds into the pack it wears)
     }
@@ -3460,6 +3460,35 @@ void() monster_vr_knight =
     VR_AM_Spawn(VR_AM_KNIGHT);
 };
 
+/*QUAKED monster_vr_dguard (1 0 0) (-16 -16 -24) (16 16 40) Ambush
+An armed death guard (Arcane Dimensions' data needed; without it an armed knight): AD's death guard in its own look holding
+a weapon as the armed humanoids hold theirs, a knight to the game. "weapon": its weapon (unset: the Death Guard's Sword; any
+weapon; -1 its fists). "weaponflags": that weapon's flags. "weapon2", "weaponflags2": a second one in its left hand.
+*/
+void() monster_vr_dguard =
+{
+    if(!self.weapon)
+    {
+        self.weapon = WID_SWORD; // (his own: the Death Guard's Sword)
+        self.weaponflags = VR_ADMelee_Flags(VR_ADMELEE_DGUARD);
+    }
+    VR_AM_Spawn(VR_AM_DGUARD);
+};
+
+/*QUAKED monster_vr_dcrossbow (1 0 0) (-16 -16 -24) (16 16 40) Ambush
+An armed crossbow knight (Arcane Dimensions' data needed; without it an armed knight): AD's crossbow knight in its own look
+holding a weapon as the armed humanoids hold theirs, a knight to the game. "weapon": its weapon (unset: the Crossbow
+Knight's Crossbow; any weapon; -1 its fists). "weaponflags", "weapon2", "weaponflags2" as monster_vr_dguard's.
+*/
+void() monster_vr_dcrossbow =
+{
+    if(!self.weapon)
+    {
+        self.weapon = WID_ADCROSSBOW; // (his own)
+    }
+    VR_AM_Spawn(VR_AM_DCROSSBOW);
+};
+
 /*QUAKED monster_vr_hknight (1 0 0) (-16 -16 -24) (16 16 40) Ambush
 An armed death knight: a hell knight holding a weapon as the armed humanoids hold theirs (his own sword's
 place); at range he still casts his fireball volley while he holds a melee weapon or none.
@@ -3482,6 +3511,7 @@ void(float want, float flags, entity inst, float want2, float flags2) VR_AM_ArmA
 void(float kind) VR_AM_Spawn =
 {
     if(VR_SF_SpawnInhibited()) return;
+    kind = VR_AM_Resolve(kind); // (AD's armed knights without AD's data: the knight)
     self.vr_ag_kind = kind;
     if(deathmatch)
     {

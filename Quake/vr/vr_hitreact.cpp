@@ -799,7 +799,7 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
     }
     // (the hands' grip frames its posed arms held its weapons by, so the weapon stays as it was held: without this its
     // weapons were left to the server's placing, riding the limb nearest them as the ragdoll began, off the hand)
-    const int kind = static_cast<int>(a - armedRigs);
+    const int kind = armedPoseKind(a);
     for(int side = 0; side < 2; side++)
     {
         const int num = side == 0 ? s.prop : ((s.flags & apLeftWeapon) ? s.propL : 0);
@@ -916,7 +916,7 @@ void ragWeaponMeasure(const ArmPose& s, const entity_t* e)
     }
     const agbody::Proxies* px = chest >= 0 ? agbody::of(src, *rig, chest, a->torsoSides) : nullptr;
     const agbody::Posed q = px && za::abs(scale - 1.f) < 1e-3f ? agbody::pose(*px, posed, nullptr) : agbody::Posed{};
-    const int kind = static_cast<int>(a - armedRigs);
+    const int kind = armedPoseKind(a);
     for(int side = 0; side < 2; side++)
     {
         const int pn = side == 0 ? s.prop : ((s.flags & apLeftWeapon) ? s.propL : 0);
@@ -1347,7 +1347,7 @@ void relinkAuthored(const ArmPose& s, const entity_t* e, const qmodel_t* src)
     {
         return;
     }
-    const int kind = static_cast<int>(a - armedRigs);
+    const int kind = armedPoseKind(a);
     for(int side = 0; side < 2; side++)
     {
         const int num = side == 0 ? s.prop : ((s.flags & apLeftWeapon) ? s.propL : 0);

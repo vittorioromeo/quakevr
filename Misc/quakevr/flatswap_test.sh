@@ -14,7 +14,7 @@ KIT=C:/OHWorkspace/qvr-kit
 S=C:/OHWorkspace/qvr-agents/$AGENT/scratch/flatswap
 mkdir -p "$S"
 FILTER="^(flatswap_test|flat swap|handslot|Host_Error|ENGINE CRASH)|Assertion"
-BASE="map vrtesthall; god; notarget; developer 1; wait5; setpos 0 300 25 0 90 0; wait5"
+BASE="map vrtesthall; wait5; god; notarget; developer 1; wait5; setpos 0 300 25 0 90 0; wait5"
 V="^flatswap_test: [0-9]+ passed"
 run() { local tag=$1 ask=$2 extra=$3
         bash $KIT/run.sh $AGENT -ExtraArgs -flatscreenmode $extra -Script "$BASE; vr_flatswap_test $ask" \
@@ -37,9 +37,11 @@ grep -a "flatswapvis: done" "$S/holster.log" | cut -c1-120 | sed "s/^/holster: /
 grep -aq "flatswapvis: done, [0-9]* frames, 0 faults" "$S/holster.log" || fails=$((fails + 1))
 # (AD's six melee weapons, vr_flatswap_test 4: 48 checks with AD's data mounted (vr_ad_mounted): on AD's start map (the
 # spot: `map start`, the player's spawn; in vrtesthall it says "AD's data not mounted" and checks nothing). Slow: its 12
-# cases take about 4 minutes at the default fast pace, hence the long timeout.)
+# cases take about 4 minutes at the default fast pace, hence the long timeout. god and notarget after a wait: typed in
+# the same frame as `map` they come before the client is in and do nothing; a zombie on AD's start map then woke and
+# its gibs killed the player about 4 minutes in, the mace's swaps undrawn, as he lay dead.)
 bash $KIT/run.sh $AGENT -Games "-game ad -game quakevr" -ExtraArgs "-flatscreenmode -nomapindex -noaddons" \
-    -Script "map start; god; notarget; developer 1; wait5; vr_flatswap_test 4" -QuitOn "$V" -Timeout 600 -Filter "$FILTER" > "$S/melee_ad.log" 2>&1
+    -Script "map start; wait5; god; notarget; developer 1; wait5; vr_flatswap_test 4" -QuitOn "$V" -Timeout 600 -Filter "$FILTER" > "$S/melee_ad.log" 2>&1
 grep -a "FAIL\|Assertion\|Host_Error" "$S/melee_ad.log" | cut -c1-200
 grep -a "$V" "$S/melee_ad.log" | tail -1 | sed "s/^/melee_ad: /"
 grep -aq "flatswap_test: [0-9]* passed, 0 failed" "$S/melee_ad.log" || fails=$((fails + 1))

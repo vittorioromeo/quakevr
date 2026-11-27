@@ -826,6 +826,9 @@ QVR_TOGGLE(vr_agarmor_helmet_head, "Helmets Stop Headshots",
     "absorbs, as any plate.")
 QVR_TOGGLE(vr_agarmor_block_cuts, "Plates Stop Cuts",
     "No limb is cut or popped off under an unbroken plate: break it first.")
+QVR_TOGGLE(vr_agarmor_beasts, "Armoured Beasts",
+    "On: rottweilers, ogres, scrags and fiends may spawn armoured too, by the same chances per skill as the armed "
+    "humanoids: barding, helmets, pauldrons and more, each piece breaking off on its own.")
 QVR_SLIDER(vr_agarmor_impulse, "Push Through Plates", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A shot or blow a plate takes still pushes the body (a living one's flinch, a ragdoll's limb) this "
     "much of what the same hit on a bare limb would: 0 not at all, 1 fully.")
@@ -948,8 +951,11 @@ QVR_TOGGLE(vr_agrunt_repl_variants, "AD and Quoth Variants",
     "soldiers as grunts, defenders, eliminators, pyros and fumigators as enforcers, crossbow knights as knights, with "
     "their health (where replacements play in AD's maps; vr_agrunt_repl_variants).")
 QVR_TOGGLE(vr_agrunt_repl_crossbow, "AD Crossbow Knights",
-    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed knights holding the crossbow too. Off "
-    "(the default for now): they stay as AD made them (vr_agrunt_repl_crossbow).")
+    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed humanoids in their own look holding "
+    "the crossbow: they can be disarmed and take up any weapon. Off: they stay as AD made them (vr_agrunt_repl_crossbow).")
+QVR_TOGGLE(vr_agrunt_repl_dguard, "AD Death Guards",
+    "With AD and Quoth Variants on, Arcane Dimensions' death guards are armed humanoids in their own look holding their "
+    "sword: they can be disarmed and take up any weapon. Off: they stay as AD made them (vr_agrunt_repl_dguard).")
 QVR_TOGGLE(vr_humlook, "Recolour by Weapon",
     "Armed humanoids wear the colour of the weapon they came with: rockets and grenades red, lightning and plasma blue, "
     "flamethrowers orange, poison green; their backpacks too (quakevr/humlook.txt; vr_humlook).")
@@ -4828,6 +4834,10 @@ QVR_CYCLE(vr_xr_foveation, "Quest Foveation",
     "resolution (fixed foveated rendering): faster, near-invisible through the lenses. Higher levels blur more of "
     "the edges.",
     {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"})
+QVR_TOGGLE(vr_xr_spacewarp, "SpaceWarp",
+    "Quest standalone: the game draws every other frame and the headset makes up the ones between from the motion "
+    "of what it drew (Application SpaceWarp): twice the time for each frame, smoother in big fights. Moving things "
+    "can wobble at their edges. Off by default while it is new; the menus and the console show at the full rate.")
 QVR_TOGGLE(vr_xr_foveation_dynamic, "Quest Foveation: Dynamic",
     "On: the headset uses less foveation than Quest Foveation's level while the graphics have room to spare, and "
     "up to that level when they are busy.")

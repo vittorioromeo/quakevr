@@ -806,12 +806,13 @@ prop 71
 {
     // The bayonet on its own (QC vr_bayonet.qc; Misc/quakevr/make_bayonet.py, whose numbers these are; a first fit):
     // a small knife, steel, 0.45 kg, its weight towards the socket (Centre of Mass x -1.2 off its box's middle, x 2.8);
-    // held along its handle (Along the Handle) from the socket's open back (x -0.9) to the guard (1.06: the leather-wrapped
+    // held In the Palm (bayonet2, his VR note 2026-11-27: Along the Handle gave a weird hand pose; Handle From/To kept for
+    // a switch back: the socket's open back x -0.9 to the guard 1.06, the leather-wrapped
     // shank), in one hand; its blade's tip (6.5 0 -0.82) the melee's striking end, the socket's back the butt.
     id "progs/bayonet.mdl"
     mass "0.45"
     com_x "-1.2"
-    grip "3"
+    grip "2"
     handle_from "-0.9"
     handle_to "1.06"
     two_hands "0"

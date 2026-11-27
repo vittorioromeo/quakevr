@@ -107,6 +107,11 @@ struct QuestExtensions
     bool perfSettings{false};
     bool foveation{false};      // (the three extensions together)
     uint8_t foveationParts{0}; // the three's bits, as offered (want)
+    // Application SpaceWarp (XR_FB_space_warp, vr_xr_spacewarp): enabled when offered; usable once the system's
+    // properties give its motion vector images' size (spaceWarpProperties).
+    bool spaceWarp{false};
+    int spaceWarpWidth{0};
+    int spaceWarpHeight{0};
     PFN_xrEnumerateDisplayRefreshRatesFB enumerateRefreshRates{nullptr};
     PFN_xrRequestDisplayRefreshRateFB requestRefreshRate{nullptr};
     PFN_xrPerfSettingsSetPerformanceLevelEXT setPerformanceLevel{nullptr};
@@ -136,6 +141,9 @@ struct QuestExtensions
     void want(const char* offered, za::Vector<const char*>& enabled);
     // The functions, after xrCreateInstance (an extension without them is dropped).
     void bind(XrInstance instance);
+    // The system's SpaceWarp properties (the motion vector images' recommended size; none: SpaceWarp dropped), and the
+    // console's line saying whether the runtime supports it.
+    void spaceWarpProperties(XrInstance instance, XrSystemId system);
     // The cvars' values, when they or the eye swapchains changed (a running session; every frame, cheap).
     void apply(XrSession session, const XrSwapchain (&eyes)[2]);
     // Chained into an eye swapchain's create info (XR_FB_foveation: its images foveation-capable, only while
@@ -317,6 +325,20 @@ public:
 
     void releaseEyeImage(int eye) override;
 
+    // Application SpaceWarp (vr_backend_openxr_frame.cpp): the motion vector and depth swapchains made at the first use
+    [[nodiscard]] bool spaceWarpOffered(int& width, int& height) const override
+    {
+        width = quest.spaceWarpWidth;
+        height = quest.spaceWarpHeight;
+        return quest.spaceWarp && !spaceWarpFailed;
+    }
+    [[nodiscard]] SpaceWarpImages acquireSpaceWarpImages(int eye) override;
+    void releaseSpaceWarpImages(int eye) override;
+    void setSpaceWarpFrame(const SpaceWarpFrame& frame) override
+    {
+        spaceWarpFrame = frame;
+    }
+
     void endFrame(bool rendered) override;
 
     [[nodiscard]] unsigned acquirePanelImage(int width, int height) override;
@@ -367,6 +389,15 @@ private:
     XrExtent2Di eyeRects[2]{}; // setEyeImageRect: the part of each eye's image shown this frame (0 x 0: all of it)
     XrOffset2Di eyeRectOrigins[2]{}; // ... and its lower left corner (GL's origin, as the OpenGL (ES) bindings take it)
     Swapchain panel;
+    // SpaceWarp's (XR_FB_space_warp): each eye's motion vectors (RGBA16F) and depth, at the runtime's recommended size;
+    // made at their first use, gone with the session. Failed: never again this session (the eyes keep their full rate).
+    Swapchain spaceWarpMotion[2];
+    Swapchain spaceWarpDepth[2];
+    bool spaceWarpFailed{false};
+    bool spaceWarpAcquired[2]{false, false};
+    bool spaceWarpReleased[2]{false, false}; // this frame's, both: the frame carries them
+    SpaceWarpFrame spaceWarpFrame;
+    [[nodiscard]] bool ensureSpaceWarpSwapchains();
     int32_t panelFailedWidth{0}; // the size its swapchain failed at in this session, or is being made at (ensurePanelSwapchain)
     int32_t panelFailedHeight{0};
     // Swapchains replaced mid-session (the panel at a new size, the eyes' new images) are destroyed only after
@@ -502,6 +533,7 @@ private:
         int held{0};              // with the last ones again (vr_xr_unfocused)
         int empty{0};             // without a layer
         int panels{0};            // with the runtime's panel (a quad layer)
+        int spaceWarped{0};       // with SpaceWarp's motion vectors and depth (XR_FB_space_warp)
         int endedLate{0};         // finished by the next beginFrame (the screen not drawn: a load)
         int noRender{0};          // shouldRender false
         int missed{0};            // display periods skipped (predictedDisplayTime moved on by more than one)
@@ -601,7 +633,9 @@ private:
 
     // A swapchain of width x height images in colorFormat, validated against what the runtime offered (the format,
     // the size, the sample count), each request logged before the call; the images checked (a count, none zero).
-    bool createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what);
+    // (format: 0 colorFormat; SpaceWarp's give theirs)
+    bool createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what,
+        int64_t format = 0);
 
     [[nodiscard]] static const char* glFormatName(int64_t format);
 
