@@ -10,6 +10,7 @@
 //   offset   "x y z"   units along the model's forward, left and up (its rest pose)
 //   rotate   "p y r"   degrees about the model's left, up and forward axes, round the piece's middle
 //   scale    "s"       its size round its middle (1 as made)
+//   scale_x / scale_y / scale_z "s"  its size along the model's forward, left and up alone, times scale (1 as made)
 //   standoff "u"       units further off the skin (below 0 closer)
 //   start    "u"       units its first row of plates starts further along it (towards the waist, hand or foot)
 //   end      "u"       units its last row ends further along it

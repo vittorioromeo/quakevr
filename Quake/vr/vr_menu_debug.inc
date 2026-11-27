@@ -1617,6 +1617,17 @@ za::Vector<Item> pageArmourStudio()
             .help("vr_armourstudio_turn: the subject turned from facing you (180: its back)."),
         slider("Body Ghost", vr_armourstudio_ghost, 0.f, 1.f, 0.05f, "%.2f")
             .help("vr_armourstudio_ghost: how opaque the subject's body is drawn (1 as it is), the plates whole."),
+        slider("Subject Away", vr_armourstudio_subject_x, -48.f, 48.f, 2.f, "%.0f")
+            .help("vr_armourstudio_subject_x: the subject moved this far further from you than where it was put (units; not saved "
+                  "in armour.txt)."),
+        slider("Subject Left", vr_armourstudio_subject_y, -48.f, 48.f, 2.f, "%.0f")
+            .help("vr_armourstudio_subject_y: ... to your left."),
+        slider("Subject Up", vr_armourstudio_subject_z, -32.f, 48.f, 2.f, "%.0f")
+            .help("vr_armourstudio_subject_z: ... up (a beast's back or a helmet's top at your eyes)."),
+        slider("Subject Pitch", vr_armourstudio_subject_pitch, -90.f, 90.f, 5.f, "%.0f deg")
+            .help("vr_armourstudio_subject_pitch: the subject tipped (its top or underside in view)."),
+        slider("Subject Roll", vr_armourstudio_subject_roll, -90.f, 90.f, 5.f, "%.0f deg")
+            .help("vr_armourstudio_subject_roll: the subject rolled onto its side."),
         toggle("Wear the Part Alone", vr_armourstudio_alone)
             .help("vr_armourstudio_alone: the subject wears only the part picked (both sides), the rest of its armour off."),
         toggle("Close With the Menu or Window", vr_armourstudio_autoclose)
@@ -1643,6 +1654,13 @@ za::Vector<Item> pageArmourStudio()
         slider("Yaw", vr_armourstudio_yaw, -45.f, 45.f, 1.f, "%.0f deg").help("vr_armourstudio_yaw: ... about its up axis."),
         slider("Roll", vr_armourstudio_roll, -45.f, 45.f, 1.f, "%.0f deg").help("vr_armourstudio_roll: ... about its forward axis."),
         slider("Scale", vr_armourstudio_scale, 0.5f, 1.5f, 0.02f, "%.2fx").help("vr_armourstudio_scale: its size round its middle."),
+        slider("Size Forward", vr_armourstudio_scale_x, 0.5f, 1.5f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_scale_x: its size along the body's forward alone (times the scale; scale_x in armour.txt). "
+                  "A piece's, not a sleeve's."),
+        slider("Size Left", vr_armourstudio_scale_y, 0.5f, 1.5f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_scale_y: ... along its left (its width across the body; scale_y)."),
+        slider("Size Up", vr_armourstudio_scale_z, 0.5f, 1.5f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_scale_z: ... along its up (scale_z)."),
         slider("Stand-off", vr_armourstudio_standoff, -1.f, 2.f, 0.05f, "%.2f")
             .help("vr_armourstudio_standoff: units further off the skin (below 0 closer): a plate piece's rows' radii, a sleeve or "
                   "the helmet pushed out from its middle."),

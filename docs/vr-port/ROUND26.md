@@ -3431,3 +3431,36 @@ rigs' differences; he meant the Pose Studio keys.
   5 of 5 placed.
 - **Open**: the remaining keys past 1 unit (the shared Pickup: the death guard short 2.2, the crossbow knight not; a few
   shoves); his look in VR; the side-by-side render sheet (each key, AD knights beside the knight) was not made (budget).
+
+## studioui: Armour Studio fixes: wear-alone, scale back to as made, X/Y/Z scale, subject place and tilt, ImGui IDs (branch agent/studioui, 2026-11-27)
+
+His notes 2026-11-27 (items 2, 4, 5, 6, 8, 11 of the beastfit batch).
+- **Wear the Part Alone** (item 2): a beast's cuirass bit was grown to its whole cuirass group by QC `VR_AgArmor_Give` (the
+  scrag's cuirass alone also wore plates 8 and 9). `agarmor::exactPieces` (1024, QC `VR_AR_EXACT`) on give's pieces: those
+  pieces exactly (`vr_ar_give_exact` while `VR_AgArmor_SetCmd` gives); the studio passes it with alone on. Every kind: the
+  humanoids and AD were already exact; a beast's multi-part slot follows its owner's bit.
+- **Scale back to 1** (item 4): a beast piece with scale (or standoff, a taper) set was drawn as `<piece>.mdl#tweak` for good,
+  even with the value back to 1 (the field's bit stays set). Now shaped only while a value differs from as made
+  (`armourdata::scaleAxes`, standoff 0, tapers 1): back at 1 its own .mdl is drawn again, exactly. The #tweak itself was checked
+  against the .mdl in a close-up (scale 1.001): the same 128x64 skin, the same texture coordinates, only the outline moved
+  (pixel diff); the "blocky" look was not reproduced in the mock (both are the pieces' half-size atlas, nearest-filtered).
+  A shape tweak of his own keeps a piece made (the rottweiler's shoulders' and thighs' taper_end 0.5).
+- **Per-axis size** (item 8): new fields `scale_x`, `scale_y`, `scale_z` (armour.txt, additive): the piece's size along the
+  model's forward, left and up (rest pose) round its middle, times `scale` (unset 1; 0.2..3). Humanoids (`tweakVerts`) and beasts
+  (`shaped`) through `armourdata::scaleAxes`; not on sleeves or junctions. Studio rows Size Fwd / Left / Up (window, menu page),
+  cvars `vr_armourstudio_scale_x/_y/_z`.
+- **Subject place and tilt** (item 5): `vr_armourstudio_subject_x/_y/_z` (units away from you, to your left, up from where it
+  was put) and `_pitch` / `_roll` (yaw is Turn); the window's Subject > Place and Tilt (Put Back), the menu page's Subject rows.
+  Never in armour.txt (keepSubject moves it each frame from its spawn place).
+- **ImGui IDs** (item 6): the Animation header and its Animation combo had one ID; each section now has its own ID scope.
+  New `vr_imgui_idcheck 1` (vr_imgui.cpp; ImGui's item hooks, IMGUI_ENABLE_TEST_ENGINE in imconfig.h with no test engine
+  linked): every item of every ImGui frame checked for a repeated ID (ImGui's own warning needs the mouse on it), each named
+  once on the console; `imgui::idCheck/idConflicts/idConflictsSeen` for tests. Not run automatically: the window is
+  flat-only and the kit's runs use the mock headset (it refuses there).
+- **Tests**: `vr_beaststudio_test` 23/0 (new: the cuirass worn alone draws 1 piece of its group 257; scale_x 1.2 on the
+  shoulders at scale 1.25: 1.500 / 1.250 / 1.250; scale and scale_x back to 1: size 1.000, as made unless another shape tweak).
+- **Open**: item 11 (the 3D gizmo) not done (budget); the Rig Studio's handle (vr_rigstudio_view.cpp Handle, placeHandle,
+  hitHandle, drawHandle) is the one to share: lift it into a small shared module with a projection struct (the Weapon Studio's
+  ViewBasis/projectPoint does the same projection) and drive the armour part's offset/rotate/scale cvars from its drags. The
+  Pose, Rig and Hum studios not swept with vr_imgui_idcheck (flat screen needed); item 4's blockiness, if it remains after
+  this, wants his screenshot of the piece and its kind.
