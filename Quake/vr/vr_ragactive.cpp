@@ -1793,9 +1793,10 @@ void holdOn(State& s, const Parts& p, const Context& c, int arm, const glm::vec3
     if(vr_debug_ragdoll.value)
     {
         Con_Printf("ragenv: %d %s hand holds on (%s) at %.0f %.0f %.0f, at most %.0f N (%.2f body weights) for %.2f s, the hand %.0f "
-                   "units off it\n",
+                   "units off it, falling at %.1f m/s\n",
             c.num, armName(arm), gripName(h.mode), at.x * p.m2u, at.y * p.m2u, at.z * p.m2u, cap,
-            cap / za::max(s.totalMass * c.gravity, 1.f), h.holdUntil - c.now, h.gap * p.m2u);
+            cap / za::max(s.totalMass * c.gravity, 1.f), h.holdUntil - c.now, h.gap * p.m2u,
+            -b3Body_GetLinearVelocity(p.body[0]).z);
     }
 }
 
@@ -2856,9 +2857,12 @@ void envTrace(const State& s, const Parts& p, const Context& c, float t)
     }
     const EnvHand& l = e.hand[0];
     const EnvHand& r = e.hand[1];
-    Con_Printf("ragenv %d %.3f p %.0f %.0f %.1f m %d%d h %d%d g %.1f %.1f ld %.0f %.0f sl %.1f %.1f c %.2f\n", c.num, t,
-        pelvis.x, pelvis.y, pelvis.z, static_cast<int>(l.mode), static_cast<int>(r.mode), B3_IS_NON_NULL(l.joint) ? 1 : 0,
-        B3_IS_NON_NULL(r.joint) ? 1 : 0, gap[0], gap[1], l.load, r.load, l.slid * u, r.slid * u, e.curl);
+    // (vz: the pelvis's speed up, m/s; cap: each hold's, N; the grab's load against it: ld.)
+    const float vz = b3Body_GetLinearVelocity(p.body[0]).z;
+    Con_Printf("ragenv %d %.3f p %.0f %.0f %.1f m %d%d h %d%d g %.1f %.1f ld %.0f %.0f sl %.1f %.1f c %.2f vz %.2f cap %.0f %.0f\n",
+        c.num, t, pelvis.x, pelvis.y, pelvis.z, static_cast<int>(l.mode), static_cast<int>(r.mode),
+        B3_IS_NON_NULL(l.joint) ? 1 : 0, B3_IS_NON_NULL(r.joint) ? 1 : 0, gap[0], gap[1], l.load, r.load, l.slid * u,
+        r.slid * u, e.curl, vz, l.cap, r.cap);
 }
 
 // vr_ragdoll_active_debug: the probes (cyan, orange where they met something), each hand's goal and hold (magenta), the

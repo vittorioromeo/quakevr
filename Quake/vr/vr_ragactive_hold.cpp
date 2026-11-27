@@ -198,6 +198,49 @@ void climbChest(const State& s, const Parts& p, const Context& c, int b, const g
     pushPart(p, b, f);
 }
 
+// Its catch, hanging (`holding` hands on the lip): from its first hold its muscles take its fall (its support, a force
+// up on every part), stopping it over catchTime (at most catchMost body weights, catchLong at most), then easing off.
+// Its holds alone took it late: grabbing at 3.4-3.8 m/s, its arms straightened as it fell on (its holds' load 0.1-0.4 of
+// their cap, its pelvis 36 units down at 5.5 m/s in 0.2 s), then a hand's hold took the rest at once, past its cap (1.1
+// of it), its hand yanked 10-13 units off (a forearm's joint can't hold a body's jerk) and pulled away; the other hand
+// alone at the cap, the knight lost its hold (climb_test pull seeds 7-10: 2/4 under Box3D's mesh ghost handling, ROUND25
+// box3dup2; ROUND26 "ledgegrab").
+constexpr float catchTime = 0.2f; // s: its fall stopped over this (its speed now)
+constexpr float catchMost = 2.5f; // body weights (with its weight: 1.5 g stopping it)
+constexpr float catchSlow = 0.5f; // m/s: falling slower, caught
+constexpr float catchLong = 0.4f; // s: at most from its first hold
+constexpr float catchOff = 0.15f; // s: then its support eased off
+
+void catchFrame(State& s, const Parts& p, const Context& c, int holding)
+{
+    Climb& k = s.climb;
+    if(k.caught || holding == 0)
+    {
+        return;
+    }
+    const float t = static_cast<float>(c.now - s.begun);
+    if(k.caughtAt < 0.0)
+    {
+        k.caughtAt = c.now;
+        k.catchFall = -b3Body_GetLinearVelocity(p.body[0]).z;
+    }
+    const float fall = -b3Body_GetLinearVelocity(p.body[0]).z;
+    if(fall < catchSlow || c.now - k.caughtAt > catchLong)
+    {
+        k.caught = true;
+        s.support = Fade{fadeAt(s.support, t), 0.f, t, t + catchOff};
+        if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+        {
+            Con_Printf("climb: %d caught its fall (%.1f m/s at its grab) in %.2f s, its muscles taking %.2f body weights at most\n",
+                c.num, k.catchFall, c.now - k.caughtAt, k.catchMost);
+        }
+        return;
+    }
+    const float share = za::min(1.f + fall / (catchTime * za::max(c.gravity, 1.f)), catchMost) / za::max(s.base, 0.1f);
+    k.catchMost = za::max(k.catchMost, share * s.base);
+    s.support = Fade{share, share, t, t};
+}
+
 // Its climb over (`up`: pulled up, else dropped): its holds let go, its pin dropped, its strength easing off (up: it lies
 // on the top, a knockdown), or a fall from here (its arms bracing).
 void endClimb(State& s, const Parts& p, const Context& c, bool up, const char* why)
@@ -454,6 +497,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     {
         case ClimbPhase::Hang:
         {
+            catchFrame(s, p, c, holding);
             hangStruggle(s, p, c, L, 1.f); // (its legs kicking, its body swaying: alive and holding on)
             if(holding > 0 && k.pullFrom <= 0.0)
             {

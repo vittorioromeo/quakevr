@@ -12,6 +12,8 @@
 # N=n: n trials each (sv_random_seed SEED0, SEED0 + 1, ...). DIST: how far ahead it stands (140: its origin 2 units in from the lip;
 # at 132 the knight and the zombie caught the lip with their pelvis still on the top and stood up there, 2026-10-20).
 # KICK: vr_ragdoll_active_hang_kick (2, the default; 0: hanging still, the struggle off, for a before/after).
+# XFILTER: more lines kept (e.g. "^ragenv " with EXTRA="vr_ragdoll_active_trace 1"); CLIMB_LOG=file: each run's lines
+# appended there too (ledge_load.py reads them: the grabs' load against their cap).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
@@ -22,9 +24,10 @@ MONS=${MONS:-0 5 1 8 6 2}
 N=${N:-1}
 SEED0=${SEED0:-7}
 name() { case $1 in 0) echo grunt;; 1) echo ogre;; 2) echo zombie;; 5) echo knight;; 6) echo hknight;; 8) echo enforcer;; *) echo m$1;; esac; }
-FILTER="climb:|ragenv: [0-9]+ (left|right) hand (holds|lets)|monster_[a-z_]*: state|rror|CRASH|exit="
+FILTER="climb:|ragenv: [0-9]+ (left|right) hand (holds|lets)|monster_[a-z_]*: state|rror|CRASH|exit=${XFILTER:+|$XFILTER}"
 one() { # one <monster> <pullup> <then> <seed>
-    tb_run_sh -Script "sv_random_seed $4;map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_debug 1;vr_ragdoll_active_hang_kick ${KICK:-2};vr_knockdown_push ${PUSH:-0.15};vr_ragdoll_active_pullup $2;${EXTRA:-};setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${DIST:-140};vr_test_spawn $1;impulse 241;wait40;vr_knockdown_test 0;$3;wait900;vr_knockdown_test 5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
+    [ -n "${CLIMB_LOG:-}" ] && echo "== run $(name $1) seed $4" >> "$CLIMB_LOG"
+    tb_run_sh -Script "sv_random_seed $4;map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_debug 1;vr_ragdoll_active_hang_kick ${KICK:-2};vr_knockdown_push ${PUSH:-0.15};vr_ragdoll_active_pullup $2;${EXTRA:-};setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${DIST:-140};vr_test_spawn $1;impulse 241;wait40;vr_knockdown_test 0;$3;wait900;vr_knockdown_test 5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r' | tee -a "${CLIMB_LOG:-/dev/null}"
 }
 for c in $CASES; do
     pass=0
