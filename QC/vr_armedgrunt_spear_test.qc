@@ -53,14 +53,24 @@ float(entity g, entity w) VR_AGSP_KeyCase =
         }
         if(s.vr_ag_prop && s.vr_agp_rdy >= 0.99 && g.vr_agp_rdy >= 0.99 && !g.vr_ag_act && !s.vr_ag_act)
         {
-            vr_agsp_at = VR_AGSP_Local(g, w);
-            vr_agsp_swat = VR_AGSP_Local(s, s.vr_ag_prop);
-            // (the pole class's Ready key: its right target 6 units up, nothing else)
-            cvar_set("vr_agrunt_poses", sprintf("%g 0 0 6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+            // (the pole class's Ready key now ships: a first key of 1 unit up is the base, as the shipped key is no longer
+            // the zero it was; the second, 6 up, then moves the spear 5 units)
+            cvar_set("vr_agrunt_poses", sprintf("%g 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
                 g.vr_ag_kind * VR_AGK_KIND + VR_AGK_POLE * VR_AGK_CLASS + VR_AGK_AIM * VR_AGK_POSE));
             vr_agsp_n = 0;
-            vr_agt_step = 2;
+            vr_agt_step = 1.5;
         }
+        return FALSE;
+    }
+    if(vr_agt_step == 1.5 && vr_agsp_n >= 4)
+    {
+        vr_agsp_at = VR_AGSP_Local(g, w);
+        vr_agsp_swat = VR_AGSP_Local(s, s.vr_ag_prop);
+        // (the pole class's Ready key: its right target 6 units up, nothing else)
+        cvar_set("vr_agrunt_poses", sprintf("%g 0 0 6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+            g.vr_ag_kind * VR_AGK_KIND + VR_AGK_POLE * VR_AGK_CLASS + VR_AGK_AIM * VR_AGK_POSE));
+        vr_agsp_n = 0;
+        vr_agt_step = 2;
         return FALSE;
     }
     if(vr_agt_step == 2 && vr_agsp_n >= 4)
@@ -68,8 +78,8 @@ float(entity g, entity w) VR_AGSP_KeyCase =
         // (four server frames: the key read and laid on, the props placed)
         vector d = VR_AGSP_Local(g, w) - vr_agsp_at;
         vector ds = VR_AGSP_Local(s, s.vr_ag_prop) - vr_agsp_swat;
-        VR_AGT_Check(sprintf("agspear: the pole class's Ready key moves the spear grunt's spear (moved %v, want '0 0 6')", d),
-            vlen(d - '0 0 6') < 1);
+        VR_AGT_Check(sprintf("agspear: the pole class's Ready key moves the spear grunt's spear (moved %v, want '0 0 5')", d),
+            vlen(d - '0 0 5') < 1);
         VR_AGT_Check(sprintf("agspear: ... and not the sword grunt's sword (class %g; moved %.2f)", VR_AGK_Class(s, s.vr_ag_prop),
             vlen(ds)), vlen(ds) < 0.25 && VR_AGK_Class(s, s.vr_ag_prop) != VR_AGK_POLE);
         VR_AGT_Check(sprintf("agspear: the spear grunt's class is the pole weapon's (%g)", VR_AGK_Class(g, w)),
