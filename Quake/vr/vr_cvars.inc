@@ -3549,6 +3549,22 @@ QVR_CVAR(vr_armourstudio_subject_roll, "0", CVAR_NONE)  // debug: ... rolled thi
 QVR_CVAR(vr_armourstudio_gizmo, "1", CVAR_ARCHIVE)      // debug: the ImGui window's handle on the part: 0 none, 1 move, 2 rotate, 3 scale (keys Q W E R)
 QVR_CVAR(vr_armourstudio_gizmo_size, "80", CVAR_ARCHIVE) // debug: pixels: that handle's size
 QVR_CVAR(vr_armourstudio_sag, "0", CVAR_NONE)          // debug: a beast's leather junction's middle dropped (units; 0 as made: not written)
+QVR_CVAR(vr_armourstudio_start_offset_x, "0", CVAR_NONE) // debug: a sleeve's end on its own piece moved along the model's forward (units; start_offset)
+QVR_CVAR(vr_armourstudio_start_offset_y, "0", CVAR_NONE) // debug: ... along its left
+QVR_CVAR(vr_armourstudio_start_offset_z, "0", CVAR_NONE) // debug: ... along its up
+QVR_CVAR(vr_armourstudio_end_offset_x, "0", CVAR_NONE)   // debug: a sleeve's end on the piece it joins moved along the model's forward (units; end_offset)
+QVR_CVAR(vr_armourstudio_end_offset_y, "0", CVAR_NONE)   // debug: ... along its left
+QVR_CVAR(vr_armourstudio_end_offset_z, "0", CVAR_NONE)   // debug: ... along its up
+QVR_CVAR(vr_armourstudio_start_radius, "1", CVAR_NONE)   // debug: a sleeve's end ring on its own piece: its size (1 as made; start_radius)
+QVR_CVAR(vr_armourstudio_end_radius, "1", CVAR_NONE)     // debug: ... on the piece it joins (end_radius)
+QVR_CVAR(vr_armourstudio_start_edge, "0", CVAR_NONE)     // debug: a beast's sleeve's end on its own piece's far edge (1; 0 the edge facing the other: start_edge)
+QVR_CVAR(vr_armourstudio_end_edge, "0", CVAR_NONE)       // debug: ... on the joined piece's far edge (end_edge)
+QVR_CVAR(vr_armourstudio_twist, "0", CVAR_NONE)          // debug: degrees: a sleeve's joined end ring turned round the line between its ends (twist)
+QVR_CVAR(vr_armourstudio_bulge_x, "0", CVAR_NONE)        // debug: a sleeve's middle pushed along the model's forward (units; bulge)
+QVR_CVAR(vr_armourstudio_bulge_y, "0", CVAR_NONE)        // debug: ... along its left
+QVR_CVAR(vr_armourstudio_bulge_z, "0", CVAR_NONE)        // debug: ... along its up
+QVR_CVAR(vr_armourstudio_segments, "0", CVAR_NONE)       // debug: a sleeve's rings less one (1-8; 0 as made: segments)
+QVR_CVAR(vr_armourstudio_fill, "0", CVAR_NONE)           // debug: a beast's sleeve closed all round (1; 0 as made: fill)
 QVR_CVAR(vr_armourstudio_anim, "0", CVAR_NONE)        // debug: 1 its subject plays one of its model's animations (below), 0 it stands still
 QVR_CVAR(vr_armourstudio_anim_group, "0", CVAR_NONE)  // debug: the animation: its model's frames grouped by name (stand, run, pain...), by index
 QVR_CVAR(vr_armourstudio_anim_play, "1", CVAR_NONE)   // debug: 1 playing, 0 paused (vr_armourstudio_anim_frame picks the frame)

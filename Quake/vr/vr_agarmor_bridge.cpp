@@ -342,10 +342,19 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
     // parallel, the rings evenly spaced, the rows' shapes lerped, each column then runs forward wherever its rows do not
     // cross; turned, the S's tilt drew the grunt's and the knees' columns back, 2026-11-10)
     const float ringTurn = bridgeTangentTurn * smooth01(theta / bridgeTurnBend);
+    // (armour.txt's bulge: the middle rings pushed, as the beasts' sag, the way the rest pose's axes are turned by each end's
+    // bone, blended along; nothing at the ends)
+    const bool bulged = br.bulge != glm::vec3{0.f};
+    const glm::vec3 bulge0 = bulged ? turnOf(bones, ends[0]->bone) * br.bulge : glm::vec3{0.f};
+    const glm::vec3 bulge1 = bulged ? turnOf(bones, ends[1]->bone) * br.bulge : glm::vec3{0.f};
     for(int i = 0; i < rg.n; i++)
     {
         const float t = tOf[i];
         rg.centre[i] = curveAt(curveT[i]);
+        if(bulged)
+        {
+            rg.centre[i] += (bulge0 + (bulge1 - bulge0) * t) * (4.f * t * (1.f - t));
+        }
         const glm::vec3 d = speedOf(curveT[i], m0, m1);
         const glm::quat q = frameOf[i];
         const glm::vec3 zq = q * glm::vec3{0.f, 0.f, 1.f};

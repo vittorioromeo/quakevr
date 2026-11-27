@@ -31,8 +31,11 @@ struct Entry
 };
 
 constexpr int undoMost = 64;
-constexpr uint32_t offsetBits = (1u << OffsetX) | (1u << OffsetY) | (1u << OffsetZ);
-constexpr uint32_t turnBits = (1u << Pitch) | (1u << Yaw) | (1u << Roll);
+// (a triple key's three bits: offset, rotate, start_offset, end_offset, bulge)
+[[nodiscard]] constexpr uint64_t tripleBits(int first)
+{
+    return fieldBit(first) | fieldBit(first + 1) | fieldBit(first + 2);
+}
 
 za::Vector<Entry> table;
 za::Vector<za::Vector<Entry>> undoSteps;
@@ -72,7 +75,16 @@ constexpr const char* fileHead =
     "// plate and faulds...): offset, rotate, scale, standoff (pushed out from its middle), taper_start / taper_end (along its\n"
     "// bone). Each piece's <part>_sleeve is its leather junction to the piece it joins: leather \"0\" off, taper_start /\n"
     "// taper_end its width at this piece's end and the other's, standoff its thickness, folds, fold_depth, and\n"
-    "//   sag      \"u\"       the junction's middle dropped this far (below 0 raised)\n";
+    "//   sag      \"u\"       the junction's middle dropped this far (below 0 raised)\n"
+    "// Any sleeve (a humanoid's too), its ends: \"start\" the end on the sleeve's own piece, \"end\" the one on the piece it\n"
+    "// joins (a humanoid's joint: each end its own piece's sleeve's start_ value, else the other sleeve's end_ value):\n"
+    "//   start_offset / end_offset \"x y z\"  that end's ring moved (units along the model's forward, left and up; it rides its piece)\n"
+    "//   start_radius / end_radius \"s\"      that end's ring's size round its middle (1 as made)\n"
+    "//   start_edge / end_edge \"1\"          a beast's: that end on its piece's far edge (0 or unset: the edge facing the other)\n"
+    "//   twist    \"deg\"     the joined piece's end ring turned round the line between the ends (the leather's columns spiral)\n"
+    "//   bulge    \"x y z\"   the junction's middle pushed this far this way (the model's axes; nothing at its ends)\n"
+    "//   segments \"n\"       its rings less one, 1-8 (0 or unset: as made, from its folds)\n"
+    "//   fill     \"1\"       a beast's junction closed all round (its open columns laid round from their neighbours' reach)\n";
 
 [[nodiscard]] Entry* find(const char* name)
 {
@@ -166,23 +178,32 @@ void bump()
                 }
                 q_snprintf(line, sizeof(line), "    %s%s\n    {\n", partNames[part], side == SideLeft ? "_l" : side == SideRight ? "_r" : "");
                 out += line;
-                if(o.has & offsetBits)
+                // (offset and rotate first, as ever; the sleeves' triples after the single values)
+                for(int t = 0; t < 2; t++)
                 {
-                    q_snprintf(line, sizeof(line), "        offset \"%g %g %g\"\n", static_cast<double>(o.v[OffsetX]), static_cast<double>(o.v[OffsetY]),
-                        static_cast<double>(o.v[OffsetZ]));
-                    out += line;
-                }
-                if(o.has & turnBits)
-                {
-                    q_snprintf(line, sizeof(line), "        rotate \"%g %g %g\"\n", static_cast<double>(o.v[Pitch]), static_cast<double>(o.v[Yaw]),
-                        static_cast<double>(o.v[Roll]));
-                    out += line;
+                    const int g = tripleFields[t];
+                    if(o.has & tripleBits(g))
+                    {
+                        q_snprintf(line, sizeof(line), "        %s \"%g %g %g\"\n", tripleNames[t], static_cast<double>(o.v[g]),
+                            static_cast<double>(o.v[g + 1]), static_cast<double>(o.v[g + 2]));
+                        out += line;
+                    }
                 }
                 for(int f = Scale; f < NumFields; f++)
                 {
-                    if(o.has & (1u << static_cast<unsigned>(f)))
+                    if((o.has & fieldBit(f)) && tripleFirst(f) < 0)
                     {
                         q_snprintf(line, sizeof(line), "        %s \"%g\"\n", fieldNames[f], static_cast<double>(o.v[f]));
+                        out += line;
+                    }
+                }
+                for(int t = 2; t < 5; t++)
+                {
+                    const int g = tripleFields[t];
+                    if(o.has & tripleBits(g))
+                    {
+                        q_snprintf(line, sizeof(line), "        %s \"%g %g %g\"\n", tripleNames[t], static_cast<double>(o.v[g]),
+                            static_cast<double>(o.v[g + 1]), static_cast<double>(o.v[g + 2]));
                         out += line;
                     }
                 }
@@ -272,7 +293,12 @@ void parse(const char* text, za::Vector<Entry>& into)
                 }
                 float x[3]{0.f, 0.f, 0.f};
                 const int got = sscanf(com_token, "%f %f %f", &x[0], &x[1], &x[2]);
-                const bool triple = key == "offset" || key == "rotate";
+                int first = -1;
+                for(int t = 0; t < 5; t++)
+                {
+                    first = key == tripleNames[t] ? tripleFields[t] : first;
+                }
+                const bool triple = first >= 0;
                 if(got != (triple ? 3 : 1))
                 {
                     Con_Printf("\x02%s: %s: \"%s\" not %s: ignored\n", pathText, key.cStr(), com_token, triple ? "three numbers" : "a number");
@@ -281,28 +307,28 @@ void parse(const char* text, za::Vector<Entry>& into)
                 }
                 if(triple)
                 {
-                    const int first = key == "offset" ? OffsetX : Pitch;
                     for(int i = 0; i < 3; i++)
                     {
                         o.v[first + i] = x[i];
                     }
-                    o.has |= key == "offset" ? offsetBits : turnBits;
+                    o.has |= tripleBits(first);
                     continue;
                 }
                 int field = -1;
                 for(int f = Scale; f < NumFields; f++)
                 {
-                    field = key == fieldNames[f] ? f : field;
+                    field = key == fieldNames[f] && tripleFirst(f) < 0 ? f : field;
                 }
                 if(field < 0)
                 {
                     Con_Printf("\x02%s: no key \"%s\" (offset, rotate, scale, standoff, start, end, rows, taper_start, taper_end, "
-                               "leather, folds, fold_depth, hero, sag, scale_x, scale_y, scale_z): ignored\n", pathText, key.cStr());
+                               "leather, folds, fold_depth, hero, sag, scale_x, scale_y, scale_z, start_offset, end_offset, start_radius, "
+                               "end_radius, start_edge, end_edge, twist, bulge, segments, fill): ignored\n", pathText, key.cStr());
                     problems++;
                     continue;
                 }
                 o.v[field] = x[0];
-                o.has |= 1u << static_cast<unsigned>(field);
+                o.has |= fieldBit(field);
             }
         }
     }
@@ -341,10 +367,10 @@ bool layerOver(Override& out, int part, int side, const Entry* first, const Entr
             const bool mirror = pass == 1 && side == SideRight;
             for(int f = 0; f < NumFields; f++)
             {
-                const uint32_t bit = 1u << static_cast<unsigned>(f);
+                const uint64_t bit = fieldBit(f);
                 if((o.has & bit) && !(out.has & bit))
                 {
-                    out.v[f] = mirror && (f == OffsetY || f == Yaw || f == Roll) ? -o.v[f] : o.v[f];
+                    out.v[f] = mirror && mirrored(f) ? -o.v[f] : o.v[f];
                     out.has |= bit;
                 }
             }
@@ -358,7 +384,8 @@ bool layerOver(Override& out, int part, int side, const Entry* first, const Entr
 {
     h = h == 0 ? 2166136261u : h;
     h = (h ^ static_cast<uint32_t>(key)) * 16777619u;
-    h = (h ^ o.has) * 16777619u;
+    h = (h ^ static_cast<uint32_t>(o.has)) * 16777619u;
+    h = (h ^ static_cast<uint32_t>(o.has >> 32u)) * 16777619u;
     for(const float x : o.v)
     {
         uint32_t u = 0;
