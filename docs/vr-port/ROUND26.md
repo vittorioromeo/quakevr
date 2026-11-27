@@ -2935,3 +2935,14 @@ similar enemies' poses, any weapon, infection, dynamic armour; then replace them
 - Open: his look in VR (the holds share the knight's keys: a Pose Studio edit on the knight moves them too; their own
   kinds in the Pose Studio would need `agpose::numKinds` 6); the death guard's guns aiming a little high up close; the
   crossbow knight's arm skin round its cloak.
+- **limbfix** (branch agent/limbfix, 2026-11-27): after the merge ad_azad, ad_tears and e1m1 (AD's data mounted, the
+  enemy randomizer's death guard) stopped on `Host_Error: Mod_LoadModel: progs/vrdcrossbow.mdl#limb6 not found`. Not
+  the removed weapon: every limb of both models failed ("its model's file not found"), the limb builds reading the base
+  with `COM_LoadMallocFile`, and these bases are no file. Now `VR_LoadModelFile` (vr_walltorch.cpp, beside
+  `VR_DerivedModelFile`: made, else the game's file, as Mod_LoadModel reads) feeds both limb builds (`buildNamed`,
+  `startKind`): all 13 limbs of each build. Guards, so an unmade one never stops a map again: the prebuild precaches only a
+  limb built just now or already precached, and `VR_LatePrecacheModel` loads a `#` model without crashing (none, index 0,
+  a developer line). The rows without AD were already the knight (`VR_AM_Row`/`VR_AM_Resolve`), nothing precached of
+  theirs. Test `Misc/quakevr/limbs/adlimbs_test.sh` (needs AD): ad_azad loads, 26 of 26 limbs: 3/0. scenario_check: 215
+  run, every scene OK (ad_azad_grates, ad_tears_window, run_enemyrandom, ad_knights_armed); its 1 "failed" is
+  quest_foveation's SCNLEAK of `vr_foveated_debug` (not this). humrepl 65/0; limbs_test models, corpse clean; e1m1 loads.
