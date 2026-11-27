@@ -44,10 +44,11 @@ struct DensityZones
     float area = 0.f;
 };
 
-// The runtime's fixed foveation at `level` (vr_xr_foveation: 1 low, 2 medium, 3 high) as modelled: centred on the part
-// drawn (the runtime centres it on the rect submitted: ROUND25 "qfov4"), the density falling off as each level's
-// pattern, in whole 2x1 / 2x2 steps; the driver reduces whole bins, so the true edges fall on bin edges.
-[[nodiscard]] DensityZones runtimeZones(int level);
+// The runtime's fixed foveation at `level` (vr_xr_foveation: 1 low, 2 medium, 3 high, 4 high (top)) as modelled: centred
+// on the part drawn (the runtime centres it on the rect submitted: ROUND25 "qfov4"), High (Top) lower, shifted
+// `offsetDegrees` up (vr_xr_foveation_offset), the density falling off as each level's pattern, in whole 2x1 / 2x2
+// steps; the driver reduces whole bins, so the true edges fall on bin edges.
+[[nodiscard]] DensityZones runtimeZones(int level, float offsetDegrees = 0.f);
 
 // vr_foveated_debug: the rates (yellow 2x2, red 4x4) and vr_upscale's circle (cyan) over the eye's image `fbo`
 // (width x height), the scene having been sceneWidth x sceneHeight; on the Quest `quest`'s zones (yellow: half the

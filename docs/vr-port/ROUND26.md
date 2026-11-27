@@ -2758,6 +2758,59 @@ His words: "Performance is OK but still not smooth enough ... I think it's time 
   ("Host_Error: Mod_LoadModel: progs/vrgrunt.mdl#plate0 not found", vr_agarmor.cpp derivedFile). The runtime `game <mod>`
   command and the Mods menu still switch to id1;<mod> without quakevr (unchanged).
 
+## questfovmusic: Quest Foveation High (Top) and a vertical shift; the expansions' own soundtracks on the Quest (branch agent/questfovmusic, 2026-11-27)
+
+His notes (Quest standalone, 2026-11-27): "more aggressive foveation settings?"; "Scourge of Armagon and other expansion
+music doesn't seem to play ... the Quake music is played instead."
+
+- **Foveation.** `vr_xr_foveation` 4, "High (Top)": Meta's fifth level (VrApi's and OVRPlugin's HighTop, value 4, past
+  Khronos' `XrFoveationLevelFB`), passed to `XR_FB_foveation_configuration`; the Quest 3's runtime accepts it ("fixed
+  foveation level 4 ... set"). A runtime that refuses it gets High with the pattern shifted -10 degrees (said in the log).
+  New `vr_xr_foveation_offset` (degrees, -30..30, saved, default 0; VR Settings > Graphics, advanced "Quest Foveation:
+  Shift"): the profile's `verticalOffset`, with any level; a change takes new eye swapchains like a level change.
+  `XR_META_foveation_eye_tracked` (eye-tracked foveation) is Quest Pro only: the Quest 3's runtime skips it ("missing
+  uses-feature oculus.software.eye_tracking"), not used. The FB profile has no level past HighTop; the further lever is
+  the render scale (`vr_render_scale` / `vr_xr_eye_scale`), unchanged here. Show Foveation (`vr_foveated_debug`) models
+  High (Top) as High's zones centred a quarter lower, and the shift at about 45 degrees to the drawn part's edge (both
+  modelled: Meta documents neither the shape nor the offset's sign).
+- **Timings** (Quest 3 unworn, fixed render scale 0.9, `vr_dynres 0`, parts of 360 frames interleaved, 3 rounds in one
+  launch each, GPU mean a frame from `vr_profile_report 3`, medians):
+
+  | part | hub (vrstart) GPU ms | hub missed | gib fight GPU ms | fight missed |
+  |---|---|---|---|---|
+  | Off | 17.52 | 68% | - | - |
+  | Low | 17.78 | 68% | - | - |
+  | High | 12.04 | 1.5% | 7.36 | 0.3% |
+  | High (Top) | 12.57 | 2.3% | 7.19 | 2.0% |
+  | High, shift -15 | 15.58 | 35% | - | - |
+  | High (Top), shift -15 | 15.74 | 35% | - | - |
+  | High, shift -5 | - | - | 6.90 | 0.3% |
+  | High, shift +15 | 12.29 | 1.6% | 7.39 | 0.6% |
+  | High, shift +30 | - | - | 5.87 | 0.1% |
+  | High (Top), shift +15 | - | - | 7.38 | 2.8% |
+
+  High (Top) costs the same as High on both scenes (within the rounds' spread: hub 12.0-13.0, fight 7.0-7.7): the
+  driver foveates by whole 864 x 448 bins (qfov4), so the top-heavy pattern mostly moves which bins are reduced. Shifts
+  matter more: -15 lost 3.5 ms on the hub, +30 won 1.5 ms in the fight; which way the sharp zone moved is not known
+  (no eye capture of the runtime's bins). **No default changed** (Standalone keeps High on the Quest 3).
+- **Music.** Cause: Setup's Quest step (`QuestFiles.Plan`) pushed id1's music (from the rerelease's `id1/music`) but never
+  an expansion's: the original's `hipnotic`/`rogue` folders have none, the PC game reads them in place from the owned
+  rerelease (`vr_music.cpp` findInFolder: the search path's folder, then the owned roots), and the headset has no
+  rerelease, so `VR_FindMusicTrack` fell through to id1's track. Now every campaign folder going to the headset (hipnotic,
+  rogue, dopa, mg1, mg3) takes `<folder>/music/*.ogg|wav` from the first of the player's Quake, the install, the
+  rereleases (the player's and the stores'), lower case, to `<folder>/music` on the headset (found through the search path,
+  or the base dir as an owned root). No engine change. AD has no music of its own on this PC; Dwell's and Quoth's copies
+  already go whole (`ModCopyFiles`). Players must run Setup's Quest step again for the tracks.
+- **Checked on the headset:** hip1m1 "VR music: track 4 -> .../files/hipnotic/music/track04.ogg", r1m1 "track 5 ->
+  .../files/rogue/music/track05.ogg" (before: id1's). The tracks were pushed by hand as Setup now would; a folder made by
+  `adb shell mkdir` is `drwxrws---` and unreadable by the app (the first check still played id1's): Setup chmods its
+  folders 2777 already (`QuestInstaller`), so only hand pushes need it.
+- Files: `Quake/vr/vr_backend_openxr_quest.cpp`, `vr_backend_openxr_internal.hpp`, `vr_cvars.inc`, `vr_foveated.cpp/.hpp`,
+  `vr_stereo.cpp`, `vr_menu_rows.inc`, `vr_menu_settings.inc`; `Installer/src/QuakeVR.Installer.Core/Quest/QuestFiles.cs`;
+  scenario `quakevr/scenarios/campaign_music.txt` (hip1m1). Tests: installer self-test "quest: an expansion's own
+  soundtrack goes with it" (quest: 12/12), questcrash_preset_test 23/0, settings_page_test 23/0.
+- Seen, not fixed: `quit` from a cfg under `-unattended` left the app running on the Quest (the session restarted every
+  20 s, "session ended (xrEndSession): waiting for the runtime"); a stray `id1/music/qr_ab.py` sits on the headset.
 ## flatsink: a pitched view walked through the floor only in setpos's noclip (branch agent/flatsink, 2026-11-27)
 
 - Not real play, not the mock: Quake's own `setpos` turns noclip on (host_cmd.c, "noclip ON"), and a noclip walk flies
