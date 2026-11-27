@@ -44,7 +44,9 @@ mark() { echo "echo MARK $1;$REP"; }
 
 # 1. Dual-wielded super shotguns.
 SSG="$(setup 155);impulse 155;wait5;vr_reload_test 5;impulse 125;wait2;vr_reload_test 30;impulse 125;wait2;vr_reload_test 15;impulse 125;wait20"
-S="$SSG;$(mark start);$(to "0 0 0");$(mark off);vr_mock_hand main 0.3 1.3 -0.4 0 0 0;wait15;vr_mock_hand_to main pouchport;wait15;$(mark main)"
+# (The off hand away first: its gun left at the pouch, the main gun's one-frame jump there (about 10 m/s) hit its open
+# barrels from below on the off gun's line and snapped it shut, as vr_reload_ssg_close_hit means to.)
+S="$SSG;$(mark start);$(to "0 0 0");$(mark off);$(away "0 0 0");vr_mock_hand main 0.3 1.3 -0.4 0 0 0;wait15;vr_mock_hand_to main pouchport;wait15;$(mark main)"
 for pose in "90 0 0" "-60 45 0" "0 90 90" "45 0 180"; do
     S="$S;vr_reload_test 5;impulse 125;wait2;$(to "$pose");$(mark "${pose// /_}")"
 done
