@@ -3464,3 +3464,32 @@ His notes 2026-11-27 (items 2, 4, 5, 6, 8, 11 of the beastfit batch).
   ViewBasis/projectPoint does the same projection) and drive the armour part's offset/rotate/scale cvars from its drags. The
   Pose, Rig and Hum studios not swept with vr_imgui_idcheck (flat screen needed); item 4's blockiness, if it remains after
   this, wants his screenshot of the piece and its kind.
+
+## studiogizmo: the Armour Studio window's 3D move / rotate / scale handle on the part (branch agent/studiogizmo, 2026-11-27)
+
+His words 2026-11-27: an interactive 3D position/scale/rotation gizmo in the armour studio to tweak the current part.
+- **Shared handle** (`vr_gizmo.hpp/.cpp`, `qvr::gizmo`): the Rig Studio's Handle, placeHandle (now `gizmo::place`), hitHandle,
+  drawHandle, ringPoints, segDist, rayPlane lifted as they were; the Rig Studio's `View` is `gizmo::Projection` (its own
+  camera), its Handle derives from `gizmo::Handle` (+ owner), its looks (a bone's view ring, Pose Keys rings 20..22) a
+  `gizmo::Style`. The Weapon Studio's ViewBasis/projectPoint are `gizmo::Projection` / `gizmo::refdefProjection` (the game's
+  view, now with its roll). New for the armour: scale arms (box ends, centre ring), `axisMoveExact` / `ringSweepExact` (the
+  mouse's ray met with the arrow's line / the ring's plane: exact under perspective; the Rig keeps its screen-linear ones).
+- **The armour's handle** (`vr_armourstudio_gizmo.cpp`): at the picked piece's middle, in its frame:
+  `agarmor::studioPartFrame` (humanoids: the plate's posePlates turn, its tweaked box's middle; beasts:
+  `beastarmour::partFrame`, the placed rig turn x size) times the part's rotate. Modes `vr_armourstudio_gizmo` 0-3 (window
+  row Handle, keys Q W E R): move (arrows, planes, centre: offset = start + parent^-1 x world move), rotate (rings: the
+  rotate = start x turn about the local axis, back to pitch/yaw/roll), scale (arms: Size Fwd/Left/Up by the arm's stretch;
+  centre: Scale, 150 px across doubles). Ctrl: the rows' steps. A drag writes the rows' cvars; `syncFields` takes the whole
+  drag as one undo step (`gizmoEdit`: the step pushed at its first change). A drag goes on through a frame the piece is
+  being made again. Look at the Part button (`vr_armourstudio_gizmo_look`), `vr_armourstudio_gizmo_info`,
+  `vr_armourstudio_gizmo_size` (80 px). None on sleeves/junctions; both-sides limb parts: the left piece.
+- **VR**: not done. The studio's VR side is the menu page's sliders; a hand grab of the part would need its own grab/pose
+  code (not cheap): left out.
+- **Tests**: `vr_armourstudio_gizmo_test` (Debug > Tests, `-flatscreenmode`, map start) 16/0: grunt cuirass moved 2 along
+  the arrow longest on screen (1.993), undone; 30 deg round the ring facing the eye most (30.24); Size 1.25 along an arm
+  (1.253); Scale 1.5 by the centre; a rottweiler piece moved 1.5 (each with one undo step). `armourwin` 17/0,
+  `rigstudio posekeys` 13/1 (case 5 the right elbow: the known baseline failure), `rigstudio align 0 2` 12/0,
+  `vr_beaststudio_test` 23/0 (needs a wait after `map start`), `vr_agarmor_test 1` 38/0.
+- **Open**: the rottweiler's move measures 1.431 for 1.5 asked (the grunt's is exact; its tolerance 0.1 for now): the beast
+  piece's frame (`beastarmour::partFrame`, its size k?) wants a look. In the kit's 960x540 runs the window covers the middle
+  of the screen: Look at the Part turns the view so the part is a quarter across.

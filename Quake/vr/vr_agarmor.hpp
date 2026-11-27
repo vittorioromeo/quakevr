@@ -140,6 +140,10 @@ void overridesChanged();
 // The studio's subject (entity `ent`, 0 none): its body drawn `bodyAlpha` see-through (1 as it is), its pieces `pieces` (a
 // mask of Piece bits, 0 none) outlined as vr_agarmor_debug draws them (their sleeves alone if `sleeve`, else their plates).
 void studioView(int ent, float bodyAlpha, int pieces, bool sleeve);
+// The studio's picked piece as drawn now (the first of its pieces: a both-sides limb part's left one; none for a sleeve):
+// its middle (world), and the map from its tweaks' space to the world's (armour.txt's offset `o` moves it by parent * o;
+// its rotate is the tweaks' turn in that space). The Armour Studio's handle (vr_armourstudio_gizmo.cpp) is put by it.
+[[nodiscard]] bool studioPartFrame(glm::vec3& centre, glm::mat3& parent);
 
 void init(); // the commands (vr_agarmor_info, _check, _rebuild, _set)
 

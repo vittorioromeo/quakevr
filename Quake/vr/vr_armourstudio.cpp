@@ -89,6 +89,8 @@ struct State
     int savedGen{-1};          // ... as saved or read
     int undoField{-1}, undoSel{-1};
     double undoAt{-1e9};
+    bool gizmoDrag{false};     // the window's handle dragged (gizmoEdit): one undo step for the drag,
+    bool gizmoPushed{false};   // ... pushed at its first change
     char statusText[256]{};
     char animText[160]{};
     bool playerShown{false}; // the player's kind shown last frame (playerArmour; its tier taken from yours as it first shows)
@@ -249,9 +251,11 @@ void syncFields()
             continue;
         }
         const int sel = (kind * NumParts + part) * NumSides + side;
-        if(!any && (f != st.undoField || sel != st.undoSel || realtime - st.undoAt > undoMerge))
+        // (a slider's run of steps on one value is one undo step; a drag of the window's handle is one step, its first change's)
+        if(!any && (st.gizmoDrag ? !st.gizmoPushed : (f != st.undoField || sel != st.undoSel || realtime - st.undoAt > undoMerge)))
         {
             pushUndo();
+            st.gizmoPushed = st.gizmoDrag;
         }
         st.undoField = f;
         st.undoSel = sel;
@@ -1406,6 +1410,19 @@ void init()
     });
     st.savedGen = st.ownGen = generation();
     windowInit();
+    gizmoInit();
+}
+
+void gizmoEdit(bool on)
+{
+    st.gizmoDrag = on;
+    st.gizmoPushed = false;
+    st.undoField = -1; // (a row's edit after a drag is a step of its own)
+}
+
+int subjectShown()
+{
+    return st.subject > 0 ? st.subjectKind : -1;
 }
 
 int subjectCount()

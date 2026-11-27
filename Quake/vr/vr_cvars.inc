@@ -3543,6 +3543,8 @@ QVR_CVAR(vr_armourstudio_subject_y, "0", CVAR_NONE)   // debug: ... units to you
 QVR_CVAR(vr_armourstudio_subject_z, "0", CVAR_NONE)   // debug: ... units up
 QVR_CVAR(vr_armourstudio_subject_pitch, "0", CVAR_NONE) // debug: its subject tipped this many degrees (its front down), a look from above or below
 QVR_CVAR(vr_armourstudio_subject_roll, "0", CVAR_NONE)  // debug: ... rolled this many degrees onto its side
+QVR_CVAR(vr_armourstudio_gizmo, "1", CVAR_ARCHIVE)      // debug: the ImGui window's handle on the part: 0 none, 1 move, 2 rotate, 3 scale (keys Q W E R)
+QVR_CVAR(vr_armourstudio_gizmo_size, "80", CVAR_ARCHIVE) // debug: pixels: that handle's size
 QVR_CVAR(vr_armourstudio_sag, "0", CVAR_NONE)          // debug: a beast's leather junction's middle dropped (units; 0 as made: not written)
 QVR_CVAR(vr_armourstudio_anim, "0", CVAR_NONE)        // debug: 1 its subject plays one of its model's animations (below), 0 it stands still
 QVR_CVAR(vr_armourstudio_anim_group, "0", CVAR_NONE)  // debug: the animation: its model's frames grouped by name (stand, run, pain...), by index

@@ -8,6 +8,7 @@
 #include "vr_aggrip.hpp"
 #include "vr_agpose.hpp"
 #include "vr_engine.hpp"
+#include "vr_gizmo.hpp"
 #include "vr_posestudio.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rigdata.hpp"
@@ -179,13 +180,9 @@ struct Camera
     bool look{false};   // right mouse: looking about from where it is
 };
 
-// The view of the last frame drawn (its projection, for the overlays and the picks).
-struct View
-{
-    glm::vec3 org{0.f}, fwd{1.f, 0.f, 0.f}, right{0.f, -1.f, 0.f}, up{0.f, 0.f, 1.f};
-    float tanX{1.f}, tanY{1.f};
-    float x{0.f}, y{0.f}, w{1.f}, h{1.f}; // the 3D view's rectangle in the window (pixels)
-};
+// The view of the last frame drawn (its projection, for the overlays and the picks; vr_gizmo.hpp's, shared with the
+// Armour Studio's handle). x, y, w, h: the 3D view's rectangle in the window (pixels).
+using View = gizmo::Projection;
 
 struct Studio
 {

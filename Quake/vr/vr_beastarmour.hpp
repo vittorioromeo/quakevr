@@ -68,6 +68,9 @@ bool pieceExtent(int kind, int slot, float* lo, float* hi);
 // (or their junctions: `sleeve`) outlined (agarmor::debugDraw).
 void studioView(int ent, float bodyAlpha);
 void outline(struct edict_s* ent, int pieces, bool sleeve);
+// The first piece of `pieces` on `ent` as placed now: its middle (world) and the map from its tweaks' space to the world's
+// (agarmor::studioPartFrame).
+bool partFrame(struct edict_s* ent, int pieces, glm::vec3& centre, glm::mat3& parent);
 // The tests: piece `slot`'s junction on `ent` wearing `pieces` as posed now: its end rings' furthest from where their
 // pieces' places carry them, its longest edge along it, its middle ring's middle.
 struct JunctionCheck
