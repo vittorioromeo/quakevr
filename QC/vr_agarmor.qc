@@ -542,7 +542,19 @@ entity(string m, float type, float i, vector at, vector ang, vector vel) VR_AgAr
 
 entity(entity e, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisAt =
 {
-    return VR_AgArmor_DebrisOf(VR_AgArmor_Model(e, i), e.vr_ar_type, i, at, ang, vel);
+    entity h = VR_AgArmor_DebrisOf(VR_AgArmor_Model(e, i), e.vr_ar_type, i, at, ang, vel);
+    // A beast's piece as big as it was worn: its model the worn shape (armour.txt's tweaks: vr_beastarmour.cpp pieceModel),
+    // its size the body's drawn scale (limbpiece 18: ROUND26.md, "armourlook").
+    if(h != world && ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST) > 0)
+    {
+        vector worn = limbpiece(e, i, 18);
+        if(worn_x > 0 && worn_x != 1)
+        {
+            h.scale = worn_x;
+            setsize(h, modelbounds(h, 0) * worn_x, modelbounds(h, 1) * worn_x);
+        }
+    }
+    return h;
 };
 
 // A plate shot off (its pool gone: VR_AgArmor_Break, the player's VR_PP_Shed): piece `i` of `e` (whole: model `whole`

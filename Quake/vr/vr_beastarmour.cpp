@@ -5,6 +5,7 @@
 
 #include "vr_agarmor.hpp"
 #include "vr_agarmor_internal.hpp"
+#include "vr_api_render.h"
 #include "vr_armourdata.hpp"
 #include "vr_cvars.hpp"
 #include "vr_geom.hpp"
@@ -17,6 +18,7 @@
 #include "vr_rigpose.hpp"
 #include "vr_strings.hpp"
 #include "vr_testkit.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -139,6 +141,14 @@ struct Placed
 };
 
 za::Vector<Kind> kinds; // (reserved once, when read: the models' names handed to QC stay where they are)
+// The shaped pieces' debris models' names handed to QC (pieceModel): each kept for good, never rewritten.
+constexpr int maxDebrisNames = 128;
+struct DebrisNames
+{
+    char name[maxDebrisNames][MAX_QPATH]{};
+    int count{0};
+};
+DebrisNames debrisNames;
 bool loaded = false;
 entity_t ents[maxEnts];
 int numEnts = 0;
@@ -1011,6 +1021,7 @@ bool makeTweaked(qmodel_t* mod, const char* base)
     Made m = beginModel(sh, sh->numverts_vbo, sh->numindexes, 1, "tweak");
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(sh) + sh->meshdesc);
     const float padW = static_cast<float>(TexMgr_PadConditional(sh->skinwidth)), padH = static_cast<float>(TexMgr_PadConditional(sh->skinheight));
+    glm::vec3 lo{1e9f}, hi{-1e9f};
     for(int v = 0; v < sh->numverts_vbo; v++)
     {
         iqmvert_t& o = m.verts[v];
@@ -1018,6 +1029,8 @@ bool makeTweaked(qmodel_t* mod, const char* base)
         signed char n[3];
         mdldequant::restVertex(sh, v, xyz, n);
         const glm::vec3 p = shaped(*s, geom::vec(xyz));
+        lo = glm::min(lo, p);
+        hi = glm::max(hi, p);
         for(int i = 0; i < 3; i++)
         {
             o.xyz[i] = p[i];
@@ -1031,7 +1044,33 @@ bool makeTweaked(qmodel_t* mod, const char* base)
         o.idx[0] = o.idx[1] = o.idx[2] = o.idx[3] = 0;
     }
     ZA_MEMCPY(m.indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<za::SizeT>(sh->numindexes));
-    return endModel(mod, m, 64.f);
+    const int flags = src->flags;
+    if(!endModel(mod, m, 64.f))
+    {
+        return false;
+    }
+    // Its own box (the .mdl's way: Mod_CalcAliasBounds): a debris piece's size (QC setsize from modelbounds) and its culling,
+    // the shape as worn, not a 64-unit cube. Its .mdl's flags.
+    float xy = 0.f, r = 0.f;
+    for(int c = 0; c < 3; c++)
+    {
+        const float far = za::max(za::abs(lo[c]), za::abs(hi[c]));
+        xy += c < 2 ? far * far : 0.f;
+        r += far * far;
+    }
+    xy = za::sqrt(xy);
+    r = za::sqrt(r);
+    for(int c = 0; c < 3; c++)
+    {
+        mod->mins[c] = lo[c];
+        mod->maxs[c] = hi[c];
+        mod->ymins[c] = c < 2 ? -xy : lo[c];
+        mod->ymaxs[c] = c < 2 ? xy : hi[c];
+        mod->rmins[c] = -r;
+        mod->rmaxs[c] = r;
+    }
+    mod->flags = flags;
+    return true;
 }
 
 // "<beast model>#bridge": its junctions' leather, each vertex on its junction's two bones (its piece's end, the joined
@@ -1153,11 +1192,54 @@ int cuirassGroup(edict_t* ent)
     return k ? k->group & k->mask : 0;
 }
 
+namespace
+{
+const char* debrisModel(Kind& k, int slot);
+} // namespace
+
 const char* pieceModel(edict_t* ent, int slot)
 {
-    const Kind* k = kindOf(ent);
-    return k && slot >= 0 && slot < numSlots && k->slot[slot].on ? k->slot[slot].model : "";
+    // (the one it is drawn with: shaped by armour.txt, "<model>#tweak", made as it loads; the debris keeps the worn size and
+    // shape: his note 2026-11-27, plates "bigger after they have been detached")
+    Kind* k = kindOf(ent);
+    return k ? debrisModel(*k, slot) : "";
 }
+
+namespace
+{
+const char* debrisModel(Kind& k, int slot)
+{
+    if(slot < 0 || slot >= numSlots || !k.slot[slot].on)
+    {
+        return "";
+    }
+    if(resolve(k))
+    {
+        refresh(k);
+    }
+    const Slot& s = k.slot[slot];
+    if(!s.shaped)
+    {
+        return s.model;
+    }
+    // (a name QC keeps, the server's precache list too: never rewritten, as s.drawn is when the tweaks change)
+    char want[MAX_QPATH];
+    q_snprintf(want, sizeof(want), "%s%s", s.model, tweakSuffix);
+    for(int i = 0; i < debrisNames.count; i++)
+    {
+        if(!ZA_STRCMP(debrisNames.name[i], want))
+        {
+            return debrisNames.name[i];
+        }
+    }
+    if(debrisNames.count >= maxDebrisNames)
+    {
+        return s.model; // (never: four kinds' ten slots)
+    }
+    q_strlcpy(debrisNames.name[debrisNames.count], want, MAX_QPATH);
+    return debrisNames.name[debrisNames.count++];
+}
+} // namespace
 
 int shotPiece(edict_t* ent, const float* at, const float* dir, int mask)
 {
@@ -1647,6 +1729,165 @@ JunctionCheck checkJunction(edict_t* ent, int slot, int pieces)
     return out;
 }
 
+LookCheck lookCheck(int kind, int slot, int num)
+{
+    LookCheck out;
+    if(kind < 0 || kind >= static_cast<int>(kinds.size()) || slot < 0 || slot >= kinds[static_cast<za::SizeT>(kind)].numParts || num <= 0 ||
+       num >= cl_max_edicts)
+    {
+        return out;
+    }
+    const Slot& s = kinds[static_cast<za::SizeT>(kind)].slot[slot];
+    char tweaked[MAX_QPATH];
+    q_snprintf(tweaked, sizeof(tweaked), "%s%s", s.model, tweakSuffix);
+    qmodel_t* m[2] = {s.on ? Mod_ForName(s.model, false) : nullptr, s.on ? Mod_ForName(tweaked, false) : nullptr};
+    const aliashdr_t* h[2]{};
+    for(int i = 0; i < 2; i++)
+    {
+        h[i] = m[i] && m[i]->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(m[i])) : nullptr;
+    }
+    if(!h[0] || !h[1] || h[0]->poseverttype == aliashdr_t::PV_IQM || h[1]->poseverttype != aliashdr_t::PV_IQM)
+    {
+        return out;
+    }
+    out.found = true;
+    out.skins = h[0]->numskins == h[1]->numskins && h[0]->skinwidth == h[1]->skinwidth && h[0]->skinheight == h[1]->skinheight &&
+        !ZA_MEMCMP(h[0]->gltextures, h[1]->gltextures, sizeof(h[0]->gltextures)) && !ZA_MEMCMP(h[0]->fbtextures, h[1]->fbtextures, sizeof(h[0]->fbtextures));
+    gltexture_t* skin = h[0]->gltextures[0][0];
+    gltexture_t* nm[2] = {TexMgr_NormalMap(skin), TexMgr_NormalMap(h[1]->gltextures[0][0])};
+    out.normalMap = skin && nm[0] == nm[1] && nm[0] && nm[0] != TexMgr_NormalMap(nullptr);
+    if(skin)
+    {
+        q_strlcpy(out.skinName, skin->name, sizeof(out.skinName));
+        out.skinWidth = skin->width;
+        out.skinHeight = skin->height;
+    }
+    if(nm[0])
+    {
+        q_snprintf(out.normalName, sizeof(out.normalName), "%s %dx%d", nm[0]->name, nm[0]->width, nm[0]->height);
+    }
+    out.triangles = h[0]->numverts_vbo == h[1]->numverts_vbo && h[0]->numindexes == h[1]->numindexes &&
+        !ZA_MEMCMP(reinterpret_cast<const byte*>(h[0]) + h[0]->indexes, reinterpret_cast<const byte*>(h[1]) + h[1]->indexes,
+            sizeof(unsigned short) * static_cast<za::SizeT>(h[0]->numindexes));
+    if(out.triangles)
+    {
+        // (the .mdl's texture places as gl_mesh.c's GLMesh_LoadVertexBuffer makes them, in texels)
+        const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(h[0]) + h[0]->meshdesc);
+        const auto* v = reinterpret_cast<const iqmvert_t*>(reinterpret_cast<const byte*>(h[1]) + h[1]->vertexes);
+        const float padW = static_cast<float>(TexMgr_PadConditional(h[0]->skinwidth)), padH = static_cast<float>(TexMgr_PadConditional(h[0]->skinheight));
+        for(int i = 0; i < h[0]->numverts_vbo; i++)
+        {
+            out.stError = za::max(out.stError, za::abs(v[i].st[0] * padW - (static_cast<float>(desc[i].st[0]) + 0.5f)));
+            out.stError = za::max(out.stError, za::abs(v[i].st[1] * padH - (static_cast<float>(desc[i].st[1]) + 0.5f)));
+        }
+    }
+    // (drawn as entity `num` is, each with its own vertex scale in the matrix as R_DrawAliasModel's)
+    vraliasinstance_t inst[2];
+    for(int i = 0; i < 2; i++)
+    {
+        entity_t e = cl_entities[num];
+        e.model = m[i];
+        e.frame = 0;
+        e.skinnum = 0;
+        float matrix[16];
+        for(int c = 0; c < 16; c++)
+        {
+            matrix[c] = c % 5 == 0 ? (c < 15 ? h[i]->scale[c / 5] : 1.f) : 0.f;
+        }
+        ZA_MEMSET(&inst[i], 0, sizeof(inst[i]));
+        VR_AliasInstance(&e, matrix, h[i], 1, &inst[i]);
+    }
+    const auto* a = reinterpret_cast<const float*>(&inst[0]);
+    const auto* b = reinterpret_cast<const float*>(&inst[1]);
+    for(za::SizeT i = 0; i < sizeof(vraliasinstance_t) / sizeof(float); i++)
+    {
+        if(ZA_MEMCMP(&a[i], &b[i], sizeof(float)) != 0 && za::abs(a[i] - b[i]) > 1e-5f * za::max(1.f, za::abs(a[i])))
+        {
+            out.firstDiff = out.instanceDiffs++ == 0 ? static_cast<int>(i) : out.firstDiff;
+        }
+    }
+    return out;
+}
+
+bool modelBox(const char* model, float* lo, float* hi)
+{
+    qmodel_t* m = model && *model ? Mod_ForName(model, false) : nullptr;
+    if(!m || m->type != mod_alias || !Mod_Extradata(m))
+    {
+        return false;
+    }
+    for(int c = 0; c < 3; c++)
+    {
+        lo[c] = m->mins[c];
+        hi[c] = m->maxs[c];
+    }
+    return true;
+}
+
+// vr_beastarmour_lookcheck [num]: every shaped piece of every kind (armour.txt as it is) against its .mdl (lookCheck), as
+// client entity `num` (default your view's) would draw it. Ends on "beastlook: N passed, M failed".
+void lookCheck_f()
+{
+    if(!sv.active || cls.state != ca_connected)
+    {
+        Con_Printf("vr_beastarmour_lookcheck: needs a map (map start)\nbeastlook: 0 passed, 1 failed\n");
+        return;
+    }
+    if(!loaded)
+    {
+        load();
+    }
+    const int num = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : cl.viewentity;
+    testkit::Tally tally;
+    int shaped = 0;
+    for(za::SizeT k = 0; k < kinds.size(); k++)
+    {
+        Kind& kd = kinds[k];
+        if(!resolve(kd))
+        {
+            continue;
+        }
+        refresh(kd);
+        for(int i = 0; i < kd.numParts; i++)
+        {
+            // (its debris: the model QC gets, its box the worn piece's: shaped as worn, as big)
+            const char* dm = i < numSlots ? debrisModel(kd, i) : "";
+            float lo[3], hi[3];
+            if(*dm && modelBox(dm, lo, hi))
+            {
+                const Slot& s = kd.slot[i];
+                float off = 0.f;
+                for(int c = 0; c < 3; c++)
+                {
+                    off = za::max(off, za::max(za::abs(lo[c] - s.lo[c]), za::abs(hi[c] - s.hi[c])));
+                }
+                // (an unshaped piece's .mdl: its quantised box, a step of its vertex grid off at most)
+                const bool ok = off <= (s.shaped ? 0.01f : 0.5f) && (strstr(dm, tweakSuffix) != nullptr) == s.shaped;
+                tally.check(ok);
+                Con_Printf("beastlook: %s debris %s: its box %.3f off the worn piece's (%.2f %.2f %.2f .. %.2f %.2f %.2f)\n", ok ? "PASS" : "FAIL",
+                    dm, static_cast<double>(off), static_cast<double>(s.lo[0]), static_cast<double>(s.lo[1]), static_cast<double>(s.lo[2]),
+                    static_cast<double>(s.hi[0]), static_cast<double>(s.hi[1]), static_cast<double>(s.hi[2]));
+            }
+            if(!kd.slot[i].on || !kd.slot[i].shaped)
+            {
+                continue;
+            }
+            shaped++;
+            const LookCheck c = lookCheck(static_cast<int>(k), i, num);
+            const bool ok = c.found && c.skins && c.normalMap && c.triangles && c.stError < 1e-3f && c.instanceDiffs == 0;
+            tally.check(ok);
+            Con_Printf("beastlook: %s %s#tweak: skins %s (%s %dx%d), normal map %s (%s), triangles %s, texture places off %.4f texels, "
+                       "instance values apart %d (first %d)\n",
+                ok ? "PASS" : "FAIL", kd.slot[i].model, c.skins ? "the .mdl's" : "OTHER", c.skinName, c.skinWidth, c.skinHeight,
+                c.normalMap ? "the .mdl's" : "OTHER/none", c.normalName, c.triangles ? "the same" : "OTHER", static_cast<double>(c.stError),
+                c.instanceDiffs, c.firstDiff);
+        }
+    }
+    Con_Printf("beastlook: %d shaped pieces\n", shaped);
+    tally.check(shaped > 0);
+    tally.verdict("beastlook");
+}
+
 // --- vr_beastfit_test (ROUND26.md, "beastfit"): how the pieces fit their beasts, measured as the offline
 // scratch/bf_eval.py does: rays out along the skin's normals meeting the armour (each piece placed as drawn: its anchors'
 // rigid fit, armour.txt's tweaks), every played frame of the .mdl. Thresholds from the rottweiler (his reference) and the
@@ -1670,12 +1911,15 @@ struct Target
     const char* model;
     float cover; // the share of these bones' skin under armour, at least
     const char* bones[12];
+    float face{maxFace}; // the face's share under its helmet, at most
 };
+// (judged as made, armour.txt's tweaks off: the rottweiler's generator is the pre-beastfit one, kept bit for bit, his tweaks
+// finishing it (0.29 as made, 0.36 with them); the fiend's helmet, a dome over his low brow, 0.27 of his face as made)
 constexpr Target targets[] = {
-    {"progs/dog.mdl", 0.35f, {"chest", "pelvis"}},
+    {"progs/dog.mdl", 0.28f, {"chest", "pelvis"}},
     {"progs/ogre.mdl", 0.6f, {"pelvis", "chest", "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r", "shin_l", "shin_r"}},
     {"progs/wizard.mdl", 0.85f, {"pelvis", "chest", "arm_l", "arm_r", "tail1", "tail2", "tail3", "tail4"}},
-    {"progs/demon.mdl", 0.45f, {"pelvis", "chest", "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r"}},
+    {"progs/demon.mdl", 0.45f, {"pelvis", "chest", "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r"}, 0.3f},
 };
 
 // Pose `pose`'s vertices and outward normals (the triangles' summed, turned out from the middle).
@@ -1773,6 +2017,16 @@ float nearestPlate(const glm::vec3& o, const glm::vec3& d, float len, const za::
     return best;
 }
 
+// The tweaked pass's summary (the information line).
+struct Info
+{
+    float gapSum{0.f};
+    int pieces{0};
+    float maxSize{0.f};
+    char maxName[48]{};
+    int fails{0};
+};
+
 void test_f()
 {
     if(!sv.active)
@@ -1785,7 +2039,16 @@ void test_f()
         load();
     }
     testkit::Tally tally;
+    // Judged on the generated fit alone (armour.txt's tweaks off: the thresholds judge make_beastarmour.py, never his
+    // choices; ROUND26.md "armourlook"); then one line of the same numbers with his tweaks on, for information.
+    bool judge = true;
+    Info info;
     const auto check = [&](bool ok, const char* what, float value, float limit) {
+        if(!judge)
+        {
+            info.fails += ok ? 0 : 1;
+            return;
+        }
         tally.check(ok);
         Con_Printf("beastfit: %s %s: %.3f (limit %.3f)\n", ok ? "PASS" : "FAIL", what, value, limit);
     };
@@ -1805,12 +2068,24 @@ void test_f()
         }
         const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(m));
         const bool mirrored = strcmp(k.model, "progs/dog.mdl") != 0; // (the rottweiler as he likes it: each side its own)
+        // (pass 0: the kind as made, every tweak off; pass 1: armour.txt's tweaks on, the information line)
+        Kind untweaked = k;
+        for(int i = 0; i < untweaked.numParts; i++)
+        {
+            untweaked.slot[i].tw = Override{};
+            shapeTris(untweaked.slot[i]);
+        }
+        for(int pass = 0; pass < 2; pass++)
+        {
+        judge = pass == 0;
+        info = Info{};
+        const Kind& kk = judge ? untweaked : k;
         za::Vector<glm::vec3> p, n, tri;
         za::Vector<int> owner;
         const int nv = hdr->numverts;
         // The rest pose: coverage, gap, size, the face.
         poseOf(hdr, 0, p, n);
-        armourOn(k, p, tri, owner);
+        armourOn(kk, p, tri, owner);
         za::Vector<float> gap(static_cast<za::SizeT>(nv), -1e9f);
         za::Vector<int> by(static_cast<za::SizeT>(nv), -1);
         for(int v = 0; v < nv; v++)
@@ -1876,12 +2151,12 @@ void test_f()
         }
         char what[128];
         const float cover = static_cast<float>(got) / static_cast<float>(za::max(want, 1));
-        q_snprintf(what, sizeof(what), "%s target skin covered (at least)", k.model);
+        q_snprintf(what, sizeof(what), "%s target skin covered (at least)", kk.model);
         check(cover >= tg->cover, what, cover, tg->cover);
         // (each piece: its skin covered, its gap and size; a helmet's face)
-        for(int i = 0; i < k.numParts; i++)
+        for(int i = 0; i < kk.numParts; i++)
         {
-            const Slot& s = k.slot[i];
+            const Slot& s = kk.slot[i];
             if(!s.on)
             {
                 continue;
@@ -1924,28 +2199,41 @@ void test_f()
             // the bone's skin under this piece itself)
             char name[48];
             q_snprintf(name, sizeof(name), "%s%s%s", s.bone, s.tweakPart >= 0 ? " " : "", s.tweakPart >= 0 ? armourdata::partNames[s.tweakPart] : "");
-            Con_Printf("beastfit: %-16s %-18s slot %d: skin covered %.2f (own %.2f), gap %.2f, size %.2f%s\n", k.model, name, s.owner,
-                static_cast<float>(covered) / static_cast<float>(za::max(region, 1)), static_cast<float>(mine) / static_cast<float>(za::max(region, 1)),
-                meanGap, size, s.owner == agarmor::Helmet ? va(", face under it %.2f", faceShare) : "");
+            if(judge)
+            {
+                Con_Printf("beastfit: %-16s %-18s slot %d: skin covered %.2f (own %.2f), gap %.2f, size %.2f%s\n", kk.model, name, s.owner,
+                    static_cast<float>(covered) / static_cast<float>(za::max(region, 1)), static_cast<float>(mine) / static_cast<float>(za::max(region, 1)),
+                    meanGap, size, s.owner == agarmor::Helmet ? va(", face under it %.2f", faceShare) : "");
+            }
+            else if(mine > 2)
+            {
+                info.gapSum += meanGap;
+                info.pieces++;
+                if(size > info.maxSize)
+                {
+                    info.maxSize = size;
+                    q_strlcpy(info.maxName, name, sizeof(info.maxName));
+                }
+            }
             if(mine > 2)
             {
-                q_snprintf(what, sizeof(what), "%s %s size", k.model, name);
+                q_snprintf(what, sizeof(what), "%s %s size", kk.model, name);
                 check(size <= maxSize, what, size, maxSize);
-                q_snprintf(what, sizeof(what), "%s %s gap", k.model, name);
+                q_snprintf(what, sizeof(what), "%s %s gap", kk.model, name);
                 check(meanGap <= maxGap, what, meanGap, maxGap);
             }
             if(s.owner == agarmor::Helmet && i < numSlots)
             {
-                q_snprintf(what, sizeof(what), "%s helmet over the face", k.model);
-                check(faceShare <= maxFace, what, faceShare, maxFace);
+                q_snprintf(what, sizeof(what), "%s helmet over the face", kk.model);
+                check(faceShare <= tg->face, what, faceShare, tg->face);
             }
             // (a left piece and its right: one shape mirrored, the spread of its vertices about their middle the same)
             const za::SizeT len = strlen(s.bone);
             if(mirrored && len > 2 && !strcmp(s.bone + len - 2, "_l"))
             {
-                for(int j = 0; j < k.numParts; j++)
+                for(int j = 0; j < kk.numParts; j++)
                 {
-                    const Slot& o = k.slot[j];
+                    const Slot& o = kk.slot[j];
                     if(!o.on || strlen(o.bone) != len || strncmp(o.bone, s.bone, len - 2) != 0 || strcmp(o.bone + len - 2, "_r") != 0)
                     {
                         continue;
@@ -1965,7 +2253,7 @@ void test_f()
                         }
                     }
                     const float apartBy = za::abs(spread[0] - spread[1]) / za::max(spread[1], 1e-6f);
-                    q_snprintf(what, sizeof(what), "%s %s and %s one shape", k.model, s.bone, o.bone);
+                    q_snprintf(what, sizeof(what), "%s %s and %s one shape", kk.model, s.bone, o.bone);
                     check(apartBy <= maxAsym, what, apartBy, maxAsym);
                 }
             }
@@ -1981,7 +2269,7 @@ void test_f()
                 continue;
             }
             poseOf(hdr, hdr->frames[f].firstpose, p, n);
-            armourOn(k, p, tri, owner);
+            armourOn(kk, p, tri, owner);
             for(int v = 0; v < nv; v++)
             {
                 int piece = -1;
@@ -1992,8 +2280,16 @@ void test_f()
             }
         }
         const float poke = static_cast<float>(poked) / static_cast<float>(za::max(seen, 1));
-        q_snprintf(what, sizeof(what), "%s skin through its plates over the played frames", k.model);
+        q_snprintf(what, sizeof(what), "%s skin through its plates over the played frames", kk.model);
         check(poke <= maxPoke, what, poke, maxPoke);
+        if(!judge)
+        {
+            Con_Printf("beastfit: info %s with armour.txt's tweaks: target skin covered %.2f, mean gap %.2f, largest size %.2f (%s), "
+                       "skin through %.2f; %d of the checks over their limits (not judged)\n",
+                k.model, static_cast<double>(cover), static_cast<double>(info.gapSum / static_cast<float>(za::max(info.pieces, 1))),
+                static_cast<double>(info.maxSize), info.maxName, static_cast<double>(poke), info.fails);
+        }
+        }
     }
     tally.verdict("beastfit");
 }
@@ -2003,6 +2299,7 @@ void init()
 {
     Cmd_AddCommand("vr_beastarmour_info", info_f);
     Cmd_AddCommand("vr_beastfit_test", fit::test_f);
+    Cmd_AddCommand("vr_beastarmour_lookcheck", lookCheck_f);
 }
 
 } // namespace qvr::beastarmour

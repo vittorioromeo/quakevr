@@ -597,6 +597,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_agarmor_test 15: a rottweiler, an ogre, a scrag and a fiend ahead: each kind's pieces, the client told, every "
                   "piece drawn and following the body, shots meeting the cuirass and the helmet, a hit stopped, a helmet broken, "
                   "the skill's roll, two killed (their corpses keep their pieces). Ends on \"beastarmour test: N passed, M failed\"."),
+        command("Beasts' Shaped Armour: Look and Debris Check", "vr_beastarmour_lookcheck")
+            .help("vr_beastarmour_lookcheck (a map loaded): every beast armour piece armour.txt shapes (\"#tweak\") against its .mdl: the same "
+                  "skins and normal map, texture places and shader values (retro textures included); and each piece's debris model (shaped as "
+                  "worn), its box the worn piece's. Ends on \"beastlook: N passed, M failed\"."),
         command("Beasts Drawn Smoothly (Slow Motion)", "vr_agarmor_test 21")
             .help("vr_agarmor_test 21: one armoured beast at a time ahead (a rottweiler's leap, run and shoved roll, a scrag, an ogre), "
                   "at a quarter speed then full: watched frame by frame (vr_drawnlerp_watch; vr_drawnlerp_log 1 prints each frame), "
