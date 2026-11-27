@@ -59,6 +59,10 @@ namespace hitreact_detail
 [[nodiscard]] int chestOf(const ragdoll::Rig& rig);
 rigpose::Rigid composeRigid(const rigpose::Rigid& a, const rigpose::Rigid& b);
 [[nodiscard]] rigpose::Rigid gripRigid(int kind, int slot, int hand);
+struct ArmedRig;
+// Row `a`'s grip (gripRigid of its own kind; a row that takes another kind's keys, AD's knights: that kind's changes from
+// its shipped grips, on their own zero default, so the Pose Studio's Grips tab moves them as it moves the knight).
+[[nodiscard]] rigpose::Rigid gripRigidOf(const ArmedRig* a, int slot, int hand);
 [[nodiscard]] bool lowCarry(const agarms::Targets& t);
 void placeProp(entity_t& p, const entity_t* e, const rigpose::Rigid& w, const rigpose::Rigid* kick);
 [[nodiscard]] bool heldProp(int num);
@@ -325,7 +329,8 @@ struct SkinWork
     rigpose::Rigid posed[ragdoll::maxBones];
     rigpose::Rigid kick[ragdoll::maxBones];
     bool kicked{false}, layerArms{false}, hasR{false};
-    int kind{0}, slot{-1}, slotL{-1};
+    int kind{0}, slot{-1}, slotL{-1}; // (kind: the pose keys' and grips', armedPoseKind)
+    int row{-1};                      // (its armedRigs row)
     glm::vec3 secondPoint{0.f};
     agarms::Targets t;
     agarms::Placed placed;

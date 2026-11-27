@@ -36,7 +36,8 @@ struct Space
 struct Note
 {
     int ent{0};
-    int kind{0};            // aggrip's (0 the grunt, 1 the enforcer)
+    int kind{0};            // aggrip's (0 the grunt, 1 the enforcer; AD's knights the knight's, 2)
+    int row{-1};            // its armed row (vr_hitreact's armedRigs: 4 the death guard, 5 the crossbow knight; -1 unknown)
     int slot{-1}, slotL{-1}; // its weapons' Weapon Offsets slots (right, left; -1 none)
     int prop{0}, propL{0};  // their client entities (0 none)
     const char* pose{""};   // the pose it is in, by name

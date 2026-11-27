@@ -369,6 +369,13 @@ Offset global(int kind, int hand)
     return offset(kind, allWeapons, hand);
 }
 
+Offset shipped(int kind, int slot, int hand)
+{
+    Offset d;
+    (void)defaultOf(kind, slot, hand, d);
+    return d;
+}
+
 Offset offset(int kind, int slot, int hand)
 {
     parse();
