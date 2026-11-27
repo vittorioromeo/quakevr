@@ -1,0 +1,12 @@
+# revolver_reload: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The heavy revolver's VR reload
+# options (QC vr_revolver.qc, vr_reload.qc; ROUND26.md "revreload"): Spent Shells First and Slug Pairs, both on.
+# Self-test: vr_rv_test 7 (rvreload).
+title VR: the heavy revolver drops its spent shells first and loads slugs in pairs
+hint Fire two or three shots at the grunt, swing the cylinder out (wrist flick or B/Y) and eject (B/Y or the push back): only the spent shells drop; eject again and the live ones drop too. Take shells from the pouch: a taped pair of blue slugs, both into two chambers at once (two clicks); with one chamber empty one goes in and the other stays in your hand. Advanced VR Options > Weapons > Reloading > Heavy Revolver: Spent Shells First, Slug Pairs.
+map vrtesthall
+god
+cvar vr_reload_mode_revolver 3
+cvar vr_revolver_spent_first 1
+cvar vr_revolver_shell_pairs 1
+give "Heavy Revolver" main
+spawn "Grunt" 360 0

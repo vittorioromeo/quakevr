@@ -2906,6 +2906,8 @@ QVR_CVAR(vr_revolver_eject_impulse, "1.75", CVAR_ARCHIVE) // they go on at the h
 QVR_CVAR(vr_revolver_eject_rod, "1", CVAR_ARCHIVE) // out, the other hand pushing the ejector rod's head back drops them
 QVR_CVAR(vr_revolver_eject_rod_reach, "1.1", CVAR_ARCHIVE) // units from the rod's head the other hand pushes it within
 QVR_CVAR(vr_revolver_eject_rod_speed, "0.325", CVAR_ARCHIVE) // m/s back along the cylinder that push must reach
+QVR_CVAR(vr_revolver_spent_first, "1", CVAR_ARCHIVE) // out, an eject (B/Y, the hand's push, the ejector rod) drops only the spent shells while any are in it; the next drops the live ones too (0: all at once)
+QVR_CVAR(vr_revolver_shell_pairs, "1", CVAR_ARCHIVE) // the pouch gives it two slugs taped together, both into two empty chambers at once (one, the other kept in the hand, if only one is empty); a single slug when only one is left or it has one place left (0: one at a time)
 QVR_CVAR(vr_revolver_spin, "1", CVAR_ARCHIVE) // out, the other hand swiping across the cylinder spins it (the chamber that comes next changes)
 QVR_CVAR(vr_revolver_spin_speed, "0.7", CVAR_ARCHIVE) // m/s a swipe must reach across it (configVersion 209: was 0.5, spun by accident while loading)
 QVR_CVAR(vr_revolver_spin_hold, "0.35", CVAR_ARCHIVE) // seconds after the other hand held anything (a shell; one just gone in) before its swipe spins the cylinder
