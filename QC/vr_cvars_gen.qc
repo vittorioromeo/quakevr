@@ -251,6 +251,7 @@ float cvarh_vr_agrunt_repl;
 float cvarh_vr_agrunt_repl_ad;
 float cvarh_vr_agrunt_repl_common;
 float cvarh_vr_agrunt_repl_crossbow;
+float cvarh_vr_agrunt_repl_dguard;
 float cvarh_vr_agrunt_repl_dual;
 float cvarh_vr_agrunt_repl_gunaxe;
 float cvarh_vr_agrunt_repl_id;
@@ -2489,6 +2490,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agrunt_repl_ad = VR_CVar_Make("vr_agrunt_repl_ad");
     cvarh_vr_agrunt_repl_common = VR_CVar_Make("vr_agrunt_repl_common");
     cvarh_vr_agrunt_repl_crossbow = VR_CVar_Make("vr_agrunt_repl_crossbow");
+    cvarh_vr_agrunt_repl_dguard = VR_CVar_Make("vr_agrunt_repl_dguard");
     cvarh_vr_agrunt_repl_dual = VR_CVar_Make("vr_agrunt_repl_dual");
     cvarh_vr_agrunt_repl_gunaxe = VR_CVar_Make("vr_agrunt_repl_gunaxe");
     cvarh_vr_agrunt_repl_id = VR_CVar_Make("vr_agrunt_repl_id");

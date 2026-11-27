@@ -196,11 +196,11 @@ void(string base) VR_AgArmor_PrecacheOf;
 
 void(entity e) VR_AgArmor_Spawn =
 {
-    if(e.vr_ag_kind <= 3)
+    if(e.vr_ag_kind <= 5)
     {
         VR_AgArmor_PrecacheOf(e.model); // (its plates ahead of its first break; the level's load did the armed kinds)
     }
-    if(e.vr_ag_kind > 3 || deathmatch || vr_ar_hold_roll) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1, VR_AM_KNIGHT 2, VR_AM_DKNIGHT 3: vr_armedmon.qc, compiled later)
+    if(e.vr_ag_kind > 5 || deathmatch || vr_ar_hold_roll) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1, VR_AM_KNIGHT 2, VR_AM_DKNIGHT 3, VR_AM_DGUARD 4, VR_AM_DCROSSBOW 5: vr_armedmon.qc, compiled later)
     {
         return; // (P2: the enforcer too, by the same chances: no free set; the knights too (agent/dknight))
     }
@@ -268,6 +268,32 @@ string(string base, float i) VR_AgArmor_ModelOf =
         if(i == 7) return "progs/vrenforcer.mdl#plate7";
         if(i == 8) return "progs/vrenforcer.mdl#plate8";
         return "progs/vrenforcer.mdl#plate9";
+    }
+    if(base == "progs/vrdguard.mdl")
+    {
+        if(i == 0) return "progs/vrdguard.mdl#plate0";
+        if(i == 1) return "progs/vrdguard.mdl#plate1";
+        if(i == 2) return "progs/vrdguard.mdl#plate2";
+        if(i == 3) return "progs/vrdguard.mdl#plate3";
+        if(i == 4) return "progs/vrdguard.mdl#plate4";
+        if(i == 5) return "progs/vrdguard.mdl#plate5";
+        if(i == 6) return "progs/vrdguard.mdl#plate6";
+        if(i == 7) return "progs/vrdguard.mdl#plate7";
+        if(i == 8) return "progs/vrdguard.mdl#plate8";
+        return "progs/vrdguard.mdl#plate9";
+    }
+    if(base == "progs/vrdcrossbow.mdl")
+    {
+        if(i == 0) return "progs/vrdcrossbow.mdl#plate0";
+        if(i == 1) return "progs/vrdcrossbow.mdl#plate1";
+        if(i == 2) return "progs/vrdcrossbow.mdl#plate2";
+        if(i == 3) return "progs/vrdcrossbow.mdl#plate3";
+        if(i == 4) return "progs/vrdcrossbow.mdl#plate4";
+        if(i == 5) return "progs/vrdcrossbow.mdl#plate5";
+        if(i == 6) return "progs/vrdcrossbow.mdl#plate6";
+        if(i == 7) return "progs/vrdcrossbow.mdl#plate7";
+        if(i == 8) return "progs/vrdcrossbow.mdl#plate8";
+        return "progs/vrdcrossbow.mdl#plate9";
     }
     if(base == "progs/vrknight.mdl")
     {

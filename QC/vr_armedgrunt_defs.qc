@@ -226,7 +226,8 @@ float VR_HUM_V_ELIMINATOR = 5; // the eliminator, monster_eliminator
 float VR_HUM_V_PYRO = 6;       // the pyro, monster_pyro
 float VR_HUM_V_FUMIGATOR = 7;  // the fumigator, monster_fumigator
 float VR_HUM_V_CROSSBOW = 8;   // the crossbow knight, monster_dcrossbow
-float VR_HUM_V_COUNT = 9;
+float VR_HUM_V_DGUARD = 9;     // the death guard, monster_dguard
+float VR_HUM_V_COUNT = 10;
 float(float variant) VR_HUM_Replace;                                       // AD's variant spawns (ad_monster_army_rocket, ...): TRUE: done
 void(entity e) VR_HUM_Look;                                                // VR_AM_Spawn, VR_AGR_Resolve: its look by what it holds
 void() VR_AGR_Precache;                                                    // worldspawn: the replacements' models

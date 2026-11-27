@@ -162,6 +162,23 @@ fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` 
   down and getting up, pulled 3 ways; never stuck. The engine's ragdoll grab leaves a fist on an armed weapon to the
   weapon's grab (`grabRagdoll`, as foegrab's `tryTake`).
 
+## AD's death guard and crossbow knight in their own looks (ROUND26.md, "adknights")
+
+Rows 4 (`monster_vr_dguard`, "Death Guard") and 5 (`monster_vr_dcrossbow`, "Crossbow Knight"): knights to the game
+(`monster_knight`: its health, sounds, AI, pains and deaths) drawn with AD's meshes and skins. Their models are made as
+they load from AD's files (`vr_monstermods.cpp` `VR_AdArmedModelFile`; never written anywhere): the weapon's
+triangles dropped (its vertices kept: its line in every frame), the frames laid out as the knight's QC macros (AD's
+nearest action for each, blended where the counts differ; the take's kneel from AD's forward death's first frames),
+and the living frames turned square to the way they face (the crossbow knight stands 40 degrees side-on). Their rigs
+are authored (`make_rig2.py dguard|dcrossbow --mesh <the engine's dump>`: `vr_adarmed_dump progs/vrdguard.mdl <file>`;
+`quakevr/rigs/vrdguard.rig2.txt`, `vrdcrossbow.rig2.txt`), their ragdolls AD's seeds (`vr_ad_rigs.inc`). They take
+the knight's pose keys and grips (`armedRigs` `poseKind`, QC `VR_AM_PoseKind`), fitted to their shoulders by the
+row's fit; the Pose Studio's knight edits move them too. Without AD's data they are the knight (`VR_AM_Resolve`).
+`VR_AM_COUNT` (4) stays the kinds every loop covers; `VR_AM_ROWS` (6) every row (the toolgun lists them with the
+knights' settings and AD's data; `vr_agrunt_test_kind` 4/5; the glitch finder's subjects 52..77 with `scratch3`).
+AD's own death guards and crossbow knights become them (`VR_HUM_Replace`: `vr_agrunt_repl_dguard`,
+`vr_agrunt_repl_crossbow`, both 1; with `vr_agknight`); no recolour (AD's skins). Scene `ad_knights_armed`.
+
 ## The toolgun's spawn page
 
 Spawn > Monsters > Armed Humanoid (`vr_toolgun_panel.cpp` `armedPage`; `docs/vr-port/TOOLGUN.md`): Kind, Right Hand,
@@ -212,14 +229,15 @@ the armed layer fires it (AD's guns as the player has them, `vr_ad_enemyguns.qc`
 | `monster_eliminator` (57, 49) | `mon_enforcer`, plasma gun | enforcer + Centurion's Plasma Gun (the eliminator's own is gone: `WID_ADELIMINATOR`), 120 hp | | as above, blue |
 | `monster_pyro` (13, 44) | `mon_pyro`: an enforcer's build scaled 1.35, armoured, flamethrower, burns | enforcer + Pyro's Flamethrower, 100 hp | its bulk and model | as above, orange. The enforcer, not the grunt: its build (AD's own rig for it is the enforcer's) and its armoured close-range role |
 | `monster_fumigator` (11, 0) | the pyro's build, poison sprayer | enforcer + Fumigator's Poison Sprayer, 100 hp | | as above, green |
-| `monster_dcrossbow` (387, 0) | AD's crossbow knight | knight + Crossbow Knight's Crossbow, 75 hp | its model and skin | as above (no recolour) |
+| `monster_dcrossbow` (387, 0) | AD's crossbow knight | the armed crossbow knight (row 5, its own look) + its Crossbow, 75 hp | its own attacks | as above (no recolour); `vr_agrunt_repl_crossbow` 1 |
+| `monster_dguard` (254, 0) | AD's death guard | the armed death guard (row 4, its own look) + the Death Guard's Sword, 30 hp | its own swings | as above (no recolour); `vr_agrunt_repl_dguard` 1 |
 
 Left as AD made them (phase 1; each a candidate the author may want, noted in ROUND25.md "humrepl"):
 
 | Variant | Why not now |
 | --- | --- |
 | `monster_dknight` (475) / Quoth's `monster_death_knight` (95) | AD's own death knight (its model, its magic): the armed death knight with its sword (`VR_ADMELEE_DKNIGHT`) would fit, but it is a third of AD's knights: AD's balance changes most; his word first |
-| `monster_dguard` (254) / `monster_death_guard`, `monster_deathguard` (Quoth 57, 13) | a sword soldier: a knight with the Death Guard's Sword would fit; with the death knights |
+| `monster_death_guard`, `monster_deathguard` (Quoth 57, 13) | Quoth's: a hell knight reskin (Audit 2); AD's `monster_dguard` is armed since adknights |
 | `monster_dsergeant` (30), `monster_dfury` (69) | the flail and two fury swords on an armed knight: the flail's chain on an armed hand untested |
 | `monster_hell_knight` 8192, `monster_hell_pointknight` (4) | the lightning point knight: a turret-like caster, 4 placed |
 | `monster_zombiek` (435), `monster_dknightghost` (13) | undead (getting up again, a ghost): not what an armed humanoid is |

@@ -473,6 +473,7 @@ void() ad_monster_dguard =
 {
 	// Check all spawn exceptions (monsters.qc)
 	if (ad_monster_checkspawn() == ad_TRUE) return;
+	if (VR_HUM_Replace(VR_HUM_V_DGUARD)) return; // AD support: an armed death guard with its sword (vr_humrepl.qc; vr_agrunt_repl_dguard)
 
 	self.mdl = "progs/mon_dguard.mdl";
 	self.ad_headmdl = "progs/h_dguard.mdl";				// Large head

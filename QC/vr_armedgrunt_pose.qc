@@ -196,7 +196,7 @@ float(entity g, entity p) VR_AGH_Hands =
     {
         return 0;
     }
-    vector h = weapondrawnpose(world, g.vr_ag_kind * 1000 + VR_AGH_Code(p), 24);
+    vector h = weapondrawnpose(world, VR_AM_PoseKind(g.vr_ag_kind) * 1000 + VR_AGH_Code(p), 24);
     vr_agh_set = h_y;
     return h_x;
 };
@@ -1575,7 +1575,7 @@ float(entity g, entity p) VR_AGK_Class =
         return p.weapon == WID_CHAINSAW ? VR_AGK_SAW : (VR_AGP_TwoHanded(p) ? VR_AGK_MELEE2 : VR_AGK_MELEE);
     }
     // (one gun: its pose category, the Weapon Holds' Pose Category for its kind; a gun with no row a rifle)
-    vector h = weapondrawnpose(world, g.vr_ag_kind * 1000 + VR_AGH_Code(p), 24);
+    vector h = weapondrawnpose(world, VR_AM_PoseKind(g.vr_ag_kind) * 1000 + VR_AGH_Code(p), 24);
     return h_z ? h_z : VR_AGK_GUN;
 };
 
@@ -1693,8 +1693,8 @@ void(entity g, entity p) VR_AGK_Keys =
     vr_agk_rep = g.vr_agk_live;
     vr_agk_repent = g;
     float cls = VR_AGK_Class(g, p);
-    float base = g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS;
-    vector st = weapondrawnpose(world, g.vr_ag_kind * 100 + cls, 28);
+    float base = VR_AM_PoseKind(g.vr_ag_kind) * VR_AGK_KIND + cls * VR_AGK_CLASS;
+    vector st = weapondrawnpose(world, VR_AM_PoseKind(g.vr_ag_kind) * 100 + cls, 28);
     vr_agk_stretch = st_x * VR_AGK_TugStretch(g);
     float wc = 0; // (the cast's: its Cast key, his off hand's palm at you; VR_AGP_CAST)
     if(g.vr_ag_act == VR_AGP_CAST)
@@ -1806,7 +1806,7 @@ void(entity g, entity p) VR_AGK_Keys =
         float sb = base;
         if(vr_agk_gun && cls != VR_AGK_PISTOL && VR_AGH_Hands(g, p) == 1)
         {
-            sb = g.vr_ag_kind * VR_AGK_KIND + VR_AGK_PISTOL * VR_AGK_CLASS;
+            sb = VR_AM_PoseKind(g.vr_ag_kind) * VR_AGK_KIND + VR_AGK_PISTOL * VR_AGK_CLASS;
         }
         sb = sb + VR_AGK_SHOVE * VR_AGK_POSE;
         VR_AGK_Blend(g, sb);
@@ -1830,7 +1830,7 @@ void(entity g, entity p) VR_AGK_Keys =
 // told.
 void(entity g, entity p) VR_AGK_Query =
 {
-    vector h = weapondrawnpose(g, g.vr_ag_kind * 100 + VR_AGK_Class(g, p), 19);
+    vector h = weapondrawnpose(g, VR_AM_PoseKind(g.vr_ag_kind) * 100 + VR_AGK_Class(g, p), 19);
     vr_agk_hpose = h_x;
     vr_agk_hphase = h_y;
     vr_agk_hplay = h_z;
@@ -1966,7 +1966,7 @@ void(entity g, entity p) VR_AGK_Hold =
     g.vr_agk_play = vr_agk_hplay;
     if(time >= g.vr_agk_play_end)
     {
-        g.vr_ag_act_at = time - VR_AGK_KeyTime(g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS + pose * VR_AGK_POSE +
+        g.vr_ag_act_at = time - VR_AGK_KeyTime(VR_AM_PoseKind(g.vr_ag_kind) * VR_AGK_KIND + cls * VR_AGK_CLASS + pose * VR_AGK_POSE +
             vr_agk_hphase);
     }
 };

@@ -2788,3 +2788,36 @@ His words: "Performance is OK but still not smooth enough ... I think it's time 
 - Tests: nogamedir_test 5/0 (testmod and testmod_explicit now play e1m1 in the empty mod; new `gamecmd`: started
   without -game, `game testmod` from the autoexec, the mod's autoexec then plays e1m1: game dirs quakevr;testmod);
   tutorial_start_test 8/0; agrunt 1, 2, 80-82 (rigseq, vr_rigdata_dir) pass.
+## adknights: AD's death guard and crossbow knight as armed humanoids in their own looks (branch agent/adknights, 2026-11-27)
+
+His words (2026-11-27): convert AD's death guard and crossbow knight to the armed humanoid system, reusing the most
+similar enemies' poses, any weapon, infection, dynamic armour; then replace them automatically in AD's maps.
+- **Models**: `progs/vrdguard.mdl`, `progs/vrdcrossbow.mdl`, made as they load from AD's `mon_dguard.mdl` /
+  `mon_dcrossbow.mdl` (`vr_monstermods.cpp VR_AdArmedModelFile`, through `VR_DerivedModelFile`; nothing of AD's written):
+  the weapon's triangles dropped (vertices kept), 97 frames in the knight's QC macro order (AD's nearest action each,
+  blended between AD's frames; the take's kneel from AD's forward death's first frames, as the death knight row's), the
+  living frames turned about the vertical so the shoulders are square (the crossbow knight's rest is 40 degrees side-on;
+  the death guard's run 14-17). So id's knight code drives them: health, sounds, AI, pains, deaths. Model ids `VrDguard`,
+  `VrDcrossbow`; ragdolls AD's seeds (`vr_ad_rigs.inc`, deaths 75-84 / 85-96); metal footsteps.
+  `vr_adarmed_dump <model> <file>` writes one out (for the rig; never commit it).
+- **Rigs** (authored): `make_rig2.py dguard|dcrossbow --mesh <dump>` -> `quakevr/rigs/vrdguard.rig2.txt`,
+  `vrdcrossbow.rig2.txt`; joints from AD's ragdoll seeds turned as the made frame 0, the knight's limits and blends; the
+  crossbow knight's shoulders the death guard's moved with the chest (one body, vertex for vertex). Previews:
+  `scratch/adknights_rig_*.png` in the tree.
+- **Rows** 4 `monster_vr_dguard` ("Death Guard", its sword by default) and 5 `monster_vr_dcrossbow` ("Crossbow Knight",
+  its crossbow): QC `vr_armedmon.qc` (hands, weapon lines, anchor 51, shoulders, fits 1 0.95 1), engine `armedRigs` with
+  `poseKind` 2: they take the knight's pose keys and grips (`VR_AM_PoseKind`), fitted to their shoulders. Without AD's
+  data (`vr_ad_mounted` 0) they are the knight (`VR_AM_Resolve`). `VR_AM_COUNT` stays 4 (every existing loop);
+  `VR_AM_ROWS` 6. Armour: wearers rows and plates for both models, the knights' rule. No recolour (AD's skins).
+- **Replacement**: `VR_HUM_V_DGUARD` (AD's `ad_monster_dguard` calls `VR_HUM_Replace`), the crossbow knight to row 5;
+  `vr_agrunt_repl_dguard` (new, 1) and `vr_agrunt_repl_crossbow` (back to 1): Combat > Armed Humanoid Replacements,
+  "AD Death Guards", "AD Crossbow Knights". BACKLOG section 6's entry closed.
+- **Tests**: `vr_ad_test 219` (humrepl_test.sh) now checks each variant's model, the death guard's row, sword kind, health
+  30 and its switch off: 65/0. Glitch finder (`vr_agrunt_test 46`, `temp1 1`, `scratch2 26`, `scratch3 77`: the close
+  loop for knight, death knight, death guard, crossbow knight; `scratch3` may now pass 25): parsed close lines, gun
+  frames pointing over 45 degrees: knight 1, death guard 12 (shotgun 5, nailgun 7, worst 79 deg), crossbow knight 0;
+  muzzle over the head: knight 417, death guard 1, crossbow knight 0. Scene `ad_knights_armed` (vrtesthall, needs AD:
+  both with their own weapons and with shotguns, frozen): 4 of 4 placed; `scratch/adknights_scene.png` (low-res).
+- Open: his look in VR (the holds share the knight's keys: a Pose Studio edit on the knight moves them too; their own
+  kinds in the Pose Studio would need `agpose::numKinds` 6); the death guard's guns aiming a little high up close; the
+  crossbow knight's arm skin round its cloak.

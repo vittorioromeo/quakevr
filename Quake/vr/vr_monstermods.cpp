@@ -15,9 +15,14 @@
 // Misc/quakevr/make_enemyguns.py): Quake VR's soldier's and enforcer's guns, by their known vertices.
 //
 // Dawn of the Machine's Super Axe loses the first-person arm its model holds it with (superAxePoses).
+//
+// AD's death guard and crossbow knight as armed knights: their models made from AD's without the weapon, their frames in
+// the knight's order (VR_AdArmedModelFile, at the end).
 
 #include "vr_modelmetadata.hpp"
 #include "vr_engine.hpp"
+#include "vr_bytes.hpp"
+#include "vr_mdlbuild.hpp"
 
 #include "Zancle/Algorithm/Iota.hpp"
 #include "Zancle/Algorithm/MaxElement.hpp"
@@ -25,7 +30,10 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_api.h"
 
@@ -523,4 +531,290 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     }
     Con_DPrintf("VR: %s: the %s (%d vertices) hidden in %d death frames\n", name, droppedName(name),
         static_cast<int>(own.size()), frames);
+}
+
+// ---- AD's death guard and crossbow knight as armed knights (QC vr_armedmon.qc rows 4 and 5; ARMED_MONSTERS.md) ----
+//
+// progs/vrdguard.mdl and progs/vrdcrossbow.mdl are made as they load from AD's own progs/mon_dguard.mdl and
+// progs/mon_dcrossbow.mdl (nothing of AD's is written anywhere): their meshes, skins and vertex numbering AD's, the
+// weapon's triangles dropped (its vertices kept: QC reads its line in every frame), and their frames laid out as the
+// knight's (QC orig_mon_knight.qc's $frame macros: stand 0-8, runb 9-16, runattack 17-27, pain 28-30, painb 31-41,
+// attackb 42-51, walk 52-65, kneel 66-70, standing 71-74, death 75-84, deathb 85-95, 96 the last), each taken from AD's
+// nearest action and blended between AD's frames where the counts differ. So the knight's own code (its health, sounds,
+// AI, pains, deaths) plays them, and the armed knight's frame numbers serve their rows. The living frames are turned
+// about the vertical so their shoulders are square to the way they face (AD's crossbow knight stands 40 degrees side-on:
+// the armed poses are made facing ahead); the deaths are AD's as they are.
+namespace
+{
+struct ArmedSeg
+{
+    int dst, n;     // its frames in the knight's order: first, how many
+    int src, srcN;  // AD's frames it is made from: first, how many
+    bool cyclic;    // a loop (its last blends back into its first)
+    bool square;    // turned square to the way it faces
+};
+struct ArmedAdModel
+{
+    qvr::modelmeta::Id id;
+    const char* src;
+    int numVerts, numTris;
+    int weaponFirst, weaponCount; // (vr_monstermods.cpp knownSwords' range)
+    int shoulderR, shoulderL;     // a vertex on each shoulder (the square turn)
+    ArmedSeg segs[11];
+};
+constexpr int armedFrames = 97;
+// (AD's frames: QC/ad/ad_mon_dguard.qc, ad_mon_dcrossbow.qc $frame lists. Neither has a kneel: the take bends over as its
+// forward death starts, as the armed death knight's does; standing is its pain's getting up.)
+constexpr ArmedAdModel armedAdModels[] = {
+    {qvr::modelmeta::Id::VrDguard, "progs/mon_dguard.mdl", 585, 564, 544, 41, 215, 58,
+        {{0, 9, 0, 12, true, true},        // stand1-12
+         {9, 8, 109, 6, true, true},       // run1-6
+         {17, 11, 183, 12, false, true},   // char_a1-12
+         {28, 3, 167, 5, false, true},     // painA1-5
+         {31, 11, 172, 11, false, true},   // painD1-11
+         {42, 10, 115, 15, false, true},   // slice1-15
+         {52, 14, 95, 14, true, true},     // walk1-14
+         {66, 5, 227, 5, false, true},     // deathC1-5 (forward, a stoop)
+         {71, 4, 179, 4, false, true},     // painD8-11 (getting up)
+         {75, 10, 195, 12, false, false},  // deathA1-12
+         {85, 12, 207, 20, false, false}}}, // deathB1-20
+    {qvr::modelmeta::Id::VrDcrossbow, "progs/mon_dcrossbow.mdl", 1120, 874, 772, 348, 215, 35,
+        {{0, 9, 0, 10, true, true},        // stand1-10
+         {9, 8, 128, 6, true, true},       // run1-6
+         {17, 11, 146, 15, false, true},   // smash1-15
+         {28, 3, 209, 5, false, true},     // painA1-5
+         {31, 11, 214, 11, false, true},   // painD1-11
+         {42, 10, 134, 12, false, true},   // slice1-12
+         {52, 14, 114, 14, true, true},    // walk1-14
+         {66, 5, 226, 5, false, true},     // death2-6 (a stoop)
+         {71, 4, 221, 4, false, true},     // painD8-11 (getting up)
+         {75, 10, 225, 11, false, false},  // death1-11
+         {85, 12, 236, 20, false, false}}}, // deathb1-20
+};
+
+[[nodiscard]] int readInt(const byte* p) { return qvr::bytes::le32(p, 0); }
+[[nodiscard]] float readFloat(const byte* p) { return qvr::bytes::lef32(p, 0); }
+void putInt(za::Vector<byte>& out, int v)
+{
+    v = LittleLong(v);
+    const byte* b = reinterpret_cast<const byte*>(&v);
+    for(int i = 0; i < 4; i++) { out.pushBack(b[i]); }
+}
+void putFloat(za::Vector<byte>& out, float v)
+{
+    v = LittleFloat(v);
+    const byte* b = reinterpret_cast<const byte*>(&v);
+    for(int i = 0; i < 4; i++) { out.pushBack(b[i]); }
+}
+
+struct FramePos
+{
+    za::Vector<float> p; // x y z per vertex
+    za::Vector<int> n;   // normal index per vertex
+};
+
+// The made file (null: AD's model not found, or not the release measured).
+[[nodiscard]] byte* buildArmedAd(const ArmedAdModel& m, const char* name, unsigned int* path_id)
+{
+    byte* src = COM_LoadMallocFile(m.src, path_id);
+    if(!src)
+    {
+        Con_DPrintf("AD armed model: %s: %s not found\n", name, m.src);
+        return nullptr;
+    }
+    const za::SizeT size = static_cast<za::SizeT>(com_filesize);
+    const auto fail = [&](const char* why) -> byte* {
+        Con_DPrintf("AD armed model: %s: %s: %s\n", name, m.src, why);
+        VR_HeapFree(src);
+        return nullptr;
+    };
+    if(size < 84 || readInt(src + 4) != ALIAS_VERSION) { return fail("not an alias model"); }
+    float scale[3], origin[3];
+    for(int k = 0; k < 3; k++)
+    {
+        scale[k] = readFloat(src + 8 + 4 * k);
+        origin[k] = readFloat(src + 20 + 4 * k);
+    }
+    const int numSkins = readInt(src + 48), skinW = readInt(src + 52), skinH = readInt(src + 56);
+    const int nv = readInt(src + 60), nt = readInt(src + 64), nf = readInt(src + 68);
+    if(nv != m.numVerts || nt != m.numTris || nf < 256) { return fail("another release (its counts differ)"); }
+    za::SizeT off = 84;
+    for(int s = 0; s < numSkins && off + 4 <= size; s++)
+    {
+        const int group = readInt(src + off);
+        off += 4;
+        if(group)
+        {
+            const int n = readInt(src + off);
+            off += 4 + 4 * static_cast<za::SizeT>(n) + static_cast<za::SizeT>(n) * skinW * skinH;
+        }
+        else
+        {
+            off += static_cast<za::SizeT>(skinW) * skinH;
+        }
+    }
+    const za::SizeT skinsEnd = off;
+    const za::SizeT stEnd = skinsEnd + 12 * static_cast<za::SizeT>(nv);
+    const za::SizeT trisEnd = stEnd + 16 * static_cast<za::SizeT>(nt);
+    if(trisEnd > size) { return fail("truncated"); }
+    // AD's frames, decoded.
+    za::Vector<FramePos> frames(static_cast<za::SizeT>(nf));
+    off = trisEnd;
+    for(int f = 0; f < nf; f++)
+    {
+        if(off + 28 + 4 * static_cast<za::SizeT>(nv) > size || readInt(src + off) != 0) { return fail("a frame group"); }
+        const byte* v = src + off + 28;
+        FramePos& fp = frames[static_cast<za::SizeT>(f)];
+        fp.p.resize(static_cast<za::SizeT>(nv) * 3);
+        fp.n.resize(static_cast<za::SizeT>(nv));
+        for(int i = 0; i < nv; i++)
+        {
+            for(int k = 0; k < 3; k++)
+            {
+                fp.p[static_cast<za::SizeT>(i) * 3 + k] = v[4 * i + k] * scale[k] + origin[k];
+            }
+            fp.n[static_cast<za::SizeT>(i)] = v[4 * i + 3];
+        }
+        off += 28 + 4 * static_cast<za::SizeT>(nv);
+    }
+    // The knight's frames: blended, turned square.
+    za::Vector<FramePos> made(static_cast<za::SizeT>(armedFrames));
+    for(const ArmedSeg& s : m.segs)
+    {
+        for(int i = 0; i < s.n; i++)
+        {
+            const float at = s.cyclic ? static_cast<float>(i) * static_cast<float>(s.srcN) / static_cast<float>(s.n)
+                                      : (s.n > 1 ? static_cast<float>(i) * static_cast<float>(s.srcN - 1) / static_cast<float>(s.n - 1) : 0.f);
+            const int a = za::min(static_cast<int>(at), s.srcN - 1);
+            const int b = s.cyclic ? (a + 1) % s.srcN : za::min(a + 1, s.srcN - 1);
+            const float t = at - static_cast<float>(a);
+            const FramePos& A = frames[static_cast<za::SizeT>(s.src + a)];
+            const FramePos& B = frames[static_cast<za::SizeT>(s.src + b)];
+            FramePos& out = made[static_cast<za::SizeT>(s.dst + i)];
+            out.p.resize(A.p.size());
+            out.n = t < 0.5f ? A.n : B.n;
+            for(za::SizeT k = 0; k < A.p.size(); k++)
+            {
+                out.p[k] = A.p[k] + (B.p[k] - A.p[k]) * t;
+            }
+            if(!s.square)
+            {
+                continue;
+            }
+            const float dx = out.p[static_cast<za::SizeT>(m.shoulderL) * 3] - out.p[static_cast<za::SizeT>(m.shoulderR) * 3];
+            const float dy = out.p[static_cast<za::SizeT>(m.shoulderL) * 3 + 1] - out.p[static_cast<za::SizeT>(m.shoulderR) * 3 + 1];
+            const float turn = za::atan2(dx, dy); // (the shoulders' line along +y: square to +x)
+            const float c = za::cos(turn), sn = za::sin(turn);
+            for(int v = 0; v < nv; v++)
+            {
+                float* p = &out.p[static_cast<za::SizeT>(v) * 3];
+                const float x = p[0], y = p[1];
+                p[0] = c * x - sn * y;
+                p[1] = sn * x + c * y;
+                const int ni = out.n[static_cast<za::SizeT>(v)];
+                if(ni < NUMVERTEXNORMALS)
+                {
+                    const float* q = r_avertexnormals[ni];
+                    out.n[static_cast<za::SizeT>(v)] = qvr::mdlbuild::nearestNormal(glm::vec3{c * q[0] - sn * q[1], sn * q[0] + c * q[1], q[2]});
+                }
+            }
+        }
+    }
+    // Packed again (the turns move vertices out of AD's box).
+    float lo[3] = {1e9f, 1e9f, 1e9f}, hi[3] = {-1e9f, -1e9f, -1e9f};
+    for(const FramePos& fp : made)
+    {
+        for(int v = 0; v < nv; v++)
+        {
+            for(int k = 0; k < 3; k++)
+            {
+                lo[k] = za::min(lo[k], fp.p[static_cast<za::SizeT>(v) * 3 + k]);
+                hi[k] = za::max(hi[k], fp.p[static_cast<za::SizeT>(v) * 3 + k]);
+            }
+        }
+    }
+    float newScale[3];
+    for(int k = 0; k < 3; k++)
+    {
+        newScale[k] = za::max((hi[k] - lo[k]) / 255.f, 1e-4f);
+    }
+    // The weapon's triangles dropped (any corner on it, as make_vrgrunt.py's).
+    za::Vector<za::SizeT> kept;
+    for(int i = 0; i < nt; i++)
+    {
+        const byte* t = src + stEnd + 16 * static_cast<za::SizeT>(i);
+        bool weapon = false;
+        for(int k = 0; k < 3; k++)
+        {
+            const int v = readInt(t + 4 + 4 * k);
+            weapon = weapon || (v >= m.weaponFirst && v < m.weaponFirst + m.weaponCount);
+        }
+        if(!weapon)
+        {
+            kept.pushBack(static_cast<za::SizeT>(i));
+        }
+    }
+    za::Vector<byte> out;
+    out.reserve(trisEnd + static_cast<za::SizeT>(armedFrames) * (28 + 4 * static_cast<za::SizeT>(nv)));
+    for(za::SizeT i = 0; i < 8; i++) { out.pushBack(src[i]); }
+    for(int k = 0; k < 3; k++) { putFloat(out, newScale[k]); }
+    for(int k = 0; k < 3; k++) { putFloat(out, lo[k]); }
+    for(za::SizeT i = 32; i < 64; i++) { out.pushBack(src[i]); } // (radius, eye, skins, skin size, vertex count)
+    putInt(out, static_cast<int>(kept.size()));
+    putInt(out, armedFrames);
+    for(za::SizeT i = 72; i < stEnd; i++) { out.pushBack(src[i]); } // (sync, flags, size; skins; texels)
+    for(za::SizeT i : kept)
+    {
+        for(za::SizeT b = 0; b < 16; b++) { out.pushBack(src[stEnd + 16 * i + b]); }
+    }
+    for(int f = 0; f < armedFrames; f++)
+    {
+        const FramePos& fp = made[static_cast<za::SizeT>(f)];
+        za::Vector<byte> verts(static_cast<za::SizeT>(nv) * 4);
+        byte bmin[3] = {255, 255, 255}, bmax[3] = {0, 0, 0};
+        for(int v = 0; v < nv; v++)
+        {
+            for(int k = 0; k < 3; k++)
+            {
+                const float q = (fp.p[static_cast<za::SizeT>(v) * 3 + k] - lo[k]) / newScale[k] + 0.5f;
+                const byte c = static_cast<byte>(za::max(0, za::min(255, static_cast<int>(q))));
+                verts[static_cast<za::SizeT>(v) * 4 + k] = c;
+                bmin[k] = za::min(bmin[k], c);
+                bmax[k] = za::max(bmax[k], c);
+            }
+            verts[static_cast<za::SizeT>(v) * 4 + 3] = static_cast<byte>(fp.n[static_cast<za::SizeT>(v)]);
+        }
+        putInt(out, 0);
+        for(int k = 0; k < 3; k++) { out.pushBack(bmin[k]); }
+        out.pushBack(0);
+        for(int k = 0; k < 3; k++) { out.pushBack(bmax[k]); }
+        out.pushBack(0);
+        char frameName[16]{};
+        q_snprintf(frameName, sizeof(frameName), "frame%d", f + 1);
+        for(char ch : frameName) { out.pushBack(static_cast<byte>(ch)); }
+        for(byte b : verts) { out.pushBack(b); }
+    }
+    VR_HeapFree(src);
+    byte* file = static_cast<byte*>(VR_HeapMalloc(out.size() + 1));
+    ZA_MEMCPY(file, out.data(), out.size());
+    file[out.size()] = 0;
+    com_filesize = static_cast<int>(out.size());
+    Con_DPrintf("AD armed model: %s made from %s: %d of %d triangles, %d frames\n", name, m.src,
+        static_cast<int>(kept.size()), nt, armedFrames);
+    return file;
+}
+} // namespace
+
+// Mod_LoadModel (vr_walltorch.cpp VR_DerivedModelFile): the armed death guard's or crossbow knight's model, or NULL.
+extern "C" byte* VR_AdArmedModelFile(const char* name, unsigned int* path_id)
+{
+    const auto id = qvr::modelmeta::identifyPath(name);
+    for(const ArmedAdModel& m : armedAdModels)
+    {
+        if(m.id == id)
+        {
+            return buildArmedAd(m, name, path_id);
+        }
+    }
+    return nullptr;
 }
