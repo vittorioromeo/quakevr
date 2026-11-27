@@ -6,23 +6,59 @@
 // Putting one on: VR, the hand holding it brings its mount (its model's origin) within vr_attach_snap_radius of the gun's
 // mount in the other hand, pointing along the gun (within vr_attach_snap_angle), and it snaps on as a magazine seats;
 // flat play, the Attach key (vr_flat_key_attach, J: impulse 52) with it in the other hand. Taking it off: VR, the other
-// hand, empty, grips it (within vr_attach_pull_radius of the mount) and pulls it off: it is in that hand; flat play, the
-// Attach key with that hand empty.
+// hand, empty, gripping within vr_attach_pull_radius of the mount, presses its B/Y (vr_attach_pull_button; as the head
+// torch comes off): it is in that hand; a grip there alone is the gun's (its two-handed grip); flat play, the Attach key
+// with that hand empty.
 //
 // What a bayonet does: the gun strikes as a blade (vr_melee_params.qc VR_Melee_Thing, VR_Melee_Line: a sword's blows, its
 // line to the bayonet's tip), sticks by its point (VR_Attach_Embed: weapons.txt embed 1 for this weapon; the engine's
 // vr_axestick.cpp attachBlade: the bayonet's tip), and fires while stuck (VR_Attach_EmbedFire: embedfire's prop-fire
 // path, vr_propfire.qc). Nothing else of the gun changes: it fires, reloads and breaks open as before, held or stuck.
 
+//
+// Daggers as Bayonets (daggerattach; his 2026-11-27, vr_attach_daggers, on for testing): the dagger (the knight's sword of
+// its kind, VR_SWORDKIND_DAGGER) a hand holds is an attachment too (VR_ATT_DAGGER, weapons.txt att2_*): VR, brought along
+// under the other hand's gun, its tip within vr_attach_snap_radius of where the drawn one's tip would be and pointing the
+// same way (vr_attach_snap_angle), it goes on; flat play, the Attach key. Its record goes on the gun's (.wi_attach_inst) and
+// the hand is empty; pulled off (the empty hand gripping by its handle, B/Y) or taken off by the key, it is that dagger in
+// the hand again. Everything else is the bayonet's (a blade on the gun: VR_Attach_Strikes).
+
 float vr_att_attached; // (the tests: attachments put on, taken off)
 float vr_att_detached;
 .float vr_att_grip;    // a player's hands' grips last frame (bit 1 the off hand, 2 the main), for a pull's press
+.float vr_att_sec;     // and their B/Y last frame (the same bits), for the pull's press (vr_attach_pull_button)
 .float vr_att_fresh;   // an attachment just pulled off a gun: it doesn't snap on again until taken away from the mount
+                       // (a bayonet prop's TRUE; a player's: the hands holding a dagger just pulled off, the bits above)
+void() W_SetCurrentAmmo; // (weapons.qc)
 
 // The attachment kind the prop `e` is (0: not one).
 float(entity e) VR_Attach_PropKind =
 {
     return (e != world && e.classname == "vr_bayonet") ? VR_ATT_BAYONET : 0;
+};
+
+// Whether `xHand` of `p` holds a dagger that may go on a gun (Daggers as Bayonets on; held by its handle).
+float(entity p, float xHand) VR_Attach_HeldDagger =
+{
+    float f = VRGetEntWeaponFlags(p, xHand);
+    return cvar_hget(cvarh_vr_attach_daggers) && VRGetEntWeapon(p, xHand) == WID_SWORD &&
+           VR_ADMelee_Kind(f) == VR_SWORDKIND_DAGGER && !(f & QVR_WPNFLAG_FOREGRIP_CARRIED);
+};
+
+// The hand's weapon's drawn muzzle (a dagger's: its tip).
+vector(entity p, float xHand) VR_Attach_MuzzleOf =
+{
+    vector m = xHand == cVR_OffHand ? p.offmuzzlepos : p.muzzlepos;
+    return m != '0 0 0' ? m : VRGetEntHandPos(p, xHand);
+};
+
+// p's weapons' ammo readouts again (a hand emptied or given a weapon here).
+void(entity p) VR_Attach_Ammo =
+{
+    entity oldSelf = self;
+    self = p;
+    W_SetCurrentAmmo();
+    self = oldSelf;
 };
 
 // Whether attachment `xKind` can go on the weapon in `xHand` of `p` now: a weapon it fits (attN_ok), with a record, and
@@ -44,11 +80,7 @@ float(entity p, float xHand, float xKind) VR_Attach_CanTake =
 vector(entity p, float xHand, float xKind, float xWhat) VR_Attach_HandPoint =
 {
     vector d = attachinfo(WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand)), xKind, xWhat);
-    vector m = xHand == cVR_OffHand ? p.offmuzzlepos : p.muzzlepos;
-    if(m == '0 0 0')
-    {
-        m = VRGetEntHandPos(p, xHand);
-    }
+    vector m = VR_Attach_MuzzleOf(p, xHand);
     vector oldF = v_forward, oldR = v_right, oldU = v_up;
     makevectors(VRGetEntHandRot(p, xHand));
     float side = xHand == cVR_OffHand ? 1 : -1; // (left: -right; the off hand's mirrored)
@@ -88,6 +120,25 @@ void(entity p, float xGunHand, entity xProp) VR_Attach_Put =
     if(cvar_hget(cvarh_developer)) dprint(sprintf("attach: kind %g on weapon #%g (hand %g)\n", kind, inst.wi_uid, xGunHand));
 };
 
+// The dagger `xHand` of `p` holds put on the weapon in the other hand as its bayonet: its record kept on the gun's, the
+// hand emptied.
+void(entity p, float xGunHand, float xHand) VR_Attach_PutDagger =
+{
+    entity inst = VRGetEntWeaponInst(p, xGunHand);
+    if(inst == world)
+    {
+        return;
+    }
+    entity d = VRGetEntWeaponInst(p, xHand);
+    inst.wi_attach = VR_ATT_DAGGER;
+    inst.wi_attach_inst = d;
+    VRSetHandEmpty(p, xHand);
+    VR_Attach_Ammo(p);
+    sound(p, CHAN_AUTO, "vr/reload_mag_in.wav", 1, ATTN_NORM);
+    vr_att_attached = vr_att_attached + 1;
+    if(cvar_hget(cvarh_developer)) dprint(sprintf("attach: dagger #%g on weapon #%g (hand %g)\n", d.wi_uid, inst.wi_uid, xGunHand));
+};
+
 // The attachment on the weapon in the other hand taken off into `xHand` of `p` (empty): a prop again, carried there. Pulled
 // off by the hand's grip at the mount (VR), it is held as the hand took it there; by the Attach key (`xByKey`: the hand is
 // not at the mount, flat play's J), it goes into the hand pointing along it, its blade out of the fist on the index
@@ -99,6 +150,24 @@ void(entity p, float xHand, float xByKey) VR_Attach_TakeOff =
     float g = VRGetOtherHand(xHand);
     entity inst = VRGetEntWeaponInst(p, g);
     float kind = inst != world ? inst.wi_attach : 0;
+    if(kind == VR_ATT_DAGGER)
+    {
+        // (the dagger again in the hand: its own record, else a fresh one; upright. A pull leaves it fresh in the hand:
+        // not on again before it is taken away from the mount.)
+        entity d = inst.wi_attach_inst != world ? inst.wi_attach_inst : WeaponInst_New(0);
+        inst.wi_attach_inst = world;
+        inst.wi_attach = 0;
+        VRSetEntWeapon(p, xHand, WID_SWORD);
+        VRSetEntWeaponFlags(p, xHand, VR_ADMelee_Flags(VR_SWORDKIND_DAGGER));
+        VRSetEntWeaponInst(p, xHand, WeaponInst_Owned(p, WID_SWORD, d));
+        float fb = xHand == cVR_MainHand ? 2 : 1;
+        p.vr_att_fresh = xByKey ? p.vr_att_fresh - (p.vr_att_fresh & fb) : (p.vr_att_fresh | fb);
+        VR_Attach_Ammo(p);
+        sound(p, CHAN_AUTO, "vr/reload_mag_out.wav", 1, ATTN_NORM);
+        vr_att_detached = vr_att_detached + 1;
+        if(cvar_hget(cvarh_developer)) dprint(sprintf("attach: dagger #%g off weapon #%g into hand %g\n", d.wi_uid, inst.wi_uid, xHand));
+        return;
+    }
     if(kind != VR_ATT_BAYONET)
     {
         return;
@@ -123,7 +192,7 @@ void(entity p, float xHand, float xByKey) VR_Attach_TakeOff =
 };
 
 // Every frame, each player (PlayerPostThink): an attachment a hand holds brought to the other hand's gun snaps on; the
-// empty hand's grip pressed at the other gun's attachment pulls it off.
+// empty hand gripping at the other gun's attachment pulls it off by its B/Y (vr_attach_pull_button 0: by the grip's press).
 void(entity p) VR_Attach_Frame =
 {
     for(float h = 0; h < 2; h++)
@@ -159,10 +228,37 @@ void(entity p) VR_Attach_Frame =
             }
         }
         float bit = h == cVR_MainHand ? 2 : 1;
+        // A dagger held (Daggers as Bayonets): its tip brought to where the drawn one's tip would be on the other hand's
+        // gun, pointing its way (its grip to its tip against the mounted one's origin, by its grip, to its tip).
+        if(VR_Attach_HeldDagger(p, h) && VR_Attach_CanTake(p, g, VR_ATT_DAGGER))
+        {
+            vector dt = VR_Attach_MuzzleOf(p, h);
+            float dgap = vlen(dt - VR_Attach_HandPoint(p, g, VR_ATT_DAGGER, 2));
+            if((p.vr_att_fresh & bit) && dgap > 2 * cvar_hget(cvarh_vr_attach_snap_radius))
+            {
+                p.vr_att_fresh = p.vr_att_fresh - bit;
+            }
+            if(!(p.vr_att_fresh & bit) && dgap <= cvar_hget(cvarh_vr_attach_snap_radius) &&
+               normalize(dt - VRGetEntHandPos(p, h)) * VR_Attach_Way(p, g, VR_ATT_DAGGER) >=
+                   cos(cvar_hget(cvarh_vr_attach_snap_angle) * 0.0174533))
+            {
+                VR_Attach_PutDagger(p, g, h);
+            }
+        }
+        else if(!VR_Attach_HeldDagger(p, h))
+        {
+            p.vr_att_fresh = p.vr_att_fresh - (p.vr_att_fresh & bit); // (let go of: fresh no more)
+        }
         float grip = VR_HandGrabUtil_IsHandGrabbing(p, h);
         float was = p.vr_att_grip & bit;
         p.vr_att_grip = grip ? (p.vr_att_grip | bit) : (p.vr_att_grip - (p.vr_att_grip & bit));
-        if(grip && !was && VR_Attach_Hand(p, g) && VRIsHandEmpty(p, h) && VR_Carry_Held(p, h) == world &&
+        float sec = VRHasBit(p.vrbits0, h == cVR_MainHand ? QVR_VRBITS0_MAINHAND_SECONDARY : QVR_VRBITS0_OFFHAND_SECONDARY);
+        float secWas = p.vr_att_sec & bit;
+        p.vr_att_sec = sec ? (p.vr_att_sec | bit) : (p.vr_att_sec - (p.vr_att_sec & bit));
+        // (vr_attach_pull_button: the grip held and B/Y pressed, as the head torch comes off, so a two-handed grip at the
+        // mount never pulls it off; 0: the grip's press alone.)
+        float pull = cvar_hget(cvarh_vr_attach_pull_button) ? (grip && sec && !secWas) : (grip && !was);
+        if(pull && VR_Attach_Hand(p, g) && VRIsHandEmpty(p, h) && VR_Carry_Held(p, h) == world &&
            vlen(VRGetEntHandPos(p, h) - VR_Attach_HandPoint(p, g, VR_Attach_Hand(p, g), 1)) <= cvar_hget(cvarh_vr_attach_pull_radius))
         {
             VR_Attach_TakeOff(p, h, FALSE);
@@ -183,6 +279,11 @@ void(entity p) VR_Attach_Key =
         if(kind && VR_Attach_CanTake(p, g, kind))
         {
             VR_Attach_Put(p, g, c);
+            return;
+        }
+        if(VR_Attach_HeldDagger(p, o) && VR_Attach_CanTake(p, g, VR_ATT_DAGGER)) // (Daggers as Bayonets)
+        {
+            VR_Attach_PutDagger(p, g, o);
             return;
         }
     }

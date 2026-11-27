@@ -715,6 +715,7 @@ void R_BModelCallTextures (texture_t *t, gltexture_t *out[4]); // QVR: a world c
 void R_PrewarmDecalPrograms (qboolean pdo); // QVR: those made in the map's load (vr/vr_decals.cpp prepare)
 void R_PrewarmTranslucentDecalPrograms (void); // QVR: the translucent brush models' (vr/vr_decals.cpp prepareTranslucent)
 void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
+void R_WorldLitReuseStats_f (void); // QVR: vr_gl_world_lit_stats (r_world.c, questperf)
 void R_ModelFragments_f (void); // QVR: vr_model_fragments (gl_rmain.c)
 extern qboolean gl_multiview_draw; // QVR: the multiview pass draws: GL_UseProgram takes the twins (single-pass stereo)
 void R_RenderStereoSingle (void); // QVR: gl_rmain.c: single-pass stereo's multiview pass (vr/vr_stereo_single.cpp)

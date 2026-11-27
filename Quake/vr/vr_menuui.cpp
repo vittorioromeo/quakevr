@@ -3312,7 +3312,9 @@ extern "C" void VR_MenuDrawStatus()
 {
     // The desktop window without the focus: a warning first (white on red), with the box's lines or alone.
     const bool unfocused = windowUnfocused();
-    if((!vr_menu_status.value && !unfocused) || M_WaitingForKeyBinding())
+    // Quake VR's game data not found at start (a broken install: vr_gamedir.cpp), the same warning in every menu.
+    const char* missingIn = VR_GameDataMissingFolder();
+    if((!vr_menu_status.value && !unfocused && !missingIn) || M_WaitingForKeyBinding())
     {
         statusBox.lines = M_WaitingForKeyBinding() ? statusBox.lines : 0;
         return;
@@ -3326,6 +3328,15 @@ extern "C" void VR_MenuDrawStatus()
         lines.pushBack(za::String{"! Game window not focused:"});
         lines.pushBack(za::String{"! input/performance may suffer;"});
         lines.pushBack(za::String{"! click the game's desktop window"});
+    }
+    if(missingIn)
+    {
+        // (the folder cut from its start to fit the box: its end names it)
+        const za::SizeT len = ZA_STRLEN(missingIn);
+        lines.pushBack(za::String{"! Quake VR's game data wasn't found"});
+        lines.pushBack(za::String{va("! looked for quakevr in %s%s", len > 34 ? "..." : "", missingIn + (len > 34 ? len - 34 : 0))});
+        lines.pushBack(za::String{"! reinstall with QuakeVR-Setup"});
+        lines.pushBack(za::String{"! or start from its shortcut"});
     }
     const za::SizeT ownFirst = lines.size(); // (the mode's line)
     if(vr_menu_status.value)

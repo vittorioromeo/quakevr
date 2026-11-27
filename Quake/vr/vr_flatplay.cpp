@@ -1514,7 +1514,7 @@ void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& rig
     return slot >= 0 && vr_flat_thrust.value != 0.f &&
            (twohand::poleWeapon(slot) ||
                (vr_flat_thrust_blades.value != 0.f && (static_cast<int>(weapons::value(slot, weapons::Key::Embed)) == 1 ||
-                                                          (h >= 0 && view::ownGunLook(h).attach == attach::Bayonet))));
+                                                          (h >= 0 && attach::strikes(view::ownGunLook(h).attach)))));
 }
 
 // Where a spear thrust (vr_flat_thrust) is at its clock: drawn back along the pole (a one-handed blade: along the blade)
@@ -2238,6 +2238,9 @@ void noteStrikePath(const hands::State& s, int h, const glm::vec3& root, const g
         {
             swingPose(c, h, root, eye, at, fwd, right, up, aimRot);
         }
+        // (The free hand pinned on the weapon's grip pulls this hand in as far as the grip goes past its arm's reach,
+        // flatsight's pinToGrip: a flipped spear thrust out to the end came 8 units short of where it was rehearsed.)
+        c.pos[h] += flatsight::gripPull(c, h, thrustOffSlide(h));
         glm::vec3 f{0.f}, r{0.f}, u{0.f};
         hands::angleVectors(c.rot[h], f, r, u);
         sp.pts[i] = c.pos[h] + f * tip.x + r * tip.y + u * tip.z;

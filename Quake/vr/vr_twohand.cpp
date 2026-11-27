@@ -580,8 +580,16 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;
     // (Flatscreen play's two-handed melee stance, flatplay::melee2HShare: its pose decides where the hands stand, and the
     // free hand is put on the grip by it, so any line between them holds.)
+    // (judicator, his flat note 2026-11-26: flipping the judicator's sword held in two hands, the free hand let go of its
+    // handle by this limit, cosine 0.34 against 0.40: its grip lies a few units below the holding hand, so the line between
+    // the hands turns with the flat poses. Flatscreen play, a sword-kind weapon's grip held as its grip flips or flipped
+    // (the drawn flip > 0) keeps hold whatever the line: the flipped hold's pose puts both hands on the handle, as the
+    // stance's does. A headset's hands still answer to it.)
+    glm::vec3 flipF, flipU;
+    float flip = 0.f;
+    const bool flatFlipped = flat && wasHeld && view::heldWeaponAxes(holding, flipF, flipU, flip) && flip > 0.f;
     const bool goodDot = grip[holding] == GRIP_BLADE || dotNeed <= -1.f || glm::dot(line, blade) > dotNeed ||
-                         flatplay::melee2HShare(holding) > 0.f;
+                         flatplay::melee2HShare(holding) > 0.f || flatFlipped;
     if(wasHeld && held && !goodDot)
     {
         reportLetGo(holding, "angle (cosine)", glm::dot(line, blade), dotNeed, stick);
@@ -1271,9 +1279,10 @@ void applyFixed(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     else if(grabStart[helping] == vr_gametime)
     {
-        // (A grip closed on the gun's attachment pulls it off (QC vr_attach.qc VR_Attach_Frame): never the gun's grip too.)
+        // (vr_attach_pull_button 0: a grip closed on the gun's attachment pulls it off (QC vr_attach.qc VR_Attach_Frame),
+        // never the gun's grip too. 1, the default: the pull is the grip and B/Y, so a grip there is the gun's as ever.)
         glm::vec3 mount, tip;
-        const bool onAttachment = view::drawnAttachment(holding, mount, tip) &&
+        const bool onAttachment = !vr_attach_pull_button.value && view::drawnAttachment(holding, mount, tip) &&
                                   glm::distance(s.pos[helping], mount) <= vr_attach_pull_radius.value;
         gripArmed[helping] = goodDistance && goodDot && !onAttachment;
     }

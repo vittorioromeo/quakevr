@@ -34,10 +34,19 @@ agent/attach1's (posebake); this file holds the attachments' models and their me
   (`thrustsWith`). The gun's own Box3D body does not include the bayonet yet.
 - **Putting it on / taking it off.** VR: hold the bayonet, bring its socket (its model origin) within
   `vr_attach_snap_radius` (5) of the gun's mount, pointing within `vr_attach_snap_angle` (50 deg) of the gun's way: it
-  snaps on (`VR_Attach_Frame`). The empty hand's grip pressed within `vr_attach_pull_radius` (6) of the mount pulls it
-  off into that hand. Flat play: the Attach key (`vr_flat_key_attach`, J; impulse 52, any mode) puts the bayonet the
+  snaps on (`VR_Attach_Frame`). The empty hand gripping within `vr_attach_pull_radius` (6) of the mount and pressing its
+  B/Y pulls it off into that hand, as the head torch comes off (`vr_attach_pull_button` 1; 0: the grip alone; a grip there
+  alone is the gun's two-handed grip). Stuck by it: `vr_embed_bayonet_depth` (1.25x a sword's depth share of its blade);
+  fired stuck, `vr_embed_fire_push`, `vr_embed_fire_letgo` and `vr_embed_fire_hold_time` keep the body on the hand
+  (ROUND26 attach1, bayonet2). Flat play: the Attach key (`vr_flat_key_attach`, J; impulse 52, any mode) puts the bayonet the
   other hand holds on, or takes it off into the empty other hand. Server-side points: `attachinfo(model, kind, what)`
   (the mount and the tip from the muzzle in the gun's axes) along the hand's axes from its muzzle.
+
+- **Daggers as Bayonets** (daggerattach, `vr_attach_daggers` 1 for testing): kind 2 is the player's dagger
+  (`progs/v_dagger.mdl`, weapons.txt `att2_*`): a held dagger's tip brought to where the mounted one's would be, pointing
+  its way, or J; its record rides on the gun's (`.wi_attach_inst`) and comes back with it. A weapon model as an
+  attachment draws with its own Scale (`Mount::own`), so its mount scale is 1 / the gun's Scale like the bayonet's.
+  Mounts: v_shot 26.56 0 -4.6, v_shot2 20.19 0 -3.22, both pitch -76.46 roll 180 (its blade runs up its model's +z).
 
 ### Ideas (his and ours)
 

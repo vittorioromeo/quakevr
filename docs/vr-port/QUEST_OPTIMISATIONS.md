@@ -90,6 +90,7 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 | Physics and gore caps | Fewer ragdolls, gibs, limbs, debris, dents | not measured | `vr_ragdoll_max` 4 / 3 / 3, `vr_smallgibs_max` 32 / 24 / 16, `vr_limbs_max` 12 / 8 / 8, `vr_explosion_debris_max` 32 / 24 / 16, `vr_gore_dents_max` 6 / 4 / 4 | no | Maybe: user settings for low-end CPUs |
 | Compile-time and program cache | Programs' binaries cached per driver; queued compile with a loading panel | cold 65.1 s vs warm 8.3 s to e1m1's first frame; 103 programs from binaries in 126 ms (6k); later one set, 70 from the cache, first frame 5.3-6.7 s (6zk) | `vr_program_cache` 1 on ES (2 also on PC); `-shadersasync` | yes | Maybe: PC saved ~20 ms warm (off by default); of little value there |
 | Armed humanoids' CPU | Investigated: QuakeC props and relink ~1.5 ms of a 4.4 ms fight frame; nothing cut | not an optimisation (6d) | none | no | Likely: a real cost on PC too (its own item, not yet done) |
+| Lit textures' walk from a leaf grid (questperf) | R_WorldLitTextures (the split's skip, C4w) tests only the leaves in grid cells round each light, once, and reuses the answer for the second eye | 0 on the Quest at Standalone (the lights go into the lightmap: no split view walks); PC mock under ES: the hub 0.865 -> 0.080 ms CPU | `vr_gl_world_lit_reuse` 1 (0 the old walk, 2 both compared) | no (the split is ES's) | No: the PC has no split |
 
 ## 7. Runtime and OpenXR
 

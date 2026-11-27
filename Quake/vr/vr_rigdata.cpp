@@ -3,6 +3,7 @@
 #include "vr_rigdata.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_api.h"
 #include "vr_files.hpp"
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
@@ -682,15 +683,18 @@ void baseName(const char* model, char* out, int size)
 
 void rootDir(char* out, int size)
 {
+    // (Quake VR's folder, also under a mod: "-game quakevr -game <mod>", ROUND26 "nogamedir")
+    char game[MAX_OSPATH];
+    VR_QuakeVRGameDir(game, sizeof(game));
     if(vr_rigdata_dir.string[0])
     {
         char clean[64];
         cleanName(vr_rigdata_dir.string, clean, sizeof(clean));
-        q_snprintf(out, static_cast<za::SizeT>(size), "%s/%s", com_gamedir, clean);
+        q_snprintf(out, static_cast<za::SizeT>(size), "%s/%s", game, clean);
     }
     else
     {
-        q_snprintf(out, static_cast<za::SizeT>(size), "%s", com_gamedir);
+        q_snprintf(out, static_cast<za::SizeT>(size), "%s", game);
     }
 }
 

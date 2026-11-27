@@ -2098,9 +2098,10 @@ QVR_TUNABLE(vr_flat_grab_drag_force, "4000") // N: the most each hand dragging a
 QVR_TUNABLE(vr_flat_grab_drag_lift, "0.2") // times its weight: the most each hand dragging a big prop lifts it (both: 0.4, under the half that tips a box up: it slides along, its near side lighter)
 QVR_TUNABLE(vr_flat_grab_drag_hertz, "4") // Hz: the spring pulling a dragged prop's held point to the hand (higher: stiffer)
 QVR_TUNABLE(vr_flat_grab_drag_letgo, "1.2") // m: a dragged prop's held point this far off the hand (caught on something, too heavy) is let go of
-QVR_TUNABLE(vr_flat_grab_push, "1") // 1: a dragged prop is kept as far ahead of the body as when it was taken, so walking into it pushes it through the hands and backing away drags it (your body doesn't shove it); 0: it is pulled in to the hands
-QVR_TUNABLE(vr_flat_grab_push_force, "8000") // N: the force each hand's hold on a pushed or dragged prop would need (its mass's share by how far and how fast it lags the hands) above which, for a moment, the hands let go: too heavy for that speed
-QVR_TUNABLE(vr_flat_grab_push_angle, "60") // degrees: a pushed or dragged prop's held point this far round from where the arm reaches (seen from the eyes, level) is let go of: too steep
+QVR_TUNABLE(vr_flat_grab_push, "1") // 1: a dragged prop or a ragdoll held is kept as far ahead of the body as when it was taken, so walking into it pushes it through the hands and backing away drags it (your body doesn't shove it); 0: it is pulled in to the hands
+QVR_TUNABLE(vr_flat_grab_push_force, "8000") // N: the force each hand's hold on a pushed or dragged prop or ragdoll would need (its mass's share by how far and how fast it lags the hands) above which, for a moment, the hands let go: too heavy for that speed
+QVR_TUNABLE(vr_flat_grab_push_mass, "54") // kg: the most of a pushed prop's or ragdoll's mass each hand pushes at a walk's pace (200 u/s; twice as much at half the pace): its share times your pace into it over a walk's above this, for a moment, and the hands let go: too heavy for that pace (54: a crate pushes at any pace and a dead grunt at a run, 48; a dead ogre at its slowed walk, 60, is let go of)
+QVR_TUNABLE(vr_flat_grab_push_angle, "60") // degrees: a pushed or dragged prop's or ragdoll's held point this far round from where the arm reaches (seen from the eyes, level) is let go of: too steep
 QVR_TUNABLE(vr_flat_grab_cone, "28") // degrees: angular cone around the crosshair when picking a target to grab (5..60)
 QVR_TUNABLE(vr_flat_grab_carry_dist, "30") // units ahead of the hands where a grabbed two-handed prop/crate sits (clamped clear of walls and body)
 QVR_TUNABLE(vr_flat_grab_reach_time, "0.14") // seconds the hand(s) take to reach forward when grabbing (0.02..0.6)
@@ -2645,6 +2646,11 @@ QVR_TUNABLE(vr_embed_stab_tip, "100") // % of the blade from its tip that may be
 QVR_TUNABLE(vr_embed_sword_depth_min, "30") // % of the blade in at the least speed
 QVR_TUNABLE(vr_embed_sword_depth_max, "80") // % of the blade in at vr_embed_sword_depth_speed
 QVR_TUNABLE(vr_embed_sword_depth_speed, "7") // m/s
+QVR_TUNABLE(vr_embed_bayonet_depth, "1.25") // a gun's bayonet: times its blade the depth shares above take (bayonet2: 1.25, 37-100% of it by speed; 1: as a sword's, the old depth)
+QVR_TUNABLE(vr_embed_attdagger_depth, "1") // a dagger put on a gun as its bayonet (daggerattach): the same (its blade ~7 units to the bayonet's ~5: 1 goes about as deep)
+QVR_TUNABLE(vr_embed_fire_push, "0.1") // a gun stuck in a body and fired into it: times the shove and kill throw (vr_hit_push, vr_kill_push) its shot gives that body (bayonet2: the shove took it off the hand)
+QVR_TUNABLE(vr_embed_fire_letgo, "8") // cm more a hand on a stuck weapon that just fired where it is may be off it before it lets go (the arm's reach and the hand's: the shot's flinch carries the wound; bayonet2)
+QVR_TUNABLE(vr_embed_fire_hold_time, "1") // s after such a shot that margin lasts
 QVR_TUNABLE(vr_embed_throw_kill_depth, "80") // % of a thrown point's blade in when its throw kills (never less than it went in; QC vr_axestick.qc VR_AxeStick_Stuck)
 QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth (by its speed) once it has struck
 QVR_TUNABLE(vr_embed_skewer_most, "3") // gibs a stab may skewer on a blade at once (0: none, a stab bursts them as any blow; QC/vr_skewer.qc)

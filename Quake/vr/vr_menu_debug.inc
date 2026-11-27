@@ -545,6 +545,10 @@ za::Vector<Item> pageDebugProfiling()
                   "times one render pass as a whole)."),
         command("Show Every Model", "vr_debug_hide_models \"\"").help("vr_debug_hide_models \"\": every model drawn again."),
         row(opt::vr_profile_overlay),
+        toggle("SpaceWarp Test Images", "vr_spacewarp_test")
+            .help("vr_spacewarp_test 1: SpaceWarp's motion vectors and depth made every frame into the game's own images, "
+                  "without a runtime that has it (the PC); vr_spacewarp_check prints what the left eye's hold (the walk "
+                  "streams the world by, the held gun stays still)."),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
         row(opt::vr_profile_slow_ms),
@@ -564,6 +568,7 @@ za::Vector<Item> pageDebugProfiling()
         command("Rig Lights on the Walls", "vr_rig_lights_world 1")
             .help("vr_rig_lights_world 1 (the default): the rig's small lights light the walls too."),
         row(opt::vr_gl_world_lit_skip),
+        row(opt::vr_gl_world_lit_reuse),
         row(opt::vr_gl_quake_dlights),
         row(opt::vr_gl_world_dlmap),
         row(opt::vr_gl_world_dlmap_batch),
@@ -999,6 +1004,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
                   "game code (progs.dat) comes from: this build's, an older build's quakevr folder or not Quake VR's "
                   "(then weapons are only props). Said at each start too; a player's console dump has it."),
+        command("Preview: Game Data Missing Notice", "vr_gamedata_notice 1")
+            .help("vr_gamedata_notice 1: shows the warning a broken install gets (no quakevr folder with Quake VR's game "
+                  "code in any base dir: the menus' status box, and a centre print once in the game); 0 ends the "
+                  "preview. Without an argument: whether the data was found at start."),
         row(opt::vr_diagnostics),
         command("Run Logs Status", "vr_logs_status")
             .help("vr_logs_status: this run's logs folder (quakevr/logs/<date>_<time>, every run, the last 5 kept) and its "

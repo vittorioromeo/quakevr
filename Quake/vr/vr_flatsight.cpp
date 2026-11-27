@@ -167,6 +167,9 @@ struct Sight
     float offAsked{0.f};        // ... which the sight's place asks to be this (the bore under the sights, the travel's share)
     glm::vec3 muzzleLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each muzzle in its hand's frame (forward, right, up), as
     bool muzzleKnown[2]{false, false};                        // the view last placed it (notePlaced)
+    glm::vec3 gripLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // each weapon's two-handed grip in its hand's frame, as the
+    bool gripKnown[2]{false, false};                          // view last placed it, and the thrust's other-hand slide
+    float gripSlide[2]{0.f, 0.f};                             // then (notePlaced; gripPull)
     glm::vec3 drawnMuzzle[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the muzzle as last drawn, and the drawn gun's angles
     glm::vec3 drawnRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};    // (noteDrawn; drawnGun: vr_flat_xhair_probe's gun line)
     bool aimBlocked[2]{false, false};                         // something lies between the muzzle and what the crosshair is on (aimAtPoint)
@@ -332,6 +335,7 @@ constexpr float tiltStep = 10.f;     // the tilt's search: tried in steps this b
 constexpr int tiltHalvings = 3;
 constexpr float tiltTimeMax = 1.5f;  // vr_flat_wall_tilt_time's range (seconds)
 constexpr float tiltPitchEase = 4.f; // in the pose, its pitch follows the least that clears at this many over vr_flat_wall_tilt_time (1/s)
+constexpr float tiltRateMost = 450.f; // the drawn tilt turns at most this fast (degrees a second: 6.25 a frame at 72 Hz)
 constexpr float tiltYawMax = 60.f;   // vr_flat_wall_tilt_yaw's range (degrees)
 constexpr float tiltRollMax = 90.f;  // vr_flat_wall_tilt_roll's range (degrees)
 constexpr float tiltBlocksFire = 5.f; // a gun turned more than this out of a wall does not fire (flatsight::wallBlocksFire; degrees)
@@ -1629,6 +1633,16 @@ void aim_f()
     }
 }
 
+// How far a weapon's holding hand comes in to where the free arm (hand `helping`'s) reaches its grip at `grip`, that
+// `share` of the way on it (pinToGrip's; gripPull's rehearsal of it): towards that arm's shoulder, by how far the grip
+// stands past gripKeep of its reach.
+[[nodiscard]] glm::vec3 reachPull(const hands::State& s, int helping, const glm::vec3& grip, float share)
+{
+    const glm::vec3 far = grip - flatplay::shoulderOf(s, helping);
+    const float past = glm::length(far) - flatplay::armReach() * gripKeep;
+    return past > 0.f ? -far * (past / glm::length(far) * share) : glm::vec3{0.f};
+}
+
 // The empty hand onto the held weapon's two-handed grip hotspot, eased from where flatplay put it. Only for a grip the
 // pose can actually bring a hand to (carryToGrip, in apply below).
 void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
@@ -1642,13 +1656,7 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
         return;
     }
     // A gun held in two hands comes in to where the other arm reaches its grip: across the chest, and nearer.
-    const glm::vec3 home = flatplay::shoulderOf(s, st.helping);
-    const glm::vec3 far = s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]) - home;
-    const float past = glm::length(far) - flatplay::armReach() * gripKeep;
-    if(past > 0.f)
-    {
-        s.pos[st.holding] -= far * (past / glm::length(far) * share);
-    }
+    s.pos[st.holding] += reachPull(s, st.helping, s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]), share);
     // The hotspot as the view placed it last frame, carried to this frame's pose with the holding hand.
     const glm::vec3 grip = s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]);
     const glm::vec3 out = st.helping == HAND_OFF ? reach * share : glm::vec3{0.f}; // E still reaches out with it
@@ -2007,7 +2015,11 @@ void frame()
         // (The wall state comes on faster than it goes: wallInShare of the time.)
         st.wallOn[h] = za::clamp(st.wallOn[h] + (st.wallWanted[h] ? onStep / wallInShare : -onStep), 0.f, 1.f);
         st.freeBack[h] += (st.freeNeed[h] - st.freeBack[h]) * ease(st.freeNeed[h] > st.freeBack[h] ? backIn : backOut, dt);
-        st.tilt[h] = geom::smooth01(st.tiltOn[h]) * st.tiltPitch[h];
+        // (At most tiltRateMost a second either way: walked into a wall sighted, pressed on it, the gun 10 units in, the
+        // least that clears is 82 degrees, and the ease's middle took it up 9.4 degrees a frame; realpush, ROUND26 "flatpush".)
+        const float tiltTo = geom::smooth01(st.tiltOn[h]) * st.tiltPitch[h];
+        const float tiltRate = tiltTime > 0.f ? tiltRateMost * dt : wallTiltMax; // (0: at once)
+        st.tilt[h] += za::clamp(tiltTo - st.tilt[h], -tiltRate, tiltRate);
         // Along a wall (vr_flat_wall_slide): the share follows the angle the wall is met at, and the level turn its need,
         // over about vr_flat_wall_slide_time, both ways (the push out, eased as the way back, keeps it out meanwhile).
         const float slideTime = za::clamp(vr_flat_wall_slide_time.value, 0.f, slideTimeMax);
@@ -2223,6 +2235,15 @@ void notePlaced(const hands::State& s)
             const glm::vec3 d = s.muzzle[h] - s.pos[h];
             st.muzzleLocal[h] = {glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)};
         }
+        st.gripKnown[h] = s.grip2HValid[h];
+        if(s.grip2HValid[h])
+        {
+            glm::vec3 fwd, right, up;
+            hands::angleVectors(s.visualRot[h], fwd, right, up);
+            const glm::vec3 d = s.grip2H[h] - s.pos[h];
+            st.gripLocal[h] = {glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)};
+            st.gripSlide[h] = flatplay::thrustOffSlide(h);
+        }
     }
 }
 
@@ -2234,6 +2255,23 @@ bool muzzleInHand(int h, glm::vec3& out)
     }
     out = st.muzzleLocal[h];
     return true;
+}
+
+glm::vec3 gripPull(const hands::State& s, int h, float slide)
+{
+    if(h < 0 || h >= HAND_COUNT || !st.pinned || st.holding != h || st.helping < 0 || !st.gripKnown[h])
+    {
+        return glm::vec3{0.f};
+    }
+    glm::vec3 local = st.gripLocal[h];
+    // (A pole's grip slides along the pole with the thrust, vr_view_weapon.cpp chooseGrip: along the line to its tip.)
+    if(glm::vec3 tip{0.f}; twohand::poleWeapon(flatplay::heldIn(h)) && muzzleInHand(h, tip) && glm::distance(tip, local) > 1.f)
+    {
+        local += glm::normalize(tip - local) * (st.gripSlide[h] - slide);
+    }
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.rot[h], fwd, right, up);
+    return reachPull(s, st.helping, s.pos[h] + fwd * local.x + right * local.y + up * local.z, st.pinShare);
 }
 
 void noteDrawn(const hands::State& s)

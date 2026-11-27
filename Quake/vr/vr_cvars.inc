@@ -196,6 +196,8 @@ QVR_CVAR(vr_embed, "1", CVAR_ARCHIVE | QVR_RULE)                // on (his decis
 QVR_CVAR(vr_attach_snap_radius, "5", CVAR_ARCHIVE | QVR_RULE)  // weapon attachments (QC vr_attach.qc): how near (units) an attachment's mount comes to a gun's mount in the other hand to snap on
 QVR_CVAR(vr_attach_snap_angle, "50", CVAR_ARCHIVE | QVR_RULE)  // and within how many degrees of the gun's way it must point
 QVR_CVAR(vr_attach_pull_radius, "6", CVAR_ARCHIVE | QVR_RULE)  // how near (units) the empty hand grips an attachment on the other hand's gun to pull it off
+QVR_CVAR(vr_attach_pull_button, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: pulled off by that hand's B/Y with its grip held (a grip there alone is the gun's two-handed grip); 0: by the grip alone
+QVR_CVAR(vr_attach_daggers, "1", CVAR_ARCHIVE | QVR_RULE)      // Daggers as Bayonets (daggerattach; his 2026-11-27, on for testing): 1 the dagger in a hand goes on the other hand's shotgun or super shotgun as its bayonet (brought to the mount; flat: the Attach key); 0 not (one already on still comes off)
 QVR_CVAR(vr_attach_turn, "1", CVAR_NONE)                // 1: the server's attachment points (QC attachinfo) turned by the gun's Pitch/Yaw/Roll in the hand; 0: not (attach2's comparison)
 QVR_CVAR(vr_attach_probe, "0", CVAR_NONE)              // 1: the client writes the main hand's drawn attachment tip into vr_attach_probe_x/y/z every frame (the tests: QC vr_attach_test.qc)
 QVR_CVAR(vr_attach_probe_drawn, "0", CVAR_NONE)         // with vr_attach_probe 1: 1 while the main hand's gun has an attachment drawn
@@ -677,7 +679,8 @@ QVR_CVAR(vr_xr_eye_scale, "1", CVAR_ARCHIVE)
 // while the session runs, again when changed; 0 leaves the runtime's own. vr_xr_refresh_rate: the display's refresh
 // rate in Hz (XR_FB_display_refresh_rate; the nearest one offered, e.g. 72, 90, 120). vr_xr_cpu_level and
 // vr_xr_gpu_level (XR_EXT_performance_settings): 1 power savings, 2 sustained low, 3 sustained high, 4 boost.
-// vr_xr_foveation (XR_FB_foveation): the eye images' fixed foveation, 1 low, 2 medium, 3 high (dynamic: off).
+// vr_xr_foveation (XR_FB_foveation): the eye images' fixed foveation, 1 low, 2 medium, 3 high, 4 high (top): Meta's
+// HighTop, more of the top reduced (questfovmusic; refused: high shifted down) (dynamic: off).
 QVR_CVAR(vr_xr_refresh_rate, "0", CVAR_ARCHIVE)
 // vr_quest_check (each Android start, after the saved config; vr_gfxpresets.cpp): 1 the settings that break the Quest's
 // frames (MSAA, bloom) set back, each said in the log; 0 only said.
@@ -687,10 +690,21 @@ QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_preset_revert_fps, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
+// Application SpaceWarp (vr_spacewarp.cpp; the Quest's XR_FB_space_warp): 1 hands the runtime each eye's motion vectors
+// and depth, and it shows a made-up frame between the game's (the game at half the display's rate). The eyes go
+// through the post-process path then (the motion target needs the scene's own targets). Off by default (first beta).
+QVR_CVAR(vr_xr_spacewarp, "0", CVAR_ARCHIVE)
+// vr_spacewarp_test (tests, Debug > Profiling): 1 makes SpaceWarp's motion vectors and depth every frame into the
+// game's own images without a runtime that has it (the PC, the mock headset); vr_spacewarp_probe reads them.
+QVR_CVAR(vr_spacewarp_test, "0", CVAR_NONE)
 QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
 // qfov: the eye images drawn straight into (their scene with it) whenever vr_xr_foveation is on (vr_stereo.cpp); 1 lets
 // the runtime lower the level while the GPU has room (XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB), vr_xr_foveation the most.
 QVR_CVAR(vr_xr_foveation_dynamic, "0", CVAR_ARCHIVE)
+// questfovmusic: the foveation pattern's vertical shift in degrees (XrFoveationLevelProfileCreateInfoFB's verticalOffset,
+// -30..30; the runtime's sign convention is unspecified: Quest 3 at 0.9, -15 was 3.5 ms slower on the hub, +30 1.5 ms
+// faster in the gib fight), with any level over 0; a change takes new swapchains.
+QVR_CVAR(vr_xr_foveation_offset, "0", CVAR_ARCHIVE)
 // C4q (QUEST_PLAN.md 6x; a probe): the eye swapchains' foveation create flags, read when they are made: 1 scaled bins
 // (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).
 QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
@@ -2317,6 +2331,11 @@ QVR_CVAR(vr_rig_lights_world, "1", CVAR_ARCHIVE) // (C4v, QUEST_PLAN.md 6zb; a c
 // (vr_gl_world_unlit 2) draws only the lit commands of textures with a surface a reaching light's sphere touches in the
 // view's PVS (r_world.c R_WorldLitTextures: a CPU walk of the leaves); 0 every texture's lit command, as C4v (the A/B).
 QVR_CVAR(vr_gl_world_lit_skip, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Fast Lit Textures' Walk (Quest): (questperf) 1: R_WorldLitTextures' answer kept and
+// given again while the view's PVS and the lights' spheres are the same (the second eye; lights that stay put), else
+// worked out from a grid of the leaves round each light (the same answer: the hub 0.87 -> 0.08 ms CPU on the PC);
+// 0 every leaf walked for each view, as C4w (the A/B); 2 the grid's and every leaf's both, compared (vr_gl_world_lit_stats).
+QVR_CVAR(vr_gl_world_lit_reuse, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Dynamic Lights in the Lightmap (Quest): (C5b, QUEST_PLAN.md 6zm) 1: under the ES
 // profile the dynamic lights are added into the lightmap's texels on the CPU once a frame (Quake's own way, the
 // lightmap's 16-unit grid) and the world is drawn without the lights' loop; 0 (default): the loop, per pixel. The
@@ -2940,7 +2959,8 @@ QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Quake
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
 QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants by vr_agrunt_repl_variants; its point knights and ghosts never: QC VR_AGR_ADVariant); 0 until 2026-11-01
 QVR_CVAR(vr_agrunt_repl_variants, "1", CVAR_ARCHIVE | QVR_RULE) // 1: Arcane Dimensions' and Quoth's own humanoid variants (rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators, crossbow knights) are armed humanoids holding their gun (QC vr_humrepl.qc VR_HUM_Replace; with vr_agrunt_repl and vr_agrunt_repl_ad; crossbow knights with vr_agknight)
-QVR_CVAR(vr_agrunt_repl_crossbow, "0", CVAR_ARCHIVE | QVR_RULE) // (vrmisc, his note 2026-11-26: off until AD's crossbow knight is a proper armed humanoid, BACKLOG.md section 6) 1: with vr_agrunt_repl_variants, AD's crossbow knights are armed knights holding the crossbow too; 0: they stay AD's (QC vr_humrepl.qc VR_HUM_On)
+QVR_CVAR(vr_agrunt_repl_dguard, "1", CVAR_ARCHIVE | QVR_RULE) // 1: AD's death guards are armed death guards (its own look and sword; adknights, 2026-11-27)
+QVR_CVAR(vr_agrunt_repl_crossbow, "1", CVAR_ARCHIVE | QVR_RULE) // (vrmisc, his note 2026-11-26: off until AD's crossbow knight is a proper armed humanoid, BACKLOG.md section 6) 1: with vr_agrunt_repl_variants, AD's crossbow knights are armed knights holding the crossbow too; 0: they stay AD's (QC vr_humrepl.qc VR_HUM_On)
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE | QVR_RULE)       // shuffles every map's loadouts (the same seed: the same loadouts)
 QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE | QVR_RULE)        // 1: crates and barrels, rocks, armed replacements and their armour rolled from the run's seed (vr_run_seed: a new run, a new layout; a level change, a restart, a loaded save keep the run's), or anew at each map start outside a run; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
 QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
@@ -3584,6 +3604,7 @@ QVR_CVAR(vr_worn_backpack_volume, "0.5", CVAR_ARCHIVE | QVR_RULE)  // worn backp
 QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log each pack's state, pulls and rips (developer 1)
 QVR_CVAR(vr_rag1108_test, "0", CVAR_NONE)             // the QC test of the 11-08 round's fixes (vr_rag1108_test.qc; Debug > Tests): 1 removal takes an armed one's pack, weapon and tank; 2 the back tanks beside the packs (a screenshot); 3 the gib rule; 4 shoves getting up; each ends on "rag1108<part>: N passed, M failed"
 QVR_CVAR(vr_wornpack_test, "0", CVAR_NONE)            // the QC test of worn backpacks (vr_wornpack_test.qc; Debug > Tests): 1 all, ends on "wornpack: N passed, M failed"; 2 the eyeshot's grunts (back on, side on, knocked down); 3 vr_worn_backpack_pull 1 (pulls lift), ends on "wornpull: N passed, M failed"
+QVR_CVAR(vr_agarmor_beasts, "1", CVAR_ARCHIVE | QVR_RULE)        // armour: the rottweilers, ogres, scrags and fiends roll for it too, by the same skill chances (vr_beastarmour.cpp; QC VR_BeastArmour_Spawn)
 QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE | QVR_RULE)        // armour: the chance an armed grunt spawns armoured on Easy
 QVR_CVAR(vr_agarmor_skill0_type, "1", CVAR_ARCHIVE | QVR_RULE)   // armour on Easy: its best type (1 green, 2 yellow, 3 red: rolled up to it)
 QVR_CVAR(vr_agarmor_skill0_pieces, "2", CVAR_ARCHIVE | QVR_RULE) // armour on Easy: how many pieces (1 the cuirass, 2 and the helmet, more: the rest picked at random; 10 all)

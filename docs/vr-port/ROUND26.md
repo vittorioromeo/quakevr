@@ -1462,7 +1462,28 @@ runs: a run alone, drawn, plays out differently from the batched headless one, s
   (their get-up spots within 12 units; 3 or more needed); the mean (0.1 s) still over all six.
 
 Left: hell knight seed 8 ("stuck at the lip": a weak pull, its chest stayed 13 under the top; it failed before box3dup3 as
-"slid back off the lip", not this cause).
+"slid back off the lip", not this cause). Fixed by hkclimb, below.
+
+**hkclimb (branch agent/hkclimb, 2026-11-27): the hell knight's pull at the lip.** Not its mass (every pull, lift and
+cap is in body weights) nor its arms' reach or the holds' height: its pin held the wrong point. The climb's way is its
+pelvis's middle, but the pin's motor joint held the pelvis's body origin, the anchor set off the way by the middle's offset
+turned as the way turned it (pitched 0.6 rad over the lip). The pin's turn is weak (turnShare 0.06), so the pelvis barely
+turned and its middle hung wherever that left it: a hell knight's pelvis has its middle 10 units off its origin (arm 24,
+torso 6), so over the lip its middle stayed 16-19 units under its way while its origin sat 4 units off the anchor and the pin
+pulled 0.4-1.2 of its 3 body weights. Fix (`vr_ragactive.cpp` drivePin): a climb's pin joint holds the pelvis's middle
+(`localFrameB` at its local centre) and its anchor is the way's point itself. The pin then tracked within 2 units, which
+showed a second, smaller case (hknight seed 10): its pelvis 14 over the top but its short torso's chest 4 units out from
+the lip (3 in from its pelvis), so Over never let go. Fix (`vr_ragactive_hold.cpp` climbFrame): the let-go also takes its
+chest leaning in from its pelvis (0.05 of an arm) as "not tipped back". Every class now goes "in on the top" in 2.6-3.0 s.
+Debug: the `ragclimb` trace line adds the pin's cap and the lift (body weights) and `org` is the pelvis's middle from the
+anchor; the "pulls itself up" line gives its arm, torso and pelvis-middle offset.
+
+| check | before | hkclimb |
+|---|---|---|
+| climb_test pull, all classes, seeds 7-10 (24) | 23/24 (hknight 8) | 24/24 |
+| climb_test drop, hit, off (18) | 18/18 | 18/18 |
+| env_test, active_test (default cases; active without cost) | | no fails |
+| scenario hknight_ledge (new: validate, runall) | | OK |
 
 | check | box3dup3 (origin/next) | now |
 |---|---|---|
@@ -2084,6 +2105,63 @@ dragged prop shoved it off the hands).
   run into lets go "too heavy for that pace"); tunables_test 13/0 (stages), 20/0, 3/0.
 - Open: ragdolls not changed (their own hold, `RagdollGrab`, eases the limb to the hand: a follow-up if wanted); the big
   explosive box can't be pushed even slowly (Push Strength up to ~10000 lets it at a slow walk).
+- **Ragdolls too** (ragpush, branch agent/ragpush, 2026-11-27): a ragdoll held with H (alive and staggering, or dead) is
+  pushed and dragged as a big prop is, with the same tunables (`vr_flat_grab_push`, `_push_force`, `_push_angle`; rows' help
+  now say "or body"). One set of rules for both (vr_box3d_ragparts.cpp, `World::PushKeep`: `keepBegin`, `keepTarget`,
+  `keepMeasure`, `keepStrain`, `keepLetGo`; `dragTarget` and `syncPropBlades` use them too). Each limb hold
+  (`grabRagdollReachImpl`, set up in `ragdollGrabReach`) keeps its point level where it was taken (its height still the
+  hand's; its anchor starts there, not at the hand). The body as a whole is carried like a dragged prop (`syncRagdollStrains`):
+  its mass centre kept as far ahead as it was when taken (`RagdollGrab::bodyArm`), by the drag's spring on the whole mass
+  (`vr_flat_grab_drag_hertz` 4 Hz, at most `vr_flat_grab_drag_force` per hand, level, each part its share), and its strain
+  is that spring's need (too heavy for that pace above Push Strength, as for props). Why not the limb's point alone: a limb
+  hold is a spring stiff only for the limb's own mass (a hand: 1 kg), so an 80 kg grunt walked into by its arm folded the arm
+  and lagged 0.35 m (its "need" 14-25k N, let go of at once), and two hands on two limbs pull against each other as it bends.
+  Too steep (60 deg) is the held point's, as for props. The player's capsule passes through a ragdoll he pushes
+  (`dragsProp`), and Quake's move doesn't shove it.
+- **Only while he moves** (props too): the strain builds only above 40 u/s level. Stopped, a body still sliding on from his
+  push doesn't wrench it off his hands (a grunt pushed at a walk slid on at 6 m/s as he stopped: 9-16k N). The limb hold's
+  own distance rule (`stuck`, 0.5 s) still lets go of what is left far behind.
+- **Hands**: a kept limb hold's hand is drawn up to the reach further, as a dragged prop's (`RagdollHold::kept`,
+  `LimbHold::kept`); `keepOnArm` keeps the wrists on the arms (flathold3).
+- Measured (vrtesthall, 2 hands): dead grunt 80 kg walked into at 200 u/s: 42 -> 43 units ahead, pushed 77 units, 460-940 N a
+  hand once moving (8k for a frame at the start); backed away: dragged 99 units. Dead ogre 200 kg: run into, 37-60k N, let go
+  of at once (at a walk too: 37k as he starts).
+- Tests: flatgrabthrow_test.sh 64/0 (new run `ragpush`: the grunt pushed 77-81 units, 40 -> 42 to 47 -> 52 units ahead
+  over three runs (where H takes it varies run to run), both hands on it, none let go; backing away drags it 99-103 back;
+  wrists past their arms under 1.5 cm over 170 frames; the ogre run into lets go "too heavy for that pace", no hand on it
+  after). `far`'s ragdoll check is now under 1.5 cm too: the limb kept past the arm's reach puts the hands at full stretch on
+  every frame, and the arm's eased solve lands up to 0.5-0.8 cm past keepOnArm's reach on a frame. tunables_test 20/0, 3/0,
+  13/0 (stages).
+- Open: the ogre can't be pushed even at a walk (Push Strength ~40000 would); in the headless flat mock a pitched view walks
+  the player down through the floor (z 25 -> -24 over 28 frames at pitch 40, vrtesthall), why the test levels it to walk.
+- **In real play** (realpush, branch agent/realpush, 2026-11-27). The tests above flew in setpos's noclip (flatsink, below);
+  walked for real, three things failed:
+  - **His walk pushed nothing**: Quake's hull met the held crate (SV_ClipToLinks), so he stopped at it (y -172 -> -172).
+    world.c now lets a player's own box (a body's move) pass a prop or body he drags at the grab's arm
+    (`VR_DragPasses` in vr_box3d_standing.cpp, `dragsProp`: the same test as the capsule's preSolve). Measured: the crate
+    pushed 59 units while he walks 68 in 28 frames from a stand (lagging the hands' spring up to 0.22 m as he sets off,
+    3.8k N a hand at most, 1.1k at a steady 200 u/s). Let go of with him inside it, VR_PropLetsOut lets him out as before.
+  - **The ogre was never too heavy**: a real walk comes up to pace over a fifth of a second (Quake's acceleration), and a
+    held body cuts the walk (Drag Slowdown: the ogre's 200 kg to 120 u/s, walking or running alike), so the hold's force
+    is a few thousand N for anything: crate 3.8k, dead grunt 2.2k walking, 3.8k running, dead ogre 6.9k at its peak, then
+    about 1k a hand for each sliding at his pace. No Push Strength tells the ogre from the crate (8000 was for noclip's
+    instant pace: 37-60k). New rule beside it, the **heft**: each hand's share of the mass times his pace into it (his level
+    velocity towards the held point; backing away 0) over a walk's 200 u/s, as kg pushed at a walk's pace; above
+    `vr_flat_grab_push_mass` (54 kg, new, Flatscreen > Grab / Pull: Push Mass) it strains as the force does (the same
+    0.15 s weighted by how far over), let go of "too heavy for that pace" (the message gives both). Measured hefts: crate
+    20, grunt walking 30, running 49, ogre 60 (let go of 19 frames into the run), explosive box 54-61 run (also its force,
+    22k: it tips and digs in). So crates and dead grunts push at a run, a heavier grunt (over ~90 kg) only at a walk,
+    the ogre not at all (pulled backing away, as before). Push Strength (8000 N) still catches a sudden pace.
+  - **flatwall b's 38.5 degree jump** was the test misreading the console's wrapped lines (a "tilt" split from its
+    number read 0): read joined, the tilt went up to 82 degrees (sighted, pressed on the wall, the gun 10.5 units in) at up
+    to 9.4 a frame, the ease's middle. vr_flatsight.cpp now turns the drawn tilt at most 450 degrees a second
+    (`tiltRateMost`, 6.25 a frame at 72 Hz; the tilt time 0 still at once): 6.3 at most.
+  - Tests: flatgrabthrow 64/0 (push's check 60 -> 45 units: a real walk; the ogre run 20 -> 40 frames, let go of at 19;
+    ragpush's wrists check 1.5 -> 2.5 cm: one run in two or three H takes the grunt's limb 50-60 cm past the arm's reach
+    and the wrists land up to 2.1 cm past it, standing still before the walk as much as during it);
+    flatwall b, c, d 10/0 (section a's "the others: the ironsight waits" fails on weapons 3, 13 and 17 reading "no
+    sights", unrelated: it uses setpos without walking); flatsink 8/0; flatads 13/0; tunables_test 39/0, 20/0, 3/0,
+    13/0 (stages). walknudge fails (pelvis moved 1.5 with the nudge off: no flat grab in it, untouched code paths).
 
 ## Flat view size report: "the world looks tiny" (branch agent/tinyworld, 2026-11-26)
 
@@ -2220,6 +2298,66 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
     no stab). embedfire_test 29/0 22/0 5/0, flathud_test 11/0.
   - Open: flat's first attach_test run showed both V thrusts failing (hurt 0) before any change here, then passing on every
     run after: a flake to watch. The stuck gun's own ammo screen (on its model) not checked.
+- **bayonet2 (2026-11-27)**: his VR test.
+  - **Grip**: props.txt slot 71 (the bayonet) Grip "In the palm" (2; was Along the Handle 3, "a weird hand pose"; Handle
+    From/To kept). A VR pull-off keeps it turned as the hand took it at the mount; J turns it along the taking hand.
+  - **Pull-off by B/Y**: `vr_attach_pull_button` (1): the empty hand gripping within `vr_attach_pull_radius` of the mount
+    and pressing its B/Y pulls it off (QC VR_Attach_Frame: `.vr_att_sec`, the B/Y edge with the grip held), as the head
+    torch comes off; a grip there alone is the gun's: vr_twohand.cpp no longer refuses the 2H grip at the mount (only
+    with 0, the old grip-alone pull). B/Y do nothing else by default (vr_weapon_cycle_mode 0; the wheel's tap pulses).
+  - **Depth**: tunable `vr_embed_bayonet_depth` (1.25, Combat > Embedded Blades > Stab, "Bayonet Depth"): vr_axestick.cpp
+    `pointLength` counts a gun's attachment blade (about 5 units base to tip) times it, so a stab goes 37-100% of it in by
+    speed (was a sword's 30-80%). Per kind: only the bayonet exists; a new kind adds its own tunable there.
+  - **Why the grip went when firing stuck**: two things move the body the gun is stuck in, and the hold lets go once the
+    drawn hand is 1 cm past the stretched arm (`vr_embed_arm_letgo`) or past the hand's reach: (1) Weapon Hits
+    (`vr_hit_push`, combat.qc T_Damage): a hit of 15+ shoves a monster min(350, 6 x damage) u/s plus a hop: the super
+    shotgun's point-blank 56 is 336 u/s (a shotgun's 24 is 144 when it lands as one hit), a killing shot throws it 700;
+    (2) the shot's pain frame (T_Damage's th_pain) moves the wound, the stuck gun with it, a few cm. No self-recoil reaches
+    a stuck prop (weaponfired on the prop is the drawn kick only). Mitigation: `vr_embed_fire_push` (0.1): a shot from a
+    gun stuck in its own host (`vr_fire_prop.vr_stick_ent == targ`) shoves and throws it 0.1x; `vr_embed_fire_letgo` (8 cm)
+    for `vr_embed_fire_hold_time` (1 s) after it fired (`.vr_pfire_shot`): more slack on the arm's let-go and the hand's
+    reach (vr_embedhold.qc VR_Embed_FireMargin). All tunables (Stab group).
+  - **Tests**: attach_test.sh: 79 VR 27/0 (new: the grip at the mount alone leaves it on, grip + B/Y pulls it off; each
+    stuck gun's shot shoves its grunt at most 60 u/s and leaves the hand on it with the margin), 80 flat 17/0, 81/82 2/0
+    both, menu 6/0; the probe check now asks the palm hold's take-off only to be drawn (flat: blade ahead or up, on screen).
+    The snap's mock nudge turns the hand by the turn taking the bayonet's way onto the mount's (in the palm it can lie
+    reversed). Not proven with the mock: 5 shots in a row keeping the grip: the mock controller rests past the stuck
+    handle (the stab's follow-through), so freed or not the hold drifts off on its own within a second (the slide pushes
+    the gun on, or the arm's gap grows to 100 cm with a big margin); the shove check also passed with push 1 (the frame
+    the test reads it in may miss it): VR is the real check. Open: a "drawn hand" point the tests can put the mock on.
+
+- **daggerattach (2026-11-27)**: his words: "making the dagger attachable to guns like a bayonet ... Gate it under an
+  option, on by default for testing."
+  - **Option**: `vr_attach_daggers` (1, rule; Weapon Offsets > Attachments, "Daggers as Bayonets", under a new Dagger header
+    with Dagger Fits / Forward / Left / Up / Pitch / Yaw / Roll / Scale and "Preview: Bayonet or Dagger", which attachment
+    the page draws on the held gun). Off: no dagger goes on; one already on still comes off.
+  - **Kind 2** (`attach::Dagger`, QC `VR_ATT_DAGGER`): `progs/v_dagger.mdl`, its tip and blade root its weapons.txt muzzle_av
+    and wpnbtn_av (slot 51); mounts `att2_*` (new weapon keys) on the shotgun (26.56 0 -4.6, pitch -76.46, roll 180, scale
+    2.2727) and the super shotgun (20.19 0 -3.22, same turn, 2.0833): the blade along under the barrel, edge down, its root
+    where the bayonet's is, the guard's top just under the barrel (scratch/dg_mount.py measured it from the model's
+    vertices). The handle runs back under the barrel past the shotgun's pump (not checked against the pump's travel).
+  - **Its size**: a weapon model as an attachment is drawn with its own transform (its Scale 0.34 and the models' world size
+    k): `view::placeAttachment` takes k out (the gun's is in its size), `attach::Mount::own` (its Scale) counts in `onGun`
+    (server points, the stick's blade, the lying gun's hull), so the mount's scale is 1 / the gun's Scale as the bayonet's.
+    Before it the drawn dagger was 0.34x and its tip 7.7 units off the server's.
+  - **On / off**: QC `VR_Attach_HeldDagger` (a dagger by its handle, the option on). VR (`VR_Attach_Frame`): the held
+    dagger's tip (its hand's muzzle) within `vr_attach_snap_radius` of where the mounted one's tip would be (attachinfo
+    what 2) and its grip-to-tip within `vr_attach_snap_angle` of the mounted way: on. Flat: J (`VR_Attach_Key`).
+    `VR_Attach_PutDagger`: the dagger's record onto the gun's `.wi_attach_inst` (new field; the engine's record sweep counts
+    it, vr_server.cpp), the hand emptied. Off (`VR_Attach_TakeOff`): the pull (the empty hand gripping by its handle, the
+    mount being its origin by the grip, B/Y) or J with the hand empty: WID_SWORD + the dagger's flags + that record (a
+    fresh one if none: across a level change, parm77 keeps the kind only); a pulled one is fresh (the player's
+    `.vr_att_fresh` hand bits) until its tip is 2x the radius away.
+  - **As the bayonet**: `VR_Attach_Strikes` (melee kind, blade line from attachinfo what 3, its blade root), `VR_Attach_Embed`
+    / `EmbedFire` by the kind's `attN_ok`, engine `attach::strikes` (flat V's thrust), vr_axestick.cpp `pointLength`: new
+    tunable `vr_embed_attdagger_depth` (1; Stab group, "Dagger Bayonet Depth"). Holsters, drops, throws, saves, MP (the
+    kind byte by weapon id) are the record's already.
+  - **Tests**: attach_test.sh: 84 VR (79 with the dagger) 27/0, 85 flat (80 with the dagger; first the option off: J puts
+    nothing on) 18/0, 81/82 now also carry a shotgun with a dagger in the off hand and take it off after (the same record
+    after a save). Test-only: the dropped gun with a dagger lies on its side (propped by the guard) out of the mock arm's
+    reach: the player steps up to it before the pick-up. Menu test: + a dagger fits shot/SSG, not the nailgun.
+  - Open: the MP test (mp_test.py attach) not run with a dagger; the dagger on a gun not seen in a headset (the pump, the
+    look of the guard); a reversed (blade-down) dagger doesn't snap in VR (its tip points back); J takes any.
 
 ## flatthrow3: flat throw's release carries the thing on before it leaves; an ogre's grenade caught only with a timed H (branch agent/flatthrow3, 2026-11-26)
 
@@ -2318,6 +2456,26 @@ His flat notes 2026-11-26, items 1 and 6.
   dagger's swing at a wall leaves no melee mark (no landing to compare): left out. Not run: the full flat suite.
 - Code shared, not copied: the swing and the thrust are the pose's own functions; the throw's speed, launch velocities and
   gravity are the release's own helpers.
+- **xhairmiss (2026-11-27, branch agent/xhairmiss): its two known misses.**
+  - flip24 (the flipped spear 24 units off, 7.3 apart with his promoted vr_flat_revgrip_pole_off_along 9): not a turn of
+    the pole. Measured per frame, the rehearsal was the pose to 0.01 unit, but flatsight's pinToGrip then pulled the
+    holding hand in up to 8 units late in the thrust (the free hand's grip, 9 along the pole and thrust out, went past
+    gripKeep of the free arm's reach). The rehearsal now replays that pull on each point: `flatsight::gripPull` (the grip
+    as last placed in the hand's frame, notePlaced, turned with the hand and slid with flatplay::thrustOffSlide; the same
+    `reachPull` pinToGrip now uses). 3.8 apart; flipfar's tip's end comes in with it (y 752).
+  - The thrown axe "10 over": its origin is its handle, which circles the centre of mass as it spins; where the axe
+    actually sticks (QC now prints `flat throw: stuck at`, its edge's point in the wall) was 2.3 from the crosshair, by two
+    misses cancelling. Both now modelled: (1) the release leaves from the hand vr_flat_throw_release_time into the
+    follow-through, ~7 units on from the wound-up hand (and a sword's way from there tilts 1 degree up): the aim now goes
+    from there, `flatgrenade::releaseShift` (apply's own places at the release's shares) through the builtin
+    `flatthrowfrom`; (2) a thrown weapon's body flies its centre of mass's arc, 6 units up the weapon from the hand: the
+    aim's arc starts there, builtin `weaponmasscentre` (box3d::weaponMassCentre: the centroid of the hull of the model's
+    drawn corners, the thrown body's own shape), turned as the release turns it. The test now measures a stuck blade at its
+    stick point (else the old arc on to the wall): axe 1.0 units apart (was 2.3 by its stick point), sword 4.1 (was 9.6;
+    its release velocity still differs by 1 degree up: the throw assist, not chased), the quick grenades 0.3-0.5 (were
+    1.8-2.6: the release shift alone).
+  - `flatxhair_melee_test.sh` 25/0 (tolerances unchanged). Not run: flatthrow_test (the release itself is unchanged; only
+    the aim and a debug line).
 
 
 ## Map-made armed humanoids hold their guns right: Quoth's kellbase1 enforcers (branch agent/quothpose, 2026-11-26)
@@ -2407,6 +2565,25 @@ His flat notes 2026-11-26, items 3, 4 and 8.
   not parrying: the free hand at or below the holding hand; the flipped spear's other hand moved 4.9 u / turned 43.9
   degrees by _off_up 4 / _off_pitch 0. Open: the judicator's flipped one-handed guard lets go of the blade at its end with
   the free hand turning 81 degrees in a frame (the upright guard's let-go, not this change's).
+- **judicator (branch agent/judicator, 2026-11-27): both open points fixed, generally.**
+  (1) The flipped judicator let go of its handle: vr_twohand.cpp applySword's angle limit (cosine 0.34 against 0.40 as the
+  grip flipped; the stance is not asked for in a flipped grip, so its waiver went). Flat play, a sword-kind weapon's grip
+  held while the drawn flip is > 0 keeps hold whatever the line (the flipped hold's pose puts both hands on the handle, as
+  the stance's does); a headset's hands still answer to the limit. Its grip below the hand (chooseGrip,
+  vr_flat_melee_grip_below) is now measured from the holding hand itself, not the weapon's hold: flipped, the palm's pivot
+  put the hold 4.5 u up the handle, and the free hand sat 2 u off the holding one (fists in each other). Now -4.0 u held,
+  flipped, in the reverse guard and after.
+  (2) Any let-go eases (vr_view_hands.cpp `easeLetGo`, beside promofails' easeGripSwitch, flat only): the grip's blend-out
+  (vr_twohand's 0.2 s) had mixed the free hand's own pose with a grip pose still worked out from a hold that had ended; the
+  guard's blade grip picks its thumb's way by the free hand's own turn, which flipped as that hand went back (81 degrees in a
+  frame; the flipped judicator's handle let-go 108). Now the hand eases from where it was last drawn holding on, kept
+  against the holding hand, to its own pose, by the blend's share left since the let-go; a take during the blend-out eases
+  from the pose drawn then, as a switch. A long gun's look (no real grip) is unchanged.
+  Tests: `flatparry2_test.sh` 64/0 (new: the judicator held in two hands then flipped keeps its handle at -4.0 u through the
+  flip, the reverse guard and after; the flip's most turn a frame 18.7 (the main hand's own), out of the guard 9.0; `letgo`:
+  one-handed guards (vr_flat_melee_2h 0) end letting go of the blade, the free hand's most turn a frame 12.7 (knight's
+  sword upright) and 8.9 (judicator flipped), was 81). flatbash 20/0, flatfg2h 11/0, flatlance 30/0, flatparry 43/0,
+  flatmelee2h 16/0.
 ## floataxe: a thrown axe whose blow takes off the head it hit falls, never left floating (branch agent/floataxe, 2026-11-26)
 
 - **His report (flat):** an axe thrown at a zombie's head popped it, and the axe stayed floating in mid air after the zombie
@@ -2579,3 +2756,312 @@ profile twice (counts in the report). Open (not checked further): with snap turn
   QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed (and -CheckOnline again, a feed install verified);
   Latest still v1.1.0. Tag on ce92bf878. Quest not touched (its debug-signed dev build stays, his call). Output parked
   in F:/QVR-Parked/2026-11-27/beta6/.
+## beastarmour: armoured rottweilers, ogres, scrags and fiends (branch agent/beastarmour, 2026-11-27)
+
+- **What:** the four beasts may spawn armoured by the armed humanoids' rules (the skill's chance, best type and pieces,
+  Armored Foes; `vr_agarmor_beasts` 1, Combat > Armed Grunts > Armour > Armoured Beasts). Pieces: the rottweiler barding
+  over chest and croup (a cuirass of two), a chanfron, a spiked collar, shoulder and haunch plates; the ogre a cuirass of
+  three (breastplate, back plate, faulds), a helmet with a crown, pauldrons, bracers, tassets; the scrag a cuirass of three
+  (breast, back, belly), a mask-helmet, shoulder plates, bracers at the claws; the fiend plates over his hunched back, a
+  breastplate under it and a haunch plate (a cuirass of three), a helmet, pauldrons, bracers, thigh plates. Every piece
+  breaks on its own (the same pools by slot share, rules, cracks, debris props, wear skins, cut blocking).
+- **Feasibility per monster:** the humanoids' shells need an authored rig (rig2: skin weights, humanoid joints); none of
+  the four has one, and a rig2 for a quadruped or the legless scrag would change how they are drawn. Every monster has a
+  derived ragdoll rig (vr_ragdoll.cpp seed tables: dog 13 bones, scrag 11, ogre 13, fiend 16, shambler 13), so the
+  general path is **rigid pieces on derived-rig bones**: a piece rides its bone's vertices as drawn
+  (`hitmodel::drawnVertexPoints`: the animation's lerp and a ragdoll's parts alike) by a rigid fit (`rigpose::fitRigid`
+  over 10 spread vertices) plus the body's scale. The ogre (humanoid) and the fiend (hunched, humanoid limbs) fit
+  easily; the dog's pieces face up and out from a level spine; the scrag's sit on an upright legless body (bracers on
+  the claws' bones). The shambler is one more table in the script (his bones are named like the ogre's); not built.
+- **Multi-part, data:** the pieces use the humanoids' ten slots (0 cuirass .. 9), so the QC is shared; a kind's *cuirass
+  group* (the ogre's 0|8|9) is given whole when the roll's cuirass is (VR_AgArmor_Give), each part then its own pool and
+  break. Kinds and pieces are data: `quakevr/data/beastarmour.txt` (kind: model, cuirass group; piece: slot, bone,
+  model, its middle in the rest pose), written with the models by `Misc/quakevr/make_beastarmour.py` (a table per kind:
+  bone, span along it, facing, arc, rows, tile, crown, spikes). Each piece is a conformal shell: rows of bevelled
+  lames on a tube round its bone whose radius follows the body (measured from the .mdl's pose 0; only measurements are
+  taken, every vertex is ours), with make_agarmor.py's nine skins halved to 128x64 (36 models, 3.2 MB).
+- **Engine:** `Quake/vr/vr_beastarmour.cpp/.hpp`; agarmor's `shotPiece`, `pieceAt`, `pieceBones`, `plateWhere` and
+  `halfModel` (none: a beast's piece falls whole) hand a beast to it; the client's `agarmor::relink` draws each worn
+  piece as an entity of its own (the wear skins by its wear bits). QC: `VR_BeastArmour_Spawn` (walkmonster_start,
+  flymonster_start), `VR_BeastArmour_Precache`, `VR_AgArmor_Model` (QVR_ARMOR_BEAST_MODEL), `ragdollbone(e, [what],
+  QVR_ARMOR_BEAST)`. `vr_beastarmour_info` lists the kinds and pieces.
+- **Tests:** `vr_agarmor_test 15` 49/0 (slots and groups, the client told, all 36 pieces drawn, pieces following frame
+  A to B, two pieces on one bone staying rigid, shots meeting the cuirass and the helmet, Plate Blocks All, a helmet
+  broken into debris, the skill's roll, two corpses keeping their pieces); `vr_agarmor_test 1` 38/0, `10` 21/1 (the known
+  "clear line" 36 of 40, ROUND24). Scene `armour_beasts` (`vr_agarmor_test 16`); `17`-`20` one beast close (renders).
+- **Open:** a remote MP client draws no beast pieces yet (the client draws them from the listen server's bodies); the
+  delayed spawns (MG/VR_SF prepare) skip the roll; the look is a first pass for his review (the lames' banding, the
+  scrag's coverage).
+## spacewarp: Application SpaceWarp on the Quest, off by default (branch agent/spacewarp, 2026-11-27)
+
+His words: "Performance is OK but still not smooth enough ... I think it's time to implement [SpaceWarp]."
+- **What it does**: `vr_xr_spacewarp` 1 (VR Settings > Scaling, "SpaceWarp", Quest only; off by default, archived) hands
+  the runtime each eye's motion vectors and depth with its colour (`XR_FB_space_warp`, `XrCompositionLayerSpaceWarpInfoFB`
+  on both projection views); the runtime then halves the game's rate and draws the frames between. The console says at
+  each VR start whether the runtime has it: `VR: SpaceWarp (XR_FB_space_warp): supported by the runtime (motion vectors
+  420x440 an eye ...)` on the Quest 3; the first frame with it says `VR: SpaceWarp on: motion vectors and depth 420x440 an
+  eye (depth GL_DEPTH24_STENCIL8)`. No runtime support, swapchains that fail, or a pass that won't compile: the full rate.
+- **Code**: `vr_spacewarp.cpp/.hpp` (policy, the eye pass, the play space's delta, the test checks); the backend's
+  SpaceWarp swapchains (2 motion RGBA16F + 2 depth, the recommended size, made at first use, gone with the session),
+  `acquire/releaseSpaceWarpImages`, `setSpaceWarpFrame`, the chain in `endFrame` (never on a held frame; `xr` timing line
+  counts "with SpaceWarp"). Reuse: the motion vectors are temporal AA's (`vr_temporal.cpp`): the scene's models and
+  moving brush models write their own motion into the motion target, the camera's (head + locomotion) comes from the
+  depth and the eye's view-projection a frame ago; `VR_TemporalResolve` calls the SpaceWarp pass (a fullscreen pass at
+  420x440: NDC now minus then, Meta's GLES sample's convention incl. the full previous view; z as GL NDC depth; the
+  depth as the projection wrote it, nearZ/farZ in metres, reversed Z as nearZ > farZ; the lenses' hidden area far, zero
+  motion). `appSpaceDeltaPose` = Inv(previous world-from-play-space) * current (Meta's sample), from the eye's Quake
+  pose and its OpenXR pose; a jump (40 units, 25 degrees, a gap in frames) marks the frame `FRAME_SKIP`.
+- **Decisions**: (1) the eyes go through the post-process path while SpaceWarp is on (`VR: eyes ... not now: SpaceWarp`):
+  the motion target can't be an attachment of the runtime's foveated images (an unfoveated attachment stops the
+  driver's foveation, qfov), so the scene's own targets are used; at half rate the budget doubles. (2) SpaceWarp alone
+  keeps the motion target in half floats (ES blends no 32-bit float target and the engine's opaque draws keep GL_BLEND
+  on; half the bandwidth), stamps 1..1000, looser depth match; none of TAA's history textures are made. (3) Menus and
+  the console turn it off for those frames (the UI over the eyes has no motion of its own; at the full rate they look as
+  before). The in-game UI drawn over the eyes (pointer lines, the status panel, head text) takes the scene's motion under
+  it: a world-fixed panel is nearly right, head-fixed text may judder in made-up frames (a quad layer would fix it).
+- **Headset** (Quest 3, unworn, `-unattended -noconfigwrite`, Standalone as his config has it, one launch; the
+  unworn headset pauses the app every ~20 s, so only the hub's parts are clean; the fight's never ran: open):
+
+| vrstart (the hub) | frame period | missed | CPU busy (period - waits) | GPU render | GPU total (incl. the runtime's in xrEndFrame) |
+|---|---|---|---|---|---|
+| SpaceWarp off (1) | 13.92 ms (71.9 fps) | 5 of 304 | 8.8 ms | 10.44 ms | 10.47 ms |
+| SpaceWarp on (1) | **27.79 ms (36.0 fps)** | **0 of 153** | 10.4 ms | 10.48 ms | 20.75 ms (10.26 the runtime's) |
+| off (2), a pause inside | 14.47 ms | 6 of 233 | - | - | - |
+| on (2) | 27.78 ms (36.0 fps) | 0 of 161 | - | - | - |
+
+  The runtime halved the rate at once and missed nothing. The render's GPU stayed ~10.5 ms with the post-process path
+  and the pass: dynamic resolution sees the doubled budget (27.78 ms), so it can draw sharper (the scale not logged).
+- **PC**: `spacewarp_test.sh` 16/0 (mock headset, `vr_spacewarp_test 1`: the images made into the game's own textures and
+  read back: still 0 motion and a depth range; the gun brought up has its own motion and the world none; walking, the
+  world streams by (mean 0.018 NDC) while the held gun stays 0.00003, the delta 8.7 cm forward a frame; the smooth turn
+  turns the delta; a setpos marks the frame skipped). Debug > Profiling "SpaceWarp Test Images".
+- **Open**: the fight's numbers (an unworn run is paused every ~20 s; a worn check or a proximity override needed); the
+  look of the made-up frames (worn only: hands, gun, HUD text); step 3's ranked profile of remaining costs: not done.
+- **Installed**: this branch's APK (origin/next with beta6's code, it says 1.2.0-beta5-dev, + SpaceWarp; debug key) and its progs.dat (06b6d2f8) left on the
+  headset; rollback: `scratch/sw_installed_before.apk` (bf4eecc2f, questcrash2's) + `scratch/sw_progs_before.dat`
+  (15e03c5b).
+## testfails: four known test failures on next, each a stale test (branch agent/testfails, 2026-11-27)
+
+- `reload/pouch_test.sh` "super shotgun (main hand, dual-wielded): fills too": the off hand stayed at the pouch with its
+  gun, so the main gun's one-frame jump there (about 10 m/s) hit the off gun's line from below and snapped its open
+  barrels shut (`vr_reload_ssg_close_hit`, as designed: "closed by a hit from below ... 0 loaded"). Fix: the off hand
+  goes away first. 29/0.
+- `menu_flat_panel_test.py` (3 checks): `m_quit` and `m_confirm` are 20 and 27 since the IPX / TCP/IP page went
+  (menu.h); the test still said 21 and 28. The classic row's - step started from the kit base config's
+  `scr_menuscale 1.125`, not from past what the canvas fits. Fix: named numbers; the test sets `scr_menuscale 4` first. 31/0.
+- `flatswap_test.sh` AD run (`vr_flatswap_test 4`): not the knight's sword. `god; notarget` typed in the same frame as
+  `map` run before the client is in and do nothing (no "godmode ON"); a zombie on AD's start map woke and its gibs
+  (10 a hit) killed the player about 4 minutes in, so the mace's swaps (case 11) ran on a dead player: nothing drawn,
+  sometimes no swap. Fix: `wait5` before `god` (vrtesthall's BASE too). New test aid `vr_flatswap_test 406..411`: test 4
+  from AD case 6..11 on (411: the mace alone, 8/0).
+- `holstersetup_test.sh` "gun at the right hip (drag) + 0 out: DROP (want IN)": the gun drawn 13 frames before was still
+  easing out of the holster (`vr_weapon_draw_blend` 0.3 s) and `vr_mock_hand_to zonegrip` aims the gun's handle as
+  drawn, so the hand landed about 4 units short of the dragged zone and the release threw the gun. Fix: the draw waits
+  25 frames (0.35 s) before the hand moves; a verdict line "holstersetup_test: N passed, M failed". 13/0.
+- Also run: flatswap_test.sh weapons 22/0, things 26/0, melee 96/0, holster 0 faults, AD 48/0.
+## nogamedir: Quake VR's game folder mounted on every start, without "-game quakevr" too (branch agent/nogamedir, 2026-11-27)
+
+- The "tinyworld" player's real cause (his console logs): v1.1.0 from the zip, started from his own shortcut
+  (`ironwail.exe -heapsize .. -winmem .. -conwidth 800 .. -flatscreenmode`, no `-game quakevr`, no -basedir). Quake was
+  found as Ironwail finds it (the re-release's id1), the exe's folder added as a base dir, but only id1 mounted: no
+  game code of Quake VR, every data/*.txt value 0, its models and sounds missing. Reproduced (nogamedir_test `missing`).
+- Fix (common.c `COM_AddVRGameArg`, before `VR_InitCampaignDirectories`): with no `-game quakevr` on the command line and
+  a base dir whose quakevr has the game code (progs.dat or pak0.pak), "-game quakevr" is inserted where the shipped
+  launches put it: after the campaign folders given (`-game hipnotic`, `-game ad`...: `VR_IsCampaignDirectory`, as the
+  kit's `-game hipnotic -game rogue -game quakevr` and the Quest's `-game ad -game quakevr`), before the first other
+  mod (`-game quakevr -game <mod>`, QuakeVR.bat's). Console: `VR: no "-game quakevr" on the command line: Quake VR's
+  game folder added (...)`. Launches that pass it (Setup, QuakeVR.bat, Steam, Quest, tests) are untouched.
+- No base dir with Quake VR's game code (a broken install): nothing added; a console warning listing the folders looked
+  in, red lines in the menus' status box ("Quake VR's game data wasn't found / looked for quakevr in <folder> /
+  reinstall with QuakeVR-Setup / or start from its shortcut"; shown with vr_menu_status 0 too) and a centre print at the
+  first map's spawn. The folder named: the last -basedir, else the exe's. `vr_gamedata_notice [0|1]` reports / previews
+  it (Debug > Diagnostics > Preview: Game Data Missing Notice). vr_gamedir.cpp, vr_menuui.cpp, vr_progs.cpp.
+- Also: vr_glsafe.cpp made `<com_gamedir>/crash` with Sys_mkdir alone: `-basedir <Quake> -basedir <Quake VR> -game <mod>`
+  with the mod only in Quake's folder stopped the start ("Unable to create directory"); now COM_CreatePath.
+- His old flags: -heapsize/-winmem/-conwidth 800 harmless (the test runs with them).
+- "Tiny" monsters: no data-dependent size found. monsters.txt has no size key; with Quake VR's data missing or present
+  the flat view is the same (`flatscreen view: fov 90 .. 106 x 74 degrees .. body 1.55 m, vr_world_scale 1.2`), and the
+  eye too (view_ofs 22, e1m1's start). With the data missing he had no hands, weapons as 0-valued props and id's game
+  code: the fix gives him Quake VR's.
+- Docs: INSTALL.md (zip: ironwail.exe or an own shortcut works too), the zip's README-QuakeVR.txt (package-quakevr.ps1).
+- Tests: `python Misc/quakevr/nogamedir_test.py <agent>` (the exe started directly, the player's flags, an install-like
+  layout in scratch: id1 paks copied from the kit's qbase): missing / nogame / testmod / testmod_explicit 4/0. run.sh
+  `-Games "-game ad"` (game dirs ..;ad;quakevr) and `-Games "-game hipnotic"` (active campaign hipnotic) by hand;
+  tutorial_start_test 8/0.
+- Open (not this branch's): `-game quakevr -game <mod>` with an empty mod folder fails e1m1 on next too
+  ("Host_Error: Mod_LoadModel: progs/vrgrunt.mdl#plate0 not found", vr_agarmor.cpp derivedFile). The runtime `game <mod>`
+  command and the Mods menu still switch to id1;<mod> without quakevr (unchanged).
+
+## questfovmusic: Quest Foveation High (Top) and a vertical shift; the expansions' own soundtracks on the Quest (branch agent/questfovmusic, 2026-11-27)
+
+His notes (Quest standalone, 2026-11-27): "more aggressive foveation settings?"; "Scourge of Armagon and other expansion
+music doesn't seem to play ... the Quake music is played instead."
+
+- **Foveation.** `vr_xr_foveation` 4, "High (Top)": Meta's fifth level (VrApi's and OVRPlugin's HighTop, value 4, past
+  Khronos' `XrFoveationLevelFB`), passed to `XR_FB_foveation_configuration`; the Quest 3's runtime accepts it ("fixed
+  foveation level 4 ... set"). A runtime that refuses it gets High with the pattern shifted -10 degrees (said in the log).
+  New `vr_xr_foveation_offset` (degrees, -30..30, saved, default 0; VR Settings > Graphics, advanced "Quest Foveation:
+  Shift"): the profile's `verticalOffset`, with any level; a change takes new eye swapchains like a level change.
+  `XR_META_foveation_eye_tracked` (eye-tracked foveation) is Quest Pro only: the Quest 3's runtime skips it ("missing
+  uses-feature oculus.software.eye_tracking"), not used. The FB profile has no level past HighTop; the further lever is
+  the render scale (`vr_render_scale` / `vr_xr_eye_scale`), unchanged here. Show Foveation (`vr_foveated_debug`) models
+  High (Top) as High's zones centred a quarter lower, and the shift at about 45 degrees to the drawn part's edge (both
+  modelled: Meta documents neither the shape nor the offset's sign).
+- **Timings** (Quest 3 unworn, fixed render scale 0.9, `vr_dynres 0`, parts of 360 frames interleaved, 3 rounds in one
+  launch each, GPU mean a frame from `vr_profile_report 3`, medians):
+
+  | part | hub (vrstart) GPU ms | hub missed | gib fight GPU ms | fight missed |
+  |---|---|---|---|---|
+  | Off | 17.52 | 68% | - | - |
+  | Low | 17.78 | 68% | - | - |
+  | High | 12.04 | 1.5% | 7.36 | 0.3% |
+  | High (Top) | 12.57 | 2.3% | 7.19 | 2.0% |
+  | High, shift -15 | 15.58 | 35% | - | - |
+  | High (Top), shift -15 | 15.74 | 35% | - | - |
+  | High, shift -5 | - | - | 6.90 | 0.3% |
+  | High, shift +15 | 12.29 | 1.6% | 7.39 | 0.6% |
+  | High, shift +30 | - | - | 5.87 | 0.1% |
+  | High (Top), shift +15 | - | - | 7.38 | 2.8% |
+
+  High (Top) costs the same as High on both scenes (within the rounds' spread: hub 12.0-13.0, fight 7.0-7.7): the
+  driver foveates by whole 864 x 448 bins (qfov4), so the top-heavy pattern mostly moves which bins are reduced. Shifts
+  matter more: -15 lost 3.5 ms on the hub, +30 won 1.5 ms in the fight; which way the sharp zone moved is not known
+  (no eye capture of the runtime's bins). **No default changed** (Standalone keeps High on the Quest 3).
+- **Music.** Cause: Setup's Quest step (`QuestFiles.Plan`) pushed id1's music (from the rerelease's `id1/music`) but never
+  an expansion's: the original's `hipnotic`/`rogue` folders have none, the PC game reads them in place from the owned
+  rerelease (`vr_music.cpp` findInFolder: the search path's folder, then the owned roots), and the headset has no
+  rerelease, so `VR_FindMusicTrack` fell through to id1's track. Now every campaign folder going to the headset (hipnotic,
+  rogue, dopa, mg1, mg3) takes `<folder>/music/*.ogg|wav` from the first of the player's Quake, the install, the
+  rereleases (the player's and the stores'), lower case, to `<folder>/music` on the headset (found through the search path,
+  or the base dir as an owned root). No engine change. AD has no music of its own on this PC; Dwell's and Quoth's copies
+  already go whole (`ModCopyFiles`). Players must run Setup's Quest step again for the tracks.
+- **Checked on the headset:** hip1m1 "VR music: track 4 -> .../files/hipnotic/music/track04.ogg", r1m1 "track 5 ->
+  .../files/rogue/music/track05.ogg" (before: id1's). The tracks were pushed by hand as Setup now would; a folder made by
+  `adb shell mkdir` is `drwxrws---` and unreadable by the app (the first check still played id1's): Setup chmods its
+  folders 2777 already (`QuestInstaller`), so only hand pushes need it.
+- Files: `Quake/vr/vr_backend_openxr_quest.cpp`, `vr_backend_openxr_internal.hpp`, `vr_cvars.inc`, `vr_foveated.cpp/.hpp`,
+  `vr_stereo.cpp`, `vr_menu_rows.inc`, `vr_menu_settings.inc`; `Installer/src/QuakeVR.Installer.Core/Quest/QuestFiles.cs`;
+  scenario `quakevr/scenarios/campaign_music.txt` (hip1m1). Tests: installer self-test "quest: an expansion's own
+  soundtrack goes with it" (quest: 12/12), questcrash_preset_test 23/0, settings_page_test 23/0.
+- Seen, not fixed: `quit` from a cfg under `-unattended` left the app running on the Quest (the session restarted every
+  20 s, "session ended (xrEndSession): waiting for the runtime"); a stray `id1/music/qr_ab.py` sits on the headset.
+## flatsink: a pitched view walked through the floor only in setpos's noclip (branch agent/flatsink, 2026-11-27)
+
+- Not real play, not the mock: Quake's own `setpos` turns noclip on (host_cmd.c, "noclip ON"), and a noclip walk flies
+  along the view (z 25 -> -24 at pitch 40 in vrtesthall; level, it passes walls and props). Real flat play (`+lookdown` 41
+  deg, or `setpos ...; noclip 0`): z stays on the floor at pitches 0/40/80 on vrtesthall and e1m1.
+- Guard: qvr_checks `setpos_walk` (Tools/qvr_checks/small_checks.cpp) fails the build on a test script line (Misc/quakevr
+  *.sh/*.py, continued lines joined) that walks (+forward/+back/+moveleft/+moveright) after a setpos with no `noclip 0`
+  (or the toggle `noclip`) between; opt-out word `setpos-noclip-walk`. TESTING.md, "Writing a test", says it.
+- Fixed: flatgrabthrow (5 runs), flatinput wall, flatwall b, flatgate fg_level now walk with noclip off.
+- Tests: flatsink_test.sh 8/0 (new); flatinput 19/0; flatgate 5/0.
+- Open, real play now measured (those walks had been flown in noclip): flatgrabthrow push: walking into a held 40 kg crate
+  is blocked by it (Quake's hull hits the crate; dragsProp lets only the Box3D capsule through): y -172 -> -172. ragpush:
+  the ogre run into at the real pace (32 units in 20 frames) is not let go of "too heavy for that pace". flatwall b:
+  walking sighted into the wall, the tilt jumps 38.5 deg in one frame (limit 8). ragpush's grunt push check 60 -> 40
+  units (he walks 47 in its 28 frames from a stand; 77 flown).
+  command and the Mods menu still switch to id1;<mod> without quakevr (unchanged). Both fixed by agent/gamecmd (below).
+- gamecmd (branch agent/gamecmd, 2026-11-27): the `game <mod>` command, the Mods menu (its `game "<mod>"`) and a KEX
+  save's game switch keep Quake VR's folder: common.c `COM_WithVRGame` in `COM_SwitchGameInternal` (not the campaign
+  reloads) puts quakevr where `COM_AddVRGameArg` does, both through one helper `COM_VRGameInsertAt` (after the leading
+  campaign folders, before the first other mod: `game testmod` -> id1;quakevr;testmod; `game id1` -> id1;quakevr). No
+  base dir with Quake VR's game data: unchanged. The switch also makes com_gamedir (`COM_CreatePath`): with the mod only
+  in Quake's folder it is the last base dir's, absent, and vr_motion.cpp's `Sys_mkdir("<com_gamedir>/motions")` ended
+  the game (Sys_Error) at the next map.
+- The empty mod's e1m1: the armed grunts' plates are made from the grunt's rig2 (vr_rig2.cpp `rigFor`), read from
+  `<com_gamedir>/rigs`: the mod's folder, which has none. The rigs' and animations' folder (vr_rigdata.cpp `rootDir`, the
+  Rig Studio's saves too) is now Quake VR's own (vr_gamedir.cpp `VR_QuakeVRGameDir`: `<its base>/quakevr` when mounted,
+  else com_gamedir): the same folder in every shipped launch, quakevr's under a mod.
+- Tests: nogamedir_test 5/0 (testmod and testmod_explicit now play e1m1 in the empty mod; new `gamecmd`: started
+  without -game, `game testmod` from the autoexec, the mod's autoexec then plays e1m1: game dirs quakevr;testmod);
+  tutorial_start_test 8/0; agrunt 1, 2, 80-82 (rigseq, vr_rigdata_dir) pass.
+## adknights: AD's death guard and crossbow knight as armed humanoids in their own looks (branch agent/adknights, 2026-11-27)
+
+His words (2026-11-27): convert AD's death guard and crossbow knight to the armed humanoid system, reusing the most
+similar enemies' poses, any weapon, infection, dynamic armour; then replace them automatically in AD's maps.
+- **Models**: `progs/vrdguard.mdl`, `progs/vrdcrossbow.mdl`, made as they load from AD's `mon_dguard.mdl` /
+  `mon_dcrossbow.mdl` (`vr_monstermods.cpp VR_AdArmedModelFile`, through `VR_DerivedModelFile`; nothing of AD's written):
+  the weapon's triangles dropped (vertices kept), 97 frames in the knight's QC macro order (AD's nearest action each,
+  blended between AD's frames; the take's kneel from AD's forward death's first frames, as the death knight row's), the
+  living frames turned about the vertical so the shoulders are square (the crossbow knight's rest is 40 degrees side-on;
+  the death guard's run 14-17). So id's knight code drives them: health, sounds, AI, pains, deaths. Model ids `VrDguard`,
+  `VrDcrossbow`; ragdolls AD's seeds (`vr_ad_rigs.inc`, deaths 75-84 / 85-96); metal footsteps.
+  `vr_adarmed_dump <model> <file>` writes one out (for the rig; never commit it).
+- **Rigs** (authored): `make_rig2.py dguard|dcrossbow --mesh <dump>` -> `quakevr/rigs/vrdguard.rig2.txt`,
+  `vrdcrossbow.rig2.txt`; joints from AD's ragdoll seeds turned as the made frame 0, the knight's limits and blends; the
+  crossbow knight's shoulders the death guard's moved with the chest (one body, vertex for vertex). Previews:
+  `scratch/adknights_rig_*.png` in the tree.
+- **Rows** 4 `monster_vr_dguard` ("Death Guard", its sword by default) and 5 `monster_vr_dcrossbow` ("Crossbow Knight",
+  its crossbow): QC `vr_armedmon.qc` (hands, weapon lines, anchor 51, shoulders, fits 1 0.95 1), engine `armedRigs` with
+  `poseKind` 2: they take the knight's pose keys and grips (`VR_AM_PoseKind`), fitted to their shoulders. Without AD's
+  data (`vr_ad_mounted` 0) they are the knight (`VR_AM_Resolve`). `VR_AM_COUNT` stays 4 (every existing loop);
+  `VR_AM_ROWS` 6. Armour: wearers rows and plates for both models, the knights' rule. No recolour (AD's skins).
+- **Replacement**: `VR_HUM_V_DGUARD` (AD's `ad_monster_dguard` calls `VR_HUM_Replace`), the crossbow knight to row 5;
+  `vr_agrunt_repl_dguard` (new, 1) and `vr_agrunt_repl_crossbow` (back to 1): Combat > Armed Humanoid Replacements,
+  "AD Death Guards", "AD Crossbow Knights". BACKLOG section 6's entry closed.
+- **Tests**: `vr_ad_test 219` (humrepl_test.sh) now checks each variant's model, the death guard's row, sword kind, health
+  30 and its switch off: 65/0. Glitch finder (`vr_agrunt_test 46`, `temp1 1`, `scratch2 26`, `scratch3 77`: the close
+  loop for knight, death knight, death guard, crossbow knight; `scratch3` may now pass 25): parsed close lines, gun
+  frames pointing over 45 degrees: knight 1, death guard 12 (shotgun 5, nailgun 7, worst 79 deg), crossbow knight 0;
+  muzzle over the head: knight 417, death guard 1, crossbow knight 0. Scene `ad_knights_armed` (vrtesthall, needs AD:
+  both with their own weapons and with shotguns, frozen): 4 of 4 placed; `scratch/adknights_scene.png` (low-res).
+- Open: his look in VR (the holds share the knight's keys: a Pose Studio edit on the knight moves them too; their own
+  kinds in the Pose Studio would need `agpose::numKinds` 6); the death guard's guns aiming a little high up close; the
+  crossbow knight's arm skin round its cloak.
+- **limbfix** (branch agent/limbfix, 2026-11-27): after the merge ad_azad, ad_tears and e1m1 (AD's data mounted, the
+  enemy randomizer's death guard) stopped on `Host_Error: Mod_LoadModel: progs/vrdcrossbow.mdl#limb6 not found`. Not
+  the removed weapon: every limb of both models failed ("its model's file not found"), the limb builds reading the base
+  with `COM_LoadMallocFile`, and these bases are no file. Now `VR_LoadModelFile` (vr_walltorch.cpp, beside
+  `VR_DerivedModelFile`: made, else the game's file, as Mod_LoadModel reads) feeds both limb builds (`buildNamed`,
+  `startKind`): all 13 limbs of each build. Guards, so an unmade one never stops a map again: the prebuild precaches only a
+  limb built just now or already precached, and `VR_LatePrecacheModel` loads a `#` model without crashing (none, index 0,
+  a developer line). The rows without AD were already the knight (`VR_AM_Row`/`VR_AM_Resolve`), nothing precached of
+  theirs. Test `Misc/quakevr/limbs/adlimbs_test.sh` (needs AD): ad_azad loads, 26 of 26 limbs: 3/0. scenario_check: 215
+  run, every scene OK (ad_azad_grates, ad_tears_window, run_enemyrandom, ad_knights_armed); its 1 "failed" is
+  quest_foveation's SCNLEAK of `vr_foveated_debug` (not this). humrepl 65/0; limbs_test models, corpse clean; e1m1 loads.
+## questperf: the Quest's remaining costs ranked; the lit textures' walk made fast (branch agent/questperf, 2026-11-27)
+
+His words: "Performance is OK but still not smooth enough. What options do we have to further optimize it?"
+- **Profile** (Quest 3, unworn, `-unattended -noconfigwrite`, Standalone at its defaults incl. dynres, 72 Hz; this
+  branch's APK; 3 s `vr_profile_report` windows, one launch, scratch `qp_measure.cfg` / `qp_parse.py`): the hub holds
+  13.88 ms with **GPU 11.2-11.7 ms** (83% of the period) and **CPU busy 8.9-9.1 ms**; 0-4 frames of 216 missed a
+  refresh in clean windows (up to 7 in the ones round the unworn pause). The live gib fight (quest_gibfight, dynres in
+  the fight floor): GPU 7.1-7.6, CPU busy 7.9-8.4, 0-3 missed. So neither side is over budget on average: what is left
+  is sporadic misses, mostly where the GPU's frame plus the compositor's preemptions (~0.5 ms, three a frame: questperf
+  2026-11-23) brush 13.9 ms, i.e. the hub.
+- Hub CPU (ms a frame): draw 4.9 (models 1.69, light setup 1.00, render other 0.54, world 0.27, particles 0.27),
+  client 2.2 (vr view setup 1.19), server 1.2 (QuakeC 0.6). Fight, left out between base parts (GPU / CPU busy, base
+  7.2-7.6 / 7.9-8.3): the world 2.32 / 7.31 (**the world ~5 ms GPU**), every entity 5.66 / 6.87 (~1.8 GPU, ~1.3 CPU),
+  gore, particles, dynamic lights: within the windows' noise (+-0.4).
+
+| # | Remaining cost (Quest 3, Standalone) | Size | Options | Estimate |
+|---|---|---|---|---|
+| 1 | The hub's GPU (fill: world, 0.55-0.65 scale) | 11.2-11.7 of 13.9 ms | SpaceWarp on (built, off by default: 36 fps with the made-up frames; his look call, worn check open); a hub-only dynres target a little lower (`vr_dynres` target ~85% of the period); the more aggressive foveation levels (questfovmusic) | SpaceWarp: no misses (0 of 153, spacewarp); dynres/foveation -0.5..-1.5 ms |
+| 2 | The world's GPU in fights | ~5 of 7.5 ms | LRZ: something in the opaque entity pass still ends the low-resolution depth (qlrz2: not found); the world feeds LRZ only through its pre-pass | -0.5..-1.5 ms if found; trace work, no timing yet |
+| 3 | Models: alias set-up CPU + their GPU | 1.4-1.7 ms CPU, ~1.8 ms GPU | a draw-list cache across frames for models whose pose and light did not change (the eye cache exists, per frame only); fewer draws for your rig (one batch for the body's parts) | -0.4..-0.8 ms CPU |
+| 4 | Light setup CPU in the hub (8 lights; the lightmap's dynamic lights on the CPU, `vr_gl_world_dlmap`) | 1.0 ms | re-add only the blocks of lights that moved or changed (torches flicker: their own rate) | -0.3..-0.6 ms CPU |
+| 5 | Your view's set-up (hands, body IK, gear) | 1.2 ms CPU | skip the IK's refinement steps when the tracked poses moved under a threshold; gear updates every other frame | -0.2..-0.4 ms CPU |
+| 6 | QuakeC (armed props' scans, monsters) | 0.6 hub, 1.2-1.3 fight | more natives as qcpu2's pose (VR_AGS_Projectiles, VR_AG_WeaponStruck) | -0.2..-0.4 ms CPU (big fights more) |
+| - | Particles, gore, dynamic lights, shadows, physics | within noise here | nothing to take at these scenes | - |
+
+  CPU isn't the limit now (busy 8-9 ms of 13.9 with the main thread paced by xrWaitFrame), so only GPU items (1, 2)
+  lower misses directly; the CPU items buy headroom for big fights (combat_48 was CPU-bound: qcpu).
+- **Done: the lit textures' walk** (`vr_gl_world_lit_reuse`, Debug > Profiling and Memory "Fast Lit Textures' Walk
+  (Quest)", default 1): new scopes in R_SetupView (view frame data, view leaf, decals frame, sort entities, world lit
+  cull, portal view) showed the ES profile's R_WorldLitTextures (C4w) as the hub's top CPU row on the PC mock: every
+  leaf walked against every light for each eye (30,555 leaves, 8 spheres: 0.43 ms an eye). Now the leaves sit in a
+  grid made at the map's load (at most 32 cells an axis; a leaf over more than 64 cells kept apart) and only those in
+  the cells round each sphere are tested, each once; the answer is given again while the PVS and the spheres are the
+  same (the second eye). Exact: mode 2 walks both ways and compares (`vr_gl_world_lit_stats`: 0 differed of 1,200 hub
+  views, 600 in e1m1's fight, 600 on e2m2). PC mock (`-glescompat +vr_standalone_preset 0`, two runs each): the hub's
+  walk **0.865 -> 0.080 ms a frame**. **On the Quest it saves nothing at the shipped settings**: the Standalone preset
+  puts the dynamic lights into the lightmap (`vr_gl_world_dlmap 1`, `vr_gl_quake_dlights 1`), so no split view walks
+  (the stats: 0 walks in the hub); A/B interleaved on the headset (reuse 0/1, 3 + 2 pairs): within noise, as expected.
+  It counts where the split is on (a Quest with dlmap off, the PC under `-glescompat`). r_world.c, gl_rmain.c.
+- Tests: the grid's check above; permdecal_test PASS; questcrash_preset_test 23/0.
+- **Installed**: this branch at 9c8e2b3b2 (origin/next a5b23c2e1 merged: questfovmusic's foveation and music included)
+  APK + progs.dat (45a721f8), launched once to the hub's first frame and force-stopped; rollback (questfovmusic's
+  install of 03:12): `qfov/scratch/qp_installed_before.apk` + `qp_progs_before.dat` (d8deb8ff). Other data files not
+  synced (the last install's stay).
+- Open: a worn session's hitch causes (`vr_perf_record`) for the sporadic misses; items 1-6 above are his decisions or
+  later jobs.

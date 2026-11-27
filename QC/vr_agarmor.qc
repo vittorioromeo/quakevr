@@ -72,6 +72,17 @@ void(entity e, float i) VR_AgArmor_Wear =
 void(entity e, float type, float mask) VR_AgArmor_Give =
 {
     float i;
+    // A beast (vr_beastarmour.cpp): only its kind's pieces; its cuirass all the pieces of its cuirass group (a large
+    // body's breastplate and its back, belly or croup plates, each breaking on its own).
+    float beast = ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST);
+    if(beast > 0)
+    {
+        if(mask & 1)
+        {
+            mask = mask | ragdollbone(e, '1 0 0', QVR_ARMOR_BEAST);
+        }
+        mask = mask & beast;
+    }
     e.vr_ar_type = type;
     e.vr_ar_mask = (type > 0) ? mask : 0;
     e.vr_ar_wear = 0;
@@ -185,11 +196,11 @@ void(string base) VR_AgArmor_PrecacheOf;
 
 void(entity e) VR_AgArmor_Spawn =
 {
-    if(e.vr_ag_kind <= 3)
+    if(e.vr_ag_kind <= 5)
     {
         VR_AgArmor_PrecacheOf(e.model); // (its plates ahead of its first break; the level's load did the armed kinds)
     }
-    if(e.vr_ag_kind > 3 || deathmatch || vr_ar_hold_roll) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1, VR_AM_KNIGHT 2, VR_AM_DKNIGHT 3: vr_armedmon.qc, compiled later)
+    if(e.vr_ag_kind > 5 || deathmatch || vr_ar_hold_roll) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1, VR_AM_KNIGHT 2, VR_AM_DKNIGHT 3, VR_AM_DGUARD 4, VR_AM_DCROSSBOW 5: vr_armedmon.qc, compiled later)
     {
         return; // (P2: the enforcer too, by the same chances: no free set; the knights too (agent/dknight))
     }
@@ -258,6 +269,32 @@ string(string base, float i) VR_AgArmor_ModelOf =
         if(i == 8) return "progs/vrenforcer.mdl#plate8";
         return "progs/vrenforcer.mdl#plate9";
     }
+    if(base == "progs/vrdguard.mdl")
+    {
+        if(i == 0) return "progs/vrdguard.mdl#plate0";
+        if(i == 1) return "progs/vrdguard.mdl#plate1";
+        if(i == 2) return "progs/vrdguard.mdl#plate2";
+        if(i == 3) return "progs/vrdguard.mdl#plate3";
+        if(i == 4) return "progs/vrdguard.mdl#plate4";
+        if(i == 5) return "progs/vrdguard.mdl#plate5";
+        if(i == 6) return "progs/vrdguard.mdl#plate6";
+        if(i == 7) return "progs/vrdguard.mdl#plate7";
+        if(i == 8) return "progs/vrdguard.mdl#plate8";
+        return "progs/vrdguard.mdl#plate9";
+    }
+    if(base == "progs/vrdcrossbow.mdl")
+    {
+        if(i == 0) return "progs/vrdcrossbow.mdl#plate0";
+        if(i == 1) return "progs/vrdcrossbow.mdl#plate1";
+        if(i == 2) return "progs/vrdcrossbow.mdl#plate2";
+        if(i == 3) return "progs/vrdcrossbow.mdl#plate3";
+        if(i == 4) return "progs/vrdcrossbow.mdl#plate4";
+        if(i == 5) return "progs/vrdcrossbow.mdl#plate5";
+        if(i == 6) return "progs/vrdcrossbow.mdl#plate6";
+        if(i == 7) return "progs/vrdcrossbow.mdl#plate7";
+        if(i == 8) return "progs/vrdcrossbow.mdl#plate8";
+        return "progs/vrdcrossbow.mdl#plate9";
+    }
     if(base == "progs/vrknight.mdl")
     {
         if(i == 0) return "progs/vrknight.mdl#plate0";
@@ -310,7 +347,14 @@ string(string base, float i) VR_AgArmor_ModelOf =
     return "progs/vrgrunt.mdl#plate9";
 };
 
-string(entity e, float i) VR_AgArmor_Model = { return VR_AgArmor_ModelOf(e.model, i); };
+string(entity e, float i) VR_AgArmor_Model =
+{
+    if(ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST) > 0)
+    {
+        return limbmodel(e, QVR_ARMOR_BEAST_MODEL - i); // (a beast's piece: its own model, vr_beastarmour.cpp)
+    }
+    return VR_AgArmor_ModelOf(e.model, i);
+};
 
 // A plate breaking: a recorded metal crack (his note 2026-11-03; CREDITS.md, SOUNDS_OURS.md), never heard as armour picked up.
 string VR_AR_BREAK_SOUND = "vr/armor_crack.wav";
@@ -351,6 +395,53 @@ void(string base) VR_AgArmor_PrecacheOf =
     }
     precache_sound("items/armor1.wav");
     precache_sound(VR_AR_BREAK_SOUND);
+};
+
+// ----------------------------------------------------------------------------
+// The beasts' armour (ROUND26.md, "beastarmour"; vr_beastarmour.cpp): the rottweiler, the ogre, the scrag and the fiend
+// roll for armour at their spawn as the armed humanoids do (the skill's chance, best type and pieces; Armored Foes), when
+// vr_agarmor_beasts is on. Their pieces are rigid models on their derived rigs' bones (quakevr/data/beastarmour.txt), in
+// the humanoids' slots: everything after the roll (pools, the rules, breaking, debris, sounds, wear) is the same code.
+float vr_ar_beast_rolls; // the tests: beasts rolled for
+float vr_ar_beast_armoured; // ... and of them, armoured
+
+// Every piece model of beast `e` and the break's sounds, precached ahead (its first break no hitch). FALSE: not a beast.
+float(entity e) VR_BeastArmour_Precache =
+{
+    float slots = ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST);
+    if(slots <= 0 || deathmatch)
+    {
+        return FALSE;
+    }
+    float i;
+    for(i = 0; i < VR_AR_PIECES; i++)
+    {
+        if(slots & VR_AgArmor_Bit(i))
+        {
+            precache_model(limbmodel(e, QVR_ARMOR_BEAST_MODEL - i));
+            vr_ar_precached = vr_ar_precached + 1;
+        }
+    }
+    precache_sound("items/armor1.wav");
+    precache_sound(VR_AR_BREAK_SOUND);
+    return TRUE;
+};
+
+// walkmonster_start, flymonster_start: a beast's roll (`e` set up: its model set).
+void(entity e) VR_BeastArmour_Spawn =
+{
+    if(!cvar_hget(cvarh_vr_agarmor_beasts) || deathmatch || vr_ar_hold_roll || e.vr_ar_type > 0 || !VR_BeastArmour_Precache(e))
+    {
+        return;
+    }
+    VR_AgArmor_Roll(cvar_hget(cvarh_skill), e.origin);
+    vr_ar_beast_rolls = vr_ar_beast_rolls + 1;
+    if(vr_ar_roll_type > 0)
+    {
+        VR_AgArmor_Give(e, vr_ar_roll_type, vr_ar_roll_mask);
+        vr_ar_beast_armoured = vr_ar_beast_armoured + (e.vr_ar_mask != 0);
+        dprint(sprintf("agarmor: %s wears type %g, pieces %g\n", e.classname, e.vr_ar_type, e.vr_ar_mask));
+    }
 };
 string vr_ar_break_sound_last; // the tests: the last break's sound
 float vr_ar_debris_grabs;      // the tests: debris taken in a hand
