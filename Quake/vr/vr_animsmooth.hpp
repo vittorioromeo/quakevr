@@ -22,6 +22,9 @@ void registerDiagCommands(); // (vr_animsmooth_diag.cpp)
 // now, as its first smooth draw would (6-27 ms a model, in the frame it first came into view or into a shadow map; kept
 // for the session: ROUND22.md "Frame spikes").
 void prepare();
+// ... for a model list (MAX_MODELS, from 1, ending at a null): a dedicated server's (sv.models: hitmodel::afterLoad), whose
+// hit model draws the shape (serverPoints) with no client to have prepared them.
+void prepareModels(struct qmodel_s* const* models);
 
 // r_lerpmodels 3 for an entity drawn on its bones elsewhere (the live grunts and enforcers: vr_rig2_game.cpp): the spline's
 // four poses and its weights for its lerp (pose1 -> pose2 at blend), as its own drawing would take them. False: no

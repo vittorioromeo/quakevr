@@ -1639,6 +1639,11 @@ bool animsmooth::rigged(const entity_s* e)
 
 void animsmooth::prepare()
 {
+    prepareModels(cl.model_precache);
+}
+
+void animsmooth::prepareModels(qmodel_t* const* models)
+{
     const bool rebuildOn = vr_anim_smooth_rebuild.value != 0.f;
     if(r_lerpmodels.value != 3.f && !rebuildOn)
     {
@@ -1657,9 +1662,9 @@ void animsmooth::prepare()
     };
     za::Vector<Job> work;
     const double t0 = Sys_DoubleTime();
-    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+    for(int i = 1; i < MAX_MODELS && models[i]; i++)
     {
-        qmodel_t* model = cl.model_precache[i];
+        qmodel_t* model = models[i];
         if(model->type != mod_alias)
         {
             continue;

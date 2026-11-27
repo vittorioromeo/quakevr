@@ -1837,6 +1837,12 @@ void afterLoad()
         }
     }
     Con_DPrintf("hit models: %d made (%d triangles) in %.1f ms, hash %08x\n", built, tris, ms, static_cast<unsigned>(hash));
+    // The drawn shape's rig data (shapeOf: animsmooth::serverPoints) made now on a dedicated server, as a client's map load
+    // makes it (animsmooth::prepare: the same data, shared by a listen server): no first shot's hitch (5 ms a kind)
+    if(cls.state == ca_dedicated && vr_hitmodel_drawn.value != 0.f)
+    {
+        animsmooth::prepareModels(sv.models);
+    }
 }
 
 void reset()
