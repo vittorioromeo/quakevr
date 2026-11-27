@@ -4,7 +4,7 @@
 // `vr_embed_test 79` (VR, the mock headset; vr_attach_probe 1): the shotgun in the main hand, a bayonet carried in the off hand:
 //   brought to the gun's mount it snaps on (the record's .wi_attach, the carried bayonet gone); the drawn bayonet's tip where
 //   the server's is (VR_Attach_TipOf: the gun's Pitch/Yaw/Roll in the hand counted); the empty off hand's grip at the mount
-//   pulls it off into that hand (the shell script: no two-handed grip taken by it); on again; holstered and drawn, dropped and
+//   alone leaves it on, its B/Y then pulls it off into that hand (bayonet2); on again; holstered and drawn, dropped and
 //   picked up by the hand, thrown at a grunt (stuck by the bayonet's point): the same record, the bayonet on it throughout;
 //   stabbed into a grunt with the shotgun and with the super shotgun (hurt, stuck by its point, the hand on it), the trigger
 //   then fires it where it is (one shot from the prop, the grunt hit); the shotgun with its bayonet fired in the hand.
@@ -34,6 +34,12 @@ entity vr_at_rec;             // the gun's record
 entity vr_at_w;               // the gun lying, thrown or stuck
 vector vr_at_aim;             // the off hand's aim as the snap nudges it
 float vr_at_mode;             // vr_holster_mode before the test
+float VR_AT_BURST = 5;        // bayonet2: shots fired in a row by a stuck gun, its hand to stay on it throughout
+float VR_AT_BURST_PUSH = 60;  // u/s: the most a shot of the burst may shove the grunt the gun is stuck in
+float vr_at_push;             // the most the burst's shots shoved it so far (u/s, across the floor)
+float vr_at_follow;           // vr_embed_hold_follow before the stabs
+float vr_at_followset;        // (it was saved)
+float vr_at_lost;             // the burst's shot after which the hand was found off the gun, plus 1 (0: kept)
 
 void(float xS) VR_AT_To =
 {
@@ -73,10 +79,14 @@ void() VR_AT_Finish =
     localcmd("-grabmain\n-graboff\n-attack\nvr_test_handcontact 1 0\nvr_mock_button main trigger 0\nvr_mock_hand_aim off off\nvr_mock_hand_aim main off\n");
     if(!vr_at_flat)
     {
-        localcmd("vr_mock_hand_to_absolute 0\n");
+        localcmd("vr_mock_button off secondary 0\nvr_mock_hand_to_absolute 0\n");
     }
     cvar_set("vr_attach_probe", "0");
     cvar_set("vr_holster_mode", ftos(vr_at_mode));
+    if(vr_at_followset)
+    {
+        cvar_set("vr_embed_hold_follow", ftos(vr_at_follow));
+    }
     VR_PE_Finish();
 };
 
@@ -101,7 +111,20 @@ float() VR_AT_Snap =
         vector ca = c.angles;
         ca_x = -ca_x;
         makevectors(ca);
-        vr_at_aim = vr_at_n == 0 ? want : normalize(vr_at_aim + want - v_forward);
+        // (bayonet2: held In the Palm it may lie reversed in the hand, pointing back up the arm, where adding the difference
+        // never turns it round: the aim is turned by the turn that takes the bayonet's way onto the mounted way.)
+        vector bf = v_forward;
+        vector k = VR_Cross(bf, want);
+        if(vlen(k) < 0.01)
+        {
+            k = VR_Cross(bf, '0 0 1');
+        }
+        k = normalize(k);
+        float cosA = max(-1, min(1, bf * want));
+        float sinA = sqrt(max(0, 1 - cosA * cosA));
+        makevectors(VRGetEntHandRot(p, cVR_OffHand));
+        vector a0 = vr_at_n == 0 ? v_forward : vr_at_aim;
+        vr_at_aim = normalize(a0 * cosA + VR_Cross(k, a0) * sinA + k * ((k * a0) * (1 - cosA)));
         localcmd(sprintf("vr_mock_hand_aim off %v\nvr_mock_hand_to off by %v\n", VRGetEntHandPos(p, cVR_OffHand) + vr_at_aim * 8000,
             at - c.origin));
         if(cvar_hget(cvarh_developer) && !(vr_at_n & 7))
@@ -215,6 +238,12 @@ void(float xOn) VR_AT_Trigger =
 
 void() VR_AT_HoldGrunt =
 {
+    // (The burst: the shove a shot gave the grunt, read before it is stilled: the mock controller rests past the stuck gun's
+    // handle where the stab's follow-through left it, so a grunt let move is tugged by the hold's spring, not by the shots.)
+    if(vr_at_s >= 40 && vr_at_s <= 43 && vr_et_m != world)
+    {
+        vr_at_push = max(vr_at_push, vlen([vr_et_m.velocity_x, vr_et_m.velocity_y, 0]));
+    }
     VR_PE_HoldStill();
     if(vr_et_m != world && vr_et_m.health > 0 && vr_et_m.health < 1000) // (low: a spawned grunt may stand at 4000, and a hit reads against it)
     {
@@ -276,16 +305,26 @@ void() VR_AT_Frame =
     }
     else if(vr_at_s == 5 && u > 0.15)
     {
-        bprint("attach: the pull begins\n"); // (the shell script: no two-handed grip from here to its end)
+        bprint("attach: the pull begins\n");
         vr_at_count = vr_att_detached;
         localcmd("+graboff\n");
+        VR_AT_To(60);
+    }
+    // bayonet2 (his VR note 2026-11-27: a grip alone pulled it off, against the shotguns' two-handed grips): the grip at the
+    // mount alone leaves it on (vr_attach_pull_button); the grip held and B/Y pressed pulls it off, as the head torch comes off.
+    else if(vr_at_s == 60 && (vr_att_detached > vr_at_count || u > 0.3))
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == VR_ATT_BAYONET && vr_att_detached == vr_at_count,
+            sprintf("the empty hand's grip at the mount alone leaves the bayonet on (attach %g)", vr_at_rec.wi_attach));
+        localcmd("vr_mock_button off secondary 1\n");
         VR_AT_To(6);
     }
     else if(vr_at_s == 6 && (vr_att_detached > vr_at_count || u > 0.5))
     {
+        localcmd("vr_mock_button off secondary 0\n");
         entity c = VR_Carry_Held(p, cVR_OffHand);
         VR_Test_Check(vr_at_rec.wi_attach == 0 && c != world && c.classname == "vr_bayonet",
-            sprintf("the empty hand's grip at the mount pulls it off into that hand (attach %g, carried %s)", vr_at_rec.wi_attach,
+            sprintf("gripping at the mount, its B/Y pulls it off into that hand (attach %g, carried %s)", vr_at_rec.wi_attach,
                 c != world ? c.classname : "nothing"));
         VR_AT_To(7);
     }
@@ -415,6 +454,14 @@ void() VR_AT_Frame =
             }
             else
             {
+                // (bayonet2: the gun held where it stuck, not slid on by the mock controller resting past its handle (the
+                // stab's follow-through; a player's hand stays on the drawn grip): what the burst's shots do to the hold.)
+                if(!vr_at_followset)
+                {
+                    vr_at_follow = cvar_hget(cvarh_vr_embed_hold_follow);
+                    vr_at_followset = TRUE;
+                }
+                cvar_set("vr_embed_hold_follow", "0");
                 VR_AT_To(21);
             }
         }
@@ -436,8 +483,53 @@ void() VR_AT_Frame =
     else if(vr_at_s == 23 && u > 0.1)
     {
         VR_AT_ShotCheck(vr_at_wid == WID_SHOTGUN ? "the shotgun" : "the super shotgun");
+        VR_AT_To(vr_at_w != world ? 40 : 29);
+    }
+    // bayonet2 (his VR note 2026-11-27: shooting a gun stuck by its bayonet almost always lost the grip): VR_AT_BURST shots in
+    // a row at the gun's own refire: the hand stays on the gun and the gun in the grunt throughout, and no shot shoves the
+    // grunt off it (its push read before the test's hold stills it: at most VR_AT_BURST_PUSH; Weapon Hits' full push is
+    // 144 u/s for the shotgun, 336 for the super shotgun, which took the body out of the arm's reach: vr_embed_fire_push).
+    else if(vr_at_s == 40)
+    {
+        vr_at_lost = 0;
+        vr_at_n = 0;
+        vr_at_push = 0;
+        bprint(sprintf("attach: the burst begins (%s)\n", vr_at_wid == WID_SHOTGUN ? "shotgun" : "super shotgun"));
+        VR_AT_To(41);
+    }
+    else if((vr_at_s == 41 || vr_at_s == 42) && (VR_PropFire_Held(p, h) != vr_at_w || !VR_AxeStick_IsStuck(vr_at_w)))
+    {
+        VR_AT_Trigger(FALSE);
+        vr_at_n = vr_at_n + (vr_at_s == 42 && vr_pfire_shots != vr_at_count);
+        vr_at_lost = vr_at_n + 1; // (lost after shot vr_at_n: noted as vr_at_n + 1)
+        VR_AT_To(43);
+    }
+    else if(vr_at_s == 41 && time >= VRGetAttackFinished(h) && u > 0.05)
+    {
+        vr_at_w.weaponinst.wi_clip = VR_ClipSizeOf(vr_at_wid, vr_at_rec); // (each shot from a full gun: no reload between)
+        vr_at_count = vr_pfire_shots;
+        VR_AT_Trigger(TRUE);
+        VR_AT_To(42);
+    }
+    else if(vr_at_s == 42 && (vr_pfire_shots != vr_at_count || u > 0.5))
+    {
+        VR_AT_Trigger(FALSE);
+        vr_at_n = vr_at_n + (vr_pfire_shots != vr_at_count);
+        VR_AT_To((vr_pfire_shots == vr_at_count || vr_at_n >= VR_AT_BURST) ? 43 : 41);
+    }
+    // (After the last shot: the gun's refire and a moment more for the hold's rules, then the check.)
+    else if(vr_at_s == 43 && (vr_at_lost || time >= VRGetAttackFinished(h) + 0.3))
+    {
+        string bw = vr_at_wid == WID_SHOTGUN ? "the shotgun" : "the super shotgun";
+        float kept = !vr_at_lost && VR_PropFire_Held(p, h) == vr_at_w && VR_AxeStick_IsStuck(vr_at_w);
+        VR_Test_Check(kept && vr_at_n >= VR_AT_BURST, sprintf("%s stuck: %g shots in a row keep the hand on it and it in the grunt "
+            "(shots %g, lost after shot %g)", bw, VR_AT_BURST, vr_at_n, vr_at_lost - 1));
+        VR_Test_Check(vr_at_n >= 1 && vr_at_push <= VR_AT_BURST_PUSH, sprintf("%s stuck: its shots barely shove the grunt it is in "
+            "(%.0f u/s at most, under %g)", bw, vr_at_push, VR_AT_BURST_PUSH));
+        bprint(sprintf("attach: the burst ends (%s)\n", vr_at_wid == WID_SHOTGUN ? "shotgun" : "super shotgun"));
         localcmd("+graboff\n"); // (the off hand's grip again: it holds the round it brings)
-        VR_AT_To((vr_at_w != world && VR_Reload_Immersive()) ? 24 : 29);
+        cvar_set("vr_embed_hold_follow", ftos(vr_at_follow));
+        VR_AT_To((!vr_at_lost && VR_Reload_Immersive()) ? 24 : 29);
     }
     // Reloaded where it is stuck (attach4), its hand still on it: the super shotgun broken open by its B (the hand's frame
     // on the stuck gun: vr_reload.qc VR_Reload_SsgFrameWhere), then the off hand takes a round from the pouch and brings

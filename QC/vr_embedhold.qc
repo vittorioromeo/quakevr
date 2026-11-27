@@ -409,6 +409,19 @@ void(entity e, entity xPlayer, float xHand) VR_Embed_TakeHand =
     }
 };
 
+// cm more the hand on the stuck weapon `e` may be off it before letting go (the arm's reach, the hand's reach) for
+// vr_embed_fire_hold_time s after it fired where it is (bayonet2, his VR note 2026-11-27: a gun stuck by its bayonet and
+// fired almost always lost the grip: the shot's flinch pose (T_Damage's pain frame) carries the wound, and the gun stuck in
+// it, a few cm, past the arm's 1 cm let-go; its shove, vr_embed_fire_push, further).
+float(entity e) VR_Embed_FireMargin =
+{
+    if(e.vr_pfire_shot <= 0 || time - e.vr_pfire_shot > max(0, cvar_hget(cvarh_vr_embed_fire_hold_time)))
+    {
+        return 0;
+    }
+    return max(0, cvar_hget(cvarh_vr_embed_fire_letgo));
+};
+
 // `xHand` is off the blade `e` (it stays).
 void(entity e, float xHand, string xWhy) VR_Embed_DropHand =
 {
@@ -1153,7 +1166,7 @@ float() VR_Embed_HoldThink =
     // (Past the least it has been since the hand took hold: a hand already off its arm as it did, by the avatar's own reach, isn't the blade's.)
     // (Counted once the drawn hand has gone onto the blade and the stretch has eased in: as it takes hold, the avatar's last frame still
     // has the hand where its controller was, in reach, and a second hand drawn onto its grip hotspot may then be out of it.)
-    float letgo = max(0, cvar_hget(cvarh_vr_embed_arm_letgo));
+    float letgo = max(0, cvar_hget(cvarh_vr_embed_arm_letgo)) + VR_Embed_FireMargin(e);
     float settle = max(cvar_hget(cvarh_vr_embed_arm_stretch_ease), cvar_hget(cvarh_vr_embed_free_ease)) + 0.1;
     if(time >= e.vr_hold_gapat_x + settle)
     {
@@ -1413,8 +1426,8 @@ float() VR_Embed_HoldThink =
     e.vr_hold_far = far / cm;
     float reachBy = h.health <= 0 ? max(1, cvar_hget(cvarh_vr_embed_hold_reach_corpse)) :
                     ((h.vr_knockdown && !h.vr_kd_stagger) ? max(1, cvar_hget(cvarh_vr_embed_hold_reach_down)) : 1);
-    e.vr_hold_farmost = max(0, cvar_hget(cvarh_vr_embed_hold_reach)) * reachBy;
-    if(far > max(0, cvar_hget(cvarh_vr_embed_hold_reach)) * cm * reachBy)
+    e.vr_hold_farmost = max(0, cvar_hget(cvarh_vr_embed_hold_reach)) * reachBy + VR_Embed_FireMargin(e);
+    if(far > e.vr_hold_farmost * cm)
     {
         // (Flat play: a heavy body's or an edge's blade is let go of when he walks off it, so it stays in. A point the body itself
         // carried off -- a stagger, its pain frames stepping back, a fall -- comes free into the hand it came from (flatembed4, his

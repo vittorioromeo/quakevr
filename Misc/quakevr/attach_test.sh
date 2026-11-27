@@ -1,8 +1,8 @@
 #!/bin/bash
 # attach_test.sh <agent> -- attach2: weapon attachments, the bayonet on the shotgun and the super shotgun (QC vr_attach.qc,
 # QC/vr_attach_test.qc; docs/vr-port/ATTACHMENTS.md). Map vrtesthall, headless, fast mode:
-#   vr_embed_test 79 (VR, mock headset): snap-on, the drawn tip where the server's is, pull-off (and no two-handed grip taken by
-#     the pulling hand: vr_debug_2h_grip's "took" lines between the test's pull markers), holster, drop and pick-up, thrown and
+#   vr_embed_test 79 (VR, mock headset): snap-on, the drawn tip where the server's is, pull-off (bayonet2: the grip at the mount
+#     alone leaves it on, the grip and B/Y pull it off; 5 shots in a row while stuck keep the hand on it), holster, drop and pick-up, thrown and
 #     stuck by its point, stabbed and fired stuck (both guns), fired in the hand (`attach: N passed, M failed`);
 #   vr_embed_test 80 (flat-screen): J on/off/on, V's thrust, fired and reloaded stuck, the super shotgun broken open and shut
 #     stuck (`attachflat: N passed, M failed`);
@@ -35,8 +35,6 @@ expect_verdict "$flat" attachflat "the bayonet on the shotguns (flat)"
 expect_verdict "$lvl" attachpersist "the bayonets kept across a level change"
 expect_verdict "$sav" attachpersist "the bayonets kept across a save and its load"
 expect_verdict "$menu" attachmenu_test "Weapon Offsets > Attachments edits the mount"
-pull=$(sed -n '/attach: the pull begins/,/attach: the pull ends/p' <<< "$vr" | grep -c "2h grip: off hand took")
-check $([ "$pull" = 0 ] && echo 1 || echo 0) "the hand pulling the bayonet off takes no two-handed grip ($pull)"
 # bayonetfix: the HUD on a stuck gun, the bayonet taken off drawn in the hand (Misc/quakevr/attach_probe_check.py).
 while read -r ok what; do check "$ok" "$what"; done < <(python "$(dirname "$0")/attach_probe_check.py" vr - <<< "$vr")
 while read -r ok what; do check "$ok" "$what"; done < <(python "$(dirname "$0")/attach_probe_check.py" flat - <<< "$flat")
