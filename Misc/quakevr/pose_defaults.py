@@ -35,7 +35,7 @@ TURN_PARTS = (1, 3, 6, 8)  # RTurn, LTurn, Torso, GripTurn: degrees (a tenth); t
 # (agpose::Class: 1 the rifle, the gun categories from 17; 10..16 never a class: an old-format enforcer code's digits)
 CLASSES = {0: "fists", 1: "a rifle", 2: "a one-handed melee weapon", 3: "a two-handed melee weapon", 4: "a chainsaw",
            5: "two melee weapons", 6: "two guns", 17: "a pistol", 18: "a shoulder launcher", 19: "a sprayer",
-           20: "the laser cannon", 21: "the Widowmaker", 7: "every weapon (the shared Pickup)"}
+           20: "the laser cannon", 21: "the Widowmaker", 22: "a pole weapon", 7: "every weapon (the shared Pickup)"}
 # The Pickup (agent/sharedpickup; vr_agpose.hpp): class 7 each kind's shared key; a class's own Pickup row (phase 0) an
 # override, kept even all zero; its phase 2 row (all zero) a "no override" mark: archived, it drops the class's override
 # row, and ships only for a kind that follows another (SHIPPED_FROM) where that kind ships an override.
@@ -50,7 +50,7 @@ def is_no_override(code):
     return (code // 10) % 100 == 3 and code % 10 == 2
 GUN_CLASSES = (1, 6, 17, 18, 19, 20, 21)
 KIND_STRIDE = 100000  # agpose::code: kind * 100000 + class * 1000 + pose * 10 + phase (before 2026-10-27 kind * 10000)
-KIND_NAMES = ["grunt", "enforcer", "knight", "death knight"]  # (agpose::kindName)
+KIND_NAMES = ["grunt", "enforcer", "knight", "death knight", "crossbow knight"]  # (agpose::kindName)
 # vr_agpose.cpp shippedFrom: the kind whose shipped keys and IK stretch a kind follows (fitted) where it has no row of
 # its own (the knight and the death knight: the grunt's). A key or stretch of its own replaces only its own code.
 SHIPPED_FROM = [0, 1, 0, 0]
