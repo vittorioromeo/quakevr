@@ -579,9 +579,13 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             // folded there, it tipped back off.)
             climbChest(s, p, c, chest, rim + up * (0.45f * L) + wall * ((!k.released ? 0.3f * u1 : 0.3f + 0.7f * u2) * L));
             k.tilt = glm::angleAxis(0.6f * u1 + 0.9f * u2 * inside, axis);
-            // (Let go once its pelvis is over the top and its chest over the lip, not tipped back off it.)
-            if(!k.released && k.prog >= 1.f && pelvis.z > k.top + 0.1f * L && -glm::dot(chestAt - k.lip, k.out) > -0.1f * L &&
-                chestAt.z > k.top - 0.1f * L)
+            // (Let go once its pelvis is over the top and its chest over the lip, not tipped back off it: or its chest leaning
+            // in from its pelvis. A short torso can't reach over the lip from its pelvis at `over`: a hell knight's chest (6
+            // units off its pelvis's middle) leant 3 units in from its pelvis, 4 out from the lip, its pelvis 14 over the top,
+            // and held there until "stuck at the lip", climb_test seed 10, 2026-11-27.)
+            const float chestIn = -glm::dot(chestAt - k.lip, k.out);
+            if(!k.released && k.prog >= 1.f && pelvis.z > k.top + 0.1f * L &&
+                (chestIn > -0.1f * L || chestIn > pelvisIn + 0.05f * L) && chestAt.z > k.top - 0.1f * L)
             {
                 k.released = true;
                 k.since2 = c.now;
