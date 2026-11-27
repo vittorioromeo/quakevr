@@ -35,6 +35,7 @@
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_crosshair.hpp"
+#include "vr_flatattach.hpp"
 #include "vr_flatgrenade.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flathit.hpp"
@@ -2818,6 +2819,16 @@ void setupAttachments()
             Cvar_SetValueQuick(&vr_attach_probe_y, d.tip.y);
             Cvar_SetValueQuick(&vr_attach_probe_z, d.tip.z);
         }
+        // (flatattachanim: an attachment just put on by the flat Attach key drawn sliding along its blade into its mount;
+        // attachDrawn above keeps the mount itself)
+        if(const float along = d.valid ? flatattach::slideAlong(hand) : 0.f; along > 0.f && glm::length(d.tip - d.mount) > 1e-3f)
+        {
+            const glm::vec3 slide = glm::normalize(d.tip - d.mount) * along;
+            for(int i = 0; i < 3; i++)
+            {
+                entities.attach[hand].ent.origin[i] += slide[i];
+            }
+        }
     }
     for(int h = 0; h < HolsterCount; h++)
     {
@@ -3847,6 +3858,38 @@ bool drawnAttachment(int hand, glm::vec3& mount, glm::vec3& tip)
     }
     mount = view_detail::attachDrawn[hand].mount;
     tip = view_detail::attachDrawn[hand].tip;
+    return true;
+}
+
+bool attachSpot(int hand, int kind, glm::vec3& mount, glm::vec3& tip)
+{
+    const attach::KindInfo* const info = attach::info(kind);
+    if(hand < 0 || hand > 1 || !info)
+    {
+        return false;
+    }
+    ViewEntity at;
+    if(!placeAttachment(at, view_detail::entities.weapon[hand], kind, hand))
+    {
+        return false;
+    }
+    mount = modelPoint(at, glm::vec3{0.f});
+    tip = modelPoint(at, info->tip);
+    return true;
+}
+
+bool drawnWeaponOrigin(int hand, glm::vec3& out)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const ViewEntity& w = view_detail::entities.weapon[hand];
+    if(!w.visible || !w.ent.model)
+    {
+        return false;
+    }
+    out = modelPoint(w, glm::vec3{0.f});
     return true;
 }
 

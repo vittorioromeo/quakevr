@@ -3906,3 +3906,41 @@ the muzzle, its yaw/roll turning it in odd ways.
 - **Tests**: `menu_vr attachtest` 14/0 (new: the dagger along the barrel and its guard level on both guns, each of pitch /
   yaw / roll turning about the right axis, his old values converting to today's defaults with the tip and blade kept);
   attach_test.sh 16/1: 80 flat 17/0, 81/82 4/0 both, 84 VR dagger 27/0, 85 flat dagger 18/0, menu 14/0; 79 VR 26/1 "picked up by the hand: the same record" (weapon 0): fails the same on origin/next without this change (built and run: not mine; the bayonet prop data promoted to props.txt by the ship is a candidate).
+
+## flatattachanim: the flat Attach key's hand trip, the bayonet or dagger slid on or off the barrel (branch agent/flatattachanim, 2026-11-27)
+
+His words 2026-11-27: attaching works flat, "however there needs to be an animated transition for the hand
+attaching/detaching the dagger (and bayonet too), at the moment it happens abruptly". flatbayonet's plan, done.
+- **What J does now** (`vr_flatattach.cpp`, FLATPLAY.md "Attachments"): the client foresees what impulse 52 will do
+  (a mirror of QC VR_Attach_Key's order on the client's stats: the carried bayonet prop by its model, the dagger by its
+  weapon flags, the gun's attachment by `attach::kindOfUid`, the gun's mount by `view::attachSpot`), measures the mount
+  and its blade's way in the gun hand's drawn frame and what the free hand holds in its own, and moves the free hand there
+  (turned the gun's way) over `vr_flat_attach_reach_time` 0.25 s; the impulse goes on arrival. On: the hand stops with
+  the held mount `vr_flat_attach_slide` (8) units ahead along the blade, then the attachment (on the gun now) is drawn
+  sliding back into its mount (`flatattach::slideAlong`, added in `vr_view.cpp` setupAttachments; `attachDrawn` keeps the
+  real mount) while the empty hand pushes it, over `vr_flat_attach_slide_time` 0.2 s. Off: the empty hand goes to the
+  mount, the impulse, then the hand slides it off along the blade. The hand returns over `vr_flat_attach_return_time` 0.25 s.
+  Tunables > Flatscreen > Attachments (Reach Time 0: the old instant key).
+- **Reuse**: the trip is the reload trip's shape (a share eased by `geom::smooth01`, applied after the reload in
+  `flatplay::poseHands`); the free hand lets go of a two-handed grip through the same lists as E's force grab
+  (`vr_twohand.cpp` flatLetsGo, `vr_flatsight.cpp` gripWanted / reaching). The attachment is drawn by the one
+  `view::placeAttachment` (`attachSpot` places a throwaway copy to measure). VR is untouched (J's path only).
+- **Cancels**: a shot from either hand (`client::attacking`), the gun's id changing in its hand (switched, dropped,
+  thrown, swapped), or the foreseen action changing on the way (the attachment let go): straight back, no impulse.
+  Nothing foreseen or the gun not drawn: the impulse at once, as before.
+- **The server's own snap** (QC VR_Attach_Frame) could take a held bayonet on early as the hand crossed the mount on a
+  straight way from behind (seen in the first run, the bayonet held turned after a key take-off): the reach now aims
+  further along the blade early on (3 slides ahead, fading), so the hand comes at the mount from ahead of the muzzle; a
+  snap on the way anyway is taken as the arrival (no impulse, which would take it off again). QC: a dagger taken off by
+  the key is "fresh" now like one pulled off (`vr_attach.qc` VR_Attach_TakeOff), so the hand at the mount doesn't snap it
+  back on; the bayonet prop already was. No wire change.
+- **Tests**: `vr_embed_test 86` (bayonet) / `87` (dagger), flat (`attachanim:` / `attachanimdagger:` 9/0 each): halfway
+  through the reach nothing is on; the impulse lands 0.278 s after J (reach 0.25 + the key's and the move's frames), the off
+  hand 8-11 units from the server's mount (20-37 before); the trip over, on the gun with the hand empty; J again takes it off
+  the same way (the hand 0.3-0.4 units from the mount) into the hand, not snapped back on; a shot mid-reach cancels (nothing
+  on, still in the hand); J after puts it on at the arrival time. attach_test.sh 18/1: every flat case passes (80 17/0, 85
+  18/0, 86/87 9/0), 79 VR 26/1 "picked up by the hand: the same record" is the known failure flatbayonet found on
+  origin/next too.
+- **Open**: not tested with the gun in the off hand and the attachment in the main hand (the code is symmetric: the hands
+  come from the foresee); the held dagger's blade may sit a little off the barrel's line as it arrives (the hand is turned
+  the gun's way, not the blade's); his eye on the motion and the times.

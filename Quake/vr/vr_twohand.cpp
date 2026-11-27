@@ -44,6 +44,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_flatfgrab.hpp"
 #include "vr_flatgrenade.hpp"
+#include "vr_flatattach.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
 #include "vr_flatswim.hpp"
@@ -420,7 +421,7 @@ void poleTurn(const FreeGrip& g, const RelPose& now, RelPose& on)
 [[nodiscard]] bool flatLetsGo(int holding, int helping)
 {
     return flatplay::punching(helping) || flatplay::shoving(helping) || flatreload::busy(holding) || flatgrenade::letsGo(holding, helping) ||
-           flatswap::gripBlocked() || flatfgrab::busy(helping) || flatswim::freesHand() || // (swimming: vr_flatswim.cpp)
+           flatswap::gripBlocked() || flatfgrab::busy(helping) || flatattach::busy(helping) || flatswim::freesHand() || // (swimming: vr_flatswim.cpp)
            (flatplay::active() && flatplay::oneHandOnly(holding)); // (flatgrip3: a dagger, an axe, by their options: never two-handed)
 }
 

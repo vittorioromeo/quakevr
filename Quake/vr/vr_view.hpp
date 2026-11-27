@@ -308,6 +308,11 @@ bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHa
 // The attachment drawn on the gun in your `hand` last frame: its mount (its model's origin) and its tip (its striking point)
 // in the world; false if none is drawn there (the two-handed grip leaves a hand pulling one off alone: vr_twohand.cpp).
 [[nodiscard]] bool drawnAttachment(int hand, glm::vec3& mount, glm::vec3& tip);
+// Where attachment `kind` would be drawn on the gun drawn in your `hand` now (on it or not): its mount and its tip in the
+// world; false if that gun isn't drawn or doesn't take it (flatattachanim: the flat Attach key's hand goes there).
+[[nodiscard]] bool attachSpot(int hand, int kind, glm::vec3& mount, glm::vec3& tip);
+// The model origin of the weapon drawn in your `hand` (a held dagger's: its attachment mount), in the world.
+[[nodiscard]] bool drawnWeaponOrigin(int hand, glm::vec3& out);
 // The turn of a weapon's model from the hand holding it (its Weapon Offsets Pitch, Yaw, Roll; unmirrored) as axes
 // (forward, left, up): a point in the gun's axes as the hand's (the server's attachment points: QC attachinfo).
 [[nodiscard]] glm::mat3 weaponTurnInHand(int slot);

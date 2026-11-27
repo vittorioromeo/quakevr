@@ -1217,6 +1217,23 @@ Tests: `Misc/quakevr/flathands_test.sh` (swap1, swap2h, swapdual, swapoff); `Mis
 free hand at the same place and turn in the view at pitch -60, 0, +60, +-85: the rocket launcher, sighted, the
 chainsaw; the shotgun's meeting).
 
+## Attachments
+
+J (`vr_flat_key_attach`) puts the bayonet or dagger one hand holds on the gun in the other, or takes the gun's attachment
+off into the empty other hand (QC vr_attach.qc VR_Attach_Key, impulse 52; ATTACHMENTS.md). The hand moves for it
+(flatattachanim, his words 2026-11-27; `vr_flatattach.cpp`, drawn the way the reload's trip is, `vr_flatreload.cpp`): the
+client foresees what the key will do (the same order: the main hand's gun first), and the free hand goes to the gun turned
+its way (`vr_flat_attach_reach_time`, 0.25 s; putting one on it comes at it from ahead of the muzzle), the impulse goes as it
+arrives, then the blade slides along the barrel (`vr_flat_attach_slide`, 8 units, over `vr_flat_attach_slide_time`, 0.2 s):
+put on, it is drawn sliding back into its mount, the empty hand pushing it; taken off, the hand slides it off in its grip.
+The hand comes back over `vr_flat_attach_return_time` (0.25 s). Tunables > Flatscreen > Attachments; Reach Time 0 is the old
+instant key. A shot from either hand, the gun leaving its hand (switched, dropped, swapped), or the attachment let go on the
+way cancels it (the hand back, no impulse); nothing foreseen sends the impulse at once. The hand's place is the game's, so
+the server sees it at the gun; the impulse's timing is the only change on the server's side (a dagger taken off by the key is
+"fresh" now as one pulled off, so the hand at the mount doesn't snap it back on). Debug > Reports > Flatscreen Play:
+Flatscreen Attach Report (`vr_flatattach_report`), Flatscreen Attach Print (`vr_flat_attach_debug`). Tests: `vr_embed_test
+86` / `87` (attach_test.sh).
+
 ## Parry guard
 
 His notes 2026-11-10: "When holding a single melee weapon, make holding the right mouse button result in a parrying pose

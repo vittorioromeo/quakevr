@@ -43,6 +43,8 @@ Flat-screen or VR: shoot plates off the armoured rottweiler, ogre, scrag and fie
 Flat-screen or VR: the scrag's lower belt (Plate 8 Front and Back) should sit as you tuned it before the split (smaller, shifted, tapered). {test:armour_beasts}
 Flat-screen or VR: put a dagger on the shotgun and on the super shotgun as a bayonet: its guard now lies level under the muzzle (no longer upright through it) and the blade sits where your tuned values had it; in Weapon Offsets > Attachments, Dagger Pitch tilts the blade up/down, Yaw swings it left/right and Roll spins it about the blade, each predictably. {test:attach_dagger}
 Flat-screen: with the shotgun in the right hand and a bayonet in the left, press J: the bayonet shows on the gun (also from outside with F8), J again puts it back in the visibly holding left hand, B drops it from that hand. Say if it is still invisible for you and on which map/gun. {test:attach_bayonet}
+Flat-screen: with a bayonet in the free hand press J: the hand goes to the shotgun's muzzle, the bayonet goes on as it gets there and slides back into its mount, then the hand comes back; J again reaches to the mount and slides it off into the hand. Fire mid-reach cancels it. Look at whether the motion and times (Tunables > Flatscreen > Attachments) feel right. {test:attach_bayonet}
+Flat-screen: the same with the dagger in the free hand (Daggers as Bayonets): J reaches, it goes on as the hand arrives and slides into place; J again takes it off into the hand. {test:attach_dagger}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
