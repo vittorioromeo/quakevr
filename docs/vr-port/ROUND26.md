@@ -2573,3 +2573,36 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 ## cltidy9: checklist sub-headings (2026-11-27)
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.
+
+## nogamedir: Quake VR's game folder mounted on every start, without "-game quakevr" too (branch agent/nogamedir, 2026-11-27)
+
+- The "tinyworld" player's real cause (his console logs): v1.1.0 from the zip, started from his own shortcut
+  (`ironwail.exe -heapsize .. -winmem .. -conwidth 800 .. -flatscreenmode`, no `-game quakevr`, no -basedir). Quake was
+  found as Ironwail finds it (the re-release's id1), the exe's folder added as a base dir, but only id1 mounted: no
+  game code of Quake VR, every data/*.txt value 0, its models and sounds missing. Reproduced (nogamedir_test `missing`).
+- Fix (common.c `COM_AddVRGameArg`, before `VR_InitCampaignDirectories`): with no `-game quakevr` on the command line and
+  a base dir whose quakevr has the game code (progs.dat or pak0.pak), "-game quakevr" is inserted where the shipped
+  launches put it: after the campaign folders given (`-game hipnotic`, `-game ad`...: `VR_IsCampaignDirectory`, as the
+  kit's `-game hipnotic -game rogue -game quakevr` and the Quest's `-game ad -game quakevr`), before the first other
+  mod (`-game quakevr -game <mod>`, QuakeVR.bat's). Console: `VR: no "-game quakevr" on the command line: Quake VR's
+  game folder added (...)`. Launches that pass it (Setup, QuakeVR.bat, Steam, Quest, tests) are untouched.
+- No base dir with Quake VR's game code (a broken install): nothing added; a console warning listing the folders looked
+  in, red lines in the menus' status box ("Quake VR's game data wasn't found / looked for quakevr in <folder> /
+  reinstall with QuakeVR-Setup / or start from its shortcut"; shown with vr_menu_status 0 too) and a centre print at the
+  first map's spawn. The folder named: the last -basedir, else the exe's. `vr_gamedata_notice [0|1]` reports / previews
+  it (Debug > Diagnostics > Preview: Game Data Missing Notice). vr_gamedir.cpp, vr_menuui.cpp, vr_progs.cpp.
+- Also: vr_glsafe.cpp made `<com_gamedir>/crash` with Sys_mkdir alone: `-basedir <Quake> -basedir <Quake VR> -game <mod>`
+  with the mod only in Quake's folder stopped the start ("Unable to create directory"); now COM_CreatePath.
+- His old flags: -heapsize/-winmem/-conwidth 800 harmless (the test runs with them).
+- "Tiny" monsters: no data-dependent size found. monsters.txt has no size key; with Quake VR's data missing or present
+  the flat view is the same (`flatscreen view: fov 90 .. 106 x 74 degrees .. body 1.55 m, vr_world_scale 1.2`), and the
+  eye too (view_ofs 22, e1m1's start). With the data missing he had no hands, weapons as 0-valued props and id's game
+  code: the fix gives him Quake VR's.
+- Docs: INSTALL.md (zip: ironwail.exe or an own shortcut works too), the zip's README-QuakeVR.txt (package-quakevr.ps1).
+- Tests: `python Misc/quakevr/nogamedir_test.py <agent>` (the exe started directly, the player's flags, an install-like
+  layout in scratch: id1 paks copied from the kit's qbase): missing / nogame / testmod / testmod_explicit 4/0. run.sh
+  `-Games "-game ad"` (game dirs ..;ad;quakevr) and `-Games "-game hipnotic"` (active campaign hipnotic) by hand;
+  tutorial_start_test 8/0.
+- Open (not this branch's): `-game quakevr -game <mod>` with an empty mod folder fails e1m1 on next too
+  ("Host_Error: Mod_LoadModel: progs/vrgrunt.mdl#plate0 not found", vr_agarmor.cpp derivedFile). The runtime `game <mod>`
+  command and the Mods menu still switch to id1;<mod> without quakevr (unchanged).
