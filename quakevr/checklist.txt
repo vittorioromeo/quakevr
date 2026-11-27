@@ -36,6 +36,7 @@ On the Quest, stand on the hub's terrace and in a gib fight for a minute each: f
 Flat-screen or VR: in AD, cut the arms and legs off a Death Guard and a Crossbow Knight: each limb comes off in their own look, and AD maps with them (ad_azad, ad_tears) load without an error. {test:ad_knights_armed}
 Look at the armoured ogre and scrag from the front, back and both sides while they idle, walk and attack: the left and right pieces should be mirror images, the breastplate centred on the chest, the helmet a dome and the shoulder plates domes, nothing floating off the body. {test:armour_beasts}
 Watch any armoured beast (rottweiler, ogre, scrag, fiend) run, attack and die: its plates should never grow or shrink as it moves or as it falls. {test:armour_beasts}
+Flat-screen: open Debug > Tools > Rig Studio on an AD death guard, then on a crossbow knight: beside the subject the menu bar says their poses are shared; key a pose or an override on one and the other moves the same way at once, and after Save both read it back. {test:ad_knights_armed}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
