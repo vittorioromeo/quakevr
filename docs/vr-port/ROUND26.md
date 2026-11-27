@@ -4235,3 +4235,40 @@ leather sleeves fail to connect in the way that I expect, would it be possible t
   then `vr_beastarmour_leather 0`: dark leather bands at both knees between the thigh and shin plates; off, skin shows there.
 - **Open**: the gizmo is not on a sleeve's end (rows only); `start_edge` / `fill` are beasts' only (a humanoid's rings are
   whole rows); the knee look not judged in a headset; `vr_menu_path_check` not rerun (rows added, none renamed or moved).
+
+## scragtail: each of the scrag's four tail armour segments breaks on its own (branch agent/scragtail, 2026-11-27)
+
+His words (2026-11-27): "make the scrag tail armor pieces individually destroyable."
+- **Each segment its own part**: `vr_beastarmour.cpp assignBits` gives every piece of a part with its own armour.txt part
+  its own worn-mask bit (before: the tail's tail1-4 shared bit 11). The scrag: back half 10, tail1-4 bits 11-14 (the data's
+  line order); the ogre's shins stay 10, 11. Each segment: its own pool, met by the shots on it, cracked alone, one piece of
+  debris; a lower one breaks while the ones above stay. The Armour Studio keeps one "Tail" part (tweakPart unchanged: the
+  four bits share it, so its sliders still move all four, and Wear the Part Alone still wears all four).
+- **Pools** (`beastarmour::bitSplit`, QC `ragdollbone(e, [5, bit], QVR_ARMOR_BEAST)`, `VR_AgArmor_ShareOf`): the slot's share
+  split evenly among the slot and its armour.txt parts (as before: plate 8's 6 -> front 2, back 2, tail 2), then a part's
+  share evenly among its bits (decision: even, not by segment size): each tail segment 0.5 of 96, so a pool of 1 at every
+  type (rint, at least 1; the tail's four sum to 4 where the one tail was 2 green / 3 yellow / 4 red). The ogre: thigh 4,
+  shin 4 as before.
+- **Bits**: `agarmor::NumMaskBits` 12 -> 15, QC `VR_AR_SLOTS` 15 (`.vr_ar_hp[15]`, the per-piece arrays), `VR_AR_EXACT`
+  32768. The engine's word (`packState`): pieces 0-14, wear 15-44, type 45-46. **Wear in two QC fields**: 15 bits x two
+  levels would be 30 bits, not exact in a QC float (24-bit mantissa), so `.vr_ar_wear` is now the pieces at two thirds or
+  under and the new `.vr_ar_wear2` those at a third (was one field, level two at bit x 4096). `QVR_ARMOR_CLIENT` what 2 /
+  3: the client's two levels. vr_agarmor_test 1's checks read them as one number (`VR_ART_Wear`: wear + wear2 x 4096).
+- **Wire**: QVR_SVC_ARMOR unchanged: its pieces and wear shorts carry 15 bits (a short's positive range), so no
+  QVR_NET_VERSION bump. The next widening needs a new field (or the bump).
+- **Cuts**: a cut drops the plates whose bones it takes (`QVR_ARMOR_PIECE_BONES` per bit): with a bit a segment, a cut
+  taking the tail drops every segment still on as its own debris (before: the tail's first only); a cut lower on the tail
+  drops the segments below it.
+- **Tests**: `vr_agarmor_test 15` 71/0 (new: each tail bit one piece, its pool, a shot meeting it, broken alone with debris
+  1; tail3 broken before tail1 with tail2/tail4 kept; a dead armoured scrag's tail cut at its joint 7 (takes all four
+  bones), tail4 broken before: 3 segments dropped, 3 debris, the rest kept; masks 32575 / cuirass 32513);
+  `vr_agarmor_test 1` 38/0 (humanoid wear via the two fields, the client's word); `21` 14/0; `vr_beaststudio_test` 28/0;
+  `22` 12/0 then 11/1 before the band change (below); after merging origin/next: 15 71/0, `vr_beaststudio_test` 41/0,
+  22 12/0 (the scrag 1.02 / 0.97 / 0.66 of the humanoids').
+- **22's scrag ratio**: noise, not the tail. Two runs of the same build: the scrag's armoured / bare 2.03 / 2.00 / 2.09
+  (Normal / Hard / Nightmare) against the humanoids' 2.24 / 2.50 / 3.50, then 2.38 / 2.45 / 2.45 against 2.05 / 2.27 /
+  3.69 (Normal 1.16 of theirs: over 1.1). Both sides move run to run (two trials, random aim and pellet spread);
+  ogreplates saw 3.03-3.27 with his armour unchanged. `VR_TTK_HI` 1.1 -> 1.5 (a doubled pool still fails it); the
+  splitting adds 2 points to the tail's total at green, 1 at yellow, none at red (the tail is rarely hit by the test's
+  aim at the body's middle).
+- **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).

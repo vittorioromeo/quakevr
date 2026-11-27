@@ -43,9 +43,11 @@ enum Piece : int
 };
 inline constexpr int allPieces = (1 << NumPieces) - 1;
 // A worn mask's bits past the ten slots: a beast's parts that break on their own (vr_beastarmour.cpp: the ogre's shins
-// by side, the scrag's plate 8 back half and his tail; ROUND26.md, "armourhits"). QC's VR_AR_SLOTS; the server's word
-// and QVR_SVC_ARMOR's shorts carry all of them (humanoids never set them).
-inline constexpr int NumMaskBits = 12;
+// by side, the scrag's plate 8 back half and each of his tail's four segments; ROUND26.md, "armourhits", "scragtail").
+// QC's VR_AR_SLOTS; the server's word and QVR_SVC_ARMOR's shorts carry all of them (15 bits: a short's positive range;
+// humanoids never set them). QC keeps the wear's two levels in two fields (.vr_ar_wear, .vr_ar_wear2): 30 bits in one
+// float would not be exact.
+inline constexpr int NumMaskBits = 15;
 inline constexpr int allMaskBits = (1 << NumMaskBits) - 1;
 inline constexpr int exactPieces = 1 << NumMaskBits; // (give's pieces: these exactly, a beast's cuirass not grown to its cuirass group; QC VR_AR_EXACT)
 
@@ -100,7 +102,7 @@ void packModelBoxSized(float size, glm::vec3& mid, glm::vec3& half);
 // QVR_SVC_ARMOR: [short entity, -1 all cleared][byte type][short pieces][short at 2/3 or under][short at 1/3 or under].
 void parseEvent();
 // The client's word on entity `num` (the tests: ragdollbone's QVR_ARMOR_CLIENT): `what` 0 its type, 1 its pieces, 2 its
-// wear (bits 0-9 at two thirds, 10-19 at a third); -1 none heard.
+// wear's pieces at two thirds or under (QC .vr_ar_wear), 3 at a third or under (.vr_ar_wear2); -1 none heard.
 [[nodiscard]] int clientState(int num, int what);
 
 // Mod_LoadModel's "<model>#armor" (vr_ragdoll.cpp VR_SyntheticModel). False: not one (or no rig, no armour for it).

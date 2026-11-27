@@ -75,6 +75,15 @@ float(string base, float i) VR_ART_PieceDebris =
     return n;
 };
 
+// A humanoid's wear as one number (its ten pieces: two thirds or under + a third or under x 4096; QC keeps the two levels
+// in .vr_ar_wear and .vr_ar_wear2 since "scragtail"); the client's word the same way.
+float(entity e) VR_ART_Wear = { return e.vr_ar_wear + e.vr_ar_wear2 * 4096; };
+float(entity c) VR_ART_ClientWear =
+{
+    float w66 = ragdollbone(c, '2 0 0', QVR_ARMOR_CLIENT);
+    return w66 < 0 ? -1 : w66 + ragdollbone(c, '3 0 0', QVR_ARMOR_CLIENT) * 4096;
+};
+
 // The split's checks for `base`'s piece `i` just broken off (its debris made this frame): two halves, each its own model
 // and box, both rigid props you can't force-grab, apart where they lay, their masses the whole plate's (4 the cuirass,
 // 1.5 another); with vr_agarmor_split 0, or the helmet, one whole piece. `who` names it in the line; `check` the test's own
@@ -303,11 +312,11 @@ void() VR_ART_Run =
     VR_AgArmor_Give(a, 1, 1023);
     a.frame = f0;
     VR_ART_Hit(a, pc, 0, 11);
-    float w1 = a.vr_ar_wear;
+    float w1 = VR_ART_Wear(a);
     a.frame = f0;
     VR_ART_Hit(a, pc, 0, 10);
-    VR_ART_Check(w1 == 1 && a.vr_ar_wear == 1 + 4096 && a.vr_ar_hp[0] == 10,
-        sprintf("wear: the cuirass at 20 of 31 dented (wear %g), at 10 battered (%g)", w1, a.vr_ar_wear));
+    VR_ART_Check(w1 == 1 && VR_ART_Wear(a) == 1 + 4096 && a.vr_ar_hp[0] == 10,
+        sprintf("wear: the cuirass at 20 of 31 dented (wear %g), at 10 battered (%g)", w1, VR_ART_Wear(a)));
     cvar_set("vr_agarmor_rule", "0");
 };
 
@@ -405,7 +414,7 @@ void() VR_ART_RunEnforcer =
     c.frame = f0;
     VR_ART_Hit(c, ph, 0, 7); // (no headshot's multiplier: the piece is the point's)
     cvar_set("vr_agarmor_rule", "0");
-    vr_art_cwear = c.vr_ar_wear;
+    vr_art_cwear = VR_ART_Wear(c);
     VR_ART_Check(vr_art_cwear == 1 + 2 + 4096, sprintf("enforcer: wear on the server %g (4099: the cuirass battered, the helmet dented)", vr_art_cwear));
 };
 
@@ -476,14 +485,14 @@ float(entity c, string mdl, string who) VR_ART_RunKnight =
     c.frame = f0;
     VR_ART_Hit(c, ph, 0, 7);
     cvar_set("vr_agarmor_rule", "0");
-    VR_ART_Check(c.vr_ar_wear == 1 + 2 + 4096, sprintf("%s: wear on the server %g (4099: the cuirass battered, the helmet dented)", who, c.vr_ar_wear));
-    return c.vr_ar_wear;
+    VR_ART_Check(VR_ART_Wear(c) == 1 + 2 + 4096, sprintf("%s: wear on the server %g (4099: the cuirass battered, the helmet dented)", who, VR_ART_Wear(c)));
+    return VR_ART_Wear(c);
 };
 
 // The client's word on `c` (type, pieces, wear) as the server's.
 float(entity c, float wear) VR_ART_Heard =
 {
-    return ragdollbone(c, '2 0 0', QVR_ARMOR_CLIENT) == wear && ragdollbone(c, '0 0 0', QVR_ARMOR_CLIENT) == c.vr_ar_type &&
+    return VR_ART_ClientWear(c) == wear && ragdollbone(c, '0 0 0', QVR_ARMOR_CLIENT) == c.vr_ar_type &&
         ragdollbone(c, '1 0 0', QVR_ARMOR_CLIENT) == c.vr_ar_mask;
 };
 
@@ -792,8 +801,8 @@ void() VR_AgArmor_TestFrame =
         {
             return;
         }
-        VR_ART_Check(kh, sprintf("knights: the client's word (wear %g, %g; the server's %g, %g)", ragdollbone(vr_art_k, '2 0 0', QVR_ARMOR_CLIENT),
-            ragdollbone(vr_art_dk, '2 0 0', QVR_ARMOR_CLIENT), vr_art_kwear, vr_art_dkwear));
+        VR_ART_Check(kh, sprintf("knights: the client's word (wear %g, %g; the server's %g, %g)", VR_ART_ClientWear(vr_art_k),
+            VR_ART_ClientWear(vr_art_dk), vr_art_kwear, vr_art_dkwear));
         VR_ART_Check(find(world, classname, "vr_ar_debris") == world, "the debris gone after its fade (else timed out)");
         remove(vr_art_k);
         remove(vr_art_dk);
@@ -817,14 +826,14 @@ void() VR_AgArmor_TestFrame =
     // The debris fades out (vr_agarmor_debris_time 0.5, then a second's fade); the enforcer's wear reaches the client
     // (QVR_SVC_ARMOR: the server's frame end, then the client's read).
     entity c = vr_art_c;
-    float heard = ragdollbone(c, '2 0 0', QVR_ARMOR_CLIENT) == vr_art_cwear && ragdollbone(c, '0 0 0', QVR_ARMOR_CLIENT) == c.vr_ar_type &&
+    float heard = VR_ART_ClientWear(c) == vr_art_cwear && ragdollbone(c, '0 0 0', QVR_ARMOR_CLIENT) == c.vr_ar_type &&
         ragdollbone(c, '1 0 0', QVR_ARMOR_CLIENT) == c.vr_ar_mask;
     if((find(world, classname, "vr_ar_debris") != world || !heard) && time < vr_art_until)
     {
         return;
     }
     VR_ART_Check(heard, sprintf("enforcer: the client's word: type %g, pieces %g, wear %g (the server's %g, %g, %g)",
-        ragdollbone(c, '0 0 0', QVR_ARMOR_CLIENT), ragdollbone(c, '1 0 0', QVR_ARMOR_CLIENT), ragdollbone(c, '2 0 0', QVR_ARMOR_CLIENT),
+        ragdollbone(c, '0 0 0', QVR_ARMOR_CLIENT), ragdollbone(c, '1 0 0', QVR_ARMOR_CLIENT), VR_ART_ClientWear(c),
         c.vr_ar_type, c.vr_ar_mask, vr_art_cwear));
     VR_ART_Check(find(world, classname, "vr_ar_debris") == world, "the debris gone after its fade (else timed out)");
     remove(vr_art_a);

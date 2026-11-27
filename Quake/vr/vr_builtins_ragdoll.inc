@@ -233,7 +233,7 @@ void PF_ragdollbone()
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::shotPiece(G_EDICT(OFS_PARM0), p, dir));
         return;
     }
-    if(within == -1001.f) // QVR_ARMOR_CLIENT: the client's word on e's armour (p_x: 0 type, 1 pieces, 2 wear; -1 none)
+    if(within == -1001.f) // QVR_ARMOR_CLIENT: the client's word on e's armour (p_x: 0 type, 1 pieces, 2 wear at 2/3, 3 at 1/3; -1 none)
     {
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::clientState(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(p[0])));
         return;
@@ -241,8 +241,8 @@ void PF_ragdollbone()
     if(within == -1006.f) // QVR_ARMOR_BEAST: e's beast kind's armour (vr_beastarmour.cpp): p_x 0 its slots (bits; 0 not a
     {                     // beast), 1 its cuirass group, 2 the pieces drawn this frame (p_y 1: their parts too; the tests),
         edict_t* e = G_EDICT(OFS_PARM0); // 3 how many pieces worn-mask bit p_y has (its debris), 4 the slot bit p_y is worn
-        const int what = static_cast<int>(p[0]); // with (-1 none)
-        G_FLOAT(OFS_RETURN) = static_cast<float>(what == 4 ? beastarmour::bitOwner(e, static_cast<int>(p[1])) : what == 3 ? beastarmour::bitEntries(e, static_cast<int>(p[1])) : what == 2 ? beastarmour::drawnCount(p[1] != 0.f) :
+        const int what = static_cast<int>(p[0]); // with (-1 none), 5 the ways its slot's share is split for bit p_y (1 none)
+        G_FLOAT(OFS_RETURN) = static_cast<float>(what == 5 ? beastarmour::bitSplit(e, static_cast<int>(p[1])) : what == 4 ?beastarmour::bitOwner(e, static_cast<int>(p[1])) : what == 3 ? beastarmour::bitEntries(e, static_cast<int>(p[1])) : what == 2 ? beastarmour::drawnCount(p[1] != 0.f) :
             what == 1 ? beastarmour::cuirassGroup(e) : beastarmour::slots(e));
         return;
     }

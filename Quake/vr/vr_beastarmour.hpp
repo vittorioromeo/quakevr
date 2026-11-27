@@ -29,7 +29,7 @@ namespace qvr::beastarmour
 [[nodiscard]] int slots(struct edict_s* ent);
 [[nodiscard]] int cuirassGroup(struct edict_s* ent);
 // QC's piece codes for the debris (pieceModel, plateWhere): a worn-mask bit + entryStride x n, its nth piece (a bit may
-// have several: the scrag's tail's four segments).
+// have several; since "scragtail" each part has its bit, the scrag's tail's four segments too: n is 0).
 inline constexpr int entryStride = 16;
 inline constexpr int maxEntryCodes = entryStride * 16;
 // Piece `code`'s model ("" none), a string kept for good; how many pieces bit `bit` has (the debris to drop).
@@ -37,6 +37,10 @@ inline constexpr int maxEntryCodes = entryStride * 16;
 [[nodiscard]] int bitEntries(struct edict_s* ent, int bit);
 // The slot worn-mask bit `bit` is worn with (its own for a slot; a part's that breaks on its own its slot's; -1 none).
 [[nodiscard]] int bitOwner(struct edict_s* ent, int bit);
+// How many ways bit `bit`'s slot's share is split for it (QC VR_AgArmor_ShareOf): the slot and each armour.txt part of
+// it alike, then a part's share evenly among its bits (the scrag's plate 8: front, back half, tail 3 ways; the tail's
+// four segments a quarter each: 12); 1 a slot with no parts, or not a beast.
+[[nodiscard]] int bitSplit(struct edict_s* ent, int bit);
 
 // agarmor's queries for a beast (agarmor::shotPiece, pieceAt, pieceBones, plateWhere).
 [[nodiscard]] int shotPiece(struct edict_s* ent, const float* at, const float* dir, int mask);
