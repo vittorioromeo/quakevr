@@ -598,7 +598,7 @@ void line(float x0, float y0, float x1, float y1, float r, float g, float b, flo
 {
     const float dx = x1 - x0, dy = y1 - y0;
     const float len = za::max(0.001f, za::sqrt(dx * dx + dy * dy));
-    const float nx = -dy / len * 0.6f, ny = dx / len * 0.6f;
+    const float nx = -dy / len * 0.8f, ny = dx / len * 0.8f;
     const float xy[8] = {x0 + nx, y0 + ny, x1 + nx, y1 + ny, x1 - nx, y1 - ny, x0 - nx, y0 - ny};
     const float rgb[3] = {r, g, b};
     Draw_FillQuad(xy, rgb, a);
@@ -696,15 +696,19 @@ void layoutAndDrawPictures(float left, float top, float width, float bottom, flo
     const float areaH = bottom - top;
     za::Vector<Label> columns[2];
 
-    // The pictures: a VR pair (the left hand at 30%, the right at 70%) or a gamepad in the middle.
+    // The label columns at the edges; between them the pictures: a VR pair (the left hand left) or a gamepad, as big as
+    // they fit.
     const int count = vr ? 2 : 1;
+    const float gap = 10.f;
+    const float colW = za::min(170.f, width * 0.27f);
+    const float middle = width - 2.f * (colW + gap);
     float picX[2]{}, picW = 0.f;
     for(int p = 0; p < count; p++)
     {
         float aspect = 1.f;
         qpic_t* pic = imagePic(va("gfx/vr/controllers/%s%s", file, vr ? (p == 0 ? "_l" : "_r") : ""), &aspect);
-        picW = vr ? za::min(width * 0.24f, areaH * k / aspect) : za::min(width * 0.46f, areaH * k / aspect);
-        const float cx = left + width * (vr ? (p == 0 ? 0.31f : 0.69f) : 0.5f);
+        picW = za::min((middle - (count - 1) * gap) / static_cast<float>(count), areaH * k / aspect);
+        const float cx = left + width * 0.5f + (vr ? (p == 0 ? -1.f : 1.f) * (picW + gap) * 0.5f : 0.f);
         picX[p] = cx - picW * 0.5f;
         const float h = picW * aspect / k;
         const float y = top + (areaH - h) * 0.5f;
@@ -731,16 +735,12 @@ void layoutAndDrawPictures(float left, float top, float width, float bottom, flo
             columns[l.leftSide ? 0 : 1].pushBack(l);
         }
     }
-    // The label columns: left of the left picture, right of the right one.
-    const float gap = 10.f;
-    const float leftEnd = picX[0] - gap, rightStart = picX[count - 1] + picW + gap;
-    const float colW = za::min(150.f, za::max(60.f, za::min(leftEnd - left - 4.f, left + width - 4.f - rightStart)));
     for(int c = 0; c < 2; c++)
     {
         placeColumn(columns[c], top, bottom);
         for(Label& l : columns[c])
         {
-            l.x0 = c == 0 ? leftEnd - colW : rightStart;
+            l.x0 = c == 0 ? left : left + width - colW;
             l.x1 = l.x0 + colW;
             screen.labels.pushBack(l);
         }
@@ -1269,11 +1269,45 @@ extern "C" void VR_BindSetup_Open()
 
 extern "C" void VR_BindSetup_Draw()
 {
+    // The whole canvas's width (the pictures and their labels need it), clear of the corner's buttons, the status box and
+    // the version label; the menus' bounds' height.
     int left, top, width, height;
     M_GetBounds(&left, &top, &width, &height);
+    drawtransform_t transform;
+    Draw_GetCanvasTransform(CANVAS_MENU, &transform);
+    float cl, ct, cr, cb;
+    Draw_GetTransformBounds(&transform, &cl, &ct, &cr, &cb);
     const float k = Draw_MenuStretch();
-    const float l = static_cast<float>(left), t = static_cast<float>(top), w = static_cast<float>(width);
-    const float b = static_cast<float>(top + height);
+    float l = cl + 8.f, r = cr - 8.f;
+    float t = static_cast<float>(top), b = static_cast<float>(top + height);
+    if(menuui::toolbarRow())
+    {
+        t = za::max(t, menuui::toolbarBottom() + 4.f);
+    }
+    else
+    {
+        l = za::max(l, menuui::toolbarRight() + 10.f);
+    }
+    float vx, vy;
+    if(menuui::versionLabelClearance(vx, vy))
+    {
+        if(vy > t + 160.f)
+        {
+            b = za::min(b, vy - 2.f);
+        }
+        else
+        {
+            r = za::min(r, vx - 4.f);
+        }
+    }
+    const float widest = (b - t) * 2.6f; // (no wider than that: on a wide screen the labels stay near their pictures)
+    if(r - l > widest)
+    {
+        l += (r - l - widest) * 0.5f;
+        r = l + widest;
+    }
+    const float w = r - l;
+    const float picturesTop = za::max(t + 30.f, menuui::statusBottom(r) + 4.f);
     const float cx = l + w * 0.5f;
     const bool pointer = menuui::pointerOn(true);
 
@@ -1287,7 +1321,7 @@ extern "C" void VR_BindSetup_Draw()
     M_PrintWhite(static_cast<int>(cx - half - 4.f), static_cast<int>(t + 16.f), "\x10"); // (Quake's [ ] brackets)
     M_PrintWhite(static_cast<int>(cx + half - 4.f), static_cast<int>(t + 16.f), "\x11");
 
-    layoutAndDrawPictures(l + 4.f, t + 30.f, w - 8.f, b - 38.f, k);
+    layoutAndDrawPictures(l + 4.f, picturesTop, w - 8.f, b - 38.f, k);
 
     // the mouse's (the laser's) press: a drag once it moved a few pixels; its release swaps or opens the list
     if(screen.pressed >= 0)
