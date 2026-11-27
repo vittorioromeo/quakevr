@@ -1,6 +1,6 @@
 {
  "quakevr/data/beastarmour.txt": {
-  "sha256": "ae91f98afcaa8e5f5e31283429d3f0a88425f299f066d482300f84b55c5e16c6",
+  "sha256": "5891c78d2f6ed988a73f5f3296024a9374c1d1815422e3e50eef39aa78bfde37",
   "by": "make_beastarmour.py"
  },
  "quakevr/gfx/vr/grade_cold.png": {
@@ -1472,75 +1472,75 @@
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_0.mdl": {
-  "sha256": "9c66f0f1f6b729a5452fa23b4b8e2dc88b6ed4cd370ac0655b3b2c812ec9989c",
+  "sha256": "24a6be7f630dd06f229e3a69bd4fa941fdc1b9823b9d8c3f7eda1075357f6969",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_1.mdl": {
-  "sha256": "61de99979740585bface44102b2d7e2ec9ff8c78e58c53267f512df98ca3455f",
+  "sha256": "25924f00eacdf261a3330eae627451dc244e8c7fec5c91c0a18577929ccaffdb",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_2.mdl": {
-  "sha256": "1c90d3524f70a53da12e9274aac061fc2a6f2ea467863521d9fe5dd7042aead8",
+  "sha256": "55ddd85c163dcf44e9d02c82377afec04933994bc4a0219adedca10eeac6120b",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_3.mdl": {
-  "sha256": "e3b46b7c4c8362b2c42f693da76985af62c5a95d3f0d44f9e162526ce7db1ab6",
+  "sha256": "599eb380356ace47c3f549e4c47face019c35e2598617f3270328e1aee410977",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_4.mdl": {
-  "sha256": "7506699046c94d9366b30daed6e99abe0f2dd3eab1483b8ce0a11b1b5887d23b",
+  "sha256": "f472f81a140f5c5715b175146ce0cb14e6d1f0fb75576c63c687c8d5ef30d720",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_5.mdl": {
-  "sha256": "c2c1ab5bbcc7a0dafcb6df40ad87b9316b5a3e08c0554654f369aa6d48d383f7",
+  "sha256": "70b7c4593869354181cadf73e3b9747d2e2914e31cd7a50823b648f89d3562eb",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_6.mdl": {
-  "sha256": "f0b152870464f1c06bc339bf67ce1ad259a875f5f372930f878aced2ef9a3e11",
+  "sha256": "e6fc832302878c57c23547be21c81ca351c3899f8671dafd665188b2024572d4",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_7.mdl": {
-  "sha256": "0c6325ad41954b134286779399e2f8f6b921491bd2bb9bf2621879e9b627747f",
+  "sha256": "03411ba8ffc80688f12e527f7d22214b2875c159a4af635fb5e1fc979e202233",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_8.mdl": {
-  "sha256": "dfd08f6f6ca12ba156cffe979441c5cbc11c5d6347b042f3a662162cf7cfc292",
+  "sha256": "364280c9fd606576f1602255542ecaab1f9e5ab86ab48918ef0487c31da6453f",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_ogre_9.mdl": {
-  "sha256": "25b79749bebab09512b419977863bafa2a405a15154f116eb18c3c46945b9c98",
+  "sha256": "6bcfce595e71b46b93e6bb21c03894d7b3353369886f469fa09e368e89d714b4",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_0.mdl": {
-  "sha256": "7a947e730e43e8d2bf246b2d7999da3148e9e29fd78cdad150354d83b4967ebb",
+  "sha256": "04da97cc294c1a0ada653aaa871bb1fb7fcd8ea9255c82e7e875e4bfd13a1046",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_1.mdl": {
-  "sha256": "5eb139dbfaa8e61e6f58da1125cadef080a828be1a755a8692a9e8a3c77804ac",
+  "sha256": "480183000a8b52ed1b2ceb99976126d6291c73482e4c417e90ed563104388146",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_2.mdl": {
-  "sha256": "6eb0cf34266424bfff3f0cf605f4421be974cb9da35c20af2d5ec0963cf44989",
+  "sha256": "ce0171f0ea2745659c574cda4d77eb185b7b9666bc2733e82e109068ee811a6d",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_3.mdl": {
-  "sha256": "d80e7e2f6371a878b6259bf4512fe0382fdea9ad9050d75915f0fa27f32df178",
+  "sha256": "680056bf6478a3b2a6988d0a253a5d8b7a72122329090a827231455235068fee",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_4.mdl": {
-  "sha256": "1668e27fa1d6caf9b8b55d976ca06e95fb9544dd2afaf5d14524360d1b03d057",
+  "sha256": "2a59b9f29aa7b5b5ce38a63aef9892809da383221dc0c801670fe20c0d37dad8",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_5.mdl": {
-  "sha256": "91c0fd2a3ebfba4f1539be0e2648ac1cadce32fd376cf2519d8dd28cb63ab419",
+  "sha256": "e1c2cea29e23f69da49b3678091d3473ffc89967fc3d45c00652cc62b10269ca",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_8.mdl": {
-  "sha256": "26e7e55a8978734ed6510c3a94856bc228798a2be11d1c6c318116aede4c6c29",
+  "sha256": "77b3c0b0ca68731dcef259410bc9b9d167ccf4c017a56befc115760f51173350",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_9.mdl": {
-  "sha256": "f9947ad937b96451f2334d154b0bf6365a7b31303b5029d4d6d500257f569c09",
+  "sha256": "4ec6dd133eb8d6f64d82175b71d93e2a377198cc8f7a7e3e8eccb34ed4b1272a",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbody.md5anim": {
