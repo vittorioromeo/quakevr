@@ -36,7 +36,7 @@ bool beginFrame();
 void setPanel(unsigned framebuffer, int width, int height, float texels);
 // The mouse for the next frame: where it is (-FLT_MAX: nowhere), its button, the wheel's turn. Goes in after the SDL
 // backend's own, so it wins.
-void feedMouse(float x, float y, bool down, float wheel);
+void feedMouse(float x, float y, bool down, float wheel, bool right = false);
 
 // The style: 0 dark, 1 light, 2 classic.
 void setTheme(int theme);

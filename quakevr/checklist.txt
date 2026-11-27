@@ -50,6 +50,7 @@ Look at the armoured ogres: the plates now sit close on his chest, back, belly, 
 Look at the armoured scrags: the helmet sits on top of his head (his face uncovered), the shoulder plates are their real size, and the body and tail are covered. {test:armour_beasts}
 Look at the armoured fiends: the left pauldron and bracer are now the mirror image of the right ones (same size, not stretched). {test:armour_beasts}
 In the Armour Studio, pick the scrag: its tail is its own part ("Tail", and "Tail's Leather Junctions"), tweaked apart from its lower body (Plate 8); pick the ogre: his shins with their knee cops are the "Shins" part, by side. {test:beaststudio}
+Armour Studio (flat): drag with the right mouse button on the view; the subject turns (across: Turn, down: Pitch), the handle follows, Put Back resets {test:vr_armourstudio_gizmo_test}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

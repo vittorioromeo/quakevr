@@ -73,6 +73,7 @@ struct MockStep
 {
     glm::vec2 at{0.f};
     bool down{false};
+    bool right{false}; // (the right button, the subject's turn)
 };
 
 // The handle between frames, and its drag.
@@ -86,6 +87,7 @@ struct Gizmo
     int mode{ModeOff};
     int hover{-1};
     // The drag: its part, its mode, where it began and was last, the handle and the values as it began
+    bool turning{false}; // a right-button drag turning the subject (yaw by the way across, pitch by the way down)
     bool dragging{false};
     int part{-1};
     int dragMode{ModeOff};
@@ -380,6 +382,21 @@ void mockPath(const glm::vec2& from, const za::Vector<glm::vec2>& path)
     gz.mock.pushBack(MockStep{path.back() + glm::vec2{0.f, 300.f}, false}); // (and away)
 }
 
+// A right-button drag from one point to another: the subject's turn.
+void mockTurn(const glm::vec2& from, const glm::vec2& to)
+{
+    gz.mock.clear();
+    gz.mockNext = 0;
+    gz.mock.pushBack(MockStep{from, false, false});
+    gz.mock.pushBack(MockStep{from, false, true}); // (pressed)
+    for(int i = 1; i <= 8; i++)
+    {
+        gz.mock.pushBack(MockStep{from + (to - from) * (static_cast<float>(i) / 8.f), false, true});
+    }
+    gz.mock.pushBack(MockStep{to, false, false}); // (let go)
+    gz.mock.pushBack(MockStep{to + glm::vec2{0.f, 300.f}, false, false});
+}
+
 void mockLine(const glm::vec2& from, const glm::vec2& to)
 {
     za::Vector<glm::vec2> path;
@@ -541,7 +558,7 @@ void gizmoFeed()
         return;
     }
     const MockStep& s = gz.mock[static_cast<za::SizeT>(gz.mockNext++)];
-    imgui::feedMouse(s.at.x, s.at.y, s.down, 0.f);
+    imgui::feedMouse(s.at.x, s.at.y, s.down, 0.f, s.right);
 }
 
 void gizmoTestFrame()
@@ -694,6 +711,24 @@ void gizmoTestFrame()
     case 10:
         test.expect += glm::inverse(gz.parent0) * (gz.h0.axis[test.arm] * testBeastMove);
         checkDrag(cvars3(offsetCvars), 0.1f, "beast move"); // (1.431 of 1.5 on the rottweiler: open, ROUND26 "studiogizmo")
+        {
+            // The subject turned by a right-button drag: across 80 px is -40 deg of Turn, down 40 px is 20 deg of pitch
+            glm::vec2 c{0.f};
+            t.check(gz.view.project(gz.h.centre, c), testName, "no handle centre on the screen");
+            test.expect = glm::vec3{vr_armourstudio_turn.value, vr_armourstudio_subject_pitch.value, 0.f};
+            mockTurn(c - glm::vec2{40.f, 20.f}, c + glm::vec2{40.f, 20.f});
+            Con_Printf("%s: right-button drag across 80, down 40\n", testName);
+        }
+        next(11);
+        return;
+    case 11:
+        t.check(za::abs(vr_armourstudio_turn.value - (test.expect.x - 40.f)) < 0.01f, testName,
+            va("turn %.2f after a drag across 80 px (wanted %.2f)", vr_armourstudio_turn.value, test.expect.x - 40.f));
+        t.check(za::abs(vr_armourstudio_subject_pitch.value - (test.expect.y + 20.f)) < 0.01f, testName,
+            va("pitch %.2f after a drag down 40 px (wanted %.2f)", vr_armourstudio_subject_pitch.value, test.expect.y + 20.f));
+        t.check(!gz.dragging && !gz.turning, testName, "the turn drag went on after the button was let go");
+        Cvar_SetValueQuick(&vr_armourstudio_turn, test.expect.x);
+        Cvar_SetValueQuick(&vr_armourstudio_subject_pitch, test.expect.y);
         testVerdict();
         return;
     default:
@@ -701,9 +736,36 @@ void gizmoTestFrame()
     }
 }
 
+// A drag with the right button turns the subject: across is its Turn, down its Pitch (the Subject rows follow; session-only).
+// Not begun over the window, nor while the handle drags.
+constexpr float turnDegPerPixel = 0.5f;
+
+void turnFrame(const ImGuiIO& io)
+{
+    if(gz.turning && (!ImGui::IsMouseDown(ImGuiMouseButton_Right) || !running()))
+    {
+        gz.turning = false;
+    }
+    else if(!gz.turning && !gz.dragging && !io.WantCaptureMouse && running() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+    {
+        gz.turning = true;
+        return;
+    }
+    if(!gz.turning || gz.dragging || (io.MouseDelta.x == 0.f && io.MouseDelta.y == 0.f))
+    {
+        return;
+    }
+    float turn = vr_armourstudio_turn.value - io.MouseDelta.x * turnDegPerPixel;
+    turn = turn > 180.f ? turn - 360.f : turn < -180.f ? turn + 360.f : turn;
+    const float pitch = za::clamp(vr_armourstudio_subject_pitch.value + io.MouseDelta.y * turnDegPerPixel, -90.f, 90.f);
+    Cvar_SetValueQuick(&vr_armourstudio_turn, turn);
+    Cvar_SetValueQuick(&vr_armourstudio_subject_pitch, pitch);
+}
+
 void gizmoFrame()
 {
     ImGuiIO& io = ImGui::GetIO();
+    turnFrame(io);
     gz.view = gizmo::refdefProjection(io.DisplaySize.x, io.DisplaySize.y);
     if(!io.WantTextInput && !io.KeyCtrl && !io.KeyAlt)
     {
@@ -779,6 +841,7 @@ void gizmoRows()
     {
         ImGui::TextDisabled("(no %s handle on this part)", mode == ModeMove ? "move" : mode == ModeRotate ? "rotate" : "scale");
     }
+    ImGui::TextDisabled("Drag with the right mouse button on the view: turns the subject (across: Turn, down: Pitch; Put Back resets).");
     ImGui::PopID();
 }
 
