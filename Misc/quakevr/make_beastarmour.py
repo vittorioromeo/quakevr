@@ -22,6 +22,7 @@ import math
 import os
 import re
 import sys
+import warnings
 
 import numpy as np
 
@@ -48,9 +49,9 @@ INNER = tuple(c / HALF for c in make_agarmor.BLOCKS["inner"])
 P = dict
 
 
-def piece(slot, bone, t, face, span, rows=2, tile="plain", more=(), spikes=0, stand=0.0, thick=0.0, pivot=None, end=None):
+def piece(slot, bone, t, face, span, rows=2, tile="plain", more=(), spikes=0, stand=0.0, thick=0.0, pivot=None, end=None, cap=False):
     return P(slot=slot, bone=bone, t=t, face=face, span=span, rows=rows, tile=tile, more=more, spikes=spikes,
-             stand=stand, thick=thick, pivot=pivot, end=end)
+             stand=stand, thick=thick, pivot=pivot, end=end, cap=cap)
 
 
 KINDS = [
@@ -72,7 +73,7 @@ KINDS = [
         piece(0, "chest", (0.0, 1.05), (1.0, 0.0, 0.0), 170, rows=3, tile="panel"),
         piece(8, "chest", (0.0, 1.05), (-1.0, 0.0, 0.0), 170, rows=3, tile="plain"),
         piece(9, "pelvis", (-0.2, 1.0), (1.0, 0.0, 0.0), 180, rows=2, tile="rib"),
-        piece(1, "head", (0.25, 1.15), (-1.0, 0.0, 0.0), 250, rows=2, tile="plain"),
+        piece(1, "head", (0.25, 1.0), (-1.0, 0.0, 0.0), 250, rows=2, tile="plain", cap=True),
         piece(2, "upperarm_l", (-0.15, 0.55), "out", 200, rows=3, tile="emblem"),
         piece(3, "upperarm_r", (-0.15, 0.55), "out", 200, rows=3, tile="emblem"),
         piece(4, "forearm_l", (0.25, 0.9), "out", 360, rows=2, tile="vent"),
@@ -86,7 +87,7 @@ KINDS = [
         piece(0, "chest", (0.0, 1.0), (1.0, 0.0, 0.0), 170, rows=3, tile="panel"),
         piece(9, "chest", (0.0, 1.0), (-1.0, 0.0, 0.0), 160, rows=2, tile="plain"),
         piece(8, "pelvis", (-0.6, 1.0), (1.0, 0.0, 0.0), 170, rows=3, tile="rib"),
-        piece(1, "head", (0.15, 1.0), (1.0, 0.0, 0.0), 150, rows=2, tile="plain"),
+        piece(1, "head", (0.15, 0.9), (1.0, 0.0, 0.0), 150, rows=2, tile="plain", cap=True),
         piece(2, "arm_l", (-0.1, 0.8), (0.0, 0.0, 1.0), 200, rows=2, tile="emblem"),
         piece(3, "arm_r", (-0.1, 0.8), (0.0, 0.0, 1.0), 200, rows=2, tile="emblem"),
         piece(4, "hand_l", (-0.05, 0.4), (0.0, 0.0, 1.0), 360, rows=1, tile="vent"),
@@ -98,7 +99,7 @@ KINDS = [
         piece(0, "chest", (0.0, 1.0), "up", 200, rows=3, tile="panel"),
         piece(9, "chest", (0.1, 0.9), "down", 120, rows=2, tile="rib"),
         piece(8, "pelvis", (-0.6, 1.0), "up", 200, rows=2, tile="plain"),
-        piece(1, "head", (0.1, 1.0), "up", 160, rows=2, tile="plain"),
+        piece(1, "head", (0.1, 0.9), "up", 160, rows=2, tile="plain", cap=True),
         piece(2, "upperarm_l", (-0.4, 0.8), "out", 180, rows=2, tile="emblem"),
         piece(3, "upperarm_r", (-0.4, 0.8), "out", 180, rows=2, tile="emblem"),
         piece(4, "forearm_l", (0.1, 0.9), "out", 360, rows=2, tile="vent"),
@@ -223,6 +224,19 @@ def shell(kind, spec, seeds, pos):
                 bp = 0.0 if ring or 0 < j < cols else (0.45 * thick / max(r, 1.0)) * (1 if j == 0 else -1)
                 outer[i, j] = at(t + bt, ps[j] + bp, r + thick)
         lames.append((outer, inner))
+    if spec["cap"]:
+        # A dome over the far end (a helmet's crown): the last row's ring closing to the line in a quarter circle.
+        steps = 3
+        lift = 0.25 * thick * (rows - 1)
+        outer = np.zeros((steps + 1, cols + 1, 3))
+        inner = np.zeros((steps + 1, cols + 1, 3))
+        for i in range(steps + 1):
+            th = i / steps * math.pi / 2
+            for j in range(cols + 1):
+                r = rad[-1, j] + stand + lift
+                inner[i, j] = at(t1 + r * math.sin(th) / length, ps[j], r * math.cos(th))
+                outer[i, j] = at(t1 + (r + thick) * math.sin(th) / length, ps[j], (r + thick) * math.cos(th))
+        lames.append((outer, inner))
     spikes = []
     if spec["spikes"]:
         tm = (t0 + t1) * 0.5
@@ -252,22 +266,20 @@ class Builder:
         self.mesh = mdlgen.Mesh(SW, SH, {})
 
     def quad(self, p, uv, outward_hint):
-        """Quad p[0..3] (any winding: turned to face `outward_hint`), its corners' texels uv[0..3]."""
-        n = np.cross(p[1] - p[0], p[3] - p[0])
-        if np.linalg.norm(n) < 1e-9:
-            n = np.cross(p[2] - p[1], p[0] - p[1])
-        if np.dot(n, outward_hint) < 0.0:
-            p = [p[0], p[3], p[2], p[1]]
-            uv = [uv[0], uv[3], uv[2], uv[1]]
-            n = -n
-        if np.linalg.norm(n) < 1e-9:
-            return
-        n = tuple(unit(n))
-        base = len(self.mesh.verts)
-        for q, c in zip(p, uv):
-            self.mesh.verts.append((tuple(float(x) for x in q), n, c))
-        self.mesh.tris.append((base, base + 2, base + 1))
-        self.mesh.tris.append((base, base + 3, base + 2))
+        """Quad p[0..3] (any winding: each triangle turned to face `outward_hint`; a corner shared, a triangle alone),
+        its corners' texels uv[0..3]."""
+        for a, b, c in ((0, 1, 2), (0, 2, 3)):
+            cr = np.cross(p[b] - p[a], p[c] - p[a])
+            if np.linalg.norm(cr) < 1e-7:
+                continue
+            if np.dot(cr, outward_hint) > 0.0:
+                b, c = c, b  # (Quake's: clockwise seen from outside)
+                cr = -cr
+            n = tuple(-unit(cr))
+            base = len(self.mesh.verts)
+            for k in (a, b, c):
+                self.mesh.verts.append((tuple(float(x) for x in p[k]), n, uv[k]))
+            self.mesh.tris.append((base, base + 1, base + 2))
 
 
 def build_piece(kind, spec, seeds, pos, centre_out):
@@ -331,6 +343,7 @@ def skins():
 
 
 def main():
+    warnings.simplefilter("ignore", RuntimeWarning)  # (nanmean of a hole with no neighbours yet: filled on a later pass)
     seeds = read_seeds()
     progs = os.path.join(ROOT, "quakevr", "progs")
     data = os.path.join(ROOT, "quakevr", "data", "beastarmour.txt")

@@ -245,7 +245,10 @@ void(float req) VR_BAT_Frame =
             e = VR_BAT_Ent(i);
             e.health = 2;
             e.think = SUB_Null;
+            float type4 = e.vr_ar_type;
+            e.vr_ar_type = 0; // (the killing blow past its plates: a corpse wearing them, not a hit they absorb)
             T_Damage(e, world, world, 5);
+            e.vr_ar_type = type4;
         }
         vr_bat_state = 4;
         vr_bat_wait = time + 3; // (their death animations and ragdolls)
