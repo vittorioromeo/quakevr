@@ -9,6 +9,7 @@
 
 [New: not yet sorted]
 Installer: the Statement page shows one fixed sentence ("By continuing, I recognize that AI-assisted development does not imply a low-quality result nor a lack of care, passion, or expertise.", with "not" in italics) in a card, no switches or check boxes, and Continue is enabled at once; the console install prints it and goes on without any flag. {test:hub_start}
+Flat-screen or VR: point the switched-on flashlight straight at an armed grunt's face from a few metres; after a moment it raises its free hand in front of its eyes (a shotgun goes into one hand) and its shots spray wider, and it lowers the hand a second or two after the beam leaves its face. Check the hand looks like it shields the eyes and nothing happens with the beam off to the side or at its back. {test:agrunt_flashblind}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -100,6 +101,8 @@ Shoot the armoured scrag's tail plates one at a time, starting with a lower one:
 ## Armour Studio
 In the Armour Studio, pick the Rottweiler, Ogre, Scrag or Fiend as the Kind: it stands ahead in its armour; move, turn, scale and taper each piece, Save, and check a newly spawned beast of that kind wears the tweaked pieces. {test:beaststudio}
 In the Armour Studio, pick a beast's leather part or junction (Knee Leather on the ogre, a grunt's Knee Sleeves; the status line names the two pieces it joins): turn it off, change its width, thickness, folds and sag, and the Own End / Joined End move and size rows, Twist, Bulge, Segments (on beasts Far Edge and Closed All Round); each moves the end it names; Save and Reload keep them, Reset Part puts the leather back exactly. {test:beaststudio}
+Wake the armoured ogre and let it swing its chainsaw at you; shoot its pauldrons, bracers and helmet mid-swing: the piece you aim at should be the one that cracks, and its broken pieces should fly from where the plate was drawn, not a few units off. {test:armour_beasts}
+Flat-screen or VR: shoot armoured rottweilers and scrags while they leap and fly; a shot at the middle of a plate you can see should strike that plate (Debug > Reports > Shots Meet The Drawn Body off brings back the old, looser hits for comparison). {test:armour_beasts}
 
 [8. Quoth]
 ## Setup and maps
