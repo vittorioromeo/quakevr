@@ -819,80 +819,25 @@ static class ScreenshotHarness
     static async Task<string?> StatementCheck(MainViewModel vm, ShellView view, string dir, StringBuilder report)
     {
         vm.GoTo(Page.Statement);
-        await Save(view, Path.Combine(dir, "1c-statement-unset.png"));
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        await Save(view, Path.Combine(dir, "1c-statement.png"));
         var page = FindAll<StatementPage>(view).Single();
-        var radios = FindAll<System.Windows.Controls.RadioButton>(page).ToList();
         var next = FindAll<System.Windows.Controls.Button>(view).Single(b => b.Command == vm.NextCommand);
-        if (radios.Count != Core.AiStatement.Claims.Count * 2)
+        // Static text: nothing to answer, so no switches or check boxes, and Continue is enabled at once.
+        var inputs = FindAll<System.Windows.Controls.Primitives.ToggleButton>(page).Count();
+        if (inputs != 0)
         {
-            return $"{radios.Count} switch halves, not {Core.AiStatement.Claims.Count * 2}";
+            return $"the Statement page has {inputs} switches or check boxes, not none";
         }
-        var states = new List<string>();
-        string? Check(bool continueEnabled, string state)
+        var text = string.Concat(FindAll<System.Windows.Controls.TextBlock>(page).Select(t => string.Concat(t.Inlines.OfType<System.Windows.Documents.Run>().Select(r => r.Text)) + t.Text));
+        if (!text.Contains(Core.AiStatement.Plain(Core.AiStatement.Pledge)))
         {
-            var on = string.Join("", radios.Select(r => r.IsChecked == true ? "1" : "0"));
-            states.Add($"{state}: switches {on}, continue {(next.IsEnabled ? "enabled" : "disabled")}");
-            return next.IsEnabled != continueEnabled || vm.CanGoNext != continueEnabled ? $"{state}: Continue should be {(continueEnabled ? "enabled" : "disabled")} (button {next.IsEnabled}, command {vm.CanGoNext})" : null;
+            return "the pledge sentence is not on the Statement page";
         }
-        static System.Windows.Automation.Provider.ISelectionItemProvider Peer(System.Windows.Controls.RadioButton r) =>
-            (System.Windows.Automation.Provider.ISelectionItemProvider)new System.Windows.Automation.Peers.RadioButtonAutomationPeer(r)
-                .GetPattern(System.Windows.Automation.Peers.PatternInterface.SelectionItem);
-        // Radio i*2 is claim i's YES, i*2+1 its NO.
-        void Pick(int claim, bool yes) => Peer(radios[claim * 2 + (yes ? 0 : 1)]).Select();
-
-        if (radios.Any(r => r.IsChecked != false) || vm.Statement.Unanswered != Core.AiStatement.Claims.Count)
-        {
-            return "the switches do not start with neither YES nor NO";
-        }
-        if (Check(false, "unset") is { } e1)
-        {
-            return e1;
-        }
-
-        Pick(0, true);
-        Pick(1, false);
-        try
-        {
-            Peer(radios[0]).RemoveFromSelection();
-            return "a picked YES went back to neither";
-        }
-        catch (InvalidOperationException)
-        {
-        }
-        await Save(view, Path.Combine(dir, "1d-statement-mixed.png"));
-        if (vm.Statement[0] != true || vm.Statement[1] != false)
-        {
-            return $"the mixed answers did not reach the statement ({string.Join(",", Enumerable.Range(0, Core.AiStatement.Claims.Count).Select(i => vm.Statement[i]?.ToString() ?? "unset"))}; switches {string.Join("", radios.Select(r => r.IsChecked == true ? "1" : "0"))})";
-        }
-        if (Check(false, "mixed") is { } e2)
-        {
-            return e2;
-        }
-
-        Pick(1, true);
-        await Save(view, Path.Combine(dir, "1e-statement-all-yes.png"));
-        if (Check(true, "all yes") is { } e3)
-        {
-            return e3;
-        }
-        Pick(1, false);
-        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-        if (Check(false, "one switched to no") is { } e4)
-        {
-            return e4;
-        }
-        Pick(1, true);
-        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-        if (Check(true, "back to all yes") is { } e5)
-        {
-            return e5;
-        }
-        foreach (var s in states)
-        {
-            report.AppendLine($"statement {s}");
-        }
-        await File.WriteAllLinesAsync(Path.Combine(dir, "1-statement-check.txt"), states);
-        return null;
+        var line = $"statement: switches {inputs}, continue {(next.IsEnabled ? "enabled" : "disabled")}";
+        report.AppendLine(line);
+        await File.WriteAllLinesAsync(Path.Combine(dir, "1-statement-check.txt"), [line]);
+        return next.IsEnabled && vm.CanGoNext ? null : $"Continue should be enabled at once (button {next.IsEnabled}, command {vm.CanGoNext})";
     }
 
     static IEnumerable<T> FindAll<T>(DependencyObject root) where T : DependencyObject

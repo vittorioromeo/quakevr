@@ -239,16 +239,6 @@ public sealed partial class MainViewModel : ObservableObject
         _found = InstallDetection.Find(RegistryFor(options), options.Target, Environment.ProcessPath, DefaultInstallDir);
         _installDir = (options.Target is { } t ? PathUtil.TryNormalize(t) : null) ?? _found.Picked?.Dir ?? DefaultInstallDir;
         Steps = [new(1, "Welcome"), new(2, AiStatement.Title), new(3, "Your PC"), new(4, "Options"), new(5, "Install"), new(6, "Settings"), new(7, "Play"), new(8, "Thanks")];
-        StatementChoices = [.. Enumerable.Range(0, AiStatement.Claims.Count).Select(i => new StatementChoice(Statement, i))];
-        Statement.Changed += () =>
-        {
-            foreach (var c in StatementChoices)
-            {
-                c.Refresh();
-            }
-            Raise(nameof(FooterHint));
-            CommandManager.InvalidateRequerySuggested();
-        };
 
         NextCommand = new RelayCommand(Next, CanNext);
         BackCommand = new RelayCommand(Back, () => ShowBack);
@@ -359,7 +349,7 @@ public sealed partial class MainViewModel : ObservableObject
         Page.Welcome => _existing is null ? "Nothing is changed until you press Install." :
                         ReinstallChosen ? "Nothing is changed until you press Install again: what you ticked is moved into a backup first." :
                         $"Nothing is changed until you press {(OfferedMode == InstallMode.Repair ? "Repair" : "Update")}. Your settings, saves and maps are kept.",
-        Page.Statement => Statement.AllYes ? "Your answers are not saved or sent anywhere." : "Continue needs YES to both.",
+        Page.Statement => "Nothing to answer: press Continue to go on.",
         Page.Detect => "Your Quake files are only read, never changed.",
         Page.Options => "Free and open source. No telemetry: nothing is sent about you.",
         Page.Support => "Quake VR: UNLEASHED is free, and it stays free.",
@@ -412,7 +402,7 @@ public sealed partial class MainViewModel : ObservableObject
             Steps[i].State = i < (int)page ? StepState.Done : i == (int)page ? StepState.Current : StepState.Upcoming;
         }
         Raise(nameof(ShowNext));
-        // The buttons' enabled state follows the new page at once (the Statement page's Continue starts disabled).
+        // The buttons' enabled state follows the new page at once (the Detect page's Continue starts disabled).
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -420,7 +410,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         // The Update screen: Update/Repair needs the package (local, or the release list read).
         Page.Welcome => (TargetPc || TargetQuest) && (_existing is null || ReinstallChosen || !QuickUpdate || PackageReady),
-        Page.Statement => Statement.AllYes,
+        Page.Statement => true,
         Page.Detect => !Detecting && SelectedQuake is { Playable: true },
         Page.Options => InstallDirError is null && SelectedQuake is not null && PackageReady,
         Page.Install => false,
@@ -446,10 +436,6 @@ public sealed partial class MainViewModel : ObservableObject
                 }
                 break;
             case Page.Statement:
-                if (!Statement.AllYes)
-                {
-                    break;
-                }
                 GoTo(Page.Detect);
                 _ = EnsureDetectedAsync();
                 break;
@@ -539,11 +525,13 @@ public sealed partial class MainViewModel : ObservableObject
     // ---- Statement: the author's statement on AI usage ------------------------------------------------------------
     // The answers are only in memory for this run of Setup: never saved, never sent.
 
-    public AiStatement Statement { get; } = new();
-    public IReadOnlyList<StatementChoice> StatementChoices { get; }
     public string StatementTitle => AiStatement.Title;
     public string StatementSubtitle => AiStatement.Subtitle;
     public IReadOnlyList<string> StatementParagraphs => AiStatement.Paragraphs;
+    public string StatementPledgeBefore => AiStatement.SplitEmphasis(AiStatement.Pledge).Before;
+    public string StatementPledgeEmphasis => AiStatement.SplitEmphasis(AiStatement.Pledge).Emphasis;
+    public string StatementPledgeAfter => AiStatement.SplitEmphasis(AiStatement.Pledge).After;
+    public string StatementPledgePlain => AiStatement.Plain(AiStatement.Pledge);
 
     /// <summary>Whether the forward button is enabled now (tests and the screenshot harness).</summary>
     public bool CanGoNext => NextCommand.CanExecute(null);
