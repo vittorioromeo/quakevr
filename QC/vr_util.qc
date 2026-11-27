@@ -622,6 +622,16 @@ float(entity p) VR_FlatGuardHand =
     return (p.handsynth & VR_HANDGUARD_OFF) ? cVR_OffHand : -1;
 };
 
+// Whether flat-screen player `p` holds both empty fists up in the crossed-arms guard this move (the engine's
+// vr_flatplay.cpp: the right mouse button held with both hands empty, vr_flat_fist_guard; both guard bits of .handsynth,
+// 64 and 128, with no weapon in either hand). VR_Parry_FlatFists parries what comes at it from the front. flatfists, his
+// words 2026-11-27.
+float(entity p) VR_FlatFistGuard =
+{
+    return VR_FlatPlay(p) && (p.handsynth & VR_HANDGUARD_MAIN) && (p.handsynth & VR_HANDGUARD_OFF) &&
+           VRIsHandWeaponless(p, cVR_MainHand) && VRIsHandWeaponless(p, cVR_OffHand);
+};
+
 float(entity ent) VRIsWeaponReloadingEnabled =
 {
     // Flatscreen play (-flatscreenmode): every gun reloads at the hip holsters (VR's Hip Holsters mode, whatever the

@@ -35,6 +35,9 @@ Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, a
 The shotgun and double shotgun bayonet mounts (Daggers as Bayonets) sit at your new pitch and height: attach a dagger and check the blade lines up with the barrels. {test:attach_dagger}
 The bayonet in the palm is turned 10 degrees and 2.5 units up the handle (your Held Object Offsets values): grab one and check it sits in the hand. {test:attach_bayonet}
 Flat-screen: the third-person camera no longer widens the field of view (x1.00 instead of x1.10): toggle it and check the picture does not zoom out. {test:flat_parry}
+Flat-screen: with both hands empty, press the left mouse button a few times: jabs alternate right, left, right; hold it for a steady series of alternating jabs. {test:flat_fists}
+Flat-screen: with both hands empty, hold the right mouse button facing the knight: the forearms cross before your face, its blows from the front are parried (less damage), and letting go drops the hands; check the pose looks right (Debug > Tunables > Flatscreen > Fists: Jabs and Guard). {test:flat_fists}
+Flat-screen: with a shotgun in the left hand and the right hand empty, V swings the shotgun with the left hand (no right-hand punch); with it in the right hand or one in each, V swings with the right. {test:flat_v_offhand}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
