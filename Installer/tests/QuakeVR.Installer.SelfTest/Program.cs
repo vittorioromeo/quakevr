@@ -2050,6 +2050,80 @@ var tests = new List<(string Name, Action Body)>
         d = InstallDetection.Find(null, broken, null, null);
         True(d.Picked is null && d.Notes.Any(n => n.Contains("could not be read")), "an unreadable install.json is passed over");
     }),
+    ("beside package: an older QuakeVR.zip beside the installer is not installed; its own release is downloaded (2026-11-27)", () =>
+    {
+        const string own = "1.2.0-beta5";
+        // The report: a beta5 installer in Downloads beside an old beta2 QuakeVR.zip repaired the beta2 install from it.
+        var downloads = Dir("beside-older");
+        Fixtures.Zip(Fixtures.MakePackage(Dir("beside-older-pkg"), "1.2.0-beta2 (2026-11-23 36d26954)"), Path.Combine(downloads, "QuakeVR.zip"), "QuakeVR");
+        var older = LocalPackages.FindBeside(downloads, own) ?? throw new Exception("the zip beside is found");
+        Eq(BesideOrder.Older, older.Order, "beta2 beside a beta5 installer: older");
+        True(!older.UsedAtOnce, "not used at once");
+        Eq(BesideAction.Download, older.Decide(online: true), "online: the release is downloaded instead");
+        var note = older.Note(BesideAction.Download, "1.2.0-beta5 (2026-11-27 aaaaaaa1)")!;
+        True(note.Contains("QuakeVR.zip 1.2.0-beta2") && note.Contains("older than this installer's 1.2.0-beta5") && note.Contains("not used, downloading 1.2.0-beta5"), note);
+        // The download (a mocked release host): latest.json and the installer's own package, installed over it.
+        var ownZip = Fixtures.Zip(Fixtures.MakePackage(Dir("beside-own-pkg"), "1.2.0-beta5 (2026-11-27 aaaaaaa1)"), Path.Combine(Dir("beside-host"), "QuakeVR.zip"), "QuakeVR");
+        var body = File.ReadAllBytes(ownZip);
+        using var server = new LocalHttpServer();
+        server.Serve("v1.2.0-beta5/QuakeVR.zip", body);
+        server.Serve("v1.2.0-beta5/latest.json", $$"""
+            { "schema": 1, "version": "1.2.0-beta5 (2026-11-27 aaaaaaa1)", "package": { "file": "QuakeVR.zip", "size": {{body.Length}},
+              "sha256": "{{Convert.ToHexStringLower(SHA256.HashData(body))}}", "urls": ["{{server.Url("v1.2.0-beta5/QuakeVR.zip")}}"] } }
+            """);
+        using var http = Downloader.CreateClient();
+        var feed = ReleaseFeed.FetchAsync(http, [server.Url("v1.2.0-beta5/latest.json")], CancellationToken.None).GetAwaiter().GetResult();
+        var got = Path.Combine(Dir("beside-dl"), "QuakeVR.zip");
+        new Downloader(http).DownloadAsync(feed.Package!.Mirrors, got, feed.Package.Size, feed.Package.Sha256, null, CancellationToken.None).GetAwaiter().GetResult();
+        var quake = Dir("beside-quake");
+        Fixtures.MakeOriginal(quake);
+        var target = Dir("beside-target");
+        new InstallEngine().Install(new InstallPlan { PackagePath = got, TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        Eq("1.2.0-beta5 (2026-11-27 aaaaaaa1)", InstallRecord.Load(target)!.Version, "the installer's own version installed, not the zip beside it");
+
+        // Offline with only the older zip: asked, naming both versions; used only on a yes.
+        Eq(BesideAction.Ask, older.Decide(online: false), "offline: asked");
+        True(older.AskText.Contains("1.2.0-beta2") && older.AskText.Contains("1.2.0-beta5") && older.AskText.Contains("older"), older.AskText);
+        Eq(BesideAction.Use, older.Decide(online: false, agreed: true), "offline, yes: used");
+        Eq(BesideAction.Skip, older.Decide(online: false, agreed: false), "offline, no: not used");
+        True(older.Note(BesideAction.Use)!.Contains("as you chose"), "the details say it was the player's choice");
+
+        // The installer's own version (a release folder: Setup and its zip side by side): used as before, nothing said.
+        var same = Dir("beside-same");
+        Fixtures.Zip(Fixtures.MakePackage(Dir("beside-same-pkg"), "1.2.0-beta5 (2026-11-27 aaaaaaa1)"), Path.Combine(same, "QuakeVR.zip"), "QuakeVR");
+        var sameBeside = LocalPackages.FindBeside(same, own)!;
+        Eq(BesideOrder.Same, sameBeside.Order, "same version");
+        Eq(BesideAction.Use, sameBeside.Decide(online: true), "same version: used, online too");
+        Eq(null, sameBeside.Note(BesideAction.Use), "nothing to say");
+        Eq(BesideOrder.Same, LocalPackages.Judge("1.2.0-dev", "1.2.0-dev (2026-11-27 aaaaaaa1-dirty)"), "a development build's own package");
+
+        // Newer: used, saying so.
+        Eq(BesideOrder.Newer, LocalPackages.Judge(own, "1.2.0-beta6 (2026-11-28 bbbbbbb2)"), "beta6 beside a beta5 installer: newer");
+        Eq(BesideOrder.Newer, LocalPackages.Judge(own, "1.2.0"), "the final release: newer");
+        var newer = new BesidePackage("QuakeVR.zip", "1.2.0-beta6 (2026-11-28 bbbbbbb2)", own, BesideOrder.Newer);
+        Eq(BesideAction.Use, newer.Decide(online: true), "newer: used");
+        True(newer.Note(BesideAction.Use)!.Contains("newer than this installer's 1.2.0-beta5: used"), newer.Note(BesideAction.Use)!);
+
+        // No readable version: skipped like an older one; offline, asked.
+        var unknownDir = Dir("beside-unknown");
+        Fixtures.MakePackage(Path.Combine(unknownDir, "QuakeVR"), "");
+        var unknown = LocalPackages.FindBeside(unknownDir, own)!;
+        Eq(BesideOrder.Unknown, unknown.Order, "a manifest without a version: unknown");
+        Eq(BesideAction.Download, unknown.Decide(online: true), "unknown, online: downloaded instead");
+        Eq(BesideAction.Ask, unknown.Decide(online: false), "unknown, offline: asked");
+        True(unknown.AskText.Contains("can't be read") && unknown.AskText.Contains(own), unknown.AskText);
+        // An installer without a readable version (a bare development build) can't tell: used, as before.
+        Eq(BesideOrder.Same, LocalPackages.Judge("", "1.2.0-beta2"), "no own version: used");
+
+        // The Quest step's QuakeVR.apk beside Setup: checked against the release list's quest component.
+        var apk = Path.Combine(Dir("beside-apk"), "QuakeVR.apk");
+        File.WriteAllText(apk, "old apk");
+        var apkSha = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(apk)));
+        Eq<bool?>(true, QuakeVR.Installer.Core.Quest.QuestTarget.LocalApkMatches(apk, new FeedFile { File = "QuakeVR.apk", Size = 7, Sha256 = apkSha }), "the release's own apk: used");
+        Eq<bool?>(false, QuakeVR.Installer.Core.Quest.QuestTarget.LocalApkMatches(apk, new FeedFile { File = "QuakeVR.apk", Size = 7, Sha256 = new string('0', 64) }), "another apk: not used");
+        Eq<bool?>(false, QuakeVR.Installer.Core.Quest.QuestTarget.LocalApkMatches(apk, new FeedFile { File = "QuakeVR.apk", Size = 8, Sha256 = apkSha }), "another size: not used");
+        Eq<bool?>(null, QuakeVR.Installer.Core.Quest.QuestTarget.LocalApkMatches(apk, null), "nothing to check against (offline): used");
+    }),
     ("versions: releases, pre-releases, builds and the old stamps ordered; update or repair", () =>
     {
         Eq(VersionOrder.Newer, ReleaseVersion.Compare("0.9.0 (2026-10-08 aaaaaaa1)", "0.9.1 (2026-10-09 bbbbbbb2)"), "a newer release");
