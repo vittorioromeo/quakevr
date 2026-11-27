@@ -8,6 +8,7 @@
 #include "vr_engine.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_menuui.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -98,7 +99,7 @@ void boundKeys(const char* command, int (&out)[2])
     int n = 0;
     for(int k = 0; k < MAX_KEYS && n < 2; k++)
     {
-        if(keybindings[k] && !q_strcasecmp(keybindings[k], command))
+        if(keybindings[k] && !q_strcasecmp(keybindings[k], command) && (Key_GetDeviceMaskForKeynum(k) & KDM_KEYBOARD_AND_MOUSE))
         {
             out[n++] = k;
         }
@@ -200,9 +201,35 @@ void setupBindings()
 {
     if(bindsetup::open())
     {
+        Con_DPrintf("bindpanel: Setup Bindings: the controller binding screen\n");
         return;
     }
     M_Menu_Keys_At("vr_flat_key_lean_left"); // (the flat keys' first row: their group)
+    Con_DPrintf("bindpanel: Setup Bindings: Options > Controls, flat keys\n");
+}
+
+namespace
+{
+// vr_bindpanel_report: every row and its keys, then "bindpanel: N rows, shown <0/1>, menu <m_state>" (the tests'
+// line; bindpanel_test.sh).
+void report_f()
+{
+    gadget::BindPanelRow r[maxRows];
+    const int n = rows(r, maxRows);
+    for(int i = 0; i < n; i++)
+    {
+        Con_Printf("bindpanel: row %d \"%s\" keys \"%s\" \"%s\"\n", i, r[i].action, r[i].keys[0], r[i].keys[1]);
+    }
+    menuui::bindPanelReport();
+    const char* menu = key_dest != key_menu ? "none" : m_state == m_main ? "main" : m_state == m_keys ? "keys" : "other";
+    Con_Printf("bindpanel: %d rows, shown %d, menu %s\n", n, shown() ? 1 : 0, menu);
+}
+} // namespace
+
+void init()
+{
+    Cmd_AddCommand("vr_bindpanel_report", report_f);
+    Cmd_AddCommand("vr_bindpanel_setup", setupBindings); // (the main menu's Setup Bindings, for the tests)
 }
 
 } // namespace qvr::bindpanel

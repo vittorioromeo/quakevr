@@ -34,4 +34,7 @@ void drawOnWindow(float x, float y, float scale, float alpha);
 // Controls at the flat keys (keyboard and mouse).
 void setupBindings();
 
+// vr_bindpanel_report, vr_bindpanel_setup (the tests').
+void init();
+
 } // namespace qvr::bindpanel

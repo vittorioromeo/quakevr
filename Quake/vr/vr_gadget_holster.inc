@@ -337,7 +337,7 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
     if(v.body)
     {
         // The player's body (flatholster's: grey, lit), in the screen's colour.
-        gfx::draw2D::color(glm::vec4{pal.label * 1.25f, 1.f});
+        gfx::draw2D::color(glm::vec4{pal.label * 0.6f, 1.f});
         gfx::draw2D::picture(*v.body, v.bodyRect.x, v.bodyRect.y, v.bodyRect.z, v.bodyRect.w);
         gfx::draw2D::color(glm::vec4{1.f});
     }
