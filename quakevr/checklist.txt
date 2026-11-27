@@ -46,6 +46,10 @@ Flat-screen or VR: Armour Studio, Subject's Place and Tilt (window) or Subject A
 Flat-screen: Armour Studio window: open the Animation section and hover the Animation combo and Play: no red "conflicting ID" error box. {test:beaststudio}
 Flat-screen: in the Armour Studio window, Start, press Look at the Part, then drag the handle on the part: W arrows move it, E rings turn it, R arms stretch it (the centre scales it); the rows follow, Undo takes a whole drag back, Ctrl snaps. {test:armourstudio_close}
 Flat-screen: in the Rig Studio, the bone, aim target and Pose Keys handles still look and drag as before (they share the Armour Studio's handle code now). {test:rigstudio_strike}
+Look at the armoured ogres: the plates now sit close on his chest, back, belly, shoulders, upper arms, forearms, thighs and shins (knee cops over the knees), the helmet on his cranium above the brow and his face clear; nothing gigantic or floating off. {test:armour_beasts}
+Look at the armoured scrags: the helmet sits on top of his head (his face uncovered), the shoulder plates are their real size, and the body and tail are covered. {test:armour_beasts}
+Look at the armoured fiends: the left pauldron and bracer are now the mirror image of the right ones (same size, not stretched). {test:armour_beasts}
+In the Armour Studio, pick the scrag: its tail is its own part ("Tail", and "Tail's Leather Junctions"), tweaked apart from its lower body (Plate 8); pick the ogre: his shins with their knee cops are the "Shins" part, by side. {test:beaststudio}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
