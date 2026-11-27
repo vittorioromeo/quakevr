@@ -67,7 +67,13 @@ Test: `vr_armourstudio_gizmo_test` (Debug > Tests), `-flatscreenmode` in a map: 
 value it should (2 units along the arrow longest on the screen, 30 degrees round the ring facing the eye most, 1.25x
 along an arm, 1.5x by the centre, and a rottweiler piece's move), each with one undo step, the view first turned to the
 part (the row's **Look at the Part** button, `vr_armourstudio_gizmo_look`; `vr_armourstudio_gizmo_info` prints where the
-handle is): `armourgizmo: 16 passed, 0 failed`.
+handle is): `armourgizmo: 16 passed, 0 failed` (plus the turn step below).
+
+**Turning the subject with the mouse.** In the flat window, a drag with the **right mouse button** on the view turns the subject:
+across is its **Turn** (yaw, 0.5 deg a pixel), down is its **Pitch** (the Subject rows follow; session-only, never in armour.txt).
+It does not begin over the window, nor while the handle drags; **Put Back** resets it; the handle and the part's frame follow the
+turned subject. The window's help line says it (the middle button is free too; the right is the usual drag-to-orbit one). The
+test's last step drags across 80 px and down 40 px: -40 deg Turn, +20 deg Pitch.
 
 ## Animations
 

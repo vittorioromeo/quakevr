@@ -3548,3 +3548,10 @@ His words 2026-11-27: an interactive 3D position/scale/rotation gizmo in the arm
 - **Open**: the rottweiler's move measures 1.431 for 1.5 asked (the grunt's is exact; its tolerance 0.1 for now): the beast
   piece's frame (`beastarmour::partFrame`, its size k?) wants a look. In the kit's 960x540 runs the window covers the middle
   of the screen: Look at the Part turns the view so the part is a quarter across.
+
+## studiodrag (agent/studiodrag)
+A right-button drag in the flat Armour Studio turns the subject: across = `vr_armourstudio_turn` (the existing yaw from facing you, so
+no new yaw cvar), down = `vr_armourstudio_subject_pitch`, 0.5 deg a pixel; not over ImGui, not during a gizmo drag; Put Back also
+resets Turn. RMB chosen: neither button had a use in the studio (ImGui holds the mouse, game keys held back, the gizmo is LMB
+only). The gizmo and the part frame read the subject entity each frame, so they follow. `imgui::feedMouse` got an optional
+right-button argument for the mock; `vr_armourstudio_gizmo_test` has step 11 (drag across 80, down 40: -40 / +20 deg).

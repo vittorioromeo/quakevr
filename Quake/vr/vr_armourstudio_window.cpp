@@ -499,6 +499,7 @@ void drawWindow()
                 {
                     Cvar_SetValueQuick(r.cvar, 0.f);
                 }
+                Cvar_SetValueQuick(&vr_armourstudio_turn, 0.f); // (the right-button drag's yaw)
             }
             ImGui::PopID();
             ImGui::TreePop();
