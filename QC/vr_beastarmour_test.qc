@@ -278,14 +278,25 @@ void(float req) VR_BAT_Frame =
             {
                 vector at = limbpiece(e, k, 10);
                 vector out = normalize(at - (e.absmin + e.absmax) * 0.5);
+                float met, turn;
                 if(k == 0 && (i == 1 || i == 2))
                 {
                     // (the ogre's and the scrag's breastplates wrap the chest on its middle: their box's middle is near
-                    // the body's, so the shot comes from before them, the way the body faces)
-                    makevectors('0 1 0' * e.angles_y);
-                    out = v_forward;
+                    // the body's, so the shot comes from before them, the way the body faces; beastfit: the plates lie on
+                    // the skin, square to the shoulders (the ogre's stance turns them ~33 degrees) with a seam down the
+                    // middle, so the first of a fan of shots within 40 degrees of his facing that meets a plate)
+                    met = -1;
+                    for(turn = 0; turn <= 40 && met != k; turn = turn > 0 ? -turn : 10 - turn)
+                    {
+                        makevectors('0 1 0' * (e.angles_y + turn));
+                        out = v_forward;
+                        met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
+                    }
                 }
-                float met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
+                else
+                {
+                    met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
+                }
                 float near = ragdollbone(e, at, QVR_ARMOR_PIECE_AT);
                 VR_Test_Check(met == k && near == k, sprintf("%s: a shot at piece %g meets %g, its point %g", e.classname, k, met, near));
             }

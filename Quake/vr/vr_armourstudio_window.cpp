@@ -94,9 +94,10 @@ constexpr int maxSubjects = 32;
 constexpr const char* tierLabels[3] = {"Green", "Yellow", "Red"};
 constexpr const char* partLabels[NumParts] = {"Cuirass", "Helmet", "Pauldrons (Upper Arms)", "Bracers (Forearms)", "Thighs",
     "Shins", "Elbow Sleeves (Upper Arm's)", "Elbow Sleeves (Forearm's)", "Knee Sleeves (Thigh's)", "Knee Sleeves (Shin's)",
-    "Cuirass's Leather Junction", "Helmet's Leather Junction", "Plate 8", "Plate 9", "Plate 8's Leather Junction", "Plate 9's Leather Junction"};
+    "Cuirass's Leather Junction", "Helmet's Leather Junction", "Plate 8", "Plate 9", "Plate 8's Leather Junction", "Plate 9's Leather Junction",
+    "Tail", "Tail's Leather Junctions"};
 // (a beast's limb parts' junctions: to the piece each joins)
-constexpr const char* beastSleeveLabels[4] = {"Pauldrons' Leather Junctions", "Bracers' Leather Junctions", "Thighs' Leather Junctions", ""};
+constexpr const char* beastSleeveLabels[4] = {"Pauldrons' Leather Junctions", "Bracers' Leather Junctions", "Thighs' Leather Junctions", "Shins' Leather Junctions"};
 constexpr const char* sideLabels[NumSides] = {"Both (Mirrored)", "Left Only", "Right Only"};
 
 constexpr float winMinW = 420.f, winMinH = 320.f;

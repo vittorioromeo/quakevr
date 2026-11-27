@@ -439,6 +439,25 @@ bool resolveBeast(const char* model, int slot, bool sleeve, Override& out)
     return layerOver(out, part, side, find(model), nullptr);
 }
 
+int beastSleeve(int part)
+{
+    return part == PartTail ? PartTailSleeve : part >= PartPauldron && part <= PartShin ? part + (PartPauldronSleeve - PartPauldron) : part;
+}
+
+bool resolveBeastPart(const char* model, int part, int side, bool sleeve, Override& out)
+{
+    out = Override{};
+    for(int f = 0; f < NumFields; f++)
+    {
+        out.v[f] = fieldDefault(f);
+    }
+    if(table.empty() || !model || part < 0 || part >= NumParts)
+    {
+        return false;
+    }
+    return layerOver(out, sleeve ? beastSleeve(part) : part, limbPart(part) ? side : SideBoth, find(model), nullptr);
+}
+
 uint32_t beastSignature(const char* model)
 {
     uint32_t h = 0;
@@ -450,6 +469,21 @@ uint32_t beastSignature(const char* model)
             if(resolveBeast(model, piece, sleeve, o))
             {
                 h = hashOver(h, piece * 2 + (sleeve ? 1 : 0), o);
+            }
+        }
+    }
+    // (the parts with their own tweaks: the ogre's shins by side, the scrag's tail)
+    for(const int part : {PartShin, PartTail})
+    {
+        for(int side = SideLeft; side <= SideRight; side++)
+        {
+            for(const bool sleeve : {false, true})
+            {
+                Override o;
+                if(resolveBeastPart(model, part, side, sleeve, o))
+                {
+                    h = hashOver(h, 64 + part * 8 + side * 2 + (sleeve ? 1 : 0), o);
+                }
             }
         }
     }

@@ -68,6 +68,11 @@ bool pieceExtent(int kind, int slot, float* lo, float* hi);
 // (or their junctions: `sleeve`) outlined (agarmor::debugDraw).
 void studioView(int ent, float bodyAlpha);
 void outline(struct edict_s* ent, int pieces, bool sleeve);
+// The studio's part (armourdata Part; -1 none): outline draws its pieces alone (a slot's tail apart from its belt).
+void studioPart(int part);
+// The slots (bits) whose pieces or parts are armour.txt's `part` (a sleeve: their junctions) on `side` (a limb part's): the
+// scrag's tail its belt's slot 8, the ogre's shins the thighs' 6/7 (ROUND26.md, "beastfit").
+[[nodiscard]] int partPieces(int kind, int part, int side);
 // The first piece of `pieces` on `ent` as placed now: its middle (world) and the map from its tweaks' space to the world's
 // (agarmor::studioPartFrame).
 bool partFrame(struct edict_s* ent, int pieces, glm::vec3& centre, glm::mat3& parent);

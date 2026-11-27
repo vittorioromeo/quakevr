@@ -3431,6 +3431,61 @@ rigs' differences; he meant the Pose Studio keys.
   5 of 5 placed.
 - **Open**: the remaining keys past 1 unit (the shared Pickup: the death guard short 2.2, the crossbow knight not; a few
   shoves); his look in VR; the side-by-side render sheet (each key, AD knights beside the knight) was not made (budget).
+## beastfit: the beasts' armour fit to the skin, measured, the scrag's tail and the ogre's shins their own parts (branch agent/beastfit, 2026-11-27)
+His words (2026-11-27): the scrag's helmet a mask over his face; the scrag's tail and lower body one part; the fiend's left
+pauldron small and stretched, its left bracer big and stretched (the right ones better); the ogre's helmet and bracers
+gigantic, his knees bare, plates off position after heavy tweaking: "the starting points were way too off".
+- **Why the starting points were off** (measured, `scratch/bf_eval.py`): the ogre's plates stood a median 3.3-6.3 units
+  off his skin (size 1.4-1.9 times his flesh's), the scrag's 2-4.4, the rottweiler's (his good reference) 0.5-1.8 (size
+  1.1). In `make_beastarmour.py` the facet kinds' radius was the 100th percentile, in 26-degree windows, of a bone's
+  flesh in **every played frame carried back to the rest pose by the bone's rigid fit**: flesh at the joints swings
+  under such a fit, so the envelope was the union of every pose (the chainsaw swing, the arms crossing the chest); a pair
+  took the **larger** of both sides; a middle piece the larger of its two halves in the ogre's twisted stance; plus the
+  plates' chord, stand-off and step. Helmets were domes over the whole head's envelope from its middle, the scrag's
+  pole pointing forward (a mask). The fiend (the old ring shells) measured each side on its own bone (the left arm's
+  bones are a different length and pose): different sizes and stretched.
+- **New fit** (ogre, scrag: `fit="rest"`; rottweiler bit for bit; fiend's right side as before): each shape's radius is
+  where a ray from its line (band) or middle (dome) leaves its bone's skin **in the rest pose** (the triangles of the
+  bone's skin, `cast_out`: the outer crossing; the ogre's upper arm has only 20 vertices, so not a percentile of them),
+  holes filled, outliers cut at 1.3x the median, smoothed upwards only, then the plates' faces raised clear of it as before
+  (a small stand-off). Pairs: the **right** side measured and laid mirrored on the left bone (its length too); the
+  fiend's left pauldron, bracer and thigh the same way (`piece(..., pair=)`). Middle pieces: the mean of the two halves.
+  Helmets (`dome(..., brow=)`): the dome's middle at the brow (60-62% of the head's flesh's height), only the cranium above
+  it measured; the scrag's pole now up. Ogre: thighs to the knee (300 degrees round), shins with a knee cop from 0.3 above
+  the knee, both further round. Scrag: the tail's spike back on its tip. Played frames are only checked now (poke-through).
+- **Parts of their own** (data, additive): beastarmour.txt's optional last word names a part's own armour.txt part:
+  the scrag's tail1-4 `tail` (new `PartTail`, `PartTailSleeve`: "Tail", "Tail's Leather Junctions"), the ogre's
+  shins `shin` (PartShin, by side; knee cops included). `Slot::tweakPart`, `armourdata::resolveBeastPart`, `beastSleeve`,
+  the signature hashes them; the studio lists them (`beastarmour::partPieces`: the slots carrying a part; `studioPart`:
+  the outline draws only the picked part's pieces, the belt without its tail). QC unchanged (the tail still breaks with slot 8).
+- **His tweaks** (armour.txt; judged one part at a time by bf_eval's score on the new fit, `scratch/bf_tweaks.txt`):
+  ogre: all **reset** (cuirass, helmet, pauldron, bracer, thigh, plate8, plate9: each scaled 0.5-0.9 to undo the old
+  oversize; on the new fit they sink the plates into him, 0.27-0.82 covered instead of 0.6-0.9). Scrag: cuirass, bracer
+  and bracer_r **kept** (better covered/sized); helmet (standoff 1), pauldron (scale 0.35), plate8, plate9 **reset**.
+  Fiend: all **kept** (only its left side's fit changed; his eye on it was "almost there"), though by the measure they sink
+  some plates (median gap -0.17, poke 0.35): his call.
+- **Evaluation** (`scratch/bf_eval.py <kind> [--tweaks] [--render x.png --frames a,b]`; columns: cov = share of the
+  bone's skin under armour; gap50/90 = plate off the covered skin; off90 = the plates' distance to the nearest skin;
+  size = plates' distance from the covered skin's middle over the skin's; poke = covered skin through by > 0.75 over every
+  played frame; sym = a pair's shape apart; face = a helmet over the face). Kinds (shipped state, his kept tweaks on):
+
+| kind | target skin covered | median gap | mean size | poke | helmet over face |
+|---|---|---|---|---|---|
+| rottweiler (reference) | 0.45 | 1.21 | 1.12 | 0.13 | 0.00 |
+| fiend | 0.55 | -0.17 | 1.01 | 0.35 | 0.05 |
+| ogre (before: 0.60, 4.9, 1.59) | 0.69 | 1.65 | 1.17 | 0.17 | 0.00 |
+| scrag (before: 0.92, 3.0, 1.47, face 0.71) | 0.93 | 1.14 | 1.19 | 0.15 | 0.00 |
+
+- **Test**: new `vr_beastfit_test` (vr_beastarmour.cpp `fit::`; needs a map: `map start;vr_beastfit_test`): the same
+  measures in the engine (each piece placed by its anchors' rigid fit, armour.txt's tweaks on), every played frame of
+  each .mdl; checks: each kind's target skin covered (dog 0.35, ogre 0.6, scrag 0.85, fiend 0.45), every piece's size
+  <= 1.45 and mean gap <= 3.5, helmets over <= 0.25 of the face, left/right pieces one shape (spread within 6%; not the
+  rottweiler's), poke-through <= 0.4. `beastfit: N passed, 0 failed`.
+- **Renders** (scratch/, his review): `beastfit_ogre.png`, `beastfit_wizard.png`, `beastfit_demon.png`, `beastfit_dog.png`
+  (front three-quarter large, then front, back, left, right, top, three-quarter back; rest pose and frame 30; pieces
+  coloured by slot; the rottweiler his reference).
+- **Open**: the fiend's tweaks kept against the measure; the ogre's pauldrons (a dome on the body's axes over a band on the
+  arm) differ 5% left to right in his twisted rest pose; his headset look at all three.
 
 ## studioui: Armour Studio fixes: wear-alone, scale back to as made, X/Y/Z scale, subject place and tilt, ImGui IDs (branch agent/studioui, 2026-11-27)
 
