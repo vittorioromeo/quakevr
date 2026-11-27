@@ -1,6 +1,7 @@
 // vr_gunfx.cpp -- see vr_gunfx.hpp.
 
 #include "vr_ambient.hpp"
+#include "vr_seat.hpp"
 #include "vr_gunfx.hpp"
 #include "vr_gunvariants.hpp"
 #include "vr_adguns.hpp"
@@ -181,7 +182,15 @@ struct HandState
     int wid{-1};            // the gun's weapon id, its muzzle last placed (a gun leaving the hand smoking: LooseGun)
     glm::vec3 muzzle{0.f};
 };
-HandState hands[2];
+// split19: each seat's (seat::Part::GunFx): your hands' shots due and barrels' heat.
+struct GunFxSeat
+{
+    HandState hands[2];
+};
+[[nodiscard]] GunFxSeat& fxHands()
+{
+    return seat::part<GunFxSeat>(seat::current(), seat::Part::GunFx);
+}
 
 // The other players' barrels (syncfix5): heated by their shots (QVR_SVC_FIRED), cooling as yours (otherBarrelHeat).
 struct OtherHeat
@@ -1310,7 +1319,7 @@ void playerFired(int hand)
 {
     if(hand >= 0 && hand < 2)
     {
-        hands[hand].due = true;
+        fxHands().hands[hand].due = true;
     }
 }
 
@@ -1338,11 +1347,11 @@ BarrelHeat otherBarrelHeat(int ent, int hand, int slot)
 BarrelHeat barrelHeat(int hand, int slot)
 {
     BarrelHeat b;
-    if(hand < 0 || hand >= 2 || slot < 0 || hands[hand].slot != slot || !on(vr_gunfx) || !on(vr_gunfx_heat))
+    if(hand < 0 || hand >= 2 || slot < 0 || fxHands().hands[hand].slot != slot || !on(vr_gunfx) || !on(vr_gunfx_heat))
     {
         return b;
     }
-    b.heat = hands[hand].heat;
+    b.heat = fxHands().hands[hand].heat;
     b.share = za::clamp((b.heat - kHeatGlowFrom) / (1.f - kHeatGlowFrom), 0.f, 1.f);
     b.glow = heatGlow(b.heat);
     b.color = glm::mix(glm::vec3{0.8f, 0.12f, 0.03f}, glm::vec3{1.f, 0.42f, 0.1f}, b.share); // dull red to orange
@@ -1358,7 +1367,7 @@ BarrelHeat barrelHeat(int hand, int slot)
 
 void handFrame(int hand, const view::ViewEntity& w, int slot)
 {
-    HandState& h = hands[hand];
+    HandState& h = fxHands().hands[hand];
     const float dt = h.lastFrame >= 0.0 ? za::clamp(static_cast<float>(cl.time - h.lastFrame), 0.f, 0.1f) : 0.f;
     h.lastFrame = cl.time;
     if(slot != h.slot)
@@ -1532,9 +1541,9 @@ void clear()
     {
         s = Shooter{};
     }
-    for(HandState& h : hands)
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: split19)
     {
-        h = HandState{};
+        seat::part<GunFxSeat>(seat::at(i), seat::Part::GunFx) = GunFxSeat{};
     }
     for(auto& player : otherHeats)
     {

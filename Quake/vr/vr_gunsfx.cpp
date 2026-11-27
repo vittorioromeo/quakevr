@@ -1,6 +1,7 @@
 // vr_gunsfx.cpp -- see vr_gunsfx.hpp.
 
 #include "vr_gunsfx.hpp"
+#include "vr_seat.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_debris.hpp"
@@ -242,7 +243,15 @@ struct GunSfxState
     Pulse lastPulse[HAND_COUNT]{};
     Punch punches[HAND_COUNT]{};
 };
-GunSfxState state;
+// split19: each seat's (seat::Part::GunSfx): your guns' haptics and sounds.
+struct GunSfxSeat
+{
+    GunSfxState state;
+};
+[[nodiscard]] GunSfxSeat& sfxSeat()
+{
+    return seat::part<GunSfxSeat>(seat::current(), seat::Part::GunSfx);
+}
 
 [[nodiscard]] bool on()
 {
@@ -251,12 +260,12 @@ GunSfxState state;
 
 [[nodiscard]] float rand11()
 {
-    return vrand::lcg01(state.seed) * 2.f - 1.f;
+    return vrand::lcg01(sfxSeat().state.seed) * 2.f - 1.f;
 }
 
 void pulse(int hand, float seconds, float amplitude, float hz)
 {
-    Pulse& p = state.lastPulse[hand];
+    Pulse& p = sfxSeat().state.lastPulse[hand];
     p = {seconds, amplitude, hz, p.count + 1};
     haptics::pulse(hand, seconds, amplitude, hz);
 }
@@ -339,7 +348,7 @@ constexpr float smallRoom = 320.f; // units: the level rays' mean under it: a sm
 // The entity's room: probed again once it has moved 48 units or after 0.75 s.
 [[nodiscard]] Recent& recentFor(int ent, const glm::vec3& at)
 {
-    for(Recent& r : state.recent)
+    for(Recent& r : sfxSeat().state.recent)
     {
         if(r.ent == ent)
         {
@@ -352,8 +361,8 @@ constexpr float smallRoom = 320.f; // units: the level rays' mean under it: a sm
             return r;
         }
     }
-    Recent& r = state.recent[state.nextRecent];
-    state.nextRecent = (state.nextRecent + 1) % maxRecent;
+    Recent& r = sfxSeat().state.recent[sfxSeat().state.nextRecent];
+    sfxSeat().state.nextRecent = (sfxSeat().state.nextRecent + 1) % maxRecent;
     r = Recent{ent, at, cl.time, probeRoom(at), -1e9};
     return r;
 }
@@ -366,9 +375,9 @@ void startLayer(const char* name, int ent, int chan, const float* origin, float 
         return;
     }
     vec3_t org{origin[0], origin[1], origin[2]};
-    state.nested = true;
+    sfxSeat().state.nested = true;
     S_StartSoundPitch(ent, chan, sfx, org, za::min(vol, 2.f), atten, pitch);
-    state.nested = false;
+    sfxSeat().state.nested = false;
 }
 
 // A shot: varied, and its layers started with it.
@@ -380,7 +389,7 @@ void shot(const ShotSound& s, int entnum, int entchannel, const float* origin, f
         *pitch *= 1.f + rand11() * pct;
         *fvol *= 1.f + rand11() * pct * 0.5f;
     }
-    LastShot& last = state.lastShot;
+    LastShot& last = sfxSeat().state.lastShot;
     last = LastShot{s.name, nullptr, nullptr, nullptr, {}, *pitch, *fvol, last.count + 1};
 
     // The player's from the hand that fired (vr_audio.cpp handOf: CHAN_HAND, CHAN_HAND2), anyone else's from them.
@@ -424,7 +433,7 @@ void shot(const ShotSound& s, int entnum, int entchannel, const float* origin, f
 // An empty gun's click: its volume, a little higher or lower, a tick in the hand. 0: not played.
 int dryClick(int entnum, int entchannel, float* fvol, float* pitch)
 {
-    LastDry& d = state.lastDry;
+    LastDry& d = sfxSeat().state.lastDry;
     d = LastDry{-1, false, d.count + 1};
     const float v = za::clamp(vr_gunsfx_dryfire.value, 0.f, 2.f);
     if(v <= 0.f)
@@ -491,7 +500,7 @@ int dryClick(int entnum, int entchannel, float* fvol, float* pitch)
 
 void sendPunch(int hand)
 {
-    Punch& p = state.punches[hand];
+    Punch& p = sfxSeat().state.punches[hand];
     if(p.slot < 0)
     {
         return;
@@ -568,7 +577,7 @@ void fired(int hand)
         return;
     }
     const float share = weaponfx::twoHandRecoil(hand, slot).haptic;
-    state.punches[hand] = Punch{cl.time, slot, share};
+    sfxSeat().state.punches[hand] = Punch{cl.time, slot, share};
     sendPunch(hand); // (the spike on the shot's own frame)
     if(vr_debug_gunsfx.value)
     {
@@ -595,7 +604,7 @@ bool punchOwns(int hand)
     {
         return false;
     }
-    const Punch& p = state.punches[hand];
+    const Punch& p = sfxSeat().state.punches[hand];
     return p.slot >= 0 && cl.time - p.start <= 0.06 && cl.time >= p.start;
 }
 
@@ -609,13 +618,17 @@ void prepare()
 
 void clear()
 {
-    for(Recent& r : state.recent)
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: split19)
     {
-        r = Recent{};
-    }
-    for(Punch& p : state.punches)
-    {
-        p = Punch{};
+        GunSfxState& st = seat::part<GunSfxSeat>(seat::at(i), seat::Part::GunSfx).state;
+        for(Recent& r : st.recent)
+        {
+            r = Recent{};
+        }
+        for(Punch& p : st.punches)
+        {
+            p = Punch{};
+        }
     }
 }
 
@@ -633,7 +646,7 @@ extern "C" int VR_SndShot(int entnum, int entchannel, sfx_t* sfx, const float* o
     float* pitch)
 {
     using namespace qvr::gunsfx;
-    if(!on() || state.nested || !sfx)
+    if(!on() || sfxSeat().state.nested || !sfx)
     {
         return 1;
     }

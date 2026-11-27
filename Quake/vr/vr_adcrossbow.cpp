@@ -1,6 +1,7 @@
 // vr_adcrossbow.cpp -- see vr_adcrossbow.hpp.
 
 #include "vr_adcrossbow.hpp"
+#include "vr_seat.hpp"
 
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
@@ -73,7 +74,15 @@ struct Hand
     glm::vec3 firedCentre{0.f}, firedFwd{0.f}; // the bolt as the last shot left (vr_adgun_crossbow_info)
     bool boltIn{false};                        // its next bolt drawn (morphing in or there) last frame
 };
-Hand handState[2];
+// split19: each seat's (seat::Part::AdCrossbow): the crossbows' strings and bolts in your hands.
+struct AdCrossbowSeat
+{
+    Hand handState[2];
+};
+[[nodiscard]] AdCrossbowSeat& bowSeat()
+{
+    return seat::part<AdCrossbowSeat>(seat::current(), seat::Part::AdCrossbow);
+}
 
 // The next bolt's shimmer as it morphs in (Misc/quakevr/make_adweapon_sounds.py; vr_adgun_crossbow_bolt_sound).
 constexpr const char* boltSoundName = "vr/xbow_bolt_in.wav";
@@ -222,12 +231,12 @@ void info_f()
     hands::State& s = hands::current();
     for(int hand = 0; hand < 2; hand++)
     {
-        if(!handState[hand].held)
+        if(!bowSeat().handState[hand].held)
         {
             Con_Printf("crossbow hand %d: not held (or no bow frames)\n", hand);
             continue;
         }
-        const Hand& h = handState[hand];
+        const Hand& h = bowSeat().handState[hand];
         Con_Printf("crossbow hand %d: shot %.3f s ago, clip %d\n", hand, h.shotAt < 0.0 ? -1.0 : cl.time - h.shotAt,
             clipOf(hand));
         if(!s.muzzleValid[hand])
@@ -293,17 +302,17 @@ glm::vec3 framePoint(int frame, int v, const glm::vec3& p)
 
 void fired(int hand)
 {
-    if(hand >= 0 && hand < 2 && handState[hand].held)
+    if(hand >= 0 && hand < 2 && bowSeat().handState[hand].held)
     {
-        handState[hand].shotAt = cl.time;
-        handState[hand].firedCentre = handState[hand].centre;
-        handState[hand].firedFwd = handState[hand].fwd;
+        bowSeat().handState[hand].shotAt = cl.time;
+        bowSeat().handState[hand].firedCentre = bowSeat().handState[hand].centre;
+        bowSeat().handState[hand].firedFwd = bowSeat().handState[hand].fwd;
     }
 }
 
 glm::vec3 launchOffset(int hand)
 {
-    return hand >= 0 && hand < 2 && handState[hand].held ? handState[hand].launch : glm::vec3{0.f};
+    return hand >= 0 && hand < 2 && bowSeat().handState[hand].held ? bowSeat().handState[hand].launch : glm::vec3{0.f};
 }
 
 void frame(view::ViewEntity (&weapons)[2], view::ViewEntity (&bolts)[2])
@@ -315,7 +324,7 @@ void frame(view::ViewEntity (&weapons)[2], view::ViewEntity (&bolts)[2])
         view::ViewEntity& b = bolts[hand];
         b.visible = false;
         w.poseFrame[0] = w.poseFrame[1] = -1;
-        Hand& h = handState[hand];
+        Hand& h = bowSeat().handState[hand];
         const bool bow = w.visible && isBow(w.ent.model);
         if(!bow || vr_adgun_crossbow_anim.value == 0.f)
         {
@@ -374,9 +383,9 @@ void frame(view::ViewEntity (&weapons)[2], view::ViewEntity (&bolts)[2])
 
 void clear()
 {
-    for(Hand& h : handState)
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: split19)
     {
-        h = Hand{};
+        seat::part<AdCrossbowSeat>(seat::at(i), seat::Part::AdCrossbow) = AdCrossbowSeat{};
     }
     known = Known{};
 }

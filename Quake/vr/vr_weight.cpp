@@ -21,6 +21,7 @@
 // Each of these settings is also times the thing's own (Load::tune: Weapon Weights, Held Object Weights).
 
 #include "vr_modelmetadata.hpp"
+#include "vr_seat.hpp"
 #include "vr_weight_internal.hpp"
 #include "vr_box3d.hpp"
 #include "vr_progs.hpp"
@@ -86,7 +87,6 @@ constexpr float jumpSpeed = 20.f;       // m/s: a hand's target moving faster ju
 constexpr const char* flashlightModel = "progs/vrflashlight.mdl";
 constexpr const char* emptyHandModel = "empty hand";
 
-Body bodies[2];
 
 // Wrenched out (vr_weight_drop): each hand's controller turns over the last moments (the grip pose as tracked, the
 // play space's turn taken out), on the poses' clock (hands::State::poseTime, the headset's frames' times; the frames' dt
@@ -101,7 +101,6 @@ struct Wrench
     double poseTime{-1.0}; // the last frame's hands::State::poseTime
     double until{-1.0};   // vr_gametime: the move says "wrenched out" until then (the server reads it once a frame)
 };
-Wrench wrenches[2];
 constexpr double wrenchLatch = 0.15; // seconds (as the chainsaw's pull)
 constexpr double jumpLatch = 0.05;   // seconds: put back in the hand (a move or two)
 constexpr float wrenchJump = 90.f * 72.f; // degrees a second (90 a 72 Hz frame): tracking lost and found, not a hand
@@ -115,10 +114,28 @@ struct MassCache
     unsigned generation{0}; // props::settingsGeneration: a Size or Mass x changed while held weighs it again
     float mass{0.f};
 };
-MassCache massCache[2];
+// split19: each seat's (seat::Part::Weight): the hands' weights' springs, wrenches and held masses.
+struct WeightSeat
+{
+    Body bodies[2];
+    Wrench wrenches[2];
+    MassCache massCache[2];
+};
+[[nodiscard]] WeightSeat& wSeat()
+{
+    return seat::part<WeightSeat>(seat::current(), seat::Part::Weight);
+}
 
-float easedShare = 0.f; // staminaShare's, eased
-double easedAt = -1.0;
+// split19: each seat's (seat::Part::WeightEase): the weights' eased share.
+struct WeightEaseSeat
+{
+    double easedAt = -1.0;
+    float easedShare = 0.f; // staminaShare's, eased
+};
+[[nodiscard]] WeightEaseSeat& wEase()
+{
+    return seat::part<WeightEaseSeat>(seat::current(), seat::Part::WeightEase);
+}
 
 } // namespace
 namespace detail
@@ -171,7 +188,7 @@ namespace
     {
         return setting;
     }
-    MassCache& c = massCache[hand];
+    MassCache& c = wSeat().massCache[hand];
     const unsigned generation = props::settingsGeneration();
     if(c.ent == ent && c.model == model && c.setting == setting && c.generation == generation)
     {
@@ -689,7 +706,7 @@ namespace
 // the play space's turn taken out: the stick's turning and walking don't count, nor does the spring's lag).
 void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, float dt)
 {
-    Wrench& w = wrenches[h];
+    Wrench& w = wSeat().wrenches[h];
     const double posed = s.poseTime - w.poseTime;
     const double step = w.poseTime >= 0.0 && s.poseTime >= 0.0 && posed >= 0.0 && posed < 0.25 ? posed : static_cast<double>(dt);
     w.poseTime = s.poseTime;
@@ -748,19 +765,19 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
 za::U8 dropBits()
 {
     za::U8 bits = 0;
-    if(vr_gametime < wrenches[HAND_OFF].until)
+    if(vr_gametime < wSeat().wrenches[HAND_OFF].until)
     {
         bits |= 1; // QC VR_HANDDROP_OFF
     }
-    if(vr_gametime < wrenches[HAND_MAIN].until)
+    if(vr_gametime < wSeat().wrenches[HAND_MAIN].until)
     {
         bits |= 2; // VR_HANDDROP_MAIN
     }
-    if(vr_gametime < bodies[HAND_OFF].jumpUntil)
+    if(vr_gametime < wSeat().bodies[HAND_OFF].jumpUntil)
     {
         bits |= 4; // VR_HANDJUMP_OFF
     }
-    if(vr_gametime < bodies[HAND_MAIN].jumpUntil)
+    if(vr_gametime < wSeat().bodies[HAND_MAIN].jumpUntil)
     {
         bits |= 8; // VR_HANDJUMP_MAIN
     }
@@ -800,19 +817,19 @@ float staminaCurve(float left)
 
 float staminaShare()
 {
-    if(easedAt == vr_gametime)
+    if(wEase().easedAt == vr_gametime)
     {
-        return easedShare;
+        return wEase().easedShare;
     }
     const float target = staminaShareFor(fatigue::staminaLeft());
-    const float dt = easedAt >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - easedAt, 0.0, 0.25)) : 1.f;
-    easedAt = vr_gametime;
-    easedShare = target + (easedShare - target) * za::exp(-dt / 0.25f);
-    if(za::fabs(easedShare - target) < 1e-4f)
+    const float dt = wEase().easedAt >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - wEase().easedAt, 0.0, 0.25)) : 1.f;
+    wEase().easedAt = vr_gametime;
+    wEase().easedShare = target + (wEase().easedShare - target) * za::exp(-dt / 0.25f);
+    if(za::fabs(wEase().easedShare - target) < 1e-4f)
     {
-        easedShare = target; // (settled exactly: unchanged at 0)
+        wEase().easedShare = target; // (settled exactly: unchanged at 0)
     }
-    return easedShare;
+    return wEase().easedShare;
 }
 
 float staminaMultiplier()
@@ -834,7 +851,7 @@ Load load(int hand)
 
 Offset offset(int hand)
 {
-    return hand == 0 || hand == 1 ? bodies[hand].off : Offset{};
+    return hand == 0 || hand == 1 ? wSeat().bodies[hand].off : Offset{};
 }
 
 // Heavy handling ------------------------------------------------------------------------------------------------------
@@ -907,7 +924,7 @@ void heavyKick(int hand)
     {
         return;
     }
-    Body& b = bodies[hand];
+    Body& b = wSeat().bodies[hand];
     const Load l = computeLoad(hand, nullptr);
     const float speed = l.valid && b.active ? kickSpeed(l.slot, l.twoHanded) : 0.f;
     if(speed <= 0.f)
@@ -932,7 +949,7 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
     const glm::vec3 base = s.playerOrigin + s.lean;
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        Body& b = bodies[h];
+        Body& b = wSeat().bodies[h];
         const glm::vec3 xt = hands::rotateYaw(s.pos[h] - base, -turnYaw) / m2u;
         glm::quat qt = quatFromAngles(s.rot[h] - glm::vec3{0.f, turnYaw, 0.f});
         Load l = computeLoad(h, &s);
@@ -1222,16 +1239,11 @@ float leniency(float mass)
 
 void reset()
 {
-    for(Body& b : bodies)
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: split19)
     {
-        b = Body{};
+        seat::part<WeightSeat>(seat::at(i), seat::Part::Weight) = WeightSeat{};
+        seat::part<WeightEaseSeat>(seat::at(i), seat::Part::WeightEase) = WeightEaseSeat{};
     }
-    for(MassCache& c : massCache)
-    {
-        c = MassCache{};
-    }
-    easedShare = 0.f;
-    easedAt = -1.0;
 }
 
 } // namespace qvr::weight

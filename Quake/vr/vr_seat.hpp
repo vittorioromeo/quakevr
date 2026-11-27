@@ -111,6 +111,17 @@ enum class Part
     Flashlight,    // vr_flashlight.cpp: the seat's torch (state, visible beam, cord), switched by its own key
     NailSlide,     // vr_nailslide.cpp: the slides of the nail pistols in the seat's own hands
     DrawBlend,     // vr_drawblend.cpp: the seat's hands' and holsters' draws eased, the guns its hands caught
+    // split19: the rest of the hands' and their weapons' drawn state.
+    HandPose,      // vr_handpose.cpp: the hands' memories, walls and strikes, the frames' clock
+    GunFx,         // vr_gunfx.cpp: the hands' shots due and barrels' heat
+    WeaponFx,      // vr_weaponfx.cpp: the hands' kicks, streams and flashes
+    Weight,        // vr_weight.cpp: the hands' weights' springs, wrenches and held masses
+    WeightEase,    // vr_weight.cpp: the weights' eased share
+    AutoPump,      // vr_autopump.cpp: the auto pump's strokes of the seat's shotguns
+    AdCrossbow,    // vr_adcrossbow.cpp: the crossbows' strings and bolts in the seat's hands
+    AdSpins,       // vr_adweapons.cpp: the Widowmaker's barrels' spins in the seat's hands, as drawn
+    AdMotor,       // vr_adweapons.cpp: the Widowmaker's motor sound
+    GunSfx,        // vr_gunsfx.cpp: the seat's guns' haptics and sounds
     Count
 };
 

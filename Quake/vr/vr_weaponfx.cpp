@@ -1,6 +1,7 @@
 // vr_weaponfx.cpp -- see vr_weaponfx.hpp.
 
 #include "vr_animrec.hpp"
+#include "vr_seat.hpp"
 #include "vr_testkit.hpp"
 #include "vr_kickcancel.hpp"
 #include "vr_random.hpp"
@@ -97,7 +98,15 @@ constexpr float streamSideways = 1.2f;
 constexpr float streamHapticAmplitude = 0.4f;
 constexpr float streamHapticHz = 40.f;
 constexpr float streamHapticSeconds = 0.12f;
-HandFx handFx[2];
+// split19: each seat's (seat::Part::WeaponFx): your hands' kicks, streams and flashes.
+struct WeaponFxSeat
+{
+    HandFx handFx[2];
+};
+[[nodiscard]] WeaponFxSeat& fxSeat()
+{
+    return seat::part<WeaponFxSeat>(seat::current(), seat::Part::WeaponFx);
+}
 
 // The AD gun variant `hand` holds (vr_adgunart.cpp), else -1.
 [[nodiscard]] int heldVariant(int hand)
@@ -327,7 +336,7 @@ struct RecoilAmount
 
 void forget(int hand)
 {
-    HandFx& h = handFx[hand];
+    HandFx& h = fxSeat().handFx[hand];
     h = HandFx{};
 }
 
@@ -349,7 +358,7 @@ void playerFired(int hand)
     weight::heavyKick(hand); // heavy handling: a heavy weapon fired in one hand kicks up (the aim with it)
     gunsfx::fired(hand);     // its haptic punch (vr_gunsfx.cpp)
     gunfx::playerFired(hand); // its sparks and smoke at its drawn muzzle (vr_gunfx.cpp: at frame)
-    HandFx& h = handFx[hand];
+    HandFx& h = fxSeat().handFx[hand];
     if(h.slot != slot)
     {
         forget(hand);
@@ -395,7 +404,7 @@ void streamed(int hand)
     {
         return;
     }
-    HandFx& h = handFx[hand];
+    HandFx& h = fxSeat().handFx[hand];
     if(h.slot != slot)
     {
         forget(hand);
@@ -797,7 +806,7 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
 {
     pos = glm::vec3{0.f};
     angles = glm::vec3{0.f};
-    HandFx& h = handFx[hand];
+    HandFx& h = fxSeat().handFx[hand];
     float lanceKick = 0.f, lanceSideways = 0.f;
     lancecharge::shake(hand, lanceKick, lanceSideways); // (the Crystal Lance charging, and as it fires: lance3)
     if(lanceKick > 0.f && weapons::heldSlot(hand) >= 0 && h.slot != weapons::heldSlot(hand))
@@ -1013,7 +1022,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
     // The hands' weapons.
     for(int hand = 0; hand < 2; hand++)
     {
-        HandFx& h = handFx[hand];
+        HandFx& h = fxSeat().handFx[hand];
         view::ViewEntity& fve = flashes[hand];
         fve.visible = false;
         const view::ViewEntity& w = weapons[hand];
@@ -1248,8 +1257,10 @@ void prepare()
 
 void clear()
 {
-    forget(HAND_OFF);
-    forget(HAND_MAIN);
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: split19)
+    {
+        seat::part<WeaponFxSeat>(seat::at(i), seat::Part::WeaponFx) = WeaponFxSeat{};
+    }
     for(EnemyFlash& f : enemyFlashes)
     {
         f = EnemyFlash{};
@@ -1411,7 +1422,7 @@ void returnTest(const Check& check)
     const auto tipAt = [&](float t)
     {
         forget(hand);
-        HandFx& h = handFx[hand];
+        HandFx& h = fxSeat().handFx[hand];
         h.slot = held;
         h.kicks[0] = Kick{cl.time - static_cast<double>(t), 1.f, 1.f, kickSeconds(held), 0.5f};
         glm::vec3 pos, angles;
@@ -1475,7 +1486,7 @@ void smoothTest(const Check& check)
         {
             const float t = static_cast<float>(k) / rate;
             forget(hand);
-            HandFx& h = handFx[hand];
+            HandFx& h = fxSeat().handFx[hand];
             h.slot = held;
             h.kicks[0] = Kick{cl.time - static_cast<double>(t), 1.f, 1.f, duration, 0.f};
             glm::vec3 pos, angles;
@@ -1513,7 +1524,7 @@ void twoHandTest(const Check& check)
     const auto drawnAt = [&](float support, float t, float& back)
     {
         forget(hand);
-        HandFx& h = handFx[hand];
+        HandFx& h = fxSeat().handFx[hand];
         h.slot = held;
         h.kicks[0] = shotKick(held, adguns::FireFeel{}, twoHandShare(held, support));
         h.kicks[0].time = cl.time - static_cast<double>(t);
@@ -1638,8 +1649,8 @@ void axisTest(const Check& check)
     const auto drawn = [&](const glm::vec3& at, float sideways, glm::vec3& pos, glm::vec3& angles)
     {
         forget(hand);
-        handFx[hand].slot = held;
-        handFx[hand].kicks[0] = Kick{cl.time - 0.05, 1.f, 1.f, 0.15f, sideways};
+        fxSeat().handFx[hand].slot = held;
+        fxSeat().handFx[hand].kicks[0] = Kick{cl.time - 0.05, 1.f, 1.f, 0.15f, sideways};
         recoilOffset(hand, at, pos, angles);
         forget(hand);
     };
@@ -1736,8 +1747,8 @@ void streamTest(const Check& check)
     const double clock = cl.time;
     forget(hand);
     streamed(hand);
-    check(handFx[hand].slot == held && handFx[hand].streamStart == clock, "a flame starts the held weapon's stream (s)",
-        static_cast<float>(handFx[hand].streamStart - clock), 0.f);
+    check(fxSeat().handFx[hand].slot == held && fxSeat().handFx[hand].streamStart == clock, "a flame starts the held weapon's stream (s)",
+        static_cast<float>(fxSeat().handFx[hand].streamStart - clock), 0.f);
     // A second of flames every 0.1 s, a frame at a time (1/72 s).
     float tipMin = 1e9f, tipMax = -1e9f, backMax = 0.f, turnMax = 0.f;
     int shaken = 0;
@@ -1765,10 +1776,10 @@ void streamTest(const Check& check)
     Con_Printf("vr_recoil_test: stream shake: %.2f..%.2f degrees up, %.2f cm back, %.2f degrees turned at most\n", tipMin,
         tipMax, backMax, turnMax);
     const float settle = kickSeconds(held);
-    cl.time = handFx[hand].streamLast + static_cast<double>(streamHold + settle) + 0.01;
+    cl.time = fxSeat().handFx[hand].streamLast + static_cast<double>(streamHold + settle) + 0.01;
     glm::vec3 posEnd, angEnd;
     recoilOffset(hand, glm::vec3{0.f}, posEnd, angEnd);
-    check(glm::length(posEnd) == 0.f && angEnd.x == 0.f && handFx[hand].streamStart < 0.0,
+    check(glm::length(posEnd) == 0.f && angEnd.x == 0.f && fxSeat().handFx[hand].streamStart < 0.0,
         "settled after the last flame (a kick's time)", -angEnd.x, 0.f);
     cl.time = clock;
     Cvar_SetValueQuick(shakeVar, 0.f);
@@ -1829,7 +1840,7 @@ void recoilTest_f()
     const auto drawn = [&](glm::vec3& pos, glm::vec3& angles)
     {
         forget(hand);
-        HandFx& h = handFx[hand];
+        HandFx& h = fxSeat().handFx[hand];
         h.slot = held;
         h.kicks[0] = Kick{cl.time - 0.05, 1.f, 1.f, 0.15f, 0.5f};
         recoilOffset(hand, glm::vec3{0.f}, pos, angles);

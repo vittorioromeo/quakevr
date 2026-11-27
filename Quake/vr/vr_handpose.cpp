@@ -46,6 +46,7 @@
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
 #include "vr_api.h"
+#include "vr_seat.hpp"
 
 
 namespace qvr::handpose
@@ -65,12 +66,6 @@ struct HandMemory
     bool slid{false};           // and held out of the walls there
 };
 
-HandMemory memory[2];
-bool colliding[2]{false, false};
-glm::vec3 wallPushes[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // how far resolvePositions moved each hand (vr_debug_hand_offset)
-double lastTime = -1.0;
-float frameDt = 0.f;
-bool newFrame = false; // the hands may be recomputed within a frame: the weight's spring advances once
 
 // A strike let past the level (strikeLength): how long it still lasts after the hand slowed, how far it is let in
 // (1 all the way, eased back to 0), and the body it was going for.
@@ -80,7 +75,22 @@ struct StrikePass
     float level{0.f};
     int target{0};
 };
-StrikePass strikePasses[HAND_COUNT];
+// split19: each seat's (seat::Part::HandPose): its hands' memories, walls and strikes, and its frames' clock. One set had
+// seat 2's hands placed from seat 1's last positions, and seat 2's frame (the same vr_gametime) never a new one.
+struct PoseSeat
+{
+    HandMemory memory[2];
+    bool colliding[2]{false, false};
+    glm::vec3 wallPushes[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // how far resolvePositions moved each hand (vr_debug_hand_offset)
+    double lastTime = -1.0;
+    float frameDt = 0.f;
+    bool newFrame = false; // the hands may be recomputed within a frame: the weight's spring advances once
+    StrikePass strikePasses[HAND_COUNT];
+};
+[[nodiscard]] PoseSeat& ps()
+{
+    return seat::part<PoseSeat>(seat::current(), seat::Part::HandPose);
+}
 constexpr float strikePassEase = 0.15f; // s from let in to held out whole again
 
 // Sweeps the hand's point from `from` to `to`. When it hits, `pos` stops along the axes the hit plane
@@ -346,9 +356,9 @@ bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const za::Vector<glm::vec3>& p
 // floor reached the floor first and was pushed back up, its cut missing; the game's blow is judged where it is held.
 float strikeLength(int h, const hands::State& s, const glm::vec3& pos)
 {
-    StrikePass& p = strikePasses[h];
+    StrikePass& p = ps().strikePasses[h];
     const float keep = za::clamp(vr_melee_world_pass_length.value, 0.f, 1.f);
-    const float dt = newFrame ? frameDt : 0.f;
+    const float dt = ps().newFrame ? ps().frameDt : 0.f;
     const float speed = glm::length(s.vel[h]);
     int target = 0;
     if(keep < 1.f && speed >= za::max(vr_melee_world_pass_speed.value, 0.1f) && shape[h].size() > 1)
@@ -358,7 +368,7 @@ float strikeLength(int h, const hands::State& s, const glm::vec3& pos)
         {
             reach = za::max(reach, glm::length(o));
         }
-        const glm::vec3 ahead = s.vel[h] * (units::metresToUnits() * za::max(frameDt, 1.f / 90.f));
+        const glm::vec3 ahead = s.vel[h] * (units::metresToUnits() * za::max(ps().frameDt, 1.f / 90.f));
         const float grow = za::max(vr_melee_world_pass_reach.value, 0.f);
         glm::vec3 lo{1e9f}, hi{-1e9f};
         for(const glm::vec3& o : shape[h])
@@ -578,9 +588,9 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
     // On the real clock, every frame: cl.time moves in steps with the server's messages (72 Hz, or
     // 48 and 72 by turns at 144 fps), so a weight stepped on it moved the hands in uneven jerks that
     // the server's melee read as a wrist speeding up and slowing down (up to half again at 144 fps).
-    frameDt = lastTime >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - lastTime, 0.0, 0.1)) : 0.f;
-    newFrame = vr_gametime != lastTime;
-    lastTime = vr_gametime;
+    ps().frameDt = ps().lastTime >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - ps().lastTime, 0.0, 0.1)) : 0.f;
+    ps().newFrame = vr_gametime != ps().lastTime;
+    ps().lastTime = vr_gametime;
 
     // The upper torso: the body's chest (kept within the player's box), or 40 units above where
     // the hands are measured from.
@@ -600,7 +610,7 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
     glm::vec3 gunPush[HAND_COUNT]{glm::vec3{0.f}, glm::vec3{0.f}};
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        HandMemory& m = memory[h];
+        HandMemory& m = ps().memory[h];
         glm::vec3 pos = s.pos[h];
         // (A hand on a blade in a body: its place says how the blade slides. A body dying is no monster to the stop above for the moment
         // its box is still solid, and a stop that comes and goes, a hand inside that box, read as a tug that pulled it out.)
@@ -610,7 +620,7 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
         // The weapon (and what the hand holds) must not go through walls either: from where it was placed last frame.
         // However it is held: by its handle, or carried off it (by a hotspot, anywhere on it, after the hand-off), its
         // shape is its drawn model's in the frame of the hand holding or carrying it.
-        colliding[h] = false;
+        ps().colliding[h] = false;
         glm::vec3 tip{0.f};
         if(m.valid && lastTip(s, h, tip))
         {
@@ -627,7 +637,7 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
                     o *= length; // (the hand's own point, the first, stays at the hand)
                 }
             }
-            colliding[h] = gunOutOfWalls(m, pos, shape[h]);
+            ps().colliding[h] = gunOutOfWalls(m, pos, shape[h]);
             gunPush[h] = pos - before;
         }
         else
@@ -656,7 +666,7 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
             pos = torso + glm::normalize(pos - torso) * maxReach;
         }
 
-        wallPushes[h] = pos - s.pos[h];
+        ps().wallPushes[h] = pos - s.pos[h];
         s.pos[h] = pos;
         m.lastPos = pos;
         m.valid = true;
@@ -670,8 +680,8 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
         if(glm::dot(gunPush[h], gunPush[h]) > 0.f && twohand::carrying(h) && twohand::freeHelping(other))
         {
             s.pos[other] += gunPush[h];
-            wallPushes[other] += gunPush[h];
-            memory[other].lastPos = s.pos[other];
+            ps().wallPushes[other] += gunPush[h];
+            ps().memory[other].lastPos = s.pos[other];
         }
     }
 }
@@ -680,22 +690,22 @@ void weightDirections(hands::State& s, float turnYaw)
 {
     // What each hand holds follows it through its spring (vr_weight.cpp); the muzzle placed from where it has the hand
     // (the walls' test next frame).
-    weight::spring(s, turnYaw, frameDt, newFrame);
+    weight::spring(s, turnYaw, ps().frameDt, ps().newFrame);
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        memory[h].lastPos = s.pos[h];
-        hands::angleVectors(s.rot[h], memory[h].lastFwd, memory[h].lastRight, memory[h].lastUp);
+        ps().memory[h].lastPos = s.pos[h];
+        hands::angleVectors(s.rot[h], ps().memory[h].lastFwd, ps().memory[h].lastRight, ps().memory[h].lastUp);
     }
 }
 
 bool gunColliding(int hand)
 {
-    return colliding[hand];
+    return ps().colliding[hand];
 }
 
 glm::vec3 wallPush(int hand)
 {
-    return hand == 0 || hand == 1 ? wallPushes[hand] : glm::vec3{0.f};
+    return hand == 0 || hand == 1 ? ps().wallPushes[hand] : glm::vec3{0.f};
 }
 
 constexpr float offMost = 32.f; // gunWallDepth_f: how far off a wall it looks (units)
@@ -791,7 +801,7 @@ void gunWallDepth_f()
         // (Short: one console line. in: points in the level of all; out: the hand held out by the walls; hand in: the hand
         // itself; reach: its farthest point from the hand.)
         Con_Printf("gunwall: %s %s in %d/%d deep %.1fcm out %.1fcm hand in %.1fcm at %.0f %.0f %.0f reach %.0f %.0f %.0f\n",
-            name, how, inside, static_cast<int>(pts.size()), deepest * cm, glm::length(wallPushes[h]) * cm, depthOf(from) * cm,
+            name, how, inside, static_cast<int>(pts.size()), deepest * cm, glm::length(ps().wallPushes[h]) * cm, depthOf(from) * cm,
             from.x, from.y, from.z, reach.x, reach.y, reach.z);
         fistLine(h, gunOff * cm, eye * cm);
     }
@@ -801,12 +811,10 @@ void gunWallDepth_f()
 
 void reset()
 {
-    for(HandMemory& m : memory)
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: split19)
     {
-        m = HandMemory{};
+        seat::part<PoseSeat>(seat::at(i), seat::Part::HandPose) = PoseSeat{};
     }
-    colliding[0] = colliding[1] = false;
-    lastTime = -1.0;
     weight::reset();
 }
 

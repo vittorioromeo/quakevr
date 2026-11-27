@@ -90,9 +90,9 @@ void test_f()
         sfx_t* sfx = S_PrecacheSound(s.name);
         const int thumps = playing(thumpNames[s.kind]);
         float vol = 1.f, pitch = 1.f;
-        const int before = state.lastShot.count;
+        const int before = sfxSeat().state.lastShot.count;
         (void)VR_SndShot(cl.viewentity, 1, sfx, org, &vol, 1.f, &pitch);
-        const LastShot& l = state.lastShot;
+        const LastShot& l = sfxSeat().state.lastShot;
         const bool ok = l.count == before + 1 && l.thump == thumpNames[s.kind] && l.mech == s.mech && l.tail &&
                         (!sound || playing(thumpNames[s.kind]) > thumps);
         if(!ok)
@@ -105,9 +105,9 @@ void test_f()
     check(missing == 0, "every shot's layers and tail started (%d shots short)", missing);
     {
         float vol = 1.f, pitch = 1.f;
-        const int before = state.lastShot.count;
+        const int before = sfxSeat().state.lastShot.count;
         (void)VR_SndShot(cl.viewentity, 2, S_PrecacheSound("weapons/guncock.wav"), org, &vol, 1.f, &pitch);
-        check(state.lastShot.count == before, "a shot's sound on another channel (CHAN_VOICE) layers nothing");
+        check(sfxSeat().state.lastShot.count == before, "a shot's sound on another channel (CHAN_VOICE) layers nothing");
     }
 
     // 2. The variation: within 4 % (the volume 2 %), not all alike; none at 0.
@@ -181,7 +181,7 @@ void test_f()
             float vol = 1.f, pitch = 1.f;
             const float o[3] = {at[i].x, at[i].y, at[i].z};
             (void)VR_SndShot(cl.viewentity, 1, sg, o, &vol, 1.f, &pitch);
-            tails[i] = state.lastShot.tail;
+            tails[i] = sfxSeat().state.lastShot.tail;
         }
         Con_Printf("%s: small room at %.0f %.0f %.0f: %s; outdoors at %.0f %.0f %.0f: %s\n", N, smallAt.x, smallAt.y,
             smallAt.z, tails[0] ? tails[0] : "-", outAt.x, outAt.y, outAt.z, tails[1] ? tails[1] : "-");
@@ -214,15 +214,15 @@ void test_f()
     // 5. The dry click: a tick in the hand that clicked; silent at 0.
     {
         sfx_t* click = S_PrecacheSound(dryClickName);
-        const int pulses = state.lastPulse[HAND_OFF].count;
+        const int pulses = sfxSeat().state.lastPulse[HAND_OFF].count;
         float vol = 1.f, pitch = 1.f;
         const int played = VR_SndShot(cl.viewentity, SND_CHAN_HAND2, click, org, &vol, 1.f, &pitch);
-        check(played == 1 && state.lastDry.hand == HAND_OFF && state.lastPulse[HAND_OFF].count == pulses + 1 &&
-                state.lastPulse[HAND_OFF].amplitude > 0.f,
+        check(played == 1 && sfxSeat().state.lastDry.hand == HAND_OFF && sfxSeat().state.lastPulse[HAND_OFF].count == pulses + 1 &&
+                sfxSeat().state.lastPulse[HAND_OFF].amplitude > 0.f,
             "an empty gun's click plays, a tick in its hand (the off hand)");
         Cvar_SetQuick(&vr_gunsfx_dryfire, "0");
         vol = 1.f, pitch = 1.f;
-        check(VR_SndShot(cl.viewentity, SND_CHAN_HAND, click, org, &vol, 1.f, &pitch) == 0 && state.lastDry.silenced,
+        check(VR_SndShot(cl.viewentity, SND_CHAN_HAND, click, org, &vol, 1.f, &pitch) == 0 && sfxSeat().state.lastDry.silenced,
             "dry fire 0: no click");
         Cvar_SetQuick(&vr_gunsfx_dryfire, "1");
     }
@@ -275,13 +275,13 @@ void test_f()
             Cvar_SetValueQuick(weapons::cvar(held, Key::HapticPunch), 0.f);
             check(punchAt(held, 0.f).amplitude == 0.f, "Haptic Punch 0: no punch");
         }
-        state.punches[HAND_MAIN] = Punch{};
-        const int pulses = state.lastPulse[HAND_MAIN].count;
+        sfxSeat().state.punches[HAND_MAIN] = Punch{};
+        const int pulses = sfxSeat().state.lastPulse[HAND_MAIN].count;
         fired(HAND_MAIN);
-        check(state.lastPulse[HAND_MAIN].count == pulses + 1 && state.lastPulse[HAND_MAIN].amplitude == peak0 &&
+        check(sfxSeat().state.lastPulse[HAND_MAIN].count == pulses + 1 && sfxSeat().state.lastPulse[HAND_MAIN].amplitude == peak0 &&
                 punchOwns(HAND_MAIN),
-            "a shot sends its spike at once (%.2f) and holds back the flat buzz", state.lastPulse[HAND_MAIN].amplitude);
-        state.punches[HAND_MAIN] = Punch{};
+            "a shot sends its spike at once (%.2f) and holds back the flat buzz", sfxSeat().state.lastPulse[HAND_MAIN].amplitude);
+        sfxSeat().state.punches[HAND_MAIN] = Punch{};
     }
 
     // 7. An action's sound from the action; the shot from the muzzle; none with the setting off.
@@ -294,9 +294,9 @@ void test_f()
     Cvar_SetQuick(&vr_gunsfx, "0");
     {
         float vol = 1.f, pitch = 1.f;
-        const int before = state.lastShot.count;
+        const int before = sfxSeat().state.lastShot.count;
         (void)VR_SndShot(cl.viewentity, 1, sg, org, &vol, 1.f, &pitch);
-        check(state.lastShot.count == before && vol == 1.f && pitch == 1.f, "vr_gunsfx 0: the shot alone, as it was");
+        check(sfxSeat().state.lastShot.count == before && vol == 1.f && pitch == 1.f, "vr_gunsfx 0: the shot alone, as it was");
     }
     clear();
     t.verdict(N);

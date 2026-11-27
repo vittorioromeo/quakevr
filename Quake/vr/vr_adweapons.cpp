@@ -1,6 +1,7 @@
 // vr_adweapons.cpp -- see vr_adweapons.hpp. AD support.
 
 #include "vr_mdlbuild.hpp"
+#include "vr_seat.hpp"
 #include "vr_bytes.hpp"
 #include "vr_adweapons.hpp"
 
@@ -2366,7 +2367,6 @@ struct Spin
     bool held{false};
     glm::vec3 topFront{0.f}, axisFront{0.f}; // as drawn last: the top barrel's front middle, the spin axis's front (info)
 };
-Spin spins[2];
 
 // Each hand's weapon as spinFrame saw it last (vr_ad_widowmaker_spin_info, when not held).
 struct Drawn
@@ -2374,7 +2374,16 @@ struct Drawn
     bool visible{false};
     const qmodel_t* model{nullptr};
 };
-Drawn drawn[2];
+// split19: each seat's (seat::Part::AdSpins): the Widowmaker's barrels' spins in your hands, as drawn.
+struct AdSpinsSeat
+{
+    Spin spins[2];
+    Drawn drawn[2];
+};
+[[nodiscard]] AdSpinsSeat& spinSeat()
+{
+    return seat::part<AdSpinsSeat>(seat::current(), seat::Part::AdSpins);
+}
 bool artLoaded = false; // the Widowmaker's model read last was the hand-made one (derivedFile)
 
 // The Widowmaker drawn (its spin frames), checked once a model (and again when it is read anew: vr_model_reload keeps
@@ -2540,7 +2549,15 @@ struct Motor
     float wanted[2]{0.f, 0.f}; // the volume the spin asked for last (heard or not: the tests run without sound)
     double lastTime[2]{-1.0, -1.0};
 };
-Motor motor;
+// split19: each seat's (seat::Part::AdMotor): the Widowmaker's motor sound.
+struct AdMotorSeat
+{
+    Motor motor;
+};
+[[nodiscard]] AdMotorSeat& motorSeat()
+{
+    return seat::part<AdMotorSeat>(seat::current(), seat::Part::AdMotor);
+}
 
 [[nodiscard]] int motorChannel(int hand)
 {
@@ -2550,15 +2567,15 @@ Motor motor;
 // The channel still playing `hand`'s motor (another sound may have taken it since), or null. The mix done (S_MixJoin).
 [[nodiscard]] channel_t* motorPlaying(int hand)
 {
-    channel_t* ch = motor.ch[hand];
-    return ch && motor.sfx && ch->sfx == motor.sfx && ch->entnum == cl.viewentity && ch->entchannel == motorChannel(hand)
+    channel_t* ch = motorSeat().motor.ch[hand];
+    return ch && motorSeat().motor.sfx && ch->sfx == motorSeat().motor.sfx && ch->entnum == cl.viewentity && ch->entchannel == motorChannel(hand)
                ? ch
                : nullptr;
 }
 
 void motorStop(int hand)
 {
-    if(motor.ch[hand])
+    if(motorSeat().motor.ch[hand])
     {
         S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
         if(channel_t* ch = motorPlaying(hand))
@@ -2566,33 +2583,33 @@ void motorStop(int hand)
             ch->sfx = nullptr;
         }
     }
-    motor.ch[hand] = nullptr;
-    motor.volume[hand] = 0.f;
+    motorSeat().motor.ch[hand] = nullptr;
+    motorSeat().motor.volume[hand] = 0.f;
 }
 
 // Every frame: `hand`'s motor as its barrels spin (`s`; not held: at rest), at `share` of Motor Volume (the super
 // nailgun's vr_sng_motor).
 void motorFrame(int hand, const Spin& s, float share = 1.f)
 {
-    const float dt = motor.lastTime[hand] >= 0.0 ? za::clamp(static_cast<float>(cl.time - motor.lastTime[hand]), 0.f, 0.1f) : 0.f;
-    motor.lastTime[hand] = cl.time;
+    const float dt = motorSeat().motor.lastTime[hand] >= 0.0 ? za::clamp(static_cast<float>(cl.time - motorSeat().motor.lastTime[hand]), 0.f, 0.1f) : 0.f;
+    motorSeat().motor.lastTime[hand] = cl.time;
     const float top = spinTop();
     const float u = s.held && top > 0.f ? za::clamp(s.speed / top, 0.f, 1.f) : 0.f;
     const float full = za::clamp(vr_ad_widowmaker_motor.value * za::max(share, 0.f), 0.f, 1.f);
     float volume = cl.paused ? 0.f : full * za::min(1.f, u * 1.25f);
-    if(volume < motor.volume[hand] && !s.held) // (gone at once: a short fade, not a cut)
+    if(volume < motorSeat().motor.volume[hand] && !s.held) // (gone at once: a short fade, not a cut)
     {
-        volume = za::max(volume, motor.volume[hand] - full * dt / motorRelease);
+        volume = za::max(volume, motorSeat().motor.volume[hand] - full * dt / motorRelease);
     }
-    motor.wanted[hand] = volume;
-    if(!motor.sfx || volume < motorRest || cl.viewentity <= 0)
+    motorSeat().motor.wanted[hand] = volume;
+    if(!motorSeat().motor.sfx || volume < motorRest || cl.viewentity <= 0)
     {
         motorStop(hand);
         return;
     }
     if(s.held)
     {
-        motor.pitch[hand] = motorPitchLow + (1.f - motorPitchLow) * u;
+        motorSeat().motor.pitch[hand] = motorPitchLow + (1.f - motorPitchLow) * u;
     }
     S_MixJoin(); // (a read of the channels on the main thread: the pool's mix done first, S_MixKick)
     channel_t* ch = motorPlaying(hand);
@@ -2600,28 +2617,28 @@ void motorFrame(int hand, const Spin& s, float share = 1.f)
     {
         vec3_t org;
         VectorCopy(cl_entities[cl.viewentity].origin, org);
-        S_StartSoundPitch(cl.viewentity, motorChannel(hand), motor.sfx, org, volume, 1.f, motor.pitch[hand]); // (ATTN_NORM)
-        motor.ch[hand] = nullptr;
+        S_StartSoundPitch(cl.viewentity, motorChannel(hand), motorSeat().motor.sfx, org, volume, 1.f, motorSeat().motor.pitch[hand]); // (ATTN_NORM)
+        motorSeat().motor.ch[hand] = nullptr;
         for(int i = 0; i < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; i++)
         {
             channel_t& c = snd_channels[i];
-            if(c.sfx == motor.sfx && c.entnum == cl.viewentity && c.entchannel == motorChannel(hand))
+            if(c.sfx == motorSeat().motor.sfx && c.entnum == cl.viewentity && c.entchannel == motorChannel(hand))
             {
-                motor.ch[hand] = &c;
+                motorSeat().motor.ch[hand] = &c;
                 break;
             }
         }
-        ch = motor.ch[hand];
+        ch = motorSeat().motor.ch[hand];
         if(!ch)
         {
-            motor.volume[hand] = 0.f; // (no sound system, or not heard: tried again next frame)
+            motorSeat().motor.volume[hand] = 0.f; // (no sound system, or not heard: tried again next frame)
             return;
         }
     }
     ch->master_vol = static_cast<int>(volume * 255.f);
-    ch->pitch = motor.pitch[hand];
+    ch->pitch = motorSeat().motor.pitch[hand];
     ch->resampled = 1; // (its end reckoned again at the new rate: snd_mix.c)
-    motor.volume[hand] = volume;
+    motorSeat().motor.volume[hand] = volume;
 }
 
 } // namespace
@@ -2630,7 +2647,7 @@ void fired(int hand)
 {
     if(hand == HAND_MAIN || hand == HAND_OFF)
     {
-        spins[hand].lastShot = cl.time;
+        spinSeat().spins[hand].lastShot = cl.time;
     }
 }
 
@@ -2639,9 +2656,9 @@ void spinFrame(view::ViewEntity (&weapons)[2])
     for(int hand = 0; hand < 2; hand++)
     {
         view::ViewEntity& w = weapons[hand];
-        Spin& s = spins[hand];
-        drawn[hand].visible = w.visible;
-        drawn[hand].model = w.ent.model;
+        Spin& s = spinSeat().spins[hand];
+        spinSeat().drawn[hand].visible = w.visible;
+        spinSeat().drawn[hand].model = w.ent.model;
         if(!w.visible || !spinsBarrels(w.ent.model))
         {
             s = Spin{};
@@ -2693,15 +2710,22 @@ void spinFrame(view::ViewEntity (&weapons)[2])
 
 void clear()
 {
-    for(Spin& s : spins)
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: split19)
     {
-        s = Spin{};
+        for(Spin& s : seat::part<AdSpinsSeat>(seat::at(i), seat::Part::AdSpins).spins)
+        {
+            s = Spin{};
+        }
+        for(double& t : seat::part<AdMotorSeat>(seat::at(i), seat::Part::AdMotor).motor.lastTime)
+        {
+            t = -1.0;
+        }
     }
     spinModel = SpinModel{};
     for(int hand = 0; hand < 2; hand++)
     {
         motorStop(hand);
-        motor.lastTime[hand] = -1.0;
+        motorSeat().motor.lastTime[hand] = -1.0;
     }
 }
 
@@ -2713,7 +2737,7 @@ mem::Reset clientStateReset{"adweapons", mem::ResetEvent::ClientState, mem::Rese
 
 void prepare()
 {
-    motor.sfx = S_PrecacheSound(motorSoundName);
+    motorSeat().motor.sfx = S_PrecacheSound(motorSoundName);
 }
 
 void spinInfo_f()
@@ -2721,17 +2745,17 @@ void spinInfo_f()
     hands::State& hs = hands::current();
     for(int hand = 0; hand < 2; hand++)
     {
-        const Spin& s = spins[hand];
+        const Spin& s = spinSeat().spins[hand];
         if(!s.held)
         {
-            const qmodel_t* m = drawn[hand].model;
+            const qmodel_t* m = spinSeat().drawn[hand].model;
             const auto* hdr = m && m->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m))) : nullptr;
             Con_Printf("widowmaker spin hand %d: not held (or no spin frames): drawn %s, visible %d, %d frames%s%s\n", hand,
-                m ? m->name : "nothing", drawn[hand].visible ? 1 : 0, hdr ? hdr->numframes : 0,
+                m ? m->name : "nothing", spinSeat().drawn[hand].visible ? 1 : 0, hdr ? hdr->numframes : 0,
                 hdr && hdr->numframes > frameCount ? ", frame 9 " : "", hdr && hdr->numframes > frameCount ? hdr->frames[frameCount].name : "");
             continue;
         }
-        (void)spinsBarrels(drawn[hand].model); // (this hand's model the one asked about: its barrels, its rate)
+        (void)spinsBarrels(spinSeat().drawn[hand].model); // (this hand's model the one asked about: its barrels, its rate)
         if(spinModel.ownFrames)
         {
             const float k = s.phase / ownFramesStep;
@@ -2740,8 +2764,8 @@ void spinInfo_f()
                 hand, s.phase, s.speed, spinTop(), s.coasting ? ", coasting" : "", static_cast<int>(k) % ownFramesTurn,
                 (static_cast<int>(k) + 1) % ownFramesTurn, k - static_cast<float>(static_cast<int>(k)), client::attacking(hand) ? 1 : 0);
             Con_Printf("  motor: %s, volume %.2f (wanted %.2f), pitch %.2f\n",
-                !motor.sfx ? "no sound" : motor.ch[hand] ? "playing" : "stopped", motor.volume[hand], motor.wanted[hand],
-                motor.pitch[hand]);
+                !motorSeat().motor.sfx ? "no sound" : motorSeat().motor.ch[hand] ? "playing" : "stopped", motorSeat().motor.volume[hand], motorSeat().motor.wanted[hand],
+                motorSeat().motor.pitch[hand]);
             Con_Printf("  model: the super nailgun (its own firing frames), %d barrels (%.0f deg a shot), at rest %s\n",
                 spinModel.barrels, barrelStep(), !s.coasting && s.speed <= 0.f && fmodf(s.phase, barrelStep()) < 0.01f ? "yes" : "no");
             continue;
@@ -2752,8 +2776,8 @@ void spinInfo_f()
             hand, s.phase, s.speed, spinTop(), s.coasting ? ", coasting" : "", frameCount + static_cast<int>(k) % spinPoses,
             frameCount + (static_cast<int>(k) + 1) % spinPoses, k - static_cast<float>(static_cast<int>(k)),
             client::attacking(hand) ? 1 : 0, s.lastShot < 0.0 ? -1.0 : cl.time - s.lastShot);
-        Con_Printf("  motor: %s, volume %.2f, pitch %.2f\n", !motor.sfx ? "no sound" : motor.ch[hand] ? "playing" : "stopped",
-            motor.volume[hand], motor.pitch[hand]);
+        Con_Printf("  motor: %s, volume %.2f, pitch %.2f\n", !motorSeat().motor.sfx ? "no sound" : motorSeat().motor.ch[hand] ? "playing" : "stopped",
+            motorSeat().motor.volume[hand], motorSeat().motor.pitch[hand]);
         Con_Printf("  model: %s, %d barrels (%.0f deg a shot), at rest %s\n",
             spinModel.dwell ? "Dwell's Rotary Shotgun (made from Dwell's)"
             : artLoaded     ? "hand-made (progs/v_widowmaker.mdl)"

@@ -27,6 +27,11 @@
 #include "vr_mpavatar.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
+#include "vr_gunfx.hpp"
+#include "vr_move.hpp"
+#include "vr_weaponfx.hpp"
+#include "vr_weapons.hpp"
+#include "vr_server.hpp"
 #include "vr_text3d.hpp"
 #include "vr_trace.hpp"
 #include "vr_weapon_ids.h"
@@ -133,6 +138,8 @@ struct RenderTest
     float gunFar[maxSeats] = {};    // the farthest it was from that hand
     int gunChanges[maxSeats] = {};  // its pose changed from the frame before
     za::U32 gunLast[maxSeats] = {};
+    float gunHeat[maxSeats] = {};   // split19: its barrel's heat at most (vr_gunfx), as its seat's state has it
+    float gunKick[maxSeats] = {};   // ... its recoil's kick at most (vr_weaponfx: units + degrees)
     float frameRate = 0.f; // split18: vr_fixed_frames_rate before the anim run set its own (0: not set)
 } renderTest;
 
@@ -948,6 +955,11 @@ void readGuns()
         t.gunNear[s] += off < gunHandReach ? 1 : 0;
         t.gunChanges[s] += t.gunRead > 1 && g.hash != t.gunLast[s] ? 1 : 0;
         t.gunLast[s] = g.hash;
+        // split19: the hand's shot effects as this seat has them (its own shots alone)
+        t.gunHeat[s] = za::max(t.gunHeat[s], gunfx::barrelHeat(h, weapons::heldSlot(h)).heat);
+        glm::vec3 kickPos{0.f}, kickAng{0.f};
+        weaponfx::recoilOffset(h, glm::vec3{0.f}, kickPos, kickAng);
+        t.gunKick[s] = za::max(t.gunKick[s], glm::length(kickPos) + glm::length(kickAng));
     }
 }
 
@@ -958,7 +970,7 @@ void gunsGo(const Step s)
     for(int i = 0; i < maxSeats; i++)
     {
         t.gunDrawn[i] = t.gunNear[i] = t.gunChanges[i] = 0;
-        t.gunFar[i] = 0.f;
+        t.gunFar[i] = t.gunHeat[i] = t.gunKick[i] = 0.f;
         t.gunLast[i] = 0;
     }
     go(s);
@@ -979,6 +991,11 @@ void checkGuns(const char* what)
     check(t.gunChanges[0] > 0 && t.gunChanges[1] == 0,
         va("%s: seat 1 firing animates its own nail pistol alone (%d pose changes; seat 2's idle one %d)", what, t.gunChanges[0],
             t.gunChanges[1]));
+    // split19: seat 1's shots kick and heat its own gun alone (vr_weaponfx's and vr_gunfx's hands are each seat's)
+    check(t.gunKick[0] > 0.f && t.gunKick[1] == 0.f && t.gunHeat[1] == 0.f,
+        va("%s: seat 1's shots kick its own gun alone (kick %.2f; seat 2's %.2f), seat 2's barrel cold (heat %.2f; seat 1's %.2f)",
+            what, static_cast<double>(t.gunKick[0]), static_cast<double>(t.gunKick[1]), static_cast<double>(t.gunHeat[1]),
+            static_cast<double>(t.gunHeat[0])));
 }
 
 void animGo(const Step s)
@@ -1264,6 +1281,30 @@ void testFrame()
                 va("%s: seat 1's torch %s, seat 2's lit, each at its own player (%d %d; %.0f %.0f units)",
                     both ? "seat 1 switched on too" : "seat 2 switched its flashlight on", both ? "lit" : "still off",
                     lit[0] ? 1 : 0, lit[1] ? 1 : 0, static_cast<double>(off[0]), static_cast<double>(off[1])));
+            // split19: the monsters' eyes (QC VR_Stealth_Beam reads flashlightbeam(player): the move his client sent) see
+            // each seat's torch on its own player, as its client lit it.
+            bool sees[2] = {};
+            float seenOff[2] = {-1.f, -1.f};
+            for(int s = 0; s < 2; s++)
+            {
+                const clientseat_t* n = CL_SeatNetIfMade(s);
+                if(!sv.active || !n || n->cstate.viewentity <= 0 || n->cstate.viewentity > svs.maxclients)
+                {
+                    continue;
+                }
+                edict_t* player = svs.clients[n->cstate.viewentity - 1].edict; // (no VM switched in here: not EDICT_NUM)
+                const VrMove* move = server::clientMove(player);
+                sees[s] = move && move->lampLit;
+                if(sees[s])
+                {
+                    seenOff[s] = glm::distance(move->lampLens, glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]});
+                }
+            }
+            const bool seenNear = (!sees[0] || seenOff[0] < torchReach) && (!sees[1] || seenOff[1] < torchReach);
+            check(sees[0] == lit[0] && sees[1] == lit[1] && seenNear,
+                va("%s: the server's monsters see seat 1's torch %s and seat 2's %s, each at its own player (%.0f %.0f units)",
+                    both ? "both lit" : "seat 2's lit", sees[0] ? "lit" : "off", sees[1] ? "lit" : "off",
+                    static_cast<double>(seenOff[0]), static_cast<double>(seenOff[1])));
             if(!both)
             {
                 Cbuf_AddText("seat 1 vr_flashlight_toggle\n");

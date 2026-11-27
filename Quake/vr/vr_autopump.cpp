@@ -6,6 +6,7 @@
 // second (the slide slamming home) ahead of its end by its lead, so its loudest moment is the stroke's end.
 
 #include "vr_animrec.hpp"
+#include "vr_seat.hpp"
 #include "vr_autopump.hpp"
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
@@ -48,7 +49,15 @@ struct Stroke
     bool endLogged{false};
 };
 
-Stroke strokes[2];
+// split19: each seat's (seat::Part::AutoPump): the auto pump's strokes of your shotguns.
+struct AutoPumpSeat
+{
+    Stroke strokes[2];
+};
+[[nodiscard]] AutoPumpSeat& pumpSeat()
+{
+    return seat::part<AutoPumpSeat>(seat::current(), seat::Part::AutoPump);
+}
 // The other players' shotguns' strokes (syncfix5): from each one's shot (QVR_SVC_FIRED), timed as yours, their clacks
 // heard at his copy's gun, its fore-end drawn stroking (otherTravel, mpopen).
 Stroke otherStrokes[MAX_SCOREBOARD + 1][2]; // seat-shared: other players' copies, by player (the effects: phase 7)
@@ -208,7 +217,7 @@ void fired(int hand)
     {
         return;
     }
-    Stroke& s = strokes[hand];
+    Stroke& s = pumpSeat().strokes[hand];
     begin(s);
     animrec::event("pump", hand, va("auto: back from %.2f s to %.2f s after the shot", s.start - s.shot,
         s.start - s.shot + s.time)); // (recorded while the animation recorder runs)
@@ -229,7 +238,7 @@ float travel(int hand)
     {
         return position(za::min(vr_autopump_hold.value, 0.9999f)) * strokeTravel();
     }
-    const Stroke& s = strokes[hand];
+    const Stroke& s = pumpSeat().strokes[hand];
     return s.start >= 0.0 ? position(progress(s)) * s.travel : 0.f;
 }
 
@@ -253,7 +262,7 @@ bool rearTime(int hand, double shot, double& rear, float& backSpeed)
     {
         return false;
     }
-    const Stroke& s = strokes[hand];
+    const Stroke& s = pumpSeat().strokes[hand];
     if(s.start < 0.0 || s.shot < shot - shotWindow || s.shot > shot + shotWindow)
     {
         return false;
@@ -267,7 +276,7 @@ void frame(const bool (&isShotgun)[2], const float (&where)[2][3])
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        step(strokes[hand], hand, true, isShotgun[hand], where[hand]);
+        step(pumpSeat().strokes[hand], hand, true, isShotgun[hand], where[hand]);
     }
     // The other players' (syncfix5): at his copy's gun while it is drawn (still a shotgun: the shot's own model check).
     for(int ent = 1; ent <= MAX_SCOREBOARD; ent++)
@@ -297,9 +306,9 @@ void prepare()
 
 void clear()
 {
-    for(Stroke& s : strokes)
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: split19)
     {
-        s = Stroke{};
+        seat::part<AutoPumpSeat>(seat::at(i), seat::Part::AutoPump) = AutoPumpSeat{};
     }
     for(auto& player : otherStrokes)
     {
