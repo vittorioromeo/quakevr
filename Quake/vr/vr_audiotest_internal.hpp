@@ -51,6 +51,17 @@ struct Render
     za::Vector<float> l, r;
 };
 
+// A sound loaded as S_LoadSound does (snd_mem.c): Quake's held samples at the mix's rate, and the band-limited copy
+// after them (VR_SndBandLimit).
+struct Loaded
+{
+    za::Vector<unsigned char> bytes;
+    [[nodiscard]] const sfxcache_t* cache() const
+    {
+        return reinterpret_cast<const sfxcache_t*>(bytes.data());
+    }
+};
+
 // Octave levels (dB, both ears' power) of 1-2, 2-4, 4-8 and 8-16 kHz over 4096 samples from `from`: Goertzel at six
 // frequencies an octave, Hann-windowed, averaged over 4 windows.
 struct Octaves
@@ -100,5 +111,7 @@ void testHands(Result& res);
 void bench(Result& res);
 void testFullBand(Result& res);
 void testGolden(Result& res);
+Loaded loadRaw(const unsigned char* raw, int inrate, int samples, int width, int loopstart);
+void testOwn(Result& res);
 
 } // namespace qvr::audio::testkit

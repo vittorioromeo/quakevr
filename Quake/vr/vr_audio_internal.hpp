@@ -268,6 +268,7 @@ void sceneObj_f();
 void play_f();
 void dump_f();
 void playDir_f();
+void playOwn_f();
 void burst_f();
 void benchFinish();
 void benchFrame();

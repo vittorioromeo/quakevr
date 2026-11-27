@@ -406,6 +406,7 @@ QVR_CVAR(vr_snd_occlusion_radius, "0.5", CVAR_ARCHIVE) // m, the sphere a sound 
 QVR_CVAR(vr_snd_air, "1", CVAR_ARCHIVE)               // far sounds lose their highs in the air
 QVR_CVAR(vr_snd_falloff, "0.75", CVAR_ARCHIVE)        // Quake's distance falloff, scaled (1 Quake's; 0.75 the author's, a bit further; 0.5: sounds carry twice as far; 0 none): every sound, spatial or not
 QVR_CVAR(vr_snd_reverb, "0.5", CVAR_ARCHIVE)          // the room's reverb, simulated from the map where the head is: wet mix (0 off)
+QVR_CVAR(vr_snd_reverb_own, "0.25", CVAR_ARCHIVE)     // your own gun's and hands' sounds (from the hand) in the room's reverb: a share of any other sound's (1 the same; 0.25: a shot's crack over the room's wash, not buried in it, as with a gun in your hand; ROUND26.md "muffled")
 QVR_CVAR(vr_snd_reverb_quality, "1", CVAR_ARCHIVE)    // 0 parametric (cheapest), 1 convolution (2 s of the simulated response), 2 convolution (3 s, more rays)
 QVR_CVAR(vr_snd_reverb_interval, "0.25", CVAR_ARCHIVE) // s between the room's simulations (a pool task)
 QVR_CVAR(vr_snd_pitch_jitter, "10", CVAR_ARCHIVE)     // percent: the most frequent sounds (blows, swings, squishes, knocks, casings, footsteps) each played up to this much higher or lower at random (0 off)

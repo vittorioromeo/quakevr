@@ -1035,6 +1035,7 @@ void ikStretchReset()
         row(opt::vr_snd_air),
         row(opt::vr_snd_falloff),
         row(opt::vr_snd_reverb),
+        row(opt::vr_snd_reverb_own),
         row(opt::vr_snd_reverb_quality),
         row(opt::vr_snd_reverb_interval),
         row(opt::snd_waterfx),
