@@ -1155,3 +1155,53 @@ so each seat's frame or pass overwrote or undid the other's.
 - **Left**: the rig's live lerps and published bones (vr_rig2_game.cpp `lerps`, vr_rig2.cpp `drawn`) stay by entity
   number, posed again in each seat's relink (the same messages give the same poses; a cost, not a fault). The
   monsters' stealth (server side) sees only seat 1's torch beam (`flashlight::beamNow` reads the current seat's).
+
+## 28. Split19 (2026-11-27): the rest of the hands' state per seat, next merged
+
+### How to try it (for him)
+
+1. As before (`qvr-kit/scratch/play_splitscreen.ps1`), Multiplayer > Splitscreen, A on the controller, Start.
+2. **The same gun in both seats, firing** (vrtesthall or e1m1 with `impulse 9`): both take the nail pistol, then the
+   shotgun, then the super nailgun. Fire long bursts in seat 1 only: seat 2's gun must not kick, glow hot, smoke, puff from
+   its vents or pump (the shotgun's auto pump). Then fire in seat 2 only: the same the other
+   way. Then Y on the pad (seat 2's gun in its left hand) and fire in each seat again: each gun keeps its own kick and heat.
+3. **AD's weapons** (`-game ad`): the Widowmaker in both seats, seat 1 firing: only seat 1's barrels spin and only its
+   motor hums; the crossbow in both seats: firing in one seat leaves the other's string drawn and bolt loaded.
+4. **Heavy weapons and walls**: both seats hold a heavy weapon (the rocket launcher) and turn and walk; each seat's gun
+   lags and settles by its own weight. Push each seat's gun into a wall: each stops at its own wall.
+5. **Monsters and torches**: seat 2 alone switches its flashlight on (d-pad right) and points it at a sleeping grunt in
+   the dark: the grunt wakes to seat 2's beam (vr_stealth 1).
+
+### What changed
+
+- **The monsters' eyes**: they already saw every seat's torch. QC `VR_Stealth_Beam` asks `flashlightbeam(player)` for each
+  player, which reads the move his own client sent (`server::clientMove`); each seat's client sends its own move, and since
+  split18 `flashlight::beamNow` reads that seat's lamp (`Part::Flashlight` holds the beam as last lit). Section 27's "Left"
+  note, that they saw only seat 1's, misread this: no code change was needed. The guns run now checks it on the server.
+- **New `seat::Part`s** (10): `HandPose` (vr_handpose.cpp: the hands' memories of last frame's places and turns, the gun
+  held out of the walls, the wall pushes, the strikes let past, and the frames' clock: on one clock, seat 2's frame had the
+  same vr_gametime as seat 1's, so it was never a new frame and its weights' springs never moved), `GunFx` (vr_gunfx.cpp
+  `hands`: a shot due, the barrel's heat, the vents' and exhaust's smoke owed), `WeaponFx` (vr_weaponfx.cpp `handFx`: the
+  recoil's kicks, the flame's stream, the muzzle flash), `Weight` and `WeightEase` (vr_weight.cpp: the heavy guns'
+  springs, the wrench, the held masses, the eased share), `AutoPump` (vr_autopump.cpp `strokes`), `AdCrossbow`
+  (vr_adcrossbow.cpp `handState`), `AdSpins` and `AdMotor` (vr_adweapons.cpp `spins`, `drawn`, `motor`), `GunSfx`
+  (vr_gunsfx.cpp `state`: the shot's sound layers and haptic punches). Before, a shot in one seat (QVR_SVC_FIRED read by
+  that seat's client) kicked and heated the other seat's gun in the same hand, and a seat with no gun in that hand forgot
+  the other seat's kick every frame (seat 1's kick read 0 with seat 2's gun in the other hand). Each file's clear resets
+  every seat's.
+- **Left shared on purpose**: the loose guns' smoke and the wisps (vr_muzzlewisps.cpp `hands`: hands 0-1 then the loose
+  guns, one table; the wisps are world effects both tiles draw; a seat's wisps follow that seat's muzzle while it holds the
+  gun, and both seats firing the same hand's gun at once can pull the wisps between the two muzzles), the hand shapes
+  (vr_handpose.cpp `shape`, rebuilt before each use), the model caches, the tracers and enemy flashes (world effects).
+  Other per-hand entries still on the allowlist (vr_wounds.cpp's hand blood, vr_blowline.cpp, vr_bodyblood.cpp,
+  vr_flamewobble.cpp, vr_view.cpp `handImpacts`/`unposedHands`, vr_teleport.cpp, vr_shock.cpp) are the next candidates.
+- **The merge**: 26 commits, 4 conflicting files (vr_flatgrenade.cpp's release shift, vr_flatsight.cpp's reach pull,
+  vr_twohand.cpp's flipped judicator grip, vr_view_hands.cpp's let-go ease): next's side through `gs()`, `st()`, `th()`,
+  `vh()`; next's new `GripSwitch::letGoBlend` went into the seat's `ViewHands` struct. Next's 5 new statics marked
+  seat-shared (vr_box3d_api.cpp's weapon centre memo, vr_gamedir.cpp's missing-install notice).
+- **seat_state**: 3,697 -> 3,677 allowlisted.
+- **Tests**: `vr_seat_render_test 2 guns` checks, with seat 1 firing, its gun's recoil kick > 0 and seat 2's 0, seat 2's
+  barrel heat 0 (same hand and different hands: before the fix 2 failures, seat 2's kick 5.45 and heat 0.13 in the same
+  hand, seat 1's kick 0 in different hands); and with each torch switched on, the server's move for each seat's player
+  lit as that seat's client lit it, its lens within 48 units of that player. Results: seat_render_test.sh 368/0,
+  seat_play_test.sh 63/0, split_join_test.sh 113/0, autopump_test.sh 14/0, gunfx_test.py --only player 16/0.

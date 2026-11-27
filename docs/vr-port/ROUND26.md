@@ -2656,3 +2656,10 @@ and `guns` runs at 144 frames a second. Details, how to try it and what's left: 
 - Open (not this branch's): `-game quakevr -game <mod>` with an empty mod folder fails e1m1 on next too
   ("Host_Error: Mod_LoadModel: progs/vrgrunt.mdl#plate0 not found", vr_agarmor.cpp derivedFile). The runtime `game <mod>`
   command and the Mods menu still switch to id1;<mod> without quakevr (unchanged).
+## split19: splitscreen: the rest of the hands' state each seat's, next merged (branch agent/split, 2026-11-27)
+
+The hands' shot effects and poses were one set for every seat: a shot in one seat kicked, heated and smoked the other
+seat's gun in the same hand, and seat 2's hands' weights never moved (its frame had the same clock as seat 1's). Ten new
+`seat::Part`s: HandPose, GunFx, WeaponFx, Weight, WeightEase, AutoPump, AdCrossbow, AdSpins, AdMotor, GunSfx. The
+monsters already saw each seat's torch (each seat's client sends its own beam); seat_render's `guns` run now checks
+that on the server, and checks each seat's kick and heat. Next merged (4 conflicts). Details: SPLITSCREEN.md section 28.
