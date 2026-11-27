@@ -180,6 +180,18 @@ struct FlatState
     double parryAskedAt[2]{-1e9, -1e9};
     double parryReachedAt[2]{-1e9, -1e9};
     int parries{0};              // guards raised this session (vr_flatplay_status)
+    // Both hands empty (flatfists, his words 2026-11-27): the left button's jabs, each hand in turn (vr_flat_jab_alternate),
+    // and the right button's crossed-arms guard (vr_flat_fist_guard_*): the hand the next jab is thrown with, a press not
+    // yet thrown (the guard still easing out), when the last one started; the guard's linear share (both hands at once),
+    // whether it is asked for, when it was last asked for, and the counts (vr_flatplay_status).
+    int jabNext{HAND_MAIN};
+    bool jabPending{false};
+    double jabAt{-1e9};
+    int jabs{0};
+    float fistGuard{0.f};
+    bool fistGuardWant{false};
+    double fistGuardAskedAt{-1e9};
+    int fistGuards{0};
     // The guard's blade grip (vr_flat_parry_blade: a sword's free hand on its blade near the tip in the guard): per holding
     // hand, the free hand's linear share of its way there (0..1; bladeShare eases it), whether it is asked for, and the
     // blade's point it was last carried to (bladePin; the status measures the hand from it).
@@ -1322,6 +1334,104 @@ void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
         at = rev >= 1.f ? revAt : glm::mix(at, revAt, rev);
         guard = rev >= 1.f ? revGuard : blendAngles(guard, revGuard, rev);
     }
+    s.pos[h] += (at - s.pos[h]) * share;
+    s.rot[h] = blendAngles(s.rot[h], guard, share);
+}
+
+// Both hands empty (flatfists, his words 2026-11-27: "When both hands are empty, LMB should alternate between left and right
+// jabs, RMB should parry (use the crossed arms pose, provide cvars/tunables to tweak it)"): no weapon in either hand and
+// nothing held in either (a prop, an item, a carried body, a stuck blade): the fists. A bot's hands are its AI's.
+[[nodiscard]] bool fistsOnly()
+{
+    return bot == nullptr && heldIn(HAND_MAIN) < 0 && heldIn(HAND_OFF) < 0 && !holdsThing(HAND_MAIN) && !holdsThing(HAND_OFF);
+}
+
+// The left button's jabs, thrown by each hand in turn (vr_flat_jab_alternate; 0: the left button the right hand's punch).
+[[nodiscard]] bool fistsJab()
+{
+    return vr_flat_jab_alternate.value != 0.f && fistsOnly();
+}
+
+// The right button's crossed-arms guard (vr_flat_fist_guard; 0: the right button the left hand's punch, as before).
+[[nodiscard]] bool fistsGuard()
+{
+    return vr_flat_fist_guard.value != 0.f && fistsOnly();
+}
+
+// The crossed-arms guard asked for this frame: the right button held in the game with both hands empty, neither hand on a
+// trip of its own (a punch: a jab drops the guard and it comes back up after; the shove, E's grab, the quick grenade, the
+// swap).
+[[nodiscard]] bool fistGuardAsked()
+{
+    if(!fistsGuard() || key_dest != key_game || !client::offhandButton() || flatswap::busy())
+    {
+        return false;
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        if(punching(h) || shoving(h) || flatfgrab::busy(h) || flatgrenade::busy(h))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// One frame's step of the crossed-arms guard's share (fs.fistGuard, linear, both hands at once): in over
+// vr_flat_fist_guard_in_time, out over _out_time (0: at once).
+void stepFistGuard(float dt)
+{
+    const bool want = fistGuardAsked();
+    if(want && !fs.fistGuardWant)
+    {
+        fs.fistGuardAskedAt = vr_gametime;
+        fs.fistGuards++;
+    }
+    fs.fistGuardWant = want;
+    const float time = za::clamp((want ? vr_flat_fist_guard_in_time : vr_flat_fist_guard_out_time).value, 0.f, 1.f);
+    const float step = time > 0.f ? dt / time : 1.f;
+    const float was = fs.fistGuard;
+    fs.fistGuard = za::clamp(fs.fistGuard + (want ? step : -step), 0.f, 1.f);
+    if(want && was < 1.f && fs.fistGuard >= 1.f && vr_flatplay_debug.value)
+    {
+        Con_Printf("flatfists: crossed-arms guard up, %.3f s after the button\n", vr_gametime - fs.fistGuardAskedAt);
+    }
+    if(!want && was > 0.f && fs.fistGuard <= 0.f && vr_flatplay_debug.value)
+    {
+        Con_Printf("flatfists: crossed-arms guard down\n");
+    }
+}
+
+// The crossed-arms guard over the rest just posed, by its share (eased both ways): each fist vr_flat_fist_guard_fwd ahead of
+// the eye, _up above it, _cross past the middle onto the other side (the forearms crossed in an X, the main fist
+// vr_flat_fist_guard_stagger further ahead so they lie on one another, not in one another), level with the view's yaw (a look
+// up or down keeps them before the chest and face), turned off the level look by _pitch (up), _yaw (in, across) and _roll.
+// The parry is the game's: the move's guard bits for both hands (handsource::guarding) are QC's crossed arms in flat play
+// (VR_Parry_FlatFists: what comes from the front, vr_flat_fist_guard_cone, its blow cut by _reduction, the push on you
+// by _push); the pose is also the headset's crossed arms (VR_Parry_ArmsCrossed: the wrists together, ahead, crossed).
+void fistGuardPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& eye, float yaw)
+{
+    const float share = geom::smooth01(fs.fistGuard);
+    if(share <= 0.f)
+    {
+        return;
+    }
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const auto units = [](const Tunable& t) { return za::clamp(t.value, -30.f, 30.f); };
+    const auto degrees = [](const Tunable& t) { return za::clamp(t.value, -90.f, 90.f); };
+    glm::vec3 levelFwd, levelRight, levelUp;
+    hands::angleVectors({0.f, yaw, 0.f}, levelFwd, levelRight, levelUp);
+    const float ahead = units(vr_flat_fist_guard_fwd) + (h == HAND_MAIN ? units(vr_flat_fist_guard_stagger) : 0.f);
+    glm::vec3 at = eye + levelFwd * ahead + levelUp * units(vr_flat_fist_guard_up) - levelRight * (side * units(vr_flat_fist_guard_cross));
+    const glm::vec3 d = at - root;
+    const float most = za::max(4.f, armSpan()) * 0.98f, len = glm::length(d);
+    if(len > most)
+    {
+        at = root + d * (most / len);
+    }
+    // (turnedHand: up by the pitch, out to its own side by the yaw (negative: in, across the body), rolled its top out.)
+    const glm::vec3 guard = turnedHand({0.f, yaw, 0.f},
+        {degrees(vr_flat_fist_guard_pitch), -degrees(vr_flat_fist_guard_yaw), degrees(vr_flat_fist_guard_roll)}, side);
     s.pos[h] += (at - s.pos[h]) * share;
     s.rot[h] = blendAngles(s.rot[h], guard, share);
 }
@@ -2618,9 +2728,49 @@ void shoveFrame()
 
 // The hand V punches with: the main hand, as it has always been; a prop in a fist is what V strikes with (the main hand's
 // first: vr_flat_prop_v), so a prop in the off hand beside a gun can be swung with V as with the right button.
+// One weapon held, in the off hand, the main hand empty (no weapon, no prop in its fist): V is that weapon's quick melee by
+// the off hand (flatfists, his item 9 2026-11-27: "When holding a single weapon in either hand V should always prioritize a
+// quick melee attack with that weapon"; before, the empty main hand's overhand blow). Both hands empty: the main hand's
+// (vr_flat_overhand_both: the two-fisted blow); a weapon in each: the main hand's.
 [[nodiscard]] int vKeyHand()
 {
-    return vr_flat_prop_v.value != 0.f && !propInFist(HAND_MAIN) && propInFist(HAND_OFF) ? HAND_OFF : HAND_MAIN;
+    if(vr_flat_prop_v.value != 0.f && !propInFist(HAND_MAIN) && propInFist(HAND_OFF))
+    {
+        return HAND_OFF;
+    }
+    return heldIn(HAND_OFF) >= 0 && heldIn(HAND_MAIN) < 0 && !propInFist(HAND_MAIN) ? HAND_OFF : HAND_MAIN;
+}
+
+// The left button's jab with both hands empty (vr_flat_jab_alternate): a press throws the next hand's (each hand in turn,
+// the right first), and held, one after another, vr_flat_jab_repeat apart (and never before the last one draws back: one hand
+// at a time). A press while the crossed-arms guard is still easing out waits for it (fs.jabPending): a jab from the guard's
+// pose would read slower than it is.
+void pollJab(bool lmb, bool fresh)
+{
+    if(fresh)
+    {
+        fs.jabPending = true;
+    }
+    if(!lmb && !fs.jabPending)
+    {
+        return;
+    }
+    const int h = fs.jabNext;
+    const bool repeatDue = vr_gametime - fs.jabAt >= static_cast<double>(za::max(0.f, vr_flat_jab_repeat.value));
+    if(fs.fistGuard > 0.f || flatgrenade::busy(h) || (!fs.jabPending && !repeatDue))
+    {
+        return;
+    }
+    const int before = fs.punches[h];
+    startPunch(h, fresh ? "the left button's jab" : "the left button's jab, held");
+    if(fs.punches[h] != before)
+    {
+        fs.jabPending = false;
+        fs.jabAt = vr_gametime;
+        fs.jabs++;
+        fs.jabNext = 1 - h;
+    }
+    // (Not thrown: the other hand's still out, or the guard easing out; a press stays asked for till it can be.)
 }
 
 // The keys, read from the keyboard state (Ctrl's bind is the one exception, named at the top of the file), and E and V
@@ -2654,8 +2804,23 @@ void pollKeys()
     {
         startPunch(vHand, "V", true);
     }
+    // Both hands empty: the left button's jabs, each hand in turn (vr_flat_jab_alternate); the hands' own buttons below not.
+    const bool jabs = fistsJab();
+    if(jabs)
+    {
+        pollJab(fire[HAND_MAIN], fire[HAND_MAIN] && !fs.keyFire[HAND_MAIN]);
+    }
+    else
+    {
+        fs.jabPending = false;
+        fs.jabNext = HAND_MAIN; // (the next series begins with the right)
+    }
     for(int h = 0; h < HAND_COUNT; h++)
     {
+        if(jabs && h == HAND_MAIN)
+        {
+            continue; // (the left button's: pollJab; the right button still the left hand's with vr_flat_fist_guard 0)
+        }
         // The fire button punches only with a weapon a swing strikes with; a gun's trigger fires the gun as it does now.
         // (Not a hand busy with the quick grenade: its fire button arms and throws it, vr_flatgrenade.cpp.)
         // (In the parry's guard, a melee weapon's fire button bashes from it: startBash, vr_flat_bash.)
@@ -3395,8 +3560,10 @@ namespace
         r.rmbAims = true;
         return r;
     }
+    // Both hands empty (flatfists, his words 2026-11-27): the left button's jab is each hand's in turn (pollKeys,
+    // vr_flat_jab_alternate) and the right button is the crossed-arms guard (vr_flat_fist_guard), which fires nothing.
     r.fire[HAND_MAIN] = lmb;
-    r.fire[HAND_OFF] = rmb;
+    r.fire[HAND_OFF] = rmb && !fistsGuard();
     return r;
 }
 
@@ -4850,6 +5017,11 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     {
         flatswim::step(static_cast<float>(dt), aim);
     }
+    // The crossed-arms guard's share (both hands empty, the right button: vr_flat_fist_guard_*), once a frame.
+    if(bot == nullptr && dt > 0.0)
+    {
+        stepFistGuard(static_cast<float>(dt));
+    }
 
     QVR_TRACY_SCOPE(zoneFlatPoseHands, "flat pose: hands");
     for(int h = 0; h < HAND_COUNT; h++)
@@ -5074,6 +5246,16 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         if(propSwing)
         {
             swingOverhead(); // (a prop in the fist: from the guard, back to it)
+        }
+        // Both hands empty: the right button's crossed-arms guard (vr_flat_fist_guard_*), over the rest (a jab drops it).
+        // Up (half way in and still asked for): both hands' guard bits, QC's crossed arms in flat play (VR_Parry_FlatFists).
+        if(bot == nullptr)
+        {
+            fistGuardPose(s, h, shoulder(s, h) + nudge, eye, aim.y);
+            if(fs.fistGuardWant && fs.fistGuard >= 0.5f)
+            {
+                handsource::guarding(h);
+            }
         }
         // The swimming stroke (vr_flatswim.cpp), over the rest and the melee poses; the wall, the sight, the reload, the
         // grabs and the swap come after it and take over.
@@ -5650,6 +5832,23 @@ void status_f()
             // (Where the fist and the tip are drawn: vr_flat_pole_hand_fwd / _up / _out move the fist alone.)
             Con_Printf("  spear places: fist at %.2f %.2f %.2f, tip at %.2f %.2f %.2f\n", fist.x, fist.y, fist.z, m.muzzle.x,
                 m.muzzle.y, m.muzzle.z);
+        }
+        // Both hands empty (flatfists): the left button's jabs and the right button's crossed-arms guard; the drawn hands'
+        // places (the main fist off the off fist along the level view's right: negative, crossed; their gap).
+        glm::vec3 fistAt[2];
+        glm::vec3 fistRot;
+        if(h == HAND_MAIN && (fistsOnly() || fs.fistGuard > 0.f) && view::drawnHandPose(HAND_MAIN, fistAt[0], fistRot) &&
+           view::drawnHandPose(HAND_OFF, fistAt[1], fistRot))
+        {
+            glm::vec3 lf, lr, lu;
+            hands::angleVectors({0.f, cl.viewangles[YAW], 0.f}, lf, lr, lu);
+            const glm::vec3 d = fistAt[0] - fistAt[1];
+            Con_Printf("  fists: jabs %d (alternate %g, next %s), guard %s, share %.2f (vr_flat_fist_guard %g; raised %d times); "
+                       "main fist off the off fist: right %.1f ahead %.1f up %.1f, gap %.1f\n",
+                fs.jabs, vr_flat_jab_alternate.value, fs.jabNext == HAND_MAIN ? "main" : "off",
+                fs.fistGuardWant ? "asked for" : "not asked for", static_cast<double>(geom::smooth01(fs.fistGuard)),
+                vr_flat_fist_guard.value, fs.fistGuards, static_cast<double>(glm::dot(d, lr)), static_cast<double>(glm::dot(d, lf)),
+                static_cast<double>(glm::dot(d, lu)), static_cast<double>(glm::length(d)));
         }
         // The melee parry's guard (vr_flat_parry_*): RMB held with one melee weapon.
         if(meleeIn(h) || fs.parry[h] > 0.f)
