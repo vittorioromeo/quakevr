@@ -215,9 +215,9 @@ bool restHand(int kind, int side, glm::quat& hand, glm::quat& grip);
 void clearErr();
 void printErr();
 // Tag `tag`'s reach numbers since the last clearErr (adposekind's key check): the right and left hands' grips most off
-// their goals and the off hand most off its second grip (units); false: nothing counted under it.
-bool reachErr(int tag, float& missR, float& missL, float& second);
-inline constexpr int numErrTags = 1024;
+// their goals and the off hand most off its second grip (units); `by` (two, may be null): each most's way, where the wrist
+// was brought less its goal (model space); false: nothing counted under it.
+bool reachErr(int tag, float& missR, float& missL, float& second, glm::vec3* by = nullptr);
 
 void registerCommands();
 // The models' skins and the entities' arms forgotten (a rig file reloaded: rig2::latch; made again as drawn).

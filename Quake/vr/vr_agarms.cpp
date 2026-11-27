@@ -148,6 +148,7 @@ struct Err
     float grow{0.f};          // ... the most an edge grew (units: a flap)
     float torso{0.f};         // the elbows and forearms inside the torso (units)
     float miss[2]{0.f, 0.f};  // the hands' grips off their goals (reach)
+    glm::vec3 missBy[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // ... the most's way (model space; adposekind's retarget)
     float second{0.f};        // the off hand off its second grip
     float slid{0.f};          // ... slid back along the weapon from its hotspot (out of its reach)
     float bend{0.f};          // the wrists' bend (degrees; the right, the left: bendL)
@@ -1128,6 +1129,7 @@ struct ArmOut
 {
     rigpose::Rigid U, F, H;
     float miss{0.f};  // the wrist's goal out of reach (units it was brought in)
+    glm::vec3 missBy{0.f}; // ... the way it was brought (model space: where the wrist went less its goal)
     float bend{0.f};  // the wrist's bend wanted (degrees)
     float turned{0.f}; // ... past its most: the hand turned back by this (degrees)
     glm::vec3 elbow{0.f};
@@ -1237,6 +1239,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
     {
         const glm::vec3 shift = S1 + dir0 * want - W1;
         o.miss = glm::length(shift);
+        o.missBy = shift;
         if(lim.debug >= 5.f && o.miss > (lim.debug >= 6.f ? 0.5f : 4.f)) // (6: the small ones too)
         {
             Con_Printf("agarms reach: side %d shoulder %.1f %.1f %.1f (on the chest %.1f %.1f %.1f) wrist wanted %.1f %.1f %.1f: %.1f "
@@ -1627,6 +1630,7 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
         const float gap = za::max(glm::length(rigpose::apply(b[0], eOn0) - rigpose::apply(b[1], sd.E)),
             glm::length(rigpose::apply(b[1], wOn1) - rigpose::apply(b[2], sd.W)));
         e.gap = za::max(e.gap, gap);
+        e.missBy[s] = arms[s].miss > e.miss[s] ? arms[s].missBy : e.missBy[s];
         e.miss[s] = za::max(e.miss[s], arms[s].miss);
         (s == 0 ? e.bend : e.bendL) = za::max(s == 0 ? e.bend : e.bendL, arms[s].bend - arms[s].turned); // (as drawn)
         // In the torso: the elbow, the forearm's middle.
@@ -3017,7 +3021,7 @@ void clearErr()
     }
 }
 
-bool reachErr(int tag, float& missR, float& missL, float& second)
+bool reachErr(int tag, float& missR, float& missL, float& second, glm::vec3* by)
 {
     if(tag < 0 || tag >= errTags || state.errs[tag].n == 0)
     {
@@ -3027,6 +3031,11 @@ bool reachErr(int tag, float& missR, float& missL, float& second)
     missR = e.miss[0];
     missL = e.miss[1];
     second = e.second;
+    if(by)
+    {
+        by[0] = e.missBy[0];
+        by[1] = e.missBy[1];
+    }
     return true;
 }
 

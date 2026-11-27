@@ -6,13 +6,16 @@
 // shotguns, two axes, the chainsaw) and, for each, every key its class has (VR_AGAP_Key: Carry, Aim, Run, the Pickup with a
 // weapon; the strikes' three phases: the punches, the swings (two held: the scissor too), the chainsaw's thrust; the
 // shove's), each held as the Pose Studio holds it (vr_agk_test_hold / _phase: VR_AGK_Hold, the studio's own path) until
-// its drawn hands are still (6 frames moving under 0.02), then its arms' numbers counted 4 frames under tag
-// row * 512 + set * 48 + key (vr_agrunt_ik_tag). The verdict is the engine's (vr_agrunt_ik_reach): each tag's hands
-// within VR_AGAP_TOL units of their grips on the weapon (reach short, the off hand off its second grip); QC's own checks
-// (a subject gone, a key never still) added. Ends on `adpose: N passed, M failed`.
+// its drawn hands are still (6 frames moving under 0.02; a key whose hold moves by itself, the run's bob, a punch's
+// jiggle: after 1 s as it is), then its arms' numbers counted 4 frames under tag row * 512 + set * 48 + key
+// (vr_agrunt_ik_tag) and read back (weapondrawnpose(world, tag, 54)): a check each, both hands within VR_AGAP_TOL units
+// of their grips on the weapon (reach short) and the off hand of its second grip. Ends on `adpose: test 231 over: N
+// passed, M failed`.
 
 float vr_agap_step;
-float vr_agap_row;   // 0 the death guard, 1 the crossbow knight
+float vr_agap_row;   // 0 the death guard, 1 the crossbow knight (from vr_agap_first)
+float vr_agap_first; // the first row (scratch1 n > 0: row n - 1 alone, a comparison: 3 the knight)
+float vr_agap_last;
 float vr_agap_set;
 float vr_agap_key;
 float vr_agap_at;
@@ -86,7 +89,7 @@ void() VR_AGAP_End =
     vr_agt_player.flags = vr_agt_player.flags - (vr_agt_player.flags & FL_GODMODE);
     VR_AGT_Print(sprintf("adpose: %g keys held on AD's knights", vr_agap_keys));
     VR_Test_Check(vr_agap_keys > 0, "keys held");
-    localcmd(sprintf("vr_agrunt_ik_reach adpose %g %g %g\n", VR_AGAP_TOL, vr_test_pass, vr_test_fail)); // (the verdict)
+    vr_agap_step = 0;
     cvar_set("vr_agrunt_test", "0");
 };
 
@@ -102,10 +105,12 @@ void() VR_AGAP_Frame =
     if(vr_agap_step == 0)
     {
         vr_agap_row = 0;
+        vr_agap_first = cvar_hget(cvarh_scratch1) > 0 ? cvar_hget(cvarh_scratch1) - 1 : VR_AM_DGUARD;
+        vr_agap_last = cvar_hget(cvarh_scratch1) > 0 ? vr_agap_first : VR_AM_DCROSSBOW;
         vr_agap_set = 0;
         VR_Test_BeginFlags("adpose", VR_TEST_LOUD | VR_TEST_QUIET);
         vr_agap_keys = 0;
-        if(!cvar_hget(cvarh_vr_ad_mounted))
+        if(vr_agap_last >= VR_AM_DGUARD && !cvar_hget(cvarh_vr_ad_mounted))
         {
             VR_AGAP_Fail("needs AD's data (vr_campaign_native ad first)");
             VR_AGAP_End();
@@ -121,7 +126,7 @@ void() VR_AGAP_Frame =
     {
         // A set's subject.
         if(vr_agt_grunt && vr_agt_grunt.classname != "") { VR_AGT_Remove(vr_agt_grunt); }
-        cvar_set("vr_agrunt_test_kind", ftos(VR_AM_DGUARD + vr_agap_row));
+        cvar_set("vr_agrunt_test_kind", ftos(vr_agap_first + vr_agap_row));
         float w1 = VR_AGAP_Set(vr_agap_set);
         vr_agt_weapon2 = vr_agap_w2;
         vr_agt_grunt = VR_AGT_Spawn(w1, 160);
@@ -136,7 +141,7 @@ void() VR_AGAP_Frame =
     entity g = vr_agt_grunt;
     if(!g || g.health <= 0)
     {
-        VR_AGAP_Fail(sprintf("row %g set %g: its subject gone", VR_AM_DGUARD + vr_agap_row, vr_agap_set));
+        VR_AGAP_Fail(sprintf("row %g set %g: its subject gone", vr_agap_first + vr_agap_row, vr_agap_set));
         VR_AGAP_End();
         return;
     }
@@ -150,7 +155,7 @@ void() VR_AGAP_Frame =
             vr_agap_set = 0;
             vr_agap_row = vr_agap_row + 1;
         }
-        if(vr_agap_row >= 2)
+        if(vr_agap_first + vr_agap_row > vr_agap_last)
         {
             VR_AGAP_End();
             return;
@@ -167,6 +172,13 @@ void() VR_AGAP_Frame =
         if(vr_agap_meas >= 4)
         {
             cvar_set("vr_agrunt_ik_tag", "-1");
+            vector m = weapondrawnpose(world, tag, 54);
+            float ok = m_x >= 0 && m_x <= VR_AGAP_TOL && m_y <= VR_AGAP_TOL && m_z <= VR_AGAP_TOL;
+            string what = sprintf("tag %g: row %g %s class %g pose %g phase %g", tag, vr_agap_first + vr_agap_row,
+                VR_AGT_Name(VR_AGAP_Set(vr_agap_set)), cls, vr_agap_pose, vr_agap_phase);
+            VR_Test_Check(ok, sprintf("%s: reach short right %.2f left %.2f, off its second grip %.2f", what, m_x, m_y, m_z));
+            VR_AGT_Print(sprintf("adkey %g %g %g %g %v %v %v", tag, vr_agap_first + vr_agap_row, cls,
+                vr_agap_pose * 10 + vr_agap_phase, m, weapondrawnpose(world, tag, 55), weapondrawnpose(world, tag, 56)));
             vr_agap_keys = vr_agap_keys + 1;
             vr_agap_key = vr_agap_key + 1;
             vr_agap_meas = -1;
@@ -181,17 +193,15 @@ void() VR_AGAP_Frame =
     vr_agap_still = (drawn && vlen(r - vr_agap_lastR) < 0.02 && vlen(l - vr_agap_lastL) < 0.02) ? vr_agap_still + 1 : 0;
     vr_agap_lastR = r;
     vr_agap_lastL = l;
-    if(vr_agap_still >= 6)
+    if(vr_agap_still >= 6 || (drawn && time - vr_agap_at > 1))
     {
-        VR_AGT_Print(sprintf("adpose: tag %g: row %g %s class %g pose %g phase %g", tag, VR_AM_DGUARD + vr_agap_row,
-            VR_AGT_Name(VR_AGAP_Set(vr_agap_set)), cls, vr_agap_pose, vr_agap_phase));
         cvar_set("vr_agrunt_ik_tag", ftos(tag));
         vr_agap_meas = 0;
     }
     else if(time - vr_agap_at > 3)
     {
-        VR_AGAP_Fail(sprintf("tag %g (row %g set %g class %g pose %g phase %g): timed out (its hands never still)", tag,
-            VR_AM_DGUARD + vr_agap_row, vr_agap_set, cls, vr_agap_pose, vr_agap_phase));
+        VR_AGAP_Fail(sprintf("tag %g (row %g set %g class %g pose %g phase %g): timed out (its hands never drawn)", tag,
+            vr_agap_first + vr_agap_row, vr_agap_set, cls, vr_agap_pose, vr_agap_phase));
         vr_agap_key = vr_agap_key + 1;
         vr_agap_still = 0;
         vr_agap_at = time;

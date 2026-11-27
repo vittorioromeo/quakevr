@@ -2185,38 +2185,6 @@ void armPoseCheck_f()
     armPoseSlots(a);
 }
 
-// vr_agrunt_ik_reach <name> <tolerance> [passed before] [failed before] (adposekind's key check, QC vr_armedgrunt_adpose_test.qc): every
-// tag counted since the last vr_agrunt_ik_err, its hands against their grips on the weapon: a check each (both reach
-// short and the off hand's second grip within `tolerance` units), an "agreach" line for each failed tag, then the
-// verdict "<name>: N passed, M failed" (the caller's own checks, the third and fourth arguments, added). Counted
-// afresh after.
-void armReach_f()
-{
-    const char* name = Cmd_Argc() > 1 ? Cmd_Argv(1) : "agreach";
-    const float tol = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 1.f;
-    testkit::Tally t;
-    t.passed = Cmd_Argc() > 3 ? atoi(Cmd_Argv(3)) : 0;
-    t.failed = Cmd_Argc() > 4 ? atoi(Cmd_Argv(4)) : 0;
-    int tags = 0;
-    float most = 0.f;
-    for(int tag = 0; tag < agarms::numErrTags; tag++)
-    {
-        float r = 0.f, l = 0.f, second = 0.f;
-        if(!agarms::reachErr(tag, r, l, second))
-        {
-            continue;
-        }
-        tags++;
-        most = za::max(most, za::max(r, za::max(l, second)));
-        t.check(r <= tol && l <= tol && second <= tol, "agreach",
-            va("tag %d: reach short right %.2f left %.2f, off its second grip %.2f (tolerance %.2f)", tag, r, l, second, tol));
-    }
-    agarms::clearErr();
-    Con_Printf("agreach: %d tags, the most off %.2f units\n", tags, most);
-    t.check(tags > 0, "agreach", "nothing counted (vr_agrunt_ik_tag never set)");
-    t.verdict(name);
-}
-
 // vr_agrunt_ik_err: the arms' numbers since the last time (vr_agarms.cpp printErr: counted afresh after), how far the held
 // weapons were drawn from their holders, and the ragdolls' weapons against their drawn hands.
 void armErr_f()
@@ -2278,7 +2246,6 @@ void registerCommands()
     Cmd_AddCommand("vr_agrunt_ragweapon_err", ragWeaponErr_f);
     Cmd_AddCommand("vr_hit_react_info", info_f);
     Cmd_AddCommand("vr_agrunt_ik_err", armErr_f);
-    Cmd_AddCommand("vr_agrunt_ik_reach", armReach_f);
     Cmd_AddCommand("vr_agrunt_armpose_check", armPoseCheck_f);
     Cmd_AddCommand("vr_agholds_report", holdsReport_f);
     Cmd_AddCommand("vr_agholds_pose", holdPose_f);
