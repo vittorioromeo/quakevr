@@ -2427,6 +2427,25 @@ His flat notes 2026-11-26, items 3, 4 and 8.
   not parrying: the free hand at or below the holding hand; the flipped spear's other hand moved 4.9 u / turned 43.9
   degrees by _off_up 4 / _off_pitch 0. Open: the judicator's flipped one-handed guard lets go of the blade at its end with
   the free hand turning 81 degrees in a frame (the upright guard's let-go, not this change's).
+- **judicator (branch agent/judicator, 2026-11-27): both open points fixed, generally.**
+  (1) The flipped judicator let go of its handle: vr_twohand.cpp applySword's angle limit (cosine 0.34 against 0.40 as the
+  grip flipped; the stance is not asked for in a flipped grip, so its waiver went). Flat play, a sword-kind weapon's grip
+  held while the drawn flip is > 0 keeps hold whatever the line (the flipped hold's pose puts both hands on the handle, as
+  the stance's does); a headset's hands still answer to the limit. Its grip below the hand (chooseGrip,
+  vr_flat_melee_grip_below) is now measured from the holding hand itself, not the weapon's hold: flipped, the palm's pivot
+  put the hold 4.5 u up the handle, and the free hand sat 2 u off the holding one (fists in each other). Now -4.0 u held,
+  flipped, in the reverse guard and after.
+  (2) Any let-go eases (vr_view_hands.cpp `easeLetGo`, beside promofails' easeGripSwitch, flat only): the grip's blend-out
+  (vr_twohand's 0.2 s) had mixed the free hand's own pose with a grip pose still worked out from a hold that had ended; the
+  guard's blade grip picks its thumb's way by the free hand's own turn, which flipped as that hand went back (81 degrees in a
+  frame; the flipped judicator's handle let-go 108). Now the hand eases from where it was last drawn holding on, kept
+  against the holding hand, to its own pose, by the blend's share left since the let-go; a take during the blend-out eases
+  from the pose drawn then, as a switch. A long gun's look (no real grip) is unchanged.
+  Tests: `flatparry2_test.sh` 64/0 (new: the judicator held in two hands then flipped keeps its handle at -4.0 u through the
+  flip, the reverse guard and after; the flip's most turn a frame 18.7 (the main hand's own), out of the guard 9.0; `letgo`:
+  one-handed guards (vr_flat_melee_2h 0) end letting go of the blade, the free hand's most turn a frame 12.7 (knight's
+  sword upright) and 8.9 (judicator flipped), was 81). flatbash 20/0, flatfg2h 11/0, flatlance 30/0, flatparry 43/0,
+  flatmelee2h 16/0.
 ## floataxe: a thrown axe whose blow takes off the head it hit falls, never left floating (branch agent/floataxe, 2026-11-26)
 
 - **His report (flat):** an axe thrown at a zombie's head popped it, and the axe stayed floating in mid air after the zombie
