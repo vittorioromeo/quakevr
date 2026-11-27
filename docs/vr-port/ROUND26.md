@@ -4273,6 +4273,17 @@ His words (2026-11-27): "make the scrag tail armor pieces individually destroyab
   aim at the body's middle).
 - **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).
 
+## menupaths (agent/menupaths): menu_paths.txt regenerates complete, and a stale file is caught
+
+- **Finding.** The Held Weapon pages were already kept by a full regeneration (`vr_menu_dump_paths` pins weapon slot 17,
+  commit 78a255187); regenerating at the title and in e1m1 gives the identical 10,697 rows (66 on Held Weapon pages). No
+  page was found that depends on mounted mods or the held weapon. Against today's file the regeneration only adds 2 rows
+  (code newer than the file): the Beast Armour On The Drawn Body row on Tunables and its Debug - Tests "Cost (Ten Ogres)"
+  button; none lost. The Tunables rows exist only in a non-QVR_RELEASE build (the kit's build.sh is one): regenerate with it.
+- **Check.** `vr_menu_path_check <path>/menu_paths.txt` regenerates the rows in the game and compares: prints
+  `menu_paths.txt: current (N rows)`, or `MENU PATHS FILE LACKS/HAS (gone)` (first 5 each) and `MENU PATHS FILE STALE: N rows
+  missing, M gone`. Tested on the new file (current) and the old one (stale, 2 missing).
+- **Docs.** menu_paths.py docstring and ARCHITECTURE.md say: regenerate, never edit by hand. The BACKLOG item is gone.
 ## Installer: the AI statement is one static sentence (branch agent/aistatement, 2026-11-27)
 
 The Statement page's two YES/NO claims are gone. Under the five paragraphs a card (same frame, rune and font as the old
