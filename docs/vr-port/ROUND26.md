@@ -2547,3 +2547,22 @@ The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subh
 - **Third make_release (coordinator: treat as a load flake, once more) on 6b84600ef: the same 5 vrtesthall scenes failed
   again, identical positions; stopped, nothing published. BACKLOG section 1 note added. Raw log:
   scratch/beta6_scn_release3_raw.log.
+## lanescene: Test scenes face their map's spawn spot; suite lanes stay clean (branch agent/lanescene, 2026-11-27)
+
+The beta profile's scenario_check failed in a lane (5 vrtesthall scenes "placed in a wall", beta6). Cause, two layers:
+- **Lane pollution**: settings_page (a lane-0 test) stages `installer_settings.cfg` (and `sp_cfg1/2.cfg`) in the worktree's
+  quakevr folder for a few seconds; a lane started meanwhile copies the worktree's loose files into its own quakevr folder
+  (run.ps1, "when newer") and never removes one. The lane's game then ran that file at every start (its `vr_installer_applied`
+  stamp lives in ironwail.cfg, put back from the baseline each run): `vr_snap_turn 45`, `vr_handedness 2`...
+- **The scene runner's facing**: with no `start ... yaw`, `place()` laid the spawns out from the player's current yaw. With
+  snap turning the client keeps its turn across a map load, so after nav_tower (start yaw 225) every vrtesthall scene faced
+  -145 instead of 90 and its left-hand rows landed in the walls. A player with snap turning got the same when starting one
+  Test after another. Now the yaw is the `start` line's, else the nearest `info_player_*` spot's (`spawnSpotYaw`); SCNPLACED
+  ends with `|facing yaw N`.
+- Test isolation (Misc/quakevr/qvrtest.py): settings_page is also "alone" (before the lanes, nothing beside it);
+  `prepare_lanes` moves each lane's stray loose quakevr files (not in the worktree's, run.ps1's own excepted) into the lane's
+  `quakevr/scratch/lane_strays_<time>/` (`park_lane_strays`, printed), and copies the agent's `cache/maps_installed.txt`
+  into the lane (a lane has its own cache folder, so the Map Library's package scenes said "not installed" in a lane only).
+- quest_foveation set `vr_foveated_debug` with `cmd` (leaked: SCNLEAK, counted failed); now a `cvar` line.
+Proof: scenario_check in a polluted lane 2 (quest's lane-2 installer_settings.cfg): 20 "in a wall" before, 0 after; the beta
+profile twice (counts in the report). Open (not checked further): with snap turning, a map load's spawn facing looks ignored by the VR view (the old yaw stays).
