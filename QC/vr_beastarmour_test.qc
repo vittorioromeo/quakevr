@@ -1,11 +1,12 @@
 #ifdef QVR_TESTS
 // vr_beastarmour_test.qc -- the beasts' armour's test (vr_agarmor.qc VR_BeastArmour_*, vr_beastarmour.cpp; ROUND26.md,
 // "beastarmour"; Debug > Tests). `vr_agarmor_test 15`: a rottweiler, an ogre, a scrag and a fiend ahead of the player:
-// each kind's slots and cuirass group as the data says, a full set given (only its own pieces), the client told and every
+// each kind's slots and cuirass group as the data says, a full set given (only its own pieces), every piece keeping its
+// size through every frame of its kind (the scrag drawn a quarter larger, its pieces too), the client told and every
 // piece drawn, the pieces following the body from one animation frame to another (a limb's piece moves, two pieces on one
 // bone keep their distance), a shot at the cuirass and at the helmet meeting that piece, Plate Blocks All stopping a hit
 // the bare body takes, a helmet broken (its bit off, its debris made), the skill's roll dressing a spawned beast (Nightmare
-// at a chance of 1), and two killed (the corpses keeping their pieces, on the body as it lies). Ends on
+// at a chance of 1), and two killed (the corpses keeping their pieces, on the body as it lies, at their size). Ends on
 // "beastarmour test: N passed, M failed".
 // `vr_agarmor_test 16`: the scene (scenario armour_beasts): the four in full sets (green, yellow, red, yellow), calm (the
 // player notarget). `17`-`20`: one of them close ahead in full yellow, three quarters on (the renders).
@@ -20,6 +21,10 @@ vector vr_bat_was0, vr_bat_was1, vr_bat_was2, vr_bat_was3; // a limb piece's pla
 float vr_bat_gap0, vr_bat_gap1, vr_bat_gap2, vr_bat_gap3;  // two pieces on one bone: their distance in frame A
 vector vr_bat_dead0, vr_bat_dead1; // where the killed ones died
 entity vr_bat_render; // 17-20's beast
+float vr_bat_sweep;     // the frame swept (state 5: every frame of every kind)
+float vr_bat_size0[40]; // each beast's (4) pieces' (10) size as drawn at the sweep's first frame (limbpiece 18: the box's diagonal)
+float vr_bat_spread[4]; // the most any of its pieces' sizes strayed from that, as a share
+float vr_bat_spreadd;   // the same for the corpses through their fall and ragdoll (state 4's wait)
 
 entity(float i) VR_BAT_Ent =
 {
@@ -62,6 +67,26 @@ float(float kind) VR_BAT_Slots = { return kind == 0 ? 975 : kind == 2 ? 831 : 10
 float(float kind) VR_BAT_Group = { return kind == 0 ? 257 : 769; };
 // Two of its pieces on one bone (the chest), and a limb's piece.
 float(float kind) VR_BAT_PairB = { return kind == 1 ? 8 : 9; };
+// Each kind's frames (the sweep's: every one, deaths included).
+float(float kind) VR_BAT_Frames = { return kind == 0 ? 86 : kind == 1 ? 149 : kind == 2 ? 55 : 69; };
+
+// Beast `i`'s pieces' sizes now against their first (`first`: record them): the most one strayed, as a share.
+float(float i, float first) VR_BAT_SizeSpread =
+{
+    entity e = VR_BAT_Ent(i);
+    float k, worst = 0;
+    for(k = 0; k < VR_AR_PIECES; k++)
+    {
+        if(!VR_AgArmor_On(e, k)) continue;
+        vector size = limbpiece(e, k, 18);
+        float sz = size_y;
+        if(first) vr_bat_size0[i * 10 + k] = sz;
+        float s0 = vr_bat_size0[i * 10 + k];
+        worst = max(worst, s0 > 0 ? fabs(sz - s0) / s0 : 1);
+    }
+    return worst;
+};
+
 // Frames A (standing) and B (another pose: run, swing, attack) of each kind.
 float(float kind) VR_BAT_FrameA = { return kind == 0 ? 69 : 0; };
 float(float kind) VR_BAT_FrameB = { return kind == 0 ? 48 : kind == 1 ? 33 : kind == 2 ? 29 : 54; };
@@ -128,6 +153,7 @@ void(float req) VR_BAT_Frame =
         VR_Test_BeginFlags("beastarmour test", VR_TEST_LOUD);
         vr_bat_busy = TRUE;
         vr_bat_rule = cvar_hget(cvarh_vr_agarmor_rule);
+        vr_bat_spreadd = 0;
         p.flags = p.flags | FL_NOTARGET;
         vr_bat_e0 = VR_BAT_Spawn(p, 0, -96, 170, 0);
         vr_bat_e1 = VR_BAT_Spawn(p, 1, -32, 190, 0);
@@ -142,6 +168,14 @@ void(float req) VR_BAT_Frame =
     {
         VR_Test_Check(FALSE, sprintf("timed out in state %g", vr_bat_state));
         vr_bat_state = 9;
+    }
+    if(vr_bat_state == 4)
+    {
+        // (the corpses' pieces' sizes through their death frames and ragdolls, against the living's)
+        for(i = 0; i < 2; i++)
+        {
+            vr_bat_spreadd = max(vr_bat_spreadd, VR_BAT_SizeSpread(i, FALSE));
+        }
     }
     if(time < vr_bat_wait && vr_bat_state != 9)
     {
@@ -165,8 +199,36 @@ void(float req) VR_BAT_Frame =
             VR_Test_Check(m != "" && (VR_AgArmor_Model(e, 4) == "") == (i == 0), sprintf("%s: its cuirass's model %s", e.classname, m));
             e.nextthink = time + 60; // (frozen: its frames are the test's)
             e.think = SUB_Null;
+            e.frame = 0;
+        }
+        // The sweep first: every frame of each kind, a frame a tick; the scrag drawn a quarter larger (its pieces with it).
+        vr_bat_e2.scale = 1.25;
+        vr_bat_sweep = 0;
+        vr_bat_state = 5;
+        return;
+    }
+    if(vr_bat_state == 5)
+    {
+        // Each piece's size the same in every frame (his note 2026-11-27: they grew and shrank as the animations played).
+        for(i = 0; i < 4; i++)
+        {
+            e = VR_BAT_Ent(i);
+            float sp = VR_BAT_SizeSpread(i, vr_bat_sweep == 0);
+            vr_bat_spread[i] = vr_bat_sweep == 0 ? 0 : max(vr_bat_spread[i], sp);
+            e.frame = min(vr_bat_sweep, VR_BAT_Frames(i) - 1);
+        }
+        vr_bat_sweep = vr_bat_sweep + 1;
+        if(vr_bat_sweep <= VR_BAT_Frames(1)) return;
+        for(i = 0; i < 4; i++)
+        {
+            e = VR_BAT_Ent(i);
+            vector sc = limbpiece(e, 0, 18);
+            VR_Test_Check(vr_bat_spread[i] < 0.01 && fabs(sc_x - (i == 2 ? 1.25 : 1)) < 0.01,
+                sprintf("%s: its pieces keep their size through all %g frames (strayed %g; scale %g)", e.classname,
+                VR_BAT_Frames(i), vr_bat_spread[i], sc_x));
             e.frame = VR_BAT_FrameA(i);
         }
+        vr_bat_e2.scale = 0;
         vr_bat_state = 2;
         vr_bat_wait = time + 0.4; // (the client told, the frame's lerp done)
         return;
@@ -208,6 +270,13 @@ void(float req) VR_BAT_Frame =
             {
                 vector at = limbpiece(e, k, 10);
                 vector out = normalize(at - (e.absmin + e.absmax) * 0.5);
+                if(k == 0 && (i == 1 || i == 2))
+                {
+                    // (the ogre's and the scrag's breastplates wrap the chest on its middle: their box's middle is near
+                    // the body's, so the shot comes from before them, the way the body faces)
+                    makevectors('0 1 0' * e.angles_y);
+                    out = v_forward;
+                }
                 float met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
                 float near = ragdollbone(e, at, QVR_ARMOR_PIECE_AT);
                 VR_Test_Check(met == k && near == k, sprintf("%s: a shot at piece %g meets %g, its point %g", e.classname, k, met, near));
@@ -271,6 +340,8 @@ void(float req) VR_BAT_Frame =
                 sprintf("%s: dead (health %g), keeps its pieces %g, its cuirass on the body (%g units off its middle; it moved %g)",
                 e.classname, e.health, e.vr_ar_mask, vlen(pc4 - (e.absmin + e.absmax) * 0.5), vlen(e.origin - died)));
         }
+        VR_Test_Check(vr_bat_spreadd < 0.01, sprintf("the corpses' pieces keep their size through the fall and the ragdoll (strayed %g)",
+            vr_bat_spreadd));
         float drawn4 = ragdollbone(world, '2 0 0', QVR_ARMOR_BEAST);
         VR_Test_Check(drawn4 > 0, sprintf("the corpses' and the living's pieces drawn: %g", drawn4));
         vr_bat_state = 9;
