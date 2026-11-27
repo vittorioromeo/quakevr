@@ -3225,18 +3225,21 @@ namespace
     return nullptr;
 }
 
-// An entity's armour in a word (the server's, the client's): its type (bits 36-37), its worn pieces' wear (bits 24-35
-// at a third of their pool or under, 12-23 at two thirds or under; P2's damage marks), its pieces (0-11: the ten slots
+// An entity's armour in a word (the server's, the client's): its type (bits 45-46), its worn pieces' wear (bits 30-44
+// at a third of their pool or under, 15-29 at two thirds or under; P2's damage marks), its pieces (0-14: the ten slots
 // and a beast's own parts, NumMaskBits).
+constexpr unsigned wearShift = NumMaskBits;
+constexpr unsigned typeShift = 3 * NumMaskBits;
+constexpr uint64_t allWearBits = (uint64_t{1} << (2 * NumMaskBits)) - 1u;
 [[nodiscard]] uint64_t packState(int type, int pieces, int wear)
 {
     pieces &= allMaskBits;
     wear &= pieces | pieces << NumMaskBits;
-    return type > 0 && pieces ? static_cast<uint64_t>(type) << 36u | static_cast<uint64_t>(static_cast<uint32_t>(wear)) << 12u | static_cast<uint64_t>(pieces) : 0u;
+    return type > 0 && pieces ? static_cast<uint64_t>(type) << typeShift | static_cast<uint64_t>(static_cast<uint32_t>(wear)) << wearShift | static_cast<uint64_t>(pieces) : 0u;
 }
 [[nodiscard]] int stateType(uint64_t s)
 {
-    return static_cast<int>(s >> 36u);
+    return static_cast<int>(s >> typeShift);
 }
 [[nodiscard]] int statePieces(uint64_t s)
 {
@@ -3244,7 +3247,7 @@ namespace
 }
 [[nodiscard]] int stateWear(uint64_t s)
 {
-    return static_cast<int>((s >> 12u) & 0xffffffu);
+    return static_cast<int>((s >> wearShift) & allWearBits);
 }
 
 // The server's word on each entity (QVR_SVC_ARMOR: packState); and how many are armoured.
@@ -3955,8 +3958,10 @@ za::Vector<uint64_t> sent; // per entity: what the clients were last told (packS
     }
     const int type = za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)), 0, 3);
     const int mask = static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) & allMaskBits;
-    const int wear = f.vr_ar_wear >= 0 ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_wear)) : 0;
-    return packState(type, mask, wear);
+    // (the two levels in two fields: .vr_ar_wear at two thirds or under, .vr_ar_wear2 at a third)
+    const int w66 = f.vr_ar_wear >= 0 ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_wear)) & allMaskBits : 0;
+    const int w33 = f.vr_ar_wear2 >= 0 ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_wear2)) & allMaskBits : 0;
+    return packState(type, mask, w66 | w33 << NumMaskBits);
 }
 
 void writeState(sizebuf_t* msg, int num, uint64_t state)
@@ -4261,7 +4266,7 @@ int clientState(int num, int what)
         return -1;
     }
     const uint64_t s = at(served, num);
-    return what == 0 ? stateType(s) : what == 1 ? statePieces(s) : stateWear(s);
+    return what == 0 ? stateType(s) : what == 1 ? statePieces(s) : what == 2 ? stateWear(s) & allMaskBits : stateWear(s) >> NumMaskBits;
 }
 
 // The point of triangle a, b, c nearest `p`.

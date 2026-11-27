@@ -10,7 +10,9 @@
 // "beastarmour test: N passed, M failed".
 // armourhits (ROUND26.md): the parts that break on their own (the ogre's shins by side, the scrag's back half and tail):
 // worn with their slots, each its own pool (its slot's share split), a shot at it meeting it, broken alone (its slot and
-// the others kept), its debris its own pieces (the tail's four).
+// the others kept), its debris its own pieces. scragtail: each of the scrag's four tail segments its own part (bits
+// 11-14, one piece each), a lower one broken before the ones above, and a cut taking the tail dropping every segment
+// still on.
 // `vr_agarmor_test 16`: the scene (scenario armour_beasts): the four in full sets (green, yellow, red, yellow), calm (the
 // player notarget), at their own health (armourhits: the test's 1000 made them take forever). `17`-`20`: one of them
 // close ahead in full yellow (temp1 1-3: that tier), three quarters on (the renders).
@@ -77,10 +79,11 @@ float(entity g, vector at, float d) VR_BAT_Hit =
 };
 
 // The slots each kind's data gives (Misc/quakevr/make_beastarmour.py), with its parts breaking on their own (1024, 2048:
-// the ogre's shins, the scrag's back half and tail), and its cuirass group (the scrag's with his back half and tail).
-float(float kind) VR_BAT_Slots = { return kind == 0 ? 975 : kind == 1 ? 4095 : kind == 2 ? 3903 : 1023; };
+// the ogre's shins; the scrag's back half 1024, his tail's segments 2048-16384: "scragtail"), and its cuirass group (the
+// scrag's with his back half and tail).
+float(float kind) VR_BAT_Slots = { return kind == 0 ? 975 : kind == 1 ? 4095 : kind == 2 ? 32575 : 1023; };
 float(float kind) VR_BAT_Group = { return kind == 0 ? 257 : 769; };
-float(float kind) VR_BAT_CuirassWorn = { return kind == 2 ? 3841 : VR_BAT_Group(kind); };
+float(float kind) VR_BAT_CuirassWorn = { return kind == 2 ? 32513 : VR_BAT_Group(kind); };
 // Two of its pieces on one bone (the chest), and a limb's piece.
 float(float kind) VR_BAT_PairB = { return kind == 1 ? 8 : 9; };
 // Each kind's frames (the sweep's: every one, deaths included).
@@ -143,41 +146,132 @@ void(float i, entity e, float kind) VR_BAT_RecordA =
 // armourhits: beast `e` (kind 1 the ogre, 2 the scrag) in a fresh full yellow set: each part that breaks on its own (bits
 // 10, 11) its own pool (its slot's share split with it), a shot at it meeting it, a hit there breaking it alone (its slot
 // and the other part kept) and dropping its own pieces as debris (the tail's four).
+// A shot at part bit `b` of `e` (from outside its piece: out from the body's middle, else from either side, behind,
+// below) and a hit of 400 there: the part the shot met (vr_bat_took: the health the hit took, vr_bat_debris the debris made).
+float vr_bat_took, vr_bat_debris;
+float(entity e, float b) VR_BAT_BreakPart =
+{
+    vector at = limbpiece(e, b, 10);
+    vector out = normalize(at - (e.absmin + e.absmax) * 0.5);
+    makevectors('0 1 0' * e.angles_y);
+    float met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
+    float k;
+    for(k = 0; k < 4 && met != b; k++)
+    {
+        out = k == 0 ? v_right : k == 1 ? -v_right : k == 2 ? -v_forward : '0 0 -1';
+        met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
+    }
+    float made = vr_ar_debris_made;
+    VR_AgArmor_Shot(e, at, -out);
+    vr_bat_took = VR_BAT_Hit(e, at, 400);
+    vr_bat_debris = vr_ar_debris_made - made;
+    e.health = 1000;
+    return met;
+};
+
 void(entity e, float kind) VR_BAT_PartsAlone =
 {
-    float b;
+    float b, j;
+    float slots = ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST);
     for(b = VR_AR_PIECES; b < VR_AR_SLOTS; b++)
     {
+        if(!(slots & VR_AgArmor_Bit(b)))
+        {
+            continue;
+        }
         VR_AgArmor_Give(e, 2, 1023);
         float owner = ragdollbone(e, [4, b, 0], QVR_ARMOR_BEAST);
         float pieces = ragdollbone(e, [3, b, 0], QVR_ARMOR_BEAST);
-        float split = VR_AgArmor_FullOf(e, owner) + VR_AgArmor_FullOf(e, 10) * (owner == 8 ? 2 : 1);
-        float whole = rint(VR_AgArmor_Full(2, owner) * VR_AgArmor_PoolScale(e));
-        VR_Test_Check(owner >= 0 && VR_AgArmor_On(e, b) && e.vr_ar_hp[b] == VR_AgArmor_FullOf(e, b) && fabs(split - whole) <= 2,
-            sprintf("%s: part %g (with slot %g, %g pieces) worn, its pool %g; its slot split %g of %g", e.classname, b, owner,
-            pieces, e.vr_ar_hp[b], split, whole));
-        // (a shot from outside its piece: out from the body's middle, else from either side)
-        vector at = limbpiece(e, b, 10);
-        vector out = normalize(at - (e.absmin + e.absmax) * 0.5);
-        makevectors('0 1 0' * e.angles_y);
-        float met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
-        float k;
-        for(k = 0; k < 4 && met != b; k++)
+        // (its slot's pool split among the slot and its parts: their pools summed about the slot's whole, each part's
+        // rounding at most one)
+        float split = VR_AgArmor_FullOf(e, owner);
+        for(j = VR_AR_PIECES; j < VR_AR_SLOTS; j++)
         {
-            out = k == 0 ? v_right : k == 1 ? -v_right : k == 2 ? -v_forward : '0 0 -1';
-            met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
+            float partOf = (slots & VR_AgArmor_Bit(j)) && (ragdollbone(e, [4, j, 0], QVR_ARMOR_BEAST) == owner);
+            split = split + (partOf ? VR_AgArmor_FullOf(e, j) : 0);
         }
+        float whole = rint(VR_AgArmor_Full(2, owner) * VR_AgArmor_PoolScale(e));
+        VR_Test_Check(owner >= 0 && VR_AgArmor_On(e, b) && e.vr_ar_hp[b] == VR_AgArmor_FullOf(e, b) && fabs(split - whole) <= 2 && pieces == 1,
+            sprintf("%s: part %g (with slot %g, %g pieces: 1) worn, its pool %g; its slot split %g of %g", e.classname, b, owner,
+            pieces, e.vr_ar_hp[b], split, whole));
         float mask0 = e.vr_ar_mask;
-        float made = vr_ar_debris_made;
-        VR_AgArmor_Shot(e, at, -out);
-        float d = VR_BAT_Hit(e, at, 400);
+        float met = VR_BAT_BreakPart(e, b);
         float others = mask0 - VR_AgArmor_Bit(b);
-        VR_Test_Check(met == b && e.vr_ar_mask == others && d == 0 && vr_ar_debris_made - made == pieces,
+        VR_Test_Check(met == b && e.vr_ar_mask == others && vr_bat_took == 0 && vr_bat_debris == pieces,
             sprintf("%s: part %g alone broke (a shot met %g; pieces left %g, took %g, debris %g of %g)", e.classname, b, met,
-            e.vr_ar_mask, d, vr_ar_debris_made - made, pieces));
-        e.health = 1000;
+            e.vr_ar_mask, vr_bat_took, vr_bat_debris, pieces));
+    }
+    if(kind == 2)
+    {
+        // scragtail: a lower segment first (tail3, bit 13: the data's lines tail1-4 are bits 11-14), the ones above it and
+        // below kept; then the top one (tail1), tail2 and tail4 still on.
+        VR_AgArmor_Give(e, 2, 1023);
+        float tail = 2048 + 4096 + 8192 + 16384;
+        float m13 = VR_BAT_BreakPart(e, 13);
+        float d13 = vr_bat_debris;
+        float left13 = e.vr_ar_mask & tail;
+        float m11 = VR_BAT_BreakPart(e, 11);
+        VR_Test_Check(m13 == 13 && d13 == 1 && left13 == tail - 8192 && m11 == 11 && vr_bat_debris == 1 &&
+            (e.vr_ar_mask & tail) == 4096 + 16384 && VR_AgArmor_On(e, 8) && VR_AgArmor_On(e, 10),
+            sprintf("scrag: tail3 broke first (met %g, debris %g, tail left %g), then tail1 (met %g, debris %g, tail left %g)",
+            m13, d13, left13, m11, vr_bat_debris, e.vr_ar_mask & tail));
     }
     VR_AgArmor_Give(e, 2, 1023);
+};
+
+// scragtail: a cut taking the scrag's tail (the joint whose cut takes the most of its segments' bones) drops every
+// segment still on as debris, one each (one broken before stays broken, no debris).
+entity vr_bat_cut; // (spawned with the four, killed with the ogre and the rottweiler: cut as a corpse, its ragdoll's)
+void() VR_BAT_TailCutPrepare =
+{
+    entity e = vr_bat_cut;
+    VR_AgArmor_Give(e, 2, 1023);
+    e.health = 2;
+    e.think = SUB_Null;
+    float type4 = e.vr_ar_type;
+    e.vr_ar_type = 0; // (the killing blow past its plates)
+    T_Damage(e, world, world, 5);
+    e.vr_ar_type = type4;
+};
+void(entity p) VR_BAT_TailCut =
+{
+    entity e = vr_bat_cut;
+    vr_bat_cut = world;
+    float b, j;
+    float limbs = ragdolllimbs(e, 0);
+    float joint = -1, most = 0;
+    for(j = 0; j < 24; j++)
+    {
+        if(!(limbs & VR_AgArmor_Bit(j)))
+        {
+            continue;
+        }
+        float takes = ragdolllimbs(e, 4, j);
+        float n = 0;
+        for(b = 11; b < 15; b++)
+        {
+            n = n + ((ragdollbone(e, [b, 0, 0], QVR_ARMOR_PIECE_BONES) & takes) != 0);
+        }
+        joint = n > most ? j : joint;
+        most = max(most, n);
+    }
+    // (the lowest segment broken first, its pool gone: the cut drops the rest)
+    VR_AgArmor_Break(e, 14);
+    float on = 0, cutBits = 0;
+    float takes2 = joint >= 0 ? ragdolllimbs(e, 4, joint) : 0;
+    for(b = 11; b < 15; b++)
+    {
+        float hit = VR_AgArmor_On(e, b) && (ragdollbone(e, [b, 0, 0], QVR_ARMOR_PIECE_BONES) & takes2);
+        on = on + hit;
+        cutBits = cutBits + (hit ? VR_AgArmor_Bit(b) : 0);
+    }
+    float mask0 = e.vr_ar_mask;
+    float made = vr_ar_debris_made;
+    float cut = joint >= 0 && VR_Limb_Cut(e, p, normalize(e.origin - p.origin) * 200, QVR_DECAP_SWING, joint, FALSE);
+    VR_Test_Check(cut && most == 4 && on == 3 && vr_ar_debris_made - made == on && e.vr_ar_mask == mask0 - cutBits,
+        sprintf("scrag: the cut at joint %g (cut %g; takes %g of the 4 segments' bones) dropped %g segments (%g still on, tail4 broken before); pieces %g -> %g",
+        joint, cut, most, vr_ar_debris_made - made, on, mask0, e.vr_ar_mask));
+    remove(e);
 };
 
 void(float req) VR_BAT_Frame =
@@ -217,6 +311,7 @@ void(float req) VR_BAT_Frame =
         vr_bat_e1 = VR_BAT_Spawn(p, 1, -32, 190, 0);
         vr_bat_e2 = VR_BAT_Spawn(p, 2, 32, 170, 0);
         vr_bat_e3 = VR_BAT_Spawn(p, 3, 96, 190, 0);
+        vr_bat_cut = VR_BAT_Spawn(p, 2, 0, 100, 0);// (scragtail's tail cut: bare until then, settled with the others)
         vr_bat_state = 1;
         vr_bat_wait = time + 0.8; // (their start_go: up to half a second's spread)
         vr_bat_until = time + 20;
@@ -307,7 +402,8 @@ void(float req) VR_BAT_Frame =
         VR_Test_Check(drawn == want, sprintf("every piece drawn: %g of %g", drawn, want));
         // (and the slots' parts: the ogre's shins with his thighs' pieces, the scrag's tail and his plate 8's back half with his
         // belt's front half: ROUND26.md, "scragsplit")
-        float parts = VR_AgArmor_On(vr_bat_e1, 10) + VR_AgArmor_On(vr_bat_e1, 11) + VR_AgArmor_On(vr_bat_e2, 10) + 4 * VR_AgArmor_On(vr_bat_e2, 11);
+        float parts = VR_AgArmor_On(vr_bat_e1, 10) + VR_AgArmor_On(vr_bat_e1, 11) + VR_AgArmor_On(vr_bat_e2, 10) + VR_AgArmor_On(vr_bat_e2, 11) +
+            VR_AgArmor_On(vr_bat_e2, 12) + VR_AgArmor_On(vr_bat_e2, 13) + VR_AgArmor_On(vr_bat_e2, 14); // (scragtail: a bit each segment)
         float ents = ragdollbone(world, '2 1 0', QVR_ARMOR_BEAST);
         VR_Test_Check((ents == want + parts) && (parts == 7), sprintf("every part drawn: %g entities, %g pieces and %g parts", ents, want,
             parts));
@@ -404,6 +500,7 @@ void(float req) VR_BAT_Frame =
             T_Damage(e, world, world, 5);
             e.vr_ar_type = type4;
         }
+        VR_BAT_TailCutPrepare();
         vr_bat_state = 4;
         vr_bat_wait = time + 3; // (their death animations and ragdolls)
         return;
@@ -423,6 +520,7 @@ void(float req) VR_BAT_Frame =
             vr_bat_spreadd));
         float drawn4 = ragdollbone(world, '2 0 0', QVR_ARMOR_BEAST);
         VR_Test_Check(drawn4 > 0, sprintf("the corpses' and the living's pieces drawn: %g", drawn4));
+        VR_BAT_TailCut(p);
         vr_bat_state = 9;
     }
     if(vr_bat_state == 9)
@@ -433,6 +531,8 @@ void(float req) VR_BAT_Frame =
             e = VR_BAT_Ent(i);
             if(e) remove(e);
         }
+        if(vr_bat_cut) remove(vr_bat_cut); // (timed out before its cut)
+        vr_bat_cut = world;
         p.flags = p.flags - (p.flags & FL_NOTARGET);
         vr_bat_busy = FALSE;
         vr_bat_state = 0;

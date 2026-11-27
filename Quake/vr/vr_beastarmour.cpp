@@ -74,8 +74,8 @@ struct Slot
     int owner{-1};
     int tweakPart{-1}; // a part with its own armour.txt part (beastarmour.txt's last word: the scrag's tail, the ogre's shins); -1 its slot's
     // Its bit of the worn mask (QC .vr_ar_mask: its pool, its hits, its break): its slot's, or a part with its own armour.txt
-    // part a bit of its own past the ten slots (assignBits: the ogre's shins by side, the scrag's back half, his tail's four
-    // segments one), worn with its slot (QC VR_AgArmor_Give) and broken alone (ROUND26.md, "armourhits").
+    // part a bit of its own past the ten slots (assignBits: the ogre's shins by side, the scrag's back half, each of his tail's
+    // four segments: "scragtail"), worn with its slot (QC VR_AgArmor_Give) and broken alone (ROUND26.md, "armourhits").
     int bit{-1};
     char bone[16]{};
     char model[MAX_QPATH]{};
@@ -202,7 +202,8 @@ int studioAloneSel = -1; // (... worn alone: its subject draws that part's piece
 }
 
 // Each piece's and part's worn-mask bit: its slot's; a part with its own armour.txt part (tweakPart) the next bit past the
-// ten slots, shared by the parts of one slot with that part (the scrag's tail1-4); none left: its slot's.
+// ten slots, each piece of it its own (the scrag's tail1-4 four bits, each segment breaking alone: ROUND26.md,
+// "scragtail"); none left: its slot's.
 void assignBits(Kind& k)
 {
     int next = agarmor::NumPieces;
@@ -214,16 +215,53 @@ void assignBits(Kind& k)
         {
             continue;
         }
-        for(int j = numSlots; j < i; j++)
-        {
-            s.bit = k.slot[j].owner == s.owner && k.slot[j].tweakPart == s.tweakPart && k.slot[j].bit >= agarmor::NumPieces ? k.slot[j].bit : s.bit;
-        }
-        if(s.bit == s.owner && next < agarmor::NumMaskBits)
+        if(next < agarmor::NumMaskBits)
         {
             s.bit = next++;
         }
+        else
+        {
+            Con_DPrintf("beastarmour: %s: no worn-mask bit left for its part on %s (worn with its slot %d)\n", k.model, s.bone, s.owner);
+        }
         k.mask |= 1 << s.bit;
     }
+}
+
+// How many ways bit `bit`'s slot's share is split for it (bitSplit): its slot and each armour.txt part of the slot
+// alike, then a part's share among its bits.
+[[nodiscard]] int splitOf(const Kind& k, int bit)
+{
+    const Slot* self = nullptr;
+    for(int i = 0; i < k.numParts && !self; i++)
+    {
+        self = k.slot[i].on && k.slot[i].bit == bit ? &k.slot[i] : nullptr;
+    }
+    if(!self)
+    {
+        return 1;
+    }
+    // (the slot's parts: each distinct tweakPart one share; the bits of that part)
+    int parts[maxParts]{};
+    int numParts = 0, mine = 0;
+    for(int i = numSlots; i < k.numParts; i++)
+    {
+        const Slot& s = k.slot[i];
+        if(!s.on || s.owner != self->owner || s.bit < agarmor::NumPieces)
+        {
+            continue;
+        }
+        bool seen = false;
+        for(int j = 0; j < numParts; j++)
+        {
+            seen = seen || parts[j] == s.tweakPart;
+        }
+        if(!seen)
+        {
+            parts[numParts++] = s.tweakPart;
+        }
+        mine += self->bit >= agarmor::NumPieces && s.tweakPart == self->tweakPart ? 1 : 0;
+    }
+    return (1 + numParts) * za::max(1, mine);
 }
 
 // The worn-mask bit of piece or part `s`.
@@ -1275,6 +1313,12 @@ int bitOwner(edict_t* ent, int bit)
     const Kind* k = kindOf(ent);
     const Slot* s = k ? entryOf(*k, bit, 0) : nullptr;
     return s ? s->owner : -1;
+}
+
+int bitSplit(edict_t* ent, int bit)
+{
+    const Kind* k = kindOf(ent);
+    return k ? splitOf(*k, bit) : 1;
 }
 
 int bitEntries(edict_t* ent, int bit)

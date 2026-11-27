@@ -248,9 +248,10 @@ float(entity g) VR_AG_Still = { return cvar_hget(cvarh_vr_agrunt_freeze) && g.he
 // Armour for armed humanoids (vr_agarmor.qc; ROUND23.md, "Armour for armed humanoids, P1"): the fields (the engine sends
 // .vr_ar_type and .vr_ar_mask to the clients: vr_agarmor.cpp) and the hooks combat.qc, weapons.qc and player.qc call.
 .float vr_ar_type;     // 0 none, 1 green, 2 yellow, 3 red
-.float vr_ar_mask;     // the pieces still on (bits: 1 the cuirass, 2 the helmet, 4/8 pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins; 1024/2048 a beast's own parts, VR_AR_SLOTS)
-.float vr_ar_hp[12];   // each piece's pool left
-.float vr_ar_wear;     // the damage marks (P2; sent with the rest): bits 0-11 the pieces at two thirds of their pool or under, 12-23 at a third or under
+.float vr_ar_mask;     // the pieces still on (bits: 1 the cuirass, 2 the helmet, 4/8 pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins; 1024-16384 a beast's own parts, VR_AR_SLOTS)
+.float vr_ar_hp[15];   // each piece's pool left
+.float vr_ar_wear;     // the damage marks (P2; sent with the rest): the pieces (worn-mask bits) at two thirds of their pool or under
+.float vr_ar_wear2;    // ... at a third or under (two fields: 2 x 15 bits in one float would not be exact; ROUND26.md, "scragtail")
 void(entity e, float armour, float pieces) VR_AgArmor_Toolgun; // the toolgun's Armed Humanoid page's armour on what it spawned
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) VR_AgArmor_Damage; // T_DamageDeal: the damage left
 float(entity targ, vector at, vector dir) VR_AgArmor_PushScale; // VR_ShotPush: a shot a plate meets pushes by vr_agarmor_impulse

@@ -17,9 +17,10 @@ float VR_AR_PIECES = 10; // the humanoids' pieces (the ten slots)
 // The worn mask's bits: the ten slots, then a beast's parts that break on their own (vr_beastarmour.cpp assignBits: the
 // ogre's shins by side, the scrag's plate 8 back half and his tail; ROUND26.md, "armourhits"), each worn with its slot
 // (VR_AgArmor_Give), its own pool (its slot's share split with it: VR_AgArmor_ShareOf), hit, cracked and dropped alone.
-float VR_AR_SLOTS = 12;   // (vr_agarmor.hpp NumMaskBits)
+// The scrag's tail's four segments a bit each (bits 11-14: ROUND26.md, "scragtail").
+float VR_AR_SLOTS = 15;   // (vr_agarmor.hpp NumMaskBits)
 float VR_AR_STRIDE = 16;  // (a beast's piece code: its bit + 16 x n, the bit's nth piece: limbpiece, limbmodel; beastarmour::entryStride)
-float VR_AR_EXACT = 4096; // (VR_AgArmor_SetCmd's pieces: these pieces exactly, a beast's cuirass not grown to its cuirass group)
+float VR_AR_EXACT = 32768; // (VR_AgArmor_SetCmd's pieces: these pieces exactly, a beast's cuirass not grown to its cuirass group)
 float vr_ar_give_exact;   // 1 while VR_AgArmor_SetCmd gives an exact mask (VR_AgArmor_Give)
 float VR_AR_HELMET = 1;
 
@@ -61,7 +62,8 @@ float(float type, float i) VR_AgArmor_Full = { return max(1, rint((50 + 50 * typ
 
 // Bit `i`'s share on `e`: a humanoid's its piece's; a beast's its slot's split evenly with the parts of it that break on
 // their own (the ogre's thigh 8: thigh 4, shin 4; the scrag's plate 8's 6: front, back and tail 2 each; ROUND26.md,
-// "armourhits").
+// "armourhits"), a part of several pieces its share evenly among them (the tail's four segments 0.5 each: "scragtail";
+// beastarmour::bitSplit).
 float(entity e, float i) VR_AgArmor_ShareOf =
 {
     float slots = ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST);
@@ -71,13 +73,7 @@ float(entity e, float i) VR_AgArmor_ShareOf =
     }
     float owner = ragdollbone(e, [4, i, 0], QVR_ARMOR_BEAST);
     owner = owner >= 0 ? owner : i;
-    float n = 1;
-    float j;
-    for(j = VR_AR_PIECES; j < VR_AR_SLOTS; j++)
-    {
-        n = n + ((slots & VR_AgArmor_Bit(j)) && ragdollbone(e, [4, j, 0], QVR_ARMOR_BEAST) == owner);
-    }
-    return VR_AgArmor_Share(owner) / n;
+    return VR_AgArmor_Share(owner) / max(1, ragdollbone(e, [5, i, 0], QVR_ARMOR_BEAST));
 };
 
 // A beast's pools' scale (vr_agarmor_pool_<kind>: each kind as much harder to kill armoured than bare as the armed
@@ -96,20 +92,20 @@ float(entity e, float i) VR_AgArmor_FullOf =
     return max(1, rint((50 + 50 * e.vr_ar_type) * VR_AgArmor_ShareOf(e, i) / 96 * scale));
 };
 
-// P2's damage marks: piece `i`'s wear bits from its pool left (two thirds or under, a third or under: the engine draws
-// its dented, then battered and scorched skins).
+// P2's damage marks: piece `i`'s wear bits from its pool left (two thirds or under: .vr_ar_wear, a third or under:
+// .vr_ar_wear2; the engine draws its dented, then battered and scorched skins).
 void(entity e, float i) VR_AgArmor_Wear =
 {
     float b = VR_AgArmor_Bit(i);
-    float b2 = b * 4096; // (VR_AR_EXACT: past the twelve bits)
-    e.vr_ar_wear = e.vr_ar_wear - (e.vr_ar_wear & (b | b2));
+    e.vr_ar_wear = e.vr_ar_wear - (e.vr_ar_wear & b);
+    e.vr_ar_wear2 = e.vr_ar_wear2 - (e.vr_ar_wear2 & b);
     if(!VR_AgArmor_On(e, i))
     {
         return;
     }
     float left = e.vr_ar_hp[i] / VR_AgArmor_FullOf(e, i);
     if(left <= 0.66) e.vr_ar_wear = e.vr_ar_wear | b;
-    if(left <= 0.33) e.vr_ar_wear = e.vr_ar_wear | b2;
+    if(left <= 0.33) e.vr_ar_wear2 = e.vr_ar_wear2 | b;
 };
 
 // `e` wears `type` (0 none) on the pieces of `mask`: each pool full.
@@ -139,6 +135,7 @@ void(entity e, float type, float mask) VR_AgArmor_Give =
     e.vr_ar_type = type;
     e.vr_ar_mask = (type > 0) ? mask : 0;
     e.vr_ar_wear = 0;
+    e.vr_ar_wear2 = 0;
     for(i = 0; i < VR_AR_SLOTS; i++)
     {
         float on = (e.vr_ar_type > 0) && VR_AgArmor_On(e, i);
@@ -720,6 +717,7 @@ void(entity e, float dm) VR_AgArmor_Shed =
     e.vr_ar_mask = 0;
     e.vr_ar_type = 0;
     e.vr_ar_wear = 0;
+    e.vr_ar_wear2 = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -727,8 +725,8 @@ void(entity e, float dm) VR_AgArmor_Shed =
 // VR_Decap_Cut). Their places are taken before the cut (after it the bones it took are gone from the body as drawn).
 entity vr_ar_cut_ent;
 float vr_ar_cut_mask;
-vector vr_ar_cut_at[12];  // (VR_AR_SLOTS)
-vector vr_ar_cut_ang[12];
+vector vr_ar_cut_at[15];  // (VR_AR_SLOTS)
+vector vr_ar_cut_ang[15];
 
 // Before a cut of `e` taking the rig's bones `takes` (ragdolllimbs' bits).
 void(entity e, float takes) VR_AgArmor_CutPrepare =
@@ -944,7 +942,7 @@ float(entity targ, vector org, vector vel, float damage) VR_AgArmor_HitFx =
 // shared by them (ApplyMultiDamage's T_Damage): a plate takes its pellets' damage, not a count's share (a headshot
 // pellet's is three of a body pellet's).
 entity vr_ar_pel_ent;
-float vr_ar_pel[12]; // (VR_AR_SLOTS)
+float vr_ar_pel[15]; // (VR_AR_SLOTS)
 float vr_ar_pel_sum; // every pellet's damage on it
 
 void() VR_AgArmor_PelletsClear =
@@ -975,7 +973,7 @@ void(entity hit, float damage) VR_AgArmor_PelletAdd =
 
 // ----------------------------------------------------------------------------
 // The hit.
-float vr_ar_share[12];  // this hit's share per piece (VR_AR_SLOTS)
+float vr_ar_share[15];  // this hit's share per piece (VR_AR_SLOTS)
 float vr_ar_last_save;  // the last hit's damage the plates took (the tests)
 entity vr_ar_block_inf; // a projectile a plate of vr_ar_block_ent took at vr_ar_block_time (its blast spares the body)
 entity vr_ar_block_ent;
