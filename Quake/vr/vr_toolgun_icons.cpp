@@ -448,7 +448,7 @@ void rasterize(const za::Vector<Triangle>& tris, const za::Vector<Texture>& text
                 const glm::vec2 st = t.c[0].st * w0 + t.c[1].st * w1 + t.c[2].st * w2;
                 if(tex.plain)
                 {
-                    const uint32_t g = static_cast<uint32_t>(za::clamp(shade * 0.8f, 0.f, 1.f) * 255.f);
+                    const uint32_t g = static_cast<uint32_t>(za::clamp(shade * 0.55f, 0.f, 1.f) * 255.f);
                     color[y * rw + x] = g | (g << 8) | (g << 16) | 0xff000000u;
                     continue;
                 }

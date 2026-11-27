@@ -4353,3 +4353,36 @@ static sentence" (65/65), and the `--screenshots` harness check (no switches, se
 ## blclean: BACKLOG.md cleanup (branch agent/blclean, 2026-11-27)
 
 Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.
+
+## wheelui: weapon wheel and holster menu polish, flat bindings panel (branch agent/wheelui, 2026-11-28)
+
+His words (2026-11-28), six items for the weapon wheel (VR and flat) and the MMB holster menu (flat). One renderer serves
+both (`vr_gadget_holster.inc`), so every slot change shows in both.
+- **Labels** (1): a slot's holster title is 5 px (was 6) at 0.55 of the label ink; the weapon's name stays 6 px, full ink.
+- **Body preview** (2): the MMB menu's stick figure is replaced by the player's own posed body (`avatar::posedMesh`, its
+  head as seen from outside), drawn each frame the menu shows by the thumbnails' CPU rasteriser (`toolgun::icons::drawMesh`,
+  the rasteriser generalised to any size and an untextured "plain" mode), grey lit, tinted in the screen's colour, seen
+  from behind and a little above (his left on the left, as the slots), where the figure stood (`bodyRect`). Each slot's
+  stroke ends where its holster is drawn on the body (`zones::drawnAt`, new: publish's `at`). Not posed: the stick figure.
+  Decision: back view, untextured; armour pieces and holstered guns are not on the preview (they are separate entities; a
+  GPU render of the scene to a texture would be the next step).
+- **Ammo line** (3): under each gun's name a smaller line "4/8 [icon] 32": the magazine (tube, cylinder) and its size
+  (red at 0), the ammo type's HUD icon (sb_shells .. sb_cells; Rogue's r_ammolava/multi/plasma when its gfx.wad has them,
+  new gadget pictures `PicRogueAmmo`), the reserve. Hands: STAT_QVR_WEAPONCLIP(2)/CLIPSIZE(2), AMMOTYPE/AMMO2; holsters:
+  STAT_QVR_HOLSTERWEAPONCLIP0/HOLSTERCLIPSIZE0 and a client copy of QC's VR_WEAPONS ammo columns (`widAmmo`,
+  vr_flatholster.cpp). The magazine shows with reloading on, or for a gun whose magazine is its only ammo.
+- **Attachments** (4): the thumbnail draws the attachment at the gun's mount (`icons::get(..., attach)`: the kind's model
+  placed by `attach::mount` / `attach::onGun`, the placement the drawn attachment and the server use), and the name gets a
+  small blade glyph after it (no text suffix). Kind per weapon: `attach::kindOfUid` of the hand's / holster's uid stat.
+- **Titles** (5): "HOLSTERS" and "WEAPON WHEEL - LEFT/RIGHT HAND" are gone (`HolsterMenuView::header` "" draws none).
+- **Bindings panel** (6, flat only; `vr_flat_bind_panel` 1): `vr_bindpanel.cpp` lists 14 actions (fire and aim by their
+  binds, keyboard/mouse keys only; reload, wheel (1/2 held), holster menu, swap, grab/pull, force grab, throw/drop, shove,
+  punch, grenade, crouch, flashlight from `vr_flat_key_*`, both keys where set) as key caps, the gadget's image
+  (`gadget::renderBindPanel`, its own target) drawn over the MMB menu (the two centred together) and over the flat wheel
+  (kept on the window with it). The main menu (flat screen) draws the same rows in the menu's look under the corner's
+  buttons, left of the rows (letters as large as fit, 8 at most), with **Setup Bindings** under them:
+  `bindsetup::open()` (new `vr_bindsetup.cpp`, a stub returning false with a TODO for ctrlbind's controller screen), else
+  Options > Controls at the flat keys (`M_Menu_Keys_At`).
+- Tests: new `Misc/quakevr/bindpanel_test.sh` 8/0 (rows and keys, shown, Setup Bindings opens Controls; `vr_bindpanel_report`,
+  `vr_bindpanel_setup`); flatholster_test 54/0, weaponwheel_test vr 25/0 and flat 21/0. Screenshots for his review:
+  scratch/flatholster/menu.png, scratch/weaponwheel/wheel_flat.png, scratch/bindpanel/main.png (the worktree's).
