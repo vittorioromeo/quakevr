@@ -36,6 +36,7 @@ layout(location = 1) uniform mat4 PrevViewProj;
 layout(location = 2) uniform vec4 Params; // x the eye's stamp, y 1: reversed Z, zw the eye's drawn size (texels)
 layout(location = 3) uniform vec4 Planes; // xy the near and far planes, zw the output's size
 layout(location = 4) uniform float ObjectMark; // the alpha of a model's own motion (the test's 2; the runtime's 1)
+layout(location = 5) uniform vec2 Tolerance; // the motion texel's depth against the scene's: relative, absolute
 layout(location = 0) out vec4 OutMotion;
 float GlZ(float w) { return (Planes.y + Planes.x) / (Planes.y - Planes.x) - 2.0 * Planes.y * Planes.x / ((Planes.y - Planes.x) * w); }
 void main()
@@ -59,7 +60,7 @@ void main()
     vec3 mv = vec3(ndc.xy - c.xy / c.w, GlZ(1.0 / h.w) - GlZ(c.w));
     float mark = 1.0;
     vec4 m = texelFetch(Motion, q, 0);
-    if (abs(floor(m.w) - Params.x) < 0.5 && abs(m.z - d) <= max(abs(d) * 2e-5, 1.5e-7))
+    if (abs(floor(m.w) - Params.x) < 0.5 && abs(m.z - d) <= max(abs(d) * Tolerance.x, Tolerance.y))
     {
         mv = vec3(-2.0 * m.xy, 0.0); // a model's own (uv a frame ago minus uv now: NDC now minus then, depth unknown)
         mark = ObjectMark;
@@ -412,6 +413,7 @@ void eyePass(const EyeInputs& in)
     GL_Uniform4fFunc(2, in.stamp, in.reversed ? 1.f : 0.f, static_cast<float>(in.drawnWidth), static_cast<float>(in.drawnHeight));
     GL_Uniform4fFunc(3, in.nearUnits, in.farUnits, static_cast<float>(images.width), static_cast<float>(images.height));
     GL_Uniform1fFunc(4, test ? 2.f : 1.f);
+    GL_Uniform2fFunc(5, in.halfMotion ? 1.5e-3f : 2e-5f, in.halfMotion ? 1e-6f : 1.5e-7f); // (a half: 10 bits; TAA's)
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glDepthFunc(gl_clipcontrol_able ? GL_GEQUAL : GL_LEQUAL); // (the engine's own: GL_Init's)
     if(test && in.eye == 0)
@@ -479,7 +481,7 @@ void releaseTargets()
 namespace
 {
 
-// vr_spacewarp_check begin | still | moving | jumped | verdict: the test's checks on the last left eye's images
+// vr_spacewarp_check begin | still | moving | turning | wrist | jumped | verdict: the test's checks on the last left eye's images
 // (Misc/quakevr/spacewarp_test.sh).
 void check_f()
 {
@@ -520,6 +522,12 @@ void check_f()
     {
         t.check(za::abs(s.deltaYaw) > 0.05f, "spacewarp", "the play space's delta has no turn");
         t.check(s.cameraMean > 0.002f, "spacewarp", "the world does not turn on the eyes");
+    }
+    else if(!ZA_STRCMP(what, "wrist"))
+    {
+        // (the gun moved in the hand, the player still: its own motion (the hand eases there), the world's none)
+        t.check(s.object > 0 && s.objectMax > 0.001f, "spacewarp", "the moved gun has no motion of its own");
+        t.check(s.cameraMean < 0.002f, "spacewarp", "the world moves with the gun");
     }
     else if(!ZA_STRCMP(what, "jumped"))
     {

@@ -38,6 +38,7 @@ struct EyeInputs
     float farUnits{0.f};
     bool reversed{false};
     bool jump{false};
+    bool halfMotion{false}; // the motion target in half floats (its depth matched more loosely)
     const float* origin{nullptr}; // the eye's place and angles in the world (r_refdef's)
     const float* angles{nullptr};
 };

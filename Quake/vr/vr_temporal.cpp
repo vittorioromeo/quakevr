@@ -381,7 +381,11 @@ struct State
     // The eye targets' generation (stereo::eyeTargetsGeneration) the attachment was made for: a remade set (a dynres step,
     // a Render Scale change) may be given back the same framebuffer and texture names, which alone looked unchanged.
     unsigned attachedGeneration{0};
-    GLuint motionTex{0};       // RGBA32F, the eye size (shared by the eyes)
+    GLuint motionTex{0};       // RGBA32F, the eye size (shared by the eyes); RGBA16F for SpaceWarp alone (motionHalf)
+    // SpaceWarp alone (no TAA, no debug view): the motion target in half floats. OpenGL ES blends no 32-bit float
+    // target without EXT_float_blend, and the engine's opaque draws keep GL_BLEND on (ONE, ZERO); half the bandwidth
+    // on the Quest's tiler. Its stamps stay within 1..1000.5 (exact in a half) and its depth test is looser.
+    bool motionHalf{false};
     GLuint maskTex{0};         // R8
     GLuint displayTex{0};      // RGBA16F: the debug views
     int texWidth{0}, texHeight{0};
@@ -568,7 +572,8 @@ void deleteTexture(GLuint& tex)
 
 void ensureTextures(int width, int height, bool history)
 {
-    if(state.motionTex && state.texWidth == width && state.texHeight == height && (state.maskTex || !history))
+    if(state.motionTex && state.texWidth == width && state.texHeight == height && (state.maskTex || !history) &&
+        state.motionHalf == !history)
     {
         return;
     }
@@ -585,7 +590,8 @@ void ensureTextures(int width, int height, bool history)
         }
         e.valid = false;
     }
-    state.motionTex = makeTexture(GL_RGBA32F, width, height, GL_NEAREST, "taa motion");
+    state.motionHalf = !history;
+    state.motionTex = makeTexture(history ? GL_RGBA32F : GL_RGBA16F, width, height, GL_NEAREST, "taa motion");
     // (SpaceWarp alone: the motion target, none of TAA's eye-sized history; made with TAA's first frame)
     if(history)
     {
@@ -997,7 +1003,8 @@ extern "C" void VR_TemporalProjection(float proj[16], const float view[16])
         proj[c * 4 + 1] += dy * proj[c * 4 + 3];
     }
 
-    state.stamp = static_cast<float>(((state.frameIndex * 2 + state.eye) & 0xFFFFF) + 1);
+    state.stamp = state.motionHalf ? static_cast<float>(((state.frameIndex * 2 + state.eye) % 1000) + 1)
+                                   : static_cast<float>(((state.frameIndex * 2 + state.eye) & 0xFFFFF) + 1);
     temporal::TemporalBlock block{};
     ZA_MEMCPY(block.prevViewProj, e.havePrev ? e.prevViewProj : e.viewProj, sizeof(block.prevViewProj));
     block.jitter[0] = state.jitter[0] / static_cast<float>(state.width);
@@ -1162,6 +1169,7 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
         in.farUnits = e.farUnits;
         in.reversed = gl_clipcontrol_able;
         in.jump = jump;
+        in.halfMotion = state.motionHalf;
         in.origin = e.origin;
         in.angles = e.angles;
         spacewarp::eyePass(in);
