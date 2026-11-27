@@ -89,6 +89,26 @@ struct JunctionCheck
     float middle[3]{};
 };
 [[nodiscard]] JunctionCheck checkJunction(struct edict_s* ent, int slot, int pieces);
+// The tests (ROUND26.md, "armourlook"): piece `slot` of kind `kind` made shaped ("<piece model>#tweak") against its own .mdl,
+// drawn as client entity `num` is: the same skins (so their normal maps, mipmaps and filtering), the same triangles, each
+// vertex's texture place, and every value the renderer hands the shader for it (VR_AliasInstance).
+struct LookCheck
+{
+    bool found{false};
+    bool skins{false};     // every skin and fullbright texture the .mdl's
+    bool normalMap{false}; // ... the first skin's normal map the .mdl's (and a real one, not the flat stand-in)
+    bool triangles{false}; // the same vertex and index counts, the same indexes
+    float stError{0.f};    // texels: the furthest a vertex's texture place is from the .mdl's
+    int instanceDiffs{0};  // the instance's values that differ (0: drawn alike)
+    int firstDiff{-1};     // ... the first one's float index in vraliasinstance_t
+    int skinWidth{0}, skinHeight{0};
+    char skinName[64]{};
+    char normalName[64]{};
+};
+[[nodiscard]] LookCheck lookCheck(int kind, int slot, int num);
+// A piece's debris model (QC VR_AgArmor_Model, limbmodel QVR_ARMOR_BEAST_MODEL): the one it is drawn with while worn, its
+// shape tweaks on ("<piece model>#tweak"), else its .mdl; and that model's box (the tests: the debris is the worn piece).
+bool modelBox(const char* model, float* lo, float* hi);
 
 void init(); // vr_beastarmour_info
 

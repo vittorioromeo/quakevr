@@ -1141,6 +1141,13 @@ void beastTestFrame()
         const float grewR = (hi3[0] - lo3[0]) / za::max(bt.hiR[0] - bt.loR[0], 1e-3f);
         t.check(za::abs(grewR - 1.25f) < 0.01f, beastTestName, "the right shoulder not scaled as the left");
         t.check(strstr(beastarmour::drawnModel(dog, agarmor::PauldronR), "#tweak") != nullptr, beastTestName, "the shoulder not drawn shaped");
+        // (drawn as detailed as its .mdl: the same skins and normal map, texture places, and shader values; his "much more
+        // blocky" scaled plate: retro textures took the #tweak's skin for an IQM's, ROUND26.md "armourlook")
+        const beastarmour::LookCheck look = beastarmour::lookCheck(dog, agarmor::PauldronR, st.subject);
+        Con_Printf("%s: the shaped shoulder's look: skins %d, normal map %d (%s), triangles %d, texture places off %.4f, instance values apart %d (first %d)\n",
+            beastTestName, look.skins, look.normalMap, look.normalName, look.triangles, static_cast<double>(look.stError), look.instanceDiffs, look.firstDiff);
+        t.check(look.found && look.skins && look.normalMap && look.triangles && look.stError < 1e-3f && look.instanceDiffs == 0, beastTestName,
+            "the shaped shoulder not drawn as its .mdl (skins, normal map, texture places or the shader's values differ)");
         Cvar_SetValueQuick(&vr_armourstudio_scale_x, 1.2f);
         bt.step = 50;
         return;
