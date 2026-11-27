@@ -87,7 +87,7 @@ static unsigned int DgrmRandom (void)
 }
 
 extern qboolean m_return_onerror;
-extern char m_return_reason[32];
+extern char m_return_reason[256]; // QVR: (netmismatch) 32 before: a refusal's whole reason
 
 // QVR: (B23) one server socket for every client (docs/vr-port/MP_DESIGN.md "NAT traversal", step 1). NetQuake's server
 // opened a socket on a new port for each client and named that port in its accept: behind a router that doesn't keep a
@@ -2012,6 +2012,15 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		MSG_WriteByte(&net_message, net_activeconnections);
 		MSG_WriteByte(&net_message, svs.maxclients);
 		MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
+		// QVR: (netmismatch) after NetQuake's fields (a client before it reads none of it): "QVR", the Quake VR network
+		// version this server takes and its release, the browser's "needs Quake VR 1.2.0-beta7". Only from a server
+		// that takes that version only (CCREQ_CONNECT's check below)
+		if (sv.active && (sv.protocolflags & PRFL_QUAKEVR))
+		{
+			MSG_WriteString(&net_message, "QVR");
+			MSG_WriteLong(&net_message, QVR_NET_VERSION);
+			MSG_WriteString(&net_message, NET_QvrRelease ());
+		}
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
 		dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
 		SZ_Clear(&net_message);
@@ -2116,7 +2125,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 
 	// QVR: Quake VR's network version ("QVR" and a long after NetQuake's; vr/vr_api.h): a VR server takes the same only
 	{
-		char reason[160];
+		char reason[320];
 		if (msg_readcount < net_message.cursize && Q_strcmp(MSG_ReadString(), "QVR") == 0)
 		{
 			qvrVersion = MSG_ReadLong();
@@ -2135,12 +2144,19 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		reason[0] = 0;
 		if (sv.active && (sv.protocolflags & PRFL_QUAKEVR) && qvrVersion != QVR_NET_VERSION)
 		{
+			// (netmismatch) its release said, what to install: the reason a client shows as it is (a client before it
+			// too: its console, its menu's first 31 characters)
+			const char *release = NET_QvrRelease ();
 			if (qvrVersion == 0)
-				q_snprintf(reason, sizeof(reason), "This is a Quake VR server (network version %d): join with Quake VR.\n",
-					QVR_NET_VERSION);
+				q_snprintf(reason, sizeof(reason), "This server runs Quake VR %s (network version %d): join with Quake VR "
+					"%s.\n", release, QVR_NET_VERSION, release);
+			else if (qvrVersion < QVR_NET_VERSION)
+				q_snprintf(reason, sizeof(reason), "This server runs Quake VR %s (network version %d), newer than your game "
+					"(network version %d): update to Quake VR %s to join.\n", release, QVR_NET_VERSION, qvrVersion, release);
 			else
-				q_snprintf(reason, sizeof(reason), "This Quake VR server has network version %d, your game %d: join with "
-					"the same Quake VR version.\n", QVR_NET_VERSION, qvrVersion);
+				q_snprintf(reason, sizeof(reason), "This server runs Quake VR %s (network version %d), older than your game "
+					"(network version %d): join with Quake VR %s, or its host updates.\n", release, QVR_NET_VERSION,
+					qvrVersion, release);
 		}
 		if (reason[0])
 		{
@@ -2431,6 +2447,16 @@ static void _Datagram_SearchForHosts (qboolean xmit)
 		hostcache[n].users = MSG_ReadByte();
 		hostcache[n].maxusers = MSG_ReadByte();
 		hostcache[n].version = MSG_ReadByte(); // QVR: (B13) kept: the browser says why it cannot be joined
+		// QVR: (netmismatch) a Quake VR server's network version and release after them (none from a server before it)
+		hostcache[n].qvrNetVersion = 0;
+		hostcache[n].qvrRelease[0] = 0;
+		if (msg_readcount < net_message.cursize && Q_strcmp(MSG_ReadString(), "QVR") == 0 &&
+			msg_readcount + 4 <= net_message.cursize)
+		{
+			hostcache[n].qvrNetVersion = MSG_ReadLong();
+			if (msg_readcount < net_message.cursize)
+				q_strlcpy(hostcache[n].qvrRelease, MSG_ReadString(), sizeof(hostcache[n].qvrRelease));
+		}
 		hostcache[n].ping = (int) ((Sys_DoubleTime () - sa->sentTime) * 1000.0 + 0.5);
 		if (hostcache[n].version != NET_PROTOCOL_VERSION)
 		{
@@ -2662,9 +2688,18 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	ret = MSG_ReadByte();
 	if (ret == CCREP_REJECT)
 	{
+		// QVR: (netmismatch) kept, one line (CL_EstablishConnection prints it, with the release to install: the console
+		// had it here, then the server list and a stack trace)
 		reason = MSG_ReadString();
-		Con_Printf("%s\n", reason);
-		q_strlcpy(m_return_reason, reason, sizeof(m_return_reason));
+		q_strlcpy(net_connectrefusal, reason, sizeof(net_connectrefusal));
+		{
+			size_t len = strlen(net_connectrefusal);
+			while (len > 0 && (net_connectrefusal[len - 1] == '\n' || net_connectrefusal[len - 1] == '\r'))
+				net_connectrefusal[--len] = 0;
+		}
+		if (!net_connectrefusal[0])
+			q_strlcpy(net_connectrefusal, "Refused", sizeof(net_connectrefusal));
+		q_strlcpy(m_return_reason, NET_ConnectRefusal(), sizeof(m_return_reason));
 		goto ErrorReturn;
 	}
 
