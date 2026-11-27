@@ -4272,3 +4272,7 @@ His words (2026-11-27): "make the scrag tail armor pieces individually destroyab
   splitting adds 2 points to the tail's total at green, 1 at yellow, none at red (the tail is rarely hit by the test's
   aim at the body's middle).
 - **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).
+
+## blclean: BACKLOG.md cleanup (branch agent/blclean, 2026-11-27)
+
+Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.

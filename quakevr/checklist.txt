@@ -93,6 +93,7 @@ Flat-screen or VR: in multiplayer watch another player climb a rope, hang on it 
 
 [6. Armed humanoids, ragdolls and physics]
 ## Ragdolls and props
+Blades in props: stab a sword into a crate and pick it up by the handle: the crate hangs from the blade by a joint at the handle, the other hand can take the crate; a re-grip off the handle works and the blade stays in.
 Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg still on top) pulls itself up instead of falling. {test:ogre_hall}
 Watch an ogre walk, run and swing his chainsaw up close: his limbs and belly should ripple much less from frame to frame than before, his shape the same; Debug > Reports > Rebuild Joints From Two Bones Off shows the old look to compare. {test:ogre_hall}
 ## Armed humanoids
