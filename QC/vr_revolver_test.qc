@@ -572,6 +572,7 @@ void() VR_RVR_End =
     cvar_set("vr_reload_mode_revolver", ftos(vr_rvr_mode));
     cvar_set("vr_revolver_spent_first", ftos(vr_rvr_spent0));
     cvar_set("vr_revolver_shell_pairs", ftos(vr_rvr_pairs0));
+    cvar_set("vr_weapon_grip_mode", ftos(vr_rvt_grip));
     localcmd("vr_mock_button main secondary 0\n");
     if(!vr_rvt_notarget) vr_rvt_player.flags = vr_rvt_player.flags - (vr_rvt_player.flags & FL_NOTARGET);
     vr_rvr_step = 0;
@@ -592,9 +593,10 @@ void() VR_RVR_Frame =
     entity rec = VR_RVT_Rec();
     entity h = VR_Revolver_Hand(p, cVR_MainHand);
     float s = vr_rvr_step;
-    if(vr_rvr_frames > 72 * 10) // (a safety net only: a stuck step)
+    if(vr_rvr_frames > 72 * 10 || (s > 1 && !rec)) // (a safety net only: a stuck step, the revolver gone)
     {
-        VR_Test_Check(FALSE, sprintf("step %g timed out", s));
+        VR_Test_Check(FALSE, sprintf("step %g timed out or its revolver is gone (%s in the main hand)", s,
+            WeaponIdToWeaponName(VRGetEntWeapon(p, cVR_MainHand))));
         VR_RVR_End();
         self = os;
         return;
@@ -618,7 +620,7 @@ void() VR_RVR_Frame =
         else if(vr_rvr_frames == 16)
         {
             VR_Test_Check(rec && VR_Reload_ManualInHand(p, cVR_MainHand), "a revolver in the main hand, loaded by hand");
-            VR_RVR_Set(rec, VR_RVR_LSLS_L);
+            if(rec) { VR_RVR_Set(rec, VR_RVR_LSLS_L); }
             VR_RVR_Next();
         }
     }
@@ -823,6 +825,8 @@ void() VR_Revolver_TestFrame =
         if(req == 7)
         {
             VR_Test_Begin("rvreload");
+            vr_rvt_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
+            cvar_set("vr_weapon_grip_mode", "1"); // (as rvtest: the gun stays in the hand without the grip held)
             vr_rvt_player.flags = vr_rvt_player.flags | FL_NOTARGET;
             VR_NPT_Freeze(TRUE);
             vr_rvr_step = 1;
