@@ -3312,9 +3312,24 @@ void heldReport_f()
                 }
             }
         }
-        Con_Printf("held_report: %s carried=%d ent=%d drawn=%d model=%s x_in_hand=%.2f %.2f %.2f inview=%d/8\n",
+        // (flatbayonet) In the view's axes (forward, left, up): where it is drawn from the eye, where the server has it
+        // (its last message), its +x.
+        const auto inViewAxes = [&](const glm::vec3& d) {
+            return glm::vec3{glm::dot(d, vf), -glm::dot(d, vr), glm::dot(d, vu)};
+        };
+        glm::vec3 at{0.f}, net{0.f}, xView{0.f};
+        if(drawn)
+        {
+            const entity_t& e = cl_entities[hd.ent];
+            at = inViewAxes(geom::vec(e.origin) - eye);
+            net = inViewAxes(geom::vec(e.msg_origins[0]) - eye);
+            xView = inViewAxes(axesFromAngles(e.angles, e.model->type == mod_brush)[0]);
+        }
+        Con_Printf("held_report: %s carried=%d ent=%d drawn=%d model=%s x_in_hand=%.2f %.2f %.2f inview=%d/8 "
+                   "at_eye=%.1f %.1f %.1f net_at_eye=%.1f %.1f %.1f x_in_view=%.2f %.2f %.2f\n",
             h == 1 ? "main" : "off", carriedEnt, hd.ent, drawn ? 1 : 0,
-            drawn ? cl_entities[hd.ent].model->name : "-", blade.x, blade.y, blade.z, corners);
+            drawn ? cl_entities[hd.ent].model->name : "-", blade.x, blade.y, blade.z, corners, at.x, at.y, at.z, net.x,
+            net.y, net.z, xView.x, xView.y, xView.z);
     }
 }
 

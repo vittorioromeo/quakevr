@@ -5,6 +5,7 @@
 
 #include "vr_api.h"
 #include "vr_cvars.hpp"
+#include "vr_hands.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_view.hpp"
@@ -21,12 +22,25 @@ using weapons::Key;
 // The kinds (the table every system reads): the bayonet's points from ATTACHMENTS.md, "On its own" (its tip, its blade's
 // root; its origin is where it mounts under a barrel).
 constexpr KindInfo kinds[Count] = {
-    {"none", "", glm::vec3{0.f}, glm::vec3{0.f}},
-    {"bayonet", "progs/bayonet.mdl", glm::vec3{6.5f, 0.f, -0.82f}, glm::vec3{1.2f, 0.f, -0.97f}},
+    {"none", "", glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{1.f, 0.f, 0.f}, glm::vec3{0.f, 1.f, 0.f}},
+    // (made along +x, its edge down, its socket across +y: its model's axes are its mount frame)
+    {"bayonet", "progs/bayonet.mdl", glm::vec3{6.5f, 0.f, -0.82f}, glm::vec3{1.2f, 0.f, -0.97f}, glm::vec3{1.f, 0.f, 0.f},
+        glm::vec3{0.f, 1.f, 0.f}},
     // The dagger (daggerattach): its view model as held, its tip and its blade's root its weapons.txt muzzle_av and
-    // wpnbtn_av (slot 51); its origin by its grip (the mounts lay its blade, +z in its model, along the barrel).
-    {"dagger", "progs/v_dagger.mdl", glm::vec3{12.5665f, 0.0082f, 30.3419f}, glm::vec3{7.7205f, 0.0082f, 10.2118f}},
+    // wpnbtn_av (slot 51); its origin by its grip. Its frame (flatbayonet): forward its vertices' long axis (handle to tip,
+    // in the model's x-z plane: the tip 0.43 off it, the muzzle_av line runs 13 degrees off the handle), across its guard
+    // (square to it in that plane); up is the model's -y (scratch fb_frame.py measured it).
+    {"dagger", "progs/v_dagger.mdl", glm::vec3{12.5665f, 0.0082f, 30.3419f}, glm::vec3{7.7205f, 0.0082f, 10.2118f},
+        glm::vec3{0.35418f, 0.f, 0.93518f}, glm::vec3{-0.93518f, 0.f, 0.35418f}},
 };
+
+// The kind's frame: its model's axes in the mount frame (rows forward, across, up).
+[[nodiscard]] glm::mat3 kindFrame(const KindInfo& k)
+{
+    const glm::vec3 f = glm::normalize(k.forward);
+    const glm::vec3 a = glm::normalize(k.across - f * glm::dot(k.across, f));
+    return glm::transpose(glm::mat3{f, a, glm::cross(f, a)});
+}
 
 // Each kind's Weapon Offsets keys (attN_*): fits, x, y, z, pitch, yaw, roll, scale.
 struct MountKeys
@@ -110,6 +124,7 @@ Mount mount(int slot, int kind)
     m.fits = weapons::value(slot, k.ok) != 0.f;
     m.pos = weapons::vec(slot, k.x, k.y, k.z);
     m.angles = weapons::vec(slot, k.pitch, k.yaw, k.roll);
+    m.basis = view::mountBasis(m.angles) * kindFrame(*info(kind));
     m.scale = weapons::value(slot, k.scale);
     if(m.scale <= 0.f)
     {
@@ -128,7 +143,28 @@ Mount mount(int slot, int kind)
 
 glm::vec3 onGun(const Mount& m, const glm::vec3& p)
 {
-    return m.pos + view::mountBasis(m.angles) * (p * (m.scale * m.own));
+    return m.pos + m.basis * (p * (m.scale * m.own));
+}
+
+// The dagger's mounts before its frame (vr_wofs_version 80, weapons.cpp): turned by its angles alone, its model's own axes.
+// The same look in the frame, rolled a quarter turn about its long axis (the guard level: his flat note 2026-11-27, it was
+// upright and cut into the muzzle), its tip where it was: the frame's angles and the mount's place.
+void convertOldMount(int kind, glm::vec3& pos, glm::vec3& angles, float size)
+{
+    const KindInfo* const k = info(kind);
+    if(!k)
+    {
+        return;
+    }
+    const glm::mat3 old = view::mountBasis(angles);
+    const glm::vec3 f = glm::normalize(k->forward);
+    // (a quarter turn about f: v -> f (f.v) + f x v)
+    const glm::mat3 quarter{glm::vec3{f.x * f.x, f.x * f.y + f.z, f.x * f.z - f.y},
+        glm::vec3{f.y * f.x - f.z, f.y * f.y, f.y * f.z + f.x}, glm::vec3{f.z * f.x + f.y, f.z * f.y - f.x, f.z * f.z}};
+    const glm::mat3 rolled = old * quarter;
+    const glm::mat3 turn = rolled * glm::transpose(kindFrame(*k)); // (mountBasis of the new angles)
+    angles = hands::anglesFromVectors(glm::normalize(turn[0]), glm::normalize(turn[2]));
+    pos += (old - rolled) * (k->tip * size);
 }
 
 bool fromMuzzle(qmodel_t* model, int kind, int what, glm::vec3& out)
