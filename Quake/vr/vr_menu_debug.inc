@@ -1351,6 +1351,9 @@ za::Vector<Item> pageDebugReports()
         command("Server Rules: Self-Test", "vr_serverrules_selftest")
             .help("vr_serverrules_selftest: a remote server's rule values as a client takes them: not finite or not a "
                   "number refused, past the menu's range clamped to it; every default and gameplay preset value in range."),
+        command("Network: Control Reply Budget", "vr_net_ctlbudget selftest")
+            .help("vr_net_ctlbudget [selftest]: the server-info, player, rule and reject replies refused so far (each source "
+                  "address has a byte budget: no reflector); selftest: a budget spent, refused, refilled."),
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),

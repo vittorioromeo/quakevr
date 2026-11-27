@@ -1473,26 +1473,35 @@ static void NET_Stats_f (void)
 
 
 // recognize ip:port (based on ProQuake)
-static const char *Strip_Port (const char *host)
+// QVR: (review A8) the port goes to *port (0: none given) for that one address (GetAddrWithPort), no longer into
+// net_hostport for the rest of the session (a favourite without a port was then asked at the last one joined)
+static char	strip_port_noport[MAX_QPATH]; /* array size as in Host_Connect_f() */
+static const char *Strip_Port (const char *host, int *port)
 {
-	static char	noport[MAX_QPATH];
-			/* array size as in Host_Connect_f() */
 	char		*p;
-	int		port;
+	int		given;
 
+	*port = 0;
 	if (!host || !*host)
 		return host;
-	q_strlcpy (noport, host, sizeof(noport));
-	if ((p = Q_strrchr(noport, ':')) == NULL)
+	q_strlcpy (strip_port_noport, host, sizeof(strip_port_noport));
+	if ((p = Q_strrchr(strip_port_noport, ':')) == NULL)
 		return host;
 	*p++ = '\0';
-	port = Q_atoi (p);
-	if (port > 0 && port < 65536 && port != net_hostport)
-	{
-		net_hostport = port;
-		Con_Printf("Port set to %d\n", net_hostport);
-	}
-	return noport;
+	given = Q_atoi (p);
+	if (given > 0 && given < 65536)
+		*port = given;
+	return strip_port_noport;
+}
+
+// QVR: (review A8) the address of `host` (no port in it), at `port` when one was given (Strip_Port), else the default
+static int GetAddrWithPort (const char *host, int port, struct qsockaddr *addr)
+{
+	if (dfunc.GetAddrFromName (host, addr) == -1)
+		return -1;
+	if (port > 0)
+		dfunc.SetSocketPort (addr, port);
+	return 0;
 }
 
 
@@ -1565,12 +1574,13 @@ static void Test_f (void)
 	const char	*host;
 	int		n;
 	int		maxusers = MAX_SCOREBOARD;
+	int		port;
 	struct qsockaddr sendaddr;
 
 	if (testInProgress)
 		return;
 
-	host = Strip_Port (Cmd_Argv(1));
+	host = Strip_Port (Cmd_Argv(1), &port);
 
 	if (host && hostCacheCount)
 	{
@@ -1597,7 +1607,7 @@ static void Test_f (void)
 			continue;
 
 		// see if we can resolve the host name
-		if (dfunc.GetAddrFromName(host, &sendaddr) != -1)
+		if (GetAddrWithPort(host, port, &sendaddr) != -1)
 			break;
 	}
 
@@ -1700,12 +1710,13 @@ static void Test2_f (void)
 {
 	const char	*host;
 	int		n;
+	int		port;
 	struct qsockaddr sendaddr;
 
 	if (test2InProgress)
 		return;
 
-	host = Strip_Port (Cmd_Argv(1));
+	host = Strip_Port (Cmd_Argv(1), &port);
 
 	if (host && hostCacheCount)
 	{
@@ -1731,7 +1742,7 @@ static void Test2_f (void)
 			continue;
 
 		// see if we can resolve the host name
-		if (dfunc.GetAddrFromName(host, &sendaddr) != -1)
+		if (GetAddrWithPort(host, port, &sendaddr) != -1)
 			break;
 	}
 
@@ -1760,6 +1771,8 @@ JustDoIt:
 	SchedulePollProcedure(&test2PollProcedure, 0.05);
 }
 
+
+static void CtlBudget_f (void); // QVR: (review A10)
 
 int Datagram_Init (void)
 {
@@ -1799,6 +1812,7 @@ int Datagram_Init (void)
 #endif
 	Cmd_AddCommand ("test", Test_f);
 	Cmd_AddCommand ("test2", Test2_f);
+	Cmd_AddCommand ("vr_net_ctlbudget", CtlBudget_f); // QVR: (review A10)
 
 	return 0;
 }
@@ -1953,6 +1967,108 @@ static qboolean CookieValid (const struct qsockaddr *addr, unsigned int cookie)
 	return cookie == ConnectCookie (addr, step) || cookie == ConnectCookie (addr, step - 1);
 }
 
+// QVR: (review A10) the replies to connectionless requests (server info, players, rules, rejects) are 5-10x their
+// requests and go to whatever address a request names: a reflector. Each source IP address (any port) has a byte budget
+// for them, CTL_REPLY_BURST, refilled at CTL_REPLY_RATE a second (a browser's refresh is a few hundred bytes); this
+// machine's own (127.0.0.1: the tests, `test`) has none. A table of slots by a keyed hash of the address (ConnectCookie's
+// key: no one can aim two addresses at one slot); a slot taken by another address starts full.
+#define CTL_REPLY_SLOTS	1024
+#define CTL_REPLY_BURST	8192.f
+#define CTL_REPLY_RATE	4096.f
+typedef struct
+{
+	unsigned int	tag; // the address's hash (0: never used)
+	float			bytes;
+	double			time;
+} ctlbudget_t;
+static ctlbudget_t	ctl_budget[CTL_REPLY_SLOTS];
+static int			ctl_budget_refused; // replies not sent (vr_net_ctlbudget)
+
+static qboolean ControlReplyAllowed (const struct qsockaddr *to, int bytes)
+{
+	struct qsockaddr	ip = *to;
+	unsigned int		h;
+	ctlbudget_t			*b;
+
+	if (to->qsa_family == AF_INET && ((const struct sockaddr_in *) to)->sin_addr.s_addr == htonl (INADDR_LOOPBACK))
+		return true;
+	dfunc.SetSocketPort (&ip, 0);
+	h = ConnectCookie (&ip, 0); // (never 0)
+	b = &ctl_budget[h % CTL_REPLY_SLOTS];
+	if (b->tag != h)
+	{
+		b->tag = h;
+		b->bytes = CTL_REPLY_BURST;
+	}
+	else
+		b->bytes = q_min (CTL_REPLY_BURST, b->bytes + (float) (net_time - b->time) * CTL_REPLY_RATE);
+	b->time = net_time;
+	if (b->bytes < (float) bytes)
+	{
+		ctl_budget_refused++;
+		return false;
+	}
+	b->bytes -= (float) bytes;
+	return true;
+}
+
+// the control reply in net_message to `to`, within its address's budget (ControlReplyAllowed)
+static void ControlReply (sys_socket_t acceptsock, struct qsockaddr *to)
+{
+	if (ControlReplyAllowed (to, net_message.cursize))
+		dfunc.Write (acceptsock, net_message.data, net_message.cursize, to);
+}
+
+// vr_net_ctlbudget [selftest]: the replies refused so far; selftest: a source's budget spent, refused, refilled
+static void CtlBudget_f (void)
+{
+	struct qsockaddr	a, b2;
+	const double		was = net_time;
+	const int			refusedWas = ctl_budget_refused;
+	int					passed = 0, failed = 0, n = 0;
+	qboolean			ok;
+
+	Con_Printf ("vr_net_ctlbudget: %d control replies refused (budget %.0f bytes, %.0f a second, per address)\n",
+		ctl_budget_refused, CTL_REPLY_BURST, CTL_REPLY_RATE);
+	if (Cmd_Argc () < 2 || Q_strcmp (Cmd_Argv (1), "selftest") != 0)
+		return;
+#define CTL_CHECK(cond, what) do { ok = (cond); if (ok) passed++; else failed++; Con_Printf ("  %s: %s\n", ok ? "PASS" : "FAIL", what); } while (0)
+	for (net_landriverlevel = 0; net_landriverlevel < net_numlandrivers; net_landriverlevel++)
+		if (net_landrivers[net_landriverlevel].initialized)
+			break; // (the UDP driver: dfunc's SetSocketPort, AddrToString)
+	if (net_landriverlevel == net_numlandrivers)
+	{
+		Con_Printf ("vr_net_ctlbudget_selftest: 0 passed, 1 failed (no network driver)\n");
+		return;
+	}
+	memset (&a, 0, sizeof (a));
+	a.qsa_family = AF_INET;
+	((struct sockaddr_in *) &a)->sin_addr.s_addr = htonl (0xCB007105); // 203.0.113.5 (documentation range)
+	b2 = a;
+	dfunc.SetSocketPort (&a, 26000);
+	dfunc.SetSocketPort (&b2, 26001);
+	net_time = 1000000.0;
+	memset (ctl_budget, 0, sizeof (ctl_budget));
+	while (n < 1000 && ControlReplyAllowed (n & 1 ? &b2 : &a, 100))
+		n++;
+	CTL_CHECK (n == (int) (CTL_REPLY_BURST / 100), va ("a source's 100-byte replies until its budget is spent: %d (any port)", n));
+	net_time += 0.5;
+	CTL_CHECK (ControlReplyAllowed (&a, 2000) && !ControlReplyAllowed (&a, 200), "half a second later: half the rate back");
+	net_time += 10.0;
+	CTL_CHECK (ControlReplyAllowed (&a, (int) CTL_REPLY_BURST) && !ControlReplyAllowed (&a, 1), "later: the full budget, no more");
+	((struct sockaddr_in *) &b2)->sin_addr.s_addr = htonl (0xCB007106);
+	CTL_CHECK (ControlReplyAllowed (&b2, 4000), "another address: its own budget");
+	((struct sockaddr_in *) &b2)->sin_addr.s_addr = htonl (INADDR_LOOPBACK);
+	for (n = 0; n < 100 && ControlReplyAllowed (&b2, 1000); n++)
+		;
+	CTL_CHECK (n == 100, "this machine (127.0.0.1): no budget");
+#undef CTL_CHECK
+	memset (ctl_budget, 0, sizeof (ctl_budget));
+	net_time = was;
+	ctl_budget_refused = refusedWas;
+	Con_Printf ("vr_net_ctlbudget_selftest: %d passed, %d failed\n", passed, failed);
+}
+
 static void SendChallenge (sys_socket_t acceptsock, const struct qsockaddr *to)
 {
 	SZ_Clear(&net_message);
@@ -2022,7 +2138,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 			MSG_WriteString(&net_message, NET_QvrRelease ());
 		}
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-		dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
+		ControlReply (acceptsock, &clientaddr); // QVR: (review A10) within its address's budget
 		SZ_Clear(&net_message);
 		return NULL;
 	}
@@ -2072,7 +2188,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 			MSG_WriteString(&net_message, address);
 		}
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-		dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
+		ControlReply (acceptsock, &clientaddr); // QVR: (review A10) within its address's budget
 		SZ_Clear(&net_message);
 
 		return NULL;
@@ -2098,7 +2214,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 			MSG_WriteString(&net_message, var->string);
 		}
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-		dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
+		ControlReply (acceptsock, &clientaddr); // QVR: (review A10) within its address's budget
 		SZ_Clear(&net_message);
 
 		return NULL;
@@ -2118,7 +2234,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		MSG_WriteByte(&net_message, CCREP_REJECT);
 		MSG_WriteString(&net_message, "Incompatible version.\n");
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-		dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
+		ControlReply (acceptsock, &clientaddr); // QVR: (review A10) within its address's budget
 		SZ_Clear(&net_message);
 		return NULL;
 	}
@@ -2167,7 +2283,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 			MSG_WriteByte(&net_message, CCREP_REJECT);
 			MSG_WriteString(&net_message, reason);
 			*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-			dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
+			ControlReply (acceptsock, &clientaddr); // QVR: (review A10) within its address's budget
 			SZ_Clear(&net_message);
 			return NULL;
 		}
@@ -2187,7 +2303,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 			MSG_WriteByte(&net_message, CCREP_REJECT);
 			MSG_WriteString(&net_message, "You have been banned.\n");
 			*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-			dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
+			ControlReply (acceptsock, &clientaddr); // QVR: (review A10) within its address's budget
 			SZ_Clear(&net_message);
 			return NULL;
 		}
@@ -2266,7 +2382,7 @@ static qsocket_t *_Datagram_ControlRequest (sys_socket_t acceptsock, const struc
 		MSG_WriteByte(&net_message, CCREP_REJECT);
 		MSG_WriteString(&net_message, "Server is full.\n");
 		*((int *)net_message.data) = BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
-		dfunc.Write (acceptsock, net_message.data, net_message.cursize, &clientaddr);
+		ControlReply (acceptsock, &clientaddr); // QVR: (review A10) within its address's budget
 		SZ_Clear(&net_message);
 		return NULL;
 	}
@@ -2534,7 +2650,7 @@ static void SendConnectRequest (sys_socket_t sock, struct qsockaddr *to, unsigne
 	SZ_Clear(&net_message);
 }
 
-static qsocket_t *_Datagram_Connect (const char *host)
+static qsocket_t *_Datagram_Connect (const char *host, int port)
 {
 	struct qsockaddr sendaddr;
 	struct qsockaddr readaddr;
@@ -2553,7 +2669,7 @@ static qsocket_t *_Datagram_Connect (const char *host)
 	int			challenges = 0; // QVR: ... how many came
 
 	// see if we can resolve the host name
-	if (!byRoom && dfunc.GetAddrFromName(host, &sendaddr) == -1)
+	if (!byRoom && GetAddrWithPort(host, port, &sendaddr) == -1)
 	{
 		Con_Printf("Could not resolve %s\n", host);
 		return NULL;
@@ -2764,13 +2880,14 @@ ErrorReturn2:
 qsocket_t *Datagram_Connect (const char *host)
 {
 	qsocket_t *ret = NULL;
+	int port;
 
-	host = Strip_Port (host);
+	host = Strip_Port (host, &port);
 	for (net_landriverlevel = 0; net_landriverlevel < net_numlandrivers; net_landriverlevel++)
 	{
 		if (net_landrivers[net_landriverlevel].initialized)
 		{
-			if ((ret = _Datagram_Connect (host)) != NULL)
+			if ((ret = _Datagram_Connect (host, port)) != NULL)
 				break;
 		}
 	}
