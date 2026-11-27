@@ -2571,3 +2571,11 @@ The beta profile's scenario_check failed in a lane (5 vrtesthall scenes "placed 
   came out empty), so scenario_check fails on next until that is fixed.
 Proof: scenario_check in a polluted lane 2 (quest's lane-2 installer_settings.cfg): 20 "in a wall" before, 0 after; the beta
 profile twice (counts in the report). Open (not checked further): with snap turning, a map load's spawn facing looks ignored by the VR view (the old yaw stays).
+- **Published (coordinator's go after lanescene):** lanescene's 4 commits cherry-picked (4006a844a a609b2fee 44b279407
+  50a0e6c22), APK rebuilt (1020006, check_apk 29/0, cert = release-cert.sha256). One more test fix: the suite reads any
+  'N failed' line as a failure, so scenario_check now shows SCNRUNSUM less the uninstalled package scenes ('0 failed, 3
+  package scenes not installed'). make_release on ce92bf878: beta profile 12/0 (3.3 min); shipped cache 30 files
+  (161.2 MiB, index.txt included); installer, smoke, check_apk; prerelease v1.2.0-beta6 with QuakeVR.zip, QuakeVR-Setup.exe,
+  QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed (and -CheckOnline again, a feed install verified);
+  Latest still v1.1.0. Tag on ce92bf878. Quest not touched (its debug-signed dev build stays, his call). Output parked
+  in F:/QVR-Parked/2026-11-27/beta6/.
