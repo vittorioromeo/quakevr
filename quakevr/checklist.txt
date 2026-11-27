@@ -28,6 +28,7 @@ Stab an enemy with the bayonet, keep holding and fire a few shots (shotgun, then
 On the Quest, set Quest Foveation to High (Top) in a map: the top of the view (sky, ceilings) gets blurrier than at High while the lower middle stays sharp, it runs at least as smoothly as High, and Show Foveation's pattern sits lower. {test:quest_foveation}
 On the Quest, try Quest Foveation: Shift (advanced) at -15 and +15 with High: the sharp middle moves down and up, no crash when changing it. {test:quest_foveation}
 On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution of Eternity: each plays its own soundtrack, not Quake's. {test:campaign_music}
+Flat-screen: hold a crate with H and walk straight into it: it is pushed ahead of you at arm's length (you no longer stop dead against it), and backing away still drags it. {test:flat_grab_pull}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
