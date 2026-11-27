@@ -15,6 +15,8 @@ Pull the bayonet off the shotgun with your empty hand (or pick up a lying one): 
 Flat-screen: kill a grunt, hold its body with H and walk into it: it is pushed ahead at the distance you took it at, both hands staying on it and on your wrists; walk backwards and it is dragged along; turn sharply away and the hands let go. {test:flat_grab_pull}
 Flat-screen: hold a dead ogre with H and run into it: it is too heavy for that pace and the hands let go; Push Held Props Off (Tunables > Flatscreen > Grab / Pull) gives the old pull of the body in to your hands. {test:flat_grab_pull}
 Ragdoll climbs: a hell knight knocked off a ledge grabs the lip and pulls itself all the way up onto the top (no longer stuck at the lip with its chest under it); grunts, knights and ogres still climb up smoothly. {test:hknight_ledge}
+On the Quest, VR Settings > Scaling: turn SpaceWarp on and play the hub, then a fight: motion should look as smooth as at 72 Hz; look for wobbling edges on your hands, the gun and moving monsters, and whether the status panel or any head-fixed text judders. {test:quest_gibfight}
+On the Quest with SpaceWarp on: walk, smooth-turn and snap-turn, and open and close the menu: no stutter at the turn or the menu (the menu shows at the full rate), no smearing of the world while walking. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

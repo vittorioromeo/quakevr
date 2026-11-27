@@ -2595,6 +2595,54 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.
 
+## spacewarp: Application SpaceWarp on the Quest, off by default (branch agent/spacewarp, 2026-11-27)
+
+His words: "Performance is OK but still not smooth enough ... I think it's time to implement [SpaceWarp]."
+- **What it does**: `vr_xr_spacewarp` 1 (VR Settings > Scaling, "SpaceWarp", Quest only; off by default, archived) hands
+  the runtime each eye's motion vectors and depth with its colour (`XR_FB_space_warp`, `XrCompositionLayerSpaceWarpInfoFB`
+  on both projection views); the runtime then halves the game's rate and draws the frames between. The console says at
+  each VR start whether the runtime has it: `VR: SpaceWarp (XR_FB_space_warp): supported by the runtime (motion vectors
+  420x440 an eye ...)` on the Quest 3; the first frame with it says `VR: SpaceWarp on: motion vectors and depth 420x440 an
+  eye (depth GL_DEPTH24_STENCIL8)`. No runtime support, swapchains that fail, or a pass that won't compile: the full rate.
+- **Code**: `vr_spacewarp.cpp/.hpp` (policy, the eye pass, the play space's delta, the test checks); the backend's
+  SpaceWarp swapchains (2 motion RGBA16F + 2 depth, the recommended size, made at first use, gone with the session),
+  `acquire/releaseSpaceWarpImages`, `setSpaceWarpFrame`, the chain in `endFrame` (never on a held frame; `xr` timing line
+  counts "with SpaceWarp"). Reuse: the motion vectors are temporal AA's (`vr_temporal.cpp`): the scene's models and
+  moving brush models write their own motion into the motion target, the camera's (head + locomotion) comes from the
+  depth and the eye's view-projection a frame ago; `VR_TemporalResolve` calls the SpaceWarp pass (a fullscreen pass at
+  420x440: NDC now minus then, Meta's GLES sample's convention incl. the full previous view; z as GL NDC depth; the
+  depth as the projection wrote it, nearZ/farZ in metres, reversed Z as nearZ > farZ; the lenses' hidden area far, zero
+  motion). `appSpaceDeltaPose` = Inv(previous world-from-play-space) * current (Meta's sample), from the eye's Quake
+  pose and its OpenXR pose; a jump (40 units, 25 degrees, a gap in frames) marks the frame `FRAME_SKIP`.
+- **Decisions**: (1) the eyes go through the post-process path while SpaceWarp is on (`VR: eyes ... not now: SpaceWarp`):
+  the motion target can't be an attachment of the runtime's foveated images (an unfoveated attachment stops the
+  driver's foveation, qfov), so the scene's own targets are used; at half rate the budget doubles. (2) SpaceWarp alone
+  keeps the motion target in half floats (ES blends no 32-bit float target and the engine's opaque draws keep GL_BLEND
+  on; half the bandwidth), stamps 1..1000, looser depth match; none of TAA's history textures are made. (3) Menus and
+  the console turn it off for those frames (the UI over the eyes has no motion of its own; at the full rate they look as
+  before). The in-game UI drawn over the eyes (pointer lines, the status panel, head text) takes the scene's motion under
+  it: a world-fixed panel is nearly right, head-fixed text may judder in made-up frames (a quad layer would fix it).
+- **Headset** (Quest 3, unworn, `-unattended -noconfigwrite`, Standalone as his config has it, one launch; the
+  unworn headset pauses the app every ~20 s, so only the hub's parts are clean; the fight's never ran: open):
+
+| vrstart (the hub) | frame period | missed | CPU busy (period - waits) | GPU render | GPU total (incl. the runtime's in xrEndFrame) |
+|---|---|---|---|---|---|
+| SpaceWarp off (1) | 13.92 ms (71.9 fps) | 5 of 304 | 8.8 ms | 10.44 ms | 10.47 ms |
+| SpaceWarp on (1) | **27.79 ms (36.0 fps)** | **0 of 153** | 10.4 ms | 10.48 ms | 20.75 ms (10.26 the runtime's) |
+| off (2), a pause inside | 14.47 ms | 6 of 233 | - | - | - |
+| on (2) | 27.78 ms (36.0 fps) | 0 of 161 | - | - | - |
+
+  The runtime halved the rate at once and missed nothing. The render's GPU stayed ~10.5 ms with the post-process path
+  and the pass: dynamic resolution sees the doubled budget (27.78 ms), so it can draw sharper (the scale not logged).
+- **PC**: `spacewarp_test.sh` 16/0 (mock headset, `vr_spacewarp_test 1`: the images made into the game's own textures and
+  read back: still 0 motion and a depth range; the gun brought up has its own motion and the world none; walking, the
+  world streams by (mean 0.018 NDC) while the held gun stays 0.00003, the delta 8.7 cm forward a frame; the smooth turn
+  turns the delta; a setpos marks the frame skipped). Debug > Profiling "SpaceWarp Test Images".
+- **Open**: the fight's numbers (an unworn run is paused every ~20 s; a worn check or a proximity override needed); the
+  look of the made-up frames (worn only: hands, gun, HUD text); step 3's ranked profile of remaining costs: not done.
+- **Installed**: this branch's APK (origin/next with beta6's code, it says 1.2.0-beta5-dev, + SpaceWarp; debug key) and its progs.dat (06b6d2f8) left on the
+  headset; rollback: `scratch/sw_installed_before.apk` (bf4eecc2f, questcrash2's) + `scratch/sw_progs_before.dat`
+  (15e03c5b).
 ## testfails: four known test failures on next, each a stale test (branch agent/testfails, 2026-11-27)
 
 - `reload/pouch_test.sh` "super shotgun (main hand, dual-wielded): fills too": the off hand stayed at the pouch with its
