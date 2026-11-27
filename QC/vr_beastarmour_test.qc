@@ -89,7 +89,8 @@ float(float i, float first) VR_BAT_SizeSpread =
 
 // Frames A (standing) and B (another pose: run, swing, attack) of each kind.
 float(float kind) VR_BAT_FrameA = { return kind == 0 ? 69 : 0; };
-float(float kind) VR_BAT_FrameB = { return kind == 0 ? 48 : kind == 1 ? 33 : kind == 2 ? 29 : 54; };
+// (B: the limbs moved, the ogre's and the scrag's arms not before their chests: their breastplates shot from the front)
+float(float kind) VR_BAT_FrameB = { return kind == 0 ? 48 : kind == 1 ? 28 : kind == 2 ? 31 : 54; };
 
 float(entity e) VR_BAT_Count =
 {
@@ -247,6 +248,12 @@ void(float req) VR_BAT_Frame =
         }
         float drawn = ragdollbone(world, '2 0 0', QVR_ARMOR_BEAST);
         VR_Test_Check(drawn == want, sprintf("every piece drawn: %g of %g", drawn, want));
+        // (and the slots' parts on other bones: the ogre's shins with his thighs' pieces, the scrag's tail with his belt's)
+        float parts = ((vr_bat_e1.vr_ar_mask & VR_AgArmor_Bit(6)) != 0) + ((vr_bat_e1.vr_ar_mask & VR_AgArmor_Bit(7)) != 0) +
+            4 * ((vr_bat_e2.vr_ar_mask & VR_AgArmor_Bit(8)) != 0);
+        float ents = ragdollbone(world, '2 1 0', QVR_ARMOR_BEAST);
+        VR_Test_Check(ents == want + parts && parts == 6, sprintf("every part drawn: %g entities, %g pieces and %g parts", ents, want,
+            parts));
         vr_bat_state = 3;
         vr_bat_wait = time + 0.4;
         return;
