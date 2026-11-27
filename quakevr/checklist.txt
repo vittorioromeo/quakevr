@@ -34,6 +34,8 @@ With a dagger on a shotgun, stab a grunt: it sticks by the dagger's point, fires
 Flat-screen: with a dagger in the off hand and a shotgun in the main hand, J puts the dagger on as a bayonet, J again gives it back; V thrusts with it. With Daggers as Bayonets off (Weapon Offsets > Attachments), J does nothing. {test:attach_dagger}
 On the Quest, stand on the hub's terrace and in a gib fight for a minute each: frames stay smooth (no judder bursts); say where you still feel stutter, it decides which of the ranked GPU or CPU fixes comes next. {test:quest_gibfight}
 Flat-screen or VR: in AD, cut the arms and legs off a Death Guard and a Crossbow Knight: each limb comes off in their own look, and AD maps with them (ad_azad, ad_tears) load without an error. {test:ad_knights_armed}
+Look at the armoured ogre and scrag from the front, back and both sides while they idle, walk and attack: the left and right pieces should be mirror images, the breastplate centred on the chest, the helmet a dome and the shoulder plates domes, nothing floating off the body. {test:armour_beasts}
+Watch any armoured beast (rottweiler, ogre, scrag, fiend) run, attack and die: its plates should never grow or shrink as it moves or as it falls. {test:armour_beasts}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
