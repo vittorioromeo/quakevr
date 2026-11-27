@@ -62,7 +62,8 @@ void debugDraw();
 [[nodiscard]] uint32_t pieceBones(struct edict_s* ent, int piece);
 // Where piece `piece` of `ent` is now as a model of its own ("<model>#plate<piece>", derivedFile): `what` 0 its origin,
 // 1 its angles (an alias model's), as drawn (hitmodel's poses; else its rest pose where the entity stands).
-// 6, 7: half 0 / 1 of its split's middle (halfModel's model's origin; its angles 1's); '0 0 0' none.
+// 6, 7: half 0 / 1 of its split's middle (halfModel's model's origin; its angles 1's); '0 0 0' none. 8 (a beast's
+// piece): {its scale as drawn, its box's diagonal as drawn, 0} (vr_beastarmour.cpp).
 void plateWhere(struct edict_s* ent, int piece, int what, float* out);
 // A broken plate's half (vr_agarmor_split; QC limbmodel(e, QVR_ARMOR_HALF - (2 * piece + half))): the model of half
 // `half` (0, 1) of piece `piece` of `ent` (a player: vrbody.mdl's, its plates' debris) split along its kind's line
