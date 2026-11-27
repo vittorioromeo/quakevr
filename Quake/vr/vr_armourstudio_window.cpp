@@ -551,6 +551,7 @@ void drawWindow()
         {
             ImGui::TextDisabled("Side: one piece (no sides)");
         }
+        gizmoRows(); // (the handle on the part in the view: vr_armourstudio_gizmo.cpp)
         const int partNow = cvarIndex(vr_armourstudio_part, 0, NumParts - 1);
         for(int f = 0; f < NumFields; f++)
         {
@@ -634,6 +635,7 @@ void closeWindow()
         win.keyPhase = 0;
     }
     win.clickPhase = 0;
+    gizmoEdit(false); // (a handle's drag cut short ends here)
     imgui::want(false);
     IN_Activate();
     Con_Printf("armourstudio: window closed\n");
@@ -917,6 +919,7 @@ void windowInit()
 
 void windowFrame()
 {
+    gizmoTestFrame(); // (its steps: before the window opens too)
     if(!win.open)
     {
         if(win.step != 0)
@@ -933,6 +936,7 @@ void windowFrame()
     imgui::setPanel(0, 0, 0, 1.f); // (the screen only: no headset panel)
     imgui::want(true);
     feedMock();
+    gizmoFeed();
     if(!imgui::beginFrame())
     {
         return;
@@ -951,6 +955,7 @@ void windowFrame()
         return; // (the test's verdict closed it)
     }
     drawWindow();
+    gizmoFrame(); // (the handle on the part, over the game's view: after the window, so its hover is known)
     if(win.askClose)
     {
         closeWindowByPlayer(); // (after ImGui::End)

@@ -10,6 +10,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_geom.hpp"
+#include "vr_gizmo.hpp"
 #include "vr_imgui.hpp"
 #include "vr_progs.hpp"
 #include "vr_rigstudio.hpp"
@@ -622,39 +623,20 @@ void measureHand(const hands::State& s, const int hand)
 }
 
 // The game's own view (the flatscreen's camera) as a projection, which is what the markers are drawn with. (No second
-// camera: this tool shows the weapon exactly as the game draws it.)
-struct ViewBasis
-{
-    glm::vec3 org{0.f};
-    glm::vec3 fwd{1.f, 0.f, 0.f};
-    glm::vec3 right{0.f, 1.f, 0.f};
-    glm::vec3 up{0.f, 0.f, 1.f};
-    float tanX{1.f};
-    float tanY{1.f};
-    float w{1.f};
-    float h{1.f};
-};
+// camera: this tool shows the weapon exactly as the game draws it.) vr_gizmo.hpp's, shared with the Armour Studio's handle.
+using ViewBasis = gizmo::Projection;
 
 ViewBasis viewBasis()
 {
-    ViewBasis v;
-    v.org = {r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    basisOf({r_refdef.viewangles[0], r_refdef.viewangles[1], 0.f}, v.fwd, v.right, v.up);
-    v.tanX = tanf(r_refdef.fov_x * 0.5f * degToRad);
-    v.tanY = tanf(r_refdef.fov_y * 0.5f * degToRad);
-    v.w = ImGui::GetIO().DisplaySize.x;
-    v.h = ImGui::GetIO().DisplaySize.y;
-    return v;
+    return gizmo::refdefProjection(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
 }
 
 [[nodiscard]] bool projectPoint(const ViewBasis& v, const glm::vec3& p, ImVec2& out)
 {
-    const glm::vec3 d = p - v.org;
-    const float depth = glm::dot(d, v.fwd);
-    if(depth < 0.5f || v.tanX <= 0.f || v.tanY <= 0.f)
+    glm::vec2 s;
+    if(!v.project(p, s))
         return false;
-    out.x = (glm::dot(d, v.right) / (depth * v.tanX) * 0.5f + 0.5f) * v.w;
-    out.y = (0.5f - glm::dot(d, v.up) / (depth * v.tanY) * 0.5f) * v.h;
+    out = ImVec2{s.x, s.y};
     return out.x > -1e4f && out.x < 1e4f && out.y > -1e4f && out.y < 1e4f;
 }
 

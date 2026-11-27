@@ -51,6 +51,24 @@ closes the studio too (`vr_armourstudio_autoclose` 1; 0: the studio keeps runnin
   the menu's way and sees it on the window, clicks Stop, presses Escape: `armourwin: 17 passed, 0 failed` (writes
   `quakevr/data/armour_wintest.txt`, never armour.txt). In a headset it checks the window refuses: `armourwin: 1 passed`.
 
+### The handle (gizmo)
+
+While the window is open and the studio runs, the part picked has a handle on it in the view (the Rig Studio's handle,
+`vr_gizmo.cpp`, shared): at the part's middle, in the part's own frame (its bone as posed, turned by its rotate). The window's
+**Handle** row (or the keys **Q W E R**, `vr_armourstudio_gizmo` 0-3) picks it: Off, **Move** (arrows along the part's forward /
+left / up, plane squares, the centre dot in the view's plane: Forward / Left / Up), **Rotate** (rings about its axes: Pitch /
+Yaw / Roll), **Scale** (arms with box ends: Size Fwd / Left / Up; the centre dot dragged across: Scale, 150 pixels doubling
+it). A drag writes the rows' own cvars, so it is the same edit as a slider's: the menu and the rows follow, Save writes it,
+and the whole drag is one Undo step. Ctrl snaps to the rows' steps (0.1 units, 5 degrees, 0.02x). Arrows and rings follow the mouse exactly under perspective (the
+mouse's ray met with the arrow's line or the ring's plane). The values show by the
+mouse while dragging. `vr_armourstudio_gizmo_size` (pixels, 80) its size. None on a sleeve or junction part, nor in a
+headset (the menu page's sliders there: no hand grab of the part). A both-sides limb part's handle is on its left piece.
+Test: `vr_armourstudio_gizmo_test` (Debug > Tests), `-flatscreenmode` in a map: each mode's drag by a mock mouse makes the
+value it should (2 units along the arrow longest on the screen, 30 degrees round the ring facing the eye most, 1.25x
+along an arm, 1.5x by the centre, and a rottweiler piece's move), each with one undo step, the view first turned to the
+part (the row's **Look at the Part** button, `vr_armourstudio_gizmo_look`; `vr_armourstudio_gizmo_info` prints where the
+handle is): `armourgizmo: 16 passed, 0 failed`.
+
 ## Animations
 
 The subject plays its model's animations with its plates on, as in play (Animation on the page, the window's Animation

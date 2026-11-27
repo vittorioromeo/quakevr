@@ -43,19 +43,14 @@ using geom::pi;
 using geom::deg;
 
 // Handle parts (dragAxis): 0..2 the axes (rings or arrows), 3 the view ring / the view plane, 4..6 the planes (yz, zx,
-// xy), 10 the rest pose's pivot, 11 its end.
-struct Handle
+// xy), 10 the rest pose's pivot, 11 its end. The handle itself is vr_gizmo.hpp's (shared with the Armour Studio).
+struct Handle : gizmo::Handle
 {
-    bool shown{false};
-    glm::vec3 centre{0.f};  // world
-    glm::vec3 axis[3]{glm::vec3{1.f, 0.f, 0.f}, glm::vec3{0.f, 1.f, 0.f}, glm::vec3{0.f, 0.f, 1.f}}; // world
-    float radius{10.f};     // world units for handle_size pixels
-    int owner{0};           // 0 the active bone, 1 the aim target, 2 the Pose Keys' part
-    bool move{false};       // its arrows, planes and centre
-    bool rot{false};        // its rings (with arrows too: outside them, parts 20..22)
+    int owner{0}; // 0 the active bone, 1 the aim target, 2 the Pose Keys' part
 };
 
-constexpr float ringOut = 1.6f; // a handle with both: its rings this far out of its arrows
+using gizmo::ringN;
+using gizmo::segDist;
 
 // A step of the mock mouse (the tests): where it is, whether its left button is down.
 struct MockStep
@@ -113,38 +108,10 @@ ViewState vs;
     return !(st.hidden & (1u << b));
 }
 
-// The ray from the camera through a window point (world).
-[[nodiscard]] glm::vec3 rayDir(const glm::vec2& m)
-{
-    const View& v = st.view;
-    const float x = ((m.x - v.x) / v.w) * 2.f - 1.f;
-    const float y = 1.f - ((m.y - v.y) / v.h) * 2.f;
-    return glm::normalize(v.fwd + v.right * (x * v.tanX) + v.up * (y * v.tanY));
-}
-
+// Where the ray from the camera through a window point meets a plane (world).
 [[nodiscard]] bool rayPlane(const glm::vec2& m, const glm::vec3& p0, const glm::vec3& n, glm::vec3& hit)
 {
-    const glm::vec3 d = rayDir(m);
-    const float den = glm::dot(d, n);
-    if(za::abs(den) < 1e-4f)
-    {
-        return false;
-    }
-    const float t = glm::dot(p0 - st.view.org, n) / den;
-    if(t <= 0.f)
-    {
-        return false;
-    }
-    hit = st.view.org + d * t;
-    return true;
-}
-
-[[nodiscard]] float segDist(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b)
-{
-    const glm::vec2 ab = b - a;
-    const float l2 = glm::dot(ab, ab);
-    const float t = l2 > 1e-6f ? za::clamp(glm::dot(p - a, ab) / l2, 0.f, 1.f) : 0.f;
-    return glm::length(p - (a + ab * t));
+    return st.view.rayPlane(m, p0, n, hit);
 }
 
 [[nodiscard]] glm::vec4 heat(float w)
@@ -258,118 +225,27 @@ void placeHandle()
             vs.h.axis[i] = glm::normalize(toWorld(r * a) - toWorld(glm::vec3{0.f}));
         }
     }
-    glm::vec2 s;
-    float depth = 1.f;
-    if(!project(vs.h.centre, s, &depth))
-    {
-        return;
-    }
-    vs.h.radius = vr_rigstudio_handle_size.value * depth * 2.f * st.view.tanY / st.view.h;
-    vs.h.shown = true;
+    gizmo::place(vs.h, st.view, vr_rigstudio_handle_size.value);
 }
 
-// A ring's points (screen), `n` of them round axis `a`.
-[[nodiscard]] float ringRadius()
+// The handle's looks that are the Rig Studio's own: a bone's rotate handle has a view ring; a Pose Keys part's rings are
+// parts 20..22.
+[[nodiscard]] gizmo::Style handleStyle()
 {
-    return vs.h.radius * (vs.h.move && vs.h.rot ? ringOut : 1.f);
+    gizmo::Style s;
+    s.viewRing = vs.h.owner == 0 ? vr_rigstudio_handle_size.value * 1.18f : 0.f;
+    s.ringBase = vs.h.owner == 2 ? 20 : 0;
+    return s;
 }
 
 void ringPoints(const glm::vec3& a, glm::vec2* out, bool* front, int n)
 {
-    glm::vec3 u = glm::abs(a.z) < 0.9f ? glm::cross(a, glm::vec3{0.f, 0.f, 1.f}) : glm::cross(a, glm::vec3{1.f, 0.f, 0.f});
-    u = glm::normalize(u);
-    const glm::vec3 v = glm::cross(a, u);
-    const float r = ringRadius();
-    for(int i = 0; i < n; i++)
-    {
-        const float t = static_cast<float>(i) / static_cast<float>(n) * 2.f * pi;
-        const glm::vec3 p = vs.h.centre + (u * za::cos(t) + v * za::sin(t)) * r;
-        project(p, out[i]);
-        front[i] = glm::dot(p - vs.h.centre, st.view.org - vs.h.centre) >= -0.05f * r;
-    }
-}
-
-constexpr int ringN = 48;
-
-// The ring (0..2) nearest `m` within 7 pixels, else -1.
-[[nodiscard]] int hitRing(const glm::vec2& m)
-{
-    int best = -1;
-    float bestD = 7.f;
-    for(int i = 0; i < 3; i++)
-    {
-        glm::vec2 pts[ringN];
-        bool front[ringN];
-        ringPoints(vs.h.axis[i], pts, front, ringN);
-        for(int k = 0; k < ringN; k++)
-        {
-            if(!front[k] && !front[(k + 1) % ringN])
-            {
-                continue;
-            }
-            const float d = segDist(m, pts[k], pts[(k + 1) % ringN]);
-            if(d < bestD)
-            {
-                bestD = d;
-                best = i;
-            }
-        }
-    }
-    return best;
+    gizmo::ringPoints(vs.h, st.view, a, out, front, n);
 }
 
 int hitHandle(const glm::vec2& m)
 {
-    if(!vs.h.shown)
-    {
-        return -1;
-    }
-    glm::vec2 c;
-    project(vs.h.centre, c);
-    if(vs.h.rot && !vs.h.move)
-    {
-        int best = hitRing(m);
-        const float vr = vr_rigstudio_handle_size.value * 1.18f;
-        if(best < 0 && vs.h.owner == 0 && za::abs(glm::length(m - c) - vr) < 7.f)
-        {
-            best = 3; // (a bone's view ring)
-        }
-        return best >= 0 && vs.h.owner == 2 ? 20 + best : best;
-    }
-    // Move and the rest tool: the arrows, the planes, the centre
-    if(glm::length(m - c) < 8.f)
-    {
-        return 3;
-    }
-    for(int i = 0; i < 3; i++)
-    {
-        glm::vec2 e;
-        project(vs.h.centre + vs.h.axis[i] * vs.h.radius, e);
-        if(segDist(m, c, e) < 6.f)
-        {
-            return i;
-        }
-    }
-    for(int i = 0; i < 3; i++)
-    {
-        const glm::vec3 a = vs.h.axis[(i + 1) % 3], b = vs.h.axis[(i + 2) % 3];
-        glm::vec2 q[4];
-        project(vs.h.centre + (a * 0.25f + b * 0.25f) * vs.h.radius, q[0]);
-        project(vs.h.centre + (a * 0.45f + b * 0.25f) * vs.h.radius, q[1]);
-        project(vs.h.centre + (a * 0.45f + b * 0.45f) * vs.h.radius, q[2]);
-        project(vs.h.centre + (a * 0.25f + b * 0.45f) * vs.h.radius, q[3]);
-        const glm::vec2 mid = (q[0] + q[2]) * 0.5f;
-        if(glm::length(m - mid) < za::max(6.f, glm::length(q[2] - q[0]) * 0.5f))
-        {
-            return 4 + i;
-        }
-    }
-    if(vs.h.rot)
-    {
-        const int r = hitRing(m); // (the rings outside the arrows)
-        return r >= 0 ? 20 + r : -1;
-    }
-    return -1;
+    return gizmo::hit(vs.h, st.view, m, handleStyle());
 }
 
 void drawHandle(ImDrawList* dl)
@@ -378,69 +254,17 @@ void drawHandle(ImDrawList* dl)
     {
         return;
     }
-    const glm::vec4 axisCol[3] = {{0.95f, 0.25f, 0.3f, 1.f}, {0.4f, 0.85f, 0.2f, 1.f}, {0.25f, 0.5f, 1.f, 1.f}};
-    const glm::vec4 hot{1.f, 0.9f, 0.3f, 1.f};
-    glm::vec2 c;
-    project(vs.h.centre, c);
-    const int part = st.dragging ? st.dragAxis : vs.hoverPart;
-    if(vs.h.rot)
+    gizmo::draw(vs.h, st.view, dl, st.dragging ? st.dragAxis : vs.hoverPart, handleStyle());
+    if(vs.h.rot && st.dragging && (st.dragKind == 1 || st.dragKind == 12))
     {
-        const int ringBase = vs.h.owner == 2 ? 20 : 0;
-        for(int i = 0; i < 3; i++)
-        {
-            glm::vec2 pts[ringN];
-            bool front[ringN];
-            ringPoints(vs.h.axis[i], pts, front, ringN);
-            for(int k = 0; k < ringN; k++)
-            {
-                const int k2 = (k + 1) % ringN;
-                const bool f = front[k] && front[k2];
-                glm::vec4 cc = part == ringBase + i ? hot : axisCol[i];
-                cc.w = f ? 1.f : 0.25f;
-                dl->AddLine(iv(pts[k]), iv(pts[k2]), col(cc), f ? 2.5f : 1.2f);
-            }
-        }
-        if(vs.h.owner == 0)
-        {
-            const float vr = vr_rigstudio_handle_size.value * 1.18f;
-            dl->AddCircle(iv(c), vr, col(part == 3 ? hot : glm::vec4{0.9f, 0.9f, 0.9f, 0.8f}), 48, 1.6f);
-        }
-        if(st.dragging && (st.dragKind == 1 || st.dragKind == 12))
-        {
-            dl->AddLine(iv(c), ImGui::GetIO().MousePos, col(glm::vec4{1.f, 1.f, 1.f, 0.5f}), 1.f);
-            const float a = st.dragAngle / deg;
-            char text[32];
-            q_snprintf(text, sizeof(text), "%.1f deg", a);
-            dl->AddText(ImVec2{ImGui::GetIO().MousePos.x + 14.f, ImGui::GetIO().MousePos.y + 4.f}, col(glm::vec4{1.f}), text);
-        }
-        if(!vs.h.move)
-        {
-            return;
-        }
+        glm::vec2 c;
+        project(vs.h.centre, c);
+        dl->AddLine(iv(c), ImGui::GetIO().MousePos, col(glm::vec4{1.f, 1.f, 1.f, 0.5f}), 1.f);
+        const float a = st.dragAngle / deg;
+        char text[32];
+        q_snprintf(text, sizeof(text), "%.1f deg", a);
+        dl->AddText(ImVec2{ImGui::GetIO().MousePos.x + 14.f, ImGui::GetIO().MousePos.y + 4.f}, col(glm::vec4{1.f}), text);
     }
-    for(int i = 0; i < 3; i++)
-    {
-        glm::vec2 e;
-        project(vs.h.centre + vs.h.axis[i] * vs.h.radius, e);
-        const ImU32 cc = col(part == i ? hot : axisCol[i]);
-        dl->AddLine(iv(c), iv(e), cc, 2.5f);
-        const glm::vec2 d = glm::length(e - c) > 1e-3f ? glm::normalize(e - c) : glm::vec2{1.f, 0.f};
-        const glm::vec2 n{-d.y, d.x};
-        dl->AddTriangleFilled(iv(e + d * 10.f), iv(e + n * 5.f), iv(e - n * 5.f), cc);
-    }
-    for(int i = 0; i < 3; i++)
-    {
-        const glm::vec3 a = vs.h.axis[(i + 1) % 3], b = vs.h.axis[(i + 2) % 3];
-        glm::vec2 q[4];
-        project(vs.h.centre + (a * 0.25f + b * 0.25f) * vs.h.radius, q[0]);
-        project(vs.h.centre + (a * 0.45f + b * 0.25f) * vs.h.radius, q[1]);
-        project(vs.h.centre + (a * 0.45f + b * 0.45f) * vs.h.radius, q[2]);
-        project(vs.h.centre + (a * 0.25f + b * 0.45f) * vs.h.radius, q[3]);
-        glm::vec4 cc = part == 4 + i ? hot : axisCol[i];
-        cc.w = 0.45f;
-        dl->AddQuadFilled(iv(q[0]), iv(q[1]), iv(q[2]), iv(q[3]), col(cc));
-    }
-    dl->AddCircleFilled(iv(c), 5.f, col(part == 3 ? hot : glm::vec4{1.f, 1.f, 1.f, 0.85f}));
 }
 
 // ---- The drags ----
@@ -565,12 +389,7 @@ void dragRotate(const glm::vec2& m)
     const Handle& h = vs.dragH;
     if(st.dragAxis <= 2)
     {
-        glm::vec2 c, e;
-        project(h.centre, c);
-        project(h.centre + h.axis[st.dragAxis] * h.radius, e);
-        const glm::vec2 A = e - c;
-        const float l2 = za::max(glm::dot(A, A), 1e-3f);
-        return h.axis[st.dragAxis] * (h.radius * glm::dot(m - st.dragStart, A) / l2);
+        return gizmo::axisMove(h, st.view, st.dragAxis, st.dragStart, m);
     }
     const glm::vec3 n = st.dragAxis >= 4 ? h.axis[st.dragAxis - 4] : st.view.fwd;
     glm::vec3 hit;
@@ -1856,22 +1675,7 @@ glm::vec3 toModelDir(const glm::vec3& d)
 
 bool project(const glm::vec3& world, glm::vec2& out, float* depth)
 {
-    const View& v = st.view;
-    const glm::vec3 d = world - v.org;
-    const float z = glm::dot(d, v.fwd);
-    if(depth)
-    {
-        *depth = z;
-    }
-    if(z < 0.5f)
-    {
-        out = glm::vec2{-10000.f};
-        return false;
-    }
-    const float x = glm::dot(d, v.right) / z / v.tanX;
-    const float y = glm::dot(d, v.up) / z / v.tanY;
-    out = glm::vec2{v.x + (x * 0.5f + 0.5f) * v.w, v.y + (0.5f - y * 0.5f) * v.h};
-    return true;
+    return st.view.project(world, out, depth);
 }
 
 void cameraView(float* origin, float* angles)

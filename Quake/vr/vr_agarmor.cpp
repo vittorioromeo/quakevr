@@ -4575,6 +4575,63 @@ void debugDraw()
     }
 }
 
+bool studioPartFrame(glm::vec3& centre, glm::mat3& parent)
+{
+    if(studio.ent <= 0 || studio.pieces == 0 || studio.sleeve || !sv.active || studio.ent >= sv.qcvm.num_edicts)
+    {
+        return false;
+    }
+    const progs::ServerVm vm; // (as debugDraw: the server's entities)
+    edict_t* e = EDICT_NUM(studio.ent);
+    if(e->free)
+    {
+        return false;
+    }
+    if(beastarmour::wears(e))
+    {
+        return beastarmour::partFrame(e, studio.pieces, centre, parent);
+    }
+    const int mask = wornMask(e) & studio.pieces;
+    const Shell* s = mask ? serverShell(baseOf(e)) : nullptr;
+    if(!s)
+    {
+        return false;
+    }
+    int piece = 0;
+    while(piece < NumPieces && !((mask >> piece) & 1))
+    {
+        piece++;
+    }
+    if(piece >= NumPieces)
+    {
+        return false;
+    }
+    PlatePoses pp;
+    posePlates(e, *s, 1 << piece, pp);
+    if(!pp.ok[piece])
+    {
+        return false;
+    }
+    // (its middle: its plates' box, tweaked, in the shell's space; the shell's space is the tweaks')
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    for(int i = 0; i < count(s->verts); i++)
+    {
+        const Vert& v = at(s->verts, i);
+        if(v.piece == piece)
+        {
+            lo = glm::min(lo, v.p);
+            hi = glm::max(hi, v.p);
+        }
+    }
+    if(lo.x > hi.x)
+    {
+        return false;
+    }
+    centre = pp.origin[piece] + pp.turn[piece] * ((lo + hi) * 0.5f);
+    parent = pp.turn[piece];
+    return true;
+}
+
 // The limb whose plates enclose `p` as `ent` is drawn (-1 none): by each piece's grid, its point taken back to the rest pose by
 // that plate's frame. Plates stand off a limb, round it: a hit inside them is theirs, whatever bone is nearest.
 [[nodiscard]] int tubeAround(edict_t* ent, const Shell& s, const float* p, int only = -1, float within = 1.f)

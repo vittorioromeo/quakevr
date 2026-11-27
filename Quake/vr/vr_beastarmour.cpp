@@ -1369,6 +1369,26 @@ void studioView(int ent, float bodyAlpha)
     studioAlpha = bodyAlpha;
 }
 
+bool partFrame(edict_t* ent, int pieces, glm::vec3& centre, glm::mat3& parent)
+{
+    const Kind* k = ready(ent);
+    for(int i = 0; k && i < k->numParts; i++)
+    {
+        const Slot& s = k->slot[i];
+        Placed pl;
+        if(!s.on || !((pieces >> s.owner) & 1) || !place(ent, s, pl))
+        {
+            continue;
+        }
+        // (placed: axes = the rig's turn x the tweaks' turn, the size k; the offset moves it by turn x k)
+        const glm::mat3 turn = agarmor::detail::tweakTurn(s.tw.v[armourdata::Pitch], s.tw.v[armourdata::Yaw], s.tw.v[armourdata::Roll]);
+        centre = pl.origin;
+        parent = pl.axes * glm::transpose(turn) * pl.scale;
+        return true;
+    }
+    return false;
+}
+
 void outline(edict_t* ent, int pieces, bool sleeve)
 {
     const Kind* k = ready(ent);
