@@ -990,6 +990,7 @@ constexpr const char* beastTestScrag = "progs/wizard.mdl"; // (his plate 8 in tw
 constexpr int beastTestDog = subjectBeasts;    // (the rottweiler: beastarmour.txt's first kind)
 constexpr int beastStepFrames = 72 * 6;        // frames a step may wait (a safety net: FAIL "timed out")
 constexpr float beastNear = 0.1f;              // units: a junction's end ring on its piece's place (as posed)
+constexpr int ogreWorn = (1 << agarmor::NumMaskBits) - 1; // (every worn bit: the ogre's shins have their own past the ten slots)
 
 struct BeastTest
 {
@@ -1001,8 +1002,39 @@ struct BeastTest
     float lo[3]{}, hi[3]{}, loR[3]{}, hiR[3]{};
     float middle[3]{};
     int animFrame{0};
+    // (the ogre's knees, ROUND26.md "ogresleeves": the left's junction as made, the right's, the leather's hash; the key tried)
+    beastarmour::JunctionCheck knee, kneeR;
+    uint32_t kneeHash{0};
+    int kneeStep{0};
 };
 BeastTest bt;
+
+constexpr const char* beastTestOgre = "progs/ogre.mdl";
+constexpr int ogreKneeL = agarmor::NumPieces; // (his parts: the shins, left then right, beastarmour.txt's order)
+// The sleeve keys tried on the ogre's left knee, one at a time (each back to as made before the next).
+struct KneeKey
+{
+    cvar_t* cvar;
+    int field;
+    float value;
+};
+constexpr int kneeKeyCount = 9;
+const KneeKey kneeKeys[kneeKeyCount] = {
+    {&vr_armourstudio_start_offset_z, StartOffsetZ, 2.f},
+    {&vr_armourstudio_end_offset_x, EndOffsetX, 2.f},
+    {&vr_armourstudio_start_radius, StartRadius, 1.5f},
+    {&vr_armourstudio_end_radius, EndRadius, 0.5f},
+    {&vr_armourstudio_twist, Twist, 30.f},
+    {&vr_armourstudio_start_edge, StartEdge, 1.f},
+    {&vr_armourstudio_bulge_z, BulgeZ, 2.f},
+    {&vr_armourstudio_segments, Segments, 4.f},
+    {&vr_armourstudio_fill, Fill, 1.f},
+};
+
+[[nodiscard]] float apart3(const float* a, const float* b)
+{
+    return za::sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]));
+}
 
 [[nodiscard]] edict_t* beastSubject()
 {
@@ -1442,8 +1474,116 @@ void beastTestFrame()
         Con_Printf("%s: the scrag's back half worn alone: %d piece drawn\n", beastTestName, beastarmour::drawnCount(true));
         t.check(true);
         Cvar_SetValueQuick(&vr_armourstudio_alone, 0.f);
+        // The ogre: his knees' leather (each shin's junction to its thigh) as made (the shipped fill off), its left one's sleeve
+        // picked.
+        clear(beastTestOgre, PartShinSleeve, -1);
+        changed();
+        Cvar_SetValueQuick(&vr_armourstudio_kind, static_cast<float>(subjectBeasts + beastarmour::kindIndex(beastTestOgre)));
+        Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartShinSleeve));
+        Cvar_SetValueQuick(&vr_armourstudio_side, static_cast<float>(SideLeft));
+        bt.step = 70;
+        return;
+    case 70: // the ogre's knees' leather made, as made; the first key tried
+    {
+        const int ogre = beastarmour::kindIndex(beastTestOgre);
+        if(!beastWait(ogre >= 0 && !ZA_STRCMP(subjectEntry(), beastTestOgre) && st.selPart == PartShinSleeve && st.selSide == SideLeft &&
+                          beastarmour::drawnCount() >= 10 && beastarmour::leatherDrawn() >= 1,
+               "timed out: no ogre with his pieces and leather, his left knee's leather picked"))
+        {
+            return;
+        }
+        bt.knee = beastarmour::checkJunction(e, ogreKneeL, ogreWorn);
+        bt.kneeR = beastarmour::checkJunction(e, ogreKneeL + 1, ogreWorn);
+        bt.kneeHash = beastarmour::leatherHash(ogre);
+        Con_Printf("%s: the ogre's knees' leather: left %d vertices, %d columns, ends %.4f from its pieces, radii %.2f %.2f; right %d vertices, "
+                   "%d columns; hash %08x\n", beastTestName, bt.knee.verts, bt.knee.cols, static_cast<double>(bt.knee.endError),
+            static_cast<double>(bt.knee.endRadius[0]), static_cast<double>(bt.knee.endRadius[1]), bt.kneeR.verts, bt.kneeR.cols, bt.kneeHash);
+        t.check(beastarmour::junctionMade(ogre, ogreKneeL) && beastarmour::junctionMade(ogre, ogreKneeL + 1) && bt.knee.found && bt.kneeR.found &&
+                    bt.knee.verts > 0 && bt.knee.endError < beastNear && partValid(subjectBeasts + ogre, PartShinSleeve) &&
+                    beastarmour::joins(ogre, ogreKneeL) == agarmor::ThighL && beastarmour::joins(ogre, ogreKneeL + 1) == agarmor::ThighR,
+            beastTestName, "the ogre's knees' leather (each shin's junction to its own thigh) not made");
+        bt.kneeStep = 0;
+        Cvar_SetValueQuick(kneeKeys[0].cvar, kneeKeys[0].value);
+        bt.step = 71;
+        return;
+    }
+    case 71: // each sleeve key on the left knee in turn: it moves (sizes, turns...) the end it names, the other end and the right knee kept
+    {
+        const KneeKey& key = kneeKeys[bt.kneeStep];
+        const Override* o = entry(beastTestOgre, PartShinSleeve, SideLeft, false);
+        const bool prevCleared = bt.kneeStep == 0 || !(o && (o->has & fieldBit(kneeKeys[bt.kneeStep - 1].field)));
+        if(!beastWait(o && (o->has & fieldBit(key.field)) && prevCleared, "timed out: a sleeve key not in the table"))
+        {
+            return;
+        }
+        const beastarmour::JunctionCheck j = beastarmour::checkJunction(e, ogreKneeL, ogreWorn);
+        const beastarmour::JunctionCheck r = beastarmour::checkJunction(e, ogreKneeL + 1, ogreWorn);
+        const float own = apart3(j.end[0], bt.knee.end[0]), joined = apart3(j.end[1], bt.knee.end[1]);
+        const float size0 = j.endRadius[0] / za::max(bt.knee.endRadius[0], 1e-3f), size1 = j.endRadius[1] / za::max(bt.knee.endRadius[1], 1e-3f);
+        const float corner = apart3(j.endCorner[1], bt.knee.endCorner[1]), middle = apart3(j.middle, bt.knee.middle);
+        const bool rightKept = apart3(r.end[0], bt.kneeR.end[0]) < 1e-3f && apart3(r.end[1], bt.kneeR.end[1]) < 1e-3f && r.verts == bt.kneeR.verts;
+        Con_Printf("%s: %s %g on the left knee: own end moved %.3f, joined end %.3f, sizes %.3fx %.3fx, joined corner %.3f, middle %.3f, %d vertices, "
+                   "%d columns, ends %.4f from the pieces; the right knee %s\n", beastTestName, fieldNames[key.field], static_cast<double>(key.value),
+            static_cast<double>(own), static_cast<double>(joined), static_cast<double>(size0), static_cast<double>(size1), static_cast<double>(corner),
+            static_cast<double>(middle), j.verts, j.cols, static_cast<double>(j.endError), rightKept ? "kept" : "CHANGED");
+        bool ok = j.found && j.endError < beastNear && rightKept;
+        switch(key.field)
+        {
+        case StartOffsetZ: ok = ok && za::abs(own - 2.f) < 0.05f && joined < 0.01f; break;
+        case EndOffsetX: ok = ok && za::abs(joined - 2.f) < 0.05f && own < 0.01f; break;
+        case StartRadius: ok = ok && za::abs(size0 - 1.5f) < 0.01f && za::abs(size1 - 1.f) < 0.01f && own < 0.01f; break;
+        case EndRadius: ok = ok && za::abs(size1 - 0.5f) < 0.01f && za::abs(size0 - 1.f) < 0.01f && joined < 0.01f; break;
+        case Twist: ok = ok && joined < 0.05f && own < 0.01f && corner > 0.5f; break;
+        case StartEdge: ok = ok && own > 2.f; break; // (the columns both have change: the joined end's middle with them)
+        case BulgeZ: ok = ok && middle > 1.5f && middle < 2.5f && own < 0.01f && joined < 0.01f; break;
+        case Segments: ok = ok && j.verts == 5 * (12 + 1) && bt.knee.verts != j.verts; break;
+        default: ok = ok && j.cols == 12 && bt.knee.cols < 12; break; // (fill)
+        }
+        char what[96];
+        q_snprintf(what, sizeof(what), "the left knee's %s did not move the end it names alone", fieldNames[key.field]);
+        t.check(ok, beastTestName, what);
+        Cvar_SetValueQuick(key.cvar, fieldDefault(key.field));
+        if(++bt.kneeStep < kneeKeyCount)
+        {
+            Cvar_SetValueQuick(kneeKeys[bt.kneeStep].cvar, kneeKeys[bt.kneeStep].value);
+            return;
+        }
+        bt.step = 72;
+        return;
+    }
+    case 72: // every key back as made: the leather as before, vertex for vertex; the keys saved and read back, mirrored on the right
+    {
+        const Override* o = entry(beastTestOgre, PartShinSleeve, SideLeft, false);
+        if(!beastWait(!o || !o->has, "timed out: the left knee's sleeve keys not cleared"))
+        {
+            return;
+        }
+        const int ogre = beastarmour::kindIndex(beastTestOgre);
+        const uint32_t hash = beastarmour::leatherHash(ogre);
+        Con_Printf("%s: the ogre's leather back as made: hash %08x (was %08x)\n", beastTestName, hash, bt.kneeHash);
+        t.check(hash == bt.kneeHash, beastTestName, "the keys back to as made: the ogre's leather not as before");
+        Override* both = entry(beastTestOgre, PartShinSleeve, SideBoth, true);
+        both->v[StartOffsetY] = 1.f;
+        both->v[Twist] = 10.f;
+        both->v[Fill] = 1.f;
+        both->has |= fieldBit(StartOffsetX) | fieldBit(StartOffsetY) | fieldBit(StartOffsetZ) | fieldBit(Twist) | fieldBit(Fill);
+        changed();
+        t.check(save(), beastTestName, "not saved");
+        clear(beastTestOgre, PartShinSleeve, -1);
+        changed();
+        (void)load();
+        Override left, right;
+        (void)resolveBeastPart(beastTestOgre, PartShin, SideLeft, true, left);
+        (void)resolveBeastPart(beastTestOgre, PartShin, SideRight, true, right);
+        Con_Printf("%s: saved and read back: left start_offset y %g, twist %g, fill %g; right %g, %g, %g\n", beastTestName,
+            static_cast<double>(left.v[StartOffsetY]), static_cast<double>(left.v[Twist]), static_cast<double>(left.v[Fill]),
+            static_cast<double>(right.v[StartOffsetY]), static_cast<double>(right.v[Twist]), static_cast<double>(right.v[Fill]));
+        t.check(left.v[StartOffsetY] == 1.f && left.v[Twist] == 10.f && left.v[Fill] == 1.f && right.v[StartOffsetY] == -1.f && right.v[Twist] == -10.f &&
+                right.v[Fill] == 1.f && (left.has & fieldBit(StartOffsetX)),
+            beastTestName, "the sleeve keys not saved and read back (start_offset, twist, fill), or the right's not mirrored");
         beastVerdict();
         return;
+    }
     default:
         beastVerdict();
         return;

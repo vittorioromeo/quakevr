@@ -113,7 +113,8 @@ constexpr const char* partLabels[NumParts] = {"Cuirass", "Helmet", "Pauldrons (U
     "Cuirass's Leather Junction", "Helmet's Leather Junction", "Plate 8", "Plate 9", "Plate 8's Leather Junction", "Plate 9's Leather Junction",
     "Tail", "Tail's Leather Junctions", "Plate 8 Back", "Plate 8 Back's Leather Junction"};
 // (a beast's limb parts' junctions: to the piece each joins)
-constexpr const char* beastSleeveLabels[4] = {"Pauldrons' Leather Junctions", "Bracers' Leather Junctions", "Thighs' Leather Junctions", "Shins' Leather Junctions"};
+constexpr const char* beastSleeveLabels[4] = {"Pauldrons' Leather Junctions", "Bracers' Leather Junctions", "Thighs' Leather Junctions",
+    "Knee Leather (Shins' Junctions)"};
 constexpr const char* sideLabels[NumSides] = {"Both (Mirrored)", "Left Only", "Right Only"};
 
 constexpr float winMinW = 420.f, winMinH = 320.f;

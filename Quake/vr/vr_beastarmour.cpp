@@ -111,6 +111,7 @@ struct Junction
     float skinFit[2]{1.f, 1.f}; // ... shrunk this much round them to sit on the skin
     // (vr_beastarmour_info: its columns, the ends' mean radii, how far apart along the line from the child to the parent)
     int cols{0};
+    int edges[2]{}; // (the columns each end's piece has an edge in, before `fill`)
     float radius[2]{};
     float along{0.f};
 };
@@ -633,6 +634,12 @@ void buildJunctions(Kind& k)
         const auto on = [&o](int f) { return has(o, f) && o.v[f] > 0.5f; };
         rimOf(s, a, dir, e1, e2, !on(armourdata::StartEdge), rimA, inA);
         rimOf(q, a, dir, e1, e2, on(armourdata::EndEdge), rimB, inB);
+        int edges[2]{};
+        for(int c = 0; c < junctionCols; c++)
+        {
+            edges[0] += inA[c] ? 1 : 0;
+            edges[1] += inB[c] ? 1 : 0;
+        }
         if(on(armourdata::Fill))
         {
             fillRim(a, dir, e1, e2, rimA, inA);
@@ -681,6 +688,8 @@ void buildJunctions(Kind& k)
         jn.endMid[0] = midA;
         jn.endMid[1] = midB;
         jn.cols = cols;
+        jn.edges[0] = edges[0];
+        jn.edges[1] = edges[1];
         jn.along = glm::dot(midB - midA, dir);
         for(int r = 0; r < rings; r++)
         {
@@ -1276,7 +1285,7 @@ bool makeLeather(qmodel_t* mod, Kind& k)
 }
 
 // (FNV-1a over the junctions' leather as made: its vertices, normals, weights and triangles)
-[[nodiscard]] uint32_t leatherHash(const Kind& k)
+[[nodiscard]] uint32_t hashLeather(const Kind& k)
 {
     uint32_t h = 2166136261u;
     const auto mix = [&h](const void* p, za::SizeT n) {
@@ -1353,13 +1362,13 @@ void info_f()
         for(int j = 0; j < k.numJunctions; j++)
         {
             const Junction& jn = k.junction[j];
-            Con_Printf("  junction %d -> %d: ends %.2f %.2f %.2f / %.2f %.2f %.2f, %.2f apart (%.2f along), radii %.2f %.2f, %d columns, %d rings\n",
+            Con_Printf("  junction %d -> %d: ends %.2f %.2f %.2f / %.2f %.2f %.2f, %.2f apart (%.2f along), radii %.2f %.2f, %d columns (edges %d / %d), %d rings\n",
                 jn.child, jn.parent, static_cast<double>(jn.endMid[0].x), static_cast<double>(jn.endMid[0].y), static_cast<double>(jn.endMid[0].z),
                 static_cast<double>(jn.endMid[1].x), static_cast<double>(jn.endMid[1].y), static_cast<double>(jn.endMid[1].z),
                 static_cast<double>(glm::distance(jn.endMid[0], jn.endMid[1])), static_cast<double>(jn.along), static_cast<double>(jn.radius[0]),
-                static_cast<double>(jn.radius[1]), jn.cols, jn.numVerts / (junctionCols + 1));
+                static_cast<double>(jn.radius[1]), jn.cols, jn.edges[0], jn.edges[1], jn.numVerts / (junctionCols + 1));
         }
-        Con_Printf("  leather hash %08x (%d vertices, %d indexes)\n", leatherHash(k), static_cast<int>(k.lp.size()), static_cast<int>(k.lidx.size()));
+        Con_Printf("  leather hash %08x (%d vertices, %d indexes)\n", hashLeather(k), static_cast<int>(k.lp.size()), static_cast<int>(k.lidx.size()));
     }
 }
 
@@ -1840,12 +1849,13 @@ int kindSlots(int i)
 
 int joins(int i, int slot)
 {
-    if(i < 0 || i >= kindCount() || slot < 0 || slot >= numSlots)
+    // (a part past the slots too: the ogre's shins, the scrag's tail)
+    if(i < 0 || i >= kindCount() || slot < 0 || slot >= maxParts)
     {
         return -1;
     }
     Kind& k = kinds[static_cast<za::SizeT>(i)];
-    return resolve(k) && k.slot[slot].on ? k.slot[slot].joins : -1;
+    return resolve(k) && slot < k.numParts && k.slot[slot].on ? k.slot[slot].joins : -1;
 }
 
 bool junctionMade(int i, int slot)
@@ -1892,6 +1902,16 @@ bool pieceExtent(int i, int slot, float* lo, float* hi)
         hi[c] = k.slot[slot].hi[c];
     }
     return true;
+}
+
+uint32_t leatherHash(int i)
+{
+    if(i < 0 || i >= kindCount())
+    {
+        return 0u;
+    }
+    Kind& k = kinds[static_cast<za::SizeT>(i)];
+    return resolve(k) ? hashLeather(k) : 0u;
 }
 
 JunctionCheck checkJunction(edict_t* ent, int slot, int pieces)
@@ -1941,6 +1961,34 @@ JunctionCheck checkJunction(edict_t* ent, int slot, int pieces)
             out.middle[c] = mid[c];
         }
         out.verts = jn.numVerts;
+        out.cols = jn.cols;
+        for(int e = 0; e < 2; e++)
+        {
+            const int first = jn.first + (e == 0 ? 0 : (rings - 1) * ring);
+            glm::vec3 m{0.f};
+            for(int c = 0; c < junctionCols; c++)
+            {
+                m += posedLeather(*k, first + c, bones) / static_cast<float>(junctionCols);
+            }
+            float r = 0.f;
+            for(int c = 0; c < junctionCols; c++)
+            {
+                r += glm::distance(posedLeather(*k, first + c, bones), m) / static_cast<float>(junctionCols);
+            }
+            // (its first corner off its middle: a column both pieces have, not one laid on the middle)
+            glm::vec3 corner = m;
+            for(int c = junctionCols - 1; c >= 0; c--)
+            {
+                const glm::vec3 p = posedLeather(*k, first + c, bones);
+                corner = glm::distance(p, m) > 1e-3f ? p : corner;
+            }
+            for(int c = 0; c < 3; c++)
+            {
+                out.end[e][c] = m[c];
+                out.endCorner[e][c] = corner[c];
+            }
+            out.endRadius[e] = r;
+        }
     }
     return out;
 }
