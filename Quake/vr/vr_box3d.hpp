@@ -84,6 +84,12 @@ bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin,
 // times its density: vr_box3d.cpp). 0 without Box3D's world (no local server) or a model. Also for a prop in a hand.
 [[nodiscard]] float propMass(edict_t* ent);
 
+// (xhairmiss: the flat throw's aim, QC VR_FlatThrow_Aim through the builtin weaponmasscentre) Where the body Box3D makes
+// for alias model `model` thrown as a weapon has its centre of mass: its hull's centroid (the hull of its drawn corners as
+// a held weapon is drawn, held::modelVertices; a thrown weapon's body is that hull: vr_box3d_props.cpp addPropShapes), in
+// its entity's axes off its origin (units). False without Box3D's world or a hull. The last model's kept.
+[[nodiscard]] bool weaponMassCentre(const qmodel_t* model, glm::vec3& out);
+
 // The map's mesh made on the game's thread pool while the server spawns the map (VR_OnSpawnServerBeforeLoad); the
 // world's first look at it waits for it, and so does finishLoads (the map's memory about to go, shutdown).
 void beforeLoad();
@@ -506,6 +512,7 @@ struct RagdollHold
     bool tug{false}; // an armed monster's tug-of-war (ragdolltug): the hand holds its weapon, the hold its hand's limb
     float stretch{1.f};    // ... its held arm drawn up to this much longer towards `target` (ragdollTug what 9; 1 none)
     glm::vec3 target{0.f}; // ... where the hold pulls the limb's point `at` (your hand: world units, the server's step)
+    bool kept{false};      // a flat-screen Grab / Pull's, kept at the grab's arm length (vr_flat_grab_push: up to the reach ahead)
 };
 [[nodiscard]] bool ragdollHold(int player, int hand, RagdollHold& out);
 // Where on the ragdoll that hand's hold grips now (its anchor on the part, world units): the neck snap's head zone test

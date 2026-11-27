@@ -834,6 +834,12 @@ void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
 // The flat throw key's aim (flatxhair2; vr_flatgrenade.qc VR_FlatThrow_Aim, each frame): `xPlayer`'s hand `xHand` winds up
 // a throw that would land at `xAt` let go now (-1: none); the local player's only, for the visor crosshair (flatxhair).
 void(entity xPlayer, float xHand, vector xAt) flatthrowaim = #0;
+// (xhairmiss) While `xPlayer`'s hand `xHand` winds up a flat throw, how far that hand will have moved when the thing leaves
+// it (the follow-through's vr_flat_throw_release_time, as the view poses it); the local player's only, else '0 0 0'.
+vector(entity xPlayer, float xHand) flatthrowfrom = #0;
+// (xhairmiss) Where a weapon of model `xModel` (precached) thrown has its centre of mass (its Box3D body's hull's centroid),
+// in its entity's axes off its origin (x forward, y left, z up); '0 0 0' unknown.
+vector(string xModel) weaponmasscentre = #0;
 // Show Melee Arcs (vr_enemy_melee_arc_show): an armed humanoid's swinging weapon `xWeapon` this frame, drawn as a hand's
 // sweep is (meleeshow's `xWhat` 0, 1, 6; vr_meleerules.qc VR_MeleeArc_ShowSwings); world records nothing. Returns the
 // frames the view drew any armed humanoid's swing (the tests).
