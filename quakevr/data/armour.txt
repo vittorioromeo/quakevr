@@ -343,8 +343,8 @@ kind "progs/dog.mdl"
     }
     pauldron_l
     {
-        offset "-2.38 2.28 -6"
-        rotate "11.1 0 -20.6"
+        offset "-0.34398 2.16674 -6.0076"
+        rotate "1.27346 -0.61761 -27.6119"
     }
     pauldron_r
     {
@@ -372,22 +372,67 @@ kind "progs/wizard.mdl"
 {
     cuirass
     {
-        offset "2.35 -0.71 -0.72"
-        rotate "-16 1 -3.4"
+        offset "1.06945 -0.564524 -0.628338"
+        rotate "-2.18604 6.31704 -4.98605"
         scale "0.772"
         standoff "0"
         taper_start "1.12"
+        scale_z "1.18369"
+    }
+    helmet
+    {
+        offset "0.958583 0.282778 0.757286"
+        scale_y "0.825526"
+    }
+    pauldron
+    {
+        offset "0 0.185912 1.14676"
+        rotate "0 0 -9.20863"
+        scale "0.837"
+    }
+    pauldron_r
+    {
+        offset "-0.382505 -1.07144 -0.171966"
+        scale "0.81"
     }
     bracer
     {
-        offset "0 0 -2.61"
-        scale "0.88"
+        offset "0.345516 0.233157 -2.70109"
+        rotate "0 0 1.9891"
+        scale "0.76"
         standoff "-0.25"
+    }
+    bracer_l
+    {
+        offset "1.14078 0.071736 -2.92339"
+        scale "0.646"
     }
     bracer_r
     {
-        offset "-1.3 -2.15 -1.18"
+        offset "0.111013 -2.2521 -2.41901"
         rotate "0 12.7 0"
+        scale "0.651"
+    }
+    plate8
+    {
+        offset "-0.054454 -2.3302 0.064573"
+        scale "0.858"
+        standoff "0.05"
+        taper_start "0.674"
+        taper_end "1.201"
+    }
+    plate9
+    {
+        offset "-5.82293 0.461923 -5.01548"
+        rotate "-15.4744 0.352146 -5.881"
+        scale "0.924"
+    }
+    tail
+    {
+        scale "0.799"
+        standoff "0.6"
+        taper_start "0.995"
+        taper_end "0.967"
     }
 }
 
@@ -418,6 +463,10 @@ kind "progs/demon.mdl"
     {
         scale "0.766"
     }
+    bracer_l
+    {
+        offset "-0.812281 0.187736 -1.5258"
+    }
     thigh
     {
         offset "-0 0 0.4408"
@@ -435,5 +484,73 @@ kind "progs/demon.mdl"
         scale "0.934"
         taper_start "0.734"
         taper_end "0.946"
+    }
+}
+
+kind "progs/ogre.mdl"
+{
+    cuirass
+    {
+        offset "-1.08827 1.88159 -4.69437"
+        rotate "2.0993 -4.4319 5.73315"
+        scale "0.929"
+        taper_start "0.859"
+        scale_y "1.09328"
+        scale_z "0.971887"
+    }
+    helmet
+    {
+        offset "1.06452 -1.35442 -0.437469"
+        rotate "15.2231 0 8.5302"
+        scale_x "0.886889"
+        scale_y "0.717"
+        scale_z "0.902578"
+    }
+    pauldron
+    {
+        scale "0.875"
+    }
+    bracer
+    {
+        offset "-0.719148 1.97414 0.404399"
+        rotate "0 0 8.73472"
+        scale "0.891"
+    }
+    bracer_r
+    {
+        offset "3.96089 0.935639 -2.73927"
+        rotate "-32.5157 -3.83496 -4.0755"
+    }
+    thigh
+    {
+        scale "1"
+    }
+    thigh_l
+    {
+        scale "0.9"
+    }
+    thigh_r
+    {
+        scale "0.9"
+    }
+    shin
+    {
+        scale "0.832"
+    }
+    helmet_sleeve
+    {
+        leather "0"
+    }
+    plate8
+    {
+        offset "-0.302872 2.06897 -2.43401"
+        rotate "-2.03312 0.731561 8.20451"
+        scale "0.826"
+        scale_y "0.834566"
+        scale_z "0.966811"
+    }
+    plate9
+    {
+        scale "0.908"
     }
 }
