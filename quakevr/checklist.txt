@@ -53,6 +53,7 @@ In the Armour Studio, pick the scrag: its tail is its own part ("Tail", and "Tai
 Armour Studio (flat): drag with the right mouse button on the view; the subject turns (across: Turn, down: Pitch), the handle follows, Put Back resets {test:vr_armourstudio_gizmo_test}
 Flat-screen or VR: toolgun Spawn > Monsters: pick a Rottweiler, Ogre, Scrag or Fiend and set the new Armour and Pieces row under the tiles (it is dimmed for other monsters); each one spawned wears what you chose: None bare, Red Full every piece, Green Core the cuirass and helmet, Random a mix, By Skill its own roll as on a map. {test:toolgun_beasts}
 Flat-screen or VR: the Monsters tab's tiles are a little shorter now to make room for that row: check the pictures and two-line names (Death Knight, Armed Humanoid) still read cleanly. {test:toolgun_beasts}
+Fire the shotgun indoors in a small stone room and in a big hall: its crack is clear and sharp over the room's ring, not muffled under a boomy wash; Sound > Walls and Rooms > Your Sounds' Reverb at 1 brings the old wash back to compare (0.25 the default). {test:start_shotgun}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
