@@ -5843,12 +5843,12 @@ void status_f()
             glm::vec3 lf, lr, lu;
             hands::angleVectors({0.f, cl.viewangles[YAW], 0.f}, lf, lr, lu);
             const glm::vec3 d = fistAt[0] - fistAt[1];
-            Con_Printf("  fists: jabs %d (alternate %g, next %s), guard %s, share %.2f (vr_flat_fist_guard %g; raised %d times); "
-                       "main fist off the off fist: right %.1f ahead %.1f up %.1f, gap %.1f\n",
-                fs.jabs, vr_flat_jab_alternate.value, fs.jabNext == HAND_MAIN ? "main" : "off",
-                fs.fistGuardWant ? "asked for" : "not asked for", static_cast<double>(geom::smooth01(fs.fistGuard)),
-                vr_flat_fist_guard.value, fs.fistGuards, static_cast<double>(glm::dot(d, lr)), static_cast<double>(glm::dot(d, lf)),
-                static_cast<double>(glm::dot(d, lu)), static_cast<double>(glm::length(d)));
+            Con_Printf("  fists: jabs %d (alternate %g, next %s), guard %s, share %.2f (on %g, raised %d)\n", fs.jabs,
+                vr_flat_jab_alternate.value, fs.jabNext == HAND_MAIN ? "main" : "off", fs.fistGuardWant ? "asked for" : "not asked for",
+                static_cast<double>(geom::smooth01(fs.fistGuard)), vr_flat_fist_guard.value, fs.fistGuards);
+            Con_Printf("  fist guard: main fist off the off fist: right %.1f ahead %.1f up %.1f, gap %.1f\n",
+                static_cast<double>(glm::dot(d, lr)), static_cast<double>(glm::dot(d, lf)), static_cast<double>(glm::dot(d, lu)),
+                static_cast<double>(glm::length(d)));
         }
         // The melee parry's guard (vr_flat_parry_*): RMB held with one melee weapon.
         if(meleeIn(h) || fs.parry[h] > 0.f)
