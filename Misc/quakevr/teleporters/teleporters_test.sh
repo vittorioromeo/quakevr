@@ -76,6 +76,10 @@ if [ "$WHAT" = chase ] || [ "$WHAT" = all ]; then
         S="${EXTRA}developer 1;vr_fixed_frames 1;vr_agrunt_repl 0;sv_random_seed __SEED__;map vrteleporters;wait60;god;vr_stealth_meter 0;setpos $3 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn $1;vr_test_spawn_dist 200;impulse 241;wait40;echo MOVE;setpos $3 1150 24 0 270 0;wait5;noclip 0"
         for i in $(seq 1 32); do S="$S;wait15;echo SNAP $i;entities"; done
         tries=${TRIES:-3}; [ $2 = soldier ] && tries=1
+        # (the dog over the 16-unit sill gets through on few seeds: seed 2 of 1-3 until Box3D 042be58 (box3dup3), which
+        # changed each seed's run (the same seeds wander elsewhere), then seed 7 of 1-7, in 45 frames: chance, not a lost way;
+        # basefix2, ROUND26)
+        [ $4 = framed_sill16 ] && tries=${TRIES:-8}
         for try in $(seq 1 $tries); do
             run -Script "${S//__SEED__/$((${SEED:-1} + try - 1))};toggleconsole;quit"
             line=$(awk -v m="progs/$2.mdl:" -v what="$2 at $4" '/^SNAP/{s=$2} index($0, m) && s {split($0, a, "("); split(a[2], b, ","); y=b[2]+0
