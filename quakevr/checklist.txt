@@ -14,6 +14,7 @@ Flat-screen: J with a bayonet on the shotgun and the other hand empty: the bayon
 Pull the bayonet off the shotgun with your empty hand (or pick up a lying one): it sits in your fist with the blade out above your index finger, not hanging below. {test:attach_bayonet}
 Flat-screen: kill a grunt, hold its body with H and walk into it: it is pushed ahead at the distance you took it at, both hands staying on it and on your wrists; walk backwards and it is dragged along; turn sharply away and the hands let go. {test:flat_grab_pull}
 Flat-screen: hold a dead ogre with H and run into it: it is too heavy for that pace and the hands let go; Push Held Props Off (Tunables > Flatscreen > Grab / Pull) gives the old pull of the body in to your hands. {test:flat_grab_pull}
+Ragdoll climbs: a hell knight knocked off a ledge grabs the lip and pulls itself all the way up onto the top (no longer stuck at the lip with its chest under it); grunts, knights and ogres still climb up smoothly. {test:hknight_ledge}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
