@@ -29,6 +29,7 @@ float vr_at_count;            // a counter noted before a step (attached, detach
 float vr_at_health;
 float vr_at_shells;
 float vr_at_flat;
+float vr_at_anim;             // 86/87: J's hand trip (flatattachanim)
 entity vr_at_dg;              // the dagger's record (84/85)
 float vr_at_kind;             // the attachment tested: the bayonet (79/80), the dagger (84/85: daggerattach)
 float vr_at_wid;              // the gun the stab case is for
@@ -63,6 +64,10 @@ entity(float xHand) VR_AT_Bayonet =
 // daggerattach: 84/85 run 79/80 with the dagger (Daggers as Bayonets) in place of the bayonet.
 string() VR_AT_Name =
 {
+    if(vr_at_anim)
+    {
+        return vr_at_kind == VR_ATT_DAGGER ? "attachanimdagger" : "attachanim";
+    }
     if(vr_at_kind == VR_ATT_DAGGER)
     {
         return vr_at_flat ? "attachdaggerflat" : "attachdagger";
@@ -216,8 +221,9 @@ entity(entity r) VR_AT_Lying =
 
 void(float xAsk) VR_AT_Begin =
 {
-    vr_at_flat = (xAsk == 80 || xAsk == 85);
-    vr_at_kind = (xAsk == 84 || xAsk == 85) ? VR_ATT_DAGGER : VR_ATT_BAYONET;
+    vr_at_flat = (xAsk == 80 || xAsk == 85 || xAsk == 86 || xAsk == 87);
+    vr_at_anim = (xAsk == 86 || xAsk == 87);
+    vr_at_kind = (xAsk == 84 || xAsk == 85 || xAsk == 87) ? VR_ATT_DAGGER : VR_ATT_BAYONET;
     cvar_set("vr_attach_daggers", "1");
     VR_Test_BeginFlags(VR_AT_Name(), VR_TEST_LOUD);
     vr_pe_saved_kd = cvar_hget(cvarh_vr_knockdown);
@@ -838,6 +844,140 @@ void() VR_AT_FlatFrame =
         {
             VR_AT_To(99);
         }
+    }
+    else if(vr_at_s == 99)
+    {
+        VR_AT_Finish();
+    }
+};
+
+// ---- vr_embed_test 86 / 87 (flatattachanim, flat-screen): J's hand trip (the engine's vr_flatattach.cpp): the off hand,
+// holding the bayonet (86) or the dagger (87), goes to the shotgun's mount and the impulse goes as it gets there (not before:
+// halfway, nothing on yet), the hand at the mount then; J again, the empty hand goes there and takes it off into the hand;
+// a shot mid-reach cancels the trip (nothing put on, the attachment still in the hand), and J after it puts it on.
+// Ends `attachanim: N passed, M failed` / `attachanimdagger: ...`.
+float vr_at_press;   // J's press (time)
+float vr_at_gap0;    // the off hand's gap to the mount before the trip
+
+// The off hand's gap to the main hand's gun's mount (the server's).
+float(entity p) VR_AT_MountGap =
+{
+    return vlen(VRGetEntHandPos(p, cVR_OffHand) - VR_Attach_HandPoint(p, cVR_MainHand, vr_at_kind, 1));
+};
+
+void(float xNext) VR_AT_PressJ =
+{
+    localcmd("vr_mock_key j down\n");
+    vr_at_press = time;
+    vr_at_gap0 = VR_AT_MountGap(self);
+    VR_AT_To(xNext);
+};
+
+// The impulse's arrival after J (`xWhat`): after the reach time, the hand at the gun.
+void(string xWhat) VR_AT_ArrivalCheck =
+{
+    float reach = cvar("vr_flat_attach_reach_time");
+    float delay = time - vr_at_press;
+    float gap = VR_AT_MountGap(self);
+    VR_Test_Check(delay >= reach - 0.02 && delay <= reach + 0.1 && gap < vr_at_gap0 && gap < 24,
+        sprintf("%s %.3f s after J (reach time %.2f), the off hand %.1f units from the mount (%.1f before)", xWhat, delay, reach, gap,
+            vr_at_gap0));
+};
+
+void() VR_AT_AnimFrame =
+{
+    entity p = self;
+    float u = time - vr_at_t0;
+    float reach = cvar("vr_flat_attach_reach_time");
+    float trip = reach + cvar("vr_flat_attach_slide_time") + cvar("vr_flat_attach_return_time");
+    if(u > VR_ET_GIVEUP && vr_at_s != 99)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_at_s));
+        VR_AT_To(99);
+    }
+    if(vr_at_s == 0)
+    {
+        setorigin(p, vr_eh_home - '0 40 0');
+        p.velocity = '0 0 0';
+        VRSetHandEmpty(p, cVR_OffHand);
+        VRSetHandEmpty(p, cVR_MainHand);
+        VR_AT_Give(WID_SHOTGUN, FALSE);
+        VR_AT_Attachment(cVR_OffHand);
+        cvar_set("vr_flat_attach_debug", "1");
+        VR_AT_To(1);
+    }
+    else if(vr_at_s == 1 && u > 0.3) // (drawn in the hand by now: the trip measures it there)
+    {
+        vr_at_count = vr_att_attached;
+        VR_AT_PressJ(2);
+    }
+    else if(vr_at_s == 2 && u > reach * 0.5)
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == 0 && VR_AT_OffHolds(p) && vr_att_attached == vr_at_count,
+            "J: halfway to the gun, nothing on yet (the impulse held while the hand reaches)");
+        localcmd("vr_mock_key j up\n");
+        VR_AT_To(3);
+    }
+    else if(vr_at_s == 3 && (vr_att_attached > vr_at_count || u > reach + 1))
+    {
+        VR_AT_ArrivalCheck(vr_at_kind == VR_ATT_DAGGER ? "J: the dagger goes on" : "J: the bayonet goes on");
+        VR_AT_To(4);
+    }
+    else if(vr_at_s == 4 && u > trip + 0.15)
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind && VR_AT_OffEmpty(p), "the trip over: on the gun, the off hand empty");
+        vr_at_count = vr_att_detached;
+        VR_AT_PressJ(5);
+    }
+    else if(vr_at_s == 5 && u > reach * 0.5)
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind && vr_att_detached == vr_at_count, "J again: halfway to the mount, still on");
+        localcmd("vr_mock_key j up\n");
+        VR_AT_To(6);
+    }
+    else if(vr_at_s == 6 && (vr_att_detached > vr_at_count || u > reach + 1))
+    {
+        VR_AT_ArrivalCheck("J again: taken off");
+        VR_AT_To(7);
+    }
+    else if(vr_at_s == 7 && u > trip + 0.15)
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == 0 && VR_AT_OffHolds(p), "the trip over: in the off hand, the gun bare (not snapped back on)");
+        vr_at_count = vr_att_attached;
+        VR_AT_PressJ(8);
+    }
+    else if(vr_at_s == 8 && u > reach * 0.4)
+    {
+        localcmd("vr_mock_key j up\n+attack\n");
+        VR_AT_To(9);
+    }
+    else if(vr_at_s == 9 && u > 0.05)
+    {
+        localcmd("-attack\n");
+        VR_AT_To(10);
+    }
+    else if(vr_at_s == 10 && u > trip + 0.2)
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == 0 && VR_AT_OffHolds(p) && vr_att_attached == vr_at_count,
+            "a shot mid-reach cancels: nothing put on, the attachment still in the off hand");
+        VRSetAttackFinished(cVR_MainHand, 0);
+        VR_AT_PressJ(11);
+    }
+    else if(vr_at_s == 11 && u > 0.05)
+    {
+        localcmd("vr_mock_key j up\n");
+        VR_AT_To(12);
+    }
+    else if(vr_at_s == 12 && (vr_att_attached > vr_at_count || u > reach + 1))
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind && VR_AT_OffEmpty(p), "J after the cancel: on the gun");
+        VR_AT_To(13);
+    }
+    else if(vr_at_s == 13 && u > trip + 0.15)
+    {
+        localcmd("vr_flatattach_report\n");
+        cvar_set("vr_flat_attach_debug", "0");
+        VR_AT_To(99);
     }
     else if(vr_at_s == 99)
     {

@@ -1960,6 +1960,10 @@ QVR_TUNABLE(vr_flat_pose_pitch, "65") // how far the hands follow the view up an
 QVR_TUNABLE(vr_flat_arm_hold, "1") // how far a drawn hand may sit from its arm's shoulder, times what the arm can hold it at (0..2; 0: no limit, the hands as placed)
 
 // Flatscreen > Reload
+QVR_TUNABLE(vr_flat_attach_reach_time, "0.25") // the flat-screen Attach key (vr_flatattach.cpp): seconds the free hand takes to the gun's mount (the impulse goes as it gets there); 0: at once, no trip
+QVR_TUNABLE(vr_flat_attach_slide_time, "0.2") // and seconds the blade slides along the barrel, into its mount (on) or out of it in the hand (off)
+QVR_TUNABLE(vr_flat_attach_return_time, "0.25") // and seconds the hand takes back to its pose
+QVR_TUNABLE(vr_flat_attach_slide, "8") // and units the blade slides along the barrel
 QVR_TUNABLE(vr_flat_reload_down, "0.3") // the flat-screen reload (vr_flatreload.cpp): seconds the gun's hand takes to the nearest hip holster (the rounds go in as it gets there)
 QVR_TUNABLE(vr_flat_reload_hold, "0.2") // seconds it stays there
 QVR_TUNABLE(vr_flat_reload_up, "0.3") // seconds it takes back to its pose (it fires again after it)

@@ -161,7 +161,9 @@ void(entity p, float xHand, float xByKey) VR_Attach_TakeOff =
         VRSetEntWeaponFlags(p, xHand, VR_ADMelee_Flags(VR_SWORDKIND_DAGGER));
         VRSetEntWeaponInst(p, xHand, WeaponInst_Owned(p, WID_SWORD, d));
         float fb = xHand == cVR_MainHand ? 2 : 1;
-        p.vr_att_fresh = xByKey ? p.vr_att_fresh - (p.vr_att_fresh & fb) : (p.vr_att_fresh | fb);
+        // (Fresh by the key too: flat play's J takes it off with the hand at the mount now, flatattachanim, vr_flatattach.cpp;
+        // away from it, the next frame clears it.)
+        p.vr_att_fresh = p.vr_att_fresh | fb;
         VR_Attach_Ammo(p);
         sound(p, CHAN_AUTO, "vr/reload_mag_out.wav", 1, ATTN_NORM);
         vr_att_detached = vr_att_detached + 1;

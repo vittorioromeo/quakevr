@@ -7128,6 +7128,9 @@ QVR_SLIDER(vr_flat_flycam_accel, "Fly Camera Acceleration", 0.f, 8000.f, 100.f, 
     "How quickly the fly camera speeds up and brakes, units a second each second; 0 at once (vr_flat_flycam_accel).")
 QVR_SLIDER(vr_flat_flycam_fast, "Fly Camera Shift Speed", 1.f, 10.f, 0.5f, "x%.1f", noExt,
     "The fly camera's speed with Shift held, times its speed (vr_flat_flycam_fast).")
+QVR_TOGGLE(vr_flat_attach_debug, "Flatscreen Attach Print",
+    "vr_flat_attach_debug: the flat-screen Attach key's (J) hand trip printed step by step (the press and what it will do, "
+    "the impulse as the hand gets to the gun, the slide, the hand back, a cancel and why).")
 QVR_TOGGLE(vr_flat_reload_debug, "Flatscreen Reload Print",
     "vr_flat_reload_debug: the flat-screen reload's drawn trip printed step by step (R, the trip's start, the hand at the hip "
     "with its distance and pitch, the hand back); with developer 1 the game's own steps too (flat reload: ...).")

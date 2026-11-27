@@ -47,6 +47,7 @@
 #include "vr_flatfgrab.hpp"
 #include "vr_flatgrenade.hpp"
 #include "vr_held.hpp"
+#include "vr_flatattach.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
 #include "vr_flatswim.hpp"
@@ -3227,11 +3228,12 @@ void pollKeysFlat()
     }
     keyState.keyGear = gear;
     // J (vr_flat_key_attach): weapon attachments (QC vr_attach.qc VR_Attach_Key, impulse 52): the bayonet the other hand
-    // holds put on the gun in one hand, or the gun's taken off into the empty other hand. Queued the F's way.
+    // holds put on the gun in one hand, or the gun's taken off into the empty other hand. The free hand goes to the gun
+    // first and the impulse goes as it gets there (flatattachanim: vr_flatattach.cpp).
     const bool attachKey = inGame && keyHeld(vr_flat_key_attach);
     if(attachKey && !keyState.keyAttach)
     {
-        Cbuf_InsertText("impulse 52\n");
+        flatattach::press(vr_flat_key_attach.string);
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatplay: %s: attach\n", vr_flat_key_attach.string);
@@ -3600,6 +3602,11 @@ int jumpBit(int state)
         return 0;
     }
     return (state & 3) != 0 ? 1 : 0;
+}
+
+bool daggerIn(int h)
+{
+    return isDagger(h);
 }
 
 FireRoute routeFire(bool lmb, bool rmb)
@@ -4078,6 +4085,7 @@ void init()
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
+    flatattach::init(); // vr_flatattach_report (vr_flatattach.cpp)
     flatholster::init(); // +flatholsters, vr_flat_holster_menu_dump, vr_flatholster_test (vr_flatholster.cpp)
     flatfgrab::init();  // vr_flat_fg_report, vr_flat_fg_press (vr_flatfgrab.cpp)
     flatgrenade::init(); // vr_flatgrenade_report (vr_flatgrenade.cpp)
@@ -4155,6 +4163,7 @@ void frame()
         flatmove::frame(false);
         slidesound::frame(vr_slide.value != 0.f); // (a headset's slide, vr_slide: its scrape too)
         flatreload::frame(false);
+        flatattach::frame(false);
         flatholster::frame(false);
         flatfgrab::frame(false);
         flatgrenade::frame(false);
@@ -4170,6 +4179,7 @@ void frame()
     pollKeys();
     pollKeysFlat();
     flatreload::frame(true); // R, and each hand's trip to the hip as the server says (vr_flatreload.cpp)
+    flatattach::frame(true); // J's trip: the free hand to the gun's mount, the impulse on arrival (vr_flatattach.cpp)
     flatfgrab::frame(true);  // E's grab: each hand's palm turned out, the grab sent, held while it flies (vr_flatfgrab.cpp)
     flatgrenade::frame(true); // G, and the grenade's hand as the server says (vr_flatgrenade.cpp)
     flatswap::frame(true); // the hands' swap, sent as they meet (vr_flatswap.cpp)
@@ -5274,6 +5284,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     QVR_TRACY_CALL("flat pose: sight", flatsight::apply(s, aim, glm::vec3{0.f}));
     // A reload's trip (vr_flatreload.cpp): the gun's hand to the hip holster and back, over all of the above.
     QVR_TRACY_CALL("flat pose: reload", flatreload::apply(s));
+    // J's trip (vr_flatattach.cpp): the free hand to the gun's attachment mount and back, over all of the above.
+    QVR_TRACY_CALL("flat pose: attach", flatattach::apply(s));
     // E's grab (its hand's palm turned to what it pulls) and a prop held up in a hand (vr_flatfgrab.cpp), over all of it.
     QVR_TRACY_CALL("flat pose: force grab", flatfgrab::apply(s, aim));
     // The quick grenade's hand (vr_flatgrenade.cpp) and the hands' swap (vr_flatswap.cpp), over all of it.
