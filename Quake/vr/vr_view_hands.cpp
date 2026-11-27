@@ -3860,11 +3860,39 @@ struct GripSwitch
     glm::quat turn{1.f, 0.f, 0.f, 0.f};
     glm::vec3 fromPos{0.f}; // where the switch began
     glm::quat fromTurn{1.f, 0.f, 0.f, 0.f};
+    float letGoBlend{-1.f}; // the grip's blend as it let go (its blend-out under way), -1 held or none
 };
 GripSwitch gripSwitch[2];
 static constexpr float gripSwitchTime = 0.25f;
 
-void easeGripSwitch(const hands::State& s, int hand, int other, float gripBlend, glm::vec3& pos, glm::vec3& handRot)
+// (judicator: the same for a let-go. Held no more, the grip's blend eases out over vr_twohand's 0.2 s, but the grip's pose
+// it eased off was still worked out each frame from a hold that had ended: the guard's blade grip, its thumb's way chosen by
+// the free hand's own turn, turned the other way round as that hand went back (81 degrees in a frame), and the flipped
+// judicator's handle 108. Let go, the hand eases from where it was last drawn holding on, kept against the holding hand,
+// to its own pose, by the blend's share left since the let-go: whatever the grip's pose does after it, nothing jumps.)
+void easeLetGo(const hands::State& s, int hand, int other, float gripBlend, const glm::vec3& freePos, const glm::vec3& freeRot,
+    glm::vec3& pos, glm::vec3& handRot)
+{
+    GripSwitch& g = gripSwitch[hand];
+    if(g.letGoBlend < 0.f)
+    {
+        g.letGoBlend = gripBlend; // (the blend-out's first frame: from last frame's held pose)
+    }
+    const float k = za::clamp(gripBlend / za::max(g.letGoBlend, 0.001f), 0.f, 1.f);
+    const glm::mat3 fromOther = anglesBasis(s.rot[other]);
+    pos = glm::mix(freePos, s.pos[other] + fromOther * g.pos, k);
+    const glm::quat free = glm::quat_cast(anglesBasis(freeRot));
+    glm::quat held = glm::quat_cast(fromOther) * g.turn;
+    held = glm::dot(free, held) < 0.f ? -held : held;
+    handRot = basisAngles(glm::mat3_cast(glm::slerp(free, held, k)));
+    // (As drawn: where a take during the blend-out eases from, easeGripSwitch.)
+    const glm::mat3 toOther = glm::transpose(fromOther);
+    g.fromPos = toOther * (pos - s.pos[other]);
+    g.fromTurn = glm::quat_cast(toOther * anglesBasis(handRot));
+}
+
+void easeGripSwitch(const hands::State& s, int hand, int other, float gripBlend, bool look, const glm::vec3& freePos,
+    const glm::vec3& freeRot, glm::vec3& pos, glm::vec3& handRot)
 {
     GripSwitch& g = gripSwitch[hand];
     const int kind = !flatplay::active() || gripBlend <= 0.f ? 0 : twohand::bladeGrip(other) ? 2 : 1;
@@ -3874,7 +3902,24 @@ void easeGripSwitch(const hands::State& s, int hand, int other, float gripBlend,
         g = GripSwitch{};
         return;
     }
-    if(g.kind != 0 && kind != g.kind && g.last >= 0.0 && now - g.last < 0.1)
+    if(!look && g.last >= 0.0 && now - g.last < 0.1 && (!twohand::helping(hand) || g.letGoBlend >= 0.f))
+    {
+        // (A real grip let go, or held again during its blend-out: the let-go's way; the switch's below is a held grip's.)
+        if(twohand::helping(hand))
+        {
+            g.letGoBlend = -1.f; // (taken again: from the pose last drawn easing off, fromPos / fromTurn, as a switch)
+            g.at = now;
+        }
+        else
+        {
+            g.at = -1.0;
+            easeLetGo(s, hand, other, gripBlend, freePos, freeRot, pos, handRot);
+            g.kind = kind;
+            g.last = now;
+            return; // (g.pos / g.turn: the held pose it eases off, kept)
+        }
+    }
+    if(g.kind != 0 && kind != g.kind && g.last >= 0.0 && now - g.last < 0.1 && g.at != now)
     {
         g.fromPos = g.pos;
         g.fromTurn = g.turn;
@@ -4493,8 +4538,9 @@ void setupHand(const hands::State& s, int hand)
         (own && twohand::helping(hand)) || lookSpot >= 0, lookSpot >= 0, lookSpot >= 0 ? lookPoint : s.grip2H[other]};
     if(own)
     {
+        const glm::vec3 freePos = pos, freeRot = handRot; // (its own pose: where a let-go eases to)
         steadyOther(hp, pos, handRot, hide, motion);
-        easeGripSwitch(s, hand, other, gripBlend, pos, handRot);
+        easeGripSwitch(s, hand, other, gripBlend, lookSpot >= 0, freePos, freeRot, pos, handRot);
     }
     if(lookSpot >= 0)
     {
