@@ -948,8 +948,11 @@ QVR_TOGGLE(vr_agrunt_repl_variants, "AD and Quoth Variants",
     "soldiers as grunts, defenders, eliminators, pyros and fumigators as enforcers, crossbow knights as knights, with "
     "their health (where replacements play in AD's maps; vr_agrunt_repl_variants).")
 QVR_TOGGLE(vr_agrunt_repl_crossbow, "AD Crossbow Knights",
-    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed knights holding the crossbow too. Off "
-    "(the default for now): they stay as AD made them (vr_agrunt_repl_crossbow).")
+    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed humanoids in their own look holding "
+    "the crossbow: they can be disarmed and take up any weapon. Off: they stay as AD made them (vr_agrunt_repl_crossbow).")
+QVR_TOGGLE(vr_agrunt_repl_dguard, "AD Death Guards",
+    "With AD and Quoth Variants on, Arcane Dimensions' death guards are armed humanoids in their own look holding their "
+    "sword: they can be disarmed and take up any weapon. Off: they stay as AD made them (vr_agrunt_repl_dguard).")
 QVR_TOGGLE(vr_humlook, "Recolour by Weapon",
     "Armed humanoids wear the colour of the weapon they came with: rockets and grenades red, lightning and plasma blue, "
     "flamethrowers orange, poison green; their backpacks too (quakevr/humlook.txt; vr_humlook).")

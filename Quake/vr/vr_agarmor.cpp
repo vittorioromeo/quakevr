@@ -114,7 +114,9 @@ struct Wearer
 // vertices are left out of the guards' fit, so nothing held them out and they sank into his cheeks; they are plates now, down each
 // side of his face to 0.42, outside the head's real width (0.53 at its most, at 0.2 forward), their front edges following his face as it widens down (0.35
 // out at 0.53 forward at the cheek row, 0.46 at 0.4 at the jaw row), so they sweep back to a point. Outside 11.7 deep, 11.1 wide (the crown 10.3, his head 10.65 at its widest).
-constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {.model = "progs/vrenforcer.mdl", .backCut = -10.5f, .hipFrom = -0.5f},
+constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f},
+    // (AD's death guard and crossbow knight as armed knights: their authored rigs, as the knight's; vr_monstermods.cpp)
+    {"progs/vrdguard.mdl", -1e9f}, {"progs/vrdcrossbow.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {.model = "progs/vrenforcer.mdl", .backCut = -10.5f, .hipFrom = -0.5f},
     {.model = "progs/enforcer.mdl", .backCut = -10.5f, .hipFrom = -0.5f},
     // The knight's red shoulder pads stand up to 2.5 units off his upper arms' skin, weighing on them 0.2-0.4 (the rest on his
     // chest): his upper arms' plates go out over them (his note, 2026-11-06: "exposed knight shoulder").

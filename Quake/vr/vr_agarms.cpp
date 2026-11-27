@@ -88,7 +88,7 @@ constexpr float secondEase = 0.25f; // ... taken and let go over this (seconds; 
 constexpr float reachFar = 1.6f;    // vr_agarms_reach_ease: a weapon lying this many arm's lengths off: the hand hanging,
 constexpr float reachNear = 1.15f;  // ... this near: reaching for it wholly
 
-constexpr int maxModels = 4;
+constexpr int maxModels = 8; // (the armed rows' models: vr_hitreact_internal.hpp armedRigs)
 constexpr int maxEnts = 64;
 constexpr float lodRadius = 40.f; // vr_agarms_lod: an armed humanoid's size round its origin (units: its weapon held out)
 constexpr int lodEveryMost = 30;  // ... solved at least every this many frames
