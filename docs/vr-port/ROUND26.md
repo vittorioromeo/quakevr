@@ -4272,3 +4272,30 @@ His words (2026-11-27): "make the scrag tail armor pieces individually destroyab
   splitting adds 2 points to the tail's total at green, 1 at yellow, none at red (the tail is rarely hit by the test's
   aim at the body's middle).
 - **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).
+
+## mparcs: Show Melee Arcs' armed swings drawn on remote MP clients (branch agent/mparcs, 2026-11-27)
+
+The armed humanoids' swing trail (Show Melee Arcs, ROUND25 "Show Melee Arcs") was drawn only by the host's view: QC
+hands each swing frame to the engine (`meleeshowfoe`), which kept it in the host's own memory. Now a remote client whose
+own `vr_enemy_melee_arc_show` is on draws it too, whatever the host's option says.
+- **How**: the client asks the server while its option is on (`vr_meleearcs_want 1|0`, as `vr_nav_botpaths`; a listen
+  host draws the server's own and never asks). QC sends the swings while the host's option is on *or* a remote client
+  wants them (vr_meleerules.qc `VR_MeleeArc_Shown`: one cvar read, a builtin call only with the host's off:
+  `meleeshowfoe(world, -2, ...)`). The engine keeps the frame's records (grip/tip with the swing-through flag, butt, blow
+  landed; 32 at most, emptied at `VR_ServerFrameBegin`) and writes them into each wanting remote client's datagram
+  (`VR_WriteMeleeArcs`, SV_SendClientDatagram after the scoped messages): `QVR_SVC_MELEEARC` 59, unreliable (a lost
+  datagram is a gap in the trail). The client keeps them as the host does (`keepFoe`) and draws them with the same
+  `drawHand`; its clock is the last message's server time (`cl.mtime[0]`). **QVR_NET_VERSION 48 -> 49.**
+- Not derived from the pose (QVR_SVC_ARMPOSE): the swing-through phase and the blow landing are server-side facts, and
+  the weapon line would have to be rebuilt from the drawn pose on every client.
+- Shared: the draw (`drawHand`), the slots and fade (`keepFoe`) for host and client. Not covered: Show Melee Blades (your
+  own hands' sweeps, `vr_debug_melee_blades`) and the floor fan (`meleeArcDraw`) stay host-only; bots' and players'
+  swings never used this path (they are Show Melee Blades' sweeps).
+- `vr_enemy_melee_arc_status`: "armed swings drawn N frames M segments" (segments: the swept surface between two frames)
+  and "remote wanted 0|1" (the server's view).
+- `NET_QvrReleaseOf` (net_main.c) not given 49: the table is frozen by design (servers from 1.2.0-beta7 on say their
+  release themselves; it names the releases of older servers only).
+- Tests: `mp_test.py meleearcs` (in the suite) 9/0: listen host A on vrtesthall runs `vr_agrunt_test 216` with B (remote)
+  drawing: B drew 278 frames, 2094 segments; B's option off stops it (remote wanted 0). `vr_agrunt_test 216` 2/0 (its
+  "off" case allows sending when a remote client draws them), 212 6/0; mp_version, mp_coop, mp_bandwidth,
+  changelevel_signon pass.

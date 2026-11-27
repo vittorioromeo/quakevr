@@ -34,7 +34,6 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
 - **Spear/Lance numbers differ between trees** (quest vs mp, same commit): find what differs in quest's game folder before trusting quest's spear/flatthrust results. The relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` now points to `qvr-kit/relit`); the numbers need one recheck.
 - **menu_paths.txt**: a full regeneration loses the Held Weapon pages (workers add rows by hand).
 - **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
-- **Melee arcs**: armed humanoids' swing trail is drawn on the host view only, not on remote MP clients (ROUND25.md "Show Melee Arcs").
 
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
   (one earlier run of two failed with faulty-frame counts on the blades' stance cases while it timed out under the
