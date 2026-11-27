@@ -43,6 +43,9 @@ public enum FeedState
 public sealed class StartupOptions
 {
     public string? Package { get; set; }
+    /// <summary>The package found beside the installer (when no --package was given): in <see cref="Package"/> already
+    /// when it is this installer's version or newer; an older or unreadable one only when offline and the player agrees.</summary>
+    public BesidePackage? Beside { get; set; }
     public string? Textures { get; set; }
     /// <summary>--apk: the Quest APK (else QuakeVR.apk beside Setup, else the release list's quest component).</summary>
     public string? Apk { get; set; }
@@ -148,9 +151,16 @@ public sealed class StartupOptions
         o.Target = o.Target is { } tg ? PathUtil.TryNormalize(tg) ?? tg : null;
         o.RegistryFile = o.RegistryFile is { } rg ? PathUtil.TryNormalize(rg) ?? rg : null; // (passed on to a copy in %TEMP%, which runs elsewhere)
         // A package beside the installer (an offline download: QuakeVR.zip, the unzipped QuakeVR folder, or another
-        // QuakeVR*.zip with a manifest inside): installed from there without any network.
+        // QuakeVR*.zip with a manifest inside): installed from there without any network when it is this installer's
+        // version (or newer). An older one (an old download left in the same folder) is not: the release is downloaded,
+        // or, offline, the player is asked (BesidePackage; the 2026-11-27 report).
         var here = AppContext.BaseDirectory;
-        o.Package ??= LocalPackages.FindBeside(here);
+        if (o.Package is null)
+        {
+            o.Beside = LocalPackages.FindBeside(here, InstallerBuild.Version);
+            // (The screenshot harness renders whatever is there: it never downloads.)
+            o.Package = o.Beside is { } beside && (beside.UsedAtOnce || o.Screenshots is not null) ? beside.Path : null;
+        }
         o.Textures ??= Directory.EnumerateFiles(here, "quakevr-hq-textures-*.zip").FirstOrDefault();
         return o;
     }
@@ -570,7 +580,7 @@ public sealed partial class MainViewModel : ObservableObject
                 InstallMode.Update => $"Update to {to}: only the program files that changed are replaced.",
                 InstallMode.Repair when ReleaseVersion.Compare(e.Version, TargetVersion) == VersionOrder.Older =>
                     $"The package ({to}) is older than the install: Repair checks the files and restores what it can, without going back a version.",
-                InstallMode.Repair => "This is the latest version. Repair checks every program file and restores any that are missing or damaged.",
+                InstallMode.Repair => $"This is the latest version ({to}). Repair checks every program file and restores any that are missing or damaged.",
                 _ when FeedUnavailable => "The latest version couldn't be found online right now. Try again later, or pick a package (QuakeVR.zip) to update from.",
                 _ => "Looking for the latest version…",
             };
@@ -705,10 +715,62 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The Install page's title: what the run does.</summary>
     public string InstallTitle => _reliefsOnlyRun ? "Making the missing reliefs" : _runMode switch
     {
-        InstallMode.Update => $"Updating {ProductName}",
-        InstallMode.Repair => $"Repairing {ProductName}",
-        _ => Reinstall ? $"Installing {ProductName} again" : $"Installing {ProductName}",
+        InstallMode.Update => $"Updating {ProductName}{RunVersionText}",
+        InstallMode.Repair => $"Repairing {ProductName}{RunVersionText}",
+        _ => Reinstall ? $"Installing {ProductName}{RunVersionText} again" : $"Installing {ProductName}{RunVersionText}",
     };
+
+    /// <summary>The version this run installs, in the Install page's title (so a package of another version than the
+    /// installer's can't hide in the details: the 2026-11-27 report). Empty until it is known.</summary>
+    string? _runVersion;
+    string RunVersionText => string.IsNullOrWhiteSpace(_runVersion) ? "" : $" {ReleaseVersion.Parse(_runVersion).Short}";
+
+    void SetRunVersion(string? version)
+    {
+        _runVersion = version;
+        Raise(nameof(InstallTitle));
+    }
+
+    /// <summary>The details' line about a package beside the installer that is not this installer's version: used
+    /// (newer, or older as the player chose offline) or not (the release downloaded instead).</summary>
+    void LogBeside()
+    {
+        if (_options.Beside is not { } b)
+        {
+            return;
+        }
+        var action = _options.Package is null ? BesideAction.Download
+            : string.Equals(_options.Package, b.Path, StringComparison.OrdinalIgnoreCase) ? BesideAction.Use : BesideAction.Skip;
+        if (b.Note(action, _feed?.Version) is { } note)
+        {
+            AddLog(b.Order == BesideOrder.Newer ? LogLevel.Info : LogLevel.Warning, note);
+        }
+    }
+
+    bool _besideAsked;
+
+    /// <summary>No release online and the only package is an older (or unreadable) one beside the installer: asks once
+    /// whether to install it anyway, naming both versions (BesidePackage.AskText).</summary>
+    void AskBesideWhenOffline()
+    {
+        if (_besideAsked || HasLocalPackage || _feedState != FeedState.Unavailable || _options.Beside is not { } b || b.Decide(online: false) != BesideAction.Ask)
+        {
+            return;
+        }
+        _besideAsked = true;
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (HasLocalPackage || _feedState != FeedState.Unavailable)
+            {
+                return;
+            }
+            var agreed = MessageBox.Show(Application.Current.MainWindow, b.AskText, ProductName, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+            if (b.Decide(online: false, agreed) == BesideAction.Use)
+            {
+                UsePackage(b.Path);
+            }
+        }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+    }
 
     /// <summary>The Update screen's Update (or Repair): the package (local, or downloaded and checked), then only the
     /// program files that differ; the HD textures only when the pack changed (a repair: or a texture is damaged); the
@@ -723,9 +785,10 @@ public sealed partial class MainViewModel : ObservableObject
         var dir = InstallDir;
         var expected = OfferedMode ?? InstallMode.Update;
         _runMode = expected;
-        Raise(nameof(InstallTitle));
+        SetRunVersion(TargetVersion);
         GoTo(Page.Install);
         Log.Clear();
+        LogBeside();
         InstallError = null;
         Progress = 0;
         Installing = true;
@@ -748,7 +811,7 @@ public sealed partial class MainViewModel : ObservableObject
             var manifest = InspectPackage(package).Manifest ?? throw new InstallException($"{package} is not a {ProductName} package.");
             var mode = MaintenancePlanner.ModeFor(existing.Version, manifest.Version);
             _runMode = mode;
-            Raise(nameof(InstallTitle));
+            SetRunVersion(manifest.Version);
             string? textures = null;
             if (getHd)
             {
@@ -1380,14 +1443,23 @@ public sealed partial class MainViewModel : ObservableObject
     public string? FeedErrorDetail => _feedError is null ? null : $"Details: {_feedError}";
 
     public string PackageSourceTitle =>
-        HasLocalPackage ? "Installing from a local package" :
-        FeedAvailable ? "Downloading the latest release" :
+        HasLocalPackage ? $"Installing {(_packageVersion is { } lv ? ReleaseVersion.Parse(lv).Short + " " : "")}from a local package" :
+        FeedAvailable ? $"Downloading {(_feed is { } f ? ReleaseVersion.Parse(f.Version).Short : "the latest release")}" :
         FeedUnavailable ? "The online download isn't available right now" :
         "Looking for the latest release online…";
 
+    /// <summary>The local package's version against the installer's, when they differ (said where it is chosen).</summary>
+    string LocalVersionNote => LocalPackages.Judge(InstallerBuild.Version, _packageVersion) is var order && order == BesideOrder.Same ? ""
+        : $" · {(order == BesideOrder.Newer ? "newer than" : order == BesideOrder.Older ? "older than" : "not")} this installer's {ReleaseVersion.Parse(InstallerBuild.Version).Short}";
+
+    /// <summary>An older package beside the installer that the download replaces.</summary>
+    string BesideSkippedNote => _options.Beside is { UsedAtOnce: false } b
+        ? $" {b.Name} beside the installer{(b.Order == BesideOrder.Older ? $" is {b.VersionShort}, older than this installer: it" : " has no readable version: it")} is not used."
+        : "";
+
     public string PackageSourceText =>
-        _options.Package is { } p ? $"{Path.GetFileName(p.TrimEnd('\\', '/'))}{(_packageVersion is { } v ? $" · version {v}" : "")}{(_coreSize is { } cs ? $" · {PathUtil.FormatSize(cs)}" : "")} · no internet needed. {p}" :
-        FeedAvailable && _feed is { } feed ? $"{ProductName} {feed.Version}{(feed.Package is { } fp ? $", {PathUtil.FormatSize(fp.Size)}" : "")}, from GitHub, checked against its published SHA-256." :
+        _options.Package is { } p ? $"{Path.GetFileName(p.TrimEnd('\\', '/'))}{(_packageVersion is { } v ? $" · version {v}" : "")}{LocalVersionNote}{(_coreSize is { } cs ? $" · {PathUtil.FormatSize(cs)}" : "")} · no internet needed. {p}" :
+        FeedAvailable && _feed is { } feed ? $"{ProductName} {feed.Version}{(feed.Package is { } fp ? $", {PathUtil.FormatSize(fp.Size)}" : "")}, from GitHub, checked against its published SHA-256.{BesideSkippedNote}" :
         FeedUnavailable ? "No release could be found online: none may be published yet, or this PC is offline. If you have a " +
                           $"{ProductName} package (QuakeVR.zip, or its unzipped folder with manifest.json), pick it and the installer uses it without any internet." :
         "One moment…";
@@ -1426,6 +1498,7 @@ public sealed partial class MainViewModel : ObservableObject
         Raise(nameof(FeedChecking), nameof(FeedAvailable), nameof(FeedUnavailable), nameof(PackageReady), nameof(PackageSourceTitle),
             nameof(PackageSourceText), nameof(FeedErrorDetail), nameof(TexturesSizeText), nameof(TexturesDownloadUnavailable), nameof(CanPickPackageAfterError));
         RaiseExisting();
+        AskBesideWhenOffline();
     }
 
     /// <summary>A package's manifest, or why it is not a package.</summary>
@@ -1551,9 +1624,10 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
         _runMode = InstallMode.Install;
-        Raise(nameof(InstallTitle));
+        SetRunVersion(TargetVersion);
         GoTo(Page.Install);
         Log.Clear();
+        LogBeside();
         InstallError = null;
         Progress = 0;
         Installing = true;
@@ -1585,6 +1659,7 @@ public sealed partial class MainViewModel : ObservableObject
                 package = await DownloadAsync(http, ProductName, f => f.Package, 0, HdTextures ? 15 : 50, ct)
                           ?? throw new InstallException("No Quake VR package to install: the release list names none.");
             }
+            SetRunVersion(InspectPackage(package).Manifest?.Version);
             string? textures = null;
             if (HdTextures && !keepHd)
             {

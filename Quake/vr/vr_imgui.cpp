@@ -41,6 +41,7 @@ struct ImState
     float fedX{0.f};
     float fedY{0.f};
     bool fedDown{false};
+    bool fedRight{false};
     float fedWheel{0.f};
 };
 ImState im;
@@ -196,8 +197,9 @@ void setPanel(unsigned framebuffer, int width, int height, float texels)
     im.panelTexels = texels;
 }
 
-void feedMouse(float x, float y, bool down, float wheel)
+void feedMouse(float x, float y, bool down, float wheel, bool right)
 {
+    im.fedRight = right;
     im.fed = true;
     im.fedX = x;
     im.fedY = y;
@@ -244,6 +246,7 @@ bool beginFrame()
     {
         io.AddMousePosEvent(im.fedX, im.fedY);
         io.AddMouseButtonEvent(ImGuiMouseButton_Left, im.fedDown);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Right, im.fedRight);
         if(im.fedWheel != 0.f)
         {
             io.AddMouseWheelEvent(0.f, im.fedWheel);
