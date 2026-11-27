@@ -29,7 +29,8 @@
 // its bone's place by both shares (RigRebuild). The loops' seams are the dequantised poses' (smoothed round the loop). Your weapons are never smoothed (their flashes, mounts and
 // shells follow Quake's blend: vr_anchor.cpp), nor skeletal models (IQM, a ragdoll's skinned model). What the game
 // tests against a model's shape (vr_hitmodel.cpp, vr_modelcollide.cpp) keeps Quake's blend: the drawn shape between
-// frames is a few units off it at most mid-swing (vr_anim_smooth_check).
+// frames is a few units off it at most mid-swing (vr_anim_smooth_check). What is drawn on the body (the beasts' armour)
+// reads the drawn shape itself: drawnPoints, the same memo and rows as the draw (ROUND26.md "armourrebuild").
 
 #include "vr_animsmooth_internal.hpp"
 #include "vr_geom.hpp"

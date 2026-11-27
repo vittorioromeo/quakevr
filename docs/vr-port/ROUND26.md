@@ -4143,3 +4143,56 @@ map loads, a VR player's moves. Every "overflow" a client could cause, and the f
   voice, weaponwheel, rejoin, lockstep, campaign, prefs, lagcomp: all pass. No protocol change (QVR_NET_VERSION kept).
 - **Open**: which buffer the player hit is not pinned (ask him for the whole line, Quest or PC console, and when: headset
   off, a level change, Wi-Fi); no headset run (the Quest's real move sizes untested).
+## armourrebuild: the beasts' armour on the body as drawn (the spline, the swing, the skeleton rebuild) (branch agent/armourrebuild, 2026-11-27)
+
+His words: "the ogre animations seem to have an obscene amount of vertex warping, which also affects the armour
+movement"; told the drawn body is rebuilt but the armour follows the stored frames: "Yes, please start it."
+
+- **Was:** the beasts' pieces and leather (vr_beastarmour.cpp `place`, junctions) were placed from
+  `hitmodel::drawnVertexPoints(ent, lerp, ...)`: the client's drawn lerp (doglerp) laid on the frames' *stored bytes*
+  by Quake's linear blend. The shader draws something else: the dequantised poses along r_lerpmodels 3's spline through
+  four poses, the limbs' swing, and the rebuild from the skeleton (RigRebuild, its two-bone joints). Every rigged beast's
+  armour was off the drawn body by the difference, changing every frame.
+- **Now:** `animsmooth::drawnPoints(entity, pose1, pose2, blend, verts, n, out)` (vr_animsmooth.cpp): the vertices as
+  the shader draws them, from the renderer's own per-entity memo (`instanceMemo`, split out of `smoothInstance`: the
+  same key, spline weights and 9-rows-a-bone rebuild rows the draw uploads; whichever of the armour or the draw reads
+  it first in a frame makes it, the other reuses it: one fit, one source). `drawnVertex` (the CPU transcription of the
+  shader, also the trace's) gained RigRebuild's two-bone branch (rest row 2's w). `hitmodel::DrawnLerp` carries the
+  client entity (`clientLerp` sets it); `drawnVertexPoints(ent, lerp, ...)` uses `drawnPoints` when the client entity
+  draws the same model (a listen server), the result laid on by the drawn place. Not mirrored: a hit reaction's kick
+  (RigKick, a short added turn while hit).
+- **Not changed (shots meet the hit model):** the hit model and its traces (`Verts::at`: shots, `skinCrossing`,
+  `nearest`), and the server-side placements that decide what a shot hit (`pieceHit`, `pieceAt`, agarmor's
+  `posedAnchors`) and where a broken piece's debris starts (`plateWhere`, QC's debris: the hit model's pose; up to a few
+  units from the drawn piece on the ogre mid-swing). Moving the hit model to the drawn shape is a separate decision
+  (every Verts::at would read rows).
+- **Setting:** `vr_armour_on_drawn` 1 (Debug > Reports > Beast Armour On The Drawn Body; 0: the stored frames, as before).
+- **Check** (`vr_drawnlerp_watch`, vr_hitmodel_diag.cpp): each frame the armour's points for every vertex (what its
+  pieces are placed from) against the shape the shader drew, replayed from the draw's own uploaded inputs
+  (`animsmooth::captureDraws` / `capturedPoints`: VR_AnimSmooth's poses, weights, rows and kick rows for the watched
+  entity, through `drawnVertex` + `kickOf`); a new line "drawnlerp shape: ...: mean a frame lo .. hi (mean, spread), one
+  vertex's most", and the watch fails over 0.05 units. Every vertex, whole watch (mean a frame, its spread over the
+  frames; most one vertex):
+
+| case (0.25x) | before: mean (spread), most | now |
+|---|---|---|
+| rottweiler leap | 0.65 (0.87), 5.8 | 0.000, 0.000 |
+| rottweiler run | 0.74 (1.11), 6.8 | 0.000, 0.000 |
+| rottweiler roll (shoved) | 0.86 (4.33), 10.6 | 0.000, 0.000 |
+| scrag flying | 0.52 (1.63), 4.7 | 0.000, 0.000 |
+| ogre running | 0.86 (1.91), 13.8 | 0.000, 0.000 |
+| ogre chainsaw | 1.76 (3.75), 22.8 | 0.000, 0.000 |
+| shambler running (bare) | 0.92 (0.91), 8.7 | 0.000, 0.000 |
+
+  (1x the same within 0.1.) Exactly 0 because both sides use the same rows: it proves the armour reads what the draw
+  uploads; the shader's own arithmetic is `drawnVertex`'s transcription (no GPU readback: none in the engine).
+- **Cost** (`vr_agarmor_test 23`, Debug > Tests "Beast Armour On The Drawn Body: Cost (Ten Ogres)"; vr_anim_smooth_info
+  prints "animsmooth: drawn points ..."): ten ogres in full armour running, 288 frames: 320 calls a frame (32 an ogre:
+  pieces and junctions, 10 vertices each), 0.37 us a call: **0.12 ms a frame** for ten (Release, no LTO); the rows made
+  once an ogre a frame either way (2880 rebuilds in 288 frames: the draw reuses them).
+- **Tests:** `vr_agarmor_test 21` (doglerp) now 7 cases a speed: + the ogre's chainsaw swing and a bare shambler
+  (`VR_BAT_Spawn` kind 4), and the shape check: before 4 passed (the off-the-ground checks) 14 failed, now 18/0;
+  `vr_agarmor_test 23` 1/0; `vr_agarmor_test 15` 63/0; vr_beastfit_test 101/0; vr_beastarmour_lookcheck 78/0;
+  vr_anim_warp_check 10/0; animsmooth_test.sh 9/0; tunables_test 13/0.
+- **Open:** the kick (RigKick) is not mirrored (a hit beast's armour lags its kick for a moment); the hit model and the
+  debris start stay on the stored frames (above); his look in VR.
