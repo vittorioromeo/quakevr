@@ -4353,3 +4353,25 @@ static sentence" (65/65), and the `--screenshots` harness check (no switches, se
 ## blclean: BACKLOG.md cleanup (branch agent/blclean, 2026-11-27)
 
 Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.
+
+## holsterattach: attachments on holstered weapons (branch agent/holsterattach, 2026-11-28)
+
+His words 2026-11-28: bayonets don't seem to show on holstered weapons (flat, F8). Found on origin/next: your own holstered
+guns' attachments were already drawn (setupAttachments; flat and VR, the fly camera too: vr_attach_report and screenshots of
+both hips and the back holster), another player's by drawGunParts (the avatar's attachment byte; mp_test.py attach,
+other_holster). What did not follow: a super shotgun broken open off your hands (holstered, lying, another player's held or
+holstered) kept its bayonet where the closed barrels are, in front of the dropped barrels: likely what he saw on a holstered
+super shotgun (drawn open in immersive reloading). Also a lying gun's attachment counted as worn (faded by the third-person
+fade and invisibility, copied into the body's mirror).
+- **One draw path**: `view::placeAttachment(out, gun, kind, ssgHand, ssgOpen = 0)`: `ssgOpen` > 0 carries it down with that
+  super shotgun's barrels (`view::ssgCarry(gun, deg, ...)`, which `ssgBarrelsCarry(hand)` now calls). Your holsters: the
+  holster's SsgDrawn angle (setupSsgParts now runs before setupAttachments); lying: setupWorldSsgs' open angle; another
+  player's (drawGunParts): its SsgDrawn (a holstered one's ssgHolsterParts stepped before the placement). Four-argument
+  callers (the wheel previews) are unchanged.
+- **worn()** leaves out `worldAttach`.
+- **vr_attach_report** lines end `gap=`: the drawn mount's distance from the gun's mount as the gun is drawn (on the open
+  barrels' part when there is one).
+- **Test**: `vr_embed_test 88` (QC/vr_attach_test.qc `VR_AT_HolsterSet`: shotgun + bayonet in the right hip, super shotgun +
+  bayonet broken open in the left hip); `Misc/quakevr/attach_holster_test.sh` (flat, its fly camera beside the hip, VR;
+  `attach_holster_check.py`: each holstered gun's bayonet drawn, gap <= 0.05), also run at the end of attach_test.sh.
+- Armed humanoids carry no holstered guns; bots and dead players' bodies draw through drawHolsteredParts (the same path).
