@@ -21,6 +21,14 @@ extern "C" cvar_t scr_sbarscale; // gl_screen.c
 namespace qvr::flathud
 {
 
+int hudWeapon(int hand)
+{
+    using namespace protocol;
+    const bool main = hand == HAND_MAIN;
+    const int prop = (static_cast<int>(cl.stats[STAT_QVR_PROPHUD]) >> (main ? 8 : 0)) & 255;
+    return prop != 0 ? prop : static_cast<int>(cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2]);
+}
+
 namespace
 {
 
@@ -56,7 +64,7 @@ struct Counter
     using namespace protocol;
     const bool main = hand == HAND_MAIN;
     Counter c;
-    c.wid = static_cast<int>(cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2]);
+    c.wid = hudWeapon(hand); // (the hand's weapon, or the weapon prop it drives)
     if(c.wid == WID_FIST)
     {
         return c;
@@ -129,7 +137,7 @@ extern "C" int VR_FlatHudClip(int left, int* clip, int* clipSize)
 {
     using namespace protocol;
     const bool main = left == 0;
-    const int wid = static_cast<int>(cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2]);
+    const int wid = flathud::hudWeapon(main ? HAND_MAIN : HAND_OFF);
     const int size = cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2];
     if(!flatplay::active() || cl.stats[STAT_QVR_RELOADMODE] == 0 || wid == WID_FIST || size <= 0 || flathud::clipOnly(wid))
     {

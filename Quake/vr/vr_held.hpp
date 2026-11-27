@@ -264,4 +264,9 @@ void resetClientState();
 // (negative: sunk in); the worst of them on a last line.
 void carryCheck_f();
 
+// vr_held_report (the tests: attach_test.sh): for each hand, what the server says it carries (STAT_QVR_CARRY*), the entity
+// drawn in it last frame and whether it was (`held_report: off|main carried= ent= drawn= model= x_in_hand= inview=`): its
+// model's +x in the hand (forward, left, up) and how many of its drawn box's corners were in the view last drawn.
+void heldReport_f();
+
 } // namespace qvr::held

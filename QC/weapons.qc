@@ -76,8 +76,14 @@ vector(float xHand, float xKind) vrProjectileVelocity =
     return out;
 }
 
+float(float xHand) VR_PropFire_HudCounter; // (vr_propfire.qc)
+
 void(float xHand, float xAid) updateAmmoCounter =
 {
+    if(VR_PropFire_HudCounter(xHand)) // the hand empty on a weapon prop it drives (a gun stuck by its bayonet): the prop's
+    {
+        return;
+    }
     if(VR_EnemyGun_Counter(xHand)) // a grunt's shotgun, an enforcer's rifle: its clip (vr_enemyguns.qc)
     {
         return;

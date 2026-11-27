@@ -171,6 +171,7 @@ QVR_FIELD(vr_embed_armseenoff) // on a player, the engine's: the blade the off h
 QVR_FIELD(vr_embed_armseenmain) // the main hand's
 QVR_FIELD(vr_embed_armeye) // and the eye in that frame
 QVR_FIELD(vr_embed_handle) // bits, 1 the off hand, 2 the main: that hand holds it by its handle (else where it took hold)
+QVR_FIELD(vr_pfire_hud)    // on a player: the weapon ids of the props its hands drive (the off hand's + 256 x the main's): STAT_QVR_PROPHUD
 
 // Model transforms (networked as entity update extras).
 QVR_FIELD(model_scale)
