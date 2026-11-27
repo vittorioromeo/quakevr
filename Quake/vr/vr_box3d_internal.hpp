@@ -846,6 +846,24 @@ struct World
     za::Vector<Recovery> recoveries;    // knocked-down monsters getting up (Knockdowns)
     // Hands holding a ragdoll's limb (vr_ragdoll_grab; "Ragdolls"): a kinematic body at the hand and a motor joint to
     // the limb.
+    // A hold pushed as well as dragged (vr_flat_grab_push; flat-screen Grab / Pull: a big prop's drag, PropBlade, and a
+    // ragdoll's limb held, RagdollGrab): the held point's target kept as far ahead of the player's body as it took hold
+    // (`arm`: units along his yaw's forward and left), not eased to the hand; `need` the force this hand's hold would need
+    // (N, its share of the mass), `strain` the s it stayed above vr_flat_grab_push_force (times how far), `angle` the held
+    // point round from the target (degrees, level, from the eyes), with their highest (`needMost`, `angleMost`).
+    // vr_box3d_ragparts.cpp keepTarget / keepStrain / keepLetGo.
+    struct PushKeep
+    {
+        bool keep{false};
+        glm::vec2 arm{0.f};
+        float need{0.f};
+        float strain{0.f};
+        float angle{0.f};
+        float needMost{0.f};
+        float angleMost{0.f};
+        glm::vec2 lag{0.f};  // m: the point behind its target this step, level
+        glm::vec2 slip{0.f}; // m/s: and its slip from it
+    };
     struct RagdollGrab
     {
         int player{0};
@@ -899,6 +917,11 @@ struct World
         // The toolgun's physgun's hold (player 0, no hand: vr_box3d_ragparts.cpp, "The physgun's hold"): where its
         // anchor is driven to (units).
         glm::vec3 target{0.f};
+        // A flat-screen Grab / Pull's (grabRagdollReachImpl): pushed and dragged at the grab's arm length, let go of when
+        // too steep or too heavy for the pace, as a big prop's drag (PushKeep).
+        PushKeep push;
+        glm::vec2 bodyArm{0.f};  // ... its body's mass centre as it took hold, level from the player (as PushKeep::arm)
+        glm::vec3 bodyWas{0.f};  // ... and where that was kept last step (units)
     };
     za::Vector<RagdollGrab> ragdollGrabs;
     // A hand's blade held in a crate or a barrel by its handle (QC embedprophold; vr_box3d_ragparts.cpp, "A blade held in a
@@ -924,17 +947,8 @@ struct World
         float hertz{0.f};
         float gapOver{0.f};
         float letGo{0.f};
-        // Pushed as well as dragged (vr_flat_grab_push): the point's target kept as far ahead of the player's body as it
-        // took hold (`arm`: units along his yaw's forward and left), not eased to the hand; `need` the force this hand's
-        // hold would need (N, its share of the mass), `strain` the s it stayed above vr_flat_grab_push_force (times how far), `angle` the
-        // held point round from the target (degrees, level, from the eyes), with their highest (`needMost`, `angleMost`).
-        bool keep{false};
-        glm::vec2 arm{0.f};
-        float need{0.f};
-        float strain{0.f};
-        float angle{0.f};
-        float needMost{0.f};
-        float angleMost{0.f};
+        // Pushed as well as dragged (vr_flat_grab_push: PushKeep).
+        PushKeep push;
     };
     za::Vector<PropBlade> propBlades;
     // Ragdolls made in each other (two grunts dying on one spot, vr_ragdoll_collide_each): they pass through each other
@@ -1463,7 +1477,7 @@ void syncRagdollGrabs(float dt);
 void syncPropBlades(float dt);
 float holdPropDrag(int num, edict_t* player, int hand, const glm::vec3& target, float force, float lift, float hertz, float letGo);
 [[nodiscard]] bool propDragOf(int player, int hand, int& num, glm::vec3& at, glm::quat& turn, float& off);
-// Whether player `player` pushes prop `num` with his hands (vr_flat_grab_push): his body's capsule doesn't shove it (preSolve).
+// Whether player `player` pushes prop or ragdoll `num` with his hands (vr_flat_grab_push): his body's capsule doesn't shove it (preSolve).
 [[nodiscard]] bool dragsProp(int player, int num);
 [[nodiscard]] float grabReach(int player, int hand);
 inline unsigned shapeGeneration = 1;

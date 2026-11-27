@@ -234,14 +234,15 @@ float VR_FLATTHROW_AIM_FAR = 2048;
 float VR_FLATTHROW_AIM_NEAR = 24;
 vector vr_flatthrow_dir;
 vector vr_flatthrow_ang;
-vector(float xHand, float xUp) VR_FlatThrow_From =
+// (xhairmiss: VR_FlatThrow_Aim's, the hand `xShift` further on: where it will be as the thing leaves it, flatthrowfrom.)
+vector(float xHand, float xUp, vector xShift) VR_FlatThrow_FromShifted =
 {
     vector head = VRGetHeadPos(self);
     makevectors(self.v_angle);
     vector aim = v_forward;
     traceline(head, head + aim * VR_FLATTHROW_AIM_FAR, FALSE, self);
     vector at = trace_endpos;
-    vector hand = VRGetEntHandPos(self, xHand);
+    vector hand = VRGetEntHandPos(self, xHand) + xShift;
     traceline(head, hand, TRUE, self);
     vector from = trace_fraction < 1 ? trace_endpos - normalize(hand - head) * 2 : hand;
     vector way = at - from;
@@ -255,6 +256,11 @@ vector(float xHand, float xUp) VR_FlatThrow_From =
     makevectors(ang);
     vr_flatthrow_dir = v_forward;
     return from;
+};
+
+vector(float xHand, float xUp) VR_FlatThrow_From =
+{
+    return VR_FlatThrow_FromShifted(xHand, xUp, '0 0 0');
 };
 
 // The quick grenade's throw `xHeld` seconds wound up: its speed (units/s) and how far above the crosshair it goes (degrees:
@@ -1109,7 +1115,7 @@ void() VR_FlatThrow_Aim =
         {
             h = self.vr_flatgren_hand;
             e = self.vr_flatgren_ent;
-            from = VR_FlatThrow_From(h, VR_FlatGrenade_Up());
+            from = VR_FlatThrow_FromShifted(h, VR_FlatGrenade_Up(), flatthrowfrom(self, h));
             vel = vr_flatthrow_dir * VR_FlatGrenade_Speed(time - self.vr_flatgren_at) + inherit;
         }
         else if(self.vr_flatthrow_phase == VR_FLATTHROW_WIND && VR_FlatThrow_StillHeld())
@@ -1117,13 +1123,26 @@ void() VR_FlatThrow_Aim =
             h = self.vr_flatthrow_hand;
             float kind = self.vr_flatthrow_kind;
             float speed = VR_FlatThrow_Speed(time - self.vr_flatthrow_at);
-            from = VR_FlatThrow_From(h, VR_FlatThrow_Up());
+            from = VR_FlatThrow_FromShifted(h, VR_FlatThrow_Up(), flatthrowfrom(self, h));
             vector dir = vr_flatthrow_dir;
             e = self.vr_flatthrow_ent;
             if(kind == 1)
             {
-                vel = VR_Throw_WeaponVel(self.vr_flatthrow_wid, VRGetEntWeaponFlags(self, h), dir * speed, '0 0 0', 1);
+                float wflags = VRGetEntWeaponFlags(self, h);
+                vel = VR_Throw_WeaponVel(self.vr_flatthrow_wid, wflags, dir * speed, '0 0 0', 1);
                 vel = VRThrowAssist(self, from, vel, g) + inherit;
+                // (xhairmiss) The weapon's body flies its centre of mass's arc, not its origin's (the spin turns the origin
+                // about it: the thrown axe's rose 10 units over the hand's arc); it leaves turned as VR_FlatThrow_Throw
+                // turns it (the release pitch over the throw's way, or the flipped grip's hand as it is).
+                vector c = weaponmasscentre(AD_WeaponModel(self.vr_flatthrow_wid, wflags, VRGetEntWeaponInst(self, h)));
+                vector rot = vr_flatthrow_ang;
+                rot_x = rot_x + min(90, max(-90, cvar_hget(cvarh_vr_flat_throw_release_pitch)));
+                if(wflags & QVR_WPNFLAG_REVGRIP)
+                {
+                    rot = h == cVR_MainHand ? self.handrot : self.offhandrot;
+                }
+                makevectors(rot);
+                from = from + v_forward * c_x - v_right * c_y + v_up * c_z;
             }
             else if(kind == 2 && e != world)
             {
@@ -1182,6 +1201,10 @@ void() VR_FlatThrow_WatchHit =
     {
         dprint(sprintf("flat throw: first hit at %v (%s)\n", t.origin, t.classname));
         dprint(sprintf("flat throw: hit from %v at %v\n", vr_flatthrow_hitorg, vr_flatthrow_hitvel));
+        if(VR_AxeStick_IsStuck(t))
+        {
+            dprint(sprintf("flat throw: stuck at %v\n", t.vr_stick_at)); // (its blade's edge or point in the wall)
+        }
         vr_flatthrow_hitvel = '0 0 0';
         return;
     }
