@@ -11,6 +11,11 @@
 Installer: the Statement page shows one fixed sentence ("By continuing, I recognize that AI-assisted development does not imply a low-quality result nor a lack of care, passion, or expertise.", with "not" in italics) in a card, no switches or check boxes, and Continue is enabled at once; the console install prints it and goes on without any flag. {test:hub_start}
 Flat-screen or VR: point the switched-on flashlight straight at an armed grunt's face from a few metres; after a moment it raises its free hand in front of its eyes (a shotgun goes into one hand) and its shots spray wider, and it lowers the hand a second or two after the beam leaves its face. Check the hand looks like it shields the eyes and nothing happens with the beam off to the side or at its back. {test:agrunt_flashblind}
 Flat-screen or VR: put a bayonet on the shotgun and on the super shotgun, break the super shotgun open and holster both, then look at your hips (F8's fly camera in flat): each bayonet is on its gun, the super shotgun's hanging under its dropped barrels. {test:attach_bayonet}
+Flat-screen or VR: open the weapon wheel and (flat) the middle-mouse holster menu: no title bar, each holster's title smaller and fainter than the gun's name, and under each gun a small "4/8" line with the ammo type's icon and the reserve. {test:weapon_wheel}
+Flat-screen or VR: put the bayonet (or a dagger as one) on a gun and holster it: the wheel's and the holster menu's thumbnail show it on the gun and its name has a small blade glyph after it. {test:attach_bayonet}
+Flat-screen: open the holster menu (middle mouse): the stick figure is now your own posed body seen from behind, each holster slot's line pointing at that holster on it; say if you want it textured, turning, or with armour and holstered guns on it. {test:weapon_wheel}
+Flat-screen: the holster menu and the weapon wheel have a bindings panel above them (fire, reload, wheel, grab, throw...: the keys you bound, two where set), centred together with the holster menu; vr_flat_bind_panel 0 hides it. {test:weapon_wheel}
+Flat-screen: the main menu shows the same bindings panel under the corner buttons, left of the rows, with Setup Bindings under it, which opens Options > Controls at the flat keys (the controller screen once it lands). {test:hub_start}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
