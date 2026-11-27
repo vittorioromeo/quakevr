@@ -11,6 +11,11 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 ## 1. Open bugs and failing tests
 
 Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md sections until then):
+- **vrtesthall pose scenes place monsters in a wall under the release suite** (blocks 1.2.0-beta6; ROUND26 "beta6"):
+  make_release's beta profile (parallel lanes, 7 other workers' game tests running) failed scenario_check twice the same
+  way: pd_jolts, pose_enforcers_guns/_melee, pose_grunts_guns/_melee "placed in a wall" (fwd 200-242, left 120-147;
+  same numbers both runs), while scenario_check alone on the same tree passed before and after. Suspects: another lane
+  sharing the tree's game folder (collision cache or config written while this lane reads), not load timing.
 - **Lance pull-out flake**: the test's chance checks moved to flatthrust 59 (ROUND26 "lancepull"); one real loss in 10 flat runs (2026-11-26: the hand empty after a shaft hit on a touching ogre, cause unknown). Lean aim is not wired for Copper, rogue eel/lavaman or AD's own checkattack. Was: `flatlance_test` section 5 fails ~1 run in 6 ("Lance gone after a pull-out"; the H case found
   no Lance stuck). ROUND25.md "lance4", "flatembed".
 - **VR embed test 24 and test 33 case 46 still fail** (ROUND25.md "embedregress"): 24's mock axe swing is aimed by the old

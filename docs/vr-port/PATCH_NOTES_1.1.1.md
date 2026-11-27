@@ -46,6 +46,9 @@ that ships in 1.1.1.
   and throw it back) and **14 Ropes** (swing across a pit on a rope, a ladder back out; let go of armour over your
   chest to put it on). The arena is now lesson 15, and its checkpoint saves the game at its door: dying in the arena
   loads that save instead of bringing you back mid-wave, unarmed. New tips on disarming and on bullet time.
+- **Arcane Dimensions, Quoth and Dwell fixes (beta 6).** Armed AD and Quoth humanoids made while a map loads hold
+  their guns properly; AD's crossbow knights are no longer replaced by armed grunts; with Dwell installed, AD's own
+  monsters are no longer shadowed by Dwell's.
 
 ## Graphics
 
@@ -206,6 +209,8 @@ the crates Quake VR places about maps, Dimension of the Past and Dimension of th
 **Known issues**: little real internet play yet (latency, loss and routers tested through simulated links); no relay
 for the routers hole punching can't get through (the host forwards his port, or a virtual LAN); custom maps that
 aren't Map Library packages aren't sent to joining players.
+- **Network version 48 (beta 6).** The bayonet's attach messages changed the network version: beta 6 players only play
+  with beta 6.
 
 ## Weapons
 
@@ -282,6 +287,18 @@ aren't Map Library packages aren't sent to joining players.
 - **Iron sights' front post in its own colour**, different from the rear notches (Advanced VR Options > HUD and Menus >
   Colours > Front Sight Hue Shift, 240; 0 = one colour as before).
 - **Fixed: Arcane Dimensions' Plasma Gun** drew a lightning gun beam on top of its plasma bolts.
+- **Bayonet and weapon attachments.** The shotgun and the super shotgun take a socket bayonet (also a prop on its
+  own): it snaps on and stays on, stabs and sticks, and the gun fires and reloads while stuck; a thrown or dropped gun
+  sticks by it, a stuck super shotgun breaks open in place, and the other hand loads a stuck gun.
+- **The Crystal Lance fires while embedded** (one trigger path; weapons can fire as held props).
+- **Reverse-grip throws** settle point first (spears strongly, blades more mildly). A thrown axe in a head that pops
+  or comes off drops instead of floating.
+- **Flat-screen melee (beta 6).** Parry: a flipped grip turns normal for the guard, a reverse-grip guard, the other
+  hand near the blade; flipped-grip poses and attacks for daggers, swords and the spear; daggers and axes one-handed
+  (options); V with both hands empty is a two-fisted overhead blow (option, on); the crosshair shows where every melee
+  weapon's blow lands, in both grips, and the landing point while aiming a throw or a quick grenade; throws have a
+  follow-through and cancel with the hand's attack button; a stuck blade's hand stays on its arm and the ammo key
+  ejects the loaded magazine.
 
 ## Movement
 
@@ -383,6 +400,15 @@ aren't Map Library packages aren't sent to joining players.
   hand that isn't moving you. Your own bindings follow; triggers and grips are unchanged; a button that reloads its own
   hand's gun still reloads the hand you press it with. Handedness: Left-handed turns it on, Right-handed off (a
   left-handed setup from before shows Custom until Left-handed is picked again).
+- **Flat-screen grab, hold and push (H).** Crates, props, ragdolls and gibs with every free hand (Toggle or Hold); big
+  props are dragged or pushed by their surface and let go when too steep or too heavy; held hands never leave the
+  wrists. B taps drop, holds throw. New flat default keys: ammo N, throw B, crouch C and Left Ctrl, two keys per flat
+  action.
+- **Poles and climbing (beta 6).** VR's other hand closes round a spear's or the Lance's shaft and stays fixed on it
+  (Other Hand Fixed on Poles, on), also through an embed; flat rung ladders climb; climbing elbows bend outwards;
+  underwater, crouch swims down and prone is blocked. The belt flashlight grabs like a holster (a grip press in its
+  zone; set up in Holster Setup).
+- **Box3D updated** (upstream 042be58): ledge climbs finish on the top, fast grabs hold.
 
 ## Menus
 
@@ -471,6 +497,8 @@ aren't Map Library packages aren't sent to joining players.
   slumps down the wall.
 - **Show Melee Arcs** (Advanced VR Options > Combat > Enemy Melee) also draws armed humanoids' weapon swings.
 - **Fixed: an unarmed grunt waiting forever** by a dropped weapon lying slightly in the floor.
+- **Lift shafts kept clear.** Monsters (and bots) stay out of raised lift shafts and walk out of a blocked one instead
+  of being bounced by the lift. Monster fire meets your drawn body in single player.
 
 ## Performance
 
@@ -484,6 +512,9 @@ aren't Map Library packages aren't sent to joining players.
 - **Lighter melee in a crowd of armed enemies.** Swinging at several armed grunts up close now checks whether each
   blow strikes their weapons far more cheaply (about a tenth less game-code work with six around you); what a blow
   strikes is exactly as before.
+- **Loading (beta 6).** A loading panel names every slow load stage with a bar (flat and VR); the release ships a
+  cache of the start maps' collision, light grids and navmeshes, and collision trees are smaller and built after the
+  first frame where they can be: the hub's first load on PC 17.4 -> about 6 s.
 
 ## Quest standalone (experimental)
 
@@ -507,6 +538,10 @@ aren't Map Library packages aren't sent to joining players.
 - Tested on the Quest 3; the Quest 3S and the Quest 2 are not tested by us yet.
 - The first start after installing or updating spends about 30 seconds on the loading panel while the game prepares
   its shaders (later starts take a few seconds).
+- **Stable and quicker (beta 6).** Fixed crashes with Foveation off, with old configs carrying PC values (repaired at
+  start) and at the VR view's start; graphics presets keep the Quest's limits and a too-slow pick reverts; the first
+  hub load after an install takes about 17 s (was over a minute); closing the app no longer leaves the next launch
+  stuck loading; the flashlight lights unlit faces; the app is named Quake VR: UNLEASHED.
 
 ## Installer
 
@@ -527,3 +562,5 @@ aren't Map Library packages aren't sent to joining players.
   `Android/data/com.vittorioromeo.quakevr/files` (the `quakevr` folder's `*.sav` and `ironwail.cfg`, and any mod
   folder's saves) with File Explorer, then uninstall, run Setup again and copy them back. Later updates install over
   the app again.
+- **Setup builds collision at install time** for Quake's and the mission packs' maps (the Quest gets them too), and
+  **the Quest copy never loses a file** (staged pushes, a fallback through /data/local/tmp).

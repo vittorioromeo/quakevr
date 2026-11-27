@@ -2683,6 +2683,47 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.
 
+
+## beta6: 1.2.0-beta6 stopped before building: two release-test regressions fixed (branch agent/beta6, 2026-11-27)
+
+- **Notes:** RELEASE_NOTES_1.2.md "New in beta 6" (intro for beta 6; beta 5's section now "Beta 5 (2026-11-25)"): Quest
+  standalone (crash fixes, first hub load ~17 s, presets within the Quest's limits, relaunch, app name), loading (panel,
+  shipped cache), flat play, VR (pole grip, reverse-grip throws, belt flashlight, rungs), weapons (bayonet, Lance firing
+  embedded), physics and monsters (Box3D, lift shafts), AD/Quoth/Dwell, Setup, network version 48 (everyone updates).
+  PATCH_NOTES_1.1.1.md the same by area (Campaigns, Multiplayer beta, Weapons, Movement, Monsters, Performance, Quest,
+  Installer).
+- **APK:** `Android/release_apk.sh build` after "Version 1.2.0-beta6": release, version code 1020006; check_apk 29/0;
+  apksigner CN=Quake VR, SHA-256 504ff939...9119c0 = Android/release-cert.sha256.
+- **make_release** (beta4's command, -Version 1.2.0-beta6 -BumpVersion ... -Notes RELEASE_NOTES_1.2.md -Apk <apk>):
+  dry run clean; the beta profile **11 passed, 1 failed: scenario_check** (210 run, 4 failed), so nothing built, tagged
+  or published. Not flakes, two scene regressions of 11-26:
+  - `quoth_lpqsp1`, `quoth_metmon`, `quoth_ne_marb` (quothscenes): a scene whose Map Library package isn't installed
+    says so by design (SCNERR, "not started", SCNRUN FAIL) and scenario_check counted it a failure on any PC without
+    those packages. `scenario_check.sh` now leaves those scenes' lines out (matched by their line start "N|the Map
+    Library package ": run.sh wraps the long lines) and lets SCNSUM's "with errors" and SCNRUNSUM's "failed" hold exactly
+    that many; it prints "N Map Library package scene(s) not run". (Counted with `grep -c`: a `sort` in a nohup'd
+    run can be Windows' sort.exe.)
+  - `quest_foveation` (questrender): `cmd vr_foveated_debug 1` leaked the cvar (SCNLEAK counts as a failure); now a
+    `cvar` line, put back after the scene.
+  - Check: scenario_check rerun with the scene fix: only the 3 package scenes failed, no leak; its verdict logic replayed
+    on that log: PASS (and on the release run's log: FAIL, the leak's 4th failure).
+  - Full scenario_check rerun on c534df741 (both fixes): **PASS** (210 run, 3 failed = the 3 package scenes, 2 skipped).
+- **Waiting for the coordinator's go** (brief: any non-flaky failure stops before publishing). Not merged with
+  origin/next (judicator landed since): the release is cut from the next it started on. Then: the same make_release
+  command on agent/beta6's HEAD, the online checks, the Quest install (cert = installed app's) and data sync.
+- **Headset (read only, lock taken and released):** the Quest has a DEBUG-signed app (CN=Android Debug, SHA-256
+  76226902...f39929; versionName 1.2.0-beta5, versionCode 1: a dev build), not beta5's release-signed one: the release
+  APK's cert differs, so it can't be installed over it (install -r refuses; never uninstall: his saves). Pulled copy:
+  scratch/b6_installed_before.apk. Nothing changed on the headset.
+- **Second make_release (coordinator's go) on 6ff0c383e: stopped again, nothing published.** Beta profile 11/1:
+  scenario_check 210 run, 8 failed: the 3 allowed package scenes plus 5 vrtesthall scenes 'placed in a wall'
+  (pd_jolts, pose_enforcers_guns/_melee, pose_grunts_guns/_melee; spawns 120-147 left of the start). scenario_check
+  alone right after, same tree: PASS (3 failed = the package scenes). Not seen in the first make_release run either
+  (also parallel lanes): intermittent, maybe the suite's parallel lanes (a lane writing vrtesthall's collision cache
+  while this one reads it?) - not investigated. Raw log: scratch/beta6_scn_release2_raw.log.
+- **Third make_release (coordinator: treat as a load flake, once more) on 6b84600ef: the same 5 vrtesthall scenes failed
+  again, identical positions; stopped, nothing published. BACKLOG section 1 note added. Raw log:
+  scratch/beta6_scn_release3_raw.log.
 ## lanescene: Test scenes face their map's spawn spot; suite lanes stay clean (branch agent/lanescene, 2026-11-27)
 
 The beta profile's scenario_check failed in a lane (5 vrtesthall scenes "placed in a wall", beta6). Cause, two layers:
@@ -2707,6 +2748,14 @@ The beta profile's scenario_check failed in a lane (5 vrtesthall scenes "placed 
   came out empty), so scenario_check fails on next until that is fixed.
 Proof: scenario_check in a polluted lane 2 (quest's lane-2 installer_settings.cfg): 20 "in a wall" before, 0 after; the beta
 profile twice (counts in the report). Open (not checked further): with snap turning, a map load's spawn facing looks ignored by the VR view (the old yaw stays).
+- **Published (coordinator's go after lanescene):** lanescene's 4 commits cherry-picked (4006a844a a609b2fee 44b279407
+  50a0e6c22), APK rebuilt (1020006, check_apk 29/0, cert = release-cert.sha256). One more test fix: the suite reads any
+  'N failed' line as a failure, so scenario_check now shows SCNRUNSUM less the uninstalled package scenes ('0 failed, 3
+  package scenes not installed'). make_release on ce92bf878: beta profile 12/0 (3.3 min); shipped cache 30 files
+  (161.2 MiB, index.txt included); installer, smoke, check_apk; prerelease v1.2.0-beta6 with QuakeVR.zip, QuakeVR-Setup.exe,
+  QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed (and -CheckOnline again, a feed install verified);
+  Latest still v1.1.0. Tag on ce92bf878. Quest not touched (its debug-signed dev build stays, his call). Output parked
+  in F:/QVR-Parked/2026-11-27/beta6/.
 ## beastarmour: armoured rottweilers, ogres, scrags and fiends (branch agent/beastarmour, 2026-11-27)
 
 - **What:** the four beasts may spawn armoured by the armed humanoids' rules (the skill's chance, best type and pieces,
