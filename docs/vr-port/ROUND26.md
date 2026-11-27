@@ -3990,7 +3990,7 @@ plates"; "in the test scenarios for the new armoured enemies, it seems like they
 - **Tests**: `vr_agarmor_test 15` 63/0 (slots 4095 / 3903 with the parts, the scrag's cuirass gives 3841; new: each part's
   pool and split, a shot meeting it, broken alone with its slot and the other part kept, debris 1 / 1 / 1 / 4); new
   `vr_agarmor_test 22` 12/0 (each beast's ratio within 0.15-1.1 of the humanoids', ~3 min; one body a target kept alive
-  past its health, so no spawn waits); `vr_beaststudio_test` 28/0; `vr_agarmor_test 1`'s wear literals moved to 4096 (not run:
-  humanoid paths unchanged).
+  past its health, so no spawn waits); `vr_beaststudio_test` 28/0; `vr_agarmor_test 1` 38/0 (its wear literals moved to
+  4096 with the humanoids' wear packing; otherwise their paths unchanged).
 - **Open**: a cut taking a several-piece part (the scrag's tail) drops its first piece only; the per-kind pools are not
   in the menu (cvars only); no headset check.
