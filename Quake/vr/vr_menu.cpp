@@ -3418,10 +3418,10 @@ void goBack()
     return ui().page == PageMain ? -1 : homeOf(ui().page);
 }
 
-// A setting's value as shown: a server rule's is the remote server's (vr_serverrules.cpp), the rest their own.
+// A setting's value as shown: its cvar's (a server rule's holds the remote server's while joined: vr_serverrules.cpp).
 [[nodiscard]] float valueOf(const Item& item)
 {
-    return serverrules::shown(item.cvar);
+    return item.cvar->value;
 }
 
 // A server rule while connected to a remote server: shown, dimmed, not changed from here.

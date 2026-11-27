@@ -10,6 +10,7 @@
 #include "vr_menu.hpp"
 #include "vr_presets.hpp"
 #include "vr_protocol.hpp"
+#include "vr_testkit.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
@@ -19,6 +20,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
+#include <float.h>
 #include <stdlib.h>
 
 namespace qvr::serverrules
@@ -65,8 +67,14 @@ struct State
     za::Vector<za::String> own;
     za::Vector<const char*> live;
     bool swapped{false};
+    // Client: what a remote server's value of each rule may be, lo..hi (gatherRanges; review A7): its menu rows' range
+    // with its default and the gameplay presets' values; no row: any finite number.
+    za::Vector<float> lo;
+    za::Vector<float> hi;
 };
 State state;
+
+void gatherRanges();
 
 [[nodiscard]] bool pageIsRules(const char* path)
 {
@@ -162,6 +170,7 @@ void build()
     state.sent.resize(state.list.size());
     state.own.resize(state.list.size());
     state.live.resize(state.list.size());
+    gatherRanges();
 }
 
 [[nodiscard]] int indexOf(const cvar_t* var)
@@ -242,6 +251,173 @@ void writeRules(sizebuf_t* msg, const int* which, int count, bool all)
     return indexOf(var) >= 0 ? var : nullptr;
 }
 
+// Whether `s` is all a number (strtod's, spaces around it allowed).
+[[nodiscard]] bool isNumber(const char* s, double* out = nullptr)
+{
+    if(!s)
+    {
+        return false;
+    }
+    char* end = nullptr;
+    const double d = strtod(s, &end);
+    if(end == s)
+    {
+        return false;
+    }
+    while(*end == ' ' || *end == '\t')
+    {
+        end++;
+    }
+    if(out)
+    {
+        *out = d;
+    }
+    return *end == '\0';
+}
+
+void widen(za::SizeT i, float v)
+{
+    state.lo[i] = q_min(state.lo[i], v);
+    state.hi[i] = q_max(state.hi[i], v);
+}
+
+// Each rule's lo..hi (State::lo): its menu rows' ranges, then (one on a row) its default and the gameplay presets' values
+// too, so that nothing a host can pick from the menus or a preset is ever cut.
+void gatherRanges()
+{
+    const za::SizeT n = state.list.size();
+    state.lo.resize(n);
+    state.hi.resize(n);
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        state.lo[i] = FLT_MAX;
+        state.hi[i] = -FLT_MAX;
+    }
+    menu::forEachSettingRange([](const cvar_t& var, float lo, float hi) {
+        const int i = indexOf(&var);
+        if(i >= 0)
+        {
+            widen(static_cast<za::SizeT>(i), lo);
+            widen(static_cast<za::SizeT>(i), hi);
+        }
+    });
+    const presetcore::Table& t = gameplaypresets::kind().table();
+    for(int r = 0; r < t.rowCount; r++)
+    {
+        const int i = indexOf(t.rows[r].var);
+        double d = 0.0;
+        for(int l = 0; i >= 0 && l < t.levelCount; l++)
+        {
+            if(state.lo[i] <= state.hi[i] && isNumber(t.rows[r].values[l], &d))
+            {
+                widen(static_cast<za::SizeT>(i), static_cast<float>(d));
+            }
+        }
+    }
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        double d = 0.0;
+        if(state.lo[i] > state.hi[i]) // (no menu row)
+        {
+            state.lo[i] = -FLT_MAX;
+            state.hi[i] = FLT_MAX;
+        }
+        else if(isNumber(state.list[i]->default_string, &d))
+        {
+            widen(i, static_cast<float>(d));
+        }
+    }
+}
+
+// A remote server's value of rule `i` as this client takes it (review A7): nullptr refuses it (not finite, or not a
+// number where the rule's default is one), else the value, clamped to lo..hi (written into `buf`).
+[[nodiscard]] const char* checkedValue(za::SizeT i, const char* value, char* buf, za::SizeT size)
+{
+    double d = 0.0;
+    if(!isNumber(value, &d))
+    {
+        return isNumber(state.list[i]->default_string) ? nullptr : value; // (a text rule takes text)
+    }
+    if(!(d >= -FLT_MAX && d <= FLT_MAX)) // (NaN too)
+    {
+        return nullptr;
+    }
+    const float v = static_cast<float>(d);
+    const float c = q_min(q_max(v, state.lo[i]), state.hi[i]);
+    if(c == v)
+    {
+        return value;
+    }
+    q_snprintf(buf, size, "%.9g", static_cast<double>(c));
+    return buf;
+}
+
+// vr_serverrules_selftest: a remote server's rule values checked (review A7): not finite or not a number refused, past
+// a rule's menu range clamped to it, in it kept as sent; every rule's default and gameplay preset value in its range.
+void selftest_f()
+{
+    build();
+    testkit::Tally tally;
+    za::SizeT pick = state.list.size();
+    int ranged = 0;
+    for(za::SizeT i = 0; i < state.list.size(); i++)
+    {
+        if(state.hi[i] < FLT_MAX && isNumber(state.list[i]->default_string))
+        {
+            ranged++;
+            pick = pick < state.list.size() ? pick : i;
+        }
+    }
+    tally.check(ranged > 0 && pick < state.list.size(), "rules with a menu range found", va("%d of %d", ranged,
+        static_cast<int>(state.list.size())));
+    if(pick < state.list.size())
+    {
+        char buf[64];
+        const cvar_t* var = state.list[pick];
+        const float lo = state.lo[pick], hi = state.hi[pick];
+        Con_Printf("  %s: %g..%g\n", var->name, static_cast<double>(lo), static_cast<double>(hi));
+        tally.check(!checkedValue(pick, "nan", buf, sizeof(buf)), "\"nan\" refused");
+        tally.check(!checkedValue(pick, "inf", buf, sizeof(buf)), "\"inf\" refused");
+        tally.check(!checkedValue(pick, "1e40", buf, sizeof(buf)), "\"1e40\" (past a float) refused");
+        tally.check(!checkedValue(pick, "text", buf, sizeof(buf)), "\"text\" refused (a number's rule)");
+        tally.check(!checkedValue(pick, "", buf, sizeof(buf)), "\"\" refused");
+        const char* up = checkedValue(pick, "1e30", buf, sizeof(buf));
+        tally.check(up && static_cast<float>(atof(up)) == hi, "\"1e30\" clamped to the range's top", up ? up : "refused");
+        const char* down = checkedValue(pick, "-1e30", buf, sizeof(buf));
+        tally.check(down && static_cast<float>(atof(down)) == lo, "\"-1e30\" clamped to the range's bottom",
+            down ? down : "refused");
+        const char* same = var->default_string;
+        tally.check(checkedValue(pick, same, buf, sizeof(buf)) == same, "the default kept as sent", same);
+    }
+    int outside = 0;
+    for(za::SizeT i = 0; i < state.list.size(); i++)
+    {
+        double d = 0.0;
+        if(isNumber(state.list[i]->default_string, &d) &&
+            (static_cast<float>(d) < state.lo[i] || static_cast<float>(d) > state.hi[i]))
+        {
+            Con_Printf("  outside: %s default %s\n", state.list[i]->name, state.list[i]->default_string);
+            outside++;
+        }
+    }
+    const presetcore::Table& t = gameplaypresets::kind().table();
+    for(int r = 0; r < t.rowCount; r++)
+    {
+        const int i = indexOf(t.rows[r].var);
+        double d = 0.0;
+        for(int l = 0; i >= 0 && l < t.levelCount; l++)
+        {
+            if(isNumber(t.rows[r].values[l], &d) && (static_cast<float>(d) < state.lo[i] || static_cast<float>(d) > state.hi[i]))
+            {
+                Con_Printf("  outside: %s preset %s\n", t.rows[r].var->name, t.rows[r].values[l]);
+                outside++;
+            }
+        }
+    }
+    tally.check(outside == 0, "every rule's default and gameplay preset value in its range", va("%d outside", outside));
+    tally.verdict("vr_serverrules_selftest");
+}
+
 // Client: the server's rules govern from now on: each rule's own value kept.
 void shadow()
 {
@@ -309,11 +485,6 @@ bool remote()
 bool locked(const cvar_t* var)
 {
     return state.shadowed && remote() && isRule(var);
-}
-
-float shown(const cvar_t* var)
-{
-    return var->value;
 }
 
 float own(const cvar_t* var)
@@ -409,9 +580,16 @@ void clientParse()
         const char* value = MSG_ReadString();
         if(cvar_t* var = apply ? ruleNamed(name) : nullptr) // (a rule this build does not know: skipped)
         {
-            if(ZA_STRCMP(var->string, value))
+            char buf[64];
+            const char* checked = checkedValue(static_cast<za::SizeT>(indexOf(var)), value, buf, sizeof(buf));
+            if(checked != value)
             {
-                Cvar_SetQuick(var, value);
+                Con_Warning("vr_serverrules: the server's %s \"%.32s\" %s%s\n", var->name, value, checked ? "clamped to " : "refused",
+                    checked ? checked : "");
+            }
+            if(checked && ZA_STRCMP(var->string, checked))
+            {
+                Cvar_SetQuick(var, checked);
             }
         }
     }
@@ -436,6 +614,7 @@ void clientLeft()
 void registerCommands()
 {
     Cmd_AddCommand("vr_serverrules", list_f);
+    Cmd_AddCommand("vr_serverrules_selftest", selftest_f);
 }
 
 } // namespace qvr::serverrules

@@ -299,6 +299,10 @@ public:
     [[nodiscard]] bool userPresent() const override;
 
     [[nodiscard]] const char* systemName() const override;
+    [[nodiscard]] const char* controllerProfile(int side) const override
+    {
+        return side >= 0 && side < 2 ? profileName[side] : "";
+    }
     [[nodiscard]] EyeTracking eyeTracking() const override
     {
         return eyeGazeExtension ? EyeTracking::Ready
