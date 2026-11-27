@@ -97,6 +97,8 @@ line=$(launch LD_LIBRARY_PATH=/opt/x "$B/quakevr.sh" --quake-dir "$work/case$cas
 want="ENGINE LD=$B:/opt/x ARGS=-basedir $work/case$case_n/Quake -basedir $B -game quakevr -novr +map e1m1"
 if [ "$line" = "$want" ]; then ok "engine command line and LD_LIBRARY_PATH"; else bad "engine command line" "got '$line'"; fi
 expect "the remembered folder" "$work/case$case_n/Quake"
+line=$(launch "$B/quakevr.sh" --flat +map e1m1)
+case "$line" in *"-game quakevr -flatscreenmode +map e1m1") ok "--flat: -flatscreenmode";; *) bad "--flat" "got '$line'";; esac
 
 # Started through a link (~/bin/quakevr): still the tarball beside the real script.
 new_case; pak "$H/quake"; mkdir -p "$H/bin"; ln -s "$B/quakevr.sh" "$H/bin/quakevr"

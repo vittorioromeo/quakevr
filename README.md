@@ -296,7 +296,9 @@ engine is built by clang-cl), and [FTEQCC](https://www.fteqcc.org/) for the Quak
   see [docs/vr-port/RELEASING.md](docs/vr-port/RELEASING.md).
 - **Linux** (VR through OpenXR): install the packages in [docs/vr-port/LINUX.md](docs/vr-port/LINUX.md#build), then
   `cmake --preset linux-release` and `cmake --build --preset linux-release` build the engine and the QuakeC (clang;
-  the first build downloads and builds the QuakeC compiler).
+  the first build downloads and builds the QuakeC compiler). Ready-made: the Flatpak, or the plain tarball
+  `QuakeVR-linux-x86_64.tar.gz` (unpack, `./quakevr.sh`; glibc 2.38 or newer, the system's OpenXR runtime), both from
+  the Flatpak CI job ([LINUX.md](docs/vr-port/LINUX.md#linux-tarball-2026-11-27)).
 - **CMake** also works on Windows, for development (configure it for clang-cl with `-T ClangCL`). macOS and MinGW
   (the Makefiles) build with a mock headset only.
 

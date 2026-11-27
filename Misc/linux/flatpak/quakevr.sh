@@ -5,6 +5,7 @@
 #   ./quakevr.sh [options] [engine arguments...]      (the tarball QuakeVR-linux-x86_64.tar.gz: beside ironwail)
 #
 #   --quake-dir <folder>   the Quake install (the folder with id1/pak0.pak, or its rerelease folder); remembered
+#   --flat                 flat-screen mode, no headset (the engine's -flatscreenmode, as the Windows "flat" shortcut)
 #   --dry-run              print the Quake folder and the engine's command line, run nothing
 #   --help                 this text
 #
@@ -103,7 +104,8 @@ while [ "$n" -gt 0 ]; do
         --quake-dir=*) given="${a#--quake-dir=}" ;;
         --quake-dir) if [ "$n" -gt 0 ]; then given="$1"; shift; n=$((n - 1)); fi ;;
         --dry-run) dry=1 ;;
-        --help) sed -n '2,9p' "$self" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --flat) set -- "$@" -flatscreenmode ;;
+        --help) sed -n '2,10p' "$self" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) set -- "$@" "$a" ;;
     esac
 done
