@@ -888,22 +888,13 @@ static void NET_Ban_f (void)
 {
 	char	addrStr [32];
 	char	maskStr [32];
-	void	(*print_fn)(const char *fmt, ...) FUNCP_PRINTF(1,2);
+	// QVR: (review S1) the console's only: a guest's `ban` is refused before it gets here (cmd.c, B28)
+	void	(*print_fn)(const char *fmt, ...) FUNCP_PRINTF(1,2) = Con_Printf;
 
-	if (cmd_source == src_command)
+	if (!sv.active)
 	{
-		if (!sv.active)
-		{
-			Cmd_ForwardToServer ();
-			return;
-		}
-		print_fn = Con_Printf;
-	}
-	else
-	{
-		if (pr_global_struct->deathmatch)
-			return;
-		print_fn = SV_ClientPrintf;
+		Cmd_ForwardToServer ();
+		return;
 	}
 
 	switch (Cmd_Argc ())
