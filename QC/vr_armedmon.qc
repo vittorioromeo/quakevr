@@ -112,8 +112,8 @@ void(float k) VR_AM_Row =
         // frames laid out as the knight's and their living frames turned square (vr_monstermods.cpp VR_AdArmedModelFile:
         // made from AD's files as they load), so the knight's own code (monster_knight: health, sounds, AI, pains, deaths)
         // plays them and every frame number below is the knight's. Their authored rigs (quakevr/rigs/vrdguard.rig2.txt,
-        // vrdcrossbow.rig2.txt); the knight's pose keys and grips (the engine's armedRigs poseKind), fitted to their
-        // shoulders. One body, vertex for vertex (the crossbow knight's arms posed otherwise): the chest's front 51.
+        // vrdcrossbow.rig2.txt); their own shared pose keys and grips (VR_AM_PoseKind: "AD Knight", seeded from the
+        // knight's), fitted to their shoulders. One body, vertex for vertex (the crossbow knight's arms posed otherwise): the chest's front 51.
         vr_am_classname = "monster_knight";
         vr_am_spawn = monster_knight;
         vr_am_f_stand = 0; vr_am_n_stand = 9; // stand1..9 (AD's stand)
@@ -393,10 +393,21 @@ float(float k) VR_AM_Resolve =
     return (k >= VR_AM_DGUARD && !cvar_hget(cvarh_vr_ad_mounted)) ? VR_AM_KNIGHT : k;
 };
 
-// The kind whose pose keys, grips and holds row `k` takes (the engine's armedRigs poseKind): AD's armed knights the knight's.
+// The kind whose pose keys, grips and holds row `k` takes (the engine's armedRigs poseKind, agpose's kinds): AD's armed
+// knights their shared kind, VR_AM_POSE_ADKNIGHT (adposekind, 2026-11-27: the Pose Studio's "AD Knight", seeded from the
+// knight's keys; before, the knight's own); without AD's data the knight's (VR_AM_Resolve). The engine's native pose the
+// same (vr_builtins_agpose.inc agPoseKind).
+float VR_AM_POSE_ADKNIGHT = 4;
 float(float k) VR_AM_PoseKind =
 {
-    return k >= VR_AM_DGUARD ? VR_AM_KNIGHT : k;
+    k = VR_AM_Resolve(k);
+    return k >= VR_AM_DGUARD ? VR_AM_POSE_ADKNIGHT : k;
+};
+
+// A knight's body: the knight or one of AD's armed knights (their deaths, their worn packs).
+float(float k) VR_AM_KnightBody =
+{
+    return k == VR_AM_KNIGHT || k >= VR_AM_DGUARD;
 };
 
 // An armed one with a ranged attack of its own beside its weapons (its row's spell: the death knight's fireballs).

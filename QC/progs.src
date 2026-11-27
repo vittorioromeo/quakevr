@@ -702,6 +702,7 @@ vr_armedgrunt_muzzle_test.qc
 vr_armedgrunt_shoveclose_test.qc
 vr_armedgrunt_reach_test.qc
 vr_armedgrunt_guard_test.qc
+vr_armedgrunt_adpose_test.qc
 vr_nailpistol_test.qc
 vr_magslide_test.qc
 vr_nail_test.qc

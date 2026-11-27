@@ -622,16 +622,9 @@ namespace hitreact_detail
 
 rigpose::Rigid gripRigidOf(const ArmedRig* a, int slot, int hand)
 {
-    if(a->poseKind < 0)
-    {
-        return gripRigid(static_cast<int>(a - armedRigs), slot, hand);
-    }
-    // (AD's knights: held as their own rest weapon is, the knight's edits laid on: the knight's shipped grips turn its own
-    // rest sword, not theirs; adrigfix)
-    const int k = a->poseKind;
-    const rigpose::Rigid shipped = composeRigid(offsetRigid(aggrip::shipped(k, aggrip::allWeapons, hand)),
-                                                offsetRigid(aggrip::shipped(k, slot, hand)));
-    return composeRigid(gripRigid(k, slot, hand), inverseRigid(shipped));
+    // (AD's knights: their own kind's (agpose::adKnight, adposekind), shipping none: held as their own rest weapon is,
+    // the Grips tab's edits of their kind laid on; before, the knight's edits on their zero default: adrigfix)
+    return gripRigid(armedPoseKind(a), slot, hand);
 }
 
 // A pistol carried low (its barrel down past 27 degrees) in one hand: no cup (the other cupping it
@@ -1857,9 +1850,10 @@ void info_f()
 }
 
 // vr_adgrip_test [check] (adrigfix; needs AD's knights armed and drawn, scene ad_knights_armed): the Pose Studio's Grips tab
-// drives AD's death guard and crossbow knight. The first call notes each one's right hand in its weapon's frame and moves
-// the knight's global main grip 3 units forward; `check`, a few drawn frames later, looks for each hand moved along its
-// weapon by about that much, puts vr_agrunt_grips back and ends on "adgrip: N passed, M failed".
+// drives AD's death guard and crossbow knight. The first call notes each one's right hand in its weapon's frame (and the
+// regular knight's) and moves the AD Knight kind's global main grip 3 units forward (adposekind: their own kind; before,
+// the knight's); `check`, a few drawn frames later, looks for each AD hand moved along its weapon by about that much and
+// the knight's not at all, puts vr_agrunt_grips back and ends on "adgrip: N passed, M failed".
 struct AdGripTest
 {
     static constexpr int maxSeen = 8;
@@ -1880,7 +1874,8 @@ constexpr float adGripShift = 3.f;
 
 void adGripTest_f()
 {
-    constexpr int knightKind = 2; // (agpose: the knight; AD's rows' poseKind)
+    constexpr int adKind = agpose::adKnight; // (AD's rows' poseKind: their own kind since adposekind)
+    constexpr int knightRow = 2;             // (the regular knight: his hand must not move)
     const bool check = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "check");
     if(!check)
     {
@@ -1894,7 +1889,7 @@ void adGripTest_f()
                 continue;
             }
             const int row = static_cast<int>(a - armedRigs);
-            if(row < agpose::numKinds)
+            if(row < agpose::numRowKinds && row != knightRow)
             {
                 continue;
             }
@@ -1904,16 +1899,17 @@ void adGripTest_f()
             adGrip.count++;
         }
         q_strlcpy(adGrip.saved, vr_agrunt_grips.string, sizeof(adGrip.saved));
-        aggrip::Offset o = aggrip::global(knightKind, aggrip::Main);
+        aggrip::Offset o = aggrip::global(adKind, aggrip::Main);
         o.pos.x += adGripShift;
-        aggrip::set(knightKind, aggrip::allWeapons, aggrip::Main, o);
+        aggrip::set(adKind, aggrip::allWeapons, aggrip::Main, o);
         adGrip.started = true;
-        Con_Printf("adgrip: %d of AD's armed knights noted; the knight's main grip moved %.0f forward\n", adGrip.count, adGripShift);
+        Con_Printf("adgrip: %d armed knights noted (AD's and the knight); the AD Knight kind's main grip moved %.0f forward\n",
+            adGrip.count, adGripShift);
         return;
     }
     testkit::Tally t;
     t.check(adGrip.started, "adgrip", "started (vr_adgrip_test first)");
-    int rows[2]{0, 0};
+    int rows[3]{0, 0, 0};
     for(int i = 0; i < adGrip.count; i++)
     {
         const ArmPose* found = nullptr;
@@ -1923,12 +1919,21 @@ void adGripTest_f()
         }
         const float moved = found ? glm::length(handInWeapon(armSeen[found - armPoses.slots]) - adGrip.rel[i]) : -1.f;
         Con_Printf("adgrip: ent %d (row %d): its hand moved %.2f along its weapon\n", adGrip.ent[i], adGrip.row[i], moved);
+        if(adGrip.row[i] == knightRow)
+        {
+            // (the regular knight: his own kind, untouched)
+            t.check(moved >= 0.f && moved < 0.25f, "adgrip",
+                va("ent %d: the knight's hand moved %.2f in his weapon's frame (want none)", adGrip.ent[i], moved));
+            rows[2]++;
+            continue;
+        }
         t.check(moved > adGripShift * 0.5f && moved < adGripShift * 1.5f, "adgrip",
             va("ent %d row %d: the hand moved %.2f in its weapon's frame (the grip %.0f)", adGrip.ent[i], adGrip.row[i], moved, adGripShift));
         rows[adGrip.row[i] == 4 ? 0 : 1]++;
     }
     t.check(rows[0] > 0, "adgrip", "a death guard was seen");
     t.check(rows[1] > 0, "adgrip", "a crossbow knight was seen");
+    t.check(rows[2] > 0, "adgrip", "a knight was seen");
     Cvar_Set("vr_agrunt_grips", adGrip.saved);
     t.check(!ZA_STRCMP(vr_agrunt_grips.string, adGrip.saved), "adgrip", "the grips put back");
     adGrip = AdGripTest{};
@@ -2180,6 +2185,38 @@ void armPoseCheck_f()
     armPoseSlots(a);
 }
 
+// vr_agrunt_ik_reach <name> <tolerance> [passed before] [failed before] (adposekind's key check, QC vr_armedgrunt_adpose_test.qc): every
+// tag counted since the last vr_agrunt_ik_err, its hands against their grips on the weapon: a check each (both reach
+// short and the off hand's second grip within `tolerance` units), an "agreach" line for each failed tag, then the
+// verdict "<name>: N passed, M failed" (the caller's own checks, the third and fourth arguments, added). Counted
+// afresh after.
+void armReach_f()
+{
+    const char* name = Cmd_Argc() > 1 ? Cmd_Argv(1) : "agreach";
+    const float tol = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 1.f;
+    testkit::Tally t;
+    t.passed = Cmd_Argc() > 3 ? atoi(Cmd_Argv(3)) : 0;
+    t.failed = Cmd_Argc() > 4 ? atoi(Cmd_Argv(4)) : 0;
+    int tags = 0;
+    float most = 0.f;
+    for(int tag = 0; tag < agarms::numErrTags; tag++)
+    {
+        float r = 0.f, l = 0.f, second = 0.f;
+        if(!agarms::reachErr(tag, r, l, second))
+        {
+            continue;
+        }
+        tags++;
+        most = za::max(most, za::max(r, za::max(l, second)));
+        t.check(r <= tol && l <= tol && second <= tol, "agreach",
+            va("tag %d: reach short right %.2f left %.2f, off its second grip %.2f (tolerance %.2f)", tag, r, l, second, tol));
+    }
+    agarms::clearErr();
+    Con_Printf("agreach: %d tags, the most off %.2f units\n", tags, most);
+    t.check(tags > 0, "agreach", "nothing counted (vr_agrunt_ik_tag never set)");
+    t.verdict(name);
+}
+
 // vr_agrunt_ik_err: the arms' numbers since the last time (vr_agarms.cpp printErr: counted afresh after), how far the held
 // weapons were drawn from their holders, and the ragdolls' weapons against their drawn hands.
 void armErr_f()
@@ -2241,6 +2278,7 @@ void registerCommands()
     Cmd_AddCommand("vr_agrunt_ragweapon_err", ragWeaponErr_f);
     Cmd_AddCommand("vr_hit_react_info", info_f);
     Cmd_AddCommand("vr_agrunt_ik_err", armErr_f);
+    Cmd_AddCommand("vr_agrunt_ik_reach", armReach_f);
     Cmd_AddCommand("vr_agrunt_armpose_check", armPoseCheck_f);
     Cmd_AddCommand("vr_agholds_report", holdsReport_f);
     Cmd_AddCommand("vr_agholds_pose", holdPose_f);

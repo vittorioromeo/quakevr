@@ -3017,6 +3017,19 @@ void clearErr()
     }
 }
 
+bool reachErr(int tag, float& missR, float& missL, float& second)
+{
+    if(tag < 0 || tag >= errTags || state.errs[tag].n == 0)
+    {
+        return false;
+    }
+    const Err& e = state.errs[tag];
+    missR = e.miss[0];
+    missL = e.miss[1];
+    second = e.second;
+    return true;
+}
+
 void printErr()
 {
     Err t;

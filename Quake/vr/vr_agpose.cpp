@@ -785,7 +785,7 @@ constexpr ShippedRow shipped[] = {
 // enforcer's.
 // (the death knight: his shoulders 26.5 apart (the grunt's 18.4, the enforcer's 24), his arm 16.4 (15.2, 15))
 constexpr glm::vec3 fitScale[agpose::numKinds] = {glm::vec3{1.f, 1.f, 1.f}, glm::vec3{1.f, 1.35f, 1.1f},
-    glm::vec3{1.f, 1.06f, 1.f}, glm::vec3{1.f, 1.44f, 1.15f}};
+    glm::vec3{1.f, 1.06f, 1.f}, glm::vec3{1.f, 1.44f, 1.15f}, glm::vec3{1.f, 0.95f, 1.f}};
 
 // The kind whose shipped keys and IK stretch each kind ships (its own: itself): a kind with none of its own, the knight,
 // ships the grunt's, fitted to its body as the Pose Studio's "Copy to the other kind" fits them (fitKey: its places by
@@ -794,7 +794,13 @@ constexpr glm::vec3 fitScale[agpose::numKinds] = {glm::vec3{1.f, 1.f, 1.f}, glm:
 // 1.05), the grunt's rest hold put his sword 8 units from his own fist, the enforcer's 16 (test 95's spawn check; the
 // Pose Keys test 9/3 either way; ROUND23.md, "Death knights as armed humanoids"). A row of the kind's own (his keys of
 // 2026-10-31) replaces the followed kind's for its code alone (shippedOf, shippedStretchOf).
-constexpr int shippedFrom[agpose::numKinds] = {0, 1, 0, 0};
+// AD's knights (agpose::adKnight; adposekind) ship the knight's keys as he has them (its own rows, else the grunt's fitted
+// to him: shippedOf follows the chain), retargeted to their bodies by fitKey: QC's fits put the poses' base on their
+// shoulders (vr_am_fit_scale 1 0.95 1 and their shifts), the keys' places scale by width (0.95 / 1.06), their turns and
+// the elbows' poles (the chest's frame, the same axes on both rigs) carry as they are. The knight's rig is the closest
+// (adrigfix's bone lengths and rest angles: 28 against the grunt's 31); their arms (17.6, 15.1) against his 16.7: the
+// IK stretch carries the crossbow knight's shorter reach (shippedStretch's AD rows).
+constexpr int shippedFrom[agpose::numKinds] = {0, 1, 0, 0, 2};
 
 // Key `k` of code `code`, made for kind `from`'s body, fitted to kind `to`'s (its places scaled; its turns as they are).
 void fitKey(agpose::Key& k, int code, int from, int to)
@@ -953,18 +959,23 @@ namespace
 {
     const int kind = agpose::kindOf(code);
     const int from = kind >= 0 && kind < agpose::numKinds ? shippedFrom[kind] : kind;
-    if(from != kind && shippedRow(code, out))
+    if(from != kind)
     {
+        // (its own row; else the followed kind's as that kind ships it (AD's knights: the knight's, his own row or the
+        // grunt's fitted to him), fitted)
+        if(shippedRow(code, out))
+        {
+            return true;
+        }
+        if(!shippedOf(from * agpose::kindStride + agpose::withinKind(code), out))
+        {
+            return false;
+        }
+        fitKey(out, code, from, kind);
         return true;
     }
-    const int c = from == kind ? code : from * agpose::kindStride + agpose::withinKind(code);
-    const int rifle = rifleOf(c);
-    const bool has = shippedRow(c, out) || (rifle >= 0 && shippedRow(rifle, out));
-    if(has && from != kind)
-    {
-        fitKey(out, code, from, kind);
-    }
-    return has;
+    const int rifle = rifleOf(code);
+    return shippedRow(code, out) || (rifle >= 0 && shippedRow(rifle, out));
 }
 
 [[nodiscard]] float rounded(float f, float per)
@@ -1143,9 +1154,10 @@ StretchState stretchState;
 
 [[nodiscard]] float shippedStretchOf(int kind, int cls)
 {
-    // (its own row, else the kind it ships the keys of: the knight's, the grunt's)
+    // (its own row, else the kind it ships the keys of: the knight's, the grunt's; AD's knights the knight's, his the grunt's)
     const int from = kind >= 0 && kind < agpose::numKinds ? shippedFrom[kind] : kind;
-    for(const int k : {kind, from})
+    const int from2 = from >= 0 && from < agpose::numKinds ? shippedFrom[from] : from;
+    for(const int k : {kind, from, from2})
     {
         for(const StretchRow& r : shippedStretch)
         {
@@ -1923,17 +1935,17 @@ void dumpText(za::String& out)
 
 const char* kindName(int kind)
 {
-    return kind == 0 ? "grunt" : kind == 1 ? "enforcer" : kind == 2 ? "knight" : kind == 3 ? "death knight" : "?";
+    return kind == 0 ? "grunt" : kind == 1 ? "enforcer" : kind == 2 ? "knight" : kind == 3 ? "death knight" : kind == 4 ? "AD knight" : "?";
 }
 
 const char* kindsName(int kind)
 {
-    return kind == 0 ? "grunts" : kind == 1 ? "enforcers" : kind == 2 ? "knights" : kind == 3 ? "death knights" : "?";
+    return kind == 0 ? "grunts" : kind == 1 ? "enforcers" : kind == 2 ? "knights" : kind == 3 ? "death knights" : kind == 4 ? "AD knights" : "?";
 }
 
 const char* kindTitle(int kind)
 {
-    return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : kind == 2 ? "Knight" : kind == 3 ? "Death Knight" : "?";
+    return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : kind == 2 ? "Knight" : kind == 3 ? "Death Knight" : kind == 4 ? "AD Knight" : "?";
 }
 
 const char* offModeName(int mode)
