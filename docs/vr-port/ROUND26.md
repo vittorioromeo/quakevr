@@ -1462,7 +1462,28 @@ runs: a run alone, drawn, plays out differently from the batched headless one, s
   (their get-up spots within 12 units; 3 or more needed); the mean (0.1 s) still over all six.
 
 Left: hell knight seed 8 ("stuck at the lip": a weak pull, its chest stayed 13 under the top; it failed before box3dup3 as
-"slid back off the lip", not this cause).
+"slid back off the lip", not this cause). Fixed by hkclimb, below.
+
+**hkclimb (branch agent/hkclimb, 2026-11-27): the hell knight's pull at the lip.** Not its mass (every pull, lift and
+cap is in body weights) nor its arms' reach or the holds' height: its pin held the wrong point. The climb's way is its
+pelvis's middle, but the pin's motor joint held the pelvis's body origin, the anchor set off the way by the middle's offset
+turned as the way turned it (pitched 0.6 rad over the lip). The pin's turn is weak (turnShare 0.06), so the pelvis barely
+turned and its middle hung wherever that left it: a hell knight's pelvis has its middle 10 units off its origin (arm 24,
+torso 6), so over the lip its middle stayed 16-19 units under its way while its origin sat 4 units off the anchor and the pin
+pulled 0.4-1.2 of its 3 body weights. Fix (`vr_ragactive.cpp` drivePin): a climb's pin joint holds the pelvis's middle
+(`localFrameB` at its local centre) and its anchor is the way's point itself. The pin then tracked within 2 units, which
+showed a second, smaller case (hknight seed 10): its pelvis 14 over the top but its short torso's chest 4 units out from
+the lip (3 in from its pelvis), so Over never let go. Fix (`vr_ragactive_hold.cpp` climbFrame): the let-go also takes its
+chest leaning in from its pelvis (0.05 of an arm) as "not tipped back". Every class now goes "in on the top" in 2.6-3.0 s.
+Debug: the `ragclimb` trace line adds the pin's cap and the lift (body weights) and `org` is the pelvis's middle from the
+anchor; the "pulls itself up" line gives its arm, torso and pelvis-middle offset.
+
+| check | before | hkclimb |
+|---|---|---|
+| climb_test pull, all classes, seeds 7-10 (24) | 23/24 (hknight 8) | 24/24 |
+| climb_test drop, hit, off (18) | 18/18 | 18/18 |
+| env_test, active_test (default cases; active without cost) | | no fails |
+| scenario hknight_ledge (new: validate, runall) | | OK |
 
 | check | box3dup3 (origin/next) | now |
 |---|---|---|
