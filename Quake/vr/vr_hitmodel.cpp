@@ -4,6 +4,7 @@
 #include "vr_tracy.h"
 #include "vr_hitmodel_internal.hpp"
 #include "vr_ad.hpp" // AD support: small pellets retain precise model/corpse impacts.
+#include "vr_animsmooth.hpp"
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_box3d.hpp"
@@ -1309,6 +1310,7 @@ bool clientLerp(entity_t* e, DrawnLerp& out)
         out.blend = 0.f; // (as R_AliasTransform)
     }
     render::drawnPlace(*e, out.origin, out.angles);
+    out.entity = e;
     return true;
 }
 
@@ -1318,6 +1320,18 @@ bool drawnVertexPoints(edict_t* ent, const DrawnLerp& lerp, const int* verts, in
     if(!drawnOf(ent, d) || !relerp(d, lerp))
     {
         return false;
+    }
+    // The vertices as the shader draws them (the spline, the swing, the rebuild: the renderer's own rows), when the client
+    // entity is drawn with this model (a listen server's: the same model, the same header)
+    if(!d.skinned && lerp.entity && vr_armour_on_drawn.value != 0.f && lerp.entity->model &&
+        Mod_Extradata(lerp.entity->model) == static_cast<const void*>(d.hdr) &&
+        animsmooth::drawnPoints(lerp.entity, lerp.pose1, lerp.pose2, lerp.blend, verts, n, out))
+    {
+        for(int i = 0; i < n; i++)
+        {
+            out[i] = d.A * out[i] + d.b;
+        }
+        return true;
     }
     const Verts vs = vertsOf(d);
     for(int i = 0; i < n; i++)

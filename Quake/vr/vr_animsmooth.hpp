@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <glm/fwd.hpp>
+
 struct entity_s;
 
 namespace qvr::animsmooth
@@ -25,5 +27,19 @@ void prepare();
 // four poses and its weights for its lerp (pose1 -> pose2 at blend), as its own drawing would take them. False: no
 // spline now (another r_lerpmodels, at a pose itself): Quake's blend.
 bool splineOf(const entity_s* e, const void* aliashdr, int pose1, int pose2, float blend, int poses[4], float w[4], float rot[3]);
+
+// Client entity `e`'s .mdl vertices `verts` as the shader draws them at its lerp pose1 -> pose2 (blend: R_SetupAliasFrame's,
+// VR_AliasLerpNow): the spline through its four poses, its limbs' swing, its rebuild from its skeleton (the renderer's own
+// rows for it this frame: made here if the draw has not yet, and the draw then reuses them), on the dequantised poses, in
+// the poses' byte units (times the header's scale plus scale_origin: model units). Not a hit reaction's kick (RigKick).
+// The beasts' armour (hitmodel::drawnVertexPoints with a client lerp; ROUND26.md "armourrebuild"). False: not a Quake
+// .mdl, a pose or a vertex out of range.
+bool drawnPoints(const entity_s* e, int pose1, int pose2, float blend, const int* verts, int n, glm::vec3* out);
+
+// vr_drawnlerp_watch: `e`'s shader inputs kept from each frame's first draw of it (VR_AnimSmooth: its poses, weights, rows,
+// a kick's), null none; capturedPoints replays that draw on the CPU for its vertices `verts` (byte units, as drawnPoints)
+// if it was drawn at client time `time`.
+void captureDraws(const entity_s* e);
+bool capturedPoints(double time, const int* verts, int n, glm::vec3* out);
 
 } // namespace qvr::animsmooth

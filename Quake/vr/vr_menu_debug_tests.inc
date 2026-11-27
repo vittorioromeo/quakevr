@@ -602,9 +602,14 @@ za::Vector<Item> pageDebugTests()
                   "skins and normal map, texture places and shader values (retro textures included); and each piece's debris model (shaped as "
                   "worn), its box the worn piece's. Ends on \"beastlook: N passed, M failed\"."),
         command("Beasts Drawn Smoothly (Slow Motion)", "vr_agarmor_test 21")
-            .help("vr_agarmor_test 21: one armoured beast at a time ahead (a rottweiler's leap, run and shoved roll, a scrag, an ogre), "
-                  "at a quarter speed then full: watched frame by frame (vr_drawnlerp_watch; vr_drawnlerp_log 1 prints each frame), "
-                  "no frame drawn still or jumping, the armour on the drawn body. Ends on \"doglerp test: N passed, M failed\"."),
+            .help("vr_agarmor_test 21: one armoured beast at a time ahead (a rottweiler's leap, run and shoved roll, a scrag, an ogre "
+                  "running and swinging its chainsaw, a bare shambler), at a quarter speed then full: watched frame by frame "
+                  "(vr_drawnlerp_watch; vr_drawnlerp_log 1 prints each frame), no frame drawn still or jumping, the armour on the drawn "
+                  "body: its points within 0.05 units of the shape the shader drew. Ends on \"doglerp test: N passed, M failed\"."),
+        command("Beast Armour On The Drawn Body: Cost (Ten Ogres)", "vr_agarmor_test 23")
+            .help("vr_agarmor_test 23: ten ogres in full armour running at you, 288 frames measured: the console's \"animsmooth: drawn "
+                  "points\" line is the time the armour spends reading the drawn body (Beast Armour On The Drawn Body in Debug > "
+                  "Reports). Ends on \"armourcost: N passed, M failed\"."),
         command("Armour Studio: ImGui Window Test (Flat Screen)", "vr_armourstudio_window test").help("vr_armourstudio_window test: the Armour Studio's ImGui window opened, its Start, a value's + step, Save, Reset Part and Reload the File clicked with a mock mouse (the grunt's bracer), a change made the menu's way shown on the window, Stop, Escape closes it. In a headset: the window refuses to open. Ends on \"armourwin: N passed, M failed\". It writes quakevr/data/armour_wintest.txt."),
         command("Armour Studio: Window Handle (Gizmo) Test (Flat Screen)", "vr_armourstudio_gizmo_test").help("vr_armourstudio_gizmo_test: the Armour Studio's ImGui window and its handle on the part, dragged with a mock mouse: the grunt's cuirass moved 2 units along its forward arrow (then undone), turned 30 degrees round its up ring (yaw), sized 1.25x along its forward arm, scaled 1.5x by its centre; a rottweiler's piece moved along its up arrow. Each drag the values it should make and one undo step. Ends on \"armourgizmo: N passed, M failed\". It writes quakevr/data/armour_gizmotest.txt."),
         command("Armour Studio: Your Clone's Armour Test", "vr_armourstudio_clone_test").help("vr_armourstudio_clone_test (a fresh game, no armour on you): Kind = Player shown (flat screen: the ImGui window; in a headset: the menu's page), your body and its mirror image wear the studio's armour, each tier, then the build switched while shown (2 to 1, 3 and 2 again); none again once the kind is another. Ends on \"armourclone: N passed, M failed\"."),

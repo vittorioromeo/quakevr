@@ -3,10 +3,12 @@
 
 #include "vr_geom.hpp"
 #include "vr_hitmodel_internal.hpp"
+#include "vr_animsmooth.hpp"
 #include "vr_ad.hpp" // AD support: small pellets retain precise model/corpse impacts.
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_held.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
@@ -336,6 +338,14 @@ struct LerpWatch
     za::Vector<glm::vec3> mesh, hit;                  // the last frame's vertices: drawn, the hit model's
     za::Vector<float> meshSteps, hitSteps, offsets; // per frame: mean vertex step (drawn, hit model), mean drawn-hit gap
     float armour{0.f};                              // the armour's lerp's largest mean distance from the drawn body
+    // The armour's vertices (drawnVertexPoints with the client's lerp: what its pieces are placed from) against the shape
+    // the shader drew (animsmooth::capturedPoints: the draw's own inputs replayed), each frame (ROUND26 "armourrebuild")
+    za::Vector<int> all;                  // 0 .. numverts - 1
+    za::Vector<glm::vec3> armourPts, shader; // the last frame's armour points (world); scratch
+    glm::mat3 drawnA{1.f};                // the last frame's drawn place (model bytes to world)
+    glm::vec3 drawnB{0.f};
+    za::Vector<float> shapeMeans;         // per frame: the armour's mean distance from the drawn shape
+    float shapeMost{0.f};                 // ... the largest one vertex's
 };
 LerpWatch lerpWatch;
 
@@ -344,6 +354,7 @@ constexpr float lerpJumpSlack = 0.25f;  // units
 constexpr float lerpStallHit = 0.2f;    // units: the hit model moved this much in the frame ...
 constexpr float lerpStallMesh = 0.02f;  // ... and the drawn body under this: a stall
 constexpr float lerpArmourMost = 0.05f; // units: the armour's lerp off the drawn body
+constexpr float lerpShapeMost = 0.05f;  // units: any armour vertex off the shape the shader drew
 constexpr float lerpDriftMost = 2.5f;   // units: the drawn-hit gap's spread over the watch (the client's clock is a
                                         // fraction of a frame behind the server's: a lerp begun out of turn differs)
 constexpr int lerpLeastFrames = 8;
@@ -372,9 +383,11 @@ void drawnLerpWatch_f()
                 w.num = num;
             }
         }
+        animsmooth::captureDraws(w.num > 0 && w.num < cl_max_edicts ? &cl_entities[w.num] : nullptr);
         Cvar_Set("vr_drawnlerp_result", "-1");
         return;
     }
+    animsmooth::captureDraws(nullptr);
     const char* label = Cmd_Argc() > 2 ? Cmd_Argv(2) : "watch";
     const za::SizeT n = w.meshSteps.size();
     int stalls = 0, jumps = 0;
@@ -398,13 +411,30 @@ void drawnLerpWatch_f()
         median = sorted[n / 2];
     }
     const float drift = n > 0 ? hi - lo : 0.f;
+    // The armour against the shape drawn: its mean distance a frame (lowest, mean, highest: the spread is how much the
+    // pieces move on the drawn body) and one vertex's most
+    float shapeLo = 0.f, shapeHi = 0.f, shapeMean = 0.f;
+    const za::SizeT sn = w.shapeMeans.size();
+    for(za::SizeT i = 0; i < sn; i++)
+    {
+        const float s = w.shapeMeans[i];
+        shapeLo = i == 0 ? s : za::min(shapeLo, s);
+        shapeHi = i == 0 ? s : za::max(shapeHi, s);
+        shapeMean += s / static_cast<float>(sn);
+    }
+    const bool shapeOk = sn > 0 && w.shapeMost < lerpShapeMost;
     const int result = static_cast<int>(n) < lerpLeastFrames ? -1
-                       : (stalls == 0 && jumps == 0 && w.armour < lerpArmourMost && drift < lerpDriftMost) ? 1 : 0;
+                       : (stalls == 0 && jumps == 0 && w.armour < lerpArmourMost && drift < lerpDriftMost && shapeOk) ? 1 : 0;
     Con_Printf("drawnlerp: %s: %d frames, drawn step median %.2f, largest %.2f (%.1fx); stalls %d, jumps %d; armour off the "
                "body %.3f; drawn to hit model %.2f .. %.2f units (drift %.2f): %s\n", label, static_cast<int>(n),
         static_cast<double>(median), static_cast<double>(most), static_cast<double>(median > 1e-4f ? most / median : 0.f), stalls,
         jumps, static_cast<double>(w.armour), static_cast<double>(n ? lo : 0.f), static_cast<double>(n ? hi : 0.f),
         static_cast<double>(drift), result == 1 ? "smooth" : result == 0 ? "NOT SMOOTH" : "too few frames");
+    Con_Printf("drawnlerp shape: %s: %d frames, the armour off the shape drawn: mean a frame %.3f .. %.3f (mean %.3f, spread "
+               "%.3f), one vertex's most %.3f units (vr_armour_on_drawn %g): %s\n", label, static_cast<int>(sn),
+        static_cast<double>(shapeLo), static_cast<double>(shapeHi), static_cast<double>(shapeMean),
+        static_cast<double>(shapeHi - shapeLo), static_cast<double>(w.shapeMost), static_cast<double>(vr_armour_on_drawn.value),
+        shapeOk ? "on the body" : sn ? "OFF THE BODY" : "NO DRAWS CAPTURED");
     Cvar_Set("vr_drawnlerp_result", va("%d", result));
     w = LerpWatch{};
 }
@@ -455,6 +485,36 @@ extern "C" void VR_DrawnLerpSample(const entity_t* e, int pose1, int pose2, floa
     const Verts vm = vertsOf(m), vh = vertsOf(d), va = vertsOf(a);
     const int nv = d.mesh->numverts;
     const bool steps = w.lastTime >= 0.0 && static_cast<int>(w.mesh.size()) == nv && cl.time - w.lastTime < 0.1;
+    // The armour against the shape the shader drew in the last frame (its draw comes after this sample: compared a frame
+    // late, both of that frame), then this frame's armour points (what its pieces are placed from)
+    if(static_cast<int>(w.all.size()) != nv)
+    {
+        w.all.resize(static_cast<za::SizeT>(nv));
+        for(int i = 0; i < nv; i++)
+        {
+            w.all[static_cast<za::SizeT>(i)] = i;
+        }
+    }
+    w.shader.resize(static_cast<za::SizeT>(nv));
+    if(static_cast<int>(w.armourPts.size()) == nv && w.lastTime >= 0.0 &&
+        qvr::animsmooth::capturedPoints(w.lastTime, w.all.data(), nv, w.shader.data()))
+    {
+        double sum = 0.;
+        for(za::SizeT i = 0; i < static_cast<za::SizeT>(nv); i++)
+        {
+            const float off = glm::length(w.drawnA * w.shader[i] + w.drawnB - w.armourPts[i]);
+            sum += off;
+            w.shapeMost = za::max(w.shapeMost, off);
+        }
+        w.shapeMeans.pushBack(static_cast<float>(sum / nv));
+    }
+    w.armourPts.resize(static_cast<za::SizeT>(nv));
+    if(!drawnVertexPoints(ent, armour, w.all.data(), nv, w.armourPts.data()))
+    {
+        w.armourPts.clear();
+    }
+    w.drawnA = m.A;
+    w.drawnB = m.b;
     w.mesh.resize(static_cast<za::SizeT>(nv));
     w.hit.resize(static_cast<za::SizeT>(nv));
     double meshStep = 0., hitStep = 0., gap = 0., armourGap = 0.;
