@@ -2564,5 +2564,10 @@ The beta profile's scenario_check failed in a lane (5 vrtesthall scenes "placed 
   `quakevr/scratch/lane_strays_<time>/` (`park_lane_strays`, printed), and copies the agent's `cache/maps_installed.txt`
   into the lane (a lane has its own cache folder, so the Map Library's package scenes said "not installed" in a lane only).
 - quest_foveation set `vr_foveated_debug` with `cmd` (leaked: SCNLEAK, counted failed); now a `cvar` line.
+- runall: a scene whose map load was abandoned for another map (a Host_Error in the load falls back to vrstart) is now
+  `SCNRUN|<id>|FAIL|abandoned: ...` and runall goes on; it used to wait out run.sh's 900 s timeout.
+- Found after merging origin/next (adknights, not fixed here): ad_azad (scene ad_azad_grates) stops on
+  `Host_Error: Mod_LoadModel: progs/vrdcrossbow.mdl#limb6 not found` (limbmodel prebuild precaches a limb whose build
+  came out empty), so scenario_check fails on next until that is fixed.
 Proof: scenario_check in a polluted lane 2 (quest's lane-2 installer_settings.cfg): 20 "in a wall" before, 0 after; the beta
 profile twice (counts in the report). Open (not checked further): with snap turning, a map load's spawn facing looks ignored by the VR view (the old yaw stays).
