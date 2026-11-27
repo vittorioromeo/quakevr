@@ -175,8 +175,8 @@ bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* h
     rigpose::Rigid* kick = w.kick;
     const bool kicked = vr_hit_react.value == 1.f && hitreact::reacting(e) && hitreact::boneKicks(e, *rig, posed, kick);
     const rigpose::Rigid chestKick = kicked ? kick[spec.chest] : rigpose::Rigid{};
-    // (the grips' and the Pose Studio's kind: AD's knights' rows take the knight's, as their pose keys do; their own rows
-    // have no grips, so the Pose Studio's Grips tab moved nothing on them: adrigfix)
+    // (the grips' and the Pose Studio's kind: AD's knights' rows take their shared kind (agpose::adKnight), as their
+    // pose keys do: adrigfix, adposekind)
     const int kind = armedPoseKind(&armedRigs[spec.kind]);
     w.row = spec.kind;
     agarms::Targets& t = w.t;

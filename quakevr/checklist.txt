@@ -37,6 +37,8 @@ Flat-screen or VR: in AD, cut the arms and legs off a Death Guard and a Crossbow
 Look at the armoured ogre and scrag from the front, back and both sides while they idle, walk and attack: the left and right pieces should be mirror images, the breastplate centred on the chest, the helmet a dome and the shoulder plates domes, nothing floating off the body. {test:armour_beasts}
 Watch any armoured beast (rottweiler, ogre, scrag, fiend) run, attack and die: its plates should never grow or shrink as it moves or as it falls. {test:armour_beasts}
 Flat-screen: open Debug > Tools > Rig Studio on an AD death guard, then on a crossbow knight: beside the subject the menu bar says their poses are shared; key a pose or an override on one and the other moves the same way at once, and after Save both read it back. {test:ad_knights_armed}
+Armoured ogre and scrag: their plates are faceted trapezoids like the grunts' and knights' armour (bevels, rivets, dark gaps); the ogre has a ridged breastplate, layered pauldrons, banded arms and legs and knee cops, the scrag a collar, spiked shoulders and a segmented tail; say what looks off. {test:armour_beasts}
+Shoot an armoured ogre's shin or an armoured scrag's tail: the hit counts on the thigh piece or the belt piece and they break together; the leather at the ogre's knees and along the scrag's tail bends with them. {test:armour_beasts}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -141,6 +143,8 @@ In the Armour Studio, pick a beast's part's leather junction (the status line na
 In the Armour Studio, pick the Death Guard and then the Crossbow Knight (AD mounted): the status line says their tweaks are shared, and a tweak on one shows on the other. {test:beaststudio}
 With Arcane Dimensions installed, open the Rig Studio on a death guard and a crossbow knight and raise each arm high and forward: the tabard stays on the hips, no sheet of it pulled up to the hand. {test:ad_knights_armed}
 With Arcane Dimensions installed, in the Rig Studio's Pose Studio Data window (subject a death guard or crossbow knight) change the Knight's main hand Place in the Grips tab: the AD knights' weapons move in their hands with the knight's, and Reset puts them back. {test:ad_knights_armed}
+In the Pose Studio pick a death guard or a crossbow knight: the Data window says AD Knight, shared by Death Guard and Crossbow Knight; moving a key or a grip there moves both AD knights and leaves the regular knight at the back as he is. {test:ad_knights_armed}
+Look round AD's death guards and crossbow knights in a fight (they now take their own retargeted keys in game, before they took none): hands on their weapons when they aim, swing, shove and take a weapon up. {test:ad_knights_armed}
 
 [7. Quoth]
 ## Setup and maps

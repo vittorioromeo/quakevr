@@ -1550,6 +1550,7 @@ float vr_agk_hpose;         // the studio's hold this frame (VR_AGK_Query): the 
 float vr_agk_hphase;
 float vr_agk_hplay;
 float vr_agk_test_hold;     // test 90 (vr_armedgrunt_guard_test.qc): its pose + 1 held as the studio holds it (0 none)
+float vr_agk_test_phase;    // ... and its phase (test 231, vr_armedgrunt_adpose_test.qc: a strike's keys)
 .float vr_agk_held;        // held in a pose by the studio (put back when let go)
 .float vr_agk_play;         // its Play count seen
 .float vr_agk_play_end;     // its strike played until
@@ -2289,6 +2290,7 @@ void(entity g, entity p) VR_AGP_PoseQC =
         if(vr_agk_test_hold)
         {
             vr_agk_hpose = vr_agk_test_hold - 1; // (test 90: the studio's hold without the studio)
+            vr_agk_hphase = vr_agk_test_phase;
         }
     }
     float frozen = VR_AG_Still(g);

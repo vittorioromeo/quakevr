@@ -3270,6 +3270,49 @@ these enemies also dynamically change size (grow/shrink) as animations play".
   `bl_ingame_after.png` (tests 18, 19). Tool: `scratch/bl_beast.py <kind> <out.png|-> <frames> [--pen [--allpen]]`.
 - **Open:** pauldron/chest overlap at the shoulders in the ogre's big swings (a chest-riding pauldron would trade it for
   the arm's flesh); his review of the look (Armour Studio tweaks go on the tables).
+
+## beastplates: the ogre's and the scrag's armour as faceted plates (branch agent/beastplates, 2026-11-27)
+
+His words: the armoured ogres/scrags "still look a bit weird ... mostly ring-shaped plates that surround their bodies"; like the
+grunts'/knights' armour, "geometrical plates made out of smaller trapezoid-shaped plates" (his two mockups).
+- **Look** (`make_beastarmour.py`, facet kinds; rottweiler and fiend bit for bit as before): every plate a flat trapezoid on ONE
+  tile of make_agarmor.py's atlas (its bevel, trim, corner rivets and the dark under-layer at its top are the tile's paint),
+  built as vr_agarmor.cpp addPlate's slab: a face inset by its bevel, the bevel round it, its sides on the atlas's rim (the dark
+  gaps), its inside on the padding. Rows are shingled (each row's top, thin, under the row above, whose lower edge stands proud
+  and laps over it), with a gap between a row's plates. A piece is shapes: `band` (rows along its bone round it, per-row plate
+  counts and widths, a ridge on the line it faces, a flared top edge, a span turned) or `dome` (a flat cap over a pole and
+  rings round it); laid over beastlook's measured envelope (symmetric pairs and middles, the engine's labels, rest-pose
+  correction, every played frame), each corner raised so its flat face clears the flesh under it (the chord).
+  Ogre: breastplate (two broad pec panels on a ridge, a flared collar edge, two rows below), back plate, a riveted belt round
+  his waist with faulds front and back, a faceted helmet, layered pauldrons over bands down the upper arm, forearms in three
+  bands, thighs in bands, and shins with knee cops. Scrag: a plastron (flared collar, pec panels on a ridge, stacked bands), a
+  back plate with the collar's back half, a belt and bands narrowing down round the line from his waist to his tail's root,
+  his tail in four segments of overlapping bands to a spike, a faceted mask, spiked layered shoulder plates, plates over his
+  claws' roots. Triangles: ogre 3 936 in full, scrag 3 288 (20 a plate).
+- **Parts of a slot (data, additive):** the ten slots couldn't hold the shins and the tail, so a slot's later `piece` line in
+  beastarmour.txt is a PART of it on another bone (`vrbarmor_<kind>_<slot>_<bone>.mdl`): the ogre's shins with his thighs'
+  slots 6/7, the scrag's tail1..4 with his belt's slot 8 (the cuirass group). `vr_beastarmour.cpp`: `Slot::owner`,
+  `Kind::numParts` (at most 6 parts: the leather's 2 bones a junction within rig2::maxBones 32); a part is drawn, hit
+  (`shotPiece`/`pieceAt` answer its slot), worn (wear skins) and broken with its slot, takes its slot's armour.txt tweaks
+  (offset, turn, scale, stand-off, taper: the Armour Studio's piece moves its parts too) and joins the rig's nearest piece up
+  (junctions: the ogre's knees shin->thigh, the scrag's tail segments down from his belt; `leather "0"` of the slot turns
+  them off too). `pieceBones` has the parts' bones. QC unchanged (slots, groups, rules); debris of a broken slot is its
+  first piece's model. `vr_beastarmour_info` lists parts ("part of 6: ... on shin_l").
+- **Clipping** (offline, `scratch/bp_pen.py`, every played frame; the ogre's unused `pull` frames now skipped in the
+  envelope too; the measure's anchors now as the engine's: from the piece's middle, a first pass finds the middles): own
+  bone's flesh (the convex hull of its vertices in that frame): 0 for every piece and part of both. Neighbours (inside the body
+  elsewhere): ogre 3.97-8.32 (worst: thighs in paine6 and smash9, pauldrons in shoot5/smash6, forearms in painb1/swing13),
+  scrag 0-4.27 (shoulder plates in magatt7, plastron 3.51 in magatt7).
+- **Tests:** `vr_agarmor_test 15` 55/0 (new: every part drawn, 42 entities for 36 pieces and 6 parts; frames B now the
+  ogre's run4 and the scrag's magatt3, so the arms stand clear of the chests the shots go through: the bulkier forearms
+  crossed the ogre's breastplate in swing1). `vr_beaststudio_test` 20/0. Tests 17-20 take the tier from `temp1` (1-3).
+- **Renders** (scratch/, his review): `beastplates_ingame.png` (tests 18, 19 in the test hall: ogre, scrag, green then yellow;
+  low-res: his game was up), `bp_ingame_full.png` (the four whole frames), `beastplates_sheet_ogre.png` (idle, run4, swing1)
+  and `beastplates_sheet_wizard.png` (hover, fly, magatt3): beastlook's 6 views, pieces coloured by slot.
+- **Open / decisions:** the helmet and the scrag's mask kept (his mockups show bare heads; dropping them would change the
+  roll and the headshot rule): faceted domes now. The scrag's belly reads as a barrel: its flesh round his waist is wide in
+  every frame and the own-flesh rule keeps the plates over it (a slimmer waist needs a lower percentile there). Tuning goes on
+  the tables (band/dome per piece) or in the Armour Studio.
 ## adrigfix: AD's knights in the Rig Studio: no stretched tabard, the Grips tab drives them, the grunt's taunt copied (branch agent/adrigfix, 2026-11-27)
 
 His words (2026-11-27): the crossbow knight and the death guard have a stretched vertex as an arm moves; the Grips tab has
@@ -3351,3 +3394,40 @@ no effect on the AD knights; copy existing poses from the closest rig (knight or
 - Open: the client's clock runs a fraction of a frame behind the server's (cl.time vs sv.time 0.0035 s), so the hit model
   (shots) still differs from the drawn body by up to ~1.5 units at a lerp begun out of turn; the drawn armour no longer
   depends on it.
+## adposekind: AD's knights get their own Pose Studio keys and grips, seeded from the knight's (branch agent/adposekind, 2026-11-27)
+
+His words (2026-11-27): copy existing poses from the closest rig (knight or grunt) as a starting point, compensating for the
+rigs' differences; he meant the Pose Studio keys.
+- **Kind**: `agpose::adKnight` (4, "AD Knight"; `agpose::numKinds` 5, `aggrip::numKinds` 5): one set of keys and grips for
+  the death guard and the crossbow knight (rows 4 and 5; `armedRigs` poseKind 4, QC `VR_AM_PoseKind` ->
+  `VR_AM_POSE_ADKNIGHT`). Its own entries in vr_agrunt_poses / vr_agrunt_grips, the Data window's Kind list, the menu's IK
+  stretch rows, vr_agrunt_pose_dump. The knight's kind untouched. Without AD's data the rows resolve to the knight
+  (`VR_AM_Resolve`; the native's `agPoseKind` the same). `VR_AM_KnightBody` replaces the two `PoseKind == KNIGHT` checks
+  (the death's pack, the worn pack's size). Data window: "AD Knight: shared by Death Guard and Crossbow Knight".
+- **Found**: the native pose (`vr_builtins_agpose.inc`, `vr_agpose_native` 1, the default) read the row itself as the kind,
+  so in the game AD's rows took no keys at all (codes 4xxxxx/5xxxxx invalid) while the studio's holds (QC) showed the
+  knight's. Now both read the pose kind: in the game they take their keys for the first time.
+- **Seed (closest rig the knight's: adrigfix's score 28 against the grunt's 31, not redone)**: `shippedFrom[4] = 2`: the
+  knight's shipped keys as he has them (his rows, else the grunt's fitted to him: `shippedOf` follows the chain) fitted to
+  their body (`fitScale` 1 0.95 1, QC's fit: places scaled by width, turns and elbow poles as they are: each bone's frame
+  has the same axes on both rigs). Stretch follows the same chain. Then retargeted per key: `vr_agrunt_test 231` holds every
+  key and reads each hand's reach shortfall and its way (where the IK brought the wrist less its goal, new
+  `weapondrawnpose(world, tag, 54..56)` over `agarms::reachErr`); `Misc/quakevr/adpose_retarget.py` moves the key's right
+  target (and the left's where it is its own: fists, two weapons, the shove's push) by the shortfall, both rows averaged
+  (one shared key), 1.15x; four passes. 50 shipped rows of kind 4 (`vr_agpose.cpp` shipped[], between "AD's knights"
+  and "rows end"); every other key follows the knight's, fitted.
+- **Numbers** (246 keys, 10 weapon sets x every key of each class, both rows; a key "off" past 1 unit): the knight's raw
+  keys fitted: death guard 48 off (worst 8.8 right), crossbow knight 59 (8.4); retargeted: 12 and 13 (worst 3.4 / 1.7,
+  the Pickup's: AD's stoop frame holds the hand over the weapon, and the shove's off hand on a launcher's second grip 4.0).
+  The knight on his own keys (`scratch1 3`): 25 of 123 off, worst 4.7 in his strikes. The two-weapon Pickup's left hand is
+  20-27 off on every kind (the left weapon isn't taken up).
+- **Grips**: kind 4 ships none (aggrip `defaultOf`: no fallback to the knight's): they hold their weapons as their rest
+  frame does, exactly as adrigfix's zero default did; nothing they hold changes on day one. `gripRigidOf` is now the
+  kind's grip for every row (the knight's-shipped-inverse is gone). Grips tab edits on AD Knight move both, never the knight.
+- **Tests**: new `vr_agrunt_test 231` (needs AD: `vr_campaign_native ad; map vrtesthall`; Debug > Automation "AD Knights:
+  Hands on the Weapon in Every Key"; tolerances 2.5 hand, 4 the take, 4.5 the second grip): 247/0. `vr_adgrip_test`
+  (updated: the AD Knight kind's grip moved 3, both AD knights' hands 3.00, the knight's 0.00; scene ad_knights_armed now
+  has a knight at the back): 10/0. humrepl (`vr_ad_test 219`) 65/0; agrunt 83 (63/0), 90, 95 PASS; scene ad_knights_armed
+  5 of 5 placed.
+- **Open**: the remaining keys past 1 unit (the shared Pickup: the death guard short 2.2, the crossbow knight not; a few
+  shoves); his look in VR; the side-by-side render sheet (each key, AD knights beside the knight) was not made (budget).

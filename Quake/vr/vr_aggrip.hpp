@@ -15,7 +15,7 @@
 namespace qvr::aggrip
 {
 
-inline constexpr int numKinds = 4; // (agpose's: 0 the grunt, 1 the enforcer, 2 the knight, 3 the death knight)
+inline constexpr int numKinds = 5; // (agpose's: 0 the grunt, 1 the enforcer, 2 the knight, 3 the death knight, 4 AD's knights)
 enum Hand : int
 {
     Main = 0,   // the weapon in its main (right) hand, relative to that hand

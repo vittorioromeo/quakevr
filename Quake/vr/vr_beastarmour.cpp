@@ -38,6 +38,9 @@ namespace
 using armourdata::Override;
 
 constexpr int numSlots = agarmor::NumPieces;
+// The slots' pieces, then their parts on other bones (a slot's later lines: the ogre's shins, the scrag's tail); at most
+// 6 parts: the leather's 2 bones a junction within rig2::maxBones (32).
+constexpr int maxParts = numSlots + 6;
 constexpr int maxAnchors = 10;     // a piece's bone's vertices fitted (spread over the bone)
 constexpr float shotBack = 64.f;   // units: a shot's line from this far before its point (vr_agarmor.cpp shotBack, QC VR_AR_SHOT_BACK)
 constexpr float shotOn = 8.f;      // ... to this far past it (past the guns' tolerance) ...
@@ -53,16 +56,19 @@ constexpr float junctionEnvelope = 0.35f; // its width, thickness and folds at f
 constexpr float skinFitGap = 0.25f;  // units off the skin: a junction's end where its piece isn't worn (broken off)
 constexpr float skinFitLeast = 0.4f; // ... its end ring shrunk to at least this share of its size for it
 constexpr float joinsTie = 1.f;      // units: a limb's piece joins the lower slot of two this near alike
-constexpr int maxJunctions = numSlots;
+constexpr int maxJunctions = maxParts;
 constexpr int maxLeatherBones = 2 * maxJunctions; // (a bone each end: the piece's place, or its skin fit)
 constexpr int maxLeather = 64;       // the junctions' entities drawn a frame at most (one a beast)
 constexpr const char* tweakSuffix = "#tweak";   // "<piece model>#tweak": the piece scaled, stood off, tapered (makeModel)
 constexpr const char* leatherSuffix = "#bridge"; // "<beast model>#bridge": its junctions (drawn from both sides: VR_AliasTwoSided)
 constexpr const char* leatherSkins = "progs/vragarmor.mdl"; // (the humanoids' atlas: its leather block, vr_agarmor_bridge.cpp)
 
+// A piece (k.slot[0, numSlots): slot i's), or a part of one on another bone (k.slot[numSlots, numParts): its `owner`'s; worn,
+// hit, tweaked and broken with it).
 struct Slot
 {
     bool on{false};
+    int owner{-1};
     char bone[16]{};
     char model[MAX_QPATH]{};
     glm::vec3 centre{0.f};
@@ -100,7 +106,8 @@ struct Kind
     char model[MAX_QPATH]{};
     int group{0};
     int mask{0};
-    Slot slot[numSlots];
+    Slot slot[maxParts];
+    int numParts{numSlots};
     bool resolved{false};
     bool ok{false};
     za::Vector<glm::vec3> body; // its .mdl's vertices in the rest pose (the skin a broken piece's junction end sits on)
@@ -133,6 +140,7 @@ za::Vector<Kind> kinds; // (reserved once, when read: the models' names handed t
 bool loaded = false;
 entity_t ents[maxEnts];
 int numEnts = 0;
+int numPiecesDrawn = 0; // (of numEnts: the slots' pieces, not their parts)
 entity_t leatherEnts[maxLeather];
 int leatherBoneCount[maxLeather]{};
 float leatherBones[maxLeather][maxLeatherBones * 12]{};
@@ -183,10 +191,14 @@ void load()
             fresh.pushBack(k);
         }
         else if(!strcmp(word, "piece") && sscanf(line, "%*s %63s %d %15s %63s %f %f %f", model, &a, bone, piece, &x, &y, &z) == 7 &&
-                !fresh.empty() && !strcmp(fresh.back().model, model) && a >= 0 && a < numSlots)
+                !fresh.empty() && !strcmp(fresh.back().model, model) && a >= 0 && a < numSlots &&
+                (!fresh.back().slot[a].on || fresh.back().numParts < maxParts))
         {
-            Slot& s = fresh.back().slot[a];
+            // (a slot's second line: a part of it on another bone)
+            Kind& f = fresh.back();
+            Slot& s = f.slot[f.slot[a].on ? f.numParts++ : a];
             s.on = true;
+            s.owner = a;
             q_strlcpy(s.bone, bone, sizeof(s.bone));
             q_strlcpy(s.model, piece, sizeof(s.model));
             q_strlcpy(s.drawn, piece, sizeof(s.drawn));
@@ -326,7 +338,7 @@ void shapeTris(Slot& s)
 // joins none.
 void joinsOf(Kind& k, const ragdoll::Rig& rig)
 {
-    for(int i = 0; i < numSlots; i++)
+    for(int i = 0; i < k.numParts; i++)
     {
         Slot& s = k.slot[i];
         s.joins = -1;
@@ -341,12 +353,12 @@ void joinsOf(Kind& k, const ragdoll::Rig& rig)
         for(int b = rig.bones[s.boneIndex].parent, guard = 0; s.joins < 0 && b >= 0 && guard < ragdoll::maxBones; b = rig.bones[b].parent, guard++)
         {
             float best = 1e9f;
-            for(int j = 0; j < numSlots; j++)
+            for(int j = 0; j < k.numParts; j++)
             {
                 const Slot& o = k.slot[j];
                 // (a limb's piece: the lower slot when about as near, the cuirass before the rottweiler's collar; the others the
                 // nearest, his chanfron the collar)
-                const float tie = i >= agarmor::PauldronL && i <= agarmor::ThighR ? joinsTie : 0.f;
+                const float tie = s.owner >= agarmor::PauldronL && s.owner <= agarmor::ThighR ? joinsTie : 0.f;
                 const float d = o.on && o.boneIndex == b ? apart(s, o) : 1e9f;
                 s.joins = d < best - tie ? j : s.joins;
                 best = d < best - tie ? d : best;
@@ -415,7 +427,7 @@ void buildJunctions(Kind& k)
     k.lv.clear();
     k.lj.clear();
     k.lidx.clear();
-    for(int i = 0; i < numSlots; i++)
+    for(int i = 0; i < k.numParts; i++)
     {
         const Slot& s = k.slot[i];
         if(!s.on || s.joins < 0 || !k.slot[s.joins].on || s.tris.empty() || k.slot[s.joins].tris.empty() ||
@@ -574,6 +586,16 @@ void refresh(Kind& k)
         q_snprintf(s.drawn, sizeof(s.drawn), "%s%s", s.model, s.shaped ? tweakSuffix : "");
         shapeTris(s);
     }
+    for(int i = numSlots; i < k.numParts; i++)
+    {
+        // (a part: its slot's tweaks, moved, turned and shaped as the piece is)
+        Slot& s = k.slot[i];
+        s.tw = k.slot[s.owner].tw;
+        s.jt = k.slot[s.owner].jt;
+        s.shaped = k.slot[s.owner].shaped;
+        q_snprintf(s.drawn, sizeof(s.drawn), "%s%s", s.model, s.shaped ? tweakSuffix : "");
+        shapeTris(s);
+    }
     forget(k);
     buildJunctions(k);
 }
@@ -622,7 +644,7 @@ bool resolve(Kind& k)
         {
             Con_Printf("beastarmour: %s: no bone \"%s\"\n", k.model, s.bone);
             s.on = false;
-            k.mask &= ~(1 << static_cast<int>(&s - k.slot));
+            k.mask &= &s - k.slot < numSlots ? ~(1 << s.owner) : ~0;
             continue;
         }
         s.along = geom::safeNormalize(rig->bones[s.boneIndex].end - rig->bones[s.boneIndex].pivot, glm::vec3{1.f, 0.f, 0.f}, 1e-4f);
@@ -789,7 +811,7 @@ int junctionBones(edict_t* ent, const Kind& k, int pieces, const glm::vec3& base
     for(int j = 0; j < k.numJunctions && vr_beastarmour_leather.value != 0.f; j++)
     {
         const Junction& jn = k.junction[j];
-        const bool worn[2] = {((pieces >> jn.child) & 1) != 0, ((pieces >> jn.parent) & 1) != 0};
+        const bool worn[2] = {((pieces >> k.slot[jn.child].owner) & 1) != 0, ((pieces >> k.slot[jn.parent].owner) & 1) != 0};
         Placed pl[2];
         if((!worn[0] && !worn[1]) || !place(ent, k.slot[jn.child], pl[0], lerp) || !place(ent, k.slot[jn.parent], pl[1], lerp))
         {
@@ -1051,13 +1073,14 @@ void info_f()
         }
         Con_Printf("beastarmour: %s: %d pieces (slots %d, cuirass group %d), %d junctions%s\n", k.model, n, k.mask, k.group, k.numJunctions,
             k.ok ? "" : " NO RIG");
-        for(int i = 0; i < numSlots; i++)
+        for(int i = 0; i < k.numParts; i++)
         {
             const Slot& s = k.slot[i];
             if(s.on)
             {
-                Con_Printf("  slot %d: %s on %s (bone %d, %d anchors, %d triangles)%s, joins %d\n", i, s.drawn, s.bone, s.boneIndex,
-                    s.numAnchors, static_cast<int>(s.tris.size() / 3), s.tw.has ? " tweaked" : "", s.joins);
+                Con_Printf("  %s %d: %s on %s (bone %d, %d anchors, %d triangles)%s, joins %d\n", i < numSlots ? "slot" : "part of",
+                    s.owner, s.drawn, s.bone, s.boneIndex, s.numAnchors, static_cast<int>(s.tris.size() / 3), s.tw.has ? " tweaked" : "",
+                    s.joins);
             }
         }
     }
@@ -1114,15 +1137,15 @@ int shotPiece(edict_t* ent, const float* at, const float* dir, int mask)
     const glm::vec3 end = (skin >= 0.f ? a + (b - a) * skin : b) + d * shotPastSkin;
     int found = -1;
     float best = 1.5f;
-    for(int i = 0; i < numSlots; i++)
+    for(int i = 0; i < k->numParts; i++)
     {
         Placed pl;
-        if(!(mask & (1 << i)) || !place(ent, k->slot[i], pl))
+        if(!k->slot[i].on || !(mask & (1 << k->slot[i].owner)) || !place(ent, k->slot[i], pl))
         {
             continue;
         }
         const float t = crossing(k->slot[i], pl, a, end);
-        found = t <= 1.f && t < best ? i : found;
+        found = t <= 1.f && t < best ? k->slot[i].owner : found;
         best = t <= 1.f && t < best ? t : best;
     }
     return found;
@@ -1138,11 +1161,11 @@ int pieceAt(edict_t* ent, const float* at)
     const glm::vec3 p = geom::vec(at);
     int found = -1;
     float best = 1e9f;
-    for(int i = 0; i < numSlots; i++)
+    for(int i = 0; i < k->numParts; i++)
     {
         Placed pl;
         const Slot& s = k->slot[i];
-        if(!place(ent, s, pl))
+        if(!s.on || !place(ent, s, pl))
         {
             continue;
         }
@@ -1150,7 +1173,7 @@ int pieceAt(edict_t* ent, const float* at)
         const glm::vec3 lp = glm::transpose(pl.axes) * (p - pl.origin) / pl.scale;
         const glm::vec3 out = glm::max(glm::max(s.lo - lp, lp - s.hi), glm::vec3{0.f});
         const float dist = glm::length(out) * pl.scale;
-        found = dist <= pointReach && dist < best ? i : found;
+        found = dist <= pointReach && dist < best ? s.owner : found;
         best = dist <= pointReach && dist < best ? dist : best;
     }
     return found;
@@ -1159,8 +1182,13 @@ int pieceAt(edict_t* ent, const float* at)
 uint32_t pieceBones(edict_t* ent, int slot)
 {
     const Kind* k = ready(ent);
-    return k && slot >= 0 && slot < numSlots && k->slot[slot].on && k->slot[slot].boneIndex < 32 ?
-        1u << static_cast<unsigned>(k->slot[slot].boneIndex) : 0u;
+    uint32_t bones = 0u;
+    for(int i = 0; k && slot >= 0 && slot < numSlots && i < k->numParts; i++)
+    {
+        const Slot& s = k->slot[i];
+        bones |= s.on && s.owner == slot && s.boneIndex >= 0 && s.boneIndex < 32 ? 1u << static_cast<unsigned>(s.boneIndex) : 0u;
+    }
+    return bones;
 }
 
 void plateWhere(edict_t* ent, int slot, int what, float* out)
@@ -1199,6 +1227,7 @@ void plateWhere(edict_t* ent, int slot, int what, float* out)
 void beginRelink()
 {
     numEnts = 0;
+    numPiecesDrawn = 0;
     numLeather = 0;
 }
 
@@ -1221,11 +1250,11 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
     // the server's frames: the pieces move with the drawn body, in slow motion too (ROUND26.md, "doglerp").
     hitmodel::DrawnLerp drawnLerp;
     const hitmodel::DrawnLerp* lerp = hitmodel::clientLerp(e, drawnLerp) ? &drawnLerp : nullptr;
-    for(int i = 0; i < numSlots && numEnts < maxEnts && cl_numvisedicts < MAX_VISEDICTS; i++)
+    for(int i = 0; i < k->numParts && numEnts < maxEnts && cl_numvisedicts < MAX_VISEDICTS; i++)
     {
         Slot& s = k->slot[i];
         Placed pl;
-        if(!(pieces & (1 << i)) || !place(ent, s, pl, lerp))
+        if(!s.on || !(pieces & (1 << s.owner)) || !place(ent, s, pl, lerp))
         {
             continue;
         }
@@ -1238,7 +1267,8 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
         // (a shaped piece's skins are its .mdl's: its own model's count)
         const qmodel_t* skinned = s.shaped ? Mod_ForName(s.model, false) : m;
         const int numSkins = skinned && skinned->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(skinned)))->numskins : 1;
-        const int level = (wear >> numSlots) & (1 << i) ? 2 : (wear & (1 << i)) ? 1 : 0;
+        const int level = (wear >> numSlots) & (1 << s.owner) ? 2 : (wear & (1 << s.owner)) ? 1 : 0;
+        numPiecesDrawn += i < numSlots ? 1 : 0;
         entity_t& a = ents[numEnts++];
         a = *e;
         a.model = m;
@@ -1287,9 +1317,9 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
     }
 }
 
-int drawnCount()
+int drawnCount(bool parts)
 {
-    return numEnts;
+    return parts ? numEnts : numPiecesDrawn;
 }
 
 int leatherDrawn()
@@ -1343,10 +1373,10 @@ void outline(edict_t* ent, int pieces, bool sleeve)
         return;
     }
     const glm::vec4 col{0.2f, 1.f, 1.f, 1.f};
-    for(int i = 0; i < numSlots && !sleeve; i++)
+    for(int i = 0; i < k->numParts && !sleeve; i++)
     {
         Placed pl;
-        if(!((pieces >> i) & 1) || !place(ent, k->slot[i], pl))
+        if(!k->slot[i].on || !((pieces >> k->slot[i].owner) & 1) || !place(ent, k->slot[i], pl))
         {
             continue;
         }
@@ -1371,7 +1401,7 @@ void outline(edict_t* ent, int pieces, bool sleeve)
     for(int j = 0; j < k->numJunctions; j++)
     {
         const Junction& jn = k->junction[j];
-        if(!((pieces >> jn.child) & 1))
+        if(!((pieces >> k->slot[jn.child].owner) & 1))
         {
             continue;
         }
@@ -1503,7 +1533,7 @@ JunctionCheck checkJunction(edict_t* ent, int slot, int pieces)
             {
                 // (an end ring: where its piece's place carries its rest place, when worn)
                 const int e = r == 0 ? 0 : 1;
-                const bool worn = ((pieces >> (e == 0 ? jn.child : jn.parent)) & 1) != 0;
+                const bool worn = ((pieces >> k->slot[e == 0 ? jn.child : jn.parent].owner) & 1) != 0;
                 const glm::vec3 want = pl[e].restRot * k->lp[static_cast<za::SizeT>(jn.first + v)] + pl[e].restT;
                 out.endError = worn ? za::max(out.endError, glm::distance(p, want)) : out.endError;
             }

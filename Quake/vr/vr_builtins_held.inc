@@ -404,6 +404,26 @@ void PF_weapondrawnpose()
         progs::returnVec(what == 49 ? rot : shift);
         return;
     }
+    if(what == 54)
+    {
+        // weapondrawnpose(world, tag, 54): the armed humanoids' arms counted under vr_agrunt_ik_tag `tag` since the last
+        // vr_agrunt_ik_err: the right and left hands' grips most off their goals (reach short) and the off hand most off its
+        // second grip (units); '-1 -1 -1' nothing counted (agarms::reachErr; QC test 231, adposekind's keys).
+        glm::vec3 m{-1.f};
+        (void)agarms::reachErr(static_cast<int>(G_FLOAT(OFS_PARM1)), m.x, m.y, m.z);
+        progs::returnVec(m);
+        return;
+    }
+    if(what == 55 || what == 56)
+    {
+        // weapondrawnpose(world, tag, 55): ... the right hand's most's way (where its wrist was brought less its goal, model
+        // space: x forward, y left, z up); 56 the left's; '0 0 0' none.
+        glm::vec3 by[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+        float r = 0.f, l = 0.f, s = 0.f;
+        (void)agarms::reachErr(static_cast<int>(G_FLOAT(OFS_PARM1)), r, l, s, by);
+        progs::returnVec(by[what - 55]);
+        return;
+    }
     if(what == 53)
     {
         // weapondrawnpose(bot, hand, 53): a bot's weapon's muzzle (a blade's tip) as every client draws it (bots3:
