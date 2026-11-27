@@ -3285,6 +3285,12 @@ QVR_TOGGLE_BYNAME(vr_revolver_eject_rod, "Ejector Rod",
     "Out, the other hand pushing the ejector rod's head (in front of the cylinder) back drops them.")
 QVR_SLIDER_BYNAME(vr_revolver_eject_rod_reach, "Ejector Rod Reach", 0.f, 8.f, 0.25f, "%.2f units", ext(0.f, 40.f), "How near its head the other hand must be.")
 QVR_SLIDER_BYNAME(vr_revolver_eject_rod_speed, "Ejector Rod Push", 0.f, 3.f, 0.05f, "%.2f m/s", ext(0.f, 10.f), "How fast it must push back along the cylinder.")
+QVR_TOGGLE_BYNAME(vr_revolver_spent_first, "Spent Shells First",
+    "Out, the eject (B/Y, the hand's push or the ejector rod) drops only the spent shells while any are in it; eject "
+    "again to drop the live ones too. Off: all of them at once.")
+QVR_TOGGLE_BYNAME(vr_revolver_shell_pairs, "Slug Pairs",
+    "The pouch gives two slugs taped together, as the shotgun's pair: both go into two empty chambers at once (one, "
+    "the other kept in your hand, if only one chamber is empty). Off: one at a time.")
 QVR_TOGGLE_BYNAME(vr_revolver_spin, "Spin by Hand",
     "Out, the other hand swiping across the cylinder spins it: it slows and stops on a chamber, which changes "
     "which chamber comes under the hammer next.")

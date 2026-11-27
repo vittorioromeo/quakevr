@@ -695,12 +695,42 @@ def version(s):
     srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
     srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
     c = s.client("C", extra=["+vr_net_test_version", "1"]).start()
+    # (netmismatch) C's server browser marks the server (its search reply says its network version and release): not
+    # joinable, the release it needs under the list
+    here = "127.0.0.1:%d" % s.port
+    since = c.mark()
+    c.cmd('vr_mp_recent ""; vr_mp_favourites ""; vr_mp_favourite %s' % here)
+    c.wait(r"mp_browser: favourite %s on" % re.escape(here), 60, since, "C's favourite set")
+    since = c.mark()
+    rows, _ = browse(c, "C's search")
+    r = row_of(rows, here)
+    note = next((l.strip() for l in c.lines[since:] if l.startswith("mp_browser_note: row=")), "")
+    s.check("C's browser marks the server of another network version (its version and release, not joinable)",
+            r is not None and r["answered"] == "1" and int(r["qvr"]) > 1 and r["release"] != "-" and
+            r["joinable"] == "0", "%s" % r)
+    s.check("C's browser says the release it needs", "Needs Quake VR %s" % (r or {}).get("release", "?") in note, note)
+    since = c.mark()
     c.cmd(s.connect_cmd(c))
-    _, why = c.wait(r"network version \d+, your game 1", 60, what="C's reject")
-    s.check("a client of another network version is told why", True, why.strip())
+    _, why = c.wait(r"Couldn't join .*: This server runs Quake VR \S+ \(network version \d+\), newer than your game "
+                    r"\(network version 1\): update to Quake VR \S+ to join\.", 60, since, "C's refusal")
+    s.check("a client of another network version is told why, plainly (the release to install)", True, why.strip())
+    c.cmd("echo mp_version_refused_done")  # (a definite end: a Host_Error of the refusal would be before it)
+    c.wait(r"mp_version_refused_done", 30, since, "C's console after the refusal")
+    after = c.lines[since:]
+    noisy = [l.strip() for l in after if l.startswith("Host_Error") or l.startswith("  from ") or
+             l.startswith("Server          Map")]
+    s.check("the refusal is no Host_Error (no stack trace, no server list after it)", not noisy, "%s" % noisy[:3])
+    s.check("the refusal is said once", sum(1 for l in after if "This server runs Quake VR" in l) == 1,
+            "%s" % [l.strip() for l in after if "Quake VR" in l][:4])
     _, logged = srv.wait(r"Rejected a connection", 10, what="the server's note of it")
     s.check("the server notes the rejected client", True, logged.strip())
     a = s.client("A").start()
+    since = a.mark()
+    a.cmd('vr_mp_recent ""; vr_mp_favourites ""; vr_mp_favourite %s' % here)
+    a.wait(r"mp_browser: favourite %s on" % re.escape(here), 60, since, "A's favourite set")
+    r = row_of(browse(a, "A's search")[0], here)
+    s.check("A's browser has the server joinable (the same network version)",
+            r is not None and r["answered"] == "1" and r["joinable"] == "1" and int(r["qvr"]) > 1, "%s" % r)
     a.cmd(s.connect_cmd(a))
     a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined e1m1")
     s.check("a client of the same network version joins", True)

@@ -56,6 +56,7 @@ struct State
     AddressList asked; // the favourites and recent servers (VR_BrowserAddress), as the last count took them
     bool printPending{false};
     char text[rowTextLength]{};
+    char note[200]{}; // VR_BrowserRowNote's
 };
 State state;
 
@@ -181,6 +182,44 @@ void rebuild()
     return row >= 0 && row < state.count;
 }
 
+// (netmismatch) A row's reply's Quake VR network version (0: not said) and release ("": not said); whether that
+// version is another than this game's (not joinable).
+[[nodiscard]] bool otherQvr(const Row& r, int& netVersion, const char*& release)
+{
+    netVersion = 0;
+    release = "";
+    if(r.reply < 0 || !NET_SlistQvr(r.reply, &netVersion, &release))
+    {
+        return false;
+    }
+    return netVersion != 0 && netVersion != NET_QvrOwnVersion();
+}
+
+// (netmismatch) Why a row's server can't be joined, into state.note ("": it can, or no reply).
+const char* rowNote(const Row& r)
+{
+    state.note[0] = 0;
+    const char *name, *map, *address;
+    int users, maxusers, ping, version, netVersion;
+    const char* release;
+    if(r.reply < 0 || !NET_SlistEntry(r.reply, &name, &map, &address, &users, &maxusers, &ping, &version))
+    {
+        return state.note;
+    }
+    if(version != netProtocolVersion)
+    {
+        q_snprintf(state.note, sizeof(state.note), "Another Quake's server (NetQuake protocol %d): it can't be joined.",
+            version);
+    }
+    else if(otherQvr(r, netVersion, release))
+    {
+        q_snprintf(state.note, sizeof(state.note), "Needs Quake VR %s (network version %d); this game is %s (network "
+                                                   "version %d).",
+            release[0] ? release : "of another version", netVersion, NET_QvrRelease(), NET_QvrOwnVersion());
+    }
+    return state.note;
+}
+
 void printRows()
 {
     rebuild();
@@ -189,15 +228,23 @@ void printRows()
     {
         const Row& r = state.rows[i];
         const char *name = "", *map = "", *address;
-        int users = 0, maxusers = 0, ping = -1, version = 0;
+        int users = 0, maxusers = 0, ping = -1, version = 0, netVersion = 0;
+        const char* release = "";
         if(r.reply >= 0 && NET_SlistEntry(r.reply, &name, &map, &address, &users, &maxusers, &ping, &version))
         {
             answered++;
         }
+        const bool other = otherQvr(r, netVersion, release);
+        const char* note = rowNote(r);
         Con_Printf("mp_browser: row=%d address=%s favourite=%d recent=%d answered=%d users=%d max=%d ping=%d version=%d "
-                   "map=%s name=%s\n",
+                   "qvr=%d release=%s joinable=%d map=%s name=%s\n",
             i, r.address, r.favourite ? 1 : 0, r.recent ? 1 : 0, r.reply >= 0 ? 1 : 0, users, maxusers, ping, version,
+            netVersion, release[0] ? release : "-", r.reply >= 0 && !other && version == netProtocolVersion ? 1 : 0,
             map[0] ? map : "-", name);
+        if(note[0])
+        {
+            Con_Printf("mp_browser_note: row=%d %s\n", i, note);
+        }
     }
     Con_Printf("mp_browser_done: rows=%d answered=%d\n", state.count, answered);
 }
@@ -379,9 +426,17 @@ extern "C" const char* VR_BrowserRowText(int row)
     if(r.reply >= 0 && NET_SlistEntry(r.reply, &name, &map, &address, &users, &maxusers, &ping, &version))
     {
         char pingText[8];
+        int netVersion;
+        const char* release;
         if(version != netProtocolVersion)
         {
             q_strlcpy(pingText, " old", sizeof(pingText)); // (another NetQuake protocol: not joinable)
+        }
+        else if(otherQvr(r, netVersion, release))
+        {
+            // (netmismatch) another Quake VR version: its network version instead of the ping (the note under the
+            // list: the release it needs)
+            q_snprintf(pingText, sizeof(pingText), "%4s", va("v%d", q_min(netVersion, 999)));
         }
         else
         {
@@ -394,6 +449,11 @@ extern "C" const char* VR_BrowserRowText(int row)
         q_snprintf(state.text, sizeof(state.text), "%-24.24s %9s", r.address, slistInProgress ? "..." : "no reply");
     }
     return state.text;
+}
+
+extern "C" const char* VR_BrowserRowNote(int row)
+{
+    return valid(row) ? rowNote(state.rows[row]) : "";
 }
 
 extern "C" int VR_BrowserRowFavourite(int row)

@@ -295,6 +295,9 @@ typedef struct
 	int		maxusers;
 	int		ping;	// QVR: (B13) the reply's round trip in ms (the server browser's)
 	int		version;	// QVR: (B13) its NetQuake protocol version (NET_PROTOCOL_VERSION: joinable)
+	int		qvrNetVersion;	// QVR: (netmismatch) the Quake VR network version it takes (0: not said: a server before
+							// this field, or one that takes any client)
+	char	qvrRelease[24];	// QVR: (netmismatch) its Quake VR release ("1.2.0-beta7"; "": not said)
 	int		driver;
 	int		ldriver;
 	struct qsockaddr addr;
@@ -302,6 +305,9 @@ typedef struct
 
 extern int hostCacheCount;
 extern hostcache_t hostcache[HOSTCACHESIZE];
+
+// QVR: (netmismatch) the last connect's refusal: the reason the server gave (CCREP_REJECT), "" none (net_main.c)
+extern char net_connectrefusal[256];
 
 
 typedef struct _PollProcedure

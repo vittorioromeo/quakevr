@@ -3549,6 +3549,90 @@ His words 2026-11-27: an interactive 3D position/scale/rotation gizmo in the arm
   piece's frame (`beastarmour::partFrame`, its size k?) wants a look. In the kit's 960x540 runs the window covers the middle
   of the screen: Look at the Part turns the view so the part is a quarter across.
 
+## toolbeast: the toolgun's Monsters page dresses beasts in armour (branch agent/toolbeast, 2026-11-27)
+
+His ask (2026-11-27): "Yes, add the armour options to the Monsters page" (armoured dogs, scrags, fiends, ogres came only
+from the skill's roll; the Armour/Pieces choices were only on the Armed Humanoid page).
+
+- **Panel** (`vr_toolgun_panel.cpp` spawnPage; VR and flat share it): Spawn > Monsters' grid has an **Armour** / **Pieces**
+  row under its tiles (the tiles 46 tall there instead of 52, their pictures 30 instead of 36: `tilePicture`). Armour:
+  None / Green / Yellow / Red / Random / **By Skill**; Pieces: Core (the beast's cuirass group and its helmet slot) / Full
+  (every slot of its kind) / Random (the core and about half the rest). The row is lit only while the spawn tool's choice
+  is a beast kind's (`toolgun::beastChosen`: `beastarmour::kindNamed(sel.model)`, so any kind beastarmour.txt lists),
+  Pieces only for Green..Random.
+- **Cvars**: `vr_toolgun_beast_armor` (default **5, By Skill**: today's behaviour, its own roll as on a map) and
+  `vr_toolgun_beast_pieces` (default 1, Full). Separate from the Armed Humanoid page's (`vr_toolgun_armed_*`, default None):
+  the defaults differ, and a beast's armour choice should not change what the humanoid page makes.
+- **Spawn** (`vr_toolgun_pick.inc` spawnChoice): with 0..4 chosen, the beast's own skill roll is held while it spawns (QC
+  `vr_ar_hold_roll`, as the arena holds a wave foe's; bound as `progs::bindings().arHoldRoll`), then the same
+  `VR_AgArmor_Toolgun` as the humanoid page's (`toolArmour`, shared) gives it: `VR_AgArmor_Give` already keeps a beast's
+  slots and widens its cuirass to its group. `VR_AgArmor_Toolgun` now precaches a beast's pieces (`VR_BeastArmour_Precache`,
+  which the held roll would have done). By Skill: no hold, no override. The scenes' spawns (`spawnEntryAt`) are unchanged.
+- **Tests**: `vr_toolgun_armed_armor_test` (map vrtesthall) now also does the beasts (`beastArmourTest`): rottweiler, ogre,
+  scrag, fiend, each By Skill (skill chances at 1: rolled, armoured), None (bare, roll held), Red Full (every slot), Green
+  Core (cuirass group + helmet), Random x4 (subset, core kept), roll held (`vr_ar_beast_rolls` unmoved) in every toolgun
+  case; one Random set strictly between core and full; defaults back. **70/0**. `vr_agarmor_test 15` 55/0.
+  `toolgun_panel_test.sh` FAILs only on its stick-press tool cycle (`Remove` every press: not this change; Spawn/Props tile
+  steps pass).
+- Scene: `toolgun_beasts` (vrtesthall, the toolgun, Red Full set).
+## revreload: the heavy revolver's VR reload: spent shells out first, slugs two at a time (branch agent/revreload, 2026-11-27)
+
+His note 2026-11-27: two options, on by default (Advanced VR Options > Weapons > Reloading > Heavy Revolver):
+- **Spent Shells First** (`vr_revolver_spent_first` 1): with the cylinder out, an eject (B/Y, the hand's push back, the
+  ejector rod) drops only the spent shells while any are in it; the live ones stay in their chambers (the clip unchanged).
+  The next eject, none spent then, drops the live ones as rounds to take again, as before. QC `VR_Revolver_Eject` shares
+  the path flat-screen play's reload already used (`vr_rv_keep_live`, vr_flatreload.qc: unchanged). The two motions wait
+  for the rod's stroke (0.35 s, `VR_Revolver_EjectReady`) before ejecting again, so one push doesn't drop the spent ones
+  and then the live ones a frame later; the button has no wait. Off: all at once and no wait, exactly as before.
+- **Slug Pairs** (`vr_revolver_shell_pairs` 1): the pouch (`VR_Reload_Take`) gives the revolver a taped pair of its blue
+  slugs (`vr_shell_pair.mdl` skin 1) when two or more are left and it has two or more places (empty or spent chambers),
+  else a single one, as the shotgun's pairs. At the load point (`VR_Revolver_LoadInto`) the pair goes into the nearest
+  empty chamber and the next nearest one at once, with the two-shell sound (`VR_Reload_ShellsIn` n 2) and each slug drawn
+  sliding into its own hole (two collect fx); with one chamber empty (a spent one not yet out), one goes in and the other
+  stays in the hand as a single slug. Off: a shell at a time; a loose pair (a shotgun's) loads one at a time, as before.
+- **Tests**: new `vr_rv_test 7` (rvreload, vr_revolver_test.qc; `developer 1;map e1m1;wait10;vr_rv_test 7`, `-QuitOn
+  "rvreload: [0-9]+ passed"`) 12/0: spent first by B/Y then the live ones, none spent all at once, the option off all at
+  once, the motions' guard; the pouch's pair into chambers 3-4, one place left a single slug, a pair with one empty chamber
+  keeps one in the hand, pairs off. `vr_rv_test 1` (rvtest) now runs with both options off (its steps are the old
+  behaviour) and restores them. Debug > Tests > Heavy Revolver: Reload Options Self-Test. Checklist scene `revolver_reload`.
+## netmismatch: a version mismatch is plain to see, in the browser and as a clean refusal; right trace symbols (branch agent/netmismatch, 2026-11-27)
+
+A player's PC flat <-> Quest joins "quit fast": the console had the refusal, then the server list, then
+`Host_Error: CL_Connect: connect failed` with a stack trace naming `qvr::admelee::...::swordHand` under SDL_main.
+
+- **The browser** (menu Server Browser, VR and flat; `slist`; `vr_mp_browse`): a server's search reply
+  (CCREP_SERVER_INFO) now carries, after NetQuake's fields, `"QVR"`, the network version it takes and its release
+  (`NET_QvrRelease`: `VERSION` plus `-dev` on a development build). Additive: older clients read none of it; only a
+  server that takes one version (`PRFL_QUAKEVR`, the connect check's condition) sends it. A row of another version
+  shows `vNN` instead of the ping; the line under the list (cursor on it) says "Needs Quake VR <release> (network version
+  N); this game is ... (network version M)." `slist` appends " needs Quake VR <release>". `vr_mp_browse` rows gain
+  `qvr= release= joinable=` (before `map=`/`name=`) and a `mp_browser_note: row=N ...` line. Servers before this
+  (1.2.0-beta6 and older) say nothing: unmarked; joining tells.
+- **The refusal**: the server's reason names its release and what to do ("This server runs Quake VR X (network
+  version 49), newer than your game (network version 48): update to Quake VR X to join."; older client / not Quake VR
+  variants). The client keeps it (`NET_ConnectRefusal`, net_main.c); an old server's reason ("...network version 46,
+  your game 48...") is reworded with the release of that version (frozen table `NET_QvrReleaseOf`: 42 beta1, 44
+  beta2, 46 beta3-5, 48 beta6). `CL_EstablishConnection` prints "Couldn't join <host>: <reason>" once and ends with
+  `Host_EndGame` (no trace) for any remote connect failure (refused, no response); `connect local` failing stays a
+  Host_Error. NET_Connect no longer prints the server list after a refusal. `m_return_reason` 32 -> 256 chars, drawn
+  word-wrapped on the Join Game page and the browser. Other refusals (full, banned, NetQuake's "Incompatible version")
+  go the same way.
+- **Trace symbols** (vr_crash.cpp `symbolTrusted`): the frame between SDL_main and `__scrt_common_main_seh` is
+  SDL2main's `main`, code without debug info: DbgHelp named the nearest function before it (`swordHand` in his
+  release build, `silk_NLSF_del_dec_quant` in a dev build). A name in this exe is kept only with the address's line or
+  the address inside the symbol's size; else `ironwail.exe+0x1146d51`. Other modules' (sizeless system exports) kept.
+  `VR_DescribeCallers` also looks up at the return address less one (the call's own line, as the crash report). The
+  crash report's frames use the same check ("?" and the module offset). Checked: `changelevel nosuchmap` prints
+  `SDL_main (main_sdl.c:223) < ironwail.exe+0x1146d51 < __scrt_common_main_seh`.
+- **What quitting printed**: nothing red or erroneous (a mock run: "Client player removed", "Wrote ironwail.cfg.", the
+  quit timings after the window is gone). The flash: the quit's menu sets key_dest to the console and each line printed
+  in `CL_Disconnect`/`Host_ShutdownServer` redrew the screen, the whole console (his earlier traces) over its
+  background for a frame. `Host_Quit_f` now sets `scr_disabled_for_loading` before them: no redraw while quitting.
+- **Tests**: `mp_test.py version` (mp_version) 12/0: C (vr_net_test_version 1) browses: the server's row qvr=48,
+  joinable=0, the note names the release; its join: one "Couldn't join" line, no Host_Error/trace/server list; A
+  browses: joinable=1, joins. `mp_browser` 11/0, `mp_lookup` 9/0.
+- **Open**: the old-server rewording (`NET_ConnectRefusal` on a beta2-beta6 reason) is untested (no old server in the
+  harness); the menu note's look is unreviewed (no screenshot taken).
 ## studiodrag (agent/studiodrag)
 A right-button drag in the flat Armour Studio turns the subject: across = `vr_armourstudio_turn` (the existing yaw from facing you, so
 no new yaw cvar), down = `vr_armourstudio_subject_pitch`, 0.5 deg a pixel; not over ImGui, not during a gizmo drag; Put Back also
@@ -3587,3 +3671,35 @@ channel as QC starts one (channel 1: the gun's, from the muzzle, with its gunfir
 (vr_audiotest_own.cpp): guncock.wav from the game's files through the settings' features, its level, brightness and
 attack per stage against the sound; PASS dry and with the reverb within 3 dB (it fails with `vr_snd_reverb_own 1`:
 -4.7 dB). `testkit::loadRaw` loads raw samples as S_LoadSound does (loadAt uses it).
+## instzip: the installer never installs an older QuakeVR.zip lying beside it (branch agent/instzip, 2026-11-27)
+
+The report: a 1.2.0-beta5 installer in Downloads found an old 1.2.0-beta2 `QuakeVR.zip` beside it and repaired the
+beta2 install from it (the details said `Package: ...\QuakeVR.zip`, `Repairing ... 1.2.0-beta2`); the PC ran beta2
+(network version 44) and couldn't join the Quest's beta5 (46). `StartupOptions.Parse` took any package beside the exe.
+
+- **Beside package** (`LocalPackages.FindBeside(dir, ownVersion)` -> `BesidePackage`; `LocalPackages.Judge`): its manifest
+  version against `InstallerBuild.Version` by number and pre-release suffix alone (`ReleaseVersion.Short`; the installer
+  has no commit). Same: used as before, nothing said. Newer: used, the details say "newer than this installer's X: used".
+  Older or no readable version: not put in `Package`; the feed is asked as with no package (a prerelease installer's
+  own tag feed first, so it downloads its own version) and the Install details say "Found QuakeVR.zip 1.2.0-beta2 beside
+  the installer, older than this installer's 1.2.0-beta5: not used, downloading 1.2.0-beta5 instead" (`LogBeside`); the
+  Options page's package card adds "QuakeVR.zip beside the installer is 1.2.0-beta2, older than this installer: it is not
+  used". Offline (no feed: `SetFeedState(Unavailable)` -> `AskBesideWhenOffline`): one Yes/No box, once, naming both
+  versions and that players on the installer's version can't join it; Yes -> `UsePackage` (details: "used, as you
+  chose"), No -> nothing installed from it. An installer with no readable version (bare dev build) uses it as before. An
+  explicit `--package` or a picked package is never judged (the player's choice), but the card names its version and
+  "older than / newer than this installer's X". The screenshot harness still renders whatever is beside it.
+- **The version is always visible**: the Install page's title is "Updating / Repairing / Installing Quake VR: UNLEASHED
+  1.2.0-beta5" (`SetRunVersion`: the target's version at start, the package manifest's once read); the Options card's
+  title "Installing 1.2.0-beta5 from a local package" / "Downloading 1.2.0-beta5"; the Update screen's Repair line
+  "This is the latest version (X)".
+- **Other paths**: Repair and Update read the same `_options.Package` (covered). The Quest step's `QuakeVR.apk` beside
+  Setup had the same hole: now used only when it matches the release list's `quest` component (size, SHA-256:
+  `QuestTarget.LocalApkMatches`), else the release's APK is downloaded with a details line; unchecked (used) when no
+  list was read (offline, a same-version local package). The console `qvr-setup` never looks beside itself for a
+  package (only `--package`); its Quest command's APK fallback beside the exe is unchanged (a developer tool). The
+  game's own update check (vr_update.cpp) only shows a notice from latest.json against its VERSION: no package.
+- SelfTest "beside package: ..." (an older zip -> Download, then a mocked host's latest.json + zip downloaded and
+  installed: the record says beta5; offline -> Ask, yes -> Use, no -> Skip; same -> Use with no note; dev build's own;
+  newer -> Use with a note; a manifest with no version -> Unknown -> Download / Ask; the APK check). Full SelfTest 65/65;
+  the screenshot harness renders every page.

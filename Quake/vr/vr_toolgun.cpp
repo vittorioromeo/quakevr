@@ -32,6 +32,7 @@
 
 #include "vr_ad.hpp" // AD support
 #include "vr_backend.hpp"
+#include "vr_beastarmour.hpp"
 #include "vr_box3d.hpp"
 #include "vr_brushes.hpp"
 #include "vr_bullettime.hpp"
@@ -1914,6 +1915,11 @@ void qvr::toolgun::armArmedSpawn(edict_t* e)
     armedArmour(e);
 }
 
+bool qvr::toolgun::beastChosen()
+{
+    return tg.sel.valid && !tg.sel.armed && beastarmour::kindNamed(tg.sel.model);
+}
+
 namespace
 {
 // vr_toolgun_select <n | label | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), the entry with
@@ -2124,10 +2130,93 @@ void armedInfectedTest_f()
     qvr::testkit::verdict("toolgun infected test", passed, failed + (vr_toolgun_armed_infected.value != 0.f ? 1 : 0));
 }
 
+// The armour test's beasts (ROUND26.md, "toolbeast"): the Monsters page's Armour and Pieces (vr_toolgun_beast_armor,
+// _pieces) on a rottweiler, an ogre, a scrag and a fiend spawned as the spawn tool does (spawnChoice), the skill's chance
+// made certain meanwhile: By Skill their own roll (armoured); None bare, Red Full every slot of the kind, Green Core its
+// cuirass group and helmet, Random Random a type and the core and some of the rest, each with the skill's roll held
+// (vr_ar_beast_rolls unmoved); the page's choices and the skill's chances back after.
+template <typename Verdict>
+void beastArmourTest(Verdict& verdict, const glm::vec3& at, const glm::vec3& angles)
+{
+    const progs::FieldOffsets& f = fields();
+    const float* const rolls = progs::bindings().arBeastRolls;
+    cvar_t* const chances[] = {&vr_agarmor_skill0, &vr_agarmor_skill1, &vr_agarmor_skill2, &vr_agarmor_skill3, &vr_agarmor_beasts};
+    char kept[5][32];
+    for(int i = 0; i < 5; i++)
+    {
+        q_strlcpy(kept[i], chances[i]->string, sizeof(kept[i]));
+        Cvar_SetValueQuick(chances[i], 1.f);
+    }
+    constexpr const char* beasts[] = {"monster_dog", "monster_ogre", "monster_wizard", "monster_demon1"};
+    struct Case
+    {
+        int armour, pieces;
+        const char* what;
+    };
+    constexpr Case cases[] = {{5, 1, "By Skill"}, {0, 1, "None"}, {3, 1, "Red Full"}, {1, 0, "Green Core"}, {4, 2, "Random Random"},
+        {4, 2, "Random Random"}, {4, 2, "Random Random"}, {4, 2, "Random Random"}};
+    bool between = false; // a Random pieces set neither the core nor every slot (one at least, over every beast)
+    for(const char* classname : beasts)
+    {
+        int entry = -1;
+        for(int i = 0; i < spawnableTotal && entry < 0; i++)
+        {
+            entry = !ZA_STRCMP(spawnables[i].classname, classname) ? i : -1;
+        }
+        toolgun::selectSpawnable(entry, false);
+        verdict(entry >= 0 && toolgun::beastChosen(), va("%s: the Monsters page's choice, a beast's", classname));
+        for(const Case& c : cases)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_beast_armor, static_cast<float>(c.armour));
+            Cvar_SetValueQuick(&vr_toolgun_beast_pieces, static_cast<float>(c.pieces));
+            const float before = rolls ? *rolls : -1.f;
+            edict_t* e = entry >= 0 ? spawnChoice(tg.sel, at, angles) : nullptr;
+            const progs::ServerVm vm;
+            const int type = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)) : -1;
+            const int mask = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) : -1;
+            const int slots = e ? beastarmour::slots(e) : 0;
+            const int core = (3 | (e ? beastarmour::cuirassGroup(e) : 0)) & slots;
+            const bool rolled = rolls && *rolls == before + 1.f;
+            bool ok = e && slots > 0 && rolled == (c.armour == 5);
+            if(c.armour == 5)
+            {
+                ok = ok && type >= 1 && type <= 3 && mask != 0 && (mask & ~slots) == 0;
+            }
+            else if(c.armour == 0)
+            {
+                ok = ok && type == 0 && mask == 0;
+            }
+            else
+            {
+                const bool typeOk = c.armour < 4 ? type == c.armour : type >= 1 && type <= 3;
+                const bool maskOk = c.pieces == 0 ? mask == core : c.pieces == 1 ? mask == slots : (mask & core) == core && (mask & ~slots) == 0;
+                ok = ok && typeOk && maskOk;
+                between = between || (c.pieces == 2 && mask != core && mask != slots);
+            }
+            verdict(ok, va("%s, %s: type %d, pieces %d (slots %d, core %d), %s", classname, c.what, type, mask, slots, core,
+                            rolled ? "rolled" : "roll held"));
+            if(e)
+            {
+                removeTarget(NUM_FOR_EDICT(e), true);
+            }
+        }
+    }
+    verdict(between, "beasts: Random pieces some of the rest (neither the core alone nor every slot, once at least)");
+    for(int i = 0; i < 5; i++)
+    {
+        Cvar_SetQuick(chances[i], kept[i]);
+    }
+    Cvar_SetQuick(&vr_toolgun_beast_armor, vr_toolgun_beast_armor.default_string);
+    Cvar_SetQuick(&vr_toolgun_beast_pieces, vr_toolgun_beast_pieces.default_string);
+    toolgun::selectSpawnable(-1, false);
+    verdict(vr_toolgun_beast_armor.value == 5.f && vr_toolgun_beast_pieces.value == 1.f, "beasts: Armour By Skill, Pieces Full again");
+}
+
 // vr_toolgun_armed_armor_test: the Armed Humanoid page's Armour and Pieces on what it spawns: a grunt and an enforcer
 // (the table's rows 0 and 1), every Armour (None .. Random) by every Pieces (Chest+Helmet, Full, Random), spawned ahead of
-// the player as the spawn tool does (spawnChoice), checked and removed; then Reset and Clear putting both back to their
-// defaults. Ends on "toolgun armour test: N passed, M failed".
+// the player as the spawn tool does (spawnChoice), checked and removed; the Monsters page's on the beasts
+// (beastArmourTest); then Reset and Clear putting both back to their defaults. Ends on "toolgun armour test: N passed,
+// M failed".
 void armedArmourTest_f()
 {
     int passed = 0, failed = 0;
@@ -2184,6 +2273,7 @@ void armedArmourTest_f()
             }
         }
     }
+    beastArmourTest(verdict, at, angles);
     Cvar_SetValueQuick(&vr_toolgun_armed_armor, 3.f);
     Cvar_SetValueQuick(&vr_toolgun_armed_pieces, 2.f);
     armedReset_f();

@@ -229,6 +229,16 @@ void CL_EstablishConnection (const char *host)
 	CL_Disconnect ();
 
 	cls.netcon = NET_Connect (host);
+	if (!cls.netcon && q_strcasecmp (host, "local"))
+	{
+		// QVR: (netmismatch) a server that refused (its reason: another Quake VR version, full, banned...) or didn't
+		// answer (the driver said so): expected, said once and plainly, the game ended without Host_Error's stack trace
+		// (kept for a failed "local", a real error). The menu shows the reason too (m_return_reason).
+		const char *refusal = NET_ConnectRefusal ();
+		if (*refusal)
+			Con_Printf ("\nCouldn't join %s: %s\n\n", host, refusal);
+		Host_EndGame ("CL_Connect: couldn't join %s%s%s", host, *refusal ? ": " : "", refusal);
+	}
 	if (!cls.netcon)
 		Host_Error ("CL_Connect: connect failed");
 	Con_DPrintf ("CL_EstablishConnection: connected to %s\n", host);
