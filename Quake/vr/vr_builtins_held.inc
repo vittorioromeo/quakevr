@@ -1032,8 +1032,9 @@ void PF_meleeshow()
 }
 
 // float(entity weapon, float what, vector a, vector b, float v) meleeshowfoe: Show Melee Arcs' armed humanoid swings
-// (vr_meleeshow.hpp addFoe; QC vr_meleerules.qc VR_MeleeArc_ShowSwings, sent only while vr_enemy_melee_arc_show is on);
-// world records nothing. Returns the frames the view drew any (meleeshow::foeDrawnFrames: the tests).
+// (vr_meleeshow.hpp addFoe; QC vr_meleerules.qc VR_MeleeArc_ShowSwings, sent only while vr_enemy_melee_arc_show is on, or
+// a remote client draws them); world records nothing. Returns the frames the view drew any (meleeshow::foeDrawnFrames: the
+// tests); world with what -2: 1 if a remote client draws them (meleeshow::remoteWanted: QC VR_MeleeArc_Shown), else 0.
 void PF_meleeshowfoe()
 {
     edict_t* w = G_EDICT(OFS_PARM0);
@@ -1041,6 +1042,11 @@ void PF_meleeshowfoe()
     {
         meleeshow::addFoe(NUM_FOR_EDICT(w), static_cast<int>(G_FLOAT(OFS_PARM1)), geom::vec(G_VECTOR(OFS_PARM2)),
             geom::vec(G_VECTOR(OFS_PARM3)), G_FLOAT(OFS_PARM4));
+    }
+    else if(static_cast<int>(G_FLOAT(OFS_PARM1)) == -2)
+    {
+        G_FLOAT(OFS_RETURN) = meleeshow::remoteWanted() ? 1.f : 0.f;
+        return;
     }
     G_FLOAT(OFS_RETURN) = static_cast<float>(meleeshow::foeDrawnFrames());
 }

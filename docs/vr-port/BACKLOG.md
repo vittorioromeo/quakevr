@@ -28,7 +28,6 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Baseline failures, 2026-11-26 list, what is left** (agrunt 203 fixed: ROUND26 "basefix2"; `ragdoll_grab` and teleporters: "basefix1"/"basefix2"): `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14; agrunt 74 (78 vs 80%); the recoil test has 4 slots off the old defaults; agrunt 16 (the drawn grip 2.72 off, limit 2.5) and agrunt 65 (flaky) as in basefix2.
 - **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` points to `qvr-kit/relit`); no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
 - **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
-- **Melee arcs**: armed humanoids' swing trail is drawn on the host view only, not on remote MP clients (ROUND25.md "Show Melee Arcs").
 
 - **Flaky/stale lists below, from 11-12 to 11-21 (to recheck: overnight flaky sweep queued 2026-11-27)**.
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`

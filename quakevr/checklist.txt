@@ -35,17 +35,6 @@ On a Steam Frame (or streaming to one), the controllers get their own buttons: A
 Flat-screen or VR: start once with -glsafe; the game starts, vr_glsafe_status lists "vertex-only depth programs (an empty fragment shader instead) off (safe mode)", and e1m1 looks the same as without it. {test:hub_start}
 Play Dwell's d1m1 and Quoth's kellbase1 up close: brick walls, door frames and pillar panels have depth (Setup's reliefs), no shimmering or wrong-way lighting; if in doubt turn Generated Companion Maps (VR Settings > Graphics) off and load the next map. {test:hub_start}
 ## Loading and collision cache
-After installing a release (PC or Quest), the first start into the hub goes straight in: no long "Preparing vrstart" collision wait, and Debug > Profiling and Memory > Cache Info shows the hulls and lightgrid lines read from the shipped cache. {test:hub_start}
-Debug > Profiling and Memory: turn "Read the Shipped Cache" off, then on; with it off a hub load with an empty cache builds its collision and light grid again (slower), with it on it reads them. {test:hub_start}
-Flat-screen or VR: start the game twice and enter the hub both times: the second time the hub should load in a few seconds (on the Quest about 2-3 s instead of about 12 s once its files exist); walking, crouching and lying down against walls, grates and gaps work as before. {test:hub_start}
-Flat-screen or VR: Load a map whose collision is not cached yet: the loading panel says what it is building (e.g. "Building collision for crouching (3 of 6)") and its bar keeps moving until the map starts. {test:load_collision_cold}
-Right after a map loads whose collision was built from scratch, crouch and lie down at once and crawl under something low: a short loading panel the first time is fine, but never pass through a wall or floor or freeze, and monsters near walls must not get stuck. {test:load_collision_cold}
-Flat-screen or VR: the hub's open grass and the cliff faces round the lake are simplified for cheaper collision: walk and look round the island's open ground and along the cliffs; the grass and cliffs should look as before, with no new spots where you snag on flat or gently sloped ground. {test:vrstart}
-Flat-screen or VR: On the hub, lie down and crawl around the south-west near the shore (around x -550, y 1000-1200): no invisible wall where there's nothing to bump into. {test:hub_start}
-Flat-screen or VR: start ironwail.exe from Quake VR's folder by double-clicking it (or a shortcut of your own with no -game): the hub and Quake VR's hands and weapons are there as with Setup's shortcut, and the console's first lines say "Quake VR's game folder added". {test:hub_start}
-Flat-screen or VR: Debug > Diagnostics > Preview: Game Data Missing Notice shows the broken-install warning in red in the menus' top-right box (then vr_gamedata_notice 0 to end it). {test:hub_start}
-Flat-screen: put an older QuakeVR.zip (e.g. 1.2.0-beta2) beside the new Setup and run it online: it downloads its own version, the details say the zip beside it is older and not used, and the Install page's title names the version being installed. With the network off, a Yes/No box names both versions: No installs nothing from it, Yes installs the older one and the details say so. {test:hub_start}
-Flat-screen: Setup beside its own QuakeVR.zip (the release folder) installs from it with no download, and the Options card says "Installing <version> from a local package". {test:hub_start}
 ## Quest performance and options
 On the Quest, VR Settings > Scaling: turn SpaceWarp on and play the hub, a gib fight and the terrace for a minute each: motion looks as smooth as at 72 Hz, no stutter at smooth or snap turns or when opening and closing the menu (it shows at the full rate), no smearing of the world while walking; look for wobbling edges on your hands, the gun and moving monsters, and judder on head-fixed text. Say where you still feel stutter (it decides which GPU or CPU fix comes next). {test:quest_gibfight}
 On the Quest, Quest Foveation: High (Top) blurs the top of the view (sky, ceilings) more than High while the lower middle stays sharp, at least as smooth as High, and Show Foveation's pattern sits lower; Shift (advanced) at -15 and +15 moves the sharp middle down and up, no crash when changing it. {test:quest_foveation}
@@ -53,9 +42,7 @@ On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution
 
 [2. Flat screen]
 ## Grab, hold and push
-Flat-screen: grab a crate with H and walk back, forward, sideways and turn with it, best on a high refresh rate monitor: the hands and arms should stay steady on the crate with no shaking. {test:flat_grab_pull}
 ## Spear and Crystal Lance
-Flat-screen: flip the spear's grip (B) and raise the guard: the spear stays flipped across the view; tune the Flipped Spear Other Hand Up / Out / Pitch / Yaw / Roll rows (Tunables > Flatscreen) and see the other hand move on the flipped pole while held, guarding and thrusting. {test:flat_spear}
 
 [3. Tutorial and VR interface]
 ## Tutorial
@@ -201,6 +188,7 @@ Flat-screen or VR: host a game on one device and, on the other, type vr_net_test
 Flat-screen or VR: join that row anyway: you're back at the browser with one plain reason under the list ("This server runs Quake VR ... update to ..."), and the console has it once, with no Host_Error or stack trace. After a failed join, quitting right away flashes no console text over the background. {test:hub_start}
 Host a deathmatch on the PC with a few bots and join it from the Quest standalone; mid-game take the headset off for 20-30 s (or sit in the Quest system menu), then put it back on: you are still in the game and catch up, and neither console says "overflow" (if one ever does, the line now says which buffer and its sizes: note it). {test:mp_dm_passive}
 Join a coop game from the Quest standalone and have the PC host change level: your slower map load no longer drops you; with voice chat and the weapon wheel in use over a weak Wi-Fi spot, no disconnect either. {test:mp_coop_passive}
+Flat-screen or VR: host a coop game on vrtesthall and join it from a second device with Show Melee Arcs on there (the host's own may be off); when an armed sword or axe grunt swings at either of you, the joined device draws its fading swing trail too (white winding up, yellow in the swing, red when it lands), as the host's view does. {test:agrunt_melee_arcs}
 
 [12. Recording and dev tools]
 ## Takes
