@@ -64,6 +64,9 @@ struct Stats
     double ns{0.};         // the model tests' time
     long long builds{0};
     double buildMs{0.};
+    long long shapes{0};   // drawn shapes made (vr_hitmodel_drawn: shapeOf), drawn ones, and their time
+    long long shapesDrawn{0};
+    double shapeNs{0.};
 };
 inline Stats stats;
 
@@ -145,6 +148,9 @@ struct Drawn
     const aliashdr_t* hdr{nullptr};
     int pose1{0}, pose2{0};
     float blend{0.f};
+    // The track's lerp before (its first pose, -1 none; its time) and this lerp's time: the spline's keys (shapeOf)
+    int pose0{-1};
+    float span0{0.f}, span1{0.1f};
     glm::vec3 origin{0.f}, angles{0.f};
     // Its vertices as stored (bytes) to the world: A * v + b; normals: R * (n / netScale).
     glm::mat3 A{1.f}, Ainv{1.f}, R{1.f};
@@ -159,6 +165,9 @@ struct Drawn
     // hierarchy refit to them is kept by it (vr_hitmodel.cpp's skinBoundsOf).
     int num{0};
     za::U32 build{0};
+    // `skinned` is its lerp as the renderer draws it (vr_hitmodel_drawn: animsmooth::serverPoints, the spline and the
+    // skeleton rebuild), not a ragdoll or an armed body: relerp lays another lerp on in its place.
+    bool shaped{false};
 };
 
 inline bool checkNoLerp = false; // (vr_hitmodel_check: the model at its frame and origin, for comparison)
@@ -201,10 +210,11 @@ struct Verts
 }
 
 const Mesh* meshOf(int index, const qmodel_t* model, const aliashdr_t*& hdr);
-// `asDrawn` false: an armed humanoid's animation frame, not its body as drawn (drawnpose::armedMesh; vertexPoint's).
-bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn = true);
+// `asDrawn` false: an armed humanoid's animation frame, not its body as drawn (drawnpose::armedMesh; vertexPoint's), nor
+// the drawn shape. `shape` false: the frames' lerp of the stored bytes, not the drawn shape (shapeOf; a lerp laid on next).
+bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn = true, bool shape = true);
 // d (drawnOf's) with the client's drawn lerp laid on in place of its own (poses, blend, place, turn; a skinned body
-// kept): false for poses past its model's.
+// kept, the drawn shape dropped: the frames' lerp of the bytes): false for poses past its model's.
 bool relerp(Drawn& d, const DrawnLerp& lerp);
 // The body part (a VR_REGION_*) of the triangle with `model`'s .mdl vertices a, b, c: its rig's bones'
 // (ragdoll::triangleRegion); VR_REGION_NONE with no rig that fits (`numverts`) or no part it holds most of.
@@ -217,6 +227,8 @@ struct Track
     int pose{0}, prevPose{0};
     double poseStart{0.};
     float poseDur{0.1f};
+    int pose0{-1};      // the lerp before this one's first pose and its time (R_AnimHistoryPush's rule; -1 / 0 none)
+    float span0{0.f};
     bool step{false};
     glm::vec3 origin{0.f}, prevOrigin{0.f}, angles{0.f}, prevAngles{0.f};
     double moveStart{0.};

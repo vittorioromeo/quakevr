@@ -18,6 +18,7 @@
 #include "vr_rigpose.hpp"
 #include "vr_strings.hpp"
 #include "vr_testkit.hpp"
+#include "vr_tunables.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
@@ -1524,7 +1525,21 @@ const char* debrisModel(Kind& k, int code)
 }
 } // namespace
 
+namespace
+{
+// shotPiece with the pieces placed on the client's drawn lerp (`lerp`; null: the server's, shotPiece's): vr_drawnhits_check's
+// answer the drawn picture gives.
+int shotPieceOn(edict_t* ent, const float* at, const float* dir, int mask, const hitmodel::DrawnLerp* lerp);
+} // namespace
+
 int shotPiece(edict_t* ent, const float* at, const float* dir, int mask)
+{
+    return shotPieceOn(ent, at, dir, mask, nullptr);
+}
+
+namespace
+{
+int shotPieceOn(edict_t* ent, const float* at, const float* dir, int mask, const hitmodel::DrawnLerp* lerp)
 {
     const Kind* k = ready(ent);
     const glm::vec3 d = geom::safeNormalize(geom::vec(dir), glm::vec3{0.f}, 1e-6f);
@@ -1548,7 +1563,7 @@ int shotPiece(edict_t* ent, const float* at, const float* dir, int mask)
     for(int i = 0; i < k->numParts; i++)
     {
         Placed pl;
-        if(!k->slot[i].on || !(mask & (1 << bitOf(k->slot[i]))) || !place(ent, k->slot[i], pl))
+        if(!k->slot[i].on || !(mask & (1 << bitOf(k->slot[i]))) || !place(ent, k->slot[i], pl, lerp))
         {
             continue;
         }
@@ -1558,6 +1573,7 @@ int shotPiece(edict_t* ent, const float* at, const float* dir, int mask)
     }
     return found;
 }
+} // namespace
 
 int pieceAt(edict_t* ent, const float* at)
 {
@@ -1634,6 +1650,127 @@ void plateWhere(edict_t* ent, int code, int what, float* out)
     out[2] = v.z;
 }
 
+namespace
+{
+// vr_drawnhits_check (ROUND26.md "drawnhits"): each frame a watched beast is drawn, a shot at each drawn piece's middle
+// (from outside, along the line from the body's middle through it) where the drawn picture shows that piece first on the
+// line (the drawn pieces crossed in turn: another in front is "hidden", not counted), as the server takes it: the hit
+// model's segment (the body it meets) and shotPiece (the piece it struck). Struck that piece, another, none, or missed
+// the body. A shot whose skin crossing comes before the drawn piece (shotPiece's rule with the drawn pieces: the body
+// shown over it) is not counted ("by the skin"). And how far the server's piece is from the drawn one (place without the client's lerp: pieceAt's, the
+// debris' start).
+struct HitCheck
+{
+    int num{0};
+    double lastTime{-1.0};
+    int frames{0}, shots{0}, own{0}, other{0}, none{0}, missed{0}, hidden{0}, skin{0};
+    double offSum{0.};
+    float offMost{0.f};
+    int offCount{0};
+};
+HitCheck hitCheck;
+constexpr float hitCheckReach = 64.f; // units: the shot from this far out, to as far in
+// The share struck to pass: the drawn shape 98.5-100% a case, its roll 97.3% (the client's clock a fraction of a frame
+// behind the server's; a lerp begun out of turn); the stored frames 85-96% (ROUND26.md "drawnhits")
+constexpr float hitCheckLeast = 0.965f;
+
+void hitSample(edict_t* ent, const Kind& k, const Slot& s, const Placed& drawn, int pieces, const hitmodel::DrawnLerp* lerp)
+{
+    HitCheck& c = hitCheck;
+    const glm::vec3 centre = drawn.origin + drawn.axes * ((s.lo + s.hi) * 0.5f) * drawn.scale;
+    Placed served;
+    if(place(ent, s, served))
+    {
+        const float off = glm::length(served.origin + served.axes * ((s.lo + s.hi) * 0.5f) * served.scale - centre);
+        c.offSum += off;
+        c.offMost = za::max(c.offMost, off);
+        c.offCount++;
+    }
+    const glm::vec3 mid = (geom::vec(ent->v.absmin) + geom::vec(ent->v.absmax)) * 0.5f;
+    const glm::vec3 out = geom::safeNormalize(centre - mid, glm::vec3{0.f, 0.f, 1.f}, 1e-6f);
+    const glm::vec3 a = centre + out * hitCheckReach, b = centre - out * hitCheckReach;
+    // The piece the drawn picture shows first on the line
+    int first = -1;
+    float best = 1.5f;
+    for(int i = 0; i < k.numParts; i++)
+    {
+        Placed pl;
+        if(!k.slot[i].on || !(pieces & (1 << bitOf(k.slot[i]))) || !place(ent, k.slot[i], pl, lerp))
+        {
+            continue;
+        }
+        const float t = crossing(k.slot[i], pl, a, b);
+        first = t <= 1.f && t < best ? bitOf(k.slot[i]) : first;
+        best = t <= 1.f && t < best ? t : best;
+    }
+    if(first != bitOf(s))
+    {
+        c.hidden++;
+        return;
+    }
+    hitmodel::Hit h;
+    if(!hitmodel::segment(ent, a, b, hitmodel::tolerance(hitmodel::Class::Guns), 1.f, hitmodel::Class::Guns, h))
+    {
+        c.shots++;
+        c.missed++;
+        return;
+    }
+    // (the skin before the piece on this line, the drawn pieces placed: the body shown first, no piece struck there)
+    const glm::vec3 dir = -out;
+    if(shotPieceOn(ent, &h.point[0], &dir[0], pieces, lerp) != bitOf(s))
+    {
+        c.skin++;
+        return;
+    }
+    c.shots++;
+    const int bit = shotPiece(ent, &h.point[0], &dir[0], pieces);
+    c.own += bit == bitOf(s) ? 1 : 0;
+    c.other += bit != bitOf(s) && bit >= 0 ? 1 : 0;
+    c.none += bit < 0 ? 1 : 0;
+}
+
+void drawnHitsCheck_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_drawnhits_check <classname> | 0 [label]\n");
+        return;
+    }
+    HitCheck& c = hitCheck;
+    if(ZA_STRCMP(Cmd_Argv(1), "0") != 0)
+    {
+        c = HitCheck{};
+        if(!sv.active)
+        {
+            return;
+        }
+        const progs::ServerVm vm;
+        for(int num = qcvm->num_edicts - 1; num > 0 && c.num == 0; num--)
+        {
+            edict_t* ent = EDICT_NUM(num);
+            if(!ent->free && !ZA_STRCMP(PR_GetString(ent->v.classname), Cmd_Argv(1)))
+            {
+                c.num = num;
+            }
+        }
+        Cvar_Set("vr_drawnhits_result", "-1");
+        return;
+    }
+    const char* label = Cmd_Argc() > 2 ? Cmd_Argv(2) : "check";
+    const float struck = c.shots ? static_cast<float>(c.own) / static_cast<float>(c.shots) : 0.f;
+    const int result = c.shots == 0 ? -1 : struck >= hitCheckLeast ? 1 : 0;
+    Con_Printf("drawnhits: %s: %d frames, %d shots at the drawn pieces' middles (%d more hidden by another, %d by the skin): %d "
+               "struck that piece, %d another, %d none, %d missed the body; the server's piece off the drawn one: mean %.2f, most "
+               "%.2f units (vr_hitmodel_drawn %g): %s\n", label, c.frames, c.shots, c.hidden, c.skin, c.own, c.other, c.none, c.missed,
+        c.offCount ? c.offSum / c.offCount : 0., static_cast<double>(c.offMost),
+        static_cast<double>(vr_hitmodel_drawn.value), result == 1 ? "struck" : result == 0 ? "TOO FEW STRUCK" : "no pieces drawn");
+    Con_Printf("drawnhits struck: %s: %.1f%% (at least %.1f%%)\n", label, static_cast<double>(struck * 100.f),
+        static_cast<double>(hitCheckLeast * 100.f));
+    Cvar_Set("vr_drawnhits_result", va("%d", result));
+    c = HitCheck{};
+}
+} // namespace
+
 void beginRelink()
 {
     numEnts = 0;
@@ -1660,6 +1797,12 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
     // the server's frames: the pieces move with the drawn body, in slow motion too (ROUND26.md, "doglerp").
     hitmodel::DrawnLerp drawnLerp;
     const hitmodel::DrawnLerp* lerp = hitmodel::clientLerp(e, drawnLerp) ? &drawnLerp : nullptr;
+    const bool sample = hitCheck.num == num && cl.time != hitCheck.lastTime; // (vr_drawnhits_check: once a frame)
+    if(sample)
+    {
+        hitCheck.lastTime = cl.time;
+        hitCheck.frames++;
+    }
     for(int i = 0; i < k->numParts && numEnts < maxEnts && cl_numvisedicts < MAX_VISEDICTS; i++)
     {
         Slot& s = k->slot[i];
@@ -1670,6 +1813,10 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
         if(!s.on || !(pieces & (1 << bitOf(s))) || notAlone || !place(ent, s, pl, lerp))
         {
             continue;
+        }
+        if(sample && !studio)
+        {
+            hitSample(ent, *k, s, pl, pieces, lerp);
         }
         qmodel_t* m = Mod_ForName(s.drawn, false);
         if(!m)
@@ -2624,6 +2771,7 @@ void init()
     Cmd_AddCommand("vr_beastarmour_info", info_f);
     Cmd_AddCommand("vr_beastfit_test", fit::test_f);
     Cmd_AddCommand("vr_beastarmour_lookcheck", lookCheck_f);
+    Cmd_AddCommand("vr_drawnhits_check", drawnHitsCheck_f);
 }
 
 } // namespace qvr::beastarmour
