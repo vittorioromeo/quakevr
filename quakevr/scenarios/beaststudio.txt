@@ -1,0 +1,9 @@
+# beaststudio: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (ARMOUR_STUDIO.md; ROUND26.md "beaststudio")
+title Armour Studio with a beast: the armoured rottweiler ahead, its pieces and leather junctions to tweak
+map vrtesthall
+god
+notarget
+cvar vr_armourstudio_kind 7
+cvar vr_armourstudio_tier 2
+cmd vr_armourstudio
+hint Debug > Tools > Armour Studio: the rottweiler stands ahead (Kind: Rottweiler, Ogre, Scrag, Fiend, Death Guard, Crossbow Knight). Pick a part and move, turn, scale or taper it; pick a part's leather junction to turn it off, widen, thicken or sag it. Play an animation: the leather bends with him.
