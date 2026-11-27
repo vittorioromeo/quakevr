@@ -36,6 +36,8 @@ struct Offset
 // vr_agarms: a kind's hand's grip frame for every weapon (the Grip Editor's All Weapons entry; its slot allWeapons).
 inline constexpr int allWeapons = -2;
 [[nodiscard]] Offset global(int kind, int hand);
+// The shipped default of an entry (slot allWeapons: the kind's global one), whatever vr_agrunt_grips changed (zero: none).
+[[nodiscard]] Offset shipped(int kind, int slot, int hand);
 
 // The editor's subject this frame: the armed monster nearest the view (relinkArms tells each one; `dist` its distance).
 void noteSubject(int kind, int slot, int slotL, float dist);

@@ -1475,6 +1475,14 @@ void poseDataWindow()
     {
         ImGui::EndDisabled();
     }
+    if(st.note.row >= agpose::numKinds && st.note.ent == st.subject && st.subject > 0)
+    {
+        // (AD's knights: their rows take another kind's keys and grips; adrigfix)
+        const char* rowName = st.note.row == 4 ? "Death Guard" : st.note.row == 5 ? "Crossbow Knight" : "this row";
+        ImGui::TextWrapped("The subject (%s, row %d) takes the %s's pose keys and grips: an edit here moves the %s, the "
+                           "Death Guard and the Crossbow Knight.", rowName, st.note.row, agpose::kindTitle(st.note.kind),
+                           agpose::kindTitle(st.note.kind));
+    }
     ImGui::Checkbox("Follow the Subject", &st.pdFollow);
     helpMarker("With the Pose Keys tool: the key is the subject's own kind and weapon class (and, when the tool is picked, "
                "the pose it is in); the subject is held in the pose picked here.");

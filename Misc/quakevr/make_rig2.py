@@ -106,6 +106,9 @@ DEFAULTS = dict(
     shoulder_web=11.0,  # units from the shoulder joint
     region_rules=[],  # (bone, rule(rest place, region's bone) -> bool): the body's vertices a rule gives a bone (the helmet's)
     region_fix={},  # vertex -> bone: a vertex the rules put on the wrong side of a seam (vr_rig2_check's details)
+    islands=[],  # bones whose region's detached pieces (no edge to the piece nearest the bone) go to the region round them
+    regions_from=None,  # (rig2 base, n): the first n vertices' regions read from that rig (the same body, vertex for vertex)
+    regions_keep=[],  # ... except where both rigs say one of these bones (this rig's own seams among them kept)
     rigid_fix={},  # vertex -> bone: rigid on it, no blend (a shoulder pad: armour turns whole with its arm)
     weights_fix={},  # vertex -> {bone: weight}: painted, kept (a hip's side above the joint: half the thigh's)
     ties=[],  # groups of vertices given their average weights (the back of a knee: its triangle turns as one)
@@ -350,6 +353,8 @@ DCROSSBOW_SKELETON = [
     {'name': 'weapon', 'parent': 'hand_r', 'joint': 'fixed', 'pivot': (7.1, -7.8, 6.3), 'end': (20.7, 13.8, -10.7)},
 ]
 
+AD_ARMS = ['%s_%s' % (b, s) for s in 'lr' for b in ('clavicle', 'upperarm', 'forearm', 'hand')]
+
 
 RIGS = {
     'hknight': dict(build='vrhknight', models=['vrhknight'], skeleton=HKNIGHT_SKELETON,
@@ -397,12 +402,15 @@ RIGS = {
     'dguard': dict(build='vrdguard', models=['vrdguard'], skeleton=DGUARD_SKELETON, gun=list(range(544, 585)),
                    thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
                               forearm=2.8, hand=2.0, thigh=4.0, shin=3.0, foot=2.6),
-                   max_hops=3, weld_gun=False),
+                   # (the fists rest on the tabard: its vertices beside them took the arm's region; adrigfix)
+                   islands=AD_ARMS, max_hops=3, weld_gun=False),
     'dcrossbow': dict(build='vrdcrossbow', models=['vrdcrossbow'], skeleton=DCROSSBOW_SKELETON,
                       gun=list(range(772, 1120)), poses_from='progs/vrdguard.mdl',  # (the death guard's poses)
                       thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
                                  forearm=2.8, hand=2.0, thigh=4.0, shin=3.0, foot=2.6),
-                      max_hops=3, weld_gun=False),
+                      # (the body, its first 544 vertices, labelled as the death guard's: build dguard first; adrigfix)
+                      regions_from=('vrdguard', 544), regions_keep=['clavicle_r', 'upperarm_r', 'forearm_r', 'hand_r'],
+                      islands=AD_ARMS, max_hops=3, weld_gun=False),
     'knight': dict(build='vrknight', models=['vrknight'], skeleton=KNIGHT_SKELETON,
                    gun=[334, 335, 336, 363, 364, 365, 524] + list(range(535, 541)) + list(range(557, 649)),
                    thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
@@ -667,6 +675,25 @@ def build(mesh, cfg, quiet=False):
                 if top != region[v] and votes[top] > 0.6 * sum(votes.values()) and votes.get(region[v], 0) <= 1:
                     new[v] = top
         region = new
+    # regions read from another rig of the same body (its first n vertices the same, vertex for vertex): each takes that
+    # rig's strongest bone (AD's crossbow knight: his left fist rests on the tabard at rest, so the fist's underside went
+    # to the pelvis and the tabard beside it to the arm; the death guard's arms hang free and his labels are clean)
+    if cfg['regions_from']:
+        base, n = cfg['regions_from']
+        taken = 0
+        for ln in open(os.path.join(ROOT, 'quakevr', 'rigs', base + '.rig2.txt')):
+            t = ln.split()
+            if len(t) >= 4 and t[0] == 'w' and int(t[1]) < min(n, mesh.nv) and t[2] in index and t[2] != 'weapon':
+                ws = [(float(t[k + 1]), t[k]) for k in range(2, len(t), 2)]
+                v, other = int(t[1]), max(ws)[1]
+                # (regions_keep: this rig's own where both say one of those bones: the crossbow knight's right arm,
+                # posed otherwise than the death guard's, keeps its own seams between the forearm and the hand)
+                if other in cfg['regions_keep'] and bones[region[v]]['name'] in cfg['regions_keep']:
+                    continue
+                region[v] = index[other]
+                taken += 1
+        if not quiet:
+            print('  regions of %d vertices from %s' % (taken, base))
     # hand-picked regions (REGION_FIX: a vertex the rules put on the wrong side of a seam, found by vr_rig2_check's details)
     for name, rule in cfg['region_rules']:
         new = list(region)
@@ -679,6 +706,58 @@ def build(mesh, cfg, quiet=False):
             for u in range(mesh.nv):
                 if mesh.weld[u] == mesh.weld[v]:
                     region[u] = index[name]
+    # islands: a bone's region in pieces (over the mesh's edges and welds) keeps the piece nearest its bone; each other
+    # piece goes whole to the region round it (AD's knights: a fist resting on the tabard took the tabard's vertices
+    # beside it, which no edge joins to the arm, and dragged them up with every raised arm)
+    # (only within the core's own piece of mesh: a separate piece, a shoulder pad, keeps its regions)
+    pieceOf = {}
+    for v in (mesh.used if cfg['islands'] else ()):
+        if v not in pieceOf:
+            for u in mesh.piece(v):
+                pieceOf[u] = v
+    for _ in range(4):
+        changed = False
+        for name in cfg['islands']:
+            bi = index[name]
+            th = cfg['thick'].get(name.rstrip('_lr').rstrip('_'), 2.5)
+            left = {v for v in mesh.used if region[v] == bi}
+            comps = []
+            while left:
+                s = left.pop()
+                comp, todo = [s], [s]
+                while todo:
+                    for u in mesh.nbrs[todo.pop()]:
+                        if u in left:
+                            left.discard(u)
+                            comp.append(u)
+                            todo.append(u)
+                comps.append(comp)
+            if len(comps) < 2:
+                continue
+            def near(comp):
+                return sum(1.0 / (1.0 + max(length(sub(closest_on_segment(mesh.rest[v], bones[bi]['pivot'],
+                                                                             bones[bi]['end']), mesh.rest[v])) - th, 0.0))
+                           for v in comp)
+            core = max(comps, key=near)
+            for comp in comps:
+                if comp is core or pieceOf.get(comp[0]) != pieceOf.get(core[0]):
+                    continue
+                inside = set(comp)
+                votes = {}
+                for v in comp:
+                    for u in mesh.nbrs[v]:
+                        if u not in inside and region[u] >= 0 and region[u] != bi:
+                            votes[region[u]] = votes.get(region[u], 0) + 1
+                if votes:
+                    top = max(votes, key=votes.get)
+                    if not quiet:
+                        print('  island of %d %s vertices (%s) -> %s' % (len(comp), name,
+                              ' '.join(str(v) for v in sorted(comp)[:8]), bones[top]['name']))
+                    for v in comp:
+                        region[v] = top
+                    changed = True
+        if not changed:
+            break
     # the gun: the weapon bone
     for v in cfg['gun']:
         if v < mesh.nv and v not in set(mesh.used):
