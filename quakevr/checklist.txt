@@ -18,6 +18,8 @@ Flat-screen: the holster menu and the weapon wheel have a bindings panel above t
 Flat-screen: the main menu shows the same bindings panel under the corner buttons, left of the rows, with Setup Bindings under it, which opens Options > Controls at the flat keys (the controller screen once it lands). {test:hub_start}
 Flat-screen or VR: Options > Controller Bindings shows your controller (the name says "detected") with each button labelled by its binding; drag a label onto another and the two bindings swap, click one and pick an action from the list (typing searches it), then Reset to Defaults puts the shipped ones back. {test:hub_start}
 Flat-screen or VR: step through the controller pictures with the arrows beside the name (Quest 3, Quest 2, Quest Pro, Rift, Index, Vive, WMR, Steam Frame, Xbox, PlayStation, Switch Pro, generic pad) and say which pictures, labels or glyphs need work. {test:hub_start}
+In Run Setup set Starting melee weapon to Spear and start a new game: you hold the spear in the melee holster (draw it and thrust), no axe; the row shows the spear icon and the default is still the axe. {test:hub_start}
+Quest, Debug > Profiling: turn on "Still Models' Set-up Check" in the gib fight, then off; nothing should look different and the game should not hitch. {test:quest_gibfight}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

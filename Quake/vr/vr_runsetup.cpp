@@ -196,8 +196,8 @@ const Mutator registry[] = {
         .help = "The gun a new game starts with, in its hip holster: the shotgun, the nail pistol, the heavy revolver, or none.",
         .pick = &vr_runpick_startgun, .active = &vr_run_startgun, .forced = startGunForced, .heldBy = "Melee Only"},
     {.id = "startmelee", .label = "Starting melee weapon",
-        .options = {"Axe", "Dagger", "Nothing"},
-        .help = "The melee weapon a new game starts with: the axe, the dagger, or none (bare fists: punch and grab).",
+        .options = {"Axe", "Dagger", "Nothing", "Spear"},
+        .help = "The melee weapon a new game starts with: the axe, the dagger, the spear, or none (bare fists: punch and grab).",
         .pick = &vr_runpick_startmelee, .active = &vr_run_startmelee},
     {.id = "meleeonly", .label = "Melee Only", .options = {"Off", "On"}, .tags = {"", "Melee only"},
         .help = "Guns are not picked up and do not fire; no starting gun (the melee weapon as chosen). Blades, axes, the chainsaw, fists.",
@@ -1071,7 +1071,7 @@ const char* summaryOf(const int* values)
         if(i == startGun)
         {
             constexpr const char* guns[] = {"Shotgun", "Nail pistol", "Revolver", "No gun"};
-            constexpr const char* melees[] = {"axe", "dagger", "no melee"};
+            constexpr const char* melees[] = {"axe", "dagger", "no melee", "spear"};
             const int sg = value(i);
             const int sm = q_max(value(find("startmelee")), 0);
             if(sg != 0 || sm != 0)
