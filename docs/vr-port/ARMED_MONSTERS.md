@@ -432,6 +432,14 @@ grunt stays red). Its worn pack takes its wearer's (the engine: `.vr_wp_wearer`,
   `vr_agrunt_punch_ease`, `vr_agrunt_saw_reach`, `vr_agrunt_lift_turn`, with `vr_agrunt_run_key_stance`) retired
   2026-11-07, as the vr_agarms_* ones in wave C1.
 
+## Blinded by the flashlight (ROUND26.md, "flashblind")
+
+`QC/vr_armedgrunt_dazzle.qc`: a player's lamp (`flashlightbeam`: his client's, VR or flat) on its eyes builds
+`.vr_ag_dazzle` (`VR_AG_DazzleTick`, from `VR_AGP_Pose`); `VR_AGP_Shield` (called by `VR_AGP_PoseQC` and the engine's
+agpose, `vr_builtins_agpose.inc`, before the run's sway) sends the off hand (`VR_AGP_LEFT`, a Point goal) before its
+eyes and blends a two-handed gun into its one-handed hold; `VR_AGAI_Accuracy` divides by `VR_AG_DazzleAim`. Tunables
+`vr_agrunt_dazzle*` (Tunables > Armed Humanoids > Flashlight Dazzle). Test `vr_agrunt_test 232`.
+
 ## Open items moved from BACKLOG.md (2026-11-12)
 
 BACKLOG.md keeps a one-line pointer to each; remove an item here when it ships.

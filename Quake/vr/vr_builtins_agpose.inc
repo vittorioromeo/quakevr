@@ -105,7 +105,7 @@ constexpr float agc_VR_AGK_TUG_EASE = 0.25f;
    
 #define AGP_FUNCS(X) \
     X(VR_AGP_PoseQC) X(VR_AM_Row) X(VR_AGP_Geo) X(VR_AGP_Strike) X(VR_DRP_Frame) X(VR_AGPar_Pose) X(VR_AGPar_Meet) \
-    X(VR_AGP_Saw) X(VR_AGP_Demo) X(VR_AGP_CastLands) X(VR_AGP_ShoveLands) X(VR_AI_Origin)
+    X(VR_AGP_Saw) X(VR_AGP_Demo) X(VR_AGP_CastLands) X(VR_AGP_ShoveLands) X(VR_AI_Origin) X(VR_AGP_Shield)
 #define AGP_CVARS(X) \
     X(vr_agrunt_debug) X(vr_agrunt_freeze) X(vr_agrunt_tug_ik_stretch) X(vr_agrunt_upper) X(vr_agrunt_aim_twist) \
     X(vr_agrunt_take_bend) X(vr_agrunt_take_bend_kneel) X(vr_aglegs) X(vr_agarms_shoulder) X(vr_agrunt_second_reach) \
@@ -1818,6 +1818,7 @@ AgpCoverage agpCov; // (the server's VM: the main thread)
             AG(vr_agp_flags) = agOr(agOr(keepFl, agfLeft), agfLeftWpn);
         }
     }
+    agCallGE(agp.fn_VR_AGP_Shield, g, p); // (dazzled by a flashlight: its off hand before its eyes; QC vr_armedgrunt_dazzle.qc)
     const AgV bob = agRunBob(g);
     AGSET(vr_agp_v, AGV(vr_agp_v) + bob);
     AGSET(vr_agp_vl, AGV(vr_agp_vl) + bob * AG(vr_agp_wl));

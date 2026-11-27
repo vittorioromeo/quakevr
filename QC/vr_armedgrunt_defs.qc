@@ -297,3 +297,13 @@ float(entity e) VR_AG_Freed =
     return e != world && !e.modelindex && e.nextthink == -1 && e.solid == SOLID_NOT && e.takedamage == DAMAGE_NO;
 };
 float() VR_WP_DeathLoot;                                                 // VR_AG_SoldierDrop: its loot in its pack (TRUE: no backpack dropped)
+
+// Blinded by a flashlight (vr_armedgrunt_dazzle.qc; ROUND26.md "flashblind").
+.float vr_ag_dazzle;      // its dazzle (0..1): built while a lamp is on its eyes, faded after
+.float vr_ag_dazzle_at;   // ... last eased (VR_AG_DazzleTick: once a server frame)
+.float vr_ag_dazzle_lit;  // ... the strongest lamp on its eyes then (0 none; the tests)
+.float vr_ag_shieldw;     // its shielding hand's share (0..1), eased (VR_AGP_Shield)
+.vector vr_ag_shield_at;  // ... where that hand was sent last (world; the tests)
+void(entity g) VR_AG_DazzleTick;          // VR_AGP_Pose: its dazzle eased
+float(entity g) VR_AG_DazzleAim;          // VR_AGAI_Accuracy: its shots' error and spread times this
+void(entity g, entity p) VR_AGP_Shield;   // VR_AGP_PoseQC (and the engine's agpose): its off hand before its eyes

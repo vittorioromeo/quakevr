@@ -187,12 +187,6 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
   until this is done. 2026-11-22 (disarmfix, ROUND25): PvE now by jolts (no dice, a warning before the drop, fists and
   heavy blows count); left: his try in VR, then his OK to turn `vr_player_disarm` on.
-- **Blinding with the flashlight** (2026-11-27): pointing the flashlight straight at an armed humanoid's face dazzles
-  it: it raises one hand in front of its face (the other keeps the gun; a pose key/override, IK on the shared rig
-  paths) and shoots with worse accuracy while the beam stays on its eyes (and a moment after). Needs: the beam's cone
-  vs the face (distance, angle, line of sight), a dazzle level that builds and fades, the shield pose blended in, the
-  aim spread scaled by it; one-handed guns fire from the free hand, two-handed ones fire one-handed and worse. Also the
-  flat-screen flashlight and bots' if they carry one.
 
 ## 7. Combat and feel
 
