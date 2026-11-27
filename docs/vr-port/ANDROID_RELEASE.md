@@ -112,6 +112,15 @@ uninstall in the headset (Library > Unknown Sources > Quake VR: UNLEASHED > Unin
 (adb's copies need the `chmod` for the game to read and write them, as Android/README.md does for the game data.)
 A release APK is not debuggable: this route does not work on it, so back up before the switch.
 
+**The whole folder** (questrelease, 2026-11-27): `vr_android_share` (Debug > Startup, any build) opens everything the
+game made in its folder to adb (folders 2777, files 0666, the storage's group: Setup's modes), so one `adb pull` of
+`/sdcard/Android/data/com.vittorioromeo.quakevr` backs up all of it (saves, autosave/, configs, logs, caches, Map
+Library packages). Launch it with `--es args "'-unattended -noconfigwrite +vr_android_share'"` and force-stop once
+logcat shows its line (a `+quit` rewrites `quakevr/cache/quit_times.txt` as the app's again). After the reinstall the
+folder is empty: make its folders (shell, 2777, the storage's group), push the files into them and `chmod 0666` them
+(nothing there to replace, so a failed push loses nothing). The app's internal files (`perf/`, `export/`) can't go back
+into a non-debuggable app: they stay in the backup.
+
 ## Measuring a release APK
 
 `run-as` can't read a non-debuggable app's files, so the perf CSV (`vr_perf_record`) stays on the headset. Each
