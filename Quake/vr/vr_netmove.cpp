@@ -389,8 +389,25 @@ struct ClientState
     double sentAt[ring]{}; // (B13) each move's send (Sys_DoubleTime): its acknowledgement's round trip, the net HUD's ping
     double rtt{0.0};       // ... smoothed (0: none measured on this connection yet)
     double rttLast{0.0};   // ... the newest
+    int peakBytes{0};      // (mpoverflow) the largest QVR_CLC_MOVES written (vr_net_stats)
+    int unsent{0};         // ... and those that found no room (none expected)
 };
 ClientState clientState;
+
+// (mpoverflow) writeMoves' scratch: a packet's moves rendered before they go on CL_SendMove's buffer. A whole move is at
+// most a mask byte a group, their top bits and 5 bytes a value (varints); with the header, under moveScratchBytes.
+constexpr int moveBudget = 1024 - 64; // the moves' share of a packet, its repeats cut to fit (the voice's after it)
+constexpr int moveWholeBytes = maxValues * 5 + (maxValues + 7) / 8 + (maxValues + 63) / 64; // a whole move at most
+constexpr int moveHeaderBytes = 32;
+constexpr int moveScratchBytes = 8192; // (the newest and its repeats, each whole at most)
+static_assert(moveScratchBytes >= moveHeaderBytes + (repeats + 1) * moveWholeBytes, "writeMoves' scratch holds them");
+static_assert(moveHeaderBytes + moveWholeBytes <= QVR_MOVE_BUFFER, "CL_SendMove's buffer holds a whole move");
+struct MoveScratch
+{
+    za::U8 data[moveScratchBytes];
+    sizebuf_t buf;
+};
+MoveScratch moveScratch;
 
 // (B20) The ticks over which the move buffer measures a client's jitter (2 s at 72 Hz): a spike's depth lasts this long.
 constexpr int lateWindow = 144;
@@ -574,18 +591,49 @@ void writeMoves(sizebuf_t* buf, const WireMove& m, bool record)
     {
         first++;
     }
-    MSG_WriteByte(buf, QVR_CLC_MOVES);
-    writeVarint(buf, netsnap::clientAck()); // (the newest snapshot read: the base of the server's next, B7b)
-    writeVarint(buf, haveBase ? base : 0);
-    MSG_WriteByte(buf, static_cast<int>(seq - first + 1));
-    writeVarint(buf, first);
-    const Quant* prev = haveBase ? &c.moves[base % ring] : &zeroQuant;
-    for(za::U32 s = first; s <= seq; s++)
+    // (mpoverflow) Written into scratch first: with no base the server has (none acknowledged for `ring` moves, 0.9 s: a
+    // Wi-Fi stall) the first is written whole, and a VR player's whole move with his repeats outgrew CL_SendMove's
+    // 1024 B: "SZ_GetSpace: overflow", his game gone (a Quest's). Now the oldest repeats go first until it fits
+    // moveBudget; the newest is always sent (QVR_MOVE_BUFFER holds a whole one).
+    const int budget = za::min(buf->maxsize - buf->cursize, moveBudget);
+    const Quant* const baseQuant = haveBase ? &c.moves[base % ring] : &zeroQuant;
+    sizebuf_t& out = moveScratch.buf;
+    for(;; first++)
     {
-        const Quant& q = c.moves[s % ring];
-        writeDelta(buf, *prev, q);
-        prev = &q;
+        out = sizebuf_t{};
+        out.data = moveScratch.data;
+        out.maxsize = sizeof(moveScratch.data);
+        MSG_WriteByte(&out, QVR_CLC_MOVES);
+        writeVarint(&out, netsnap::clientAck()); // (the newest snapshot read: the base of the server's next, B7b)
+        writeVarint(&out, haveBase ? base : 0);
+        MSG_WriteByte(&out, static_cast<int>(seq - first + 1));
+        writeVarint(&out, first);
+        const Quant* prev = baseQuant;
+        for(za::U32 s = first; s <= seq; s++)
+        {
+            const Quant& q = c.moves[s % ring];
+            writeDelta(&out, *prev, q);
+            prev = &q;
+        }
+        if(out.cursize <= budget || first >= seq)
+        {
+            break;
+        }
     }
+    c.peakBytes = za::max(c.peakBytes, out.cursize);
+    if(buf->cursize + out.cursize <= buf->maxsize)
+    {
+        SZ_Write(buf, out.data, out.cursize);
+    }
+    else
+    {
+        c.unsent++; // (can't be: CL_SendMove's QVR_MOVE_BUFFER holds a whole move; the next packet repeats it)
+    }
+}
+
+int clientPeakBytes()
+{
+    return clientState.peakBytes;
 }
 
 void parseAck()
@@ -1058,6 +1106,7 @@ struct SelftestScratch
     WireMove m, back;
     Quant q, q2, base, read;
     byte data[4096];
+    ClientState savedClient; // (mpoverflow: writeMoves' check runs on a fresh client state, this one's put back)
 };
 SelftestScratch selftestScratch;
 
@@ -1139,6 +1188,25 @@ void selftest_f()
     check(same, "deltas (none, small, from zeros) read back the same");
     check(idleBytes <= 16, va("an idle move (its time and pose clock only) in %d bytes; one from zeros %d", idleBytes,
                                fullBytes));
+    // (mpoverflow) writeMoves with no base acknowledged (after a stall): its older repeats cut to fit the room, the newest
+    // always sent; with room, all three. (Its count: after the command byte and two one-byte varints, nothing read.)
+    t.savedClient = clientState;
+    clientState = ClientState{};
+    int sizes[4]{}, counts[4]{};
+    for(int k = 0; k < 4; k++)
+    {
+        fillMove(t.m, 40 + k * 17);
+        sizebuf_t buf{};
+        buf.data = t.data;
+        buf.maxsize = k == 2 ? fullBytes + 48 : static_cast<int>(sizeof(t.data));
+        writeMoves(&buf, t.m, true);
+        sizes[k] = buf.cursize;
+        counts[k] = buf.cursize > 3 ? buf.data[3] : 0;
+    }
+    clientState = t.savedClient;
+    check(counts[2] >= 1 && counts[2] < 3 && sizes[2] <= fullBytes + 48 && counts[3] == 3,
+        va("no base: moves %d, %d, %d, %d in %d, %d, %d, %d bytes (the third's room %d: its repeats cut)", counts[0],
+            counts[1], counts[2], counts[3], sizes[0], sizes[1], sizes[2], sizes[3], fullBytes + 48));
     tally.verdict("netmove selftest");
 }
 

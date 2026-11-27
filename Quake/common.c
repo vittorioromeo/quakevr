@@ -1010,14 +1010,17 @@ void *SZ_GetSpace (sizebuf_t *buf, int length)
 
 	if (buf->cursize + length > buf->maxsize)
 	{
+		// QVR: (mpoverflow) the sizes said, so a report tells which buffer it was (a client's reliable stream is 64000 B,
+		// the client's own commands 4096 B: docs/vr-port/ROUND26.md, "mpoverflow")
 		if (!buf->allowoverflow)
-			Host_Error ("SZ_GetSpace: overflow without allowoverflow set"); // ericw -- made Host_Error to be less annoying
+			Host_Error ("SZ_GetSpace: overflow without allowoverflow set (%d bytes held, %d more, a buffer of %d)",
+				buf->cursize, length, buf->maxsize); // ericw -- made Host_Error to be less annoying
 
 		if (length > buf->maxsize)
 			Sys_Error ("SZ_GetSpace: %i is > full buffer size", length);
 
 		buf->overflowed = true;
-		Con_Printf ("SZ_GetSpace: overflow\n");
+		Con_Printf ("SZ_GetSpace: overflow (%d bytes held, %d more, a buffer of %d)\n", buf->cursize, length, buf->maxsize);
 		SZ_Clear (buf);
 	}
 

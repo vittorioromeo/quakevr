@@ -82,6 +82,10 @@ struct Slot
     char bone[16]{};
     char model[MAX_QPATH]{};
     glm::vec3 centre{0.f};
+    // Its anchors only from its bone's vertices this far along the bone (rest pose: 0 its pivot, 1 its end; beastarmour.txt's
+    // `anchors` line after the piece): the ogre's bracers ride the forearm's elbow end, not the wrist's flesh that follows
+    // the hand (ROUND26.md, "ogreplates").
+    float anchorLo{-1e9f}, anchorHi{1e9f};
     // Resolved on first use (the monster's model and rig loaded): its bone, the bone's vertices fitted (.mdl order) and their
     // rest places; the piece model's triangles (its own space: as made, and with armour.txt's shape tweaks) and box.
     int boneIndex{-1};
@@ -259,6 +263,7 @@ void load()
         return;
     }
     za::Vector<Kind> fresh;
+    int last = -1; // (the last piece line's slot of fresh.back(): an `anchors` line is its)
     const char* p = text;
     while(p && *p)
     {
@@ -277,12 +282,19 @@ void load()
         {
             continue;
         }
+        float lo = 0.f, hi = 0.f;
         if(!strcmp(word, "kind") && sscanf(line, "%*s %63s %d", model, &a) == 2)
         {
             Kind k;
             q_strlcpy(k.model, model, sizeof(k.model));
             k.group = a;
             fresh.pushBack(k);
+            last = -1;
+        }
+        else if(!strcmp(word, "anchors") && sscanf(line, "%*s %f %f", &lo, &hi) == 2 && !fresh.empty() && last >= 0 && lo < hi)
+        {
+            fresh.back().slot[last].anchorLo = lo;
+            fresh.back().slot[last].anchorHi = hi;
         }
         else if(!strcmp(word, "piece") && sscanf(line, "%*s %63s %d %15s %63s %f %f %f %23s", model, &a, bone, piece, &x, &y, &z, part) >= 7 &&
                 !fresh.empty() && !strcmp(fresh.back().model, model) && a >= 0 && a < numSlots &&
@@ -290,6 +302,7 @@ void load()
         {
             // (a slot's second line: a part of it on another bone)
             Kind& f = fresh.back();
+            last = f.slot[a].on ? f.numParts : a;
             Slot& s = f.slot[f.slot[a].on ? f.numParts++ : a];
             s.on = true;
             s.owner = a;
@@ -871,9 +884,12 @@ bool resolve(Kind& k)
         s.along = geom::safeNormalize(rig->bones[s.boneIndex].end - rig->bones[s.boneIndex].pivot, glm::vec3{1.f, 0.f, 0.f}, 1e-4f);
         // The bone's vertices spread over it: the one nearest the piece's middle first, then each the farthest from those.
         za::Vector<int> mine;
+        const glm::vec3 pivot = rig->bones[s.boneIndex].pivot, span = rig->bones[s.boneIndex].end - pivot;
+        const float spanSq = za::max(glm::dot(span, span), 1e-6f);
         for(int v = 0; v < nm; v++)
         {
-            if(rig->vertBone[static_cast<za::SizeT>(v)] == s.boneIndex)
+            const float t = glm::dot(rest[static_cast<za::SizeT>(v)] - pivot, span) / spanSq;
+            if(rig->vertBone[static_cast<za::SizeT>(v)] == s.boneIndex && t >= s.anchorLo && t <= s.anchorHi)
             {
                 mine.pushBack(v);
             }

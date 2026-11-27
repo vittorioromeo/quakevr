@@ -10,6 +10,8 @@
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_testkit.hpp"
+#include "vr_tunables.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Memcmp.hpp"
@@ -173,12 +175,17 @@ void info_f()
             m.rebuildOk ? "rebuilt" : "too few: drawn as before");
         for(int b = 0; b < m.rig->numBones; b++)
         {
-            int unfit = 0;
+            int unfit = 0, notRebuilt = 0;
             for(const uint32_t u : m.unfit)
             {
                 unfit += static_cast<int>((u >> b) & 1u);
             }
-            Con_Printf("animsmooth:   bone %2d %-10s unfit in %d of %d poses", b, m.rig->bones[b].name, unfit, m.numPoses);
+            for(const uint32_t u : m.rebuildUnfit)
+            {
+                notRebuilt += static_cast<int>((u >> b) & 1u);
+            }
+            Con_Printf("animsmooth:   bone %2d %-10s unfit in %d of %d poses (not rebuilt in %d)", b, m.rig->bones[b].name, unfit,
+                m.numPoses, notRebuilt);
             for(int p = 0; Cmd_Argc() >= 3 && p < m.numPoses; p++) // (and which, with the frames)
             {
                 if((m.unfit[static_cast<za::SizeT>(p)] >> b) & 1u)
@@ -403,6 +410,201 @@ void rigHash_f()
     Con_Printf("rig hash: %d models, all %016llx\n", static_cast<int>(models.size()), all);
 }
 
+// vr_anim_warp_check [model ...] (ROUND26 "ogredequant"): each rigged model's warping, how much its vertices move on
+// their bones from frame to frame against rigid limbs: each vertex taken back to its bone's frame by the bone's refitted
+// key (rigData's), its second difference along the animations (the dequantiser's runs: a pose and the two after it, all
+// its bone fits), rms over every vertex and triple and the worst vertex's rms (units). Of the frames as stored (bytes),
+// dequantised, and as drawn at the poses now (the rebuild with the cvars as set: RigRebuild's mix on the CPU), and how
+// far the drawing departs from the dequantised frames (rms, most). Verdict: no model's drawing warps more than its
+// frames, none departs over 1 unit rms, and the ogre's warps at most 0.8 of its frames' (with Rebuild From Skeleton).
+void warpCheck_f()
+{
+    static constexpr const char* defaults[] = {"progs/ogre.mdl", "progs/soldier.mdl", "progs/knight.mdl", "progs/demon.mdl",
+        "progs/dog.mdl", "progs/wizard.mdl", "progs/shambler.mdl", "progs/zombie.mdl", "progs/enforcer.mdl", "progs/hknight.mdl"};
+    za::Vector<qmodel_t*> models;
+    for(int i = 1; i < Cmd_Argc(); i++)
+    {
+        if(qmodel_t* model = Mod_ForName(Cmd_Argv(i), false))
+        {
+            models.pushBack(model);
+        }
+    }
+    if(Cmd_Argc() < 2)
+    {
+        for(const char* name : defaults)
+        {
+            if(qmodel_t* model = Mod_ForName(name, false))
+            {
+                models.pushBack(model);
+            }
+        }
+    }
+    const bool rebuildOn = vr_anim_smooth_rebuild.value != 0.f;
+    testkit::Tally tally;
+    for(qmodel_t* model : models)
+    {
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+        if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1)
+        {
+            continue;
+        }
+        mdldequant::prepare(model);
+        SmoothModel& m = modelData(model, hdr);
+        if(!rigData(m, model, hdr))
+        {
+            continue;
+        }
+        const ragdoll::Rig& rig = *m.rig;
+        const za::SizeT nv = static_cast<za::SizeT>(hdr->numverts);
+        const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+        const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+        const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+        const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+        // each .mdl vertex's rebuild rows (its first mesh vertex's)
+        za::Vector<int> row(nv, -1);
+        for(int i = hdr->numverts_vbo - 1; i >= 0; i--)
+        {
+            row[static_cast<za::SizeT>(za::clamp(static_cast<int>(desc[i].vertindex), 0, hdr->numverts - 1))] = i;
+        }
+        const bool rebuilt = rebuildOn && m.rebuildOk;
+        // (the poses each bone is rebuilt in)
+        const auto fits = [&](int p, int b) { return !(m.rebuildUnfit[static_cast<za::SizeT>(p)] & (1u << b)); };
+        const auto key = [&](int p, int b) -> const rigpose::Rigid& { return m.rebuildKeys[static_cast<za::SizeT>(p * rig.numBones + b)]; };
+        const auto stored = [&](int p, int v) {
+            const trivertx_t& t = base[static_cast<za::SizeT>(p) * nv + static_cast<za::SizeT>(v)];
+            return glm::vec3{t.v[0], t.v[1], t.v[2]} * scale + origin;
+        };
+        const auto dequant = [&](int p, int v) { return mdldequant::poseVertex(hdr, p, v) * scale + origin; };
+        const auto drawn = [&](int p, int v) {
+            const glm::vec3 x = dequant(p, v);
+            const int i = row[static_cast<za::SizeT>(v)];
+            if(!rebuilt || i < 0)
+            {
+                return x;
+            }
+            const glm::vec4* r = m.rest.data() + static_cast<za::SizeT>(i) * restStride;
+            const int a = rig.vertBone[static_cast<za::SizeT>(v)];
+            float k = r[1].w * (fits(p, a) ? 1.f : 0.f);
+            const glm::vec3 c{r[1]};
+            glm::vec3 at = rigpose::apply(key(p, a), c);
+            if(r[2].w > 0.f)
+            {
+                const int b2 = static_cast<int>(za::floor(r[2].w));
+                const float w2 = (r[2].w - static_cast<float>(b2)) * 2.f;
+                k *= fits(p, b2) ? 1.f : 0.f;
+                at += (rigpose::apply(key(p, b2), c) - at) * w2;
+            }
+            return x + (at - x) * k;
+        };
+        za::Vector<short> next(static_cast<za::SizeT>(hdr->numposes));
+        za::Vector<unsigned char> progs(static_cast<za::SizeT>(hdr->numposes));
+        mdldequant::poseSuccessors(hdr, model->name, next.data(), progs.data());
+        // Warp of a shape: each bone's vertices in a pose laid on the same vertices in the pose after it by their best
+        // rigid motion (Gauss-Newton on the turn about their middles from none: a frame turns a limb little), what is
+        // left over (rms over every bone, step and vertex: units): how much a limb changes shape from frame to frame,
+        // 0 for rigid limbs, whatever its motion; `worst` the worst bone's rms.
+        za::Vector<int> boneOf(nv);
+        for(za::SizeT v = 0; v < nv; v++)
+        {
+            boneOf[v] = rig.vertBone[v];
+        }
+        za::Vector<glm::vec3> pa(nv), pb(nv);
+        const auto warp = [&](const auto& shape, float& worst) {
+            double all = 0.0;
+            long n = 0;
+            worst = 0.f;
+            for(int b = 0; b < rig.numBones; b++)
+            {
+                double sum = 0.0;
+                long cnt = 0;
+                for(int p0 = 0; p0 < hdr->numposes; p0++)
+                {
+                    const int p1 = next[static_cast<za::SizeT>(p0)];
+                    if(p1 < 0 || p1 == p0 || ragdoll::collapsed(rig, p0, b) || ragdoll::collapsed(rig, p1, b))
+                    {
+                        continue;
+                    }
+                    glm::vec3 aMid{0.f}, bMid{0.f};
+                    int k = 0;
+                    for(int v = 0; v < hdr->numverts; v++)
+                    {
+                        if(boneOf[static_cast<za::SizeT>(v)] == b)
+                        {
+                            pa[static_cast<za::SizeT>(k)] = shape(p0, v);
+                            pb[static_cast<za::SizeT>(k)] = shape(p1, v);
+                            aMid += pa[static_cast<za::SizeT>(k)];
+                            bMid += pb[static_cast<za::SizeT>(k)];
+                            k++;
+                        }
+                    }
+                    if(k < 3)
+                    {
+                        continue;
+                    }
+                    aMid /= static_cast<float>(k);
+                    bMid /= static_cast<float>(k);
+                    glm::quat q{1.f, 0.f, 0.f, 0.f};
+                    for(int step = 0; step < 6; step++)
+                    {
+                        const glm::mat3 r = glm::mat3_cast(q);
+                        glm::mat3 a{0.f};
+                        glm::vec3 g{0.f};
+                        for(int i = 0; i < k; i++)
+                        {
+                            const glm::vec3 c = r * (pa[static_cast<za::SizeT>(i)] - aMid);
+                            a += glm::dot(c, c) * glm::mat3{1.f} - glm::outerProduct(c, c);
+                            g += glm::cross(c, pb[static_cast<za::SizeT>(i)] - bMid);
+                        }
+                        if(za::abs(glm::determinant(a)) < 1e-6f)
+                        {
+                            break;
+                        }
+                        q = glm::normalize(rigpose::fromVector(glm::inverse(a) * g) * q);
+                    }
+                    for(int i = 0; i < k; i++)
+                    {
+                        const glm::vec3 d = pb[static_cast<za::SizeT>(i)] - bMid - q * (pa[static_cast<za::SizeT>(i)] - aMid);
+                        sum += static_cast<double>(glm::dot(d, d));
+                    }
+                    cnt += k;
+                }
+                if(cnt)
+                {
+                    all += sum;
+                    n += cnt;
+                    worst = za::max(worst, za::sqrt(static_cast<float>(sum / static_cast<double>(cnt))));
+                }
+            }
+            return n ? za::sqrt(static_cast<float>(all / static_cast<double>(n))) : 0.f;
+        };
+        float wStored = 0.f, wDequant = 0.f, wDrawn = 0.f;
+        const float rStored = warp(stored, wStored), rDequant = warp(dequant, wDequant), rDrawn = warp(drawn, wDrawn);
+        double off = 0.0;
+        float offMost = 0.f;
+        for(int p = 0; p < hdr->numposes; p++)
+        {
+            for(int v = 0; v < hdr->numverts; v++)
+            {
+                const glm::vec3 d = drawn(p, v) - dequant(p, v);
+                off += static_cast<double>(glm::dot(d, d));
+                offMost = za::max(offMost, glm::length(d));
+            }
+        }
+        const float offRms = za::sqrt(static_cast<float>(off / static_cast<double>(za::max(hdr->numposes * hdr->numverts, 1))));
+        const bool ogre = ZA_STRSTR(model->name, "progs/ogre.mdl") != nullptr;
+        const bool ok = rDrawn <= rDequant * 1.02f + 1e-4f && offRms <= 1.f && (!ogre || !rebuildOn || rDrawn <= 0.8f * rDequant);
+        tally.check(ok);
+        Con_Printf("anim warp: %s %s: %s (%d of %d vertices fully, %d two bones); warp rms (worst bone) stored %.3f (%.3f), "
+                   "dequantised %.3f (%.3f), drawn %.3f (%.3f) units: %.0f%% of the frames'; off the frames %.3f rms, %.3f most\n",
+            ok ? "PASS" : "FAIL", model->name, rebuilt ? "rebuilt" : "drawn as its frames", m.rebuiltVerts, hdr->numverts_vbo,
+            m.blendedVerts, rStored, wStored, rDequant, wDequant, rDrawn, wDrawn, rDequant > 0.f ? 100.f * rDrawn / rDequant : 100.f,
+            offRms, offMost);
+    }
+    Con_Printf("anim warp: vr_anim_smooth_rebuild %g, vr_anim_smooth_rebuild_blend %g\n", vr_anim_smooth_rebuild.value,
+        vr_anim_smooth_rebuild_blend.value);
+    tally.verdict("anim warp check");
+}
+
 } // namespace
 
 namespace qvr::animsmooth
@@ -410,6 +612,7 @@ namespace qvr::animsmooth
 
 void registerDiagCommands()
 {
+    Cmd_AddCommand("vr_anim_warp_check", warpCheck_f);
     Cmd_AddCommand("vr_anim_smooth_rig_hash", rigHash_f);
     Cmd_AddCommand("vr_anim_smooth_pin", pin_f);
     Cmd_AddCommand("vr_anim_smooth_info", info_f);
