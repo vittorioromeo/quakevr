@@ -81,6 +81,22 @@ const Row fieldRows[NumFields] = {
     {"Size Fwd", &vr_armourstudio_scale_x, 0.5f, 1.5f, 0.02f, "%.3fx"},
     {"Size Left", &vr_armourstudio_scale_y, 0.5f, 1.5f, 0.02f, "%.3fx"},
     {"Size Up", &vr_armourstudio_scale_z, 0.5f, 1.5f, 0.02f, "%.3fx"},
+    {"Own End Fwd", &vr_armourstudio_start_offset_x, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Own End Left", &vr_armourstudio_start_offset_y, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Own End Up", &vr_armourstudio_start_offset_z, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Joined End Fwd", &vr_armourstudio_end_offset_x, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Joined End Left", &vr_armourstudio_end_offset_y, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Joined End Up", &vr_armourstudio_end_offset_z, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Own End Size", &vr_armourstudio_start_radius, 0.5f, 2.f, 0.02f, "%.3fx"},
+    {"Joined End Size", &vr_armourstudio_end_radius, 0.5f, 2.f, 0.02f, "%.3fx"},
+    {"Own End Far Edge", &vr_armourstudio_start_edge, 0.f, 1.f, 1.f, "%.0f"},
+    {"Joined End Far Edge", &vr_armourstudio_end_edge, 0.f, 1.f, 1.f, "%.0f"},
+    {"Twist", &vr_armourstudio_twist, -90.f, 90.f, 1.f, "%.0f deg"},
+    {"Bulge Fwd", &vr_armourstudio_bulge_x, -4.f, 4.f, 0.1f, "%.2f"},
+    {"Bulge Left", &vr_armourstudio_bulge_y, -4.f, 4.f, 0.1f, "%.2f"},
+    {"Bulge Up", &vr_armourstudio_bulge_z, -4.f, 4.f, 0.1f, "%.2f"},
+    {"Segments", &vr_armourstudio_segments, 0.f, 8.f, 1.f, "%.0f"},
+    {"Closed All Round", &vr_armourstudio_fill, 0.f, 1.f, 1.f, "%.0f"},
 };
 // The subject's place and tilt (vr_armourstudio_subject_*: a look from another angle; never in armour.txt).
 const Row subjectRows[5] = {
@@ -97,7 +113,8 @@ constexpr const char* partLabels[NumParts] = {"Cuirass", "Helmet", "Pauldrons (U
     "Cuirass's Leather Junction", "Helmet's Leather Junction", "Plate 8", "Plate 9", "Plate 8's Leather Junction", "Plate 9's Leather Junction",
     "Tail", "Tail's Leather Junctions", "Plate 8 Back", "Plate 8 Back's Leather Junction"};
 // (a beast's limb parts' junctions: to the piece each joins)
-constexpr const char* beastSleeveLabels[4] = {"Pauldrons' Leather Junctions", "Bracers' Leather Junctions", "Thighs' Leather Junctions", "Shins' Leather Junctions"};
+constexpr const char* beastSleeveLabels[4] = {"Pauldrons' Leather Junctions", "Bracers' Leather Junctions", "Thighs' Leather Junctions",
+    "Knee Leather (Shins' Junctions)"};
 constexpr const char* sideLabels[NumSides] = {"Both (Mirrored)", "Left Only", "Right Only"};
 
 constexpr float winMinW = 420.f, winMinH = 320.f;
@@ -293,7 +310,7 @@ void fileValues()
     }
     ImGui::TableHeadersRow();
     const auto cell = [](const Override* o, const int f) {
-        if(o && (o->has & (1u << static_cast<unsigned>(f))))
+        if(o && (o->has & (fieldBit(f))))
         {
             ImGui::Text("%.3f", o->v[f]);
         }
@@ -304,14 +321,14 @@ void fileValues()
     };
     // What a side uses: its own value wins, else the both-sides one (the right's mirrored), else the generator's.
     const auto uses = [&](const Override* own, const bool rightSide, const int f) {
-        const uint32_t bit = 1u << static_cast<unsigned>(f);
+        const uint64_t bit = fieldBit(f);
         if(own && (own->has & bit))
         {
             ImGui::TextColored(ImVec4{0.4f, 1.f, 0.6f, 1.f}, "own %.3f", own->v[f]);
         }
         else if(both && (both->has & bit))
         {
-            const bool mirror = rightSide && (f == OffsetY || f == Yaw || f == Roll);
+            const bool mirror = rightSide && mirrored(f);
             ImGui::Text("both %.3f", mirror ? -both->v[f] : both->v[f]);
         }
         else
@@ -723,7 +740,7 @@ void feedMock()
 [[nodiscard]] bool tableHas(const int f, const float v)
 {
     const Override* o = bracerBoth();
-    return o && (o->has & (1u << static_cast<unsigned>(f))) && za::abs(o->v[f] - v) < 1e-4f;
+    return o && (o->has & (fieldBit(f))) && za::abs(o->v[f] - v) < 1e-4f;
 }
 
 // One step a frame, each on its own condition; a step that waits too long fails as timed out.

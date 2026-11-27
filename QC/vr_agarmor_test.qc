@@ -590,6 +590,11 @@ void() VR_AgArmor_TestFrame =
         VR_TTK_Frame(0); // (22: time to kill, armoured and bare; vr_beastarmour_test.qc)
         return;
     }
+    if(vr_arc_busy)
+    {
+        VR_ARC_Frame(0); // (23: the cost of the armour on the drawn body, ten ogres; vr_beastarmour_test.qc)
+        return;
+    }
     if(vr_art_state == 0)
     {
         if(cvar_hget(cvarh_vr_agarmor_test) == 0)
@@ -626,6 +631,11 @@ void() VR_AgArmor_TestFrame =
         if(request == 22)
         {
             VR_TTK_Frame(request); // (armourhits: time to kill, armoured and bare; vr_beastarmour_test.qc)
+            return;
+        }
+        if(request == 23)
+        {
+            VR_ARC_Frame(request); // (armourrebuild: the armour on the drawn body's cost, ten ogres; vr_beastarmour_test.qc)
             return;
         }
         if(request == 2)

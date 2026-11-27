@@ -4143,3 +4143,95 @@ map loads, a VR player's moves. Every "overflow" a client could cause, and the f
   voice, weaponwheel, rejoin, lockstep, campaign, prefs, lagcomp: all pass. No protocol change (QVR_NET_VERSION kept).
 - **Open**: which buffer the player hit is not pinned (ask him for the whole line, Quest or PC console, and when: headset
   off, a level change, Wi-Fi); no headset run (the Quest's real move sizes untested).
+## armourrebuild: the beasts' armour on the body as drawn (the spline, the swing, the skeleton rebuild) (branch agent/armourrebuild, 2026-11-27)
+
+His words: "the ogre animations seem to have an obscene amount of vertex warping, which also affects the armour
+movement"; told the drawn body is rebuilt but the armour follows the stored frames: "Yes, please start it."
+
+- **Was:** the beasts' pieces and leather (vr_beastarmour.cpp `place`, junctions) were placed from
+  `hitmodel::drawnVertexPoints(ent, lerp, ...)`: the client's drawn lerp (doglerp) laid on the frames' *stored bytes*
+  by Quake's linear blend. The shader draws something else: the dequantised poses along r_lerpmodels 3's spline through
+  four poses, the limbs' swing, and the rebuild from the skeleton (RigRebuild, its two-bone joints). Every rigged beast's
+  armour was off the drawn body by the difference, changing every frame.
+- **Now:** `animsmooth::drawnPoints(entity, pose1, pose2, blend, verts, n, out)` (vr_animsmooth.cpp): the vertices as
+  the shader draws them, from the renderer's own per-entity memo (`instanceMemo`, split out of `smoothInstance`: the
+  same key, spline weights and 9-rows-a-bone rebuild rows the draw uploads; whichever of the armour or the draw reads
+  it first in a frame makes it, the other reuses it: one fit, one source). `drawnVertex` (the CPU transcription of the
+  shader, also the trace's) gained RigRebuild's two-bone branch (rest row 2's w). `hitmodel::DrawnLerp` carries the
+  client entity (`clientLerp` sets it); `drawnVertexPoints(ent, lerp, ...)` uses `drawnPoints` when the client entity
+  draws the same model (a listen server), the result laid on by the drawn place. Not mirrored: a hit reaction's kick
+  (RigKick, a short added turn while hit).
+- **Not changed (shots meet the hit model):** the hit model and its traces (`Verts::at`: shots, `skinCrossing`,
+  `nearest`), and the server-side placements that decide what a shot hit (`pieceHit`, `pieceAt`, agarmor's
+  `posedAnchors`) and where a broken piece's debris starts (`plateWhere`, QC's debris: the hit model's pose; up to a few
+  units from the drawn piece on the ogre mid-swing). Moving the hit model to the drawn shape is a separate decision
+  (every Verts::at would read rows).
+- **Setting:** `vr_armour_on_drawn` 1 (Debug > Reports > Beast Armour On The Drawn Body; 0: the stored frames, as before).
+- **Check** (`vr_drawnlerp_watch`, vr_hitmodel_diag.cpp): each frame the armour's points for every vertex (what its
+  pieces are placed from) against the shape the shader drew, replayed from the draw's own uploaded inputs
+  (`animsmooth::captureDraws` / `capturedPoints`: VR_AnimSmooth's poses, weights, rows and kick rows for the watched
+  entity, through `drawnVertex` + `kickOf`); a new line "drawnlerp shape: ...: mean a frame lo .. hi (mean, spread), one
+  vertex's most", and the watch fails over 0.05 units. Every vertex, whole watch (mean a frame, its spread over the
+  frames; most one vertex):
+
+| case (0.25x) | before: mean (spread), most | now |
+|---|---|---|
+| rottweiler leap | 0.65 (0.87), 5.8 | 0.000, 0.000 |
+| rottweiler run | 0.74 (1.11), 6.8 | 0.000, 0.000 |
+| rottweiler roll (shoved) | 0.86 (4.33), 10.6 | 0.000, 0.000 |
+| scrag flying | 0.52 (1.63), 4.7 | 0.000, 0.000 |
+| ogre running | 0.86 (1.91), 13.8 | 0.000, 0.000 |
+| ogre chainsaw | 1.76 (3.75), 22.8 | 0.000, 0.000 |
+| shambler running (bare) | 0.92 (0.91), 8.7 | 0.000, 0.000 |
+
+  (1x the same within 0.1.) Exactly 0 because both sides use the same rows: it proves the armour reads what the draw
+  uploads; the shader's own arithmetic is `drawnVertex`'s transcription (no GPU readback: none in the engine).
+- **Cost** (`vr_agarmor_test 23`, Debug > Tests "Beast Armour On The Drawn Body: Cost (Ten Ogres)"; vr_anim_smooth_info
+  prints "animsmooth: drawn points ..."): ten ogres in full armour running, 288 frames: 320 calls a frame (32 an ogre:
+  pieces and junctions, 10 vertices each), 0.37 us a call: **0.12 ms a frame** for ten (Release, no LTO); the rows made
+  once an ogre a frame either way (2880 rebuilds in 288 frames: the draw reuses them).
+- **Tests:** `vr_agarmor_test 21` (doglerp) now 7 cases a speed: + the ogre's chainsaw swing and a bare shambler
+  (`VR_BAT_Spawn` kind 4), and the shape check: before 4 passed (the off-the-ground checks) 14 failed, now 18/0;
+  `vr_agarmor_test 23` 1/0; `vr_agarmor_test 15` 63/0; vr_beastfit_test 101/0; vr_beastarmour_lookcheck 78/0;
+  vr_anim_warp_check 10/0; animsmooth_test.sh 9/0; tunables_test 13/0.
+- **Open:** the kick (RigKick) is not mirrored (a hit beast's armour lags its kick for a moment); the hit model and the
+  debris start stay on the stored frames (above); his look in VR.
+
+## ogresleeves: the ogre's knee leather; per-sleeve settings to make any leather junction connect where wanted (branch agent/ogresleeves, 2026-11-27)
+
+His words (2026-11-27): "Would be nice if the ogre had leather sleeves for the knees (between thighs and shins)"; "Sometimes
+leather sleeves fail to connect in the way that I expect, would it be possible to expose some per-sleeve tweakable settings".
+- **The ogre's knees**: each shin (a part of its thigh's slot, beastfit) already joined its own thigh (`joinsOf`), but the
+  junction was a strip of 5 (left) / 7 (right) of the 12 columns, the ends 0.8 / 2.8 units apart along the leg, under the knee
+  cops: next to invisible. armour.txt now ships `progs/ogre.mdl` `shin_sleeve { fill "1" }` (new key, his values untouched):
+  each knee a closed ring from the thigh plate's lower edge to the shin's top. Its studio part is the shin's sleeve, shown on
+  beasts as "Knee Leather (Shins' Junctions)" (both sides, mirrored; `_l` / `_r` one side). On by default.
+- **How a beast junction picks its ends** (buildJunctions): 12 columns round the line between the pieces' middles; per column
+  the outermost vertex within 30% of the piece's end facing the other (rimOf), tucked 0.35 in, 0.6 under; only columns both
+  pieces have. What goes wrong (`vr_beastarmour_info`, now per junction: ends, length along the line, radii, columns and each
+  end's edges): open strips where plates meet only at the front (the ogre's cuirass->faulds 4 columns, the scrag's pauldron->
+  plastron 2), ends overlapping along the line (the ogre's cuirass->faulds -0.46: the leather inside the plates), radii far
+  apart (the ogre's right pauldron 9.0 vs 3.8). A humanoid joint's ends are its two rows at the joint (bridgesOf).
+- **New sleeve keys** (armourdata Field, `Override::has` now 64-bit; humanoids and beasts, one set of keys, studio rows and
+  file path): `start_offset` / `end_offset "x y z"` (an end's ring moved, model axes, riding its piece), `start_radius` /
+  `end_radius` (its size round its middle), `start_edge` / `end_edge` "1" (a beast's end on its piece's far edge), `twist`
+  (degrees: the joined end's ring turned round the line), `bulge "x y z"` (the middle pushed, eased to the ends; a humanoid's
+  turned with the bones), `segments` (rings less one, 1-8), `fill` "1" (a beast's junction closed all round: missing columns
+  laid round from their neighbours' reach and place). "start" is the end on the sleeve's own piece; a humanoid joint's end
+  takes its own sleeve's `start_` value, else the other sleeve's `end_`; twist, bulge and segments: the upper's first.
+  Mirrored on the right: the y components and twist. Nothing set: nothing touched (every leather hash and humanoid shell
+  hash the same as before, his armour.txt on: compared build to build). Studio: 16 rows (window and the Debug menu page),
+  shown on sleeve parts only (edge and fill: beasts'); a value back to as made is not written. Files: vr_armourdata.hpp/.cpp,
+  vr_beastarmour.cpp (fillRim, sleeveEnds), vr_agarmor.cpp (sleeveEnds), vr_agarmor_bridge.cpp (bulge),
+  vr_armourstudio*.cpp, vr_menu_debug.inc; ARMOUR_STUDIO.md "A sleeve's ends"; armour.txt's header.
+- **Tests**: `vr_beaststudio_test` 41/0 (new: the ogre's two knees made, each joining its own thigh; each key alone on the left
+  knee moves the end it names (2.000 for the offsets, 1.500x / 0.500x sizes, twist turns the joined ring 30 degrees round a
+  still middle, far edge 10.9 down the shin, bulge 1.81 at the middle, segments 4 = 65 vertices, fill 12 columns), the right
+  knee untouched; all back to as made: the leather's hash as before; saved, read back, mirrored on the right);
+  `vr_agarmor_bridge_check` 123/0 (new: the grunt's thigh sleeve's start_offset moves the thigh's end 2.000 and its
+  end_radius sizes the shin's ring 1.500x; the shin's bulge and segments 4: 5 rings, middle moved 1.79).
+  Also `vr_armour_test` 23/0, `vr_agarmor_test 15` 63/0, `21` 14/0 (after merging origin/next with ogreplates' plates).
+- **Render** `scratch/ogresleeves_knees.png` (in the tree; low-res, his game was up): `vr_agarmor_test 18`'s ogre, leather on,
+  then `vr_beastarmour_leather 0`: dark leather bands at both knees between the thigh and shin plates; off, skin shows there.
+- **Open**: the gizmo is not on a sleeve's end (rows only); `start_edge` / `fill` are beasts' only (a humanoid's rings are
+  whole rows); the knee look not judged in a headset; `vr_menu_path_check` not rerun (rows added, none renamed or moved).

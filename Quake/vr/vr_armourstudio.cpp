@@ -53,7 +53,11 @@ cvar_t* const fieldCvars[NumFields] = {&vr_armourstudio_offset_x, &vr_armourstud
     &vr_armourstudio_pitch, &vr_armourstudio_yaw, &vr_armourstudio_roll, &vr_armourstudio_scale, &vr_armourstudio_standoff,
     &vr_armourstudio_start, &vr_armourstudio_end, &vr_armourstudio_rows, &vr_armourstudio_taper_start, &vr_armourstudio_taper_end,
     &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth, &vr_armourstudio_hero, &vr_armourstudio_sag,
-    &vr_armourstudio_scale_x, &vr_armourstudio_scale_y, &vr_armourstudio_scale_z};
+    &vr_armourstudio_scale_x, &vr_armourstudio_scale_y, &vr_armourstudio_scale_z, &vr_armourstudio_start_offset_x,
+    &vr_armourstudio_start_offset_y, &vr_armourstudio_start_offset_z, &vr_armourstudio_end_offset_x, &vr_armourstudio_end_offset_y,
+    &vr_armourstudio_end_offset_z, &vr_armourstudio_start_radius, &vr_armourstudio_end_radius, &vr_armourstudio_start_edge,
+    &vr_armourstudio_end_edge, &vr_armourstudio_twist, &vr_armourstudio_bulge_x, &vr_armourstudio_bulge_y, &vr_armourstudio_bulge_z,
+    &vr_armourstudio_segments, &vr_armourstudio_fill};
 
 // The subject's model's animations: its frames grouped by name ("stand1".."stand8": stand).
 constexpr int maxAnims = 64;
@@ -177,7 +181,7 @@ void notePlayerShown()
 // The value shown for a field of the kind's part and side: its own, else (a side) the both-sides value (mirrored on the right).
 [[nodiscard]] float shownValue(int part, int side, int field)
 {
-    const uint32_t bit = 1u << static_cast<unsigned>(field);
+    const uint64_t bit = fieldBit(field);
     const Override* own = entry(kindName(), part, side, false);
     const Override* both = side != SideBoth ? entry(kindName(), part, SideBoth, false) : nullptr;
     if(own && (own->has & bit))
@@ -186,7 +190,7 @@ void notePlayerShown()
     }
     if(both && (both->has & bit))
     {
-        const bool mirror = side == SideRight && (field == OffsetY || field == Yaw || field == Roll);
+        const bool mirror = side == SideRight && mirrored(field);
         return mirror ? -both->v[field] : both->v[field];
     }
     // (a joint's folds not set: the global settings')
@@ -267,32 +271,45 @@ void syncFields()
         st.undoAt = realtime;
         any = true;
         Override* o = entry(kindName(), part, side, true);
-        const int first = f <= OffsetZ ? OffsetX : f <= Roll ? Pitch : f;
-        const int last = f <= Roll ? first + 2 : f;
+        const int first = tripleFirst(f) >= 0 ? tripleFirst(f) : f;
+        const int last = tripleFirst(f) >= 0 ? first + 2 : f;
         for(int g = first; g <= last; g++)
         {
             o->v[g] = fieldCvars[g]->value;
-            o->has |= 1u << static_cast<unsigned>(g);
+            o->has |= fieldBit(g);
             st.shown[g] = fieldCvars[g]->value;
         }
         // (rows 0: the generator's)
-        o->has &= f == Rows && o->v[Rows] < 0.5f ? ~(1u << static_cast<unsigned>(Rows)) : ~0u;
+        o->has &= f == Rows && o->v[Rows] < 0.5f ? ~(fieldBit(Rows)) : ~uint64_t{0};
         // (a taper of 1, the plates' or a sleeve's: as made, not written to the file)
         const bool taper = f == TaperStart || f == TaperEnd;
-        o->has &= taper && za::abs(o->v[f] - 1.f) < 1e-4f ? ~(1u << static_cast<unsigned>(f)) : ~0u;
+        o->has &= taper && za::abs(o->v[f] - 1.f) < 1e-4f ? ~(fieldBit(f)) : ~uint64_t{0};
         // (leather 1, or on a part with no sleeve: as made; 0 hides a sleeve's)
         o->v[Leather] = f == Leather ? (o->v[Leather] < 0.5f ? 0.f : 1.f) : o->v[Leather];
-        o->has &= f == Leather && (o->v[Leather] > 0.5f || !sleevePart(part)) ? ~(1u << static_cast<unsigned>(Leather)) : ~0u;
+        o->has &= f == Leather && (o->v[Leather] > 0.5f || !sleevePart(part)) ? ~(fieldBit(Leather)) : ~uint64_t{0};
         // (hero plates 1, or on a part with none (the helmet, the thighs, the sleeves): as made; 0 every plate its own)
         o->v[Hero] = f == Hero ? (o->v[Hero] < 0.5f ? 0.f : 1.f) : o->v[Hero];
         const bool heroPart = !beast && (part == PartCuirass || part == PartPauldron || part == PartBracer || part == PartShin);
-        o->has &= f == Hero && (o->v[Hero] > 0.5f || !heroPart) ? ~(1u << static_cast<unsigned>(Hero)) : ~0u;
+        o->has &= f == Hero && (o->v[Hero] > 0.5f || !heroPart) ? ~(fieldBit(Hero)) : ~uint64_t{0};
         // (the folds: whole, 0-4; as the global settings, or on a part with no leather: not written)
         o->v[Folds] = f == Folds ? za::clamp(static_cast<float>(static_cast<int>(o->v[Folds] + 0.5f)), 0.f, 4.f) : o->v[Folds];
         const float global = f == Folds ? vr_agarmor_folds.value : vr_agarmor_fold_depth.value;
-        o->has &= (f == Folds || f == FoldDepth) && (za::abs(o->v[f] - global) < 1e-4f || !sleevePart(part)) ? ~(1u << static_cast<unsigned>(f)) : ~0u;
+        o->has &= (f == Folds || f == FoldDepth) && (za::abs(o->v[f] - global) < 1e-4f || !sleevePart(part)) ? ~(fieldBit(f)) : ~uint64_t{0};
         // (a beast junction's sag 0, or on a part with no junction: not written)
-        o->has &= f == Sag && (za::abs(o->v[Sag]) < 1e-4f || !sleevePart(part) || !beast) ? ~(1u << static_cast<unsigned>(Sag)) : ~0u;
+        o->has &= f == Sag && (za::abs(o->v[Sag]) < 1e-4f || !sleevePart(part) || !beast) ? ~(fieldBit(Sag)) : ~uint64_t{0};
+        // (a sleeve's ends and shape (ROUND26.md, "ogresleeves") as made, or on a part with no leather: not written; a move or a
+        // bulge all three 0; the edges and fill 0 or 1, the segments whole)
+        if(f >= StartOffsetX)
+        {
+            o->v[f] = f == StartEdge || f == EndEdge || f == Fill ? (o->v[f] < 0.5f ? 0.f : 1.f) :
+                f == Segments ? za::clamp(static_cast<float>(static_cast<int>(o->v[f] + 0.5f)), 0.f, 8.f) : o->v[f];
+            const bool asMade = tripleFirst(f) >= 0 ? o->v[first] == 0.f && o->v[first + 1] == 0.f && o->v[first + 2] == 0.f :
+                                                      za::abs(o->v[f] - fieldDefault(f)) < 1e-4f;
+            for(int g = first; g <= last; g++)
+            {
+                o->has &= asMade || !sleevePart(part) ? ~fieldBit(g) : ~uint64_t{0};
+            }
+        }
     }
     if(any)
     {
@@ -702,7 +719,7 @@ void testStep1()
     o->v[OffsetX] = 0.f;
     o->v[OffsetY] = 1.5f;
     o->v[OffsetZ] = 0.5f;
-    o->has |= (1u << OffsetX) | (1u << OffsetY) | (1u << OffsetZ);
+    o->has |= fieldBit(OffsetX) | fieldBit(OffsetY) | fieldBit(OffsetZ);
     changed();
     s = gruntShell();
     int n = 0;
@@ -721,12 +738,12 @@ void testStep1()
     Override* rows = entry("grunt", PartShin, SideBoth, true);
     const int shinTris = s ? s->pieceTris[agarmor::ShinL] : 0;
     rows->v[Rows] = 4.f;
-    rows->has |= 1u << Rows;
+    rows->has |= fieldBit(Rows);
     changed();
     s = gruntShell();
     q_snprintf(what, sizeof(what), "the shins' triangles with 4 rows: %d, %d (were %d)", s ? s->pieceTris[agarmor::ShinL] : 0, s ? s->pieceTris[agarmor::ShinR] : 0, shinTris);
     t.check(s && s->pieceTris[agarmor::ShinL] != shinTris && s->pieceTris[agarmor::ShinL] == s->pieceTris[agarmor::ShinR], testName, what);
-    rows->has &= ~(1u << Rows);
+    rows->has &= ~fieldBit(Rows);
     changed();
     s = gruntShell();
     t.check(s && s->hash == test.hashTweaked, testName, "rows back to the generator's: not the same shell as before");
@@ -749,7 +766,7 @@ void testStep1()
     Override* taper = entry("grunt", PartThigh, SideBoth, true);
     taper->v[TaperStart] = 1.3f;
     taper->v[TaperEnd] = 0.8f;
-    taper->has |= (1u << TaperStart) | (1u << TaperEnd);
+    taper->has |= fieldBit(TaperStart) | fieldBit(TaperEnd);
     changed();
     s = gruntShell();
     const float topRatio = s && topWas > 0.f ? ringMean(s, agarmor::ThighL, false) / topWas : 0.f;
@@ -757,7 +774,7 @@ void testStep1()
     q_snprintf(what, sizeof(what), "the thighs' taper: their first ring %.3fx (1.3 wanted), their last %.3fx (0.8 wanted)",
         static_cast<double>(topRatio), static_cast<double>(lowRatio));
     t.check(za::abs(topRatio - 1.3f) < 0.01f && za::abs(lowRatio - 0.8f) < 0.01f, testName, what);
-    taper->has &= ~((1u << TaperStart) | (1u << TaperEnd));
+    taper->has &= ~(fieldBit(TaperStart) | fieldBit(TaperEnd));
     changed();
     s = gruntShell();
     t.check(s && s->hash == test.hashTweaked, testName, "the taper cleared: not the same shell as before");
@@ -766,8 +783,8 @@ void testStep1()
     Override* leather = entry("grunt", PartThighSleeve, SideLeft, true);
     leather->v[Leather] = 0.f;
     // (both again, for the file's round trip below)
-    taper->has |= (1u << TaperStart) | (1u << TaperEnd);
-    leather->has |= 1u << Leather;
+    taper->has |= fieldBit(TaperStart) | fieldBit(TaperEnd);
+    leather->has |= fieldBit(Leather);
     changed();
     s = gruntShell();
     test.hashTweaked = s ? s->hash : 0u;
@@ -973,6 +990,7 @@ constexpr const char* beastTestScrag = "progs/wizard.mdl"; // (his plate 8 in tw
 constexpr int beastTestDog = subjectBeasts;    // (the rottweiler: beastarmour.txt's first kind)
 constexpr int beastStepFrames = 72 * 6;        // frames a step may wait (a safety net: FAIL "timed out")
 constexpr float beastNear = 0.1f;              // units: a junction's end ring on its piece's place (as posed)
+constexpr int ogreWorn = (1 << agarmor::NumMaskBits) - 1; // (every worn bit: the ogre's shins have their own past the ten slots)
 
 struct BeastTest
 {
@@ -984,8 +1002,39 @@ struct BeastTest
     float lo[3]{}, hi[3]{}, loR[3]{}, hiR[3]{};
     float middle[3]{};
     int animFrame{0};
+    // (the ogre's knees, ROUND26.md "ogresleeves": the left's junction as made, the right's, the leather's hash; the key tried)
+    beastarmour::JunctionCheck knee, kneeR;
+    uint32_t kneeHash{0};
+    int kneeStep{0};
 };
 BeastTest bt;
+
+constexpr const char* beastTestOgre = "progs/ogre.mdl";
+constexpr int ogreKneeL = agarmor::NumPieces; // (his parts: the shins, left then right, beastarmour.txt's order)
+// The sleeve keys tried on the ogre's left knee, one at a time (each back to as made before the next).
+struct KneeKey
+{
+    cvar_t* cvar;
+    int field;
+    float value;
+};
+constexpr int kneeKeyCount = 9;
+const KneeKey kneeKeys[kneeKeyCount] = {
+    {&vr_armourstudio_start_offset_z, StartOffsetZ, 2.f},
+    {&vr_armourstudio_end_offset_x, EndOffsetX, 2.f},
+    {&vr_armourstudio_start_radius, StartRadius, 1.5f},
+    {&vr_armourstudio_end_radius, EndRadius, 0.5f},
+    {&vr_armourstudio_twist, Twist, 30.f},
+    {&vr_armourstudio_start_edge, StartEdge, 1.f},
+    {&vr_armourstudio_bulge_z, BulgeZ, 2.f},
+    {&vr_armourstudio_segments, Segments, 4.f},
+    {&vr_armourstudio_fill, Fill, 1.f},
+};
+
+[[nodiscard]] float apart3(const float* a, const float* b)
+{
+    return za::sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]));
+}
 
 [[nodiscard]] edict_t* beastSubject()
 {
@@ -1098,7 +1147,7 @@ void beastTestFrame()
     case 3:
     {
         const Override* o = entry(beastTestModel, PartCuirass, SideBoth, false);
-        if(!beastWait(o && (o->has & (1u << OffsetX)) != 0u, "timed out: the cuirass's offset not in the table"))
+        if(!beastWait(o && (o->has & fieldBit(OffsetX)) != 0u, "timed out: the cuirass's offset not in the table"))
         {
             return;
         }
@@ -1128,7 +1177,7 @@ void beastTestFrame()
     case 5:
     {
         const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
-        if(!beastWait(o && (o->has & (1u << Scale)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale not in the table"))
+        if(!beastWait(o && (o->has & fieldBit(Scale)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale not in the table"))
         {
             return;
         }
@@ -1155,7 +1204,7 @@ void beastTestFrame()
     case 50: // the shoulders' size forward alone 1.2 more (scale_x): forward 1.5x, left and up 1.25x
     {
         const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
-        if(!beastWait(o && (o->has & (1u << ScaleX)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale_x not in the table"))
+        if(!beastWait(o && (o->has & fieldBit(ScaleX)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale_x not in the table"))
         {
             return;
         }
@@ -1178,7 +1227,7 @@ void beastTestFrame()
     case 51: // both back to 1: drawn as the piece's own .mdl again (not its #tweak), its size as made
     {
         const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
-        const auto one = [&](int f) { return !o || !(o->has & (1u << static_cast<unsigned>(f))) || o->v[f] == 1.f; };
+        const auto one = [&](int f) { return !o || !(o->has & (fieldBit(f))) || o->v[f] == 1.f; };
         if(!beastWait(one(Scale) && one(ScaleX) && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale not back to 1"))
         {
             return;
@@ -1206,7 +1255,7 @@ void beastTestFrame()
     case 52:
     {
         const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
-        if(!beastWait(o && (o->has & (1u << Scale)) != 0u && o->v[Scale] == 1.25f, "timed out: the shoulders' scale not 1.25 again"))
+        if(!beastWait(o && (o->has & fieldBit(Scale)) != 0u && o->v[Scale] == 1.25f, "timed out: the shoulders' scale not 1.25 again"))
         {
             return;
         }
@@ -1243,7 +1292,7 @@ void beastTestFrame()
     case 9:
     {
         const Override* o = entry(beastTestModel, PartCuirassSleeve, SideBoth, false);
-        if(!beastWait(o && (o->has & (1u << Sag)) != 0u, "timed out: the sag not in the table"))
+        if(!beastWait(o && (o->has & fieldBit(Sag)) != 0u, "timed out: the sag not in the table"))
         {
             return;
         }
@@ -1263,7 +1312,7 @@ void beastTestFrame()
         const Override* b = entry(beastTestModel, PartPauldron, SideBoth, false);
         const Override* c = entry(beastTestModel, PartPauldronSleeve, SideLeft, false);
         const Override* d = entry(beastTestModel, PartCuirassSleeve, SideBoth, false);
-        t.check(a && za::abs(a->v[OffsetX] - 2.f) < 1e-4f && b && za::abs(b->v[Scale] - 1.25f) < 1e-4f && c && (c->has & (1u << Leather)) &&
+        t.check(a && za::abs(a->v[OffsetX] - 2.f) < 1e-4f && b && za::abs(b->v[Scale] - 1.25f) < 1e-4f && c && (c->has & fieldBit(Leather)) &&
                 c->v[Leather] < 0.5f && d && za::abs(d->v[Sag] - 2.f) < 1e-4f,
             beastTestName, "the saved tweaks not read back (offset, scale, leather off, sag)");
         // The junctions through an animation: its run's first frame and a later one.
@@ -1344,7 +1393,7 @@ void beastTestFrame()
         Con_Printf("%s: AD's knights' rigs %s\n", beastTestName, shared ? "match: one set of tweaks" : "differ (or not there): each its own");
         Override* o = entry(shared ? kindNames[KindAdKnight] : "progs/vrdguard.mdl", PartBracer, SideBoth, true);
         o->v[OffsetX] = 1.5f;
-        o->has |= 1u << OffsetX;
+        o->has |= fieldBit(OffsetX);
         changed();
         Override guard, crossbow;
         (void)resolve("progs/vrdguard.mdl", agarmor::BracerL, false, guard);
@@ -1389,7 +1438,7 @@ void beastTestFrame()
     case 61: // the back half moved up 2 alone: the front half where it was
     {
         const Override* o = entry(beastTestScrag, PartPlate8Back, SideBoth, false);
-        if(!beastWait(o && (o->has & (1u << OffsetZ)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the back half's offset not in the table"))
+        if(!beastWait(o && (o->has & fieldBit(OffsetZ)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the back half's offset not in the table"))
         {
             return;
         }
@@ -1410,7 +1459,7 @@ void beastTestFrame()
         (void)resolveBeast(beastTestScrag, 8, false, f);
         Con_Printf("%s: the back half moved %.3f, the front half %.3f\n", beastTestName, static_cast<double>(moved), static_cast<double>(still));
         // (the front half's own offset, his shipped one if any, not the back half's new one)
-        t.check(za::abs(moved - 2.f) < 0.25f && still < 0.01f && (!(f.has & (1u << OffsetZ)) || za::abs(f.v[OffsetZ] - o->v[OffsetZ]) > 1e-3f), beastTestName,
+        t.check(za::abs(moved - 2.f) < 0.25f && still < 0.01f && (!(f.has & fieldBit(OffsetZ)) || za::abs(f.v[OffsetZ] - o->v[OffsetZ]) > 1e-3f), beastTestName,
             "the back half not tweaked apart from the front (moved 2, the front still)");
         Cvar_SetValueQuick(&vr_armourstudio_offset_z, 0.f);
         Cvar_SetValueQuick(&vr_armourstudio_alone, 1.f);
@@ -1425,8 +1474,116 @@ void beastTestFrame()
         Con_Printf("%s: the scrag's back half worn alone: %d piece drawn\n", beastTestName, beastarmour::drawnCount(true));
         t.check(true);
         Cvar_SetValueQuick(&vr_armourstudio_alone, 0.f);
+        // The ogre: his knees' leather (each shin's junction to its thigh) as made (the shipped fill off), its left one's sleeve
+        // picked.
+        clear(beastTestOgre, PartShinSleeve, -1);
+        changed();
+        Cvar_SetValueQuick(&vr_armourstudio_kind, static_cast<float>(subjectBeasts + beastarmour::kindIndex(beastTestOgre)));
+        Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartShinSleeve));
+        Cvar_SetValueQuick(&vr_armourstudio_side, static_cast<float>(SideLeft));
+        bt.step = 70;
+        return;
+    case 70: // the ogre's knees' leather made, as made; the first key tried
+    {
+        const int ogre = beastarmour::kindIndex(beastTestOgre);
+        if(!beastWait(ogre >= 0 && !ZA_STRCMP(subjectEntry(), beastTestOgre) && st.selPart == PartShinSleeve && st.selSide == SideLeft &&
+                          beastarmour::drawnCount() >= 10 && beastarmour::leatherDrawn() >= 1,
+               "timed out: no ogre with his pieces and leather, his left knee's leather picked"))
+        {
+            return;
+        }
+        bt.knee = beastarmour::checkJunction(e, ogreKneeL, ogreWorn);
+        bt.kneeR = beastarmour::checkJunction(e, ogreKneeL + 1, ogreWorn);
+        bt.kneeHash = beastarmour::leatherHash(ogre);
+        Con_Printf("%s: the ogre's knees' leather: left %d vertices, %d columns, ends %.4f from its pieces, radii %.2f %.2f; right %d vertices, "
+                   "%d columns; hash %08x\n", beastTestName, bt.knee.verts, bt.knee.cols, static_cast<double>(bt.knee.endError),
+            static_cast<double>(bt.knee.endRadius[0]), static_cast<double>(bt.knee.endRadius[1]), bt.kneeR.verts, bt.kneeR.cols, bt.kneeHash);
+        t.check(beastarmour::junctionMade(ogre, ogreKneeL) && beastarmour::junctionMade(ogre, ogreKneeL + 1) && bt.knee.found && bt.kneeR.found &&
+                    bt.knee.verts > 0 && bt.knee.endError < beastNear && partValid(subjectBeasts + ogre, PartShinSleeve) &&
+                    beastarmour::joins(ogre, ogreKneeL) == agarmor::ThighL && beastarmour::joins(ogre, ogreKneeL + 1) == agarmor::ThighR,
+            beastTestName, "the ogre's knees' leather (each shin's junction to its own thigh) not made");
+        bt.kneeStep = 0;
+        Cvar_SetValueQuick(kneeKeys[0].cvar, kneeKeys[0].value);
+        bt.step = 71;
+        return;
+    }
+    case 71: // each sleeve key on the left knee in turn: it moves (sizes, turns...) the end it names, the other end and the right knee kept
+    {
+        const KneeKey& key = kneeKeys[bt.kneeStep];
+        const Override* o = entry(beastTestOgre, PartShinSleeve, SideLeft, false);
+        const bool prevCleared = bt.kneeStep == 0 || !(o && (o->has & fieldBit(kneeKeys[bt.kneeStep - 1].field)));
+        if(!beastWait(o && (o->has & fieldBit(key.field)) && prevCleared, "timed out: a sleeve key not in the table"))
+        {
+            return;
+        }
+        const beastarmour::JunctionCheck j = beastarmour::checkJunction(e, ogreKneeL, ogreWorn);
+        const beastarmour::JunctionCheck r = beastarmour::checkJunction(e, ogreKneeL + 1, ogreWorn);
+        const float own = apart3(j.end[0], bt.knee.end[0]), joined = apart3(j.end[1], bt.knee.end[1]);
+        const float size0 = j.endRadius[0] / za::max(bt.knee.endRadius[0], 1e-3f), size1 = j.endRadius[1] / za::max(bt.knee.endRadius[1], 1e-3f);
+        const float corner = apart3(j.endCorner[1], bt.knee.endCorner[1]), middle = apart3(j.middle, bt.knee.middle);
+        const bool rightKept = apart3(r.end[0], bt.kneeR.end[0]) < 1e-3f && apart3(r.end[1], bt.kneeR.end[1]) < 1e-3f && r.verts == bt.kneeR.verts;
+        Con_Printf("%s: %s %g on the left knee: own end moved %.3f, joined end %.3f, sizes %.3fx %.3fx, joined corner %.3f, middle %.3f, %d vertices, "
+                   "%d columns, ends %.4f from the pieces; the right knee %s\n", beastTestName, fieldNames[key.field], static_cast<double>(key.value),
+            static_cast<double>(own), static_cast<double>(joined), static_cast<double>(size0), static_cast<double>(size1), static_cast<double>(corner),
+            static_cast<double>(middle), j.verts, j.cols, static_cast<double>(j.endError), rightKept ? "kept" : "CHANGED");
+        bool ok = j.found && j.endError < beastNear && rightKept;
+        switch(key.field)
+        {
+        case StartOffsetZ: ok = ok && za::abs(own - 2.f) < 0.05f && joined < 0.01f; break;
+        case EndOffsetX: ok = ok && za::abs(joined - 2.f) < 0.05f && own < 0.01f; break;
+        case StartRadius: ok = ok && za::abs(size0 - 1.5f) < 0.01f && za::abs(size1 - 1.f) < 0.01f && own < 0.01f; break;
+        case EndRadius: ok = ok && za::abs(size1 - 0.5f) < 0.01f && za::abs(size0 - 1.f) < 0.01f && joined < 0.01f; break;
+        case Twist: ok = ok && joined < 0.05f && own < 0.01f && corner > 0.5f; break;
+        case StartEdge: ok = ok && own > 2.f; break; // (the columns both have change: the joined end's middle with them)
+        case BulgeZ: ok = ok && middle > 1.5f && middle < 2.5f && own < 0.01f && joined < 0.01f; break;
+        case Segments: ok = ok && j.verts == 5 * (12 + 1) && bt.knee.verts != j.verts; break;
+        default: ok = ok && j.cols == 12 && bt.knee.cols < 12; break; // (fill)
+        }
+        char what[96];
+        q_snprintf(what, sizeof(what), "the left knee's %s did not move the end it names alone", fieldNames[key.field]);
+        t.check(ok, beastTestName, what);
+        Cvar_SetValueQuick(key.cvar, fieldDefault(key.field));
+        if(++bt.kneeStep < kneeKeyCount)
+        {
+            Cvar_SetValueQuick(kneeKeys[bt.kneeStep].cvar, kneeKeys[bt.kneeStep].value);
+            return;
+        }
+        bt.step = 72;
+        return;
+    }
+    case 72: // every key back as made: the leather as before, vertex for vertex; the keys saved and read back, mirrored on the right
+    {
+        const Override* o = entry(beastTestOgre, PartShinSleeve, SideLeft, false);
+        if(!beastWait(!o || !o->has, "timed out: the left knee's sleeve keys not cleared"))
+        {
+            return;
+        }
+        const int ogre = beastarmour::kindIndex(beastTestOgre);
+        const uint32_t hash = beastarmour::leatherHash(ogre);
+        Con_Printf("%s: the ogre's leather back as made: hash %08x (was %08x)\n", beastTestName, hash, bt.kneeHash);
+        t.check(hash == bt.kneeHash, beastTestName, "the keys back to as made: the ogre's leather not as before");
+        Override* both = entry(beastTestOgre, PartShinSleeve, SideBoth, true);
+        both->v[StartOffsetY] = 1.f;
+        both->v[Twist] = 10.f;
+        both->v[Fill] = 1.f;
+        both->has |= fieldBit(StartOffsetX) | fieldBit(StartOffsetY) | fieldBit(StartOffsetZ) | fieldBit(Twist) | fieldBit(Fill);
+        changed();
+        t.check(save(), beastTestName, "not saved");
+        clear(beastTestOgre, PartShinSleeve, -1);
+        changed();
+        (void)load();
+        Override left, right;
+        (void)resolveBeastPart(beastTestOgre, PartShin, SideLeft, true, left);
+        (void)resolveBeastPart(beastTestOgre, PartShin, SideRight, true, right);
+        Con_Printf("%s: saved and read back: left start_offset y %g, twist %g, fill %g; right %g, %g, %g\n", beastTestName,
+            static_cast<double>(left.v[StartOffsetY]), static_cast<double>(left.v[Twist]), static_cast<double>(left.v[Fill]),
+            static_cast<double>(right.v[StartOffsetY]), static_cast<double>(right.v[Twist]), static_cast<double>(right.v[Fill]));
+        t.check(left.v[StartOffsetY] == 1.f && left.v[Twist] == 10.f && left.v[Fill] == 1.f && right.v[StartOffsetY] == -1.f && right.v[Twist] == -10.f &&
+                right.v[Fill] == 1.f && (left.has & fieldBit(StartOffsetX)),
+            beastTestName, "the sleeve keys not saved and read back (start_offset, twist, fill), or the right's not mirrored");
         beastVerdict();
         return;
+    }
     default:
         beastVerdict();
         return;
@@ -1567,9 +1724,16 @@ bool fieldShown(int subject, int part, int field)
     {
         // (a beast's piece: moved, turned, scaled, stood off, tapered; its junction: leather, its tapers (width at each end),
         // stand-off (thickness), folds, sag)
+        // (and its ends' places, sizes and edges, twist, bulge, segments, fill: ROUND26.md, "ogresleeves")
         return sleeve ? (field == Leather || field == TaperStart || field == TaperEnd || field == Standoff || field == Folds || field == FoldDepth ||
-                            field == Sag)
-                      : (field <= Standoff || field == TaperStart || field == TaperEnd || field >= ScaleX);
+                            field == Sag || field >= StartOffsetX)
+                      : (field <= Standoff || field == TaperStart || field == TaperEnd || (field >= ScaleX && field <= ScaleZ));
+    }
+    // (a humanoid's sleeve: its ends' places and sizes, twist, bulge, segments; its ends always the rows at the joint, its
+    // rings always whole: no edge or fill)
+    if(field >= StartOffsetX)
+    {
+        return sleeve && field != StartEdge && field != EndEdge && field != Fill;
     }
     // (the plates' rows: not the helmet's or a sleeve's; the tapers: not the helmet's (a sleeve's leather tapers too); leather:
     // the sleeves' alone; hero plates: the parts that have them; sag: the beasts')

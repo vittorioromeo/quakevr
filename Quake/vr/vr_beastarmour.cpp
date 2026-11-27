@@ -27,7 +27,9 @@
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
 #include <glm/glm.hpp>
@@ -111,6 +113,11 @@ struct Junction
     int firstIndex{0}, numIndexes{0};
     glm::vec3 endMid[2]{}; // its end rings' middles (the child's, the parent's)
     float skinFit[2]{1.f, 1.f}; // ... shrunk this much round them to sit on the skin
+    // (vr_beastarmour_info: its columns, the ends' mean radii, how far apart along the line from the child to the parent)
+    int cols{0};
+    int edges[2]{}; // (the columns each end's piece has an edge in, before `fill`)
+    float radius[2]{};
+    float along{0.f};
 };
 
 struct Kind
@@ -562,6 +569,91 @@ void rimOf(const Slot& s, const glm::vec3& from, const glm::vec3& dir, const glm
     }
 }
 
+// armour.txt's `fill`: a junction end's columns with no edge on its piece (open strips where plates meet at the flanks) laid
+// round the line at their found neighbours' reach and place along it (lerped round between the nearest found either way).
+void fillRim(const glm::vec3& from, const glm::vec3& dir, const glm::vec3& e1, const glm::vec3& e2, glm::vec3* rim, bool* found)
+{
+    float along[junctionCols]{}, reach[junctionCols]{};
+    int any = 0;
+    for(int c = 0; c < junctionCols; c++)
+    {
+        along[c] = found[c] ? glm::dot(rim[c] - from, dir) : 0.f;
+        reach[c] = found[c] ? glm::length(rim[c] - from - dir * along[c]) : 0.f;
+        any += found[c] ? 1 : 0;
+    }
+    if(any == 0 || any == junctionCols)
+    {
+        return;
+    }
+    bool filled[junctionCols]{};
+    for(int c = 0; c < junctionCols; c++)
+    {
+        if(found[c])
+        {
+            continue;
+        }
+        int back = 1, ahead = 1;
+        while(!found[(c - back + junctionCols) % junctionCols])
+        {
+            back++;
+        }
+        while(!found[(c + ahead) % junctionCols])
+        {
+            ahead++;
+        }
+        const int b = (c - back + junctionCols) % junctionCols, f = (c + ahead) % junctionCols;
+        const float w = static_cast<float>(back) / static_cast<float>(back + ahead);
+        const float ang = (static_cast<float>(c) + 0.5f) / static_cast<float>(junctionCols) * 2.f * geom::pi - geom::pi;
+        const float r = reach[b] + (reach[f] - reach[b]) * w, t = along[b] + (along[f] - along[b]) * w;
+        rim[c] = from + dir * t + (e1 * za::cos(ang) + e2 * za::sin(ang)) * r;
+        filled[c] = true;
+    }
+    for(int c = 0; c < junctionCols; c++)
+    {
+        found[c] = found[c] || filled[c];
+    }
+}
+
+// armour.txt's sleeve on a junction's ends (ROUND26.md, "ogresleeves"), the rest pose: each end's ring sized round its middle
+// (start_radius: the child's, end_radius: the joined piece's), the joined end's turned round the line between them (twist),
+// each moved (start_offset, end_offset: the model's axes; the leather's end rides its piece). Nothing set: nothing touched.
+void sleeveEnds(const Override& o, const glm::vec3& dir, glm::vec3* rimA, glm::vec3& midA, glm::vec3* rimB, glm::vec3& midB)
+{
+    using namespace armourdata;
+    for(int e = 0; e < 2; e++)
+    {
+        glm::vec3* rim = e == 0 ? rimA : rimB;
+        glm::vec3& mid = e == 0 ? midA : midB;
+        const int radius = e == 0 ? StartRadius : EndRadius, offset = e == 0 ? StartOffsetX : EndOffsetX;
+        if(has(o, radius))
+        {
+            const float k = za::clamp(o.v[radius], 0.1f, 4.f);
+            for(int c = 0; c < junctionCols; c++)
+            {
+                rim[c] = mid + (rim[c] - mid) * k;
+            }
+        }
+        if(e == 1 && has(o, Twist))
+        {
+            const float turn = o.v[Twist] * geom::pi / 180.f, cs = za::cos(turn), sn = za::sin(turn);
+            for(int c = 0; c < junctionCols; c++)
+            {
+                const glm::vec3 d = rim[c] - mid;
+                rim[c] = mid + d * cs + glm::cross(dir, d) * sn + dir * glm::dot(dir, d) * (1.f - cs);
+            }
+        }
+        if(has(o, offset) || has(o, offset + 1) || has(o, offset + 2))
+        {
+            const glm::vec3 move{o.v[offset], o.v[offset + 1], o.v[offset + 2]};
+            for(int c = 0; c < junctionCols; c++)
+            {
+                rim[c] += move;
+            }
+            mid += move;
+        }
+    }
+}
+
 // The junctions in the rest pose (each piece worn's to the piece it joins, both tweaked), their leather's vertices.
 void buildJunctions(Kind& k)
 {
@@ -588,8 +680,22 @@ void buildJunctions(Kind& k)
         const glm::vec3 e1 = glm::normalize(ref - dir * glm::dot(ref, dir)), e2 = glm::cross(dir, e1);
         glm::vec3 rimA[junctionCols], rimB[junctionCols];
         bool inA[junctionCols], inB[junctionCols], col[junctionCols];
-        rimOf(s, a, dir, e1, e2, true, rimA, inA);
-        rimOf(q, a, dir, e1, e2, false, rimB, inB);
+        // (armour.txt's sleeve (ROUND26.md, "ogresleeves"): each end on its piece's edge facing the other, or its far edge)
+        const Override& o = s.jt;
+        const auto on = [&o](int f) { return has(o, f) && o.v[f] > 0.5f; };
+        rimOf(s, a, dir, e1, e2, !on(armourdata::StartEdge), rimA, inA);
+        rimOf(q, a, dir, e1, e2, on(armourdata::EndEdge), rimB, inB);
+        int edges[2]{};
+        for(int c = 0; c < junctionCols; c++)
+        {
+            edges[0] += inA[c] ? 1 : 0;
+            edges[1] += inB[c] ? 1 : 0;
+        }
+        if(on(armourdata::Fill))
+        {
+            fillRim(a, dir, e1, e2, rimA, inA);
+            fillRim(a, dir, e1, e2, rimB, inB);
+        }
         int cols = 0;
         glm::vec3 midA{0.f}, midB{0.f};
         for(int c = 0; c < junctionCols; c++)
@@ -611,14 +717,18 @@ void buildJunctions(Kind& k)
             rimA[c] = col[c] ? rimA[c] : midA;
             rimB[c] = col[c] ? rimB[c] : midB;
         }
-        const Override& o = s.jt;
+        sleeveEnds(o, dir, rimA, midA, rimB, midB);
         const int folds = za::clamp(static_cast<int>((has(o, armourdata::Folds) ? o.v[armourdata::Folds] : vr_agarmor_folds.value) + 0.5f), 0, 4);
         const float depth = has(o, armourdata::FoldDepth) ? o.v[armourdata::FoldDepth] : vr_agarmor_fold_depth.value;
         const float taperA = has(o, armourdata::TaperStart) ? za::clamp(o.v[armourdata::TaperStart], 0.2f, 3.f) : 1.f;
         const float taperB = has(o, armourdata::TaperEnd) ? za::clamp(o.v[armourdata::TaperEnd], 0.2f, 3.f) : 1.f;
         const float thick = has(o, armourdata::Standoff) ? o.v[armourdata::Standoff] : 0.f;
         const float sag = has(o, armourdata::Sag) ? o.v[armourdata::Sag] : 0.f;
-        const int rings = za::clamp(2 * folds + 1, 5, 9);
+        const bool bulged = has(o, armourdata::BulgeX) || has(o, armourdata::BulgeY) || has(o, armourdata::BulgeZ);
+        const glm::vec3 bulge{o.v[armourdata::BulgeX], o.v[armourdata::BulgeY], o.v[armourdata::BulgeZ]};
+        // (segments: its rings less one; else 2 x folds + 1, 5-9)
+        const float segments = has(o, armourdata::Segments) ? o.v[armourdata::Segments] : 0.f;
+        const int rings = segments >= 0.5f ? za::clamp(static_cast<int>(segments + 0.5f) + 1, 2, 9) : za::clamp(2 * folds + 1, 5, 9);
         Junction& jn = k.junction[k.numJunctions];
         jn = Junction{};
         jn.child = i;
@@ -628,6 +738,10 @@ void buildJunctions(Kind& k)
         jn.firstIndex = static_cast<int>(k.lidx.size());
         jn.endMid[0] = midA;
         jn.endMid[1] = midB;
+        jn.cols = cols;
+        jn.edges[0] = edges[0];
+        jn.edges[1] = edges[1];
+        jn.along = glm::dot(midB - midA, dir);
         for(int r = 0; r < rings; r++)
         {
             const float t = static_cast<float>(r) / static_cast<float>(rings - 1);
@@ -642,6 +756,10 @@ void buildJunctions(Kind& k)
                 const glm::vec3 out = geom::safeNormalize(r0 - dir * glm::dot(r0, dir), e1, 1e-4f);
                 p = mid + r0 * width + out * env * (thick + (folds > 0 && r % 2 == 1 ? depth : 0.f));
                 p.z -= sag * 4.f * t * (1.f - t);
+                if(bulged)
+                {
+                    p += bulge * (4.f * t * (1.f - t));
+                }
                 k.lp.pushBack(p);
                 k.ln.pushBack(out);
                 k.lw.pushBack(t * t * (3.f - 2.f * t));
@@ -683,6 +801,7 @@ void buildJunctions(Kind& k)
             }
             gap /= static_cast<float>(cols);
             radius /= static_cast<float>(cols);
+            jn.radius[e] = radius;
             jn.skinFit[e] = radius > 1e-3f ? za::clamp(1.f - za::max(gap - skinFitGap, 0.f) / radius, skinFitLeast, 1.f) : 1.f;
         }
         k.numJunctions++;
@@ -1219,6 +1338,30 @@ bool makeLeather(qmodel_t* mod, Kind& k)
     return endModel(mod, m, 128.f);
 }
 
+// (FNV-1a over the junctions' leather as made: its vertices, normals, weights and triangles)
+[[nodiscard]] uint32_t hashLeather(const Kind& k)
+{
+    uint32_t h = 2166136261u;
+    const auto mix = [&h](const void* p, za::SizeT n) {
+        const auto* b = static_cast<const unsigned char*>(p);
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            h = (h ^ b[i]) * 16777619u;
+        }
+    };
+    for(za::SizeT i = 0; i < k.lp.size(); i++)
+    {
+        mix(&k.lp[i], sizeof(glm::vec3));
+        mix(&k.ln[i], sizeof(glm::vec3));
+        mix(&k.lw[i], sizeof(float));
+    }
+    for(za::SizeT i = 0; i < k.lidx.size(); i++)
+    {
+        mix(&k.lidx[i], sizeof(unsigned short));
+    }
+    return h;
+}
+
 void info_f()
 {
     if(!loaded)
@@ -1268,6 +1411,18 @@ void info_f()
                     s.joins);
             }
         }
+        // (each junction: its ends' middles at rest, how far apart along the line between its pieces (below 0: the ends
+        // overlap, the leather inside the plates), the ends' mean radii, its columns; the leather's hash: defaults unchanged)
+        for(int j = 0; j < k.numJunctions; j++)
+        {
+            const Junction& jn = k.junction[j];
+            Con_Printf("  junction %d -> %d: ends %.2f %.2f %.2f / %.2f %.2f %.2f, %.2f apart (%.2f along), radii %.2f %.2f, %d columns (edges %d / %d), %d rings\n",
+                jn.child, jn.parent, static_cast<double>(jn.endMid[0].x), static_cast<double>(jn.endMid[0].y), static_cast<double>(jn.endMid[0].z),
+                static_cast<double>(jn.endMid[1].x), static_cast<double>(jn.endMid[1].y), static_cast<double>(jn.endMid[1].z),
+                static_cast<double>(glm::distance(jn.endMid[0], jn.endMid[1])), static_cast<double>(jn.along), static_cast<double>(jn.radius[0]),
+                static_cast<double>(jn.radius[1]), jn.cols, jn.edges[0], jn.edges[1], jn.numVerts / (junctionCols + 1));
+        }
+        Con_Printf("  leather hash %08x (%d vertices, %d indexes)\n", hashLeather(k), static_cast<int>(k.lp.size()), static_cast<int>(k.lidx.size()));
     }
 }
 
@@ -1754,12 +1909,13 @@ int kindSlots(int i)
 
 int joins(int i, int slot)
 {
-    if(i < 0 || i >= kindCount() || slot < 0 || slot >= numSlots)
+    // (a part past the slots too: the ogre's shins, the scrag's tail)
+    if(i < 0 || i >= kindCount() || slot < 0 || slot >= maxParts)
     {
         return -1;
     }
     Kind& k = kinds[static_cast<za::SizeT>(i)];
-    return resolve(k) && k.slot[slot].on ? k.slot[slot].joins : -1;
+    return resolve(k) && slot < k.numParts && k.slot[slot].on ? k.slot[slot].joins : -1;
 }
 
 bool junctionMade(int i, int slot)
@@ -1806,6 +1962,16 @@ bool pieceExtent(int i, int slot, float* lo, float* hi)
         hi[c] = k.slot[slot].hi[c];
     }
     return true;
+}
+
+uint32_t leatherHash(int i)
+{
+    if(i < 0 || i >= kindCount())
+    {
+        return 0u;
+    }
+    Kind& k = kinds[static_cast<za::SizeT>(i)];
+    return resolve(k) ? hashLeather(k) : 0u;
 }
 
 JunctionCheck checkJunction(edict_t* ent, int slot, int pieces)
@@ -1855,6 +2021,34 @@ JunctionCheck checkJunction(edict_t* ent, int slot, int pieces)
             out.middle[c] = mid[c];
         }
         out.verts = jn.numVerts;
+        out.cols = jn.cols;
+        for(int e = 0; e < 2; e++)
+        {
+            const int first = jn.first + (e == 0 ? 0 : (rings - 1) * ring);
+            glm::vec3 m{0.f};
+            for(int c = 0; c < junctionCols; c++)
+            {
+                m += posedLeather(*k, first + c, bones) / static_cast<float>(junctionCols);
+            }
+            float r = 0.f;
+            for(int c = 0; c < junctionCols; c++)
+            {
+                r += glm::distance(posedLeather(*k, first + c, bones), m) / static_cast<float>(junctionCols);
+            }
+            // (its first corner off its middle: a column both pieces have, not one laid on the middle)
+            glm::vec3 corner = m;
+            for(int c = junctionCols - 1; c >= 0; c--)
+            {
+                const glm::vec3 p = posedLeather(*k, first + c, bones);
+                corner = glm::distance(p, m) > 1e-3f ? p : corner;
+            }
+            for(int c = 0; c < 3; c++)
+            {
+                out.end[e][c] = m[c];
+                out.endCorner[e][c] = corner[c];
+            }
+            out.endRadius[e] = r;
+        }
     }
     return out;
 }

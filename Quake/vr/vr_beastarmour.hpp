@@ -99,7 +99,15 @@ struct JunctionCheck
     float endError{0.f};
     float longestEdge{0.f};
     float middle[3]{};
+    // (its end rings as posed, 0 the piece's own, 1 the joined piece's: their middles, their mean radii round them, their
+    // first corner off the middle; vr_beaststudio_test's sleeve-end steps, ROUND26.md "ogresleeves")
+    float end[2][3]{};
+    float endRadius[2]{};
+    float endCorner[2][3]{};
+    int cols{0}; // (its columns: those both pieces have an edge in, or all round with `fill`)
 };
+// A hash of kind `kind`'s junctions' leather as made (vertices, normals, weights, triangles): the tests' "as before".
+[[nodiscard]] uint32_t leatherHash(int kind);
 [[nodiscard]] JunctionCheck checkJunction(struct edict_s* ent, int slot, int pieces);
 // The tests (ROUND26.md, "armourlook"): piece `slot` of kind `kind` made shaped ("<piece model>#tweak") against its own .mdl,
 // drawn as client entity `num` is: the same skins (so their normal maps, mipmaps and filtering), the same triangles, each

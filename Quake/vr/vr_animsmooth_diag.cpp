@@ -136,6 +136,8 @@ void info_f()
     Con_Printf("animsmooth: %d rebuilt (vr_anim_smooth_rebuild %g); %d instances drawn in %.3f ms (%.2f us each)\n",
         stats.rebuilt, vr_anim_smooth_rebuild.value, stats.calls, stats.seconds * 1000.0,
         stats.calls ? stats.seconds * 1e6 / stats.calls : 0.0);
+    Con_Printf("animsmooth: drawn points (the armour on the drawn body): %d calls, %d vertices in %.3f ms (%.2f us a call)\n",
+        stats.pointCalls, stats.points, stats.pointSeconds * 1000.0, stats.pointCalls ? stats.pointSeconds * 1e6 / stats.pointCalls : 0.0);
     Con_Printf("animsmooth: pinned entity %d, traced entity %d (-1: none)\n", pin.ent, trace.ent);
     stats = Stats{};
     for(const auto& [model, mp] : smoothCache.models)

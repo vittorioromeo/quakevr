@@ -342,10 +342,19 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
     // parallel, the rings evenly spaced, the rows' shapes lerped, each column then runs forward wherever its rows do not
     // cross; turned, the S's tilt drew the grunt's and the knees' columns back, 2026-11-10)
     const float ringTurn = bridgeTangentTurn * smooth01(theta / bridgeTurnBend);
+    // (armour.txt's bulge: the middle rings pushed, as the beasts' sag, the way the rest pose's axes are turned by each end's
+    // bone, blended along; nothing at the ends)
+    const bool bulged = br.bulge != glm::vec3{0.f};
+    const glm::vec3 bulge0 = bulged ? turnOf(bones, ends[0]->bone) * br.bulge : glm::vec3{0.f};
+    const glm::vec3 bulge1 = bulged ? turnOf(bones, ends[1]->bone) * br.bulge : glm::vec3{0.f};
     for(int i = 0; i < rg.n; i++)
     {
         const float t = tOf[i];
         rg.centre[i] = curveAt(curveT[i]);
+        if(bulged)
+        {
+            rg.centre[i] += (bulge0 + (bulge1 - bulge0) * t) * (4.f * t * (1.f - t));
+        }
         const glm::vec3 d = speedOf(curveT[i], m0, m1);
         const glm::quat q = frameOf[i];
         const glm::vec3 zq = q * glm::vec3{0.f, 0.f, 1.f};
@@ -1702,6 +1711,46 @@ void bridgeCheck_f()
         q_snprintf(what, sizeof(what), "folds \"1\" on the left shin's sleeve: the left knee's folds %d in %d rings (1 in 7), the right's %d (%d)",
             s ? s->bridges[KneeL].folds : -1, s ? s->bridges[KneeL].rings : -1, s ? s->bridges[KneeR].folds : -1, global);
         check(s && s->bridges[KneeL].folds == 1 && s->bridges[KneeL].rings == 7 && s->bridges[KneeR].folds == global, what);
+        // (the sleeve ends, ROUND26.md "ogresleeves": the thigh's sleeve's start_offset up 2 moves the thigh's end ring 2, the
+        // shin's not; its end_radius 1.5 the shin's end ring 1.5x (the shin's sleeve setting none); its bulge 0 2 0 the middle
+        // ring; segments 4: five rings; the right knee as it was)
+        const auto ringMid = [](const Shell& sh, int j, int ring) {
+            glm::vec3 m{0.f};
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                m += at(sh.bridgeRestP, sh.bridges[j].first + ring * ringVerts + c) / static_cast<float>(bridgeCols);
+            }
+            return m;
+        };
+        *tu = wasU;
+        *tl = wasL;
+        changed();
+        s = shellFor(grunt);
+        const glm::vec3 top0 = s ? ringMid(*s, KneeL, 0) : glm::vec3{0.f}, low0 = s ? ringMid(*s, KneeL, lastRing) : glm::vec3{0.f};
+        const glm::vec3 mid0 = s ? ringMid(*s, KneeL, midRing) : glm::vec3{0.f};
+        const float lowR0 = s ? ringMean(*s, KneeL, lastRing) : 0.f, rightMid0 = s ? ringMean(*s, KneeR, midRing) : 0.f;
+        tu->v[StartOffsetZ] = 2.f;
+        tu->v[EndRadius] = 1.5f;
+        tu->has |= fieldBit(StartOffsetX) | fieldBit(StartOffsetY) | fieldBit(StartOffsetZ) | fieldBit(EndRadius);
+        changed();
+        s = shellFor(grunt);
+        const float topMoved = s ? glm::distance(ringMid(*s, KneeL, 0), top0) : 0.f, lowMoved = s ? glm::distance(ringMid(*s, KneeL, lastRing), low0) : 1.f;
+        const float lowR = s ? ringMean(*s, KneeL, lastRing) / za::max(lowR0, 1e-3f) : 0.f;
+        q_snprintf(what, sizeof(what), "start_offset 0 0 2 and end_radius 1.5 on the left thigh's sleeve: the thigh's end moved %.3f (2), the shin's %.3f (0), "
+                                       "its ring %.3fx (1.5)", static_cast<double>(topMoved), static_cast<double>(lowMoved), static_cast<double>(lowR));
+        check(s && za::abs(topMoved - 2.f) < 0.01f && lowMoved < 0.01f && za::abs(lowR - 1.5f) < 0.01f, what);
+        *tu = wasU;
+        tl->v[BulgeY] = 2.f;
+        tl->v[Segments] = 4.f;
+        tl->has |= fieldBit(BulgeX) | fieldBit(BulgeY) | fieldBit(BulgeZ) | fieldBit(Segments);
+        changed();
+        s = shellFor(grunt);
+        const int rings = s ? s->bridges[KneeL].rings : 0;
+        const float bulged = s ? glm::distance(ringMid(*s, KneeL, rings / 2), mid0) : 0.f;
+        const float rightMid = s ? ringMean(*s, KneeR, midRing) / za::max(rightMid0, 1e-3f) : 0.f;
+        q_snprintf(what, sizeof(what), "bulge 0 2 0 and segments 4 on the left shin's sleeve: %d rings (5), its middle ring moved %.3f (about 2), the right knee's %.4fx (1)",
+            rings, static_cast<double>(bulged), static_cast<double>(rightMid));
+        check(s && rings == 5 && bulged > 1.5f && bulged < 2.5f && za::abs(rightMid - 1.f) < 1e-4f, what);
         *tu = wasU;
         *tl = wasL;
         changed();

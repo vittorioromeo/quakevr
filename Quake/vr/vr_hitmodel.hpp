@@ -104,6 +104,9 @@ struct DrawnLerp
     int pose1{0}, pose2{0};
     float blend{0.f};
     glm::vec3 origin{0.f}, angles{0.f};
+    // The client entity drawn (clientLerp's): its vertices then as the shader draws them (animsmooth::drawnPoints: the
+    // spline, the rebuild; vr_armour_on_drawn), not the frames' bytes. Null: the frames' lerp of the bytes.
+    const entity_s* entity{nullptr};
 };
 // Client entity `e`'s drawn lerp now (an alias model; false otherwise). Advances its frame lerp as drawing it would
 // (VR_AliasLerpNow): call it in the frame it is drawn, before or after the draw.

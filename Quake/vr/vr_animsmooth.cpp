@@ -29,7 +29,8 @@
 // its bone's place by both shares (RigRebuild). The loops' seams are the dequantised poses' (smoothed round the loop). Your weapons are never smoothed (their flashes, mounts and
 // shells follow Quake's blend: vr_anchor.cpp), nor skeletal models (IQM, a ragdoll's skinned model). What the game
 // tests against a model's shape (vr_hitmodel.cpp, vr_modelcollide.cpp) keeps Quake's blend: the drawn shape between
-// frames is a few units off it at most mid-swing (vr_anim_smooth_check).
+// frames is a few units off it at most mid-swing (vr_anim_smooth_check). What is drawn on the body (the beasts' armour)
+// reads the drawn shape itself: drawnPoints, the same memo and rows as the draw (ROUND26.md "armourrebuild").
 
 #include "vr_animsmooth_internal.hpp"
 #include "vr_geom.hpp"
@@ -1001,13 +1002,54 @@ void rebuildRows(const SmoothModel& m, const int poses[4], const rigpose::Spline
     const glm::vec4* row = rows + (rebuild ? rebuildRowsPerBone : 3) * static_cast<int>(bone);
     const glm::vec4 q{r[0].x, r[0].y, r[0].z, 1.f};
     p += (r[0].w - bone) * 2.f * glm::vec3{glm::dot(row[0], q), glm::dot(row[1], q), glm::dot(row[2], q)};
-    const float k = rebuild ? r[1].w * row[6].w : 0.f;
+    float k = rebuild ? r[1].w * row[6].w : 0.f;
     if(k > 0.f)
     {
         const glm::vec4 c{r[1].x, r[1].y, r[1].z, 1.f};
-        p = glm::mix(p, glm::vec3{glm::dot(row[3], c), glm::dot(row[4], c), glm::dot(row[5], c)}, k);
+        glm::vec3 bp{glm::dot(row[3], c), glm::dot(row[4], c), glm::dot(row[5], c)};
+        if(r[2].w > 0.f)
+        {
+            // a joint's vertex (vr_anim_smooth_rebuild_blend): rest row 2's w its second bone + half that bone's weight
+            const float b2 = za::floor(r[2].w);
+            const glm::vec4* row2 = rows + rebuildRowsPerBone * static_cast<int>(b2);
+            k *= row2[6].w;
+            bp = glm::mix(bp, glm::vec3{glm::dot(row2[3], c), glm::dot(row2[4], c), glm::dot(row2[5], c)}, (r[2].w - b2) * 2.f);
+        }
+        p = glm::mix(p, bp, k);
     }
     return p;
+}
+
+// What the shader adds to a VBO vertex for a hit reaction's kick (RigKick: `kick` 3 rows a bone, after the rebuild).
+[[nodiscard]] glm::vec3 kickOf(const SmoothModel& m, int i, const glm::vec4* kick)
+{
+    if(static_cast<za::SizeT>(i + 1) * restStride > m.rest.size())
+    {
+        return glm::vec3{0.f};
+    }
+    const glm::vec4* r = m.rest.data() + static_cast<za::SizeT>(i) * restStride;
+    const glm::vec4* row = kick + 3 * static_cast<int>(za::floor(r[0].w));
+    const glm::vec4 q{r[0].x, r[0].y, r[0].z, 1.f};
+    return glm::vec3{glm::dot(row[0], q), glm::dot(row[1], q), glm::dot(row[2], q)};
+}
+
+// Each .mdl vertex's first VBO vertex (its rest rows: the warp check's choice), made once a model.
+[[nodiscard]] const za::Vector<int>& vboOfVert(SmoothModel& m, const aliashdr_t* hdr)
+{
+    if(static_cast<int>(m.vboOfVert.size()) != hdr->numverts)
+    {
+        const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+        m.vboOfVert.assign(static_cast<za::SizeT>(hdr->numverts), -1);
+        for(int i = hdr->numverts_vbo - 1; i >= 0; i--)
+        {
+            const int v = desc[i].vertindex;
+            if(v >= 0 && v < hdr->numverts)
+            {
+                m.vboOfVert[static_cast<za::SizeT>(v)] = i;
+            }
+        }
+    }
+    return m.vboOfVert;
 }
 
 } // namespace
@@ -1088,41 +1130,37 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
 
 void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo, int pose1, int pose2, int poses[4], float span[3]);
 
-[[nodiscard]] int smoothInstance(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
-    int batchindex, int channel, int smooth[4], float weights[4])
+// The entity's smoothing for this lerp (its memo: the spline's four keys and weights, its swing or rebuild rows), made
+// when its key changed since it was last drawn or read; null: drawn as Quake's blend (not smoothed, not rebuilt). The
+// draw's (smoothInstance) and the armour's (drawnPoints: the same rows, whichever comes first in the frame).
+[[nodiscard]] const Memo* instanceMemo(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, int zeroblend)
 {
-    za::Vector<glm::vec4>& swing = swingsOf(channel);
-    if(batchindex == 0)
-    {
-        swing.clear();
-    }
-    const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
     if(!e->model || hdr->poseverttype == aliashdr_t::PV_IQM)
     {
-        return 0;
+        return nullptr;
     }
     // (not your weapons: their muzzle flashes, mounts and shells follow the gun's vertices by Quake's blend: vr_anchor.cpp,
     // the steadied recoil's reference vertex)
     if(zeroblend || VR_IsViewEntity(e))
     {
-        return 0;
+        return nullptr;
     }
     if(pose1 < 0 || pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes)
     {
-        return 0;
+        return nullptr;
     }
     const bool splined = r_lerpmodels.value == 3.f && pose1 != pose2 && blend > 0.f && blend < 1.f &&
                          !(cls.demoplayback && cls.demospeed < 0.f);
     const bool rebuildOn = vr_anim_smooth_rebuild.value != 0.f && hdr->poseverttype == aliashdr_t::PV_QUAKE1;
     if(!splined && !rebuildOn)
     {
-        return 0;
+        return nullptr;
     }
     SmoothModel& m = modelData(e->model, hdr);
     const bool rebuild = rebuildOn && rigData(m, e->model, hdr) && m.rebuildOk;
     if(!splined && !rebuild)
     {
-        return 0;
+        return nullptr;
     }
     Memo& memo = memos.entities[e];
     if(!splined)
@@ -1144,19 +1182,7 @@ void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo
             memo.numRows = rebuildRowsPerBone * m.rig->numBones;
             stats.rebuilt++;
         }
-        smooth[0] = pose1;
-        smooth[1] = pose2;
-        smooth[3] = 1;
-        for(int i = 0; i < 4; i++)
-        {
-            weights[i] = memo.spline.w[i];
-        }
-        za::Vector<glm::vec4>& rowsOut = swingsOf(channel);
-        const za::SizeT at = rowsOut.size();
-        rowsOut.resize(at + static_cast<za::SizeT>(memo.numRows));
-        ZA_MEMCPY(static_cast<void*>(rowsOut.data() + at), memo.rows, sizeof(glm::vec4) * static_cast<za::SizeT>(memo.numRows));
-        smooth[2] = -1 - static_cast<int>(at);
-        return 1;
+        return &memo;
     }
 
     // The four keys and their times
@@ -1189,21 +1215,38 @@ void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo
         stats.ahead += poses[3] != poses[2] ? 1 : 0;
         stats.swung += memo.swung ? 1 : 0;
     }
-    smooth[0] = poses[0];
-    smooth[1] = poses[3];
+    return &memo;
+}
+
+[[nodiscard]] int smoothInstance(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
+    int batchindex, int channel, int smooth[4], float weights[4])
+{
+    za::Vector<glm::vec4>& swing = swingsOf(channel);
+    if(batchindex == 0)
+    {
+        swing.clear();
+    }
+    const Memo* memo = instanceMemo(e, static_cast<const aliashdr_t*>(aliashdr), pose1, pose2, blend, zeroblend);
+    if(!memo)
+    {
+        return 0;
+    }
+    // (Quake's blend rebuilt: its keys pose1, pose1, pose2, pose2)
+    smooth[0] = memo->key.poses[0];
+    smooth[1] = memo->key.poses[3];
     smooth[2] = 0;
     smooth[3] = 1;
     for(int i = 0; i < 4; i++)
     {
-        weights[i] = memo.spline.w[i];
+        weights[i] = memo->spline.w[i];
     }
-    if(memo.swung)
+    if(memo->swung)
     {
-        // B: the limbs' swings
+        // B: the limbs' swings, or C: the rebuild's rows
         const za::SizeT at = swing.size();
-        swing.resize(at + static_cast<za::SizeT>(memo.numRows));
-        ZA_MEMCPY(swing.data() + at, memo.rows, sizeof(glm::vec4) * static_cast<za::SizeT>(memo.numRows));
-        smooth[2] = rebuild ? -1 - static_cast<int>(at) : 1 + static_cast<int>(at);
+        swing.resize(at + static_cast<za::SizeT>(memo->numRows));
+        ZA_MEMCPY(static_cast<void*>(swing.data() + at), memo->rows, sizeof(glm::vec4) * static_cast<za::SizeT>(memo->numRows));
+        smooth[2] = memo->key.mode != 0 ? -1 - static_cast<int>(at) : 1 + static_cast<int>(at);
     }
     return 1;
 }
@@ -1386,6 +1429,105 @@ bool animsmooth::splineOf(const entity_s* e, const void* aliashdr, int pose1, in
     return true;
 }
 
+bool animsmooth::drawnPoints(const entity_s* e, int pose1, int pose2, float blend, const int* verts, int n, glm::vec3* out)
+{
+    if(!e || !e->model || e->model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || pose1 < 0 || pose2 < 0 || pose1 >= hdr->numposes || pose2 >= hdr->numposes)
+    {
+        return false;
+    }
+    const double t0 = Sys_DoubleTime();
+    stats.pointCalls++;
+    stats.points += n;
+    // The draw's own memo (its key the same this frame: the draw then reuses what is made here, or this what it made)
+    const Memo* memo = instanceMemo(e, hdr, pose1, pose2, blend, 0);
+    SmoothModel* m = memo && memo->swung ? &modelData(e->model, hdr) : nullptr;
+    const float b = pose1 == pose2 ? 0.f : blend;
+    const int quake[4] = {pose1, pose1, pose2, pose2};
+    const float lerp[4] = {0.f, 1.f - b, b, 0.f};
+    const int* poses = memo ? memo->key.poses : quake;
+    const float* w = memo ? memo->spline.w : lerp;
+    const glm::vec4* rows = m ? memo->rows : nullptr;
+    const bool rebuild = memo && memo->key.mode != 0;
+    const za::Vector<int>* vbo = m ? &vboOfVert(*m, hdr) : nullptr;
+    for(int i = 0; i < n; i++)
+    {
+        const int v = verts[i];
+        if(v < 0 || v >= hdr->numverts)
+        {
+            return false;
+        }
+        const int vi = vbo ? (*vbo)[static_cast<za::SizeT>(v)] : -1;
+        if(vi >= 0)
+        {
+            out[i] = drawnVertex(m, hdr, vi, poses, w, rows, rebuild);
+            continue;
+        }
+        glm::vec3 p{0.f};
+        for(int k = 0; k < 4; k++)
+        {
+            p += w[k] == 0.f ? glm::vec3{0.f} : w[k] * mdldequant::poseVertex(hdr, poses[k], v);
+        }
+        out[i] = p;
+    }
+    stats.pointSeconds += Sys_DoubleTime() - t0;
+    return true;
+}
+
+void animsmooth::captureDraws(const entity_s* e)
+{
+    capture = Capture{};
+    capture.ent = e;
+}
+
+bool animsmooth::capturedPoints(double time, const int* verts, int n, glm::vec3* out)
+{
+    const Capture& c = capture;
+    if(!c.ent || !c.model || c.time != time)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(c.model)));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1)
+    {
+        return false;
+    }
+    SmoothModel& m = modelData(c.model, hdr);
+    const za::Vector<int>& vbo = vboOfVert(m, hdr);
+    const bool rebuild = c.on && c.smooth[2] < 0;
+    const glm::vec4* rows = c.on && c.smooth[2] != 0 ? c.rows.data() + (rebuild ? -c.smooth[2] - 1 : c.smooth[2] - 1) : nullptr;
+    const glm::vec4* kick = c.on && c.smooth[3] > 1 && !m.armSkin && !m.legSkin ? c.rows.data() + (c.smooth[3] - 2) : nullptr;
+    const float b = c.pose1 == c.pose2 ? 0.f : c.blend;
+    const int poses[4] = {c.on ? c.smooth[0] : c.pose1, c.pose1, c.pose2, c.on ? c.smooth[1] : c.pose2};
+    const float lerp[4] = {0.f, 1.f - b, b, 0.f};
+    for(int i = 0; i < n; i++)
+    {
+        const int v = verts[i];
+        if(v < 0 || v >= hdr->numverts)
+        {
+            return false;
+        }
+        const int vi = vbo[static_cast<za::SizeT>(v)];
+        if(vi < 0)
+        {
+            // (on no triangle: never drawn; its poses blended, as drawnPoints has it)
+            out[i] = glm::vec3{0.f};
+            for(int k = 0; k < 4; k++)
+            {
+                const float wk = c.on ? c.weights[k] : lerp[k];
+                out[i] += wk == 0.f ? glm::vec3{0.f} : wk * mdldequant::poseVertex(hdr, poses[k], v);
+            }
+            continue;
+        }
+        out[i] = drawnVertex(&m, hdr, vi, poses, c.on ? c.weights : lerp, rows, rebuild) + (kick ? kickOf(m, vi, kick) : glm::vec3{0.f});
+    }
+    return true;
+}
+
 bool animsmooth::rigged(const entity_s* e)
 {
     if(!e || !e->model || e->model->type != mod_alias)
@@ -1524,6 +1666,28 @@ extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1,
     const double t0 = Sys_DoubleTime();
     int on = smoothInstance(e, aliashdr, pose1, pose2, blend, zeroblend, batchindex, channel, smooth, weights);
     on = kickInstance(e, aliashdr, pose1, pose2, blend, zeroblend, channel, on, smooth, weights);
+    if(capture.ent == e && channel == 0 && capture.time != cl.time)
+    {
+        // (vr_drawnlerp_watch: what this draw hands the shader, for capturedPoints)
+        Capture& c = capture;
+        c.model = e->model;
+        c.time = cl.time;
+        c.on = on;
+        c.pose1 = pose1;
+        c.pose2 = pose2;
+        c.blend = blend;
+        const za::Vector<glm::vec4>& rows = swingsOf(channel);
+        c.rows.resize(rows.size());
+        if(!rows.empty())
+        {
+            ZA_MEMCPY(static_cast<void*>(c.rows.data()), rows.data(), sizeof(glm::vec4) * rows.size());
+        }
+        for(int i = 0; i < 4 && on; i++)
+        {
+            c.smooth[i] = smooth[i];
+            c.weights[i] = weights[i];
+        }
+    }
     stats.calls++;
     stats.seconds += Sys_DoubleTime() - t0;
     if(trace.ent >= 0 && channel == 0)
