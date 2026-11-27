@@ -863,6 +863,8 @@ struct World
         float angleMost{0.f};
         glm::vec2 lag{0.f};  // m: the point behind its target this step, level
         glm::vec2 slip{0.f}; // m/s: and its slip from it
+        float pace{0.f};     // u/s: the player's level pace towards the held point this step (pushing it; 0 backing away)
+        float heft{0.f};     // kg: this hand's share of the mass, times pace over a walk's (vr_flat_grab_push_mass)
     };
     struct RagdollGrab
     {
