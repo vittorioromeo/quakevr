@@ -48,6 +48,7 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Tan.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
@@ -3319,6 +3320,47 @@ void carryCheck()
     }
     Con_Printf("carry check: %d held; worst in the hand %.2f cm %.1f deg off the physical, fist gap %.2f cm, world %.2f cm\n",
         count, worstApart, worstTurn, count ? worstGap : 0.f, worstWorld);
+}
+
+void heldReport_f()
+{
+    // The view last drawn (an eye's, in VR): a point is in it when ahead of the near plane and inside its field.
+    glm::vec3 vf, vr, vu;
+    hands::angleVectors(geom::vec(r_refdef.viewangles), vf, vr, vu);
+    const glm::vec3 eye = geom::vec(r_refdef.vieworg);
+    const float tx = za::tan(glm::radians(r_refdef.fov_x * 0.5f)), ty = za::tan(glm::radians(r_refdef.fov_y * 0.5f));
+    const auto inView = [&](const glm::vec3& p) {
+        const glm::vec3 d = p - eye;
+        const float depth = glm::dot(d, vf);
+        return depth > 4.f && za::fabs(glm::dot(d, vr)) <= depth * tx && za::fabs(glm::dot(d, vu)) <= depth * ty;
+    };
+    const hands::State& s = drawnFrom;
+    for(int h = 0; h < 2; h++)
+    {
+        const Held& hd = holding[h];
+        const int carriedEnt = cl.stats[h == 1 ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
+        const bool drawn = hd.drawn && valid(hd.ent, nullptr);
+        glm::vec3 blade{0.f};
+        int corners = 0;
+        if(drawn && s.valid)
+        {
+            const entity_t& e = cl_entities[hd.ent];
+            const glm::mat3 rot = axesFromAngles(e.angles, e.model->type == mod_brush);
+            blade = glm::transpose(axesFromAngles(&s.rot[h][0], true)) * rot[0]; // (its +x in the hand: forward, left, up)
+            glm::vec3 lo, hi;
+            if(drawnBox(hd.ent, lo, hi))
+            {
+                for(int i = 0; i < 8; i++)
+                {
+                    const glm::vec3 c{(i & 1) ? hi.x : lo.x, (i & 2) ? hi.y : lo.y, (i & 4) ? hi.z : lo.z};
+                    corners += inView(geom::vec(e.origin) + rot * c) ? 1 : 0;
+                }
+            }
+        }
+        Con_Printf("held_report: %s carried=%d ent=%d drawn=%d model=%s x_in_hand=%.2f %.2f %.2f inview=%d/8\n",
+            h == 1 ? "main" : "off", carriedEnt, hd.ent, drawn ? 1 : 0,
+            drawn ? cl_entities[hd.ent].model->name : "-", blade.x, blade.y, blade.z, corners);
+    }
 }
 
 } // namespace qvr::held

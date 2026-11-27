@@ -17,8 +17,12 @@ S="$S;vr_graphics_preset 1;wait2;echo QP low;$Q"
 S="$S;vr_graphics_preset 2;wait2;echo QP medium;$Q"
 S="$S;vr_preset_revert_test 20;vr_graphics_preset 1;wait70;echo QP kept;$Q"
 S="$S;vr_preset_revert_test 500;vr_graphics_preset 3;wait15;echo QP reverted;$Q"
-S="$S;vr_preset_revert_test 0;echo QP end;toggleconsole;quit"
-F="^QP |^\"(vr_|r_oit|vid_fsaa)|put back|budget rows|graphics preset \(Quest\)|rror"
+S="$S;vr_preset_revert_test 0;wait2"
+# questcrash2: a config saved by a build before questcrash (the PC's values in the budget rows: OIT on, full resolution,
+# no dynamic resolution, foveation off) is repaired by the start's vr_quest_check, the look's rows kept
+S="$S;r_oit 1;vr_render_scale 1;vr_dynres 0;vr_xr_foveation 0;vr_quest_check;wait2;echo QP oldcfg;$Q"
+S="$S;echo QP end;toggleconsole;quit"
+F="^QP |^\"(vr_|r_oit|vid_fsaa)|put back|budget rows|vr_quest_check: the config|graphics preset \(Quest\)|rror"
 env QVR_GLES_COMPAT=1 bash "$KIT/run.sh" "$AGENT" -Script "$S" -Filter "$F" -QuitOn "^QP end" -Timeout 180 > "$T/questpreset_es.log" 2>&1
 P="map e1m1;wait10;vr_standalone_preset 0;wait2;vr_graphics_preset 0;wait2;echo QP pcoff;$Q;echo QP end;toggleconsole;quit"
 bash "$KIT/run.sh" "$AGENT" -Script "$P" -Filter "$F" -QuitOn "^QP end" -Timeout 120 > "$T/questpreset_pc.log" 2>&1

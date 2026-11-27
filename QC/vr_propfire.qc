@@ -126,6 +126,63 @@ void(entity w, float xHand) VR_PropFire_End =
     W_SetCurrentAmmoFor(xHand);
 };
 
+// The HUD (his flat note 2026-11-27: "when the shotgun is in the embedded state, the HUD stops displaying the ammo count"):
+// a hand empty on a weapon prop it drives shows the prop's ammo, as if the prop were in it. updateAmmoCounter, for `xHand`
+// of self: TRUE if the hand drives one (VR_PropFire_Held), its counter and clip size then the prop's (the hand takes the
+// prop's weapon on for it, as for its trigger frame) and the ammo type the engine shows (.currentammo / 2) its. The engine
+// sends the prop's weapon id (.vr_pfire_hud: STAT_QVR_PROPHUD) and its record's clip; every readout (the status bars, the
+// flat visor, the wrist gadget) follows them (flathud::hudWeapon). The hand's own weapon stays the fist.
+float(float xHand) VR_PropFire_HudCounter =
+{
+    entity w = VR_PropFire_Held(self, xHand); // (world while the hand has the prop on: not weaponless)
+    if(w == world)
+    {
+        return FALSE;
+    }
+    float* wp = VRGetEntWeaponPtr(self, xHand);
+    float* fp = VRGetEntWeaponFlagsPtr(self, xHand);
+    float wid = VRGetEntWeapon(self, xHand);
+    float flags = VRGetEntWeaponFlags(self, xHand);
+    entity inst = VRGetEntWeaponInst(self, xHand);
+    float aid = WeaponIdToAmmoId(w.weapon, w.weaponflags);
+    *wp = w.weapon;
+    *fp = w.weaponflags;
+    VRSetEntWeaponInst(self, xHand, w.weaponinst);
+    updateAmmoCounter(xHand, aid);
+    *wp = wid;
+    *fp = flags;
+    VRSetEntWeaponInst(self, xHand, inst);
+    if(xHand == cVR_OffHand)
+    {
+        self.currentammo2 = aid;
+    }
+    else
+    {
+        self.currentammo = aid;
+    }
+    return TRUE;
+};
+
+// Each PlayerPreThink (VR_Hand_Derive): the props the hands drive (.vr_pfire_hud, the engine's STAT_QVR_PROPHUD); when that
+// changes, the counters again (a hand let go of one: its own weapon's mirrors back, W_SetCurrentAmmoImpl's).
+void(entity p) VR_PropFire_HudFrame =
+{
+    entity o = VR_PropFire_Held(p, cVR_OffHand);
+    entity m = VR_PropFire_Held(p, cVR_MainHand);
+    float bits = (o != world ? o.weapon : 0) + 256 * (m != world ? m.weapon : 0);
+    if(bits == p.vr_pfire_hud)
+    {
+        return;
+    }
+    p.vr_pfire_hud = bits;
+    entity oldSelf = self;
+    self = p;
+    self.currentammo = VRGetCurrentAmmo(cVR_MainHand);
+    self.currentammo2 = VRGetCurrentAmmo(cVR_OffHand);
+    updateAmmoCounters();
+    self = oldSelf;
+};
+
 // W_WeaponFrameImpl, each frame for `xHand` of self: TRUE if it holds a weapon prop that fires (VR_PropFire_Held), its
 // trigger frame run on it (W_TriggerFrame, as for a weapon in the hand: the player ready, its refire over); FALSE: the
 // hand's own weapon frame.

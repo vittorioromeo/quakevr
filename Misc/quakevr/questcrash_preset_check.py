@@ -44,6 +44,12 @@ def main():
     check(es.get("kept", {}).get("vr_normalmaps") == "0", "ES kept: Low at 20 ms frames kept (vr_normalmaps 0)")
     check(es_text.count("put back as before the pick") == 1, "ES: exactly one pick put back (the 500 ms one)")
     check(es.get("reverted", {}).get("vr_normalmaps") == "0", "ES reverted: High put back to Low (vr_normalmaps 0)")
+    o = es.get("oldcfg", {})
+    check(o.get("r_oit") == "0" and o.get("vr_dynres") == "1" and o.get("vr_render_scale") in ("0.9", "0.75", "0.65")
+          and o.get("vr_xr_foveation") in ("3", "1"),
+          f"ES oldcfg: a pre-questcrash config's budget rows set at a Standalone level by vr_quest_check {o}")
+    check(o.get("vr_normalmaps") == "0", "ES oldcfg: the look's rows kept (vr_normalmaps 0)")
+    check("vr_quest_check: the config has the PC's values" in es_text, "ES oldcfg: the repair said on the console")
     p = pc.get("pcoff", {})
     check(p.get("vr_render_scale") not in (None, "0.9") and p.get("vr_xr_foveation") == "0",
           "PC: leaving Standalone puts its rows back as before it (not the budget)")

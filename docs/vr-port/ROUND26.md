@@ -2215,6 +2215,32 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   - MP: not done (out of budget). Aid for it: client command `vr_attach_report` (vr_view.cpp: every attachment drawn
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
+- **bayonetfix (2026-11-27)**: his flat test: the HUD lost the ammo count with the gun stuck; after J the bayonet was held
+  but the hand looked empty.
+  - **HUD on a weapon prop** (general: anything embedfire fires, the Crystal Lance too): QC `updateAmmoCounter` asks
+    `VR_PropFire_HudCounter` first (vr_propfire.qc): a hand empty on a prop it drives (`VR_PropFire_Held`) takes the prop's
+    weapon on for the counter, so `.ammocounter`, `.weaponclipsize` and the ammo-type mirror `.currentammo` are the prop's;
+    `VR_PropFire_HudFrame` (each PlayerPreThink, VR_Hand_Derive) keeps `.vr_pfire_hud` (the props' weapon ids, off + 256 x
+    main) and recounts when it changes. Engine: new stat `STAT_QVR_PROPHUD` (field `vr_pfire_hud`), and the hand's
+    `STAT_QVR_WEAPONCLIP` is the prop's record's clip meanwhile (vr_server.cpp). Client: `flathud::hudWeapon(hand)` (the
+    prop's weapon, else the hand's) for the flat status bars' counters and clip (`VR_FlatHudHand`, `VR_FlatHudClip`) and the
+    flat visor; the wrist gadget reads the counters already. The hand's own weapon stat stays the fist (drawing unchanged).
+  - **The bayonet in the hand**: Held Object Offsets' Along the Handle put a prop's "head" (out of the fist on the index
+    finger's side) at its weight's end before its melee tip's; the bayonet's weight is towards its socket (props.txt com_x
+    -1.2), so every hold of it (J, a VR pull-off, a grab) had the blade below the fist (in flat off the screen). Now the tip's
+    end first, then the weight's (vr_grip.cpp handlePlace; the torch's tip and weight agree: unchanged; no other Along the
+    Handle prop has a tip). J (`VR_Attach_TakeOff(p, hand, xByKey)`) also turns the bayonet along the taking hand before
+    the hold (a VR pull-off keeps it as the hand took it at the mount); it eases from the gun into the hand.
+  - **Probe**: `vr_held_report` (Debug menu "Drawn in the Hands"): each hand's carried entity (the server's stat), the one
+    drawn there, its model, its +x in the hand and its box corners on the screen.
+  - **Tests**: attach_test.sh: 79 VR 22/0, 80 flat 17/0 (new: the HUD check on each stuck gun, the held probe after the
+    take-off), 81/82 2/0 both, menu 6/0, and `Misc/quakevr/attach_probe_check.py` (the client's `vr_flathud_report` after
+    each stuck gun: weapon, shown, flat's big number the clip; `vr_held_report` after the take-off: carried = drawn, the
+    bayonet, blade up, flat on the screen) 10/0; the script 16/0. Test 79's stabs now let go of the off hand's grip first (it
+    rested by the super shotgun and took its two-handed grip once the bayonet's new hold shifted the run: the blow read as
+    no stab). embedfire_test 29/0 22/0 5/0, flathud_test 11/0.
+  - Open: flat's first attach_test run showed both V thrusts failing (hurt 0) before any change here, then passing on every
+    run after: a flake to watch. The stuck gun's own ammo screen (on its model) not checked.
 
 ## flatthrow3: flat throw's release carries the thing on before it leaves; an ogre's grenade caught only with a timed H (branch agent/flatthrow3, 2026-11-26)
 
@@ -2435,3 +2461,68 @@ stab only grazed it at the thrust's end, and the off hand's 2H pull (a unit or s
 ogre now spawns at 50: the head lands mid-strike at full speed (12.8 m/s, 58 damage) with his pose and with the old one.
 The "ogre hurt" check compared health against a fixed 200 and passed with nothing landing (ogres there spawn at 180);
 it now reads the health just before the thrust and wants it lower after. Test only, no code. 30/0.
+
+## questcrash2: his Quest config no longer crashes at vrstart; old "left Standalone" configs repaired at start (branch agent/questcrash2, 2026-11-27)
+
+His Quest 3 (bf4eecc2f, beta5-dev build 15431): flat lighting, the menu crashed, then every start crashed at vrstart.
+- **The crashes** (logcat 00:19:29 and 00:19:43, crash reports pulled with `vr_android_export`): both SIGSEGV 0x30 in
+  libGLESv2_adreno under libvrapiimpl from `xrEndFrame` (OpenXrBackend::endFrame <- VR_RenderView), questcrash's
+  signature. The second came at the first world frame, right after the `world|OIT 1` programs; the first a few
+  seconds into vrstart as the menu opened. His `ironwail.cfg` (exported read-only) still held what builds before
+  questcrash left after Standalone -> "Quake (off)": `r_oit 1`, no `vr_xr_foveation` / `vr_render_scale` / `vr_dynres`
+  (Off, full resolution, no dynamic resolution) and Quake (off)'s look rows. So the eyes went through the post-process
+  (OIT keeps them off the straight-in path) into plain images (questcrash's fix made Off plain, which this config then
+  used at every start): late acquire, the image's invalidate, OIT's programs, 14 fps (unworn, measured). Unworn runs
+  never draw enough eye frames to crash (the runtime stops an unworn session after ~10 s), so the cause is reasoned,
+  not reproduced: every crash of this signature since C4p had the post-process path's late order or a switch into it.
+- **Flat lighting**: his config's Quake (off) look (vr_model_lighting 0, vr_colored_lights 0, the light grid off...),
+  not a bug. Headset eyeshots at vrstart: Standalone lightmapped and coloured, Quake (off) flatter and darker; the
+  lightmaps are there in both (questrender's packing fine on ES).
+- **Fixes** (Quest and `-glescompat` only; the PC unchanged):
+  - `vr_quest_check` (every Android start after the config): OIT saved on the Quest marks such a config (no Quest
+    preset turns OIT on), and its budget rows go to the nearest Standalone level once, as a pick does since
+    questcrash; the look's rows stay. Said on the console. His config: 22 rows at Standalone (Quest 2 (72 Hz)): scale
+    0.65, dynamic resolution, foveation Low, OIT off.
+  - `r_oit 0` is a Quest must-have (held at start and after every pick; `vr_quest_guard 0` only says it).
+  - vr_stereo.cpp: on the Quest the post-process path always takes the foveated images' order (the image acquired
+    before the scene, never invalidated), plain images too (Quest Foveation Off, bloom). `vr_xr_foveation_probe 1`
+    gives back the late order (the A/B).
+- **Headset** (Quest 3, 00:21-00:45, unworn, `-noconfigwrite -unattended`, his config): the fixed APK repaired his
+  config at start, vrstart at 72/72 (was 14), menu open/close, Quest Foveation 1 -> 0 (post-process, early order) ->
+  menu with Off -> 3, Quake (off), Off again, Standalone: no crash. Installed the questinst way (APK `install -r`, data
+  already in sync: 0 files); his config file untouched (it is repaired in memory at each start and saved by the game on
+  its next normal quit). Rollback: `scratch/qc2/qc2_installed_before.apk` (bf4eecc2f). **To confirm worn**: start, open
+  the menu, Quest Foveation High <-> Off.
+- Tests: questcrash_preset_test 23/0 (new: an old config repaired by `vr_quest_check`, look rows kept), haze_preset_test
+  8/0, stereo_targets_test 12/0.
+
+## grenaim: the quick grenade wound up by the attack button shows its landing too (branch agent/grenaim, 2026-11-27)
+
+His flat note 2026-11-27 item 3 ("Throwing a live grenade with the throw button shows the dynamic crosshair target position,
+but not with the attack button"), folded into flatxhair2's throw aim:
+- `VR_FlatThrow_Aim` (QC vr_flatgrenade.qc) now aims the quick grenade's wind-up whatever winds it up: B, the main or the
+  off hand's attack button held on it (`vr_flat_grenade_arm_mode` 1: a press arms, the next held winds up), a live grenade
+  taken another way (force grab, catch: VR_FlatGrenade_Adopt). It was gated on `vr_flatgren_bykey` (B's only). Every flat
+  throw input path now goes through the one aim: the throw key's VR_FLATTHROW_WIND (any hand, any kind) and the quick
+  grenade's VR_FLATGREN_WIND (B or fire, either hand); no other path winds up a throw.
+- The quick grenade's throw (VR_FlatGrenade_Throw) also sets `vr_flatthrow_last` / `_from` / `_watch` (developer 1): its
+  "flat throw: first hit at" / "landed: grenade" lines, as the throw key's things (the globals moved up the file). Each
+  throw resets the watched one (`vr_flatthrow_hitwho`): a grenade gone off frees its slot, and the next throw reusing it
+  was taken for the one already printed (no "first hit" at all).
+- Tests: `flatxhair_melee_test.sh` 24/1 (new: grenb, grenatk, grenoff from 294 units: the crosshair 1.8, 2.6 and 2.6 units
+  from where the grenade first meets the wall, under the axe's 12; 6.5-7.9 before origin/next's release time 0.025; the
+  one fail is the known `flip24`). `flatthrow_test.sh` 54/0, after fitting it to his promoted defaults
+  (vr_flat_throw_speed_min/max 8/16, vr_flat_grab_catch_window 0.1, _reach 0.3; his values kept):
+  - move: the running throw (x 0) now flew far enough for its bounce to meet the mantle blocks (x -32..192, y 352-416):
+    it runs at x -280 (clear between the table and the slope); landed 777 units against 654 standing. The checks were
+    relative already (running further than standing, his motion kept), so no number follows the speeds.
+  - guide (vr_flatitems_test 12, case 4 "thrown at him, H as it nears"): H pressed as the grenade left 90 units away
+    opened a 0.1 s window that shut before it arrived (0.2 s flight). H is now pressed as it nears (half a window from his
+    face: a condition, not a wait), and caught; at his 0.3 m reach the free palm's catch in H's window takes it before
+    H's own near-the-body catch, so the check takes either (held, not hit); case 5 (no H) still meets him. Not a
+    behaviour problem: a 0.1 s press before arrival can be timed, though it is tight against a fast grenade.
+  Checklist: scenario flat_quick_grenade.
+
+## cltidy9: checklist sub-headings (2026-11-27)
+
+The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.

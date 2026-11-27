@@ -157,15 +157,17 @@ Place handlePlace(const Prop& prop, const Settings& s, const HandFrame& frame, c
     const glm::vec3 size = prop.hi - prop.lo;
     const int k = size.x >= size.y && size.x >= size.z ? 0 : size.y >= size.z ? 1 : 2; // its long axis
     const glm::vec3 mid = middleOf(prop);
-    // Its head: the end its weight is towards (a torch's), else its melee tip's, else +.
+    // Its head, the end out of the fist on the index finger's side: its melee tip's (a knife's blade, whatever its weight:
+    // the bayonet's is towards its socket, and its blade hung below the fist, his flat note 2026-11-27), else the end its
+    // weight is towards, else +. (A torch's tip and weight agree: its burning end.)
     float head = 1.f;
-    if(za::fabs(s.com[k]) > 1e-3f)
-    {
-        head = s.com[k] > 0.f ? 1.f : -1.f;
-    }
-    else if(s.tip != glm::vec3{0.f} && za::fabs(s.tip[k] - mid[k]) > 1e-3f)
+    if(s.tip != glm::vec3{0.f} && za::fabs(s.tip[k] - mid[k]) > 1e-3f)
     {
         head = s.tip[k] > mid[k] ? 1.f : -1.f;
+    }
+    else if(za::fabs(s.com[k]) > 1e-3f)
+    {
+        head = s.com[k] > 0.f ? 1.f : -1.f;
     }
     // The handle: Handle From .. To along the long axis (its model's units from its origin); both 0: the butt's half,
     // short of its end (12% to 45% of its length from the butt).

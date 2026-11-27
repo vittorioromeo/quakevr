@@ -695,7 +695,8 @@ QVR_CVAR(vr_xr_foveation_dynamic, "0", CVAR_ARCHIVE)
 // (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).
 QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
 // C4q (6x; a probe): bits narrowing the foveated images' crash in xrEndFrame: 1 late acquire and the image's invalidate
-// allowed with them (off with vr_xr_foveation since C4p), 2 the eye image released before it is detached
+// allowed with them (off with vr_xr_foveation since C4p; on the Quest with plain images too since questcrash2), 2 the eye
+// image released before it is detached
 // from the engine's framebuffer (the order before C4q), 4 the eyes' path read from vr_xr_foveation itself, not from the
 // images' level (before qfovcrash: Off after High mid-game crashed in xrEndFrame).
 QVR_CVAR(vr_xr_foveation_probe, "0", CVAR_NONE)

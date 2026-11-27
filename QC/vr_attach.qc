@@ -88,8 +88,13 @@ void(entity p, float xGunHand, entity xProp) VR_Attach_Put =
     if(cvar_hget(cvarh_developer)) dprint(sprintf("attach: kind %g on weapon #%g (hand %g)\n", kind, inst.wi_uid, xGunHand));
 };
 
-// The attachment on the weapon in the other hand taken off into `xHand` of `p` (empty): a prop again, carried there.
-void(entity p, float xHand) VR_Attach_TakeOff =
+// The attachment on the weapon in the other hand taken off into `xHand` of `p` (empty): a prop again, carried there. Pulled
+// off by the hand's grip at the mount (VR), it is held as the hand took it there; by the Attach key (`xByKey`: the hand is
+// not at the mount, flat play's J), it goes into the hand pointing along it, its blade out of the fist on the index
+// finger's side (Held Object Offsets' Along the Handle), drawn there from the gun (vr_carry_grab_ease). It was left turned
+// as it sat on the gun, which a flat hand took as a reversed grip: the blade hung below the fist, off the screen, and the
+// hand looked empty (his flat note 2026-11-27).
+void(entity p, float xHand, float xByKey) VR_Attach_TakeOff =
 {
     float g = VRGetOtherHand(xHand);
     entity inst = VRGetEntWeaponInst(p, g);
@@ -105,7 +110,7 @@ void(entity p, float xHand) VR_Attach_TakeOff =
     self = e;
     vr_bayonet(); // (it lies where it is put below: its spawn's drop to the floor undone)
     self = oldSelf;
-    vector a = VRGetEntHandRot(p, g);
+    vector a = VRGetEntHandRot(p, xByKey ? xHand : g);
     a_x = -a_x; // (an entity's pitch)
     e.angles = a;
     setorigin(e, at);
@@ -160,7 +165,7 @@ void(entity p) VR_Attach_Frame =
         if(grip && !was && VR_Attach_Hand(p, g) && VRIsHandEmpty(p, h) && VR_Carry_Held(p, h) == world &&
            vlen(VRGetEntHandPos(p, h) - VR_Attach_HandPoint(p, g, VR_Attach_Hand(p, g), 1)) <= cvar_hget(cvarh_vr_attach_pull_radius))
         {
-            VR_Attach_TakeOff(p, h);
+            VR_Attach_TakeOff(p, h, FALSE);
         }
     }
 };
@@ -187,7 +192,7 @@ void(entity p) VR_Attach_Key =
         float oo = VRGetOtherHand(gg);
         if(VR_Attach_Hand(p, gg) && VRIsHandEmpty(p, oo) && VR_Carry_Held(p, oo) == world)
         {
-            VR_Attach_TakeOff(p, oo);
+            VR_Attach_TakeOff(p, oo, TRUE);
             return;
         }
     }

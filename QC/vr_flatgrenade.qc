@@ -95,6 +95,10 @@ float vr_flatgren_thrown;      // (the tests) throws, and the last one's speed a
 float vr_flatgren_lastspeed;
 float vr_flatgren_lastheld;
 entity vr_flatgren_last;       // (the tests) the last grenade thrown
+entity vr_flatthrow_last;      // (the tests) the last thing the throw key or the quick grenade threw, where it left, and
+vector vr_flatthrow_from;      // until when it is watched for where it first meets something and "landed" (developer 1)
+float vr_flatthrow_watch;
+entity vr_flatthrow_hitwho;    // (VR_FlatThrow_WatchHit) the one it watches; world at each throw (a freed grenade's slot is reused)
 
 string(float xHand) VR_FlatGrenade_HandName =
 {
@@ -292,6 +296,10 @@ void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
     vr_flatgren_lastspeed = speed;
     vr_flatgren_lastheld = xHeld;
     vr_flatgren_last = g;
+    vr_flatthrow_last = g; // (developer 1: where it first meets something, VR_FlatThrow_WatchHit, as the throw key's)
+    vr_flatthrow_from = start;
+    vr_flatthrow_watch = time + 4;
+    vr_flatthrow_hitwho = world;
     vector launchAng = vectoangles(g.velocity);
     float launch = launchAng_x; // (up positive)
     if(launch > 180)
@@ -507,10 +515,7 @@ float(float xHand) VR_FlatThrow_Rounds =
 };
 float vr_flatthrow_count;      // (the tests) throws, the last one's hand speed (m/s), wind-up and what it threw
 float vr_flatthrow_lastspeed;
-float vr_flatthrow_lastheld;
-entity vr_flatthrow_last;
-vector vr_flatthrow_from;      // where it left
-float vr_flatthrow_watch;      // until when it is watched for "landed"
+float vr_flatthrow_lastheld;  // (vr_flatthrow_last, _from, _watch: above, the quick grenade's throw sets them too)
 float(entity e) VR_AxeStick_IsStuck; // (vr_axestick.qc)
 
 void(float xPhase) VR_FlatThrow_Set =
@@ -798,6 +803,7 @@ void() VR_FlatThrow_Drop =
         vr_flatthrow_last = dropped;
         vr_flatthrow_from = dropped.origin;
         vr_flatthrow_watch = time + 4;
+        vr_flatthrow_hitwho = world;
         dprint(sprintf("flat drop: %s dropped by the %s hand after %.2f s: the hand at %.1f m/s, it leaves at %.0f u/s\n",
             dropped.classname, VR_FlatGrenade_HandName(h), held, dropSpeed, vlen(dropped.velocity)));
     }
@@ -926,6 +932,7 @@ void(float xHeld) VR_FlatThrow_Throw =
     vr_flatthrow_last = thrown;
     vr_flatthrow_from = thrown.origin;
     vr_flatthrow_watch = time + 4;
+    vr_flatthrow_hitwho = world;
     float outSpeed = kind == 3 ? vlen(ragLaunchVel) : vlen(thrown.velocity);
     dprint(sprintf("flat throw: %s thrown by the %s hand%s after %.2f s: the hand at %.1f m/s (%.0f%% charged), ",
         thrown.classname, VR_FlatGrenade_HandName(h), self.vr_flatthrow_both ? (kind == 3 ? " (two-handed)" : " (one-handed: the other hand let go)") : "", xHeld, speed, k * 100));
@@ -1081,7 +1088,7 @@ vector(vector xFrom, vector xVel, float xGravity, entity xSelf, entity xHeld) VR
 
 // Item 1 of his flat notes 2026-11-26 ("Dynamic crosshair while in the 'about to throw' pose should aim towards the
 // throwing location, not the weapon's muzzle target or melee's target"), flatxhair2: while a hand winds up a throw (the
-// throw key's: a weapon, a carried thing, a body; the quick grenade's by the key), where letting go now would land it,
+// throw key's: a weapon, a carried thing, a body; the quick grenade's, by the key or its fire button), where letting go now would land it,
 // sent to the view each frame (flatthrowaim: the visor crosshair, flatxhair). Not worked out apart: the release's own
 // pieces (VR_FlatThrow_Speed / _Up / _From, VR_Throw_WeaponVel, VR_Carry_ThrowVel, VR_FlatThrow_RagVel,
 // VR_FlatGrenade_Speed / _Up, the throw assist, his own motion, the throw's gravity), its arc traced (VR_Throw_ArcEnd).
@@ -1096,7 +1103,9 @@ void() VR_FlatThrow_Aim =
     vector inherit = self.velocity * VR_Throw_Inherit(self);
     if(VR_FlatPlay(self) && self.health > 0 && self.ishuman)
     {
-        if(self.vr_flatgren_bykey && self.vr_flatgren_phase == VR_FLATGREN_WIND && self.vr_flatgren_ent != world)
+        // (The quick grenade's wind-up, whatever winds it up: B, or the fire button held on it, a live grenade taken some
+        // other way as well. grenaim, his flat note 2026-11-27 item 3: the attack button's throw shows its landing as B's.)
+        if(self.vr_flatgren_phase == VR_FLATGREN_WIND && self.vr_flatgren_ent != world)
         {
             h = self.vr_flatgren_hand;
             e = self.vr_flatgren_ent;
@@ -1147,7 +1156,6 @@ void() VR_FlatThrow_Aim =
 // (developer 1) Where the last throw first met something: the first frame its velocity left its fall (stopped, bounced,
 // stuck), printed once ("flat throw: first hit at"), with where it was the frame before and its velocity then (its
 // middle's arc on to the wall from there: flatxhair_melee_test's throw against the crosshair's aim).
-entity vr_flatthrow_hitwho;
 vector vr_flatthrow_hitvel;
 vector vr_flatthrow_hitorg;
 void() VR_FlatThrow_WatchHit =

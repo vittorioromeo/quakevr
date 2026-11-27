@@ -2107,6 +2107,24 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_ADDEBUFF, f.vr_ad_huddebuff);
     stat(STAT_QVR_ADUPGRADES, f.vr_ad_hudup);
     stat(STAT_QVR_DWPOWER, f.vr_dw_hud); // Dwell support: Haste, Berserk, the Wetsuit on the wrist gadget (vr_gadget.cpp)
+    // A hand driving a weapon prop (QC .vr_pfire_hud; the prop: the blade it holds in a body, .vr_embed_*): its HUD readouts
+    // follow the prop, its clip the prop's record's (the hand's own record: none, the hand is empty).
+    stat(STAT_QVR_PROPHUD, f.vr_pfire_hud);
+    const int propHud = static_cast<int>(statsf[STAT_QVR_PROPHUD]);
+    for(int h = 0; h < 2; h++)
+    {
+        const int ofs = h ? f.vr_embed_main : f.vr_embed_off;
+        if(((propHud >> (h ? 8 : 0)) & 255) == 0 || ofs < 0)
+        {
+            continue;
+        }
+        edict_t* prop = PROG_TO_EDICT(fieldInt(ent, ofs));
+        edict_t* r = prop != qcvm->edicts && !prop->free ? weaponInst(prop, f.weaponinst) : nullptr;
+        if(r)
+        {
+            statsf[h ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2] = fieldFloatOr(r, f.wi_clip, 0.f);
+        }
+    }
     stat(STAT_QVR_ADSKYFOG, f.vr_ad_skyfog); // AD support: AD's sky fog (vr_ad.cpp VR_AD_SkyFog)
 
     const int holsterWeapon[numHolsters] = {f.holsterweapon0, f.holsterweapon1,
