@@ -110,6 +110,7 @@ void VR_BrowserRefresh (void);		// a new search
 int VR_BrowserSearching (void);
 int VR_BrowserCount (void);		// the rows (built again from the search's replies and the lists)
 const char *VR_BrowserRowText (int row);	// its 35 columns: name, map, players, ping (or its address, "no reply")
+const char *VR_BrowserRowNote (int row);	// why it can't be joined ("Needs Quake VR 1.2.0-beta7..."), "" it can
 int VR_BrowserRowFavourite (int row);
 int VR_BrowserRowRecent (int row);
 void VR_BrowserToggleFavourite (int row);

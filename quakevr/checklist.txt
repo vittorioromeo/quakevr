@@ -233,6 +233,9 @@ Flat-screen or VR: in mp_local.ps1 type vr_nav_follow next in the client's conso
 Debug > Reports > Network: Drawn Near Me (vr_mp_near) in mp_local.ps1's client lists the other player's drawn models, lights and recent sounds. {test:mp_coop_bot}
 Debug > Show Disarm Volumes in a deathmatch with a bot and another player (host, then join): orange outlines along each one's held weapon (the grab), magenta on it and cyan on the hand (shots), none on your own. {test:mp_dm_disarmviz}
 Flat-screen or VR: Debug > Show Hit Zones in a deathmatch with a bot and another player (host, then join): a red sphere on each head, green torso, yellow arms and blue legs, following and turning with them; none on you. {test:mp_dm_hitzones}
+Flat-screen or VR: host a game on one device and, on the other, type vr_net_test_version 1 in the console, then open Multiplayer > Join Game > Server Browser: the host's row shows v48 instead of a ping and the line under the list says which Quake VR release it needs. {test:hub_start}
+Flat-screen or VR: join that row anyway: you're back at the browser with one plain reason under the list ("This server runs Quake VR ... update to ..."), and the console has it once, with no Host_Error or stack trace. {test:hub_start}
+Flat-screen: quit right after a failed join: no console text flashes over the background while the game closes. {test:hub_start}
 
 [11. Recording and dev tools]
 ## Takes

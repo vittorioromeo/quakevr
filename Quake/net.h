@@ -122,6 +122,19 @@ const char *NET_SlistPrintServerName (int n);
 // QVR: (B13) a search's reply (the server browser's, vr_serverbrowser.cpp): 0 out of range
 int NET_SlistEntry (int n, const char **name, const char **map, const char **address, int *users, int *maxusers,
 					int *ping, int *version);
+// QVR: (netmismatch) a search reply's Quake VR part: the network version the server takes and its release (0 / "": not
+// said: a server before 1.2.0-beta7, or one that takes any client); 0 out of range
+int NET_SlistQvr (int n, int *netVersion, const char **release);
+// QVR: (netmismatch) this game's Quake VR network version as it says it (vr_net_test_version N: another, the tests')
+int NET_QvrOwnVersion (void);
+// QVR: (netmismatch) the Quake VR release of a network version the releases before 1.2.0-beta7 had ("1.2.0-beta3 to
+// 1.2.0-beta5"; later servers say their own), "" not one of them
+const char *NET_QvrReleaseOf (int netVersion);
+// QVR: (netmismatch) the last connect's refusal, the server's reason with what to install when it names a network
+// version (one line, no newline), "" the connect was not refused (no answer, an error)
+const char *NET_ConnectRefusal (void);
+// QVR: (netmismatch) this game's Quake VR release as a server says it ("1.2.0-beta7", "-dev" after a development build's)
+const char *NET_QvrRelease (void);
 // QVR: (B13) a connection's counts (the net HUD's, vr_nethud.cpp; qsocket_t's): unreliable datagrams read and skipped,
 // reliable chunks resent, bytes in and out; its reliable chunks' smoothed round trip in seconds (0: none yet)
 void NET_QvrLinkCounts (struct qsocket_s *sock, unsigned int counts[5], double *reliableRtt);
