@@ -900,6 +900,50 @@ float propMass(edict_t* ent)
 
 namespace
 {
+// weaponMassCentre's last model (and the world it was asked in: a new map's models may be others at the same addresses).
+struct WeaponCentreMemo
+{
+    const qmodel_t* model{nullptr};
+    const qmodel_t* map{nullptr};
+    bool known{false};
+    glm::vec3 centre{0.f};
+};
+WeaponCentreMemo weaponCentreMemo; // seat-shared: model data (every seat's models are the same)
+} // namespace
+
+bool weaponMassCentre(const qmodel_t* model, glm::vec3& out)
+{
+    if(!world || !model || model->type != mod_alias)
+    {
+        return false;
+    }
+    WeaponCentreMemo& m = weaponCentreMemo;
+    if(m.model != model || m.map != sv.worldmodel)
+    {
+        m = WeaponCentreMemo{model, sv.worldmodel, false, glm::vec3{0.f}};
+        za::Vector<glm::vec3> vertices;
+        if(held::modelVertices(model, false, vertices) && vertices.size() >= 4)
+        {
+            za::Vector<b3Vec3> points;
+            points.reserve(vertices.size());
+            for(const glm::vec3& v : vertices)
+            {
+                points.pushBack(world->toM(v));
+            }
+            if(b3HullData* hull = propHullOf(points, 32, world->m2u))
+            {
+                m.centre = world->toU(hull->center);
+                m.known = true;
+                b3DestroyHull(hull);
+            }
+        }
+    }
+    out = m.centre;
+    return m.known;
+}
+
+namespace
+{
 // The rope's queries: what it can't pass through, less its ends.
 struct RopeQuery
 {

@@ -3799,11 +3799,12 @@ void drivePin(DriveWork& w, State& s, const Parts& p, const Context& c)
         }
         glm::vec3 at = s.origin + s.turn * (pose.pos[0] * p.k) + offset;
         glm::quat turn = glm::normalize(s.turn * pose.rot[0]);
-        if(s.mode == Mode::Climbing && s.climb.pinned) // (its way's point, turned to face the wall and pitched over)
+        // (A climb's pin holds its pelvis's middle (its way's point), not its body's origin: see below.)
+        const bool atMiddle = s.mode == Mode::Climbing && s.climb.pinned;
+        if(atMiddle) // (its way's point, turned to face the wall and pitched over)
         {
-            // (Its way is its pelvis's middle's: the anchor is its body's origin, that far off it as turned.)
             turn = glm::normalize(glm::slerp(s.climb.rot0, glm::normalize(s.climb.tilt * turn), s.climb.turnBlend));
-            at = s.climb.pinAt - turn * glmv(b3Body_GetLocalCenter(p.body[0]));
+            at = s.climb.pinAt;
         }
         const float weight = s.totalMass * c.gravity;
         if(B3_IS_NULL(s.pin.anchor) || !b3Body_IsValid(s.pin.anchor))
@@ -3818,6 +3819,15 @@ void drivePin(DriveWork& w, State& s, const Parts& p, const Context& c)
             jd.base.bodyIdB = p.body[0];
             jd.base.localFrameA = b3Transform{b3Vec3_zero, b3Quat_identity};
             jd.base.localFrameB = b3Transform{b3Vec3_zero, b3Quat_identity};
+            if(atMiddle)
+            {
+                // (Its pelvis's middle on its way. Held by its origin, the anchor set off the way by its middle's offset as
+                // the way turned it, its middle stayed wherever its pelvis's own turn left it: barely turned (the pin's turn
+                // is weak, turnShare), a hell knight's pelvis (its middle well off its origin) hung 16-19 units under its way
+                // over the lip with its origin 4 units off the anchor and the pin pulling a tenth of what it could, "stuck at
+                // the lip", climb_test seed 8, 2026-11-27.)
+                jd.base.localFrameB = b3Transform{b3Body_GetLocalCenter(p.body[0]), b3Quat_identity};
+            }
             jd.base.collideConnected = false;
             jd.linearVelocity = b3Vec3_zero;
             jd.angularVelocity = b3Vec3_zero;

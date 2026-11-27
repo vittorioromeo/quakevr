@@ -1206,6 +1206,10 @@ extern "C" void VR_ReloadVRGameKeepCampaign()
 }
 
 extern "C" void VR_MusicWhich_f(); // vr_music.cpp
+namespace
+{
+void gameDataNoticeCommand(); // (below)
+} // namespace
 extern "C" void VR_RegisterPackStatus()
 {
     Cmd_AddCommand("vr_music_which", VR_MusicWhich_f);
@@ -1218,6 +1222,7 @@ extern "C" void VR_RegisterPackStatus()
     Cmd_AddCommand("vr_campaign_select", campaignSelectCommand);
     Cmd_AddCommand("vr_campaign_native", campaignSelectCommand);
     Cmd_AddCommand("vr_campaign_hub", campaignHubCommand);
+    Cmd_AddCommand("vr_gamedata_notice", gameDataNoticeCommand);
     publishCampaign();
     Con_Printf("VR active campaign: %s (%d); schema %d; %s.\n", campaigns[activeCampaign].folder, activeCampaign, campaigns[activeCampaign].schema, campaignStatus(activeCampaign));
     reportPackStatus();
@@ -1629,6 +1634,69 @@ extern "C" int VR_CampaignForMap(const char* map)
 { return gameDirAlreadyAdded(vrGameDir) ? campaignForMap(map, activeCampaign) : activeCampaign; }
 
 extern "C" int VR_IsNewCampaignDirectory(const char* dir) { return campaignIndex(dir) >= 3; }
+extern "C" int VR_IsCampaignDirectory(const char* dir) { return campaignIndex(dir) >= 0; }
+
+namespace
+{
+// Quake VR's game data not found at start (COM_AddVRGameArg: a broken install): the folder it should be in (the
+// exe's), said in the menus' status box (VR_MenuDrawStatus) and once in the game (loadNoticeFrame). vr_gamedata_notice 1
+// previews both on a good install.
+za::String gameDataMissingIn;       // seat-shared: the install's (one process, one game folder)
+bool gameDataNoticePending = false; // seat-shared: said once in the game, whichever seat draws first
+bool gameDataPreview = false;       // seat-shared: a debug preview of the install's notice
+char gameDataNoticeText[512];       // seat-shared: the install's notice text
+
+void gameDataNoticeCommand()
+{
+    if(Cmd_Argc() > 1)
+    {
+        gameDataPreview = Q_atoi(Cmd_Argv(1)) != 0;
+        gameDataNoticePending = VR_GameDataMissingFolder() != nullptr;
+        if(gameDataNoticePending && cls.state == ca_connected && key_dest == key_game)
+        {
+            SCR_CenterPrintFor(VR_GameDataMissingNotice(), 8.f);
+        }
+    }
+    if(!gameDataMissingIn.empty())
+    {
+        Con_Printf("vr_gamedata_notice: Quake VR's game data wasn't found at start (looked in %s)\n", gameDataMissingIn.cStr());
+    }
+    else
+    {
+        Con_Printf("vr_gamedata_notice: Quake VR's game data found (game dirs %s)%s\n", com_gamenames,
+            gameDataPreview ? "; its missing notice previewed (vr_gamedata_notice 0 ends it)" : "");
+    }
+}
+} // namespace
+
+extern "C" void VR_NoteGameDataMissing(const char* exedir)
+{
+    gameDataMissingIn = za::String{exedir && *exedir ? exedir : "."};
+    gameDataNoticePending = true;
+}
+
+extern "C" const char* VR_GameDataMissingFolder()
+{
+    if(!gameDataMissingIn.empty())
+    {
+        return gameDataMissingIn.cStr();
+    }
+    return gameDataPreview ? (host_parms->exedir && *host_parms->exedir ? host_parms->exedir : com_basedirs[0]) : nullptr;
+}
+
+extern "C" const char* VR_GameDataMissingNotice()
+{
+    const char* folder = VR_GameDataMissingFolder();
+    if(!gameDataNoticePending || !folder)
+    {
+        return nullptr;
+    }
+    gameDataNoticePending = false;
+    q_snprintf(gameDataNoticeText, sizeof(gameDataNoticeText),
+        "Quake VR's game data wasn't found\n(looked for quakevr in %s)\nReinstall with QuakeVR-Setup\nor start from its shortcut",
+        folder);
+    return gameDataNoticeText;
+}
 extern "C" int VR_IsNativeCampaignLaunch()
 {
     for(int i = 0; i < com_argc - 1; ++i)

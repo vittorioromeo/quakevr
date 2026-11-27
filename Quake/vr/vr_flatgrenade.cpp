@@ -115,6 +115,8 @@ struct GrenadeState
     int pullPresses{0};
     int pullResend{0};              // frames to resend impulse 38 in hold mode if server still holds
     int pullRetry{0};               // frames to retry impulse 37 in hold mode while searching
+    // (apply) While a hand winds up: how far it will have moved as the thing leaves it (releaseShift).
+    glm::vec3 releaseShift[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 
 // splitscreen (SPLITSCREEN.md, phase 4a): the current seat's (seat::Part::FlatGrenade)
@@ -479,6 +481,7 @@ void apply(hands::State& s)
     for(int h : {HAND_OFF, HAND_MAIN})
     {
         const Shares& a = gs().hand[h];
+        gs().releaseShift[h] = glm::vec3{0.f};
         if(!anyShare(a))
         {
             continue;
@@ -525,6 +528,7 @@ void apply(hands::State& s)
         }
 
         blend(s, h, holdAt, {look.x + pitch(vr_flat_grenade_hold_pitch), look.y, 0.f}, geom::smooth01(a.hold));
+        const glm::vec3 beforeWind = s.pos[h]; // (releaseShift's pose, below)
         // (The wind-up's yaw turns the fingers out to the hand's side, its roll mirrored by side.)
         blend(s, h, windAt,
             {look.x + pitch(vr_flat_throw_wind_pitch), look.y - side * za::clamp(vr_flat_throw_wind_yaw.value, -90.f, 90.f),
@@ -551,6 +555,21 @@ void apply(hands::State& s)
         if(const float arc = za::clamp(vr_flat_throw_release_arc.value, -0.5f, 0.5f); following && arc != 0.f)
         {
             s.pos[h] += vu * (arc * span * 4.f * geom::smooth01(a.wind) * geom::smooth01(a.follow));
+        }
+        // (xhairmiss) Wound up: where the same places put the hand vr_flat_throw_release_time into the follow-through,
+        // where the thing leaves it (QC VR_FlatThrow_Release; its shares step linearly, as `step` above), off where it is.
+        if((gs().phase == phaseWind && gs().hand0 == h) || (gs().throwPhase == throwWind && gs().throwHand == h))
+        {
+            const float follow = secs(vr_flat_throw_follow_time);
+            const float rt = za::clamp(vr_flat_throw_release_time.value, 0.f, 0.5f) / follow;
+            const float w = geom::smooth01(za::max(0.f, a.wind - rt)), f = geom::smooth01(za::min(1.f, a.follow + rt));
+            glm::vec3 at = beforeWind + (windAt - beforeWind) * w;
+            const auto units = [](const Tunable& c) { return za::clamp(c.value, -30.f, 30.f); };
+            at += (vf * units(vr_flat_throw_rev_fwd) + vr * (side * units(vr_flat_throw_rev_out)) + vu * units(vr_flat_throw_rev_up)) *
+                  (w * flatplay::flipShare(h));
+            at += (followAt - at) * f;
+            at += vu * (za::clamp(vr_flat_throw_release_arc.value, -0.5f, 0.5f) * span * 4.f * w * f);
+            gs().releaseShift[h] = at - s.pos[h];
         }
         blend(s, h, fetchAt, {pitch(vr_flat_grenade_fetch_pitch), look.y, 0.f}, geom::smooth01(a.away));
         if(a.guide > 0.f)
@@ -636,6 +655,11 @@ float guideShare(int h)
 float grabOpenShare(int h)
 {
     return h >= 0 && h < 2 && !gs().grabHeld[h] ? geom::smooth01(gs().hand[h].grabReach) : 0.f;
+}
+
+glm::vec3 releaseShift(int h)
+{
+    return h >= 0 && h < 2 ? gs().releaseShift[h] : glm::vec3{0.f};
 }
 
 } // namespace qvr::flatgrenade

@@ -369,7 +369,8 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     if(c.trace)
     {
         // (vr_ragdoll_active_trace: its phase; its chest's, pelvis's, knees' and feet's height over the top and how far in
-        // from the lip, units; the hands holding; the pelvis from its pin's anchor, units.)
+        // from the lip, units; the hands holding; its pelvis's middle from its pin's anchor, units; its pin's cap and its
+        // lift, body weights.)
         const auto at = [&](const glm::vec3& v) { return glm::vec2{(v.z - k.top) * p.m2u, -glm::dot(v - k.lip, k.out) * p.m2u}; };
         const auto knee = [&](int leg) {
             const int lo = s.chain[static_cast<za::SizeT>(leg)][1];
@@ -383,11 +384,12 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             pull = glmv(b3Joint_GetConstraintForce(s.pin.joint)) / za::max(s.totalMass * c.gravity, 1e-3f);
         }
         Con_Printf("ragclimb %d %.3f ph %d chest %.1f %.1f pelvis %.1f %.1f h %d pin %.1f knees %.0f %.0f %.0f %.0f feet %.0f %.0f "
-                   "%.0f %.0f pull %.2f %.2f org %.1f\n",
+                   "%.0f %.0f pull %.2f %.2f org %.1f cap %.2f lift %.2f\n",
             c.num, static_cast<float>(c.now - c.born), static_cast<int>(k.phase), (chestAt.z - k.top) * p.m2u,
             -glm::dot(chestAt - k.lip, k.out) * p.m2u, (pelvis.z - k.top) * p.m2u, pelvisIn * p.m2u, holding,
             k.pinned ? glm::distance(pelvis, k.pinAt) * p.m2u : -1.f, kl.x, kl.y, kr.x, kr.y, fl.x, fl.y, fr.x, fr.y,
-            pull.z, -glm::dot(pull, k.out), B3_IS_NON_NULL(s.pin.anchor) ? glm::distance(glmv(b3Body_GetPosition(p.body[0])), glmv(b3Body_GetPosition(s.pin.anchor))) * p.m2u : -1.f);
+            pull.z, -glm::dot(pull, k.out),
+            B3_IS_NON_NULL(s.pin.anchor) ? glm::distance(pelvis, glmv(b3Body_GetPosition(s.pin.anchor))) * p.m2u : -1.f, s.pin.force * s.base, fadeAt(s.support, static_cast<float>(c.now - s.begun)) * s.base);
     }
     const glm::vec3 wall = -k.out;
     const auto phaseTo = [&](ClimbPhase ph) {
@@ -397,12 +399,14 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
         k.prog = k.prog2 = 0.f;
         if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
         {
-            Con_Printf("climb: %d %s at %.2f s: its chest %.0f units %s the lip, %.0f off the wall\n", c.num,
-                ph == ClimbPhase::Pull ? "pulls itself up" : "goes over the lip", c.now - k.since0,
-                za::abs(chestAt.z - k.top) * p.m2u, chestAt.z < k.top ? "under" : "over", glm::dot(chestAt - k.lip, k.out) * p.m2u);
+            Con_Printf("climb: %d %s at %.2f s: its chest %.0f units %s the lip, %.0f off the wall (arm %.0f, torso %.0f units, "
+                       "its pelvis's middle %.0f off its origin)\n",
+                c.num, ph == ClimbPhase::Pull ? "pulls itself up" : "goes over the lip", c.now - k.since0,
+                za::abs(chestAt.z - k.top) * p.m2u, chestAt.z < k.top ? "under" : "over", glm::dot(chestAt - k.lip, k.out) * p.m2u,
+                L * p.m2u, k.torso * p.m2u, glm::length(glmv(b3Body_GetLocalCenter(p.body[0]))) * p.m2u);
         }
     };
-    // Its way's points (its pelvis's: its body's origin), off the lip: under it (its chest over the top), over it, in on
+    // Its way's points (its pelvis's middle: drivePin), off the lip: under it (its chest over the top), over it, in on
     // the top; its pelvis pitched forwards (rad) over the lip and in.
     const glm::vec3 under = k.lip + k.out * (0.5f * L) - up * (0.35f * L);
     // (In: as high as over until its pelvis is in past the lip (Over), carried in level over the corner, its legs trailing.
@@ -575,9 +579,13 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             // folded there, it tipped back off.)
             climbChest(s, p, c, chest, rim + up * (0.45f * L) + wall * ((!k.released ? 0.3f * u1 : 0.3f + 0.7f * u2) * L));
             k.tilt = glm::angleAxis(0.6f * u1 + 0.9f * u2 * inside, axis);
-            // (Let go once its pelvis is over the top and its chest over the lip, not tipped back off it.)
-            if(!k.released && k.prog >= 1.f && pelvis.z > k.top + 0.1f * L && -glm::dot(chestAt - k.lip, k.out) > -0.1f * L &&
-                chestAt.z > k.top - 0.1f * L)
+            // (Let go once its pelvis is over the top and its chest over the lip, not tipped back off it: or its chest leaning
+            // in from its pelvis. A short torso can't reach over the lip from its pelvis at `over`: a hell knight's chest (6
+            // units off its pelvis's middle) leant 3 units in from its pelvis, 4 out from the lip, its pelvis 14 over the top,
+            // and held there until "stuck at the lip", climb_test seed 10, 2026-11-27.)
+            const float chestIn = -glm::dot(chestAt - k.lip, k.out);
+            if(!k.released && k.prog >= 1.f && pelvis.z > k.top + 0.1f * L &&
+                (chestIn > -0.1f * L || chestIn > pelvisIn + 0.05f * L) && chestAt.z > k.top - 0.1f * L)
             {
                 k.released = true;
                 k.since2 = c.now;
