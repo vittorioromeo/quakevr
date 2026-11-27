@@ -131,6 +131,25 @@ public static class QuestFiles
             }
         }
 
+        // The official campaigns' own soundtracks (questfovmusic, 2026-11-27: Scourge of Armagon played Quake's tracks on the
+        // Quest). The PC game reads <folder>/music/trackNN.<ext> where the search path has the folder, else in place from the
+        // owned rerelease (vr_music.cpp findInFolder); the original's expansion folders have no music, the rerelease's do.
+        // On the headset they go to <folder>/music: found through the search path, or the base dir as an owned root.
+        foreach (var folder in CampaignMusicFolders.Where(folders.Contains))
+        {
+            if (CampaignMusicDir(folder, MusicRoots(quakeDir, installDir, storeRoots)) is not { } dir)
+            {
+                continue;
+            }
+            foreach (var track in Directory.EnumerateFiles(dir).Order(StringComparer.OrdinalIgnoreCase))
+            {
+                if (MusicFormats.Contains(Path.GetExtension(track), StringComparer.OrdinalIgnoreCase))
+                {
+                    Add($"{folder}/music/" + Path.GetFileName(track).ToLowerInvariant(), track, "music");
+                }
+            }
+        }
+
         // Arcane Dimensions, Dwell, Quoth: a copy already on this PC that the PC game plays where it is (when Setup did
         // not install its own into the install folder above).
         var adRoots = ArcaneDimensions.SearchRoots(storeRoots, quakeDir);
@@ -158,6 +177,44 @@ public static class QuestFiles
             files[DataVersionPath] = new QuestFile(DataVersionPath, stamp, new FileInfo(stamp).Length, "version stamp");
         }
         return [.. files.Values.OrderBy(f => f.DevicePath, StringComparer.Ordinal)];
+    }
+
+    /// <summary>The official campaigns with soundtracks of their own (vr_music.cpp campaignFolders, Quake's id1 above).</summary>
+    static readonly string[] CampaignMusicFolders = ["hipnotic", "rogue", "dopa", "mg1", "mg3"];
+
+    /// <summary>Where a campaign's music may be on this PC, in the PC game's order: the player's Quake and the install (the
+    /// search path's folders), then the rereleases (the owned roots the PC game reads in place).</summary>
+    static IEnumerable<string> MusicRoots(string quakeDir, string installDir, IReadOnlyList<string> storeRoots)
+    {
+        yield return quakeDir;
+        yield return installDir;
+        foreach (var root in storeRoots.Prepend(quakeDir))
+        {
+            if (Directory.Exists(root) && QuakeDetector.Describe(QuakeStore.Manual, "", root).RereleaseRoot is { } rerelease)
+            {
+                yield return rerelease;
+            }
+        }
+    }
+
+    /// <summary>The first <c>&lt;root&gt;/&lt;folder&gt;/music</c> with a track the Quest build plays, or null.</summary>
+    static string? CampaignMusicDir(string folder, IEnumerable<string> roots)
+    {
+        foreach (var root in roots)
+        {
+            var dir = Path.Combine(root, folder, "music");
+            try
+            {
+                if (Directory.Exists(dir) && Directory.EnumerateFiles(dir).Any(f => MusicFormats.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase)))
+                {
+                    return dir;
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+        return null;
     }
 
     /// <summary>The game data's version stamp on the headset: the install's version, which the game on the Quest compares

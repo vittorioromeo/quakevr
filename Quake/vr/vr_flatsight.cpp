@@ -335,6 +335,7 @@ constexpr float tiltStep = 10.f;     // the tilt's search: tried in steps this b
 constexpr int tiltHalvings = 3;
 constexpr float tiltTimeMax = 1.5f;  // vr_flat_wall_tilt_time's range (seconds)
 constexpr float tiltPitchEase = 4.f; // in the pose, its pitch follows the least that clears at this many over vr_flat_wall_tilt_time (1/s)
+constexpr float tiltRateMost = 450.f; // the drawn tilt turns at most this fast (degrees a second: 6.25 a frame at 72 Hz)
 constexpr float tiltYawMax = 60.f;   // vr_flat_wall_tilt_yaw's range (degrees)
 constexpr float tiltRollMax = 90.f;  // vr_flat_wall_tilt_roll's range (degrees)
 constexpr float tiltBlocksFire = 5.f; // a gun turned more than this out of a wall does not fire (flatsight::wallBlocksFire; degrees)
@@ -2014,7 +2015,11 @@ void frame()
         // (The wall state comes on faster than it goes: wallInShare of the time.)
         st.wallOn[h] = za::clamp(st.wallOn[h] + (st.wallWanted[h] ? onStep / wallInShare : -onStep), 0.f, 1.f);
         st.freeBack[h] += (st.freeNeed[h] - st.freeBack[h]) * ease(st.freeNeed[h] > st.freeBack[h] ? backIn : backOut, dt);
-        st.tilt[h] = geom::smooth01(st.tiltOn[h]) * st.tiltPitch[h];
+        // (At most tiltRateMost a second either way: walked into a wall sighted, pressed on it, the gun 10 units in, the
+        // least that clears is 82 degrees, and the ease's middle took it up 9.4 degrees a frame; realpush, ROUND26 "flatpush".)
+        const float tiltTo = geom::smooth01(st.tiltOn[h]) * st.tiltPitch[h];
+        const float tiltRate = tiltTime > 0.f ? tiltRateMost * dt : wallTiltMax; // (0: at once)
+        st.tilt[h] += za::clamp(tiltTo - st.tilt[h], -tiltRate, tiltRate);
         // Along a wall (vr_flat_wall_slide): the share follows the angle the wall is met at, and the level turn its need,
         // over about vr_flat_wall_slide_time, both ways (the push out, eased as the way back, keeps it out meanwhile).
         const float slideTime = za::clamp(vr_flat_wall_slide_time.value, 0.f, slideTimeMax);

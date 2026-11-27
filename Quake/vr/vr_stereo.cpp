@@ -1936,7 +1936,8 @@ extern "C" int VR_RenderView()
                 questZones = drawnDirect ? foveated::DensityZones{} : stereo::glFoveationZones(frame.eyes[eye].fov);
                 if(questZones.gain <= 0.f && (xrFoveation || vr_foveated_debug.value >= 2.f))
                 {
-                    questZones = foveated::runtimeZones(za::max(1, static_cast<int>(vr_xr_foveation.value)));
+                    questZones = foveated::runtimeZones(za::max(1, static_cast<int>(vr_xr_foveation.value)),
+                        vr_xr_foveation_offset.value);
                 }
             }
             foveated::drawDebug(eye, stereo::targetFbo, shownWidth, shownHeight, drawnWidth, drawnHeight, questZones); // vr_foveated_debug

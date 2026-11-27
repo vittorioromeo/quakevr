@@ -1011,7 +1011,7 @@ void PF_weaponvalue()
 
 // vector(string model, float kind, float what) attachinfo: weapon attachments (vr_attach.hpp) on the weapon drawn with
 // `model`: what 0 '1 0 0' if attachment `kind` fits it (its att1_ok), '0 0 0' if not; what 1 the attachment's mount and
-// what 2 its tip (its striking point), each from the weapon's muzzle in the weapon's own axes as drawn in a hand (x forward,
+// what 2 its tip (its striking point), what 3 where its blade starts, each from the weapon's muzzle in the weapon's own axes as drawn in a hand (x forward,
 // y left, z up; units as drawn: its Scale): a hand's muzzle (QC .muzzlepos) plus these along the hand's axes is where they
 // are (QC vr_attach.qc; turned by the weapon's Pitch, Yaw and Roll in the hand: view::weaponTurnInHand, so in the hand's
 // axes). '0 0 0' if it doesn't fit.

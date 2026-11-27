@@ -3913,7 +3913,10 @@ bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHa
     out.poseFrame[0] = out.poseFrame[1] = -1;
     out.poseBlend = 0.f;
     out.netEntity = 0;
-    out.scale = glm::vec3{size * m.scale};
+    // (a weapon model as the attachment, the dagger: the renderer draws it with its own transform, its Scale and the
+    // models' world size k too; k is in `size` already (the gun's), so taken out here: its Scale is Mount::own)
+    const weapons::ModelTransform ownT = weapons::modelTransform(model);
+    out.scale = glm::vec3{size * m.scale / (ownT.active && ownT.k > 1e-5f ? ownT.k : 1.f)};
     glm::vec3 ang = basisAngles(b);
     ang.x = -ang.x; // (an entity's pitch)
     for(int i = 0; i < 3; i++)

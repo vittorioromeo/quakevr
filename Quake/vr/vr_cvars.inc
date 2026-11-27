@@ -197,6 +197,7 @@ QVR_CVAR(vr_attach_snap_radius, "5", CVAR_ARCHIVE | QVR_RULE)  // weapon attachm
 QVR_CVAR(vr_attach_snap_angle, "50", CVAR_ARCHIVE | QVR_RULE)  // and within how many degrees of the gun's way it must point
 QVR_CVAR(vr_attach_pull_radius, "6", CVAR_ARCHIVE | QVR_RULE)  // how near (units) the empty hand grips an attachment on the other hand's gun to pull it off
 QVR_CVAR(vr_attach_pull_button, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: pulled off by that hand's B/Y with its grip held (a grip there alone is the gun's two-handed grip); 0: by the grip alone
+QVR_CVAR(vr_attach_daggers, "1", CVAR_ARCHIVE | QVR_RULE)      // Daggers as Bayonets (daggerattach; his 2026-11-27, on for testing): 1 the dagger in a hand goes on the other hand's shotgun or super shotgun as its bayonet (brought to the mount; flat: the Attach key); 0 not (one already on still comes off)
 QVR_CVAR(vr_attach_turn, "1", CVAR_NONE)                // 1: the server's attachment points (QC attachinfo) turned by the gun's Pitch/Yaw/Roll in the hand; 0: not (attach2's comparison)
 QVR_CVAR(vr_attach_probe, "0", CVAR_NONE)              // 1: the client writes the main hand's drawn attachment tip into vr_attach_probe_x/y/z every frame (the tests: QC vr_attach_test.qc)
 QVR_CVAR(vr_attach_probe_drawn, "0", CVAR_NONE)         // with vr_attach_probe 1: 1 while the main hand's gun has an attachment drawn
@@ -678,7 +679,8 @@ QVR_CVAR(vr_xr_eye_scale, "1", CVAR_ARCHIVE)
 // while the session runs, again when changed; 0 leaves the runtime's own. vr_xr_refresh_rate: the display's refresh
 // rate in Hz (XR_FB_display_refresh_rate; the nearest one offered, e.g. 72, 90, 120). vr_xr_cpu_level and
 // vr_xr_gpu_level (XR_EXT_performance_settings): 1 power savings, 2 sustained low, 3 sustained high, 4 boost.
-// vr_xr_foveation (XR_FB_foveation): the eye images' fixed foveation, 1 low, 2 medium, 3 high (dynamic: off).
+// vr_xr_foveation (XR_FB_foveation): the eye images' fixed foveation, 1 low, 2 medium, 3 high, 4 high (top): Meta's
+// HighTop, more of the top reduced (questfovmusic; refused: high shifted down) (dynamic: off).
 QVR_CVAR(vr_xr_refresh_rate, "0", CVAR_ARCHIVE)
 // vr_quest_check (each Android start, after the saved config; vr_gfxpresets.cpp): 1 the settings that break the Quest's
 // frames (MSAA, bloom) set back, each said in the log; 0 only said.
@@ -699,6 +701,10 @@ QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
 // qfov: the eye images drawn straight into (their scene with it) whenever vr_xr_foveation is on (vr_stereo.cpp); 1 lets
 // the runtime lower the level while the GPU has room (XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB), vr_xr_foveation the most.
 QVR_CVAR(vr_xr_foveation_dynamic, "0", CVAR_ARCHIVE)
+// questfovmusic: the foveation pattern's vertical shift in degrees (XrFoveationLevelProfileCreateInfoFB's verticalOffset,
+// -30..30; the runtime's sign convention is unspecified: Quest 3 at 0.9, -15 was 3.5 ms slower on the hub, +30 1.5 ms
+// faster in the gib fight), with any level over 0; a change takes new swapchains.
+QVR_CVAR(vr_xr_foveation_offset, "0", CVAR_ARCHIVE)
 // C4q (QUEST_PLAN.md 6x; a probe): the eye swapchains' foveation create flags, read when they are made: 1 scaled bins
 // (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).
 QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)

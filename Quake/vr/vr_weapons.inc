@@ -370,6 +370,16 @@ QVR_WEAPON_KEY(Att1Pitch, "att1_pitch")
 QVR_WEAPON_KEY(Att1Yaw, "att1_yaw")
 QVR_WEAPON_KEY(Att1Roll, "att1_roll")
 QVR_WEAPON_KEY(Att1Scale, "att1_scale")
+// Kind 2, the dagger put on as a bayonet (daggerattach; vr_attach_daggers): the same keys (its origin by its grip, its
+// blade +z in its model: pitched -76.46 and rolled 180 it lies along the barrel, edge down; scale 1 / the gun's Scale as the bayonet's: its own Scale, 0.34, is drawn on it).
+QVR_WEAPON_KEY(Att2Ok, "att2_ok")
+QVR_WEAPON_KEY(Att2X, "att2_x")
+QVR_WEAPON_KEY(Att2Y, "att2_y")
+QVR_WEAPON_KEY(Att2Z, "att2_z")
+QVR_WEAPON_KEY(Att2Pitch, "att2_pitch")
+QVR_WEAPON_KEY(Att2Yaw, "att2_yaw")
+QVR_WEAPON_KEY(Att2Roll, "att2_roll")
+QVR_WEAPON_KEY(Att2Scale, "att2_scale")
 // Heavy handling (ROUND22.md, "Heavy weapons: struggle, droop, recoil, two-handed swings"; vr_weight.cpp; Weapon Weights >
 // Heavy Handling): the weapon's weight class, its Heft: 0 light (no struggle) .. 1 the heaviest (the laser cannon); -1
 // (every slot's default, weapons.txt) from its mass (vr_heavy_auto_from .. _full kg). One-handed, a heavy weapon lags an

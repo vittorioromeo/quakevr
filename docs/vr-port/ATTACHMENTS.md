@@ -42,6 +42,12 @@ agent/attach1's (posebake); this file holds the attachments' models and their me
   other hand holds on, or takes it off into the empty other hand. Server-side points: `attachinfo(model, kind, what)`
   (the mount and the tip from the muzzle in the gun's axes) along the hand's axes from its muzzle.
 
+- **Daggers as Bayonets** (daggerattach, `vr_attach_daggers` 1 for testing): kind 2 is the player's dagger
+  (`progs/v_dagger.mdl`, weapons.txt `att2_*`): a held dagger's tip brought to where the mounted one's would be, pointing
+  its way, or J; its record rides on the gun's (`.wi_attach_inst`) and comes back with it. A weapon model as an
+  attachment draws with its own Scale (`Mount::own`), so its mount scale is 1 / the gun's Scale like the bayonet's.
+  Mounts: v_shot 26.56 0 -4.6, v_shot2 20.19 0 -3.22, both pitch -76.46 roll 180 (its blade runs up its model's +z).
+
 ### Ideas (his and ours)
 
 His: scopes (a zoomed view through the lens: a second view or a render-to-texture on the lens), an under-barrel grenade
