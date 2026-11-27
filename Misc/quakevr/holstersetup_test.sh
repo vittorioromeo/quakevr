@@ -11,10 +11,12 @@ AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 P="developer 1;map e1m1;wait60;god;notarget;vr_reload_mode 3;vr_holster_mode 0;vr_handgrenade 1;wait10;"
 GRAB="vr_mock_hand_to main zonebox 3;wait3;vr_mock_hand_to main zonebox 3;wait3;vr_mock_button main grip 1;wait5;"
 DRAG="vr_holstersetup;wait5;${GRAB}vr_mock_hand_to main zonebox 3 8 0 0;wait20;vr_mock_button main grip 0;wait5;"
-draw="vr_mock_hand_to main zone 3;wait5;vr_mock_hand_to main zone 3;wait5;+grabright;vr_mock_button main grip 1;wait10;vr_mock_hand main 0.3 1.0 -0.2 -40 0 0;wait3;"
-fail=0
+# (The draw: wait25 at the end, 0.35 s, past the draw blend's ease (vr_weapon_draw_blend 0.3 s): vr_mock_hand_to zonegrip
+# aims the gun's handle as drawn, so a gun still easing out of the holster put the hand short of the dragged zone.)
+draw="vr_mock_hand_to main zone 3;wait5;vr_mock_hand_to main zone 3;wait5;+grabright;vr_mock_button main grip 1;wait10;vr_mock_hand main 0.3 1.0 -0.2 -40 0 0;wait25;"
+fail=0; npass=0; nfail=0
 check() { # $1 PASS condition (0/1), $2 text
-    if [ "$1" = 1 ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi
+    if [ "$1" = 1 ]; then echo "PASS $2"; npass=$((npass + 1)); else echo "FAIL $2"; fail=1; nfail=$((nfail + 1)); fi
 }
 z() { # $1 output, $2 zone, $3 which report (1 first): the zone's up from the eyes
     echo "$1" | grep "^setup $2 at" | sed -n "${3}p" | awk '{print $6}'
@@ -79,4 +81,5 @@ S="${P}vr_bodycal_seated 1;wait10;${DRAG}vr_holstersetup_done;wait5;vr_hip_offse
 OUT=$(bash $KIT/run.sh $AGENT -Script "${S}toggleconsole;quit" -Filter "vr_hip_offset_y|vr_hip_holster_seated_y")
 echo "$OUT" | grep '"vr_hip_offset_y"' | grep -q "(default)" && echo "$OUT" | grep '"vr_hip_holster_seated_y"' | grep -qv "(default)" && r=1 || r=0
 check $r "seated: the seated hips moved, the standing kept ($(echo "$OUT" | tr '\n' ' '))"
+echo "holstersetup_test: $npass passed, $nfail failed"
 exit $fail

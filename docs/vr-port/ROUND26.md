@@ -2595,6 +2595,25 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.
 
+## testfails: four known test failures on next, each a stale test (branch agent/testfails, 2026-11-27)
+
+- `reload/pouch_test.sh` "super shotgun (main hand, dual-wielded): fills too": the off hand stayed at the pouch with its
+  gun, so the main gun's one-frame jump there (about 10 m/s) hit the off gun's line from below and snapped its open
+  barrels shut (`vr_reload_ssg_close_hit`, as designed: "closed by a hit from below ... 0 loaded"). Fix: the off hand
+  goes away first. 29/0.
+- `menu_flat_panel_test.py` (3 checks): `m_quit` and `m_confirm` are 20 and 27 since the IPX / TCP/IP page went
+  (menu.h); the test still said 21 and 28. The classic row's - step started from the kit base config's
+  `scr_menuscale 1.125`, not from past what the canvas fits. Fix: named numbers; the test sets `scr_menuscale 4` first. 31/0.
+- `flatswap_test.sh` AD run (`vr_flatswap_test 4`): not the knight's sword. `god; notarget` typed in the same frame as
+  `map` run before the client is in and do nothing (no "godmode ON"); a zombie on AD's start map woke and its gibs
+  (10 a hit) killed the player about 4 minutes in, so the mace's swaps (case 11) ran on a dead player: nothing drawn,
+  sometimes no swap. Fix: `wait5` before `god` (vrtesthall's BASE too). New test aid `vr_flatswap_test 406..411`: test 4
+  from AD case 6..11 on (411: the mace alone, 8/0).
+- `holstersetup_test.sh` "gun at the right hip (drag) + 0 out: DROP (want IN)": the gun drawn 13 frames before was still
+  easing out of the holster (`vr_weapon_draw_blend` 0.3 s) and `vr_mock_hand_to zonegrip` aims the gun's handle as
+  drawn, so the hand landed about 4 units short of the dragged zone and the release threw the gun. Fix: the draw waits
+  25 frames (0.35 s) before the hand moves; a verdict line "holstersetup_test: N passed, M failed". 13/0.
+- Also run: flatswap_test.sh weapons 22/0, things 26/0, melee 96/0, holster 0 faults, AD 48/0.
 ## nogamedir: Quake VR's game folder mounted on every start, without "-game quakevr" too (branch agent/nogamedir, 2026-11-27)
 
 - The "tinyworld" player's real cause (his console logs): v1.1.0 from the zip, started from his own shortcut
