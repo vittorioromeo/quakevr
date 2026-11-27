@@ -64,11 +64,13 @@ run cancoff "$MB0; impulse 152; wait30; setpos 0 -300 25 26 90 0; wait5; vr_phys
     -QuitOn "^flatitems: [0-9]+ passed" -Timeout 150 -Filter "^(flatitems|FAIL|PASS|flat throw|grenade:)" > "$S/guide.log" 2>&1
 # (flatfb1124) move: a health box (vrtesthall's open floor) thrown standing, running forward, then strafing right.
 # (flatthrow3: standing and running from y -380, not -200: with the release's delay the running throw leaves some 35 units
-# further on, and its first bounce reached what stands at y 350; the strafe stays at -200, clear at its side.)
+# further on, and its first bounce reached what stands at y 350; the strafe stays at -200, clear at its side. Running at
+# x -280 since his throw speeds 8..16 m/s, 2026-11-27: from x 0 its bounce met the mantle blocks (x -32..192, y 352-416);
+# x -280 runs between the table (x -448..-320) and the slope (x -240..-80, from y 460).)
 MB="map vrtesthall; god; notarget; developer 1; vr_flat_grenade_debug 2; vr_debug_box3d 1; wait60"
 HB="setpos 0 -300 25 26 90 0; wait5; vr_physics_spawn item_health 64; wait30; impulse 46; wait60"
 MV() { echo "$HB; setpos $1 $5 25 0 90 0; wait5; echo flatthrow_test: move $2; $3; wait20; $J; wait18; $JU; wait30; $4; wait150"; }
-run move "$MB; $(MV 0 stand wait1 wait1 -380); $(MV 0 run '+forward;+speed' '-forward;-speed' -380); $(MV -150 side '+moveright;+speed' '-moveright;-speed' -200); wait150"
+run move "$MB; $(MV 0 stand wait1 wait1 -380); $(MV -280 run '+forward;+speed' '-forward;-speed' -380); $(MV -150 side '+moveright;+speed' '-moveright;-speed' -200); wait150"
 run wall "$BASE; vr_debug_axestick 1; setpos 2000 -520 -120 0 270 0; wait5; impulse 152; wait30; $J; wait95; $JU; wait200; setpos 2000 -650 -120 0 270 0; wait5; impulse 163; wait30; $J; wait95; $JU; wait200"
 
 python "$HERE/flatthrow_check.py" "$S"

@@ -1420,7 +1420,7 @@ void(entity p) VR_FFX_Grenade =
 // the player presses the grab button (H) at the right timing"), the axe in the main hand, no B: case 2 the same grenade at
 // the free off hand's palm flies on, then H pressed: caught (H's window, VR_FlatGrab_CatchOpen); case 3 H pressed, its
 // window let go by, then the grenade at the palm: flies on (too early); case 4 an ogre's grenade thrown at his face from 90
-// units, H pressed as it leaves: caught by the off hand before it meets him; case 5 the same throw, no H: it meets him (its
+// units, H pressed as it nears (inside his 0.1 s window): caught by the off hand before it meets him; case 5 the same throw, no H: it meets him (its
 // touch), nothing caught. Run with god.
 float VR_FFX_GUIDE_CASES = 6;
 entity vr_ffx_guideGren;  // the grenade at the off hand's palm (or thrown at him)
@@ -1530,7 +1530,7 @@ void(entity p) VR_FFX_Guide =
 {
     string what = vr_ffx_case == 0 ? "the quick grenade wound up by B" : (vr_ffx_case == 1 ? "the axe wound up by B" :
         (vr_ffx_case == 2 ? "no B, then H" : (vr_ffx_case == 3 ? "H pressed too early" :
-        (vr_ffx_case == 4 ? "thrown at him, H as it leaves" : "thrown at him, no H"))));
+        (vr_ffx_case == 4 ? "thrown at him, H as it nears" : "thrown at him, no H"))));
     if(vr_ffx_s == 0)
     {
         if(vr_ffx_case >= VR_FFX_GUIDE_CASES)
@@ -1604,15 +1604,24 @@ void(entity p) VR_FFX_Guide =
         if(vr_ffx_case >= 4)
         {
             VR_FFX_GuideThrowAt(p);
-            if(vr_ffx_case == 4)
-            {
-                localcmd("vr_mock_key h down\n");
-            }
-            VR_FFX_To(8, 2);
+            VR_FFX_To(vr_ffx_case == 4 ? 13 : 8, vr_ffx_case == 4 ? 0 : 2);
             return;
         }
         VR_FFX_GuideGrenade(p);
         VR_FFX_To(5, 4);
+        return;
+    }
+    if(vr_ffx_s == 13) // (case 4) H pressed as it comes near: inside H's window (vr_flat_grab_catch_window, his 0.1 s)
+    {
+        // (The press reaches the server a frame or two later: pressed when it is about half a window from his face.)
+        entity tg = vr_ffx_guideGren;
+        float lead = 450 * clamp(cvar_hget(cvarh_vr_flat_grab_catch_window), 0.05, 1) * 0.5 + 16;
+        if(tg != world && !vr_ffx_guideHit && vlen(tg.origin - VRGetHeadPos(p)) > lead && time - vr_ffx_t0 < 1)
+        {
+            return;
+        }
+        localcmd("vr_mock_key h down\n");
+        VR_FFX_To(8, 2);
         return;
     }
     if(vr_ffx_s == 5)
@@ -1701,7 +1710,9 @@ void(entity p) VR_FFX_Guide =
         float caught = vr_flatcatch_count - vr_ffx_guideCount;
         if(vr_ffx_case == 4)
         {
-            VR_Test_Check(held && !vr_ffx_guideHit && caught == 1, sprintf("%s: caught by the off hand before it meets him (held %g, hit %g, H's catches %g)",
+            // (In H's window either way takes it: H's own catch near his body, or the free palm's in it, which is the one at
+            // his 0.3 m reach: the palm meets it first. Without H neither, case 5.)
+            VR_Test_Check(held && !vr_ffx_guideHit && caught <= 1, sprintf("%s: caught by the off hand before it meets him (held %g, hit %g, H's catches %g)",
                 what, held, vr_ffx_guideHit, caught));
         }
         else

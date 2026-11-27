@@ -2449,6 +2449,33 @@ His Quest 3 (bf4eecc2f, beta5-dev build 15431): flat lighting, the menu crashed,
 - Tests: questcrash_preset_test 23/0 (new: an old config repaired by `vr_quest_check`, look rows kept), haze_preset_test
   8/0, stereo_targets_test 12/0.
 
+## grenaim: the quick grenade wound up by the attack button shows its landing too (branch agent/grenaim, 2026-11-27)
+
+His flat note 2026-11-27 item 3 ("Throwing a live grenade with the throw button shows the dynamic crosshair target position,
+but not with the attack button"), folded into flatxhair2's throw aim:
+- `VR_FlatThrow_Aim` (QC vr_flatgrenade.qc) now aims the quick grenade's wind-up whatever winds it up: B, the main or the
+  off hand's attack button held on it (`vr_flat_grenade_arm_mode` 1: a press arms, the next held winds up), a live grenade
+  taken another way (force grab, catch: VR_FlatGrenade_Adopt). It was gated on `vr_flatgren_bykey` (B's only). Every flat
+  throw input path now goes through the one aim: the throw key's VR_FLATTHROW_WIND (any hand, any kind) and the quick
+  grenade's VR_FLATGREN_WIND (B or fire, either hand); no other path winds up a throw.
+- The quick grenade's throw (VR_FlatGrenade_Throw) also sets `vr_flatthrow_last` / `_from` / `_watch` (developer 1): its
+  "flat throw: first hit at" / "landed: grenade" lines, as the throw key's things (the globals moved up the file). Each
+  throw resets the watched one (`vr_flatthrow_hitwho`): a grenade gone off frees its slot, and the next throw reusing it
+  was taken for the one already printed (no "first hit" at all).
+- Tests: `flatxhair_melee_test.sh` 24/1 (new: grenb, grenatk, grenoff from 294 units: the crosshair 1.8, 2.6 and 2.6 units
+  from where the grenade first meets the wall, under the axe's 12; 6.5-7.9 before origin/next's release time 0.025; the
+  one fail is the known `flip24`). `flatthrow_test.sh` 54/0, after fitting it to his promoted defaults
+  (vr_flat_throw_speed_min/max 8/16, vr_flat_grab_catch_window 0.1, _reach 0.3; his values kept):
+  - move: the running throw (x 0) now flew far enough for its bounce to meet the mantle blocks (x -32..192, y 352-416):
+    it runs at x -280 (clear between the table and the slope); landed 777 units against 654 standing. The checks were
+    relative already (running further than standing, his motion kept), so no number follows the speeds.
+  - guide (vr_flatitems_test 12, case 4 "thrown at him, H as it nears"): H pressed as the grenade left 90 units away
+    opened a 0.1 s window that shut before it arrived (0.2 s flight). H is now pressed as it nears (half a window from his
+    face: a condition, not a wait), and caught; at his 0.3 m reach the free palm's catch in H's window takes it before
+    H's own near-the-body catch, so the check takes either (held, not hit); case 5 (no H) still meets him. Not a
+    behaviour problem: a 0.1 s press before arrival can be timed, though it is tight against a fast grenade.
+  Checklist: scenario flat_quick_grenade.
+
 ## cltidy9: checklist sub-headings (2026-11-27)
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.

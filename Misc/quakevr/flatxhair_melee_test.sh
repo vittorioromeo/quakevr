@@ -14,6 +14,8 @@
 #              (under 6 units; the flipped dagger's swing leaves no mark on a wall: not checked)
 #   axe/sword  (flatxhair2, item 1) a second run, vrtutorial: the throw key held, its crosshair is shown on where the throw
 #              lands (the arc from the frame before it met the wall, within 12 units on the wall)
+#   grenb/grenatk/grenoff  (grenaim, his flat note 2026-11-27 item 3) the quick grenade wound up by B, by the main hand's
+#              attack button and by the off hand's: each one's crosshair on where it lands, the same check
 # Prints PASS/FAIL lines and "flatxhair_melee_test: N passed, M failed"; exits 1 on a failure. The runs end on
 # "flatxhair_melee_test: end" and "flatxhair_melee_test: throws end" (-QuitOn).
 AGENT=${1:?agent}
@@ -46,9 +48,17 @@ bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Script "$S; 
 # against where the crosshair said.)
 tlog=$TREE/scratch/flatxhair_melee_test_throw.log
 throw() { echo "setpos 2000 $2 -120 0 270 0; wait5; impulse $3; wait30; vr_mock_key b down; wait95; echo flatxhair_melee_test: $1 aim; $X; vr_mock_key b up; wait200; echo flatxhair_melee_test: $1 after"; }
-T="map vrtutorial; god; notarget; developer 1; vr_flat_xhair_smooth 0; wait10; $(throw axe -520 152); $(throw sword -650 163); echo flatxhair_melee_test: throws end"
+# (grenaim, his flat note 2026-11-27 item 3: the quick grenade from 294 units, wound up 95 frames by B (grenb), by the
+# main hand's attack button (grenatk: a press arms it, the next held winds up, vr_flat_grenade_arm_mode 1) and, a gun in
+# the main hand, by the off hand's (grenoff): each one's crosshair on where it lands, as the axe's.)
+G="setpos 2000 -520 -120 0 270 0; wait5; give r 20; vr_mock_key g down; wait2; vr_mock_key g up; wait50"
+gren() { echo "$G; $2; wait3; $3; wait3; $2; wait95; echo flatxhair_melee_test: $1 aim; $X; $3; wait200; echo flatxhair_melee_test: $1 after"; }
+GB="$G; vr_mock_key b down; wait95; echo flatxhair_melee_test: grenb aim; $X; vr_mock_key b up; wait200; echo flatxhair_melee_test: grenb after"
+T="map vrtutorial; god; notarget; developer 1; vr_flat_xhair_smooth 0; vr_flat_grenade_arm_mode 1; wait10; $(throw axe -520 152); $(throw sword -650 163)"
+T="$T; $GB; $(gren grenatk +attack -attack); vr_test_give_wid 6; impulse 149; wait30; $(gren grenoff +offhandattack -offhandattack)"
+T="$T; echo flatxhair_melee_test: throws end"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Script "$T; toggleconsole; quit" -QuitOn "flatxhair_melee_test: throws end" \
-    -Timeout 200 -Filter "^flatxhair|^flat throw: (first hit|hit from|landed)" > "$tlog" 2>&1
+    -Timeout 200 -Filter "^flatxhair|^flat throw: (first hit|hit from|landed)|^flat grenade: (thrown|the|winding)" > "$tlog" 2>&1
 # `field <tag> <phase> <line pattern> <field>`: the number after <field> on the first probe line matching the pattern in
 # that phase's section.
 field() {
@@ -82,15 +92,17 @@ for c in flip16 up16 fist; do
     check $(ok "${k:-0} > 3 && ${s:-0} > 1 && ${k2:-99} < ${k:-0} * 0.2") "$c: the blow kicks the crosshair (${k:-?} px, spread ${s:-?}) and it eases back (${k2:-?})"
 done
 check $(ok "${kick_fist:-99} < ${kick_flip16:-0}") "a fist's blow kicks less than the spear's (${kick_fist:-?} against ${kick_flip16:-?})"
-for c in axe sword; do
+for c in axe sword grenb grenatk grenoff; do
     sec() { awk -v t="flatxhair_melee_test: $c $1" '/^flatxhair_melee_test: /{on = index($0, t) == 1; next} on' "$tlog"; }
-    aim=$(sec aim | grep -a "main throw aim" | head -1 | awk '{ print $5, $6, $7 }')
-    shown=$(sec aim | grep -a "main shown" | head -1 | awk '{ print $4 }')
+    # (The throwing hand's: the only one with a throw aim.)
+    hand=$(sec aim | grep -a " throw aim " | head -1 | awk '{ print $2 }')
+    aim=$(sec aim | grep -a "${hand:-main} throw aim" | head -1 | awk '{ print $5, $6, $7 }')
+    shown=$(sec aim | grep -a "${hand:-main} shown" | head -1 | awk '{ print $4 }')
     # (The frame before it first met the wall: its middle, its velocity; carried on along them to the aim's wall plane, y.
     # Its origin itself stops short of the wall by its shape: a stuck sword's grip 20 units off it. Within 12: the thrown
     # axe's body flies about 10 units over the hand's arc, the same launch and fall: ROUND26.md "flatxhair2".)
     hit=$(sec aim | grep -a "flat throw: hit from" | head -1 | tr -d "'" | awk '{ print $5, $6, $7, $9, $10, $11 }')
-    printf '  %-6s aim: %s  before the hit (place, velocity): %s\n' "$c" "${aim:-none}" "${hit:-none}"
+    printf '  %-7s %s hand aim: %s  before the hit (place, velocity): %s\n' "$c" "${hand:-no}" "${aim:-none}" "${hit:-none}"
     d=$(echo "$aim $hit" | awk 'NF == 9 && $8 != 0 { k = ($2 - $5) / $8; dx = $1 - ($4 + $7 * k); dz = $3 - ($6 + $9 * k); printf "%.1f", sqrt(dx * dx + dz * dz) }')
     check $(ok "${shown:-0} == 1 && ${d:-99} < 12") "$c: the wound-up throw's crosshair is shown on where it lands (${d:-?} units apart on the wall)"
 done
