@@ -2534,3 +2534,7 @@ The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subh
 - **Waiting for the coordinator's go** (brief: any non-flaky failure stops before publishing). Not merged with
   origin/next (judicator landed since): the release is cut from the next it started on. Then: the same make_release
   command on agent/beta6's HEAD, the online checks, the Quest install (cert = installed app's) and data sync.
+- **Headset (read only, lock taken and released):** the Quest has a DEBUG-signed app (CN=Android Debug, SHA-256
+  76226902...f39929; versionName 1.2.0-beta5, versionCode 1: a dev build), not beta5's release-signed one: the release
+  APK's cert differs, so it can't be installed over it (install -r refuses; never uninstall: his saves). Pulled copy:
+  scratch/b6_installed_before.apk. Nothing changed on the headset.
