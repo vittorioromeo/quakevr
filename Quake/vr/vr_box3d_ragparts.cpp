@@ -1512,6 +1512,7 @@ void keepMeasure(World::PushKeep& k, const edict_t* player, const glm::vec3& at,
     const glm::vec3& pointVel, float dt)
 {
     k.lag = k.slip = glm::vec2{0.f};
+    k.pace = 0.f;
     if(!k.keep || dt <= 0.f || glm::distance(was, at) > 0.5f * world->m2u) // (a teleport: none)
     {
         return;
@@ -1519,6 +1520,12 @@ void keepMeasure(World::PushKeep& k, const edict_t* player, const glm::vec3& at,
     k.lag = glm::vec2{at.x - held.x, at.y - held.y} / world->m2u;
     k.slip = glm::vec2{at.x - was.x, at.y - was.y} / (world->m2u * dt) - glm::vec2{pointVel.x, pointVel.y};
     k.angle = armAngle(player, at, held);
+    // (His pace into it: his level velocity towards the held point, from his origin.)
+    const glm::vec2 to{held.x - player->v.origin[0], held.y - player->v.origin[1]};
+    if(const float len = glm::length(to); len > 1.f)
+    {
+        k.pace = za::max(glm::dot(glm::vec2{player->v.velocity[0], player->v.velocity[1]}, to / len), 0.f);
+    }
 }
 
 // Then the force it would need to keep its point with its target (the spring's at `hertz`, uncapped: `share` kg, its share
@@ -1538,15 +1545,27 @@ void keepStrain(World::PushKeep& k, const edict_t* player, const glm::vec2& lag,
     // hands: an 80 kg grunt pushed at a walk slid on at 6 m/s as he stopped, its hold needing 9-16k N; the hold's own
     // distance still lets go of what slides or falls far off.)
     constexpr float movingLeast = 40.f; // u/s, level
+    // Its heft: this hand's share of the mass pushed at his pace into it, as kg pushed at a walk's pace (Quake's 200 u/s:
+    // a body twice as heavy pushed at half the pace is as hard), above vr_flat_grab_push_mass too heavy for that pace as
+    // well. Walked for real, not flown in setpos's noclip, his pace comes up over a fifth of a second (Quake's acceleration,
+    // Drag Slowdown's cut walk for a held body), so the force the hold needs is a few thousand N for anything: a 40 kg
+    // crate pushed at a walk 3.8k a hand as he sets off, a dead 200 kg ogre 6.9k (then 1k for each, sliding at his pace).
+    // The force tells a jolt (a sudden pace) from a steady push, not a heavy body from a light one: the heft does
+    // (realpush, ROUND26 "flatpush").
+    constexpr float walkPace = 200.f; // u/s
+    k.heft = share * k.pace / walkPace;
     const float limit = za::max(vr_flat_grab_push_force.value, 1.f);
+    const float heftLimit = za::max(vr_flat_grab_push_mass.value, 1.f);
+    const float over = za::max(k.need / limit, k.heft / heftLimit);
     const bool moving = glm::length(glm::vec2{player->v.velocity[0], player->v.velocity[1]}) > movingLeast;
-    k.strain = moving && k.need > limit ? k.strain + dt * (k.need / limit) : za::max(k.strain - dt, 0.f);
+    k.strain = moving && over > 1.f ? k.strain + dt * over : za::max(k.strain - dt, 0.f);
     k.needMost = za::max(k.needMost, k.need);
     if(what && vr_debug_ragdoll.value >= 2.f)
     {
-        Con_Printf("%s %d pushed: lags %.2f m, slips %.2f m/s, he %.0f u/s: needs %.0f N a hand, strained %.2f s, %.0f degrees round\n",
-            what, num, glm::length(lag), glm::length(slip), glm::length(glm::vec2{player->v.velocity[0], player->v.velocity[1]}), k.need,
-            k.strain, k.angle);
+        Con_Printf("%s %d pushed: lags %.2f m, slips %.2f m/s, he %.0f u/s (%.0f into it): needs %.0f N a hand, heft %.0f kg, strained "
+                   "%.2f s, %.0f degrees round\n",
+            what, num, glm::length(lag), glm::length(slip), glm::length(glm::vec2{player->v.velocity[0], player->v.velocity[1]}), k.pace,
+            k.need, k.heft, k.strain, k.angle);
     }
 }
 
@@ -1568,7 +1587,8 @@ void keepStrain(World::PushKeep& k, const edict_t* player, const glm::vec2& lag,
     }
     if(k.strain > strainMost)
     {
-        return va("too heavy for that pace: its hold needs %.0f N (at most %.0f)", k.need, vr_flat_grab_push_force.value);
+        return va("too heavy for that pace: its hold needs %.0f N (at most %.0f), pushes %.0f kg at a walk's pace (at most %.0f)", k.need,
+            vr_flat_grab_push_force.value, k.heft, vr_flat_grab_push_mass.value);
     }
     return nullptr;
 }
