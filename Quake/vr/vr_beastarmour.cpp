@@ -152,6 +152,7 @@ int studioEnt = 0;
 float studioAlpha = 1.f;
 
 int studioPartSel = -1; // (the Armour Studio's part: outline draws its pieces alone; -1 every piece of the slots asked)
+int studioAloneSel = -1; // (... worn alone: its subject draws that part's pieces alone, not the rest of their slot; -1 off)
 
 [[nodiscard]] bool has(const Override& o, int field)
 {
@@ -379,9 +380,11 @@ void joinsOf(Kind& k, const ragdoll::Rig& rig)
         {
             continue;
         }
+        // (a part of its own slot on the same bone, the scrag's back half by his front half, is a sibling: it joins what its
+        // slot's first piece joins, up the rig)
         for(int j = 0; j < i && s.joins < 0; j++)
         {
-            s.joins = k.slot[j].on && k.slot[j].boneIndex == s.boneIndex ? j : -1;
+            s.joins = k.slot[j].on && k.slot[j].boneIndex == s.boneIndex && k.slot[j].owner != s.owner ? j : -1;
         }
         for(int b = rig.bones[s.boneIndex].parent, guard = 0; s.joins < 0 && b >= 0 && guard < ragdoll::maxBones; b = rig.bones[b].parent, guard++)
         {
@@ -1294,7 +1297,10 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
     {
         Slot& s = k->slot[i];
         Placed pl;
-        if(!s.on || !(pieces & (1 << s.owner)) || !place(ent, s, pl, lerp))
+        // (the studio's part worn alone: its own pieces, not the rest of their slot: the scrag's back half without his front
+        // half and tail; a junction's part: its slots' pieces, the leather between them)
+        const bool notAlone = studio && studioAloneSel >= 0 && !armourdata::sleevePart(studioAloneSel) && !isPart(*k, i, studioAloneSel);
+        if(!s.on || !(pieces & (1 << s.owner)) || notAlone || !place(ent, s, pl, lerp))
         {
             continue;
         }
@@ -1405,9 +1411,10 @@ void studioView(int ent, float bodyAlpha)
     studioAlpha = bodyAlpha;
 }
 
-void studioPart(int part)
+void studioPart(int part, bool alone)
 {
     studioPartSel = part;
+    studioAloneSel = alone ? part : -1;
 }
 
 int partPieces(int i, int part, int side)
@@ -1434,7 +1441,8 @@ bool partFrame(edict_t* ent, int pieces, glm::vec3& centre, glm::mat3& parent)
     {
         const Slot& s = k->slot[i];
         Placed pl;
-        if(!s.on || !((pieces >> s.owner) & 1) || !place(ent, s, pl))
+        // (the studio's part's own piece: the scrag's back half or tail, not its slot's first piece)
+        if(!s.on || !((pieces >> s.owner) & 1) || (studioPartSel >= 0 && !isPart(*k, i, studioPartSel)) || !place(ent, s, pl))
         {
             continue;
         }
@@ -1912,14 +1920,18 @@ void test_f()
             }
             const float size = mine > 2 ? dh / za::max(dv, 1e-6f) : 1.f, meanGap = gapSum / static_cast<float>(za::max(mine, 1));
             const float faceShare = static_cast<float>(faceUnder) / static_cast<float>(za::max(faces, 1));
-            Con_Printf("beastfit: %-16s %-11s slot %d: skin covered %.2f, gap %.2f, size %.2f%s\n", k.model, s.bone, s.owner,
-                static_cast<float>(covered) / static_cast<float>(za::max(region, 1)), meanGap, size,
-                s.owner == agarmor::Helmet ? va(", face under it %.2f", faceShare) : "");
+            // (named by its bone, and its own part if it has one: the scrag's two halves of plate 8 on his pelvis apart; "own"
+            // the bone's skin under this piece itself)
+            char name[48];
+            q_snprintf(name, sizeof(name), "%s%s%s", s.bone, s.tweakPart >= 0 ? " " : "", s.tweakPart >= 0 ? armourdata::partNames[s.tweakPart] : "");
+            Con_Printf("beastfit: %-16s %-18s slot %d: skin covered %.2f (own %.2f), gap %.2f, size %.2f%s\n", k.model, name, s.owner,
+                static_cast<float>(covered) / static_cast<float>(za::max(region, 1)), static_cast<float>(mine) / static_cast<float>(za::max(region, 1)),
+                meanGap, size, s.owner == agarmor::Helmet ? va(", face under it %.2f", faceShare) : "");
             if(mine > 2)
             {
-                q_snprintf(what, sizeof(what), "%s %s size", k.model, s.bone);
+                q_snprintf(what, sizeof(what), "%s %s size", k.model, name);
                 check(size <= maxSize, what, size, maxSize);
-                q_snprintf(what, sizeof(what), "%s %s gap", k.model, s.bone);
+                q_snprintf(what, sizeof(what), "%s %s gap", k.model, name);
                 check(meanGap <= maxGap, what, meanGap, maxGap);
             }
             if(s.owner == agarmor::Helmet && i < numSlots)

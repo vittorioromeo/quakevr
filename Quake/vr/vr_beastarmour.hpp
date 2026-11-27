@@ -68,8 +68,10 @@ bool pieceExtent(int kind, int slot, float* lo, float* hi);
 // (or their junctions: `sleeve`) outlined (agarmor::debugDraw).
 void studioView(int ent, float bodyAlpha);
 void outline(struct edict_s* ent, int pieces, bool sleeve);
-// The studio's part (armourdata Part; -1 none): outline draws its pieces alone (a slot's tail apart from its belt).
-void studioPart(int part);
+// The studio's part (armourdata Part; -1 none): outline draws its pieces alone (a slot's tail apart from its belt), and
+// partFrame takes its own piece; `alone` (wear the part alone): the subject draws that part's pieces alone, not the rest of
+// their slot (the scrag's back half without his front half and tail; a junction's part: its slots whole).
+void studioPart(int part, bool alone = false);
 // The slots (bits) whose pieces or parts are armour.txt's `part` (a sleeve: their junctions) on `side` (a limb part's): the
 // scrag's tail its belt's slot 8, the ogre's shins the thighs' 6/7 (ROUND26.md, "beastfit").
 [[nodiscard]] int partPieces(int kind, int part, int side);

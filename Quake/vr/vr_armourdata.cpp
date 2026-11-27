@@ -441,7 +441,7 @@ bool resolveBeast(const char* model, int slot, bool sleeve, Override& out)
 
 int beastSleeve(int part)
 {
-    return part == PartTail ? PartTailSleeve : part >= PartPauldron && part <= PartShin ? part + (PartPauldronSleeve - PartPauldron) : part;
+    return part == PartTail ? PartTailSleeve : part == PartPlate8Back ? PartPlate8BackSleeve : part >= PartPauldron && part <= PartShin ? part + (PartPauldronSleeve - PartPauldron) : part;
 }
 
 bool resolveBeastPart(const char* model, int part, int side, bool sleeve, Override& out)
@@ -472,8 +472,8 @@ uint32_t beastSignature(const char* model)
             }
         }
     }
-    // (the parts with their own tweaks: the ogre's shins by side, the scrag's tail)
-    for(const int part : {PartShin, PartTail})
+    // (the parts with their own tweaks: the ogre's shins by side, the scrag's tail and his lower body's back half)
+    for(const int part : {PartShin, PartTail, PartPlate8Back})
     {
         for(int side = SideLeft; side <= SideRight; side++)
         {
