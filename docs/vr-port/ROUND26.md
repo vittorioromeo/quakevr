@@ -2134,6 +2134,32 @@ dragged prop shoved it off the hands).
   13/0 (stages).
 - Open: the ogre can't be pushed even at a walk (Push Strength ~40000 would); in the headless flat mock a pitched view walks
   the player down through the floor (z 25 -> -24 over 28 frames at pitch 40, vrtesthall), why the test levels it to walk.
+- **In real play** (realpush, branch agent/realpush, 2026-11-27). The tests above flew in setpos's noclip (flatsink, below);
+  walked for real, three things failed:
+  - **His walk pushed nothing**: Quake's hull met the held crate (SV_ClipToLinks), so he stopped at it (y -172 -> -172).
+    world.c now lets a player's own box (a body's move) pass a prop or body he drags at the grab's arm
+    (`VR_DragPasses` in vr_box3d_standing.cpp, `dragsProp`: the same test as the capsule's preSolve). Measured: the crate
+    pushed 59 units while he walks 68 in 28 frames from a stand (lagging the hands' spring up to 0.22 m as he sets off,
+    3.8k N a hand at most, 1.1k at a steady 200 u/s). Let go of with him inside it, VR_PropLetsOut lets him out as before.
+  - **The ogre was never too heavy**: a real walk comes up to pace over a fifth of a second (Quake's acceleration), and a
+    held body cuts the walk (Drag Slowdown: the ogre's 200 kg to 120 u/s, walking or running alike), so the hold's force
+    is a few thousand N for anything: crate 3.8k, dead grunt 2.2k walking, 3.8k running, dead ogre 6.9k at its peak, then
+    about 1k a hand for each sliding at his pace. No Push Strength tells the ogre from the crate (8000 was for noclip's
+    instant pace: 37-60k). New rule beside it, the **heft**: each hand's share of the mass times his pace into it (his level
+    velocity towards the held point; backing away 0) over a walk's 200 u/s, as kg pushed at a walk's pace; above
+    `vr_flat_grab_push_mass` (54 kg, new, Flatscreen > Grab / Pull: Push Mass) it strains as the force does (the same
+    0.15 s weighted by how far over), let go of "too heavy for that pace" (the message gives both). Measured hefts: crate
+    20, grunt walking 30, running 49, ogre 60 (let go of 19 frames into the run), explosive box 54-61 run (also its force,
+    22k: it tips and digs in). So crates and dead grunts push at a run, a heavier grunt (over ~90 kg) only at a walk,
+    the ogre not at all (pulled backing away, as before). Push Strength (8000 N) still catches a sudden pace.
+  - **flatwall b's 38.5 degree jump** was the test misreading the console's wrapped lines (a "tilt" split from its
+    number read 0): read joined, the tilt went up to 82 degrees (sighted, pressed on the wall, the gun 10.5 units in) at up
+    to 9.4 a frame, the ease's middle. vr_flatsight.cpp now turns the drawn tilt at most 450 degrees a second
+    (`tiltRateMost`, 6.25 a frame at 72 Hz; the tilt time 0 still at once): 6.3 at most.
+  - Tests: flatgrabthrow 64/0 (push's check 60 -> 45 units: a real walk; the ogre run 20 -> 40 frames, let go of at 19);
+    flatwall b, c, d 10/0 (section a's "the others: the ironsight waits" fails on weapons 3, 13 and 17 reading "no
+    sights", unrelated: it uses setpos without walking); flatsink 8/0; flatads 13/0; tunables_test 39/0, 20/0, 3/0,
+    13/0 (stages). walknudge fails (pelvis moved 1.5 with the nudge off: no flat grab in it, untouched code paths).
 
 ## Flat view size report: "the world looks tiny" (branch agent/tinyworld, 2026-11-26)
 
