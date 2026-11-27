@@ -55,6 +55,10 @@ void pathCheck_f();
 // index, built afresh): its cvar, the pages above it ("Advanced VR Options > Combat") and its label, nearest the roots
 // first (a setting on two pages: twice). vr_propose_defaults (vr_propose_defaults.cpp).
 void forEachSettingPath(za::FunctionRef<void(const struct cvar_s& var, const char* page, const char* label)> f);
+// Every slider's and cycle's row on those pages (Search's index, built afresh): its cvar and the values it can set, lo..hi
+// (a slider's extent and negative step included; a cycle's choices). A setting on two pages: twice. The server rules'
+// check of a remote server's values (vr_serverrules.cpp).
+void forEachSettingRange(za::FunctionRef<void(const struct cvar_s& var, float lo, float hi)> f);
 // vr_menu_dump [level] [full]: the pages' texts as MD| console lines (the copy review); full: each row's every field
 // too (cvar, range, step, format, extent, level; the settings schema's before/after check).
 void dump_f();
