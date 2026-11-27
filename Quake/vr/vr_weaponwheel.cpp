@@ -57,16 +57,23 @@ namespace
 // UNLOAD; 36 degrees apart): side by side 68 wide (the longest title, "RIGHT CHEST", 11 characters of 6 pixels), the steep
 // pairs (36 and 72 degrees) clear above one another, and the top and bottom actions beside their neighbours (a ring of 109:
 // 2 pixels between EMPTY HAND and the shoulders' slots, 8 between FLIP GRIP and DROP / UNLOAD) inside the header and footer.
-constexpr float panelW = 280.f;
-constexpr float panelH = 282.f;
-constexpr glm::vec2 ringMid{140.f, 144.f};
-constexpr float ringR = 109.f;
+// Eleven with the back pouch's grenade (wheelgrenade, 32.7 degrees apart): the ring an oval (119 across, 134 up and down:
+// the steep pairs stacked need the height), the image 308 x 318, at least 1.5 pixels between neighbours and 2 inside the
+// edges and the footer (a search over radii and sizes, ROUND26 "wheelgrenade"). Its pixels keep the ten-slot wheel's size:
+// vr_weaponwheel_size and vr_flat_wheel_size are the size of its first 280 x 282 (refW, refH).
+constexpr float panelW = 308.f;
+constexpr float panelH = 318.f;
+constexpr float refW = 280.f;
+constexpr float refH = 282.f;
+constexpr glm::vec2 ringMid{154.f, 155.f};
+constexpr glm::vec2 ringR{119.f, 134.f}; // (across, up and down)
 constexpr float slotW = 68.f;
 constexpr float slotH = 46.f;
+constexpr float halfGap = 2.f;  // between a split slot's halves
 constexpr float actionW = 56.f; // an action's (EMPTY HAND, DROP, FLIP GRIP, UNLOAD: the holster menu's buttons, smaller than a slot)
 constexpr float actionH = 32.f;
 constexpr float innerR = 26.f;
-constexpr float outerR = ringR + 46.f;
+constexpr glm::vec2 outerR{ringR.x + 46.f, ringR.y + 46.f}; // (the oval past which the hand is off the wheel)
 constexpr float fadeSeconds = 0.1f;
 constexpr float flatCursorMargin = 60.f; // flatscreen play: how far past the image's edge the mouse's cursor goes (off the wheel)
 constexpr int giveUp = 400; // the test: frames a step may wait
@@ -105,11 +112,43 @@ WheelState ws;
 // then the right shoulder, chest and hip, DROP, FLIP GRIP (at the bottom) and UNLOAD, then the left hip, chest and
 // shoulder (the body's own places round the hand).
 
-constexpr int holsterOrder[] = {1, 5, 3, keyDrop, keyFlip, keyUnload, 2, 4, 0};
+constexpr int holsterOrder[] = {1, 5, 3, keyDrop, keyFlip, keyUnload, keyGrenade, 2, 4, 0};
 
 void copyText(char* to, za::SizeT size, const char* from)
 {
     q_strlcpy(to, from ? from : "", size);
+}
+
+// The back pouch's grenade entry (wheelgrenade): a grenade (rockets, STAT_ROCKETS) or the multi-grenade (multi-rockets,
+// STAT_QVR_AMMOMULTI), its thumbnail the pouch's own model (QC VR_HandGrenade_Model) and the count left as an ammo line;
+// both carried: two halves, the grenade on top; neither: one greyed grenade. None without the pouch (vr_handgrenade 0).
+int listGrenades(Choice* out, int max)
+{
+    if(vr_handgrenade.value == 0.f || max <= 0)
+    {
+        return 0;
+    }
+    const int rockets = cl.stats[STAT_ROCKETS], multi = cl.stats[protocol::STAT_QVR_AMMOMULTI];
+    const bool split = rockets > 0 && multi > 0 && max >= 2;
+    const auto make = [](Choice& c, bool isMulti, int left, int half) {
+        c = Choice{};
+        c.key = isMulti ? keyMultiGrenade : keyGrenade;
+        copyText(c.title, sizeof(c.title), "BACK POUCH");
+        copyText(c.name, sizeof(c.name), isMulti ? "cluster" : "grenade");
+        copyText(c.model, sizeof(c.model), isMulti ? "progs/mervup.mdl" : "progs/grenade.mdl");
+        c.ammoType = isMulti ? 6 : 3; // (AID_MULTI_ROCKETS, AID_ROCKETS)
+        c.reserve = za::max(left, 0);
+        c.usable = left > 0;
+        c.half = half;
+    };
+    if(split)
+    {
+        make(out[0], false, rockets, 1);
+        make(out[1], true, multi, 2);
+        return 2;
+    }
+    make(out[0], multi > 0, multi > 0 ? multi : rockets, 0);
+    return 1;
 }
 
 int listHolsters(int hand, Choice* out, int max)
@@ -133,6 +172,11 @@ int listHolsters(int hand, Choice* out, int max)
         if(n >= max)
         {
             break;
+        }
+        if(i == keyGrenade)
+        {
+            n += listGrenades(out + n, max - n);
+            continue;
         }
         Choice& c = out[n++];
         c = Choice{};
@@ -178,34 +222,78 @@ const Provider holsters{"holsters", listHolsters, pickHolster};
 // ---------------------------------------------------------------------------------------------------------------------
 // The layout.
 
-[[nodiscard]] glm::vec2 slotMid(int i, int n)
+// The places on the ring: one a choice, a split slot's two halves one (wheelgrenade).
+[[nodiscard]] int placeCount()
 {
-    const float a = static_cast<float>(i) * za::tau / static_cast<float>(za::max(n, 1));
+    int n = 0;
+    for(int i = 0; i < ws.count; i++)
+    {
+        n += ws.choices[i].half == 2 ? 0 : 1;
+    }
+    return n;
+}
+
+// Choice `i`'s place on the ring (0 .. placeCount() - 1).
+[[nodiscard]] int placeOf(int i)
+{
+    int place = -1;
+    for(int j = 0; j <= i && j < ws.count; j++)
+    {
+        place += ws.choices[j].half == 2 ? 0 : 1;
+    }
+    return za::max(place, 0);
+}
+
+// Place `place`'s middle (of `n`), clockwise from the top round the oval.
+[[nodiscard]] glm::vec2 placeMid(int place, int n)
+{
+    const float a = static_cast<float>(place) * za::tau / static_cast<float>(za::max(n, 1));
     return ringMid + glm::vec2{za::sin(a), -za::cos(a)} * ringR;
 }
 
-// The choice under panel point `p` (-1 none: the middle, or outside: `outside`).
+// Choice `i`'s slot's middle: its place's, a half's own half of it.
+[[nodiscard]] glm::vec2 choiceMid(int i)
+{
+    glm::vec2 m = placeMid(placeOf(i), placeCount());
+    const int half = i >= 0 && i < ws.count ? ws.choices[i].half : 0;
+    m.y += half == 1 ? -(slotH + halfGap) * 0.25f : half == 2 ? (slotH + halfGap) * 0.25f : 0.f;
+    return m;
+}
+
+// The choice under panel point `p` (-1 none: the middle, or outside: `outside`). A split slot: its half above or below its
+// place's middle.
 [[nodiscard]] int choiceAt(const glm::vec2& p, bool& outside)
 {
     const glm::vec2 d = p - ringMid;
-    const float r = glm::length(d);
-    outside = r > outerR || p.x < 0.f || p.y < 0.f || p.x > panelW || p.y > panelH;
-    if(outside || r < innerR || ws.count <= 0)
+    const glm::vec2 u = d / outerR; // (the outer oval a unit circle)
+    outside = glm::length(u) > 1.f || p.x < 0.f || p.y < 0.f || p.x > panelW || p.y > panelH;
+    const int n = placeCount();
+    if(outside || glm::length(d) < innerR || n <= 0)
     {
         return -1;
     }
-    float a = za::atan2(d.x, -d.y); // (clockwise from the top)
+    float a = za::atan2(d.x / ringR.x, -d.y / ringR.y); // (clockwise from the top, round the oval)
     if(a < 0.f)
     {
         a += za::tau;
     }
-    const float step = za::tau / static_cast<float>(ws.count);
-    return static_cast<int>(za::floor(a / step + 0.5f)) % ws.count;
+    const float step = za::tau / static_cast<float>(n);
+    const int place = static_cast<int>(za::floor(a / step + 0.5f)) % n;
+    for(int i = 0; i < ws.count; i++)
+    {
+        if(placeOf(i) == place)
+        {
+            const bool lower = ws.choices[i].half == 1 && i + 1 < ws.count && ws.choices[i + 1].half == 2 &&
+                               p.y > placeMid(place, n).y;
+            return lower ? i + 1 : i;
+        }
+    }
+    return -1;
 }
 
 [[nodiscard]] float unitsPerPixel()
 {
-    return za::clamp(vr_weaponwheel_size.value, 4.f, 80.f) / panelW;
+    return za::clamp(vr_weaponwheel_size.value, 4.f, 80.f) / refW;
 }
 
 // Panel point `p` in the world (on the ring's plane; `lift` units towards the eyes).
@@ -294,6 +382,7 @@ struct Test
     int nailClip{0};      // the nailgun's rounds before the wheel's hold
     int flags0{0};        // the dagger's flags before the wheel's hold (FLIP GRIP: its reverse grip's bit turned over)
     bool flat{false};     // "flat": flatscreen play's (flatTestStep)
+    bool gren{false};     // "grenade" / "flatgrenade": the grenade entry's (grenadeTestStep)
     int shotgunAt{-1};    // flat: the shotgun's holster
     int firstWid{0};      // flat: the weapon 2's first tap drew (the first holstered)
     int pickAt{-1};       // flat: its holster, the wheel's pick
@@ -358,7 +447,7 @@ void finish()
 // The mock's hand `hand` onto choice `i`'s slot (-1: off the wheel, to its left), at the hand's own depth.
 void aimAt(int hand, int i)
 {
-    const glm::vec2 p = i >= 0 ? slotMid(i, ws.count) : ringMid - glm::vec2{outerR + 30.f, 0.f};
+    const glm::vec2 p = i >= 0 ? choiceMid(i) : ringMid - glm::vec2{outerR.x + 30.f, 0.f};
     const glm::vec3 w = worldAt(p, za::max(vr_weaponwheel_distance.value, 0.f));
     Cbuf_AddText(va("vr_mock_hand_to %s %.2f %.2f %.2f\n", handName(hand), w.x, w.y, w.z));
 }
@@ -408,7 +497,7 @@ void flatKey(int hand, bool down)
 // The mouse's cursor onto choice `i`'s slot (-1: off the wheel, to its left), by the counts vr_flat_mouse_move hands on.
 void flatPoint(int i)
 {
-    const glm::vec2 p = i >= 0 ? slotMid(i, ws.count) : ringMid - glm::vec2{outerR + 40.f, 0.f};
+    const glm::vec2 p = i >= 0 ? choiceMid(i) : ringMid - glm::vec2{outerR.x + 40.f, 0.f};
     const float k = za::max(ws.scale, 0.1f) / za::max(vr_flat_holster_menu_cursor_speed.value, 0.01f);
     const int dx = static_cast<int>(za::floor((p.x - ws.cursor.x) * k + 0.5f));
     const int dy = static_cast<int>(za::floor((p.y - ws.cursor.y) * k + 0.5f));
@@ -492,7 +581,7 @@ void flatTestStep()
         if(waitFor(ws.hand == main, "2 held: the wheel open for the right hand"))
         {
             result(ws.flat && frames >= 10, va("2 held: the wheel opens for the right hand (after %d frames), on the window", frames));
-            result(ws.count == 10, va("ten slots (%d)", ws.count));
+            result(placeCount() == 11, va("eleven places (%d)", placeCount()));
         }
         break;
     }
@@ -684,10 +773,257 @@ void flatTestStep()
     }
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_weaponwheel_test grenade | flatgrenade (wheelgrenade; weaponwheel_test.sh grenade / flatgrenade): the back pouch's
+// grenade entry. The pouch emptied (the server's rockets and multi-rockets set), the first hand's wheel (flat: the right
+// hand, holding the shotgun; headset: the left, empty, its grip not held) shows one greyed grenade; 5 rockets: a whole
+// usable GRENADE, 5 left on it; 3 multi-rockets too: split, GRENADE on top and CLUSTER below, one place; the cursor on
+// each half lights it; let go on CLUSTER: that hand holds a multi-grenade (its gun holstered), 2 multi-rockets left; still
+// held a while later (the headset's: without its grip); its fire button (flat: LMB; headset: the trigger) arms it, then
+// the throw (flat: LMB held, let go; headset: the grip pressed and let go): gone from the hand, still 2 left; the other
+// hand (holding a gun) on GRENADE: a grenade in that hand, its gun holstered, 4 rockets left; flat: G puts it back (5).
+// Ends "weaponwheel_test: N passed, M failed".
+
+// What the first player's hand `hand` holds from the pouch (QC VR_Wheel_TestHeld: 0 nothing, 1 a grenade, 2 a
+// multi-grenade; + 10 armed; + 100 x the quick grenade's phase). Single player.
+[[nodiscard]] int heldCode(int hand)
+{
+    if(!sv.active)
+    {
+        return -1;
+    }
+    const progs::ServerVm vm;
+    return static_cast<int>(progs::qcFloat(progs::findFunction("VR_Wheel_TestHeld"), static_cast<float>(hand)));
+}
+
+// The pouch's ammo on the server: the player's rockets and multi-rockets.
+void setPouch(int rockets, int multi)
+{
+    const progs::ServerVm vm;
+    edict_t* p = progs::playerEdict();
+    if(!p)
+    {
+        return;
+    }
+    p->v.ammo_rockets = static_cast<float>(rockets);
+    progs::setFieldFloat(p, progs::fields().ammo_multi_rockets, static_cast<float>(multi));
+}
+
+void wheelKey(int hand, bool down)
+{
+    if(test.flat)
+    {
+        flatKey(hand, down);
+    }
+    else
+    {
+        press(hand, down);
+    }
+}
+
+// A step pointing at choice `want` (the hand or the mouse, two frames in), waiting until it is lit.
+[[nodiscard]] bool pointed(int want, const char* what)
+{
+    if(++test.mark == 2)
+    {
+        if(test.flat)
+        {
+            flatPoint(want);
+        }
+        else
+        {
+            aimAt(ws.hand, want);
+        }
+    }
+    return waitFor(test.mark > 2 && want >= 0 && ws.hovered == want, what);
+}
+
+[[nodiscard]] int rocketsLeft()
+{
+    return cl.stats[STAT_ROCKETS];
+}
+
+[[nodiscard]] int multiLeft()
+{
+    return cl.stats[protocol::STAT_QVR_AMMOMULTI];
+}
+
+void grenadeTestStep()
+{
+    const int first = test.flat ? HAND_MAIN : HAND_OFF, second = test.flat ? HAND_OFF : HAND_MAIN;
+    const char* fire = test.flat ? (first == HAND_MAIN ? "attack" : "offhandattack") : nullptr;
+    switch(test.step)
+    {
+    case 0:
+        if(waitFor(cls.signon == SIGNONS && cl.stats[STAT_HEALTH] > 0 && !cl.intermission &&
+                       (!test.flat || (handWeapon(HAND_MAIN) == WID_SHOTGUN && handWeapon(HAND_OFF) == WID_NAILGUN)),
+                "the game up"))
+        {
+            if(!test.flat)
+            {
+                // (the VR test's: the hands out in front, the right one gripping a nailgun, the left empty, its grip open)
+                Cbuf_AddText("vr_mock_hand main 0.15 1.35 -0.4 0 0 0; vr_mock_hand off -0.15 1.35 -0.4 0 0 0; vr_mock_look 35 0\n");
+                Cbuf_AddText("vr_mock_button main grip 1; vr_mock_button off grip 0; impulse 156\n");
+            }
+            setPouch(0, 0);
+        }
+        break;
+    case 1:
+        if(waitFor(rocketsLeft() == 0 && multiLeft() == 0 && handWeapon(second) != WID_FIST && ++test.mark > 10,
+               "the pouch empty, the second hand's gun"))
+        {
+            wheelKey(first, true);
+        }
+        break;
+    case 2:
+        if(waitFor(ws.hand == first, "the wheel open for the first hand"))
+        {
+            const int g = choiceOfKey(keyGrenade);
+            result(placeCount() == 11 && g >= 0 && choiceOfKey(keyMultiGrenade) < 0 && !ws.choices[g].usable &&
+                       ws.choices[g].half == 0,
+                va("an empty pouch: one greyed grenade entry (places %d, choice %d)", placeCount(), g));
+            setPouch(5, 0);
+        }
+        break;
+    case 3:
+    {
+        const int g = choiceOfKey(keyGrenade);
+        if(waitFor(rocketsLeft() == 5 && g >= 0 && ws.choices[g].usable, "5 rockets: the entry usable"))
+        {
+            result(choiceOfKey(keyMultiGrenade) < 0 && ws.choices[g].half == 0 && ws.choices[g].reserve == 5,
+                va("5 rockets: one whole GRENADE entry, %d left on it", ws.choices[g].reserve));
+            setPouch(5, 3);
+        }
+        break;
+    }
+    case 4:
+    {
+        const int g = choiceOfKey(keyGrenade), m = choiceOfKey(keyMultiGrenade);
+        if(waitFor(multiLeft() == 3 && m >= 0, "3 multi-rockets: the CLUSTER half"))
+        {
+            result(g >= 0 && ws.choices[g].half == 1 && ws.choices[m].half == 2 && m == g + 1 && placeCount() == 11 &&
+                       choiceMid(g).y < choiceMid(m).y && ws.choices[m].reserve == 3,
+                va("both kinds: the entry split, GRENADE on top, CLUSTER below (%d left), one place (%d places)",
+                    ws.choices[m].reserve, placeCount()));
+        }
+        break;
+    }
+    case 5:
+        if(pointed(choiceOfKey(keyGrenade), "the top half lit"))
+        {
+            result(true, "the cursor on the top half lights GRENADE");
+        }
+        break;
+    case 6:
+        // (the screenshot a few frames after the cursor settled: his review of the split entry)
+        if(++test.mark == 4)
+        {
+            Cbuf_AddText("screenshot\n");
+        }
+        (void)waitFor(test.mark >= 9, "the screenshot");
+        break;
+    case 7:
+        if(pointed(choiceOfKey(keyMultiGrenade), "the bottom half lit"))
+        {
+            result(true, "the cursor on the bottom half lights CLUSTER");
+            wheelKey(first, false);
+        }
+        break;
+    case 8:
+        if(waitFor(ws.hand < 0 && heldCode(first) % 100 == 2 && handWeapon(first) == WID_FIST, "the multi-grenade in the hand"))
+        {
+            result(multiLeft() == 2 && rocketsLeft() == 5,
+                va("let go on CLUSTER: the hand holds a multi-grenade%s; %d multi-rockets left, %d rockets",
+                    test.flat ? ", its shotgun holstered" : "", multiLeft(), rocketsLeft()));
+        }
+        break;
+    case 9:
+        if(waitFor(++test.mark >= 40, "a while"))
+        {
+            result(heldCode(first) % 100 == 2, test.flat ? "still held a while later" : "still held a while later, its grip not pressed");
+            Cbuf_AddText(test.flat ? va("+%s\n", fire) : "vr_mock_button off trigger 1\n");
+        }
+        break;
+    case 10:
+        if(++test.mark == 4)
+        {
+            Cbuf_AddText(test.flat ? va("-%s\n", fire) : "vr_mock_button off trigger 0\n");
+        }
+        if(waitFor(test.mark > 4 && heldCode(first) % 100 >= 10, "armed"))
+        {
+            result(true, va("the fire button arms it (%d)", heldCode(first)));
+            // (flat: held, the wind-up; the headset: the grip takes it from the wheel's hold)
+            Cbuf_AddText(test.flat ? va("+%s\n", fire) : "vr_mock_button off grip 1\n");
+        }
+        break;
+    case 11:
+        if(waitFor(++test.mark >= 30 && (!test.flat || heldCode(first) / 100 == 4), "the wind-up / the grip"))
+        {
+            Cbuf_AddText(test.flat ? va("-%s\n", fire) : "vr_mock_button off grip 0\n");
+        }
+        break;
+    case 12:
+    {
+        // (out of the hand soon after the release, long before its fuse: thrown, not gone off in the hand)
+        const int frames = ++test.mark;
+        if(waitFor(heldCode(first) % 100 == 0, "thrown"))
+        {
+            result(frames <= 40 && multiLeft() == 2,
+                va("let go: thrown (out of the hand %d frames after), still %d multi-rockets left", frames, multiLeft()));
+        }
+        break;
+    }
+    case 13:
+        if(waitFor(++test.mark >= 30 && heldCode(first) == 0, "the throw over"))
+        {
+            wheelKey(second, true);
+        }
+        break;
+    case 14:
+        (void)waitFor(ws.hand == second, "the wheel open for the second hand");
+        break;
+    case 15:
+        if(pointed(choiceOfKey(keyGrenade), "GRENADE lit"))
+        {
+            wheelKey(second, false);
+        }
+        break;
+    case 16:
+        if(waitFor(ws.hand < 0 && heldCode(second) % 100 == 1 && handWeapon(second) == WID_FIST, "the grenade in the second hand"))
+        {
+            result(rocketsLeft() == 4 && multiLeft() == 2,
+                va("the other hand on GRENADE: a grenade in it, its gun holstered; %d rockets left", rocketsLeft()));
+            if(!test.flat)
+            {
+                test.step = 99; // (the headset's ends here)
+                break;
+            }
+            Cbuf_AddText("impulse 57\n"); // (G: the unarmed one back in the pouch)
+        }
+        break;
+    case 17:
+        if(waitFor(heldCode(second) == 0 && rocketsLeft() == 5, "G puts it back"))
+        {
+            result(true, "G puts the unarmed grenade back: 5 rockets");
+            test.step = 99;
+        }
+        break;
+    default:
+        Cbuf_AddText("-attack; -offhandattack; vr_mock_button main trigger 0; vr_mock_button off trigger 0\n");
+        finish();
+        break;
+    }
+}
+
 void testStep()
 {
     if(!test.on)
     {
+        return;
+    }
+    if(test.gren)
+    {
+        grenadeTestStep();
         return;
     }
     if(test.flat)
@@ -730,7 +1066,8 @@ void testStep()
                 va("the hold kept the nailgun's magazine in (%d rounds, %d before)", cl.stats[protocol::STAT_QVR_WEAPONCLIP],
                     test.nailClip));
             result(frames > 1, va("held, the wheel opens round that hand (after %d frames)", frames));
-            result(ws.count == 10, va("ten slots: the empty hand, the six holsters, DROP, FLIP GRIP and UNLOAD (%d)", ws.count));
+            result(placeCount() == 11,
+                va("eleven places: the empty hand, the six holsters, DROP, FLIP GRIP, UNLOAD and the grenade (%d)", placeCount()));
         }
         break;
     }
@@ -1020,7 +1357,7 @@ void serverPick_f()
         return;
     }
     const int hand = atoi(Cmd_Argv(1)), slot = atoi(Cmd_Argv(2));
-    if((hand != 0 && hand != 1) || slot < keyFlip || slot >= flatholster::holsterSlots)
+    if((hand != 0 && hand != 1) || slot < keyMultiGrenade || slot >= flatholster::holsterSlots)
     {
         return;
     }
@@ -1064,7 +1401,8 @@ void test_f()
     test = Test{};
     test.on = true;
     test.mp = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "mp");
-    test.flat = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "flat");
+    test.gren = Cmd_Argc() > 1 && (!q_strcasecmp(Cmd_Argv(1), "grenade") || !q_strcasecmp(Cmd_Argv(1), "flatgrenade"));
+    test.flat = Cmd_Argc() > 1 && (!q_strcasecmp(Cmd_Argv(1), "flat") || !q_strcasecmp(Cmd_Argv(1), "flatgrenade"));
     if(!test.flat)
     {
         test.wheelWas = vr_weaponwheel.value; // (off by default since 2026-11-24: on for the test)
@@ -1291,7 +1629,7 @@ void render()
     for(int i = 0; i < ws.count; i++)
     {
         const Choice& c = ws.choices[i];
-        const glm::vec2 mid = slotMid(i, ws.count);
+        const glm::vec2 mid = choiceMid(i);
         if(c.icon != gadget::MenuIcon::None)
         {
             // An action: smaller, the holster menu's button (its icon above its title; lit with a second ring).
@@ -1304,7 +1642,9 @@ void render()
             continue;
         }
         gadget::HolsterMenuSlot& s = slots[slotCount++];
-        s.rect = {mid.x - slotW * 0.5f, mid.y - slotH * 0.5f, slotW, slotH};
+        const float h = c.half ? (slotH - halfGap) * 0.5f : slotH; // (a split slot's half: the slot's own outline in two)
+        s.rect = {mid.x - slotW * 0.5f, mid.y - h * 0.5f, slotW, h};
+        s.compact = c.half != 0;
         s.title = c.title;
         s.name = c.name;
         s.model = c.model;
@@ -1319,9 +1659,10 @@ void render()
     // The middle's cross, and a stroke from it to the hand (outside: to the wheel's edge that way).
     glm::vec2 to = ws.cursor - ringMid;
     const float len = glm::length(to);
-    if(len > outerR)
+    const float past = glm::length(to / outerR); // (the outer oval at 1)
+    if(past > 1.f)
     {
-        to *= outerR / len;
+        to /= past;
     }
     const glm::vec4 lines[3] = {{ringMid.x - 6.f, ringMid.y, ringMid.x + 6.f, ringMid.y},
         {ringMid.x, ringMid.y - 6.f, ringMid.x, ringMid.y + 6.f}, {ringMid.x, ringMid.y, ringMid.x + to.x, ringMid.y + to.y}};
@@ -1339,6 +1680,8 @@ void render()
                : litKey == keyDrop   ? "Let go: drop it"
                : litKey == keyUnload ? "Let go: unload it"
                : litKey == keyFlip   ? "Let go: flip its grip"
+               : litKey == keyGrenade ? "Let go: take a grenade"
+               : litKey == keyMultiGrenade ? "Let go: take a cluster grenade"
                                      : "Let go: take it";
     const gadget::VisorImage img = gadget::renderHolsterMenu(v);
     ws.texture = img.shown ? img.texture : 0;
@@ -1368,7 +1711,7 @@ void drawFlat()
     // vr_flat_wheel_size of the window's height, its middle where the hand was (all of it kept on the window), framed as the
     // holster menu is on the window (its composite: flatholster::drawOnWindow), the mouse's arrow on it while open.
     const float W = static_cast<float>(vid.width), H = static_cast<float>(vid.height);
-    float h = za::clamp(vr_flat_wheel_size.value, 0.2f, 1.f) * H;
+    float h = za::min(za::clamp(vr_flat_wheel_size.value, 0.2f, 1.f) * H * (panelH / refH), H * 0.96f); // (the ten-slot wheel's pixels kept)
     float w = h * panelW / panelH;
     if(w > W * 0.96f)
     {

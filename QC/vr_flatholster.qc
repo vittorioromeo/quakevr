@@ -452,10 +452,20 @@ void(float xHand) VR_FlatHolster_Put =
 float VR_WHEEL_DROP = -2;
 float VR_WHEEL_UNLOAD = -3;
 float VR_WHEEL_FLIP = -4;
+// -5 GRENADE / -6 CLUSTER (wheelgrenade, his words 2026-11-28): a grenade (or the multi-grenade) from the back pouch in the
+// hand, its weapon put away first (VR_Wheel_Grenade, vr_flatgrenade.qc).
+float VR_WHEEL_GRENADE = -5;
+float VR_WHEEL_MULTIGRENADE = -6;
+void(float xHand, float xMulti) VR_Wheel_Grenade; // (vr_flatgrenade.qc)
 void(float xHand, float slot) VR_Wheel_Pick =
 {
     if(self.health <= 0)
     {
+        return;
+    }
+    if(slot == VR_WHEEL_GRENADE || slot == VR_WHEEL_MULTIGRENADE)
+    {
+        VR_Wheel_Grenade(xHand, slot == VR_WHEEL_MULTIGRENADE);
         return;
     }
     if(slot == VR_WHEEL_DROP)
