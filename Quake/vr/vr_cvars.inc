@@ -4443,7 +4443,7 @@ QVR_CVAR(vr_runpick_gore, "0", CVAR_ARCHIVE)          // Run Setup: the Gore pre
 QVR_CVAR(vr_runpick_armed, "0", CVAR_ARCHIVE)         // Run Setup: Armed Humanoids: 0 as the Style sets them, 1 off, 2 on
 QVR_CVAR(vr_runpick_smartai, "0", CVAR_ARCHIVE)       // Run Setup: Smarter AI (vr_ai_enhanced): 0 as the Style sets it, 1 off, 2 on
 QVR_CVAR(vr_runpick_startgun, "0", CVAR_ARCHIVE)      // Run Setup: Starting gun: 0 shotgun, 1 nail pistol, 2 heavy revolver, 3 nothing
-QVR_CVAR(vr_runpick_startmelee, "0", CVAR_ARCHIVE)    // Run Setup: Starting melee weapon: 0 axe, 1 dagger, 2 nothing
+QVR_CVAR(vr_runpick_startmelee, "0", CVAR_ARCHIVE)    // Run Setup: Starting melee weapon: 0 axe, 1 dagger, 2 nothing, 3 spear
 QVR_CVAR(vr_runpick_meleeonly, "0", CVAR_ARCHIVE)     // Run Setup: Melee Only
 QVR_CVAR(vr_runpick_glasscannon, "0", CVAR_ARCHIVE)   // Run Setup: Glass Cannon
 QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 anything goes

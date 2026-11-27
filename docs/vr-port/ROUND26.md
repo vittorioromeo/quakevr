@@ -4465,3 +4465,7 @@ fade and invisibility, copied into the body's mirror).
   bayonet broken open in the left hip); `Misc/quakevr/attach_holster_test.sh` (flat, its fly camera beside the hip, VR;
   `attach_holster_check.py`: each holstered gun's bayonet drawn, gap <= 0.05), also run at the end of attach_test.sh.
 - Armed humanoids carry no holstered guns; bots and dead players' bodies draw through drawHolsteredParts (the same path).
+
+## spearstart
+
+The spear is a fourth Starting melee weapon in Run Setup (vr_runpick_startmelee 3: Axe, Dagger, Nothing, Spear; appended last so saved picks keep their numbers; default stays the axe). A new game gives WID_SWORD with VR_ADMelee_Flags(VR_SWORDKIND_SPEAR) in the melee holster (parm13/parm27, HIP_IT_SWORD, as the dagger), flat and VR. Run Setup is the one place the starting melee weapon is offered; new game, levels, hub and respawn all go through VR_RunStartWeapon_NewParms. Icon: v_spear.mdl. Test: vr_runlaunch_test gained picks row S and a "the spear start" step (VR_Run_TestCheck checks a spear-kind sword in the melee holster, no axe): 91 passed, 1 failed; the failure is the existing "Arena Mode right under Arcane Dimensions" Select Campaign look check, untouched here.

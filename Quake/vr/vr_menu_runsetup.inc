@@ -32,7 +32,8 @@ constexpr MenuIcon runSetupGunIcons[] = {{.model = "progs/v_shot.mdl", .side = t
     {.model = "progs/v_nailpistol.mdl", .side = true}, {.model = "progs/v_revolver.mdl", .side = true},
     {.emblem = MenuIcon::Hand}};
 constexpr MenuIcon runSetupMeleeIcons[] = {{.model = "progs/v_axe.mdl", .side = true},
-    {.model = "progs/v_dagger.mdl", .side = true}, {.emblem = MenuIcon::Hand}};
+    {.model = "progs/v_dagger.mdl", .side = true}, {.emblem = MenuIcon::Hand},
+    {.model = "progs/v_spear.mdl", .side = true}};
 constexpr MenuIcon runSetupCountIcons[] = {{.model = "progs/soldier.mdl", .figures = 1},
     {.model = "progs/soldier.mdl", .figures = 2}, {.model = "progs/soldier.mdl", .figures = 3}};
 struct RunSetupIconRow
@@ -44,7 +45,7 @@ struct RunSetupIconRow
 constexpr RunSetupIconRow runSetupIconRows[] = {
     {"skill", runSetupSkillIcons, 4},
     {"startgun", runSetupGunIcons, 4},
-    {"startmelee", runSetupMeleeIcons, 3},
+    {"startmelee", runSetupMeleeIcons, 4},
     {"enemycount", runSetupCountIcons, 3},
 };
 
