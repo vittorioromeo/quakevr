@@ -10,6 +10,8 @@
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
 
+extern "C" byte* VR_AdArmedModelFile(const char* name, unsigned int* path_id); // (vr_monstermods.cpp)
+
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_held.hpp"
@@ -446,6 +448,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     }
     if(byte* gun = adguns::derivedFile(name, path_id)) { return gun; } // AD support: an AD soldier's gun (vr_adguns.cpp)
     if(byte* melee = admelee::derivedFile(name, path_id)) { return melee; } // AD support: an AD melee weapon (vr_admelee.cpp)
+    if(byte* body = VR_AdArmedModelFile(name, path_id)) { return body; } // AD support: the armed death guard and crossbow knight (vr_monstermods.cpp)
     if(byte* weapon = adweapons::derivedFile(name, path_id)) { return weapon; } // AD support: AD's upgraded weapons (vr_adweapons.cpp)
     const auto id = modelmeta::identifyPath(name);
     if(id == modelmeta::Id::Vrtorch)

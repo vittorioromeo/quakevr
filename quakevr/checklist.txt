@@ -25,6 +25,9 @@ Grab a lying bayonet: it sits in the palm, the fingers round it, no odd hand pos
 With the bayonet on the shotgun, grip at the mount: nothing comes off and the two-handed grip works; grip and press B/Y there: it comes off into that hand. {test:attach_bayonet}
 Stab a grunt with the bayonet: it goes a bit deeper than before (Combat > Embedded Blades > Stab > Bayonet Depth tunes it). {test:attach_bayonet}
 Stab an enemy with the bayonet, keep holding and fire a few shots (shotgun, then super shotgun): the gun stays in your hand and the body barely moves. {test:attach_bayonet}
+On the Quest, set Quest Foveation to High (Top) in a map: the top of the view (sky, ceilings) gets blurrier than at High while the lower middle stays sharp, it runs at least as smoothly as High, and Show Foveation's pattern sits lower. {test:quest_foveation}
+On the Quest, try Quest Foveation: Shift (advanced) at -15 and +15 with High: the sharp middle moves down and up, no crash when changing it. {test:quest_foveation}
+On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution of Eternity: each plays its own soundtrack, not Quake's. {test:campaign_music}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -121,6 +124,8 @@ Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg
 Pose Studio on the spear holders: a frozen armed enforcer, knight and death knight, each with the spear, stand spaced apart in the hall's open middle and the Pose Studio is already open; tune each one's spear poses (Port Arms, Ready, Run, Pickup, Thrust, Shove) as for the spear grunt. {test:pose_spear_humanoids}
 ## Lifts
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
+AD's death guard and crossbow knight are armed humanoids in their own look: walk round each (frozen) and check no hand is off its weapon, no weapon goes through the body and no elbow or shoulder is twisted, with their own weapons and with the shotguns behind them. {test:ad_knights_armed}
+In an Arcane Dimensions map with death guards and crossbow knights, fight a few: they keep AD's look, swing the sword or shoot the crossbow, can be disarmed, pick up other weapons and drop theirs when they die; Armed Humanoid Replacements' AD Death Guards and AD Crossbow Knights turn this off. {test:ad_knights_armed}
 
 [7. Quoth]
 ## Setup and maps
