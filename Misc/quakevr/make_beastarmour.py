@@ -65,29 +65,35 @@ def piece(slot, bone, t, face, span, rows=2, tile="plain", more=(), spikes=0, st
 
 
 def fpiece(slot, bone, ref, shapes, pair=None, mid=False, face="out", tile="plain", more=(), pct=None, cap_r=None, tilt=0.0,
-           part=None):
+           part=None, anchors=None):
     """A faceted kind's piece (beastplates: facet_plates): `ref` the left/right bones whose line is the body's side to side
     here, `pair` the mirrored piece's bone, `mid` a middle piece (on the body's middle plane, mirrored across it; neither:
     measured as it stands, a tail); `face` front, back, out (from the body), up, down: the angle 0 of its shapes (`band`,
     `dome`); `pct` the flesh's percentile covered, `cap_r` the radius's cut (times its median), `tilt` the facing raised. A
     second piece of a slot already made (another bone) is a part of it: drawn, hit and broken with it (beastarmour.txt's
     later line). `part` (beastfit): such a part's own Armour Studio part (armour.txt: "tail", "shin"), tweaked apart from
-    its slot's first piece (beastarmour.txt's last word)."""
+    its slot's first piece (beastarmour.txt's last word). `anchors` (t0, t1; ogreplates): the engine fits the piece to its
+    bone's vertices this far along the bone alone (beastarmour.txt's `anchors` line: the ogre's bracers on the forearm's
+    elbow end, not the wrist's flesh that follows his hand)."""
     return P(slot=slot, bone=bone, ref=ref, shapes=shapes, pair=pair, mid=mid, face=face, tile=tile, more=more, pct=pct,
-             cap_r=cap_r, tilt=tilt, stand=0.0, thick=0.0, even=0.0, part=part)
+             cap_r=cap_r, tilt=tilt, stand=0.0, thick=0.0, even=0.0, part=part, anchors=anchors)
 
 
 def band(t, rows, span=360, cw=None, step=0.45, lap=0.5, gap=0.35, ridge=0.0, ridge_rows=(), flare=0.0, lift=0.0,
-         tiles=None, spike=None, line=None, heights=None, turn=0.0):
+         tiles=None, spike=None, line=None, heights=None, turn=0.0, vneck=None, flat_outer=0.0):
     """Rows of plates along the bone from t[0] (the top: the row above laps over the next) to t[1], round it over `span`
     degrees: `rows` each row's plates, `cw` a row's plates' widths (shares), `step` how far a row's lower edge stands proud
     of its top, `lap` (units) how far it reaches over the row below, `gap` (units) between a row's plates, `ridge` (units)
     the line facing `face` raised on `ridge_rows`, `flare` the first row's top edge raised (a collar), `lift` the whole shape
     raised, `tiles` each row's tile kind, `spike` (where along 0..1, angle, height, width, way: "axis" or (fwd, out, up)),
     `line` (bone, t, bone, t): the line it lies round (t 0 and 1 its ends) instead of its bone's, `heights` the rows' shares,
-    `turn` its span's middle this far round from `face` (degrees)."""
+    `turn` its span's middle this far round from `face` (degrees). `vneck` (units, degrees; ogreplates): the first row's top
+    edge lowered this far on the middle line, less out to this angle each side (a V, room for the chin); `flat_outer`
+    (0..1; ogreplates) the outer columns' outer edges laid this share of the way onto the line of the plate inside them (a
+    shallower bend round the body's sides)."""
     return P(kind="band", u=t, rows=rows, span=span, cw=cw, step=step, lap=lap, gap=gap, ridge=ridge, ridge_rows=ridge_rows,
-             flare=flare, lift=lift, tiles=tiles, spike=spike, line=line, heights=heights, turn=math.radians(turn))
+             flare=flare, lift=lift, tiles=tiles, spike=spike, line=line, heights=heights, turn=math.radians(turn),
+             vneck=vneck, flat_outer=flat_outer)
 
 
 def dome(mid, polar, rows, pole, span=360, step=0.45, lap=0.5, gap=0.35, lift=0.0, tiles=None, spike=None, heights=None,
@@ -99,6 +105,22 @@ def dome(mid, polar, rows, pole, span=360, step=0.45, lap=0.5, gap=0.35, lift=0.
     return P(kind="dome", mid=mid, u=(0.0, polar), rows=rows, pole=pole, span=span, cw=None, step=step, lap=lap, gap=gap,
              ridge=0.0, ridge_rows=(), flare=0.0, lift=lift, tiles=tiles, spike=spike, line=None, heights=heights, turn=0.0,
              brow=brow)
+
+
+def helm(brow=0.62, chamfer=0.3, inset=1.2, rows=(0.04, 0.0, -0.1, 0.22, 0.3), band=0.14, taper=0.35, guard=(-0.42, -0.8),
+         guard_flare=0.5, guard_wide=1.3, step=0.3, lap=0.4, gap=0.3, tiles=("plain", "plain", "panel", "rim", "vent")):
+    """A helmet the humanoids' way (ogreplates; vr_agarmor.cpp helmetOf, the grunt's, the enforcer's, the knight's): a
+    bucket of flat faces round the head (front, the front's chamfers, the sides, the back's chamfers, the back: an
+    octagon), each face's plane the head's skin's support that way plus the stand-off, so the flat plates clear it; a flat
+    cap over a chamfer row, the wall, a brow band standing proud at its lower edge, and cheek guards in two shingled lames
+    down the sides, the face open in front. Heights in shares of the cranium's height over the brow (`brow`: the brow at this
+    share of the head's flesh's height, as `dome`'s): `chamfer` the cap's chamfer row, `inset` (units) how far the cap
+    stands in from the wall, `rows` the brow band's lower edge per face (front, front chamfer, side, back chamfer, back:
+    above the face, the back over the neck's hump), `band` the brow band's height, `taper` (units) the band wider than the
+    wall, `guard` the cheek guards' two lames' lower edges, `guard_flare` (units) their lower edges out, `step`/`lap`/`gap`
+    as `band`'s; `tiles` the cap, the chamfer row, the wall, the brow band, the guards."""
+    return P(kind="helm", brow=brow, chamfer=chamfer, inset=inset, rows=rows, band=band, taper=taper, guard=guard,
+             guard_flare=guard_flare, guard_wide=guard_wide, step=step, lap=lap, gap=gap, tiles=tiles, spike=None)
 
 
 SH_OGRE = ("upperarm_l", "upperarm_r")  # (the ogre's shoulders: his chest's side to side)
@@ -126,24 +148,29 @@ KINDS = [
     # stance's middle from his shoulders and hips (beastlook's symmetric measuring).
     P(name="ogre", model="progs/ogre.mdl", seeds="ogre", stand=0.6, thick=1.0, group=(0, 8, 9), facet=True, fit="rest", pct=88, cap_r=1.3,
       skip=("death", "bdeath", "base", "frame", "pull"), pieces=[  # (pull: frames he never plays)
+        # (ogreplates: the breastplate's top a shallow V, room for his chin; the back plate's outer columns a shallow bend)
         fpiece(0, "chest", SH_OGRE, [
             band((1.1, 0.0), (4, 4, 4), span=190, cw=(PEC, None, None), ridge=0.9, ridge_rows=(0, 1), flare=0.9,
-                 tiles=("panel", "plain", "rib"))], mid=True, face="front"),
-        fpiece(8, "chest", SH_OGRE, [band((1.05, 0.05), (4, 4, 4), span=160)], mid=True, face="back"),
+                 tiles=("panel", "plain", "rib"), vneck=(2.5, 60.0))], mid=True, face="front"),
+        fpiece(8, "chest", SH_OGRE, [band((1.05, 0.05), (4, 4, 4), span=160, flat_outer=0.55)], mid=True, face="back"),
         fpiece(9, "pelvis", HIP_OGRE, [
             band((0.98, 0.72), (10,), step=0.2, lap=0.3, tiles=("panel",)),
             band((0.72, 0.1), (4,), span=150, tiles=("rib",)),
             band((0.72, 0.0), (4,), span=150, turn=180)], mid=True, face="front"),
-        fpiece(1, "head", SH_OGRE, [dome(0.45, 82, (1, 6, 8), (-0.15, 0.0, 1.0), heights=(0.6, 1, 1), brow=0.62)], mid=True,
-               face="back"),
+        # (ogreplates: a helmet the humanoids' way, his note 2026-11-27: the dome read as a hat)
+        fpiece(1, "head", SH_OGRE, [helm()], mid=True, face="front"),
         fpiece(2, "upperarm_l", SH_OGRE, [
             dome(0.0, 72, (1, 5, 6), (0.0, 0.7, 1.0), heights=(0.7, 1, 1)),
             band((0.45, 0.95), (6, 6), lift=0.2)], pair="upperarm_r"),
         fpiece(3, "upperarm_r", SH_OGRE, [
             dome(0.0, 72, (1, 5, 6), (0.0, 0.7, 1.0), heights=(0.7, 1, 1)),
             band((0.45, 0.95), (6, 6), lift=0.2)], pair="upperarm_l"),
-        fpiece(4, "forearm_l", SH_OGRE, [band((0.1, 0.92), (6, 6, 6), tiles=("plain", "plain", "vent"))], pair="forearm_r"),
-        fpiece(5, "forearm_r", SH_OGRE, [band((0.1, 0.92), (6, 6, 6), tiles=("plain", "plain", "vent"))], pair="forearm_l"),
+        # (ogreplates: the bracers up the forearm, on its elbow end's vertices: his skin past 0.6 is long triangles to the
+        # hand's, and the bracer over them met his hand in the run)
+        fpiece(4, "forearm_l", SH_OGRE, [band((0.0, 0.64), (6, 6, 6), tiles=("plain", "plain", "vent"))], pair="forearm_r",
+               anchors=(-0.05, 0.65)),
+        fpiece(5, "forearm_r", SH_OGRE, [band((0.0, 0.64), (6, 6, 6), tiles=("plain", "plain", "vent"))], pair="forearm_l",
+               anchors=(-0.05, 0.65)),
         # (beastfit: the thighs down to the knee; the shins (their own Studio part) with a knee cop from above the knee)
         fpiece(6, "thigh_l", HIP_OGRE, [band((0.05, 1.0), (6, 6), span=300)], pair="thigh_r", face="front"),
         fpiece(7, "thigh_r", HIP_OGRE, [band((0.05, 1.0), (6, 6), span=300)], pair="thigh_l", face="front"),
@@ -684,12 +711,135 @@ def node_radius(s, ua, ub, top, p, half):
     return 0.5 * (whole + part)
 
 
+def skin_points(ctx, bone, steps=6, near=0.6):
+    """The rest pose's skin of a bone sampled at points across its triangles: a point counts when at least `near` of it
+    (by its corners' shares) is on the bone (the neck's long triangles out to the shoulders are not the head's)."""
+    t = ctx["tris"]
+    on = (ctx["label"][t] == ctx["byname"][bone][0]).astype(float)
+    keep = on.any(axis=1)
+    t, on = t[keep], on[keep]
+    p = ctx["pos"]
+    A, B, C = p[t[:, 0]], p[t[:, 1]], p[t[:, 2]]
+    out = []
+    for i in range(steps + 1):
+        for j in range(steps + 1 - i):
+            a, b = i / steps, j / steps
+            w = on[:, 0] * (1 - a - b) + on[:, 1] * a + on[:, 2] * b
+            out.append((A * (1 - a - b) + B * a + C * b)[w >= near - 1e-9])
+    return np.concatenate(out)
+
+
+HELM_FACES = 8  # (front, its chamfers, the sides, the back's chamfers, the back: angle 45 k round from the front to the left)
+
+
+def helm_plates(ctx, spec, shape, kind):
+    """`helm`'s plates [(corners, thickness at each, inside, tile)] in the rest pose (ogreplates)."""
+    stand, thick = kind["stand"], kind["thick"]
+    fwd, lat, up = body_axes(ctx, spec["ref"])
+    flesh = ctx["pos"][ctx["label"] == ctx["byname"][spec["bone"]][0]]
+    z0, z1 = flesh[:, 2].min(), flesh[:, 2].max()
+    zb = z0 + shape["brow"] * (z1 - z0)
+    top = flesh[flesh[:, 2] >= zb]
+    c = np.array([*((top[:, :2].min(0) + top[:, :2].max(0)) * 0.5), zb])
+    pts = skin_points(ctx, spec["bone"]) - c
+    h = np.stack([pts @ fwd, pts @ lat, pts @ up], axis=1)
+    # (centred side to side on the cranium's skin above the brow: mirrored, both sides clear it alike)
+    cran = h[h[:, 2] >= 0.0]
+    dy = 0.5 * (cran[:, 1].max() + cran[:, 1].min())
+    h[:, 1] -= dy
+    c = c + lat * dy
+    H = float(cran[:, 2].max())
+    ang = np.radians(np.arange(HELM_FACES) * 360.0 / HELM_FACES)
+    nrm = np.stack([np.cos(ang), np.sin(ang)], axis=1)
+    tan = np.stack([-np.sin(ang), np.cos(ang)], axis=1)
+    mir = [(-k) % HELM_FACES for k in range(HELM_FACES)]
+    zbrow = np.array([shape["rows"][min(k, HELM_FACES - k)] * H for k in range(HELM_FACES)])
+    zTop = H + stand
+    zC = H - shape["chamfer"] * H
+    zW = zbrow + shape["band"] * H
+    step, lap, gap = shape["step"], shape["lap"], shape["gap"]
+
+    def support(k, lo, hi, extra=0.0):
+        """The skin's reach along face k's normal between heights lo..hi (a point s up the cap's chamfer `extra` s more)."""
+        sel = (h[:, 2] >= lo) & (h[:, 2] <= hi)
+        if not sel.any():
+            return 0.0
+        z = h[sel, 2]
+        return float((h[sel, :2] @ nrm[k] + extra * np.clip((z - zC) / max(zTop - zC, 1e-3), 0.0, 1.0)).max())
+
+    def even(d):
+        return np.maximum(d, d[mir])  # (mirrored: each face as far out as its mirror's)
+
+    crown = even(np.array([support(k, zW[k], zTop, shape["inset"]) for k in range(HELM_FACES)])) + stand
+    band = even(np.array([max(crown[k] - stand + shape["taper"], support(k, zbrow[k] - lap, zW[k] + lap))
+                          for k in range(HELM_FACES)])) + stand
+    cap = crown - shape["inset"]
+
+    def ring(d):
+        """The octagon of faces at distances d: corner k between face k and face k + 1."""
+        return [np.linalg.solve(np.array([nrm[k], nrm[(k + 1) % HELM_FACES]]), [d[k], d[(k + 1) % HELM_FACES]])
+                for k in range(HELM_FACES)]
+
+    def at(k, tau, d, z):
+        xy = nrm[k] * d + tan[k] * tau
+        return c + fwd * xy[0] + lat * xy[1] + up * z
+
+    def zmid(z, k, j):
+        return 0.5 * (z[k] + z[j % HELM_FACES])
+
+    rings = {"cap": ring(cap), "crown": ring(crown), "band": ring(band)}
+    plates = []
+
+    def tile(i, k):
+        t = TILES[shape["tiles"][i]]
+        return t[(spec["slot"] + 3 * i + k) % len(t)]
+
+    def face(k, rg, top, bot, th_top, tl, wide=1.0):
+        """Face k's plate: its sides where rings `rg` (its top's, its lower edge's) put them (less half a gap each; `wide`
+        times as far from its middle), its top edge (z at its two corners, distance) and its lower one."""
+        rt, rb = rings[rg[0]], rings[rg[1]]
+        ta, tb = rt[k - 1] @ tan[k] + gap * 0.5, rt[k] @ tan[k] - gap * 0.5
+        ba, bb_ = rb[k - 1] @ tan[k] + gap * 0.5, rb[k] @ tan[k] - gap * 0.5
+        ta, tb, ba, bb_ = ((ta + tb) * 0.5 + (ta - tb) * 0.5 * wide, (ta + tb) * 0.5 + (tb - ta) * 0.5 * wide,
+                           (ba + bb_) * 0.5 + (ba - bb_) * 0.5 * wide, (ba + bb_) * 0.5 + (bb_ - ba) * 0.5 * wide)
+        (za, zb_, dt), (zc, zd, db) = top, bot
+        cs = [at(k, ta, dt, za), at(k, tb, dt, zb_), at(k, bb_, db, zd), at(k, ba, db, zc)]
+        plates.append((np.array(cs), [th_top, th_top, thick, thick], c, tl))
+
+    # The cap: one flat plate over the top, its rim lapping over the chamfer row's top.
+    cs = [c + fwd * p[0] + lat * p[1] + up * zTop for p in ring(cap)]
+    plates.append((np.array(cs), [0.6 * thick] * HELM_FACES, c - up * H, tile(0, 0)))
+    thin = 0.35 * thick
+    for k in range(HELM_FACES):
+        zl, zr = zmid(zbrow, k - 1, k), zmid(zbrow, k, k + 1)
+        wl, wr = zmid(zW, k - 1, k), zmid(zW, k, k + 1)
+        # the chamfer row (the cap's rim over its top), the wall (flaring to lap over the brow band), the brow band
+        face(k, ("cap", "crown"), (zTop - 0.05, zTop - 0.05, cap[k] - 0.15), (zC - lap, zC - lap, crown[k] + step), thin,
+             tile(1, k))
+        face(k, ("crown", "band"), (zC, zC, crown[k]), (wl - lap, wr - lap, band[k] + step), thin, tile(2, k))
+        face(k, ("band", "band"), (wl, wr, band[k]), (zl - lap, zr - lap, band[k] + step), thin, tile(3, k))
+    # The cheek guards: two lames down each side under the brow band, their lower edges flaring out.
+    g0, g1 = (g * H for g in shape["guard"])
+    for k in (2, HELM_FACES - 2):
+        zl, zr = zmid(zbrow, k - 1, k), zmid(zbrow, k, k + 1)
+        d0 = max(band[k], max(support(k, g0 - lap, zbrow[k]), support(mir[k], g0 - lap, zbrow[k])) + stand)
+        d1 = max(d0 + step, max(support(k, g1 - lap, g0 + lap), support(mir[k], g1 - lap, g0 + lap)) + stand)
+        f = shape["guard_flare"]
+        w = shape["guard_wide"]
+        face(k, ("band", "band"), (zl, zr, d0), (g0 - lap, g0 - lap, d0 + step + f * 0.5), thin, tile(4, k), w)
+        face(k, ("band", "band"), (g0, g0, d1), (g1, g1, d1 + step + f), thin, tile(4, k + 1), w)
+    return plates
+
+
 def facet_plates(kind, spec, ctx):
     """A faceted piece's plates [(corners, thickness at each, outward, tile)] and spikes [(base, way, height, width)]."""
     side = -1.0 if spec["bone"].endswith("_r") else 1.0
     stand, thick = kind["stand"], kind["thick"]
     plates, spikes = [], []
     for si, shape in enumerate(spec["shapes"]):
+        if shape["kind"] == "helm":
+            plates += helm_plates(ctx, spec, shape, kind)
+            continue
         s = surface(ctx, spec, shape, side)
         rows = shape["rows"]
         dome_ = shape["kind"] == "dome"
@@ -728,6 +878,7 @@ def facet_plates(kind, spec, ctx):
                 ridge = shape["ridge"] if k in shape["ridge_rows"] and abs(math.remainder(p, 2 * math.pi)) < 1e-6 else 0.0
                 rt.append(node_radius(s, ua, ub, True, p, near / 2) * chord + ridge)
                 rb.append(node_radius(s, ua, ub, False, p, near / 2) * chord + ridge)
+            row = []
             for j in range(ncol):
                 pa, pb = bnd[j], bnd[j + 1]
                 r_mean = 0.25 * (rt[j] + rt[j + 1] + rb[j] + rb[j + 1])
@@ -735,9 +886,28 @@ def facet_plates(kind, spec, ctx):
                 pa, pb = pa + g, pb - g
                 lapu = shape["lap"] / s.ulen(r_mean) * math.copysign(1.0, s.u1 - s.u0)
                 flare = shape["flare"] if k == 0 else 0.0
-                c = [s.at(ua, pa, rt[j] + lift + flare), s.at(ua, pb, rt[j + 1] + lift + flare),
+                ta = tb = ua
+                if k == 0 and shape.get("vneck") and not ring:
+                    # (a V-neck: the top edge lowered toward the middle line, room for the chin)
+                    depth, half = shape["vneck"][0], math.radians(shape["vneck"][1])
+                    down = math.copysign(1.0, s.u1 - s.u0) * depth / s.ulen(r_mean)
+                    ta = ua + down * max(0.0, 1.0 - abs(bnd[j] - shape["turn"]) / half)
+                    tb = ua + down * max(0.0, 1.0 - abs(bnd[j + 1] - shape["turn"]) / half)
+                c = [s.at(ta, pa, rt[j] + lift + flare), s.at(tb, pb, rt[j + 1] + lift + flare),
                      s.at(ub + lapu, pb, rb[j + 1] + lift + shape["step"]), s.at(ub + lapu, pa, rb[j] + lift + shape["step"])]
-                plates.append((np.array(c), [top_th, top_th, thick, thick], s.axis((ua + ub) * 0.5),
+                row.append(np.array(c))
+            fo = shape.get("flat_outer", 0.0)
+            if fo > 0.0 and not ring and ncol >= 3:
+                # (the outer columns' outer edge laid onto the line of the plate inside them, `fo` of the way: the
+                # outer plate's bend round the body's side shallower; its inner edge stays by its neighbour)
+                for j, nb, outer, shared, far in ((0, 1, (0, 3), (1, 2), (1, 2)), (ncol - 1, ncol - 2, (1, 2), (0, 3), (0, 3))):
+                    for o_, sh, fa in zip(outer, shared, far):
+                        e, q = row[j][sh], row[nb][fa]
+                        way = unit(e - q)
+                        target = e + way * float(np.linalg.norm(row[j][o_] - e))
+                        row[j][o_] = row[j][o_] + fo * (target - row[j][o_])
+            for j, c in enumerate(row):
+                plates.append((c, [top_th, top_th, thick, thick], s.axis((ua + ub) * 0.5),
                                tiles[(spec["slot"] + 3 * k + j) % len(tiles)]))
         if shape["spike"]:
             f, pdeg, h, w, way = shape["spike"]
@@ -950,6 +1120,7 @@ def main():
         "//   kind <monster model> <cuirass group: the slots' bits the roll's cuirass gives>",
         "//   piece <monster model> <slot 0-9> <its derived rig's bone> <the piece's model> <its middle in the rest pose: x y z>",
         "//         [a slot's part: its own armour.txt part (tail, shin, plate8_back), else its slot's]",
+        "//   anchors <t0> <t1>: the piece above fitted to its bone's vertices this far along the bone alone (0 pivot, 1 end)",
     ]
     for kind in KINDS:
         pos = load_mdl(os.path.join(progs, os.path.basename(kind["model"]))).pos
@@ -970,6 +1141,8 @@ def main():
             meshes.append((os.path.join(ROOT, "quakevr", path.replace("/", os.sep)), mesh, path))
             lines.append("piece %s %d %s %s %.2f %.2f %.2f%s" % (kind["model"], spec["slot"], spec["bone"], path, *centre,
                                                                  " " + spec["part"] if spec.get("part") else ""))
+            if spec.get("anchors"):
+                lines.append("anchors %.2f %.2f" % tuple(spec["anchors"]))
     guard = genguard.Guard("make_beastarmour.py", [m[0] for m in meshes] + [data])
     sk = skins()
     for full, mesh, path in meshes:
