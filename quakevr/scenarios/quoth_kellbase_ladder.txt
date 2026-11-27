@@ -4,6 +4,7 @@
 # ladderKeep); modladder_test.sh. Needs Quoth 2.2 installed and its campaign selected (Official Campaigns, or
 # vr_campaign_native quoth).
 title Quoth's kellbase1: the pillar ladder, hands on the bars
+campaign quoth
 map kellbase1
 start -40 -1346 281 270
 god
