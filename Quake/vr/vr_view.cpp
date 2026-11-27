@@ -629,7 +629,8 @@ int ammoPouchItems = 0;       // the rounds placed in it (setupAmmoPouchItems: e
     };
     return !among(entities.worldButton) && !among(entities.worldFrontButton) && !among(entities.worldMag) &&
            !among(entities.worldWell) && !among(entities.worldSsgFrame) && !among(entities.worldSsgBarrels) &&
-           !among(entities.ghost) && !among(entities.ghostHand) && !among(entities.enemyFlash);
+           !among(entities.ghost) && !among(entities.ghostHand) && !among(entities.enemyFlash) &&
+           !among(entities.worldAttach); // (holsterattach: a lying gun's attachment is not his: not faded nor mirrored)
 }
 
 // The copy of `ve` in the body's mirror image (vr_bodyclone.cpp), `mirror` the world to it: its place reflected and its
@@ -2763,6 +2764,9 @@ struct AttachSeen
     int kind{0};
     const qmodel_t* gun{nullptr};
     glm::vec3 at{0.f};
+    // (holsterattach) Units between its drawn mount and the gun's mount as the gun is drawn: on its open barrels' part,
+    // else on the gun (a lying super shotgun's turned down `deg` with its barrels); -1 none measured.
+    float gap{-1.f};
 };
 struct AttachSeenList
 {
@@ -2772,7 +2776,8 @@ struct AttachSeenList
 };
 AttachSeenList attachSeen;
 
-void noteAttachSeen(const char* where, int ent, int kind, const qvr::view::ViewEntity& out, const qvr::view::ViewEntity& gun)
+void noteAttachSeen(const char* where, int ent, int kind, const qvr::view::ViewEntity& out, const qvr::view::ViewEntity& gun,
+    const qvr::view::ViewEntity* barrels = nullptr, float deg = 0.f)
 {
     if(!out.visible)
     {
@@ -2785,8 +2790,18 @@ void noteAttachSeen(const char* where, int ent, int kind, const qvr::view::ViewE
     }
     if(attachSeen.count < static_cast<int>(sizeof(attachSeen.list) / sizeof(attachSeen.list[0])))
     {
-        attachSeen.list[attachSeen.count++] =
-            AttachSeen{where, ent, kind, gun.ent.model, glm::vec3{out.ent.origin[0], out.ent.origin[1], out.ent.origin[2]}};
+        AttachSeen& a = attachSeen.list[attachSeen.count++];
+        a = AttachSeen{where, ent, kind, gun.ent.model, glm::vec3{out.ent.origin[0], out.ent.origin[1], out.ent.origin[2]}};
+        const int slot = gun.ent.model ? qvr::weapons::slotForModel(gun.ent.model) : -1;
+        if(const qvr::attach::Mount m = qvr::attach::mount(slot, kind); m.fits)
+        {
+            glm::vec3 want = qvr::view::modelPoint(barrels && barrels->visible ? *barrels : gun, m.pos);
+            if(!barrels && deg > 0.f)
+            {
+                want = ssgTurnWorld(gun, want, deg);
+            }
+            a.gap = glm::distance(qvr::view::modelPoint(out, glm::vec3{0.f}), want);
+        }
     }
 }
 
@@ -2868,7 +2883,7 @@ void setupAttachments()
             d.mount = modelPoint(entities.attach[hand], glm::vec3{0.f});
             d.tip = modelPoint(entities.attach[hand], info->tip);
             noteAttachSeen(hand == HAND_MAIN ? "hand_main" : "hand_off", cl.viewentity, kind, entities.attach[hand],
-                entities.weapon[hand]);
+                entities.weapon[hand], ssgHands[hand].parts ? &entities.ssgBarrels[hand] : nullptr);
         }
         if(hand == HAND_MAIN && vr_attach_probe.value)
         {
@@ -2891,11 +2906,15 @@ void setupAttachments()
     }
     for(int h = 0; h < HolsterCount; h++)
     {
+        // (holsterattach: an open super shotgun's, carried down with its barrels as setupSsgParts drew them, just before)
         const int kind = attach::kindOfUid(holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONUID0));
-        (void)view::placeAttachment(entities.holsterAttach[h], entities.holster[h], kind, -1);
-        noteAttachSeen("holster", cl.viewentity, kind, entities.holsterAttach[h], entities.holster[h]);
-        (void)view::placeRail(entities.holsterRail[h], entities.holster[h], kind, -1);
-        noteAttachSeen("rail_holster", cl.viewentity, 0, entities.holsterRail[h], entities.holster[h]);
+        const bool open = ssgHolsters[h].parts && entities.holsterSsgBarrels[h].visible;
+        (void)view::placeAttachment(entities.holsterAttach[h], entities.holster[h], kind, -1, open ? ssgHolsters[h].angle : 0.f);
+        noteAttachSeen("holster", cl.viewentity, kind, entities.holsterAttach[h], entities.holster[h],
+            open ? &entities.holsterSsgBarrels[h] : nullptr);
+        (void)view::placeRail(entities.holsterRail[h], entities.holster[h], kind, -1, open ? ssgHolsters[h].angle : 0.f);
+        noteAttachSeen("rail_holster", cl.viewentity, 0, entities.holsterRail[h], entities.holster[h],
+            open ? &entities.holsterSsgBarrels[h] : nullptr);
     }
     setupWorldRails();
     for(int i = 0; i < maxWorldWeapons; i++)
@@ -2913,8 +2932,10 @@ void setupAttachments()
         gun.ent = *e;
         gun.visible = true;
         gun.netEntity = static_cast<int>(e - cl_entities);
-        (void)view::placeAttachment(entities.worldAttach[i], gun, kind, -1);
-        noteAttachSeen("lying", gun.netEntity, kind, entities.worldAttach[i], gun);
+        // (holsterattach: a super shotgun lying open, drawn so by setupWorldSsgs: carried down with its barrels)
+        const float open = net->ssgOpen && ssgBreaks() ? CLAMP(0.f, vr_reload_ssg_open_angle.value, 80.f) : 0.f;
+        (void)view::placeAttachment(entities.worldAttach[i], gun, kind, -1, open);
+        noteAttachSeen("lying", gun.netEntity, kind, entities.worldAttach[i], gun, nullptr, open);
     }
 }
 
@@ -3963,10 +3984,11 @@ glm::mat3 weaponTurnInHand(int slot)
 
 namespace
 {
-bool placeOnMount(ViewEntity& out, const ViewEntity& gun, int slot, const attach::Mount& m, qmodel_t* model, int ssgHand);
+bool placeOnMount(ViewEntity& out, const ViewEntity& gun, int slot, const attach::Mount& m, qmodel_t* model, int ssgHand,
+    float ssgOpen);
 } // namespace
 
-bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand)
+bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand, float ssgOpen)
 {
     out.visible = false;
     const attach::KindInfo* const k = attach::info(kind);
@@ -3977,10 +3999,10 @@ bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHa
     const int slot = weapons::slotForModel(gun.ent.model);
     const attach::Mount m = attach::mount(slot, kind);
     qmodel_t* const model = m.fits ? viewModel(k->model) : nullptr;
-    return model && placeOnMount(out, gun, slot, m, model, ssgHand);
+    return model && placeOnMount(out, gun, slot, m, model, ssgHand, ssgOpen);
 }
 
-bool placeRail(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand)
+bool placeRail(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand, float ssgOpen)
 {
     out.visible = false;
     attach::Mount m;
@@ -3990,13 +4012,14 @@ bool placeRail(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand)
         return false;
     }
     qmodel_t* const model = viewModel(attach::railModel);
-    return model && placeOnMount(out, gun, attach::railSlot(gun.ent.model), m, model, ssgHand);
+    return model && placeOnMount(out, gun, attach::railSlot(gun.ent.model), m, model, ssgHand, ssgOpen);
 }
 
 namespace
 {
 // An attachment's model (or the bayonet's mount, placeRail) placed on `gun` by the mount `m` (in the gun model's space).
-bool placeOnMount(ViewEntity& out, const ViewEntity& gun, int slot, const attach::Mount& m, qmodel_t* model, int ssgHand)
+bool placeOnMount(ViewEntity& out, const ViewEntity& gun, int slot, const attach::Mount& m, qmodel_t* model, int ssgHand,
+    float ssgOpen)
 {
     // Its axes as the gun's model is drawn (its place, turn, Scale, mirroring; a lying gun's networked scale).
     const ModelSpace space{gun};
@@ -4024,7 +4047,7 @@ bool placeOnMount(ViewEntity& out, const ViewEntity& gun, int slot, const attach
     glm::mat3 b{ax / size, glm::normalize(ay), glm::normalize(az)};
     glm::vec3 hinge;
     glm::mat3 turn;
-    if(ssgHand >= 0 && ssgBarrelsCarry(ssgHand, o, hinge, turn))
+    if(ssgHand >= 0 ? ssgBarrelsCarry(ssgHand, o, hinge, turn) : ssgCarry(gun, ssgOpen, o, hinge, turn))
     {
         o = hinge + turn * (o - hinge); // (under the barrels: it drops open with them)
         b = turn * b;
@@ -4091,18 +4114,22 @@ void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held
     else
     {
         p[GunParts::PumpBody].visible = p[GunParts::Pump].visible = false;
+        // As your own holsters' (setupSsgParts): an open super shotgun in its parts.
+        parts = ssgHolsterParts(gun, g.ssg, look.flags, look.clip, breaks, p[GunParts::SsgFrame], p[GunParts::SsgBarrels]);
     }
-    (void)placeAttachment(p[GunParts::Attach], gun, look.attach, -1); // (before the gun is hidden for its parts)
-    (void)placeRail(p[GunParts::Rail], gun, look.attach, -1);          // (bayomounts: the bayonet's mount, always)
+    // (before the gun is hidden for its parts; holsterattach: carried down with an open super shotgun's barrels)
+    (void)placeAttachment(p[GunParts::Attach], gun, look.attach, -1, g.ssg.parts ? g.ssg.angle : 0.f);
+    (void)placeRail(p[GunParts::Rail], gun, look.attach, -1, g.ssg.parts ? g.ssg.angle : 0.f); // (bayomounts: always)
     if(player > 0)
     {
-        noteAttachSeen(held ? "other_held" : "other_holster", player, look.attach, p[GunParts::Attach], gun);
-        noteAttachSeen(held ? "rail_other_held" : "rail_other_holster", player, 0, p[GunParts::Rail], gun);
+        noteAttachSeen(held ? "other_held" : "other_holster", player, look.attach, p[GunParts::Attach], gun,
+            g.ssg.parts ? &p[GunParts::SsgBarrels] : nullptr);
+        noteAttachSeen(held ? "rail_other_held" : "rail_other_holster", player, 0, p[GunParts::Rail], gun,
+            g.ssg.parts ? &p[GunParts::SsgBarrels] : nullptr);
     }
     if(!held)
     {
-        // As your own holsters' (setupSsgParts, setupMagazines): no revolver in parts, no magazine sliding.
-        parts = ssgHolsterParts(gun, g.ssg, look.flags, look.clip, breaks, p[GunParts::SsgFrame], p[GunParts::SsgBarrels]);
+        // As your own holsters' (setupMagazines): no revolver in parts, no magazine sliding.
         setMagazine(p[GunParts::MagIn], gun, look.has(VrGunLook::magsShownBit) && !(look.flags & weaponFlagNoMag), false,
             look.clip);
         setMagazine(p[GunParts::Well], gun, look.has(VrGunLook::magsShownBit), true);
@@ -4323,11 +4350,15 @@ bool ssgBarrelsDrawn(int hand, const glm::vec3& p, glm::vec3& out)
 bool ssgBarrelsCarry(int hand, const glm::vec3& on, glm::vec3& hinge, glm::mat3& turn)
 {
     const float deg = ssgOpenAngle(hand);
-    if(deg <= 0.f)
+    return deg > 0.f && ssgCarry(entities.weapon[hand], deg, on, hinge, turn);
+}
+
+bool ssgCarry(const ViewEntity& gun, float deg, const glm::vec3& on, glm::vec3& hinge, glm::mat3& turn)
+{
+    if(deg <= 0.f || !gun.ent.model || !modelmeta::is(gun.ent.model, modelmeta::Id::VShot2))
     {
         return false;
     }
-    const view::ViewEntity& gun = entities.weapon[hand];
     if(ssgTurnWorld(gun, on, deg) == on) // (behind the hinge: the frame's, left where it is)
     {
         return false;
@@ -6459,11 +6490,11 @@ extern "C" void VR_SetupViewEntities()
     {
         QVR_PROFILE("view weapon parts");
         setupMagazines();
+        setupSsgParts(); // (before the attachments: a holstered open super shotgun's carry its barrels' bayonet down)
         setupAttachments();
         setupPumps();
         adcrossbow::frame(entities.weapon, entities.adBolt); // AD support: the crossbow's string and bolt
         adweapons::spinFrame(entities.weapon); // AD support: the Widowmaker's barrels turning
-        setupSsgParts();
         setupRevolverParts();
         setupWorldSsgs();
         patchModelFlags();
@@ -6543,8 +6574,9 @@ void qvr::view::printDrawnAttachments()
     for(int i = 0; i < n; i++)
     {
         const AttachSeen& a = attachSeen.list[i];
-        Con_Printf("attach_drawn: where=%s ent=%d kind=%d gun=%s at=%.1f %.1f %.1f\n", a.where, a.ent, a.kind,
-            a.gun ? a.gun->name : "-", a.at.x, a.at.y, a.at.z);
+        // (holsterattach: gap, its mount's distance from the gun's as drawn: AttachSeen::gap)
+        Con_Printf("attach_drawn: where=%s ent=%d kind=%d gun=%s at=%.1f %.1f %.1f gap=%.2f\n", a.where, a.ent, a.kind,
+            a.gun ? a.gun->name : "-", a.at.x, a.at.y, a.at.z, a.gap);
     }
     Con_Printf("attach_report: %d drawn\n", n);
 }

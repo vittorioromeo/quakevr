@@ -887,6 +887,14 @@ void VR_Menu_Key (int key, int repeat);				// M_Keydown, m_vr (repeat: the key's
 void VR_Menu_Mousemove (float cx, float cy);			// M_Mousemove, m_vr
 void VR_Menu_Char (int key);							// M_Charinput, m_vr: a typed character (the Search page's box)
 int VR_Menu_TextEntry (void);							// M_TextEntry, m_vr: a textmode_t (the Search page takes typing)
+// The Controller Bindings screen (vr_bindsetup.cpp, m_bindsetup). VR_BindSetup_Open: Options > Controller Bindings, the
+// VR menu's Controls, the main menu's Setup Bindings for a controller (the keyboard: Options > Controls).
+void VR_BindSetup_Open (void);
+void VR_BindSetup_Draw (void);
+void VR_BindSetup_Key (int key);
+void VR_BindSetup_Char (int key);
+int VR_BindSetup_TextEntry (void);						// the action list is open: typing searches it
+int IN_GetGamepadSdlType (void);						// in_sdl.c: SDL's type of the gamepad in use (-1: none)
 // The VR menu style's widgets (vr_menuui.cpp): nonzero if they drew it in place of Quake's.
 int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc); // M_DrawSliderWithMarkers (marker < 0: none)
 void VR_MenuPanelInFront (void);						// the death menu opening: the menu panel in front of the head (not where a hand left it)

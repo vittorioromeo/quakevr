@@ -31,9 +31,6 @@ namespace qvr::serverrules
 // A server rule while playing by a remote server's rules: shown as the server's, not changed from here.
 [[nodiscard]] bool locked(const cvar_s* var);
 
-// The value that governs `var` here (its cvar's: a remote server's while joined to one).
-[[nodiscard]] float shown(const cvar_s* var);
-
 // The player's own value of `var` (a rule's kept one while a remote server's govern; else its cvar's).
 [[nodiscard]] float own(const cvar_s* var);
 

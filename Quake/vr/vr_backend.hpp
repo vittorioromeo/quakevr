@@ -358,6 +358,13 @@ public:
         return "";
     }
 
+    // The interaction profile the runtime plays a hand's controller as (side 0 left, 1 right; OpenXR's full path,
+    // "/interaction_profiles/oculus/touch_controller"; "" if none yet): the Controller Bindings screen's picture.
+    [[nodiscard]] virtual const char* controllerProfile(int /*side*/) const
+    {
+        return "";
+    }
+
     // The eye tracking found at VR start (the foveation's centre, the menu's line: foveated::gazeStatus).
     [[nodiscard]] virtual EyeTracking eyeTracking() const
     {

@@ -65,5 +65,9 @@ while read -r ok what; do check "$ok" "$what"; done < <(python "$(dirname "$0")/
 # bayonetfix: the HUD on a stuck gun, the bayonet taken off drawn in the hand (Misc/quakevr/attach_probe_check.py).
 while read -r ok what; do check "$ok" "$what"; done < <(python "$(dirname "$0")/attach_probe_check.py" vr - <<< "$vr")
 while read -r ok what; do check "$ok" "$what"; done < <(python "$(dirname "$0")/attach_probe_check.py" flat - <<< "$flat")
+# holsterattach: the holstered guns' bayonets drawn at their mounts (flat, its fly camera, VR; an open super shotgun's).
+hol=$(bash "$(dirname "$0")/attach_holster_test.sh" $AGENT)
+echo "$hol"
+expect_verdict "$hol" attach_holster "the holstered guns' bayonets drawn at their mounts"
 verdict
 exit $fail

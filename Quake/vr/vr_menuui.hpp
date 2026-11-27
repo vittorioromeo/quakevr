@@ -75,6 +75,8 @@ void openMenu(int state);
 [[nodiscard]] bool active();
 // The first of those: the headset's (the laser, the hands, the panel in the world).
 [[nodiscard]] bool inHeadset();
+// The main menu's bindings panel as last drawn (wheelui; vr_bindpanel_report): its room, its letters, its button.
+void bindPanelReport();
 // The second: the flat screen's panel.
 [[nodiscard]] bool flatPanel();
 

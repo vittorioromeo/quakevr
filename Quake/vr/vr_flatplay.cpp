@@ -27,6 +27,7 @@
 // so the flag is what asks for no backend at all, and noteBackendImplied says so once.
 
 #include "vr_flatplay.hpp"
+#include "vr_bindpanel.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_tracy.h"
 
@@ -4087,6 +4088,7 @@ void init()
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
     flatattach::init(); // vr_flatattach_report (vr_flatattach.cpp)
     flatholster::init(); // +flatholsters, vr_flat_holster_menu_dump, vr_flatholster_test (vr_flatholster.cpp)
+    bindpanel::init();   // vr_bindpanel_report, vr_bindpanel_setup (vr_bindpanel.cpp: wheelui)
     flatfgrab::init();  // vr_flat_fg_report, vr_flat_fg_press (vr_flatfgrab.cpp)
     flatgrenade::init(); // vr_flatgrenade_report (vr_flatgrenade.cpp)
     flatswap::init(); // vr_flatswap_report (vr_flatswap.cpp)
