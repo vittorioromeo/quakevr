@@ -702,6 +702,19 @@ int VR_BroadcastSendable (int before, int room);		// SV_SendClientDatagram: how 
 void VR_NoteClientSight (const edict_t *clent, const byte *pvs, const float *eye);	// SV_WriteEntitiesToClient: his fat PVS and eye, for his broadcast's culling (B13b)
 void VR_WriteBroadcast (struct sizebuf_s *msg, int local, const edict_t *clent);	// SV_SendClientDatagram: the broadcast, a remote client's culled by his sight (vr_net_cullbroadcast)
 void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable_datagram goes to the clients
+// (mpoverflow) A client's reliable stream backed up (no acknowledgement from him for a while: a Quest paused or loading a
+// map, a Wi-Fi stall) past half its 64000 B goes on to a backlog of whole frames' messages, sent on in parts of at most
+// MAX_MSGLEN as he acknowledges (it overflowed: SZ_GetSpace, the client dropped). vr_server.cpp.
+int VR_ReliableBacklog (struct client_s *client, int maysend); // SV_SendClientMessages, each client at the frame's end: 1 handled (its send done here, or held), 0 the engine's own path
+void VR_ReliableOverflowed (struct client_s *client);	// SV_SendClientMessages: his stream overflowed: why printed, and told to him, before he is dropped
+int VR_ReliableBacklogBytes (int slot);					// bytes waiting in that client's backlog
+void VR_ForwardToServer (const char *text);				// Cmd_ForwardToServer: a typed command onto cls.message, or held for a later frame when it is full (vr_client.cpp)
+void VR_FlushHeldCommands (void);						// CL_SendCmd, before the reliable message goes: held commands that now fit
+void VR_ClientReliableStats (void);						// vr_net_stats: the client's own reliable stream (its peak, the commands held)
+// (mpoverflow) CL_SendMove's buffer: a VR player's whole move (no base acknowledged: after a stall) with its repeats
+// outgrew its 1024 B. The moves keep to about 1 KB by cutting their older repeats (netmove::writeMoves), a lone whole
+// move may take more, up to this; the voice frames after them still keep to 1024 B.
+#define QVR_MOVE_BUFFER	4096
 
 // Server physics (sv_phys.c, sv_user.c, world.c).
 int VR_RunThink2 (struct edict_s *ent);				// start of SV_RunThink: 0 if the entity was freed
