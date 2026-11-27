@@ -2326,6 +2326,39 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
     the gun on, or the arm's gap grows to 100 cm with a big margin); the shove check also passed with push 1 (the frame
     the test reads it in may miss it): VR is the real check. Open: a "drawn hand" point the tests can put the mock on.
 
+- **daggerattach (2026-11-27)**: his words: "making the dagger attachable to guns like a bayonet ... Gate it under an
+  option, on by default for testing."
+  - **Option**: `vr_attach_daggers` (1, rule; Weapon Offsets > Attachments, "Daggers as Bayonets", under a new Dagger header
+    with Dagger Fits / Forward / Left / Up / Pitch / Yaw / Roll / Scale and "Preview: Bayonet or Dagger", which attachment
+    the page draws on the held gun). Off: no dagger goes on; one already on still comes off.
+  - **Kind 2** (`attach::Dagger`, QC `VR_ATT_DAGGER`): `progs/v_dagger.mdl`, its tip and blade root its weapons.txt muzzle_av
+    and wpnbtn_av (slot 51); mounts `att2_*` (new weapon keys) on the shotgun (26.56 0 -4.6, pitch -76.46, roll 180, scale
+    2.2727) and the super shotgun (20.19 0 -3.22, same turn, 2.0833): the blade along under the barrel, edge down, its root
+    where the bayonet's is, the guard's top just under the barrel (scratch/dg_mount.py measured it from the model's
+    vertices). The handle runs back under the barrel past the shotgun's pump (not checked against the pump's travel).
+  - **Its size**: a weapon model as an attachment is drawn with its own transform (its Scale 0.34 and the models' world size
+    k): `view::placeAttachment` takes k out (the gun's is in its size), `attach::Mount::own` (its Scale) counts in `onGun`
+    (server points, the stick's blade, the lying gun's hull), so the mount's scale is 1 / the gun's Scale as the bayonet's.
+    Before it the drawn dagger was 0.34x and its tip 7.7 units off the server's.
+  - **On / off**: QC `VR_Attach_HeldDagger` (a dagger by its handle, the option on). VR (`VR_Attach_Frame`): the held
+    dagger's tip (its hand's muzzle) within `vr_attach_snap_radius` of where the mounted one's tip would be (attachinfo
+    what 2) and its grip-to-tip within `vr_attach_snap_angle` of the mounted way: on. Flat: J (`VR_Attach_Key`).
+    `VR_Attach_PutDagger`: the dagger's record onto the gun's `.wi_attach_inst` (new field; the engine's record sweep counts
+    it, vr_server.cpp), the hand emptied. Off (`VR_Attach_TakeOff`): the pull (the empty hand gripping by its handle, the
+    mount being its origin by the grip, B/Y) or J with the hand empty: WID_SWORD + the dagger's flags + that record (a
+    fresh one if none: across a level change, parm77 keeps the kind only); a pulled one is fresh (the player's
+    `.vr_att_fresh` hand bits) until its tip is 2x the radius away.
+  - **As the bayonet**: `VR_Attach_Strikes` (melee kind, blade line from attachinfo what 3, its blade root), `VR_Attach_Embed`
+    / `EmbedFire` by the kind's `attN_ok`, engine `attach::strikes` (flat V's thrust), vr_axestick.cpp `pointLength`: new
+    tunable `vr_embed_attdagger_depth` (1; Stab group, "Dagger Bayonet Depth"). Holsters, drops, throws, saves, MP (the
+    kind byte by weapon id) are the record's already.
+  - **Tests**: attach_test.sh: 84 VR (79 with the dagger) 27/0, 85 flat (80 with the dagger; first the option off: J puts
+    nothing on) 18/0, 81/82 now also carry a shotgun with a dagger in the off hand and take it off after (the same record
+    after a save). Test-only: the dropped gun with a dagger lies on its side (propped by the guard) out of the mock arm's
+    reach: the player steps up to it before the pick-up. Menu test: + a dagger fits shot/SSG, not the nailgun.
+  - Open: the MP test (mp_test.py attach) not run with a dagger; the dagger on a gun not seen in a headset (the pump, the
+    look of the guard); a reversed (blade-down) dagger doesn't snap in VR (its tip points back); J takes any.
+
 ## flatthrow3: flat throw's release carries the thing on before it leaves; an ogre's grenade caught only with a timed H (branch agent/flatthrow3, 2026-11-26)
 
 His flat feedback 2026-11-26 (late), items 5 and 9.

@@ -1178,7 +1178,7 @@ const WeaponOffsetsPartPage weaponOffsetsPartPages[] = {
     {pageWofsEffects, "Effects", "Recoil, a muzzle flash and tracers, for a model without its own; a test."},
     {pageWofsFlashlight, "Flashlight", "Where the flashlight sits clipped on this weapon and how it is turned, on top of "
         "every weapon's place (Flashlight > On a Gun or Head), with a preview."},
-    {pageWofsAttachments, "Attachments", "Which attachments fit this weapon (the bayonet) and where each sits on it: its "
+    {pageWofsAttachments, "Attachments", "Which attachments fit this weapon (the bayonet, the dagger) and where each sits on it: its "
         "mount, shown on the weapon while you tune it."},
 };
 static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0]) == WofsParts - 1);
@@ -5450,6 +5450,9 @@ void attachMenuTest()
     check(attach::mount(shot, attach::Bayonet).fits && attach::mount(ssg, attach::Bayonet).fits &&
               !attach::mount(nail, attach::Bayonet).fits,
         "a bayonet fits the shotgun and the super shotgun, not the nailgun (att1_ok)");
+    check(attach::mount(shot, attach::Dagger).fits && attach::mount(ssg, attach::Dagger).fits &&
+              !attach::mount(nail, attach::Dagger).fits && attach::strikes(attach::Dagger),
+        "a dagger fits the shotgun and the super shotgun as a bayonet, not the nailgun (att2_ok; daggerattach)");
     cvar_t* const x = weapons::cvar(shot, Key::Att1X);
     Cvar_SetQuick(x, x->default_string);
     const float levelWas = vr_menu_level.value;
