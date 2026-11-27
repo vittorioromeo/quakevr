@@ -4570,6 +4570,8 @@ QVR_CVAR(vr_anim_smooth_rig, "1", CVAR_ARCHIVE)      // ... and a rigged monster
 QVR_CVAR(vr_anim_smooth_rebuild, "1", CVAR_ARCHIVE)  // a rigged monster drawn from its fitted skeleton every frame (vr_animsmooth.cpp): each vertex its rest place on its bone moved with it, the frames' rounding gone (any Model Animation); a vertex its bone fits worse keeps the frames' place
 QVR_CVAR(vr_monster_lerp_continue, "1", CVAR_ARCHIVE | QVR_RULE) // a monster's next step drawn on from where it is drawn, not from its last step's end (no snap: the dogs' turns)
 QVR_CVAR(vr_debug_drawn_moves, "", CVAR_NONE)       // a part of model names (progs/dog): those monsters drawn jumping between frames logged ("drawnmove:")
+QVR_CVAR(vr_drawnlerp_log, "0", CVAR_NONE)           // 1: vr_drawnlerp_watch prints every frame of its monster ("drawnlerp frame:": the drawn lerp against the hit model's)
+QVR_CVAR(vr_drawnlerp_result, "-1", CVAR_NONE)       // vr_drawnlerp_watch's last watch: 1 smooth and in step with the hit model (the armour), 0 not, -1 too few frames (read by vr_agarmor_test 21)
 QVR_CVAR(vr_debug_lift, "0", CVAR_NONE)              // 1: the player and monsters riding a moving lift: how far their boxes, drawn models and the drawn eye sink into it, each ride's worst logged as it stops ("liftdebug:"; a local game)
 QVR_CVAR(vr_debug_lift_player, "-999", CVAR_NONE)    // (read-only, for tests) the last ride's worst sink of the player (box or drawn feet), -999 none measured
 QVR_CVAR(vr_debug_lift_eye, "-999", CVAR_NONE)       // ... and of his drawn eye (under its height over his feet standing still)

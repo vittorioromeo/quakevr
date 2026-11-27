@@ -1133,6 +1133,12 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     data.noMag = (bits & U_QVR_NOMAG) != 0;
     data.ssgOpen = (bits & U_QVR_SSGOPEN) != 0;
     data.ssgLoaded = data.ssgOpen ? MSG_ReadByte() : 0;
+    // A stepping monster in the air: its move drawn over the time between messages (R_SetupEntityTransform).
+    if(num > 0 && num < cl_max_edicts)
+    {
+        entity_t& e = cl_entities[num];
+        e.lerpflags = static_cast<byte>((bits & U_QVR_MOVEFRAME) ? (e.lerpflags | LERP_MOVEFRAME) : (e.lerpflags & ~LERP_MOVEFRAME));
+    }
 }
 
 extern "C" int VR_SuppressModelRotate(int num)

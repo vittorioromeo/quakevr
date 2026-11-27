@@ -203,6 +203,9 @@ struct Verts
 const Mesh* meshOf(int index, const qmodel_t* model, const aliashdr_t*& hdr);
 // `asDrawn` false: an armed humanoid's animation frame, not its body as drawn (drawnpose::armedMesh; vertexPoint's).
 bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn = true);
+// d (drawnOf's) with the client's drawn lerp laid on in place of its own (poses, blend, place, turn; a skinned body
+// kept): false for poses past its model's.
+bool relerp(Drawn& d, const DrawnLerp& lerp);
 // The body part (a VR_REGION_*) of the triangle with `model`'s .mdl vertices a, b, c: its rig's bones'
 // (ragdoll::triangleRegion); VR_REGION_NONE with no rig that fits (`numverts`) or no part it holds most of.
 [[nodiscard]] int cornersRegion(const qmodel_t* model, int numverts, int a, int b, int c);

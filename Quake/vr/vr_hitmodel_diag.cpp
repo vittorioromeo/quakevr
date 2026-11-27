@@ -318,8 +318,102 @@ void bench_f()
     PR_PopQCVM(oldvm);
 }
 
+// vr_drawnlerp_watch <classname | 0 [label]>: a monster's drawn body, frame by frame (the test: vr_agarmor_test 21;
+// ROUND26.md, "doglerp"). Each drawn frame, the renderer's lerp of the newest edict of that classname (R_AliasTransform:
+// its poses, blend, origin, angles: VR_DrawnLerpSample) is laid on its model (relerp), against two others: the lerp the
+// beasts' armour is placed from (clientLerp, read before the draw: they must be the same) and the hit model's own
+// (drawnOf: what shots meet). Measured: how far the drawn vertices moved since the last frame (a frame drawn still while
+// the hit model moved: a stall; a step over 3 times both its neighbours': a jump), the armour's lerp's distance from the
+// drawn body (its offset: none) and the hit model's (its spread over the watch: the drift). `0` ends the watch and
+// prints it ("drawnlerp: ..."); vr_drawnlerp_result is then 1 (smooth and in step), 0 (not) or -1 (too few frames).
+namespace
+{
+
+struct LerpWatch
+{
+    int num{0};
+    double lastTime{-1.0};
+    za::Vector<glm::vec3> mesh, hit;                  // the last frame's vertices: drawn, the hit model's
+    za::Vector<float> meshSteps, hitSteps, offsets; // per frame: mean vertex step (drawn, hit model), mean drawn-hit gap
+    float armour{0.f};                              // the armour's lerp's largest mean distance from the drawn body
+};
+LerpWatch lerpWatch;
+
+constexpr float lerpJumpRatio = 3.f;    // a step over this times both its neighbours' (and lerpJumpSlack more): a jump
+constexpr float lerpJumpSlack = 0.25f;  // units
+constexpr float lerpStallHit = 0.2f;    // units: the hit model moved this much in the frame ...
+constexpr float lerpStallMesh = 0.02f;  // ... and the drawn body under this: a stall
+constexpr float lerpArmourMost = 0.05f; // units: the armour's lerp off the drawn body
+constexpr float lerpDriftMost = 2.5f;   // units: the drawn-hit gap's spread over the watch (the client's clock is a
+                                        // fraction of a frame behind the server's: a lerp begun out of turn differs)
+constexpr int lerpLeastFrames = 8;
+
+void drawnLerpWatch_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_drawnlerp_watch <classname> | 0 [label]\n");
+        return;
+    }
+    LerpWatch& w = lerpWatch;
+    if(ZA_STRCMP(Cmd_Argv(1), "0") != 0)
+    {
+        w = LerpWatch{};
+        if(!sv.active)
+        {
+            return;
+        }
+        const progs::ServerVm vm;
+        for(int num = qcvm->num_edicts - 1; num > 0 && w.num == 0; num--)
+        {
+            edict_t* ent = EDICT_NUM(num);
+            if(!ent->free && !ZA_STRCMP(PR_GetString(ent->v.classname), Cmd_Argv(1)))
+            {
+                w.num = num;
+            }
+        }
+        Cvar_Set("vr_drawnlerp_result", "-1");
+        return;
+    }
+    const char* label = Cmd_Argc() > 2 ? Cmd_Argv(2) : "watch";
+    const za::SizeT n = w.meshSteps.size();
+    int stalls = 0, jumps = 0;
+    float most = 0.f, lo = 1e30f, hi = -1e30f;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        const float s = w.meshSteps[i];
+        stalls += w.hitSteps[i] > lerpStallHit && s < lerpStallMesh ? 1 : 0;
+        const float before = i > 0 ? w.meshSteps[i - 1] : s;
+        const float after = i + 1 < n ? w.meshSteps[i + 1] : s;
+        jumps += i > 0 && i + 1 < n && s > lerpJumpRatio * za::max(before, after) + lerpJumpSlack ? 1 : 0;
+        most = za::max(most, s);
+        lo = za::min(lo, w.offsets[i]);
+        hi = za::max(hi, w.offsets[i]);
+    }
+    za::Vector<float> sorted = w.meshSteps;
+    float median = 0.f;
+    if(n > 0)
+    {
+        za::nthElement(sorted.begin(), sorted.begin() + n / 2, sorted.end());
+        median = sorted[n / 2];
+    }
+    const float drift = n > 0 ? hi - lo : 0.f;
+    const int result = static_cast<int>(n) < lerpLeastFrames ? -1
+                       : (stalls == 0 && jumps == 0 && w.armour < lerpArmourMost && drift < lerpDriftMost) ? 1 : 0;
+    Con_Printf("drawnlerp: %s: %d frames, drawn step median %.2f, largest %.2f (%.1fx); stalls %d, jumps %d; armour off the "
+               "body %.3f; drawn to hit model %.2f .. %.2f units (drift %.2f): %s\n", label, static_cast<int>(n),
+        static_cast<double>(median), static_cast<double>(most), static_cast<double>(median > 1e-4f ? most / median : 0.f), stalls,
+        jumps, static_cast<double>(w.armour), static_cast<double>(n ? lo : 0.f), static_cast<double>(n ? hi : 0.f),
+        static_cast<double>(drift), result == 1 ? "smooth" : result == 0 ? "NOT SMOOTH" : "too few frames");
+    Cvar_Set("vr_drawnlerp_result", va("%d", result));
+    w = LerpWatch{};
+}
+
+} // namespace
+
 void registerDiagCommands()
 {
+    Cmd_AddCommand("vr_drawnlerp_watch", drawnLerpWatch_f);
     Cmd_AddCommand("vr_hitmodel_bench", bench_f);
     Cmd_AddCommand("vr_hitmodel_stats", stats_f);
     Cmd_AddCommand("vr_hitmodel_check", check_f);
@@ -327,3 +421,69 @@ void registerDiagCommands()
 }
 
 } // namespace qvr::hitmodel
+
+// R_AliasTransform: entity `e` drawn with this lerp (vr_drawnlerp_watch's frame: once a client time, the first draw).
+extern "C" void VR_DrawnLerpSample(const entity_t* e, int pose1, int pose2, float blend, const float* origin, const float* angles)
+{
+    using namespace qvr::hitmodel;
+    using namespace qvr::hitmodel::detail;
+    LerpWatch& w = lerpWatch;
+    if(w.num <= 0 || w.num >= cl_max_edicts || e != &cl_entities[w.num] || cl.time == w.lastTime || !sv.active)
+    {
+        return;
+    }
+    const qvr::progs::ServerVm serverVm;
+    edict_t* ent = w.num < qcvm->num_edicts ? EDICT_NUM(w.num) : nullptr;
+    Drawn d;
+    if(!ent || ent->free || !drawnOf(ent, d) || d.skinned)
+    {
+        return; // (a ragdoll: not the frames' lerp)
+    }
+    // The drawn lerp, and the armour's (read again as the armour read it before the draw), laid on the model.
+    DrawnLerp drawn;
+    drawn.pose1 = pose1;
+    drawn.pose2 = pose2;
+    drawn.blend = blend;
+    drawn.origin = glm::vec3{origin[0], origin[1], origin[2]};
+    drawn.angles = glm::vec3{angles[0], angles[1], angles[2]};
+    DrawnLerp armour;
+    Drawn m = d, a = d;
+    if(!relerp(m, drawn) || !clientLerp(const_cast<entity_t*>(e), armour) || !relerp(a, armour))
+    {
+        return;
+    }
+    const Verts vm = vertsOf(m), vh = vertsOf(d), va = vertsOf(a);
+    const int nv = d.mesh->numverts;
+    const bool steps = w.lastTime >= 0.0 && static_cast<int>(w.mesh.size()) == nv && cl.time - w.lastTime < 0.1;
+    w.mesh.resize(static_cast<za::SizeT>(nv));
+    w.hit.resize(static_cast<za::SizeT>(nv));
+    double meshStep = 0., hitStep = 0., gap = 0., armourGap = 0.;
+    for(int i = 0; i < nv; i++)
+    {
+        const glm::vec3 pm = vm.at(m, i, 0.f), ph = vh.at(d, i, 0.f);
+        armourGap += glm::length(va.at(a, i, 0.f) - pm);
+        glm::vec3& lm = w.mesh[static_cast<za::SizeT>(i)];
+        glm::vec3& lh = w.hit[static_cast<za::SizeT>(i)];
+        meshStep += glm::length(pm - lm);
+        hitStep += glm::length(ph - lh);
+        gap += glm::length(pm - ph);
+        lm = pm;
+        lh = ph;
+    }
+    if(steps)
+    {
+        w.meshSteps.pushBack(static_cast<float>(meshStep / nv));
+        w.hitSteps.pushBack(static_cast<float>(hitStep / nv));
+        w.offsets.pushBack(static_cast<float>(gap / nv));
+        w.armour = za::max(w.armour, static_cast<float>(armourGap / nv));
+        if(qvr::vr_drawnlerp_log.value != 0.f)
+        {
+            Con_Printf("drawnlerp frame: cl %.4f sv %.4f poses %d-%d %.3f, hit %d-%d %.3f; origin %.2f %.2f %.2f, hit %.2f %.2f %.2f; "
+                       "step %.2f, hit %.2f, gap %.2f\n", cl.time, qcvm->time, pose1, pose2, static_cast<double>(blend), d.pose1,
+                d.pose2, static_cast<double>(d.blend), static_cast<double>(origin[0]), static_cast<double>(origin[1]),
+                static_cast<double>(origin[2]), static_cast<double>(d.origin.x), static_cast<double>(d.origin.y),
+                static_cast<double>(d.origin.z), meshStep / nv, hitStep / nv, gap / nv);
+        }
+    }
+    w.lastTime = cl.time;
+}

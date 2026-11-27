@@ -535,6 +535,7 @@ float R_MoveLerpBlend (const entity_t *e);
 void R_MoveLerpStart (const entity_t *e, vec3_t origin, vec3_t angles); // QVR: where a move begun this frame starts from (where the last one is drawn)
 int VR_MoveLerpContinuous (void); // QVR: vr_monster_lerp_continue (vr_stealth.cpp) // QVR: how far along its move from previousorigin to currentorigin a stepping entity is drawn now
 float R_FrameLerpFinish (const entity_t *e); // QVR: when its frame lerp (from lerpstart) ends, with LERP_FINISH
+void VR_DrawnLerpSample (const entity_t *e, int pose1, int pose2, float blend, const float *origin, const float *angles); // QVR: vr_drawnlerp_watch's frame (vr_hitmodel_diag.cpp)
 
 void R_InitParticles (void);
 void R_DrawParticles (qboolean alpha);
