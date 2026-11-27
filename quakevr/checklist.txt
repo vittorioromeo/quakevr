@@ -51,6 +51,8 @@ Look at the armoured scrags: the helmet sits on top of his head (his face uncove
 Look at the armoured fiends: the left pauldron and bracer are now the mirror image of the right ones (same size, not stretched). {test:armour_beasts}
 In the Armour Studio, pick the scrag: its tail is its own part ("Tail", and "Tail's Leather Junctions"), tweaked apart from its lower body (Plate 8); pick the ogre: his shins with their knee cops are the "Shins" part, by side. {test:beaststudio}
 Armour Studio (flat): drag with the right mouse button on the view; the subject turns (across: Turn, down: Pitch), the handle follows, Put Back resets {test:vr_armourstudio_gizmo_test}
+Flat-screen or VR: toolgun Spawn > Monsters: pick a Rottweiler, Ogre, Scrag or Fiend and set the new Armour and Pieces row under the tiles (it is dimmed for other monsters); each one spawned wears what you chose: None bare, Red Full every piece, Green Core the cuirass and helmet, Random a mix, By Skill its own roll as on a map. {test:toolgun_beasts}
+Flat-screen or VR: the Monsters tab's tiles are a little shorter now to make room for that row: check the pictures and two-line names (Death Knight, Armed Humanoid) still read cleanly. {test:toolgun_beasts}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

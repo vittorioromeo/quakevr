@@ -3549,6 +3549,32 @@ His words 2026-11-27: an interactive 3D position/scale/rotation gizmo in the arm
   piece's frame (`beastarmour::partFrame`, its size k?) wants a look. In the kit's 960x540 runs the window covers the middle
   of the screen: Look at the Part turns the view so the part is a quarter across.
 
+## toolbeast: the toolgun's Monsters page dresses beasts in armour (branch agent/toolbeast, 2026-11-27)
+
+His ask (2026-11-27): "Yes, add the armour options to the Monsters page" (armoured dogs, scrags, fiends, ogres came only
+from the skill's roll; the Armour/Pieces choices were only on the Armed Humanoid page).
+
+- **Panel** (`vr_toolgun_panel.cpp` spawnPage; VR and flat share it): Spawn > Monsters' grid has an **Armour** / **Pieces**
+  row under its tiles (the tiles 46 tall there instead of 52, their pictures 30 instead of 36: `tilePicture`). Armour:
+  None / Green / Yellow / Red / Random / **By Skill**; Pieces: Core (the beast's cuirass group and its helmet slot) / Full
+  (every slot of its kind) / Random (the core and about half the rest). The row is lit only while the spawn tool's choice
+  is a beast kind's (`toolgun::beastChosen`: `beastarmour::kindNamed(sel.model)`, so any kind beastarmour.txt lists),
+  Pieces only for Green..Random.
+- **Cvars**: `vr_toolgun_beast_armor` (default **5, By Skill**: today's behaviour, its own roll as on a map) and
+  `vr_toolgun_beast_pieces` (default 1, Full). Separate from the Armed Humanoid page's (`vr_toolgun_armed_*`, default None):
+  the defaults differ, and a beast's armour choice should not change what the humanoid page makes.
+- **Spawn** (`vr_toolgun_pick.inc` spawnChoice): with 0..4 chosen, the beast's own skill roll is held while it spawns (QC
+  `vr_ar_hold_roll`, as the arena holds a wave foe's; bound as `progs::bindings().arHoldRoll`), then the same
+  `VR_AgArmor_Toolgun` as the humanoid page's (`toolArmour`, shared) gives it: `VR_AgArmor_Give` already keeps a beast's
+  slots and widens its cuirass to its group. `VR_AgArmor_Toolgun` now precaches a beast's pieces (`VR_BeastArmour_Precache`,
+  which the held roll would have done). By Skill: no hold, no override. The scenes' spawns (`spawnEntryAt`) are unchanged.
+- **Tests**: `vr_toolgun_armed_armor_test` (map vrtesthall) now also does the beasts (`beastArmourTest`): rottweiler, ogre,
+  scrag, fiend, each By Skill (skill chances at 1: rolled, armoured), None (bare, roll held), Red Full (every slot), Green
+  Core (cuirass group + helmet), Random x4 (subset, core kept), roll held (`vr_ar_beast_rolls` unmoved) in every toolgun
+  case; one Random set strictly between core and full; defaults back. **70/0**. `vr_agarmor_test 15` 55/0.
+  `toolgun_panel_test.sh` FAILs only on its stick-press tool cycle (`Remove` every press: not this change; Spawn/Props tile
+  steps pass).
+- Scene: `toolgun_beasts` (vrtesthall, the toolgun, Red Full set).
 ## revreload: the heavy revolver's VR reload: spent shells out first, slugs two at a time (branch agent/revreload, 2026-11-27)
 
 His note 2026-11-27: two options, on by default (Advanced VR Options > Weapons > Reloading > Heavy Revolver):
