@@ -111,6 +111,9 @@ void stats_f()
     }
     Con_Printf("  %lld hierarchies made at map loads, %.1f ms in all; %lld refit to skinned bodies\n", stats.builds, stats.buildMs,
         stats.refits);
+    Con_Printf("  drawn shapes (vr_hitmodel_drawn %g): %lld made, %lld drawn (spline or rebuild), %.1f us each\n",
+        static_cast<double>(vr_hitmodel_drawn.value), stats.shapes, stats.shapesDrawn,
+        stats.shapes ? stats.shapeNs / 1000. / static_cast<double>(stats.shapes) : 0.);
     za::SizeT bytes = 0, count = 0;
     for(const auto& [name, mp] : meshes)
     {
@@ -346,6 +349,11 @@ struct LerpWatch
     glm::vec3 drawnB{0.f};
     za::Vector<float> shapeMeans;         // per frame: the armour's mean distance from the drawn shape
     float shapeMost{0.f};                 // ... the largest one vertex's
+    // The hit model's vertices (what shots meet: the server's drawn shape, vr_hitmodel_drawn) against the same (ROUND26
+    // "drawnhits"): its lerp is the server's, so a fraction of a frame's motion stays in it (the clocks)
+    za::Vector<glm::vec3> hitPts;
+    za::Vector<float> hitMeans;
+    float hitMost{0.f};
 };
 LerpWatch lerpWatch;
 
@@ -435,6 +443,20 @@ void drawnLerpWatch_f()
         static_cast<double>(shapeLo), static_cast<double>(shapeHi), static_cast<double>(shapeMean),
         static_cast<double>(shapeHi - shapeLo), static_cast<double>(w.shapeMost), static_cast<double>(vr_armour_on_drawn.value),
         shapeOk ? "on the body" : sn ? "OFF THE BODY" : "NO DRAWS CAPTURED");
+    // What shots meet against the shape drawn (informational: the server's lerp, a fraction of a frame from the client's)
+    float hitLo = 0.f, hitHi = 0.f, hitMean = 0.f;
+    const za::SizeT hn = w.hitMeans.size();
+    for(za::SizeT i = 0; i < hn; i++)
+    {
+        const float s = w.hitMeans[i];
+        hitLo = i == 0 ? s : za::min(hitLo, s);
+        hitHi = i == 0 ? s : za::max(hitHi, s);
+        hitMean += s / static_cast<float>(hn);
+    }
+    Con_Printf("drawnlerp hits: %s: %d frames, the hit model off the shape drawn: mean a frame %.3f .. %.3f (mean %.3f), one "
+               "vertex's most %.3f units (vr_hitmodel_drawn %g)\n", label, static_cast<int>(hn), static_cast<double>(hitLo),
+        static_cast<double>(hitHi), static_cast<double>(hitMean), static_cast<double>(w.hitMost),
+        static_cast<double>(vr_hitmodel_drawn.value));
     Cvar_Set("vr_drawnlerp_result", va("%d", result));
     w = LerpWatch{};
 }
@@ -465,9 +487,17 @@ extern "C" void VR_DrawnLerpSample(const entity_t* e, int pose1, int pose2, floa
     const qvr::progs::ServerVm serverVm;
     edict_t* ent = w.num < qcvm->num_edicts ? EDICT_NUM(w.num) : nullptr;
     Drawn d;
-    if(!ent || ent->free || !drawnOf(ent, d) || d.skinned)
+    if(!ent || ent->free || !drawnOf(ent, d) || (d.skinned && !d.shaped))
     {
         return; // (a ragdoll: not the frames' lerp)
+    }
+    // (the hit model's lerp of the bytes, for the drift: the client's lerp against the server's, the shape apart)
+    const Drawn shaped = d;
+    if(d.shaped)
+    {
+        d.skinned = d.skinnedN = nullptr;
+        d.shaped = false;
+        d.build = 0u;
     }
     // The drawn lerp, and the armour's (read again as the armour read it before the draw), laid on the model.
     DrawnLerp drawn;
@@ -507,6 +537,25 @@ extern "C" void VR_DrawnLerpSample(const entity_t* e, int pose1, int pose2, floa
             w.shapeMost = za::max(w.shapeMost, off);
         }
         w.shapeMeans.pushBack(static_cast<float>(sum / nv));
+        if(static_cast<int>(w.hitPts.size()) == nv)
+        {
+            double hsum = 0.;
+            for(za::SizeT i = 0; i < static_cast<za::SizeT>(nv); i++)
+            {
+                const float off = glm::length(w.drawnA * w.shader[i] + w.drawnB - w.hitPts[i]);
+                hsum += off;
+                w.hitMost = za::max(w.hitMost, off);
+            }
+            w.hitMeans.pushBack(static_cast<float>(hsum / nv));
+        }
+    }
+    {
+        const Verts vs = vertsOf(shaped);
+        w.hitPts.resize(static_cast<za::SizeT>(nv));
+        for(int i = 0; i < nv; i++)
+        {
+            w.hitPts[static_cast<za::SizeT>(i)] = vs.at(shaped, i, 0.f);
+        }
     }
     w.armourPts.resize(static_cast<za::SizeT>(nv));
     if(!drawnVertexPoints(ent, armour, w.all.data(), nv, w.armourPts.data()))

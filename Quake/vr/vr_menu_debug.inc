@@ -1355,6 +1355,12 @@ za::Vector<Item> pageDebugReports()
             .help("vr_serverrules: the settings the server judges by for every player (every balance page's, the gameplay "
                   "preset's, the melee timing): how many, those off their defaults, and on a remote server's client the "
                   "server's against yours."),
+        command("Server Rules: Self-Test", "vr_serverrules_selftest")
+            .help("vr_serverrules_selftest: a remote server's rule values as a client takes them: not finite or not a "
+                  "number refused, past the menu's range clamped to it; every default and gameplay preset value in range."),
+        command("Network: Control Reply Budget", "vr_net_ctlbudget selftest")
+            .help("vr_net_ctlbudget [selftest]: the server-info, player, rule and reject replies refused so far (each source "
+                  "address has a byte budget: no reflector); selftest: a budget spent, refused, refilled."),
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
@@ -1883,6 +1889,15 @@ za::Vector<Item> pageDebugTools()
         open("Texture Studio", pageIndex(pageTextureStudio))
             .help("The armed humanoids' recolours by weapon: each row's colour, strength, lightness and tint, and which "
                   "texels they dye (palette rows, painted texels), live on a row lined up ahead; saved to quakevr/humlook.txt."),
+        header("Controller Bindings"),
+        command("Controller Bindings Screen", "menu_bindsetup")
+            .help("menu_bindsetup [model]: the Controller Bindings screen for the controller in use (or a model's: quest3, "
+                  "index, vive, xboxone, playstation...; its arrows step through every picture)."),
+        command("Print Controller Bindings", "vr_bindsetup_print")
+            .help("vr_bindsetup_print [model]: the controller detected, and each of its buttons' key and binding."),
+        command("Bindings Screen Tests", "vr_bindsetup_detect_test; vr_bindsetup_test")
+            .help("The detection table (profiles and gamepad types to pictures) and the screen's swap, pick and reset on "
+                  "the binds (put back after): their verdict lines in the console."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),

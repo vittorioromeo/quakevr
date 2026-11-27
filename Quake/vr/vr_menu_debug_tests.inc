@@ -605,7 +605,9 @@ za::Vector<Item> pageDebugTests()
             .help("vr_agarmor_test 21: one armoured beast at a time ahead (a rottweiler's leap, run and shoved roll, a scrag, an ogre "
                   "running and swinging its chainsaw, a bare shambler), at a quarter speed then full: watched frame by frame "
                   "(vr_drawnlerp_watch; vr_drawnlerp_log 1 prints each frame), no frame drawn still or jumping, the armour on the drawn "
-                  "body: its points within 0.05 units of the shape the shader drew. Ends on \"doglerp test: N passed, M failed\"."),
+                  "body: its points within 0.05 units of the shape the shader drew; and shots at each drawn piece's middle every frame "
+                  "strike that piece on the server (vr_drawnhits_check; Shots Meet The Drawn Body in Debug > Reports). Ends on "
+                  "\"doglerp test: N passed, M failed\"."),
         command("Beast Armour On The Drawn Body: Cost (Ten Ogres)", "vr_agarmor_test 23")
             .help("vr_agarmor_test 23: ten ogres in full armour running at you, 288 frames measured: the console's \"animsmooth: drawn "
                   "points\" line is the time the armour spends reading the drawn body (Beast Armour On The Drawn Body in Debug > "

@@ -819,6 +819,7 @@ float cvarh_vr_dmg_super_shotgun;
 float cvarh_vr_dmg_superaxe;
 float cvarh_vr_dmgcredit_test;
 float cvarh_vr_dopa_status;
+float cvarh_vr_drawnhits_result;
 float cvarh_vr_drawnlerp_result;
 float cvarh_vr_dropcap_test;
 float cvarh_vr_dropcap_test_n;
@@ -3086,6 +3087,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_dmg_superaxe = VR_CVar_Make("vr_dmg_superaxe");
     cvarh_vr_dmgcredit_test = VR_CVar_Make("vr_dmgcredit_test");
     cvarh_vr_dopa_status = VR_CVar_Make("vr_dopa_status");
+    cvarh_vr_drawnhits_result = VR_CVar_Make("vr_drawnhits_result");
     cvarh_vr_drawnlerp_result = VR_CVar_Make("vr_drawnlerp_result");
     cvarh_vr_dropcap_test = VR_CVar_Make("vr_dropcap_test");
     cvarh_vr_dropcap_test_n = VR_CVar_Make("vr_dropcap_test_n");

@@ -55,6 +55,9 @@ struct Box
 // origin (the loops a gun hangs in; a pouch's back) and whether a weapon is in it.
 void publish(int zone, const glm::vec3& pivot, const glm::vec3& out, const glm::vec3& side, const glm::vec3& up,
     const glm::vec3& at, bool occupied);
+// Where zone `zone`'s holster was last drawn (publish's `at`, the world), within the last few frames; false: not drawn.
+// (The holster menu's body preview points each slot at it: vr_flatholster.cpp.)
+[[nodiscard]] bool drawnAt(int zone, glm::vec3& out);
 
 [[nodiscard]] bool enabled(); // vr_holster_zones
 

@@ -67,8 +67,9 @@ struct Leaver
 {
     bool used{false};
     char name[32]{};
-    char key[24]{};                                  // his game's vr_mp_clientkey (net_defs.h qvrKey; "": an older client's)
-    double left{0.0};                                // realtime when he left (the oldest goes first when the table is full)
+    char key[24]{};                                  // his game's vr_mp_clientkey (net_defs.h qvrKey; never "")
+    bool bot{false};                                 // a bot's (VR_CoopNoteBots): found by its name, never by a client
+    double left{0.0};                               // realtime when he left (the oldest goes first when the table is full)
     int slot{-1};                                    // the slot he left (his again if it is free)
     float startParms[NUM_SPAWN_PARMS]{};             // his level-start parms (a coop respawn's: setspawnparms)
     float startExt[qvr::progs::numExtSpawnParms]{};
@@ -84,17 +85,19 @@ int rejoining[MAX_SCOREBOARD]; // a slot's player back as a leaver: his leavers[
            qvr::progs::bindings().isVrProgs;
 }
 
-// The leaver of this name and game key (another game under his name is a new player: REVIEW_MP_2026-11-18 finding 8;
-// a client of an older build sends no key, "", and is found by his name alone, as before).
-[[nodiscard]] int leaverOf(const char* name, const char* key)
+// The leaver of this name and game key (another game under his name is a new player: REVIEW_MP_2026-11-18 finding 8).
+// A client's needs his key: a request without one (every client of this network version sends one; a forged request
+// could leave it out) finds none (review A11). A bot's record (`bot`) is found by its name alone, and only by a bot.
+[[nodiscard]] int leaverOf(const char* name, const char* key, bool bot = false)
 {
-    if(!name || !*name)
+    if(!name || !*name || (!bot && (!key || !*key)))
     {
         return -1;
     }
     for(int i = 0; i < MAX_SCOREBOARD; i++)
     {
-        if(leavers[i].used && !ZA_STRCMP(leavers[i].name, name) && !ZA_STRCMP(leavers[i].key, key ? key : ""))
+        if(leavers[i].used && leavers[i].bot == bot && !ZA_STRCMP(leavers[i].name, name) &&
+            (bot || !ZA_STRCMP(leavers[i].key, key)))
         {
             return i;
         }
@@ -381,8 +384,10 @@ extern "C" int VR_CoopPickSlot(const char* name, const char* key, int isLocal)
         return 0;
     }
     const bool loaded = sv.loadgame && load.coopLoaded;
-    // His saved player, by the name his connect request carried (net_dgrm.c), in whichever slot it was saved in.
-    if(loaded && name && *name)
+    // His saved player, by the name his connect request carried (net_dgrm.c), in whichever slot it was saved in. Only a
+    // request with his game's key (review A11: every client of this network version sends one; a forged one without it
+    // gets a new player's slot).
+    if(loaded && name && *name && key && *key)
     {
         for(int i = 0; i < slots; i++)
         {
@@ -428,6 +433,10 @@ extern "C" void VR_CoopNoteLeave(int slot)
         return;
     }
     const char* key = c.netconnection ? NET_QSocketGetQvrKey(c.netconnection) : "";
+    if(!key || !*key)
+    {
+        return; // (review A11: no key, no record: a keyless one would be anyone's who names himself so)
+    }
     int k = leaverOf(c.name, key);
     for(int i = 0; i < MAX_SCOREBOARD && k < 0; i++)
     {
@@ -577,7 +586,7 @@ extern "C" void VR_CoopNoteBots(void)
             continue;
         }
         const char* name = PR_GetString(e->v.netname);
-        int k = name[0] ? leaverOf(name, "") : -2; // (a bot's record has no game key: found by its name alone)
+        int k = name[0] ? leaverOf(name, "", true) : -2; // (a bot's record: found by its name alone, by bots only)
         for(int i = 0; i < MAX_SCOREBOARD && k == -1; i++)
         {
             k = leavers[i].used ? -1 : i;
@@ -589,6 +598,7 @@ extern "C" void VR_CoopNoteBots(void)
         Leaver& l = leavers[k];
         l = Leaver{};
         l.used = true;
+        l.bot = true;
         l.slot = slot;
         l.left = realtime; // (its age in the table: the oldest makes room when it is full)
         q_strlcpy(l.name, name, sizeof(l.name));
@@ -614,7 +624,7 @@ extern "C" void VR_CoopNoteBots(void)
 
 extern "C" int VR_CoopBotParms(int slot, const char* name)
 {
-    const int k = keepsLeavers() && slot >= 0 && slot < MAX_SCOREBOARD ? leaverOf(name, "") : -1;
+    const int k = keepsLeavers() && slot >= 0 && slot < MAX_SCOREBOARD ? leaverOf(name, "", true) : -1;
     if(k < 0)
     {
         return 0;

@@ -4462,7 +4462,7 @@ QVR_CVAR(vr_runpick_gore, "0", CVAR_ARCHIVE)          // Run Setup: the Gore pre
 QVR_CVAR(vr_runpick_armed, "0", CVAR_ARCHIVE)         // Run Setup: Armed Humanoids: 0 as the Style sets them, 1 off, 2 on
 QVR_CVAR(vr_runpick_smartai, "0", CVAR_ARCHIVE)       // Run Setup: Smarter AI (vr_ai_enhanced): 0 as the Style sets it, 1 off, 2 on
 QVR_CVAR(vr_runpick_startgun, "0", CVAR_ARCHIVE)      // Run Setup: Starting gun: 0 shotgun, 1 nail pistol, 2 heavy revolver, 3 nothing
-QVR_CVAR(vr_runpick_startmelee, "0", CVAR_ARCHIVE)    // Run Setup: Starting melee weapon: 0 axe, 1 dagger, 2 nothing
+QVR_CVAR(vr_runpick_startmelee, "0", CVAR_ARCHIVE)    // Run Setup: Starting melee weapon: 0 axe, 1 dagger, 2 nothing, 3 spear
 QVR_CVAR(vr_runpick_meleeonly, "0", CVAR_ARCHIVE)     // Run Setup: Melee Only
 QVR_CVAR(vr_runpick_glasscannon, "0", CVAR_ARCHIVE)   // Run Setup: Glass Cannon
 QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 anything goes
@@ -4627,6 +4627,7 @@ QVR_CVAR(vr_monster_lerp_continue, "1", CVAR_ARCHIVE | QVR_RULE) // a monster's 
 QVR_CVAR(vr_debug_drawn_moves, "", CVAR_NONE)       // a part of model names (progs/dog): those monsters drawn jumping between frames logged ("drawnmove:")
 QVR_CVAR(vr_drawnlerp_log, "0", CVAR_NONE)           // 1: vr_drawnlerp_watch prints every frame of its monster ("drawnlerp frame:": the drawn lerp against the hit model's)
 QVR_CVAR(vr_drawnlerp_result, "-1", CVAR_NONE)       // vr_drawnlerp_watch's last watch: 1 smooth and in step with the hit model (the armour), 0 not, -1 too few frames (read by vr_agarmor_test 21)
+QVR_CVAR(vr_drawnhits_result, "-1", CVAR_NONE)       // vr_drawnhits_check's last check: 1 the shots at the drawn pieces' middles struck those pieces (the server's hit model and shotPiece; at least 96.5%), 0 not, -1 no pieces drawn (read by vr_agarmor_test 21; ROUND26 "drawnhits")
 QVR_CVAR(vr_debug_lift, "0", CVAR_NONE)              // 1: the player and monsters riding a moving lift: how far their boxes, drawn models and the drawn eye sink into it, each ride's worst logged as it stops ("liftdebug:"; a local game)
 QVR_CVAR(vr_debug_lift_player, "-999", CVAR_NONE)    // (read-only, for tests) the last ride's worst sink of the player (box or drawn feet), -999 none measured
 QVR_CVAR(vr_debug_lift_eye, "-999", CVAR_NONE)       // ... and of his drawn eye (under its height over his feet standing still)
@@ -4787,6 +4788,7 @@ QVR_CVAR(vr_weaponwheel_distance, "3", CVAR_ARCHIVE)   // the weapon wheel: its 
 QVR_CVAR(vr_flat_wheel, "1", CVAR_ARCHIVE)             // flatscreen play (holsters on): holding 1 / 2 (vr_flat_key_cycle_left / _right) opens the weapon wheel where that hand is on the screen, time slowed, the mouse its cursor; let go on a slot: that hand takes it (a tap still cycles); 0: 1 / 2 only cycle, on the press, as before (his words 2026-11-23)
 QVR_CVAR(vr_flat_wheel_hold, "0.15", CVAR_ARCHIVE)     // flatscreen play: seconds 1 / 2 are held before the weapon wheel opens (a shorter press cycles the hand when let go)
 QVR_CVAR(vr_flat_wheel_size, "0.5", CVAR_ARCHIVE)      // flatscreen play: the weapon wheel's height, a share of the window's
+QVR_CVAR(vr_flat_bind_panel, "1", CVAR_ARCHIVE)      // flatscreen play: the most used flat keys as key caps in a panel over the holster menu and the weapon wheel, and in the main menu left of its rows with Setup Bindings under it (vr_bindpanel.cpp; wheelui, his words 2026-11-28); 0 none
 QVR_CVAR(vr_flat_holster_drop_ahead, "20", CVAR_ARCHIVE | QVR_PREF) // flatscreen play: how far ahead of him (units) a holster's DROP lays its weapon
 QVR_CVAR(vr_flat_unload_volume, "0.8", CVAR_ARCHIVE) // flatscreen play: the holster menu's UNLOAD sound's volume (its rounds back into the pouch); 0 silent
 QVR_CVAR(vr_flat_toolgun_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the toolgun panel's cursor speed (1: as the desktop's pointer, a mouse count a window pixel)

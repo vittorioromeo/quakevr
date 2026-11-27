@@ -4273,6 +4273,63 @@ His words (2026-11-27): "make the scrag tail armor pieces individually destroyab
   aim at the body's middle).
 - **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).
 
+## drawnhits: shots, the armour's hits and broken-plate debris on the beasts' drawn body (branch agent/drawnhits, 2026-11-28)
+
+Approved 2026-11-27 (armourrebuild's open item: the hit model and the debris start stayed on the stored frames).
+- **Was:** the hit model (vr_hitmodel.cpp `Verts::at`: the frames' stored bytes, Quake's blend of two poses) is what shots,
+  blows, `skinCrossing`, `nearest`/`pose` (holding), `anchorFrame` (a stuck axe), `surfacePoint` and the server's armour
+  placements meet (beastarmour `place` without a client lerp: `shotPiece`/pieceHit, `pieceAt`, `plateWhere` = the debris'
+  start; agarmor `posedAnchors`). The renderer draws something else (r_lerpmodels 3's spline, the limbs' swing, the
+  skeleton rebuild): on the ogre's chainsaw swing a vertex up to 22.8 units off, a piece's middle up to 7.3.
+- **Now:** `drawnOf` lays the drawn shape on any body that is not a ragdoll or an armed humanoid (`shapeOf`, behind
+  `vr_hitmodel_drawn` 1): `animsmooth::serverPoints(model, ServerLerp, out, numverts)` (vr_animsmooth.cpp) makes every
+  vertex as `drawnPoints` would (instanceMemo's choices, rebuildRows, drawnVertex, dequantised poses) from the server's
+  own state alone: its track's lerp (pose1 -> pose2, blend, the lerp's time), the lerp before it by R_AnimHistoryPush's
+  rule (new `Track::pose0`/`span0`, set in serverFrame), the key after by the frames' names only (no client's learning, no
+  kick). The points go to the world and carry area-weighted normals; they ride the existing skinned-body path (`skinned`
+  plus `shaped`; the hierarchy refit once a making: `skinBoundsOf`, a build id with the top bit set), kept per entity while
+  its lerp, place, pose time and frame are the same (`Shapes`, a cache: one a frame however many shots; lag compensation's
+  rewound pose is another key: `poseTimeOverride` works unchanged). `relerp` drops the shape (the client-lerp armour path:
+  `drawnVertexPoints(ent, lerp)` asks `drawnOf(..., shape false)`). Quake's blend now (no spline, no rebuild): the bytes,
+  as before. The server's settings decide (r_lerpmodels, vr_anim_smooth_*): a listen host's are his drawing's; a remote
+  client with other settings is a fraction off, as any client's clock. A dedicated server makes the rig data at map load
+  (`animsmooth::prepareModels(sv.models)` from `hitmodel::afterLoad`; without it the first shot at a kind took ~5 ms).
+- **Setting:** `vr_hitmodel_drawn` 1 (Debug > Reports > Shots Meet The Drawn Body; 0: the stored frames, as before).
+- **Measured** (`vr_agarmor_test 21`, before = `vr_hitmodel_drawn 0`, the same build): the watch's new line "drawnlerp hits:"
+  (vr_hitmodel_diag.cpp: the hit model's vertices against the shape the shader drew, a frame late as the armour's):
+  mean / one vertex's most, 0.25x:
+
+| case | before | now |
+|---|---|---|
+| rottweiler leap | 0.65 / 5.9 | 0.06 / 0.8 |
+| rottweiler run | 0.76 / 6.9 | 0.12 / 1.6 |
+| scrag flying | 0.53 / 4.6 | 0.02 / 0.03 |
+| ogre running | 0.86 / 14.3 | 0.14 / 5.5 |
+| ogre chainsaw | 1.76 / 22.8 | 0.09 / 2.7 |
+| shambler (bare) | 0.95 / 8.7 | 0.15 / 1.4 |
+
+  What is left is the clocks (the client's lerp a fraction of a frame behind the server's; a lerp begun out of turn: the
+  doglerp open item). The new `vr_drawnhits_check <classname> | 0 [label]` (vr_beastarmour.cpp, from the client's relink of a
+  listen server's beast): each frame a shot at each drawn piece's middle, from outside along the line from the body's
+  middle, counted when the drawn picture shows that piece first (pieces "hidden" by another, or under the skin by
+  shotPiece's own rule with the drawn pieces, not counted), as the server takes it (`hitmodel::segment`, then
+  `shotPiece`); also the server's piece middle against the drawn one. Struck that piece, before -> now: rottweiler leap
+  84.6 -> 99.2%, run 91.5 -> 98.5, roll 90.4 -> 99.0, scrag 94.6 -> 99.3, ogre running 95.7 -> 99.3, **ogre chainsaw 93.8 ->
+  99.7%** (1x: 92.7 -> 98.9); the server's piece off the drawn one on the chainsaw: mean 0.74 -> 0.08, most 7.4 -> 1.4 units
+  (the debris' start, pieceAt); before also 28-42 shots a case missed the body outright (leap, roll), now none. The rest
+  are edge grazes and the clocks (the roll at 1x 97.3%).
+- **Cost** (`vr_agarmor_test 23`, ten armoured ogres running, now also a hit-model shot at each every frame; low-impact runs:
+  his game was open, idle priority): a shape 32-37 us (the armour's drawn points 0.9 us a call in the same run against
+  armourrebuild's 0.37 us normal: about 13-15 us a shape normally), one an ogre a frame (2880 in 288 frames): ten ogres
+  shot every frame ~0.15 ms a frame; a model test 2.5 us against 1.7 (the refit hierarchy's looser boxes). Frames with no
+  query make none. Dedicated server (`scratch`-style harness, e1m1, `vr_hitmodel_bench 200`): shapes made there, 46 us
+  each at idle priority, hits 329 vs 294 of 400 rays on the bytes.
+- **Tests:** `vr_agarmor_test 21` now 30 checks (each armoured case's shots: `vr_drawnhits_result`, at least 96.5% struck):
+  before 18 passed 12 failed, now 30/0; `vr_agarmor_test 23` 1/0 (+ `vr_hitmodel_stats` at both ends: "drawn shapes ...");
+  `vr_agarmor_test 15` 71/0; vr_beastfit_test 101/0; mp_lagcomp 17/0 (dedicated server, lag 150 ms: rewound shots);
+  tunables_test 13/0; animsmooth_test.sh 9/0.
+- **Open:** the kick (RigKick) is not on the server (as the armour); a loop's last frame has no key after on the server
+  (a client learns it: a slightly different curve there); his look in VR (shoot an ogre's plates mid-swing).
 ## Armed humanoids blinded by the flashlight (branch agent/flashblind, 2026-11-28)
 
 His idea (2026-11-27): pointing the flashlight straight at an armed humanoid's face dazzles it; it raises a hand in
@@ -4417,3 +4474,140 @@ Brief: find what ends LRZ in the opaque entity pass (qlrz2: not found), and cach
 - No default changed; the PC unchanged (every new path off). Tests: permdecal_test PASS; the probe, batch and cache cvars
   smoke-run on the PC mock (`-glescompat`).
 - Headset: beta6 (1.2.0-beta6, progs 45a721f8) and his 31 autosaves and 3 saves put back after (checksums match).
+## mplows: the MP review's remaining lows (branch agent/mplows, 2026-11-27)
+
+The last lows of the 2026-11-20 review (MP_PLAN.md "Review fixes"; the notes `mprev_A.md`/`mprev_C.md` were recovered
+from the reviewers' transcripts). No wire change (QVR_NET_VERSION untouched).
+
+- A6 (room service): a REGISTER at a cap (the table's or the IP's) runs `expire()` (O(rooms)) at most once a second
+  (`Service.cap_expired`); serve()'s 1 s timer does the rest. rendezvous_test: "REGISTERs at a cap: the room table
+  scanned at most once a second".
+- A7 (server rules): a remote server's rule value goes through `checkedValue` (vr_serverrules.cpp): not finite (NaN,
+  inf, past a float) or not a number where the rule's default is one: refused (the cvar keeps its value); a number past
+  the rule's range clamped to it, with a console warning either way. The range (`gatherRanges`, once with the rule list)
+  is the union of the rule's menu rows (`menu::forEachSettingRange`, new: Search's index carries each slider's
+  min..max, its extent and negative step, each cycle's choices), widened by its default and every gameplay preset
+  value, so nothing a host picks from a menu or a preset is cut. A rule on no menu row: any finite number. A host who
+  types a value past the menu by console sees it clamped on his guests (the warning says so).
+  `vr_serverrules_selftest` (Debug > Server Rules: Self-Test).
+- A8: `connect host:port` (and `test`/`test2`) uses the port for that address only (`Strip_Port` returns it,
+  `GetAddrWithPort` sets it on the resolved address); net_hostport is no longer changed for the session.
+- A10: the server-info, player-info, rule-info and reject replies (the only replies bigger than their requests) are
+  sent within a byte budget per source IP address (any port): 8 KB, refilled 4 KB/s; 127.0.0.1 is exempt (tests,
+  `test`). 1024 slots by a keyed hash (ConnectCookie's SipHash key: no one can aim two addresses at one slot; a slot
+  taken by another address starts full). Padding was not used: it would break other clients and query tools.
+  `vr_net_ctlbudget [selftest]` (Debug > Network: Control Reply Budget).
+- A11: leaver records carry `bot`; a bot's are found only by bots (by name), a client's only with his game key: a
+  connect request without a key (every client of this network version sends one) neither leaves a record nor finds
+  one, nor takes a loaded coop save's slot by name. (A save keeps no keys: a keyed player naming himself after a saved
+  one still takes that slot, as designed for saves moved between machines.)
+- A13: a move's ping is clamped to 0..10 s when stored (the client sends the time it is measured from). S3: Host_Ping_f
+  prints `VR_ClientPingMs` (one mean; rounded, was truncated).
+- S1: NET_Ban_f's guest branch removed (a guest's `ban` is refused in cmd.c, B28). S2: `serverrules::shown` removed
+  (the menu reads the cvar).
+- O1: a shared client reads his own queue first; the listening socket is read only when his queue is empty, and not
+  again within 1 ms of reading it empty (16 players: one empty read a frame, not 16). O2: queued datagrams use nodes of
+  NET_DATAGRAMSIZE from a free list (at most 512 kept, ~0.7 MB). `net_stats`: "server socket reads", "server queue
+  nodes".
+- C7: box3d's hand weapon model and slot are looked up per edict and hand when the name changes (`handModelOf`: valid
+  while the precache entry it was found at is the same string), not by a precache scan per hand per frame.
+- C8: the Voice Chat page lights a row by `voicechat::talkingNow` (listed players), not "talking" in the row's text.
+
+Tests: rendezvous_test 45/0 (the A6 check included); vr_serverrules_selftest 10/0; vr_net_ctlbudget selftest 5/0;
+magcollide 11/0; MP (Release): mp_netsafe 14/0, mp_coop 12/0, mp_version 12/0, mp_rejoin 19/0, mp_rejoin_keep 11/0,
+mp_rules 16/0, mp_loss 16/0, mp_voice 27/0, mp_browser 11/0, mp_spoof 27/0, mp_lookup 9/0 (before the merge of
+origin/next at version 49); after it: mp_overflow 14/0, mp_dedicated 11/0, mp_held 15/0, mp_coopbots 13/0, mp_nat
+18/0, mp_roomnonce 7/0, mp_fuzz 17/0 (one earlier take 16/1: "B joins again after the hostile command up clc 10", seed
+384669280; B's 14th `connect` printed nothing after a garbled-signon Host_Error, the 13 before it joined; passed on
+the rerun). menu_paths.txt regenerated (`vr_menu_path_check`: current, 10712 rows). Note: a run.sh game started in the
+tree while the MP suite runs gets its script read by the suite's games too (they quit at once): run them apart.
+## wheelui: weapon wheel and holster menu polish, flat bindings panel (branch agent/wheelui, 2026-11-28)
+
+His words (2026-11-28), six items for the weapon wheel (VR and flat) and the MMB holster menu (flat). One renderer serves
+both (`vr_gadget_holster.inc`), so every slot change shows in both.
+- **Labels** (1): a slot's holster title is 5 px (was 6) at 0.55 of the label ink; the weapon's name stays 6 px, full ink.
+- **Body preview** (2): the MMB menu's stick figure is replaced by the player's own posed body (`avatar::posedMesh`, its
+  head as seen from outside), drawn each frame the menu shows by the thumbnails' CPU rasteriser (`toolgun::icons::drawMesh`,
+  the rasteriser generalised to any size and an untextured "plain" mode), grey lit, tinted in the screen's colour, seen
+  from behind and a little above (his left on the left, as the slots), where the figure stood (`bodyRect`). Each slot's
+  stroke ends where its holster is drawn on the body (`zones::drawnAt`, new: publish's `at`). Not posed: the stick figure.
+  Decision: back view, untextured; armour pieces and holstered guns are not on the preview (they are separate entities; a
+  GPU render of the scene to a texture would be the next step).
+- **Ammo line** (3): under each gun's name a smaller line "4/8 [icon] 32": the magazine (tube, cylinder) and its size
+  (red at 0), the ammo type's HUD icon (sb_shells .. sb_cells; Rogue's r_ammolava/multi/plasma when its gfx.wad has them,
+  new gadget pictures `PicRogueAmmo`), the reserve. Hands: STAT_QVR_WEAPONCLIP(2)/CLIPSIZE(2), AMMOTYPE/AMMO2; holsters:
+  STAT_QVR_HOLSTERWEAPONCLIP0/HOLSTERCLIPSIZE0 and a client copy of QC's VR_WEAPONS ammo columns (`widAmmo`,
+  vr_flatholster.cpp). The magazine shows with reloading on, or for a gun whose magazine is its only ammo.
+- **Attachments** (4): the thumbnail draws the attachment at the gun's mount (`icons::get(..., attach)`: the kind's model
+  placed by `attach::mount` / `attach::onGun`, the placement the drawn attachment and the server use), and the name gets a
+  small blade glyph after it (no text suffix). Kind per weapon: `attach::kindOfUid` of the hand's / holster's uid stat.
+- **Titles** (5): "HOLSTERS" and "WEAPON WHEEL - LEFT/RIGHT HAND" are gone (`HolsterMenuView::header` "" draws none).
+- **Bindings panel** (6, flat only; `vr_flat_bind_panel` 1): `vr_bindpanel.cpp` lists 14 actions (fire and aim by their
+  binds, keyboard/mouse keys only; reload, wheel (1/2 held), holster menu, swap, grab/pull, force grab, throw/drop, shove,
+  punch, grenade, crouch, flashlight from `vr_flat_key_*`, both keys where set) as key caps, the gadget's image
+  (`gadget::renderBindPanel`, its own target) drawn over the MMB menu (the two centred together) and over the flat wheel
+  (kept on the window with it). The main menu (flat screen) draws the same rows in the menu's look under the corner's
+  buttons, left of the rows (letters as large as fit, 8 at most), with **Setup Bindings** under them:
+  `bindsetup::open()` (new `vr_bindsetup.cpp`, a stub returning false with a TODO for ctrlbind's controller screen), else
+  Options > Controls at the flat keys (`M_Menu_Keys_At`).
+- Tests: new `Misc/quakevr/bindpanel_test.sh` 8/0 (rows and keys, shown, Setup Bindings opens Controls; `vr_bindpanel_report`,
+  `vr_bindpanel_setup`); flatholster_test 54/0, weaponwheel_test vr 25/0 and flat 21/0. Screenshots for his review:
+  scratch/flatholster/menu.png, scratch/weaponwheel/wheel_flat.png, scratch/bindpanel/main.png (the worktree's).
+## holsterattach: attachments on holstered weapons (branch agent/holsterattach, 2026-11-28)
+
+His words 2026-11-28: bayonets don't seem to show on holstered weapons (flat, F8). Found on origin/next: your own holstered
+guns' attachments were already drawn (setupAttachments; flat and VR, the fly camera too: vr_attach_report and screenshots of
+both hips and the back holster), another player's by drawGunParts (the avatar's attachment byte; mp_test.py attach,
+other_holster). What did not follow: a super shotgun broken open off your hands (holstered, lying, another player's held or
+holstered) kept its bayonet where the closed barrels are, in front of the dropped barrels: likely what he saw on a holstered
+super shotgun (drawn open in immersive reloading). Also a lying gun's attachment counted as worn (faded by the third-person
+fade and invisibility, copied into the body's mirror).
+- **One draw path**: `view::placeAttachment(out, gun, kind, ssgHand, ssgOpen = 0)`: `ssgOpen` > 0 carries it down with that
+  super shotgun's barrels (`view::ssgCarry(gun, deg, ...)`, which `ssgBarrelsCarry(hand)` now calls). Your holsters: the
+  holster's SsgDrawn angle (setupSsgParts now runs before setupAttachments); lying: setupWorldSsgs' open angle; another
+  player's (drawGunParts): its SsgDrawn (a holstered one's ssgHolsterParts stepped before the placement). Four-argument
+  callers (the wheel previews) are unchanged.
+- **worn()** leaves out `worldAttach`.
+- **vr_attach_report** lines end `gap=`: the drawn mount's distance from the gun's mount as the gun is drawn (on the open
+  barrels' part when there is one).
+- **Test**: `vr_embed_test 88` (QC/vr_attach_test.qc `VR_AT_HolsterSet`: shotgun + bayonet in the right hip, super shotgun +
+  bayonet broken open in the left hip); `Misc/quakevr/attach_holster_test.sh` (flat, its fly camera beside the hip, VR;
+  `attach_holster_check.py`: each holstered gun's bayonet drawn, gap <= 0.05), also run at the end of attach_test.sh.
+- Armed humanoids carry no holstered guns; bots and dead players' bodies draw through drawHolsteredParts (the same path).
+
+## spearstart
+
+The spear is a fourth Starting melee weapon in Run Setup (vr_runpick_startmelee 3: Axe, Dagger, Nothing, Spear; appended last so saved picks keep their numbers; default stays the axe). A new game gives WID_SWORD with VR_ADMelee_Flags(VR_SWORDKIND_SPEAR) in the melee holster (parm13/parm27, HIP_IT_SWORD, as the dagger), flat and VR. Run Setup is the one place the starting melee weapon is offered; new game, levels, hub and respawn all go through VR_RunStartWeapon_NewParms. Icon: v_spear.mdl. Test: vr_runlaunch_test gained picks row S and a "the spear start" step (VR_Run_TestCheck checks a spear-kind sword in the melee holster, no axe): 91 passed, 1 failed; the failure is the existing "Arena Mode right under Arcane Dimensions" Select Campaign look check, untouched here.
+## ctrlbind: the Controller Bindings screen (branch agent/ctrlbind, 2026-11-28)
+
+His words (2026-11-28): a visual controller-rebinding menu for VR and flat controllers, detecting the controller, its picture
+with each button labelled by its binding, drag to swap, click for a list of every action; reminder panels after.
+- **Where**: Options > Controller Bindings (a new row after Controller), VR Settings > Controls > Controller Bindings, the
+  main menu's bindings panel's Setup Bindings (wheelui's vr_bindpanel.cpp calls `bindsetup::open()`: false for keyboard and
+  mouse, the panel then opens the flat keys), `menu_bindsetup [model]`, Debug > Tools > Controller Bindings.
+- **One screen** for VR (the laser) and flat (mouse, pad, keys): a menu state of its own (`m_bindsetup`, menu.c's dispatch;
+  vr_bindsetup.cpp draws it in the menus' 2D pass across the canvas, clear of the corner's buttons, the status box and the
+  version label). Drag a label onto another: the two buttons' binds swap. Click (A, Enter): a list of every action Options >
+  Controls has (`M_Keys_EachAction`: Quake's and bindlist.lst's, either device; typing searches it). X / Space picks a label
+  up to swap by stick; Tab or the arrows beside the name step through every picture. Reset to Defaults: vr_bindings.cfg's
+  binds for the shown buttons (the others unbound). The VR menu button and a pad's Start are fixed ("Menu (fixed)").
+- **Binds**: the screen edits Quake's binds of the gamepad keys the controllers send (vr_input.cpp buttonKeys; Swap Face
+  Buttons honoured: A shows XBUTTON's), so configs and Options > Controls keep working. VR and a flat pad share those keys.
+- **Detection** (`bindsetup::detect`): VR: the right hand's OpenXR interaction profile (new `Backend::controllerProfile`)
+  and the headset's name (every runtime plays Quest controllers as oculus/touch_controller: Quest 3/3S/2/1/Pro, Rift S/CV1
+  by systemName); Index, Vive, WMR, Odyssey, Reverb G2, Pico, Cosmos/Focus 3, Steam Frame, khr/simple; VDXR's Index
+  emulation on a Quest is the Quest. Flat: SDL2's SDL_GameControllerGetType (`IN_GetGamepadSdlType`, in_sdl.c; SDL3 not
+  needed): Xbox 360, Xbox One/Series, PlayStation 3/4/5, Switch Pro/Joy-Cons, else a generic pad; no pad: the keyboard.
+- **Pictures** (`Misc/quakevr/make_controller_art.py`, our own vector-style drawings, no photos or logos): quest2, quest3,
+  questpro, riftcv1, pico, index, frame, vive, wmr, simplevr (each hand: the face from above, the side under it with the
+  trigger and grip), xbox360, xboxone, playstation, switchpro, genericpad; 512 and 256 (`_s`) wide in
+  quakevr/gfx/vr/controllers. The script also writes the anchors, names and glyphs table (Quake/vr/vr_bindsetup_art.inc).
+  Glyphs: Kenney's Input Prompts (CC0; OpenGameArt's copy of kenney.nl's pack, whose site turned the download away; its
+  License.txt beside them) for Quest, Index, Steam Frame, Xbox and Switch; drawn in their style for PlayStation, the generic
+  pad, Vive and WMR (quakevr/gfx/vr/glyphs).
+- **Tests**: `vr_bindsetup_detect_test` 57/0 (profiles, headset names, SDL types; every picture has buttons),
+  `vr_bindsetup_test` 12/0 (the trigger dragged onto A swaps, a click opens the list, search and pick bind, the menu is
+  fixed, reset restores vr_bindings.cfg's, Swap Face Buttons, a pad's swap and reset; the touched binds put back after).
+  The Android build compiles.
+- **Open**: phase 2 not done (the reminder panels: BACKLOG section 3 has the VR weapon wheel's; the menu's goes on wheelui's
+  vr_bindpanel.cpp); splitscreen per-seat bindings (TODO in vr_bindsetup.hpp, BACKLOG section 3).
