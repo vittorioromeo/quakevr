@@ -614,6 +614,10 @@ QVR_AD_RIG_PIECES(AdSpiderb, 346, adSpiderSeeds, 1, 114, 0, 133, 0, 18)
 QVR_AD_RIG_PIECES(AdSteelclaw, 346, adSpiderSeeds, 1, 114, 0, 133, 0, 18)
 // The death guard's deaths A and B (C 227-240 and D 241-255 go limp as a corpse).
 QVR_AD_RIG(AdDguard, 585, adDguardSeeds, 2, 195, 207, 206, 226, 24)
+// AD's death guard and crossbow knight as armed knights (QC vr_armedmon.qc rows 4 and 5; vr_monstermods.cpp
+// VR_AdArmedModelFile): their meshes AD's, their frames in the knight's order (QC's macros: deaths 75-84 and 85-95, 96 the last).
+QVR_AD_RIG(VrDguard, 585, adDguardSeeds, 2, 75, 85, 84, 96, 24)
+QVR_AD_RIG(VrDcrossbow, 1120, adDcrossbowSeeds, 2, 75, 85, 84, 96, 24)
 QVR_AD_RIG(AdSkullwiz, 632, adSkullwizSeeds, 1, 0, 0, 14, 0, 18)
 QVR_AD_RIG(AdHogreham, 1306, adHogrehamSeeds, 2, 137, 147, 146, 160, 24)
 QVR_AD_RIG(AdMinotaur, 514, adMinotaurSeeds, 1, 36, 0, 60, 0, 24)

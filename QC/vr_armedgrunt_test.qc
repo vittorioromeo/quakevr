@@ -23,7 +23,7 @@ entity vr_agt_player;
 float VR_AGT_COUNT = 17;
 
 // The armed monster the tests spawn: vr_agrunt_test_kind (vr_armedmon.qc VR_AM_*: 0 the grunt, 1 the enforcer).
-float() VR_AGT_Kind = { return min(VR_AM_COUNT - 1, max(0, rint(cvar_hget(cvarh_vr_agrunt_test_kind)))); };
+float() VR_AGT_Kind = { return min(VR_AM_ROWS - 1, max(0, rint(cvar_hget(cvarh_vr_agrunt_test_kind)))); };
 // ... its classname (its monster's).
 string() VR_AGT_Classname = { VR_AM_Row(VR_AGT_Kind()); return vr_am_classname; };
 

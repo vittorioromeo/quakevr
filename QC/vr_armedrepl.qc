@@ -430,7 +430,7 @@ void(float kind, vector seed) VR_AKN_Pick =
     }
 };
 
-float(float kind) VR_AKN_IsKnight = { return kind == VR_AM_KNIGHT || kind == VR_AM_DKNIGHT; };
+float(float kind) VR_AKN_IsKnight = { return kind == VR_AM_KNIGHT || kind == VR_AM_DKNIGHT || kind == VR_AM_DGUARD || kind == VR_AM_DCROSSBOW; };
 
 // A replacement of the row `kind` with the seed `seed`: its loadout (vr_agr_code, _code2, _gunaxe, _tier). A knight's:
 // Ranged Knights' pool (VR_AKN_Pick).

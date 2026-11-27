@@ -951,8 +951,11 @@ QVR_TOGGLE(vr_agrunt_repl_variants, "AD and Quoth Variants",
     "soldiers as grunts, defenders, eliminators, pyros and fumigators as enforcers, crossbow knights as knights, with "
     "their health (where replacements play in AD's maps; vr_agrunt_repl_variants).")
 QVR_TOGGLE(vr_agrunt_repl_crossbow, "AD Crossbow Knights",
-    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed knights holding the crossbow too. Off "
-    "(the default for now): they stay as AD made them (vr_agrunt_repl_crossbow).")
+    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed humanoids in their own look holding "
+    "the crossbow: they can be disarmed and take up any weapon. Off: they stay as AD made them (vr_agrunt_repl_crossbow).")
+QVR_TOGGLE(vr_agrunt_repl_dguard, "AD Death Guards",
+    "With AD and Quoth Variants on, Arcane Dimensions' death guards are armed humanoids in their own look holding their "
+    "sword: they can be disarmed and take up any weapon. Off: they stay as AD made them (vr_agrunt_repl_dguard).")
 QVR_TOGGLE(vr_humlook, "Recolour by Weapon",
     "Armed humanoids wear the colour of the weapon they came with: rockets and grenades red, lightning and plasma blue, "
     "flamethrowers orange, poison green; their backpacks too (quakevr/humlook.txt; vr_humlook).")
@@ -4829,8 +4832,12 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
 QVR_CYCLE(vr_xr_foveation, "Quest Foveation",
     "Quest standalone: the headset draws the edges of each eye's view, which the lenses blur anyway, at a lower "
     "resolution (fixed foveated rendering): faster, near-invisible through the lenses. Higher levels blur more of "
-    "the edges.",
-    {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"})
+    "the edges. High (Top) is the most aggressive: High with more of the top of the view (sky, ceilings) blurred "
+    "and the lower middle, where you mostly look, kept sharp.",
+    {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "High (Top)"})
+QVR_SLIDER(vr_xr_foveation_offset, "Quest Foveation: Shift", -30.f, 30.f, 5.f, "%+.0f deg", noExt,
+    "Moves Quest Foveation's pattern vertically by this many degrees (the headset's own setting). On a Quest 3, +30 "
+    "was faster in a fight and -15 slower on the hub; 0 (centred) is the safe choice. Changing it can blink the view.")
 QVR_TOGGLE(vr_xr_spacewarp, "SpaceWarp",
     "Quest standalone: the game draws every other frame and the headset makes up the ones between from the motion "
     "of what it drew (Application SpaceWarp): twice the time for each frame, smoother in big fights. Moving things "

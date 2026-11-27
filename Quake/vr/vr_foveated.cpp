@@ -466,14 +466,19 @@ void endScene()
     bindShadingRateImage(0);
 }
 
-DensityZones runtimeZones(int level)
+DensityZones runtimeZones(int level, float offsetDegrees)
 {
     // Modelled on Meta's level pictures and qfov4's Quest 3 traces (min density 0.25 at every level; Low and Medium
     // reduce the edges and corners, High from about two thirds out): full within sqrt(2 + area) / gain of the centre,
-    // half (2x1) to sqrt(4 + area) / gain, a quarter (2x2) beyond.
-    constexpr float gains[] = {0.f, 1.3f, 1.6f, 2.f};
+    // half (2x1) to sqrt(4 + area) / gain, a quarter (2x2) beyond. High (Top, questfovmusic): High's pattern with its
+    // centre lower (Meta's picture: the top reduced more), as the shift: about 45 degrees to the drawn part's edge.
+    constexpr float gains[] = {0.f, 1.3f, 1.6f, 2.f, 2.f};
+    constexpr float highTopShift = -0.25f;
+    constexpr float degreesToEdge = 45.f;
     DensityZones z;
-    z.gain = gains[za::clamp(level, 0, 3)];
+    const int l = za::clamp(level, 0, 4);
+    z.gain = gains[l];
+    z.focalY = (l == 4 ? highTopShift : 0.f) + za::clamp(offsetDegrees, -30.f, 30.f) / degreesToEdge;
     return z;
 }
 

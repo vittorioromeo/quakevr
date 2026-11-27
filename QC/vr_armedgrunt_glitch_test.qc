@@ -239,7 +239,7 @@ void() VR_AGTest_Glitch =
         vr_agg_homeyaw = p.angles_y;
         vr_agg_tn = vr_agg_tup45 = vr_agg_thead = vr_agg_tpar = vr_agg_tdis = vr_agg_tup = 0;
         vr_agg_i = cvar_hget(cvarh_scratch2);
-        vr_agg_last = cvar_hget(cvarh_scratch3) > 0 ? min(VR_AGG_COUNT - 1, cvar_hget(cvarh_scratch3)) : VR_AGG_COUNT - 1;
+        vr_agg_last = cvar_hget(cvarh_scratch3) > 0 ? min(VR_AGG_SETS * VR_AM_ROWS - 1, cvar_hget(cvarh_scratch3)) : VR_AGG_COUNT - 1; // (scratch3 past 25: the other rows too, 13 subjects each: 26.. the knight, 52.. AD's death guard, 65.. its crossbow knight)
         VR_AGG_Next();
         vr_agt_step = 1;
         return;

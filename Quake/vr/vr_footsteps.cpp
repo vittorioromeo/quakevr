@@ -89,6 +89,8 @@ constexpr Kind kinds[] = {
     {modelmeta::Id::VrEnforcer, Sole::Boot, 0.9f, 1.1f},
     {modelmeta::Id::Knight, Sole::Metal, 1.f, 1.f},
     {modelmeta::Id::VrKnight, Sole::Metal, 1.f, 1.f},
+    {modelmeta::Id::VrDguard, Sole::Metal, 1.f, 1.f},
+    {modelmeta::Id::VrDcrossbow, Sole::Metal, 1.f, 1.f},
     {modelmeta::Id::Hknight, Sole::Metal, 0.82f, 1.2f},
     {modelmeta::Id::VrHknight, Sole::Metal, 0.82f, 1.2f},
     {modelmeta::Id::Mg3Rknight, Sole::Metal, 0.95f, 1.1f},
