@@ -558,8 +558,10 @@ float QVR_ARMOR_SHOT = -1005;
 // limbpiece(e, piece, 16 / 17) that half's model's origin now, as drawn (its angles the whole plate's, 11).
 float QVR_ARMOR_HALF = -2000;
 // The beasts' armour (vr_beastarmour.cpp; vr_agarmor.qc VR_BeastArmour_*): ragdollbone(e, [what, 0, 0], QVR_ARMOR_BEAST)
-// 0 e's kind's slots (bits; 0 not a beast), 1 its cuirass group, 2 the pieces' entities drawn this frame (the tests);
-// limbmodel(e, QVR_ARMOR_BEAST_MODEL - slot) that piece's model ("" none), a name the engine keeps.
+// 0 e's kind's worn-mask bits (its slots and its parts breaking on their own, 1024/2048; 0 not a beast), 1 its cuirass
+// group, 2 the pieces' entities drawn this frame (the tests), [3, bit] how many pieces that bit has, [4, bit] the slot it
+// is worn with (-1 none); limbmodel(e, QVR_ARMOR_BEAST_MODEL - (bit + 16 x n)) that bit's nth piece's model ("" none), a
+// name the engine keeps; limbpiece(e, bit + 16 x n, 10 / 11) its place.
 float QVR_ARMOR_BEAST = -1006;
 float QVR_ARMOR_BEAST_MODEL = -2100;
 float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none

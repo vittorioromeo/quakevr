@@ -42,7 +42,12 @@ enum Piece : int
     NumPieces = 10,
 };
 inline constexpr int allPieces = (1 << NumPieces) - 1;
-inline constexpr int exactPieces = 1 << NumPieces; // (give's pieces: these exactly, a beast's cuirass not grown to its cuirass group)
+// A worn mask's bits past the ten slots: a beast's parts that break on their own (vr_beastarmour.cpp: the ogre's shins
+// by side, the scrag's plate 8 back half and his tail; ROUND26.md, "armourhits"). QC's VR_AR_SLOTS; the server's word
+// and QVR_SVC_ARMOR's shorts carry all of them (humanoids never set them).
+inline constexpr int NumMaskBits = 12;
+inline constexpr int allMaskBits = (1 << NumMaskBits) - 1;
+inline constexpr int exactPieces = 1 << NumMaskBits; // (give's pieces: these exactly, a beast's cuirass not grown to its cuirass group; QC VR_AR_EXACT)
 
 // ---- The server's (P1: vr_agarmor.qc keeps each humanoid's type and pieces in .vr_ar_type and .vr_ar_mask) ----
 // VR_ServerFrameEnd: each entity's armour (its fields) sent to the clients when it changed (QVR_SVC_ARMOR, reliable).

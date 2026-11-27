@@ -96,6 +96,7 @@ float cvarh_vr_admelee_heavy_damage;
 float cvarh_vr_admelee_heavy_speed;
 float cvarh_vr_admelee_heavy_stamina;
 float cvarh_vr_admelee_sword_damage;
+float cvarh_vr_agarmor_beast_pool;
 float cvarh_vr_agarmor_beasts;
 float cvarh_vr_agarmor_block_cuts;
 float cvarh_vr_agarmor_debris_time;
@@ -2340,6 +2341,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_admelee_heavy_speed = VR_CVar_Make("vr_admelee_heavy_speed");
     cvarh_vr_admelee_heavy_stamina = VR_CVar_Make("vr_admelee_heavy_stamina");
     cvarh_vr_admelee_sword_damage = VR_CVar_Make("vr_admelee_sword_damage");
+    cvarh_vr_agarmor_beast_pool = VR_CVar_Make("vr_agarmor_beast_pool");
     cvarh_vr_agarmor_beasts = VR_CVar_Make("vr_agarmor_beasts");
     cvarh_vr_agarmor_block_cuts = VR_CVar_Make("vr_agarmor_block_cuts");
     cvarh_vr_agarmor_debris_time = VR_CVar_Make("vr_agarmor_debris_time");
