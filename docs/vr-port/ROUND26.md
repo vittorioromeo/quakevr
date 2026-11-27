@@ -3782,3 +3782,39 @@ the flat/graphics block (fov, gamma, contrast, crosshair, hudstyle, scr_*, sensi
 prop ids for slots 73-80 (the numbering of his older table), float-noise `vr_wofs_*` rows (equal to the default to 5 digits).
 Tests: agspear 3/0 (after the fix), flattp_test 1/0; `vr_agrunt_test 83` has one failure ("Pistol Aim key never set") that
 also fails on unchanged origin/next (not mine).
+
+## flatbayonet: the dagger bayonet's mount frame (guard level, turns about the blade); the invisible flat bayonet not reproduced (branch agent/flatbayonet, 2026-11-27)
+
+His flat notes 2026-11-27: (1) the bayonet invisible on the shotgun after J (F8 too), J off flies it upwards and the hand
+looks empty, B drops it from above his head; (8) an animated attach/detach; (10) the dagger bayonet's guard upright through
+the muzzle, its yaw/roll turning it in odd ways.
+- **Mount frame (10)**: `attach::KindInfo` has `forward` (along the blade to its tip) and `across` (along its guard); a
+  mount's Pitch / Yaw / Roll turn that frame (`Mount::basis` = `view::mountBasis(angles)` x the kind's frame), used by
+  `onGun` (server points, the stick's blade, the lying gun's hull) and `view::placeAttachment` (drawn). All zero lays the
+  blade along the barrel with the guard level; yaw turns about the gun's up, pitch about the guard, roll about the blade
+  (Quake's yaw-pitch-roll order). The bayonet's frame is its model's own axes (unchanged look). The dagger's: its
+  vertices' long axis (`0.354 0 0.935` in v_dagger.mdl; the muzzle_av-to-wpnbtn_av line runs 13 degrees off the handle,
+  so a roll about it swung the handle 7 units sideways) and the guard square to it in the model's x-z plane
+  (scratch `fb_frame.py`, `fb_axis.py`).
+- **His values converted**: weapons.txt slot 1 (shotgun) att2 `26.55 0.77 -1.717`, pitch -0.74 (was `26.56 0 -2.5`,
+  -70, roll 180); slot 2 (SSG) `20.199 0.706 1.668`, pitch 0.76 (was `20.19 0 0.95`, -68.5, roll 180): the same blade
+  line and tip, rolled a quarter turn about the long axis so the guard is level. With the guard level the dagger's top is
+  lower (shotgun 3.83 -> 0.48, SSG 6.62 -> 3.55 in the gun's model units): it no longer cuts into the muzzle; his Up raises
+  it if he wants it snug. `vr_wofs_version` 80 (`takeDaggerFrame80`, `attach::convertOldMount`): a config's own att2
+  place/turn (the rest at the old defaults) converted the same way.
+- **The invisible bayonet (1): not reproduced.** Flat (`-flatscreenmode`), vrtesthall, his whole `ironwail.cfg` exec'd, the
+  real keys (`vr_mock_key`: a toolgun bayonet grabbed by H, J on, F8 fly camera moved round the body, J off, B), in fast
+  mode, `-RealTime`, `-Base qrp`, and with the guns swapped (key 3): every time the bayonet is drawn on the gun (seen from
+  the fly camera), J off puts it in the free hand on screen (`vr_held_report`: drawn = carried, in view), B drops it from
+  that hand (`flat throw: flying from` the hand, 7 units ahead of the eye). His build (startup.log: b617e34) has bayonetfix
+  and bayonet2. Found on the way: his config's auto-assigned prop ids (`vr_prop_id_72`..`80`: v_axe ... bayonet at 80)
+  shadow the shipped bayonet slot (now promoted by the ship as props.txt slot 72), so his bayonet had only his slot-80 grip
+  lines (no mass, tip or handle); it still drew right in these runs. `vr_held_report` now also prints where the held thing
+  is drawn and networked from the eye and its +x in the view (`at_eye`, `net_at_eye`, `x_in_view`).
+- **Animated attach/detach (8): not done** (out of budget). Plan: flatplay holds J's impulse 52 back while the free hand
+  travels to the gun's drawn mount (the flat reload trip's way, vr_flatreload.cpp), sends it on arrival, the attachment
+  drawn sliding along its blade (placeAttachment offset by a fading slide), then the hand returns; `vr_flat_attach_*_time`
+  tunables; VR keeps its hand-driven attach.
+- **Tests**: `menu_vr attachtest` 14/0 (new: the dagger along the barrel and its guard level on both guns, each of pitch /
+  yaw / roll turning about the right axis, his old values converting to today's defaults with the tip and blade kept);
+  attach_test.sh 16/1: 80 flat 17/0, 81/82 4/0 both, 84 VR dagger 27/0, 85 flat dagger 18/0, menu 14/0; 79 VR 26/1 "picked up by the hand: the same record" (weapon 0): fails the same on origin/next without this change (built and run: not mine; the bayonet prop data promoted to props.txt by the ship is a candidate).
