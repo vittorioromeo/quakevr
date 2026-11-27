@@ -615,7 +615,7 @@ int VR_AmmoStat (struct edict_s *ent);				// SV_WriteClientdataToMessage: the st
 int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage: the active weapon item bit
 int VR_EntityUpdateBits (struct edict_s *ent);			// SV_WriteEntitiesToClient, before U_EXTEND*
 void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits); // after the update
-int VR_StepLerpInterval (struct edict_s *ent);			// SV_WriteEntitiesToClient: U_LERPFINISH's byte for a stepping monster in the air (moved every server frame), -1 else (vr_server.cpp)
+int VR_StepMovesEveryFrame (struct edict_s *ent);		// a stepping monster in the air (moved every server frame): sent with U_QVR_MOVEFRAME, its move drawn over the frame (vr_server.cpp; the hit model's too)
 int VR_StepRidesLift (struct edict_s *ent);				// SV_WriteEntitiesToClient: a stepping monster on a moving lift, sent without U_STEP (drawn as the lift is; vr_server.cpp)
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled

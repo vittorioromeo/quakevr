@@ -45,6 +45,7 @@ typedef struct lightcache_s {
 #define LERP_RESETANIM2	(1<<2) //set this and previous flag to disable anim lerping for two anim frames
 #define LERP_RESETMOVE	(1<<3) //disable movement lerping until next origin/angles change
 #define LERP_FINISH		(1<<4) //use lerpfinish time from server update instead of assuming interval of 0.1
+#define LERP_MOVEFRAME	(1<<5) // QVR: moved every server frame (U_QVR_MOVEFRAME: a stepping monster in the air): its move drawn over the time between messages
 //johnfitz
 
 typedef struct entity_s

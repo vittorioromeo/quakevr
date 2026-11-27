@@ -437,6 +437,7 @@ vr_agarmor_test  11       vr_agarmor_shot_test.qc          (VR_ARS_Frame: an abs
 vr_agarmor_test  12       vr_agarmor_shot_test.qc          (VR_ARS_Frame: a broken plate thrown hurts)
 vr_agarmor_test  13       vr_agarmor_test.qc               (the first breaks' cost: plate models precached at load)
 vr_agarmor_test  15-20    vr_beastarmour_test.qc           (VR_BAT_Frame: the beasts' armour: 15 the test, 16 the armour_beasts scene, 17-20 each beast close for the renders)
+vr_agarmor_test  21       vr_beastarmour_test.qc           (VR_DLT_Frame: doglerp: the drawn body smooth and the armour in step through a leap, a run, a shoved roll, a scrag, an ogre, at 0.25x and 1x)
 
 vr_ammocolor_test 1*       vr_ammocolor_test.qc             (the Debug menu runs it: the dispatcher's fall-through)
 vr_ammocolor_test 2        vr_ammocolor_test.qc             (VR_ACT_Give)

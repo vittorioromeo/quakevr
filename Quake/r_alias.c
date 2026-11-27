@@ -357,12 +357,14 @@ static void R_AliasEyeCompare (const void *a, const void *b, size_t size, int st
 R_FrameLerpFinish -- QVR: when the frame lerp of an entity whose messages carry a lerpfinish ends: as the message that
 changed its pose said, not as the latest says. (Each message sends the time to its next think again, rounded to 1/255 s:
 the lerp's end wandered by a few milliseconds from message to message, and the pose went back and forth by as much, in slow
-motion several frames' worth: a knocked-down monster's get-up jittered in bullet time.)
+motion several frames' worth: a knocked-down monster's get-up jittered in bullet time.) A lerp begun by a message
+without one ends as it began, lerptime after its start: a later lerpfinish (a think begun out of turn: a leaping dog
+landing) stretched it, and the pose was drawn back along it (ROUND26.md, "doglerp").
 =================
 */
 float R_FrameLerpFinish (const entity_t *e)
 {
-	return e->animlerpfinish > e->lerpstart ? e->animlerpfinish : e->lerpfinish;
+	return e->animlerpfinish > e->lerpstart ? e->animlerpfinish : e->lerpstart + e->lerptime;
 }
 
 /*
@@ -559,7 +561,10 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 		vec3_t startorigin, startangles; // QVR: from where it is drawn (R_MoveLerpStart)
 		R_MoveLerpStart (e, startorigin, startangles);
 		e->movelerpstart = cl.time;
-		e->movelerpfinish = (e->lerpflags & LERP_FINISH) ? e->lerpfinish : 0.f; // QVR: this move's (R_MoveLerpBlend)
+		if (e->lerpflags & LERP_MOVEFRAME) // QVR: moved every server frame (in the air): over the time to the next message
+			e->movelerpfinish = cl.time + CLAMP (0.001, cl.mtime[0] - cl.mtime[1], 0.1);
+		else
+			e->movelerpfinish = (e->lerpflags & LERP_FINISH) ? e->lerpfinish : 0.f; // QVR: this move's (R_MoveLerpBlend)
 		VectorCopy (startorigin, e->previousorigin);
 		VectorCopy (e->origin,  e->currentorigin);
 		VectorCopy (startangles, e->previousangles);
@@ -1371,6 +1376,7 @@ static void R_AliasTransform (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *le
 
 	if (lerpdata->pose1 == lerpdata->pose2)
 		lerpdata->blend = 0.f;
+	VR_DrawnLerpSample (e, lerpdata->pose1, lerpdata->pose2, lerpdata->blend, lerpdata->origin, lerpdata->angles); // QVR: vr_drawnlerp_watch
 
 	//
 	// viewmodel adjustments (position, fov distortion correction)

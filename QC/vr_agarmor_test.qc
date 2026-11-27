@@ -571,6 +571,11 @@ void() VR_AgArmor_TestFrame =
         VR_BAT_Frame(0); // (15: the beasts' armour, vr_beastarmour_test.qc)
         return;
     }
+    if(vr_dlt_busy)
+    {
+        VR_DLT_Frame(0); // (21: the drawn body smooth, the armour in step; vr_beastarmour_test.qc)
+        return;
+    }
     if(vr_art_state == 0)
     {
         if(cvar_hget(cvarh_vr_agarmor_test) == 0)
@@ -597,6 +602,11 @@ void() VR_AgArmor_TestFrame =
         if(request >= 15 && request <= 20)
         {
             VR_BAT_Frame(request); // (the beasts' armour: the test, the scene, the renders; vr_beastarmour_test.qc)
+            return;
+        }
+        if(request == 21)
+        {
+            VR_DLT_Frame(request); // (doglerp: the drawn body smooth, the armour in step; vr_beastarmour_test.qc)
             return;
         }
         if(request == 2)

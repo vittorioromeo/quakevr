@@ -24,6 +24,7 @@
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_region_shared.h"
+#include "vr_render.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
@@ -1270,6 +1271,66 @@ bool drawnVertexPoints(edict_t* ent, const int* verts, int n, glm::vec3* out)
     return true;
 }
 
+bool detail::relerp(Drawn& d, const DrawnLerp& lerp)
+{
+    if(d.skinned)
+    {
+        return true; // (a ragdoll's parts, an armed humanoid's skinned body: drawn as the hit model has them)
+    }
+    if(lerp.pose1 < 0 || lerp.pose2 < 0 || lerp.pose1 >= d.hdr->numposes || lerp.pose2 >= d.hdr->numposes)
+    {
+        return false;
+    }
+    d.pose1 = lerp.pose1;
+    d.pose2 = lerp.pose2;
+    d.blend = lerp.blend;
+    d.origin = lerp.origin;
+    d.angles = lerp.angles;
+    d.R = held::axesFromAngles(&d.angles[0], false);
+    d.A = d.R * glm::mat3{glm::vec3{d.L.x, 0.f, 0.f}, glm::vec3{0.f, d.L.y, 0.f}, glm::vec3{0.f, 0.f, d.L.z}};
+    if(za::fabs(glm::determinant(d.A)) < 1e-9f)
+    {
+        return false;
+    }
+    d.Ainv = glm::inverse(d.A);
+    d.b = d.origin + d.R * d.l;
+    return true;
+}
+
+bool clientLerp(entity_t* e, DrawnLerp& out)
+{
+    if(!e || !e->model || e->model->type != mod_alias)
+    {
+        return false;
+    }
+    VR_AliasLerpNow(e, &out.pose1, &out.pose2, &out.blend);
+    if(out.pose1 == out.pose2)
+    {
+        out.blend = 0.f; // (as R_AliasTransform)
+    }
+    render::drawnPlace(*e, out.origin, out.angles);
+    return true;
+}
+
+bool drawnVertexPoints(edict_t* ent, const DrawnLerp& lerp, const int* verts, int n, glm::vec3* out)
+{
+    Drawn d;
+    if(!drawnOf(ent, d) || !relerp(d, lerp))
+    {
+        return false;
+    }
+    const Verts vs = vertsOf(d);
+    for(int i = 0; i < n; i++)
+    {
+        if(verts[i] < 0 || verts[i] >= d.mesh->numverts)
+        {
+            return false;
+        }
+        out[i] = vs.at(d, verts[i], 0.f);
+    }
+    return true;
+}
+
 float skinCrossing(edict_t* ent, const glm::vec3& a, const glm::vec3& b)
 {
     Drawn d;
@@ -1484,8 +1545,9 @@ void serverFrame()
         float interval = 0.f;
         const int pose = poseAt(hdr, ent->v.frame, now, &interval);
         const glm::vec3 origin = vec(ent->v.origin), angles = vec(ent->v.angles);
-        // The client's lerp time: a framegroup's interval; else the think's (U_LERPFINISH), or 0.1 s.
-        const float lerpTime = ent->sendinterval ? za::max(0.01f, static_cast<float>(ent->v.nextthink - ent->oldthinktime)) : 0.1f;
+        // The client's lerp time: a framegroup's interval; else to its next think (U_LERPFINISH: the time left to it, as the
+        // message says; a think begun out of turn, a pain's, ends its lerp there too), or 0.1 s.
+        const float lerpTime = ent->sendinterval ? za::max(0.01f, static_cast<float>(ent->v.nextthink - now)) : 0.1f;
         if(t.model != model || t.seen < now - 0.25 || t.seen < ent->freetime)
         {
             t = Track{};
@@ -1505,12 +1567,24 @@ void serverFrame()
             }
             if(origin != t.origin || angles != t.angles)
             {
-                t.prevOrigin = t.origin; // (the client lerps a step of any length: a dog's 64-unit bound, a 70-degree turn)
-                t.prevAngles = t.angles;
+                // (the client lerps a step of any length: a dog's 64-unit bound, a 70-degree turn) From where it is drawn
+                // now (R_MoveLerpStart, vr_monster_lerp_continue), over the frame when it moves every frame (in the air:
+                // U_QVR_MOVEFRAME, VR_StepMovesEveryFrame), else to its next think: the renderer's rule, so the armour
+                // placed from this model keeps to the drawn body (ROUND26.md, "doglerp").
+                const float mb = vr_monster_lerp_continue.value != 0.f && t.moveStart > 0.
+                                     ? za::clamp(static_cast<float>(now - t.moveStart) / za::max(t.moveDur, 1e-3f), 0.f, 1.f)
+                                     : 1.f;
+                glm::vec3 da = t.angles - t.prevAngles;
+                for(int i = 0; i < 3; i++)
+                {
+                    da[i] = da[i] > 180.f ? da[i] - 360.f : da[i] < -180.f ? da[i] + 360.f : da[i];
+                }
+                t.prevOrigin = t.prevOrigin + (t.origin - t.prevOrigin) * mb;
+                t.prevAngles = t.prevAngles + da * mb;
                 t.origin = origin;
                 t.angles = angles;
                 t.moveStart = now;
-                t.moveDur = lerpTime;
+                t.moveDur = VR_StepMovesEveryFrame(ent) ? za::clamp(static_cast<float>(host_frametime), 0.001f, 0.1f) : lerpTime;
             }
         }
         t.step = static_cast<int>(ent->v.movetype) == MOVETYPE_STEP;

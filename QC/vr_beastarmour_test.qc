@@ -360,4 +360,167 @@ void(float req) VR_BAT_Frame =
         VR_Test_Verdict();
     }
 };
+
+// `vr_agarmor_test 21` (doglerp; ROUND26.md): the drawn body moves smoothly and the armour with it, in slow motion and at
+// full speed. One beast at a time, dressed in a full set, ahead of the player: a rottweiler's leap, its run, its roll over
+// (painb) after a shove, a scrag flying, an ogre running. Each is watched frame by frame (vr_drawnlerp_watch,
+// vr_hitmodel_diag.cpp): the drawn body against the hit model the armour is placed from: no frame drawn still while it
+// moves, no jump, the two in step. First at a quarter speed (vr_timescale 0.25), then at 1. Ends on
+// "doglerp test: N passed, M failed".
+float vr_dlt_busy;
+float vr_dlt_case;   // 0 leap, 1 run, 2 roll, 3 scrag, 4 ogre; + 5 at full speed
+float vr_dlt_state;  // 1 spawned, 2 moving (watched), 3 the watch ended: its result next frame
+float vr_dlt_wait;   // the state's next step at this time (game time)
+float vr_dlt_until;  // give up on the case
+float vr_dlt_flew;   // the leap and the roll: off the ground once
+float vr_dlt_ticks;  // frames since the watch ended (its result: the engine's, a frame later)
+float vr_dlt_scale0, vr_dlt_ramp0, vr_dlt_kd0;
+entity vr_dlt_e;
+float VR_DLT_CASES = 5;
+void() dog_leap1;
+void() dog_run1;
+void() dog_painb1;
+void() wiz_run1;
+void() ogre_run1;
+
+string(float c) VR_DLT_Name =
+{
+    c = c - floor(c / VR_DLT_CASES) * VR_DLT_CASES;
+    return c == 0 ? "rottweiler leap" : c == 1 ? "rottweiler run" : c == 2 ? "rottweiler roll (shoved)" : c == 3 ? "scrag flying" : "ogre running";
+};
+
+// Case `c`'s beast spawned (its armour on), left to settle; the next state starts its move.
+void(entity p, float c) VR_DLT_Spawn =
+{
+    float k = c - floor(c / VR_DLT_CASES) * VR_DLT_CASES;
+    float kind = k <= 2 ? 0 : k == 3 ? 2 : 1;
+    vr_dlt_e = VR_BAT_Spawn(p, kind, 0, k == 1 ? 420 : k == 4 ? 360 : 220, 0);
+    VR_AgArmor_Give(vr_dlt_e, 2, 1023);
+    cvar_set("vr_timescale", c < VR_DLT_CASES ? "0.25" : "1");
+    vr_dlt_flew = FALSE;
+    vr_dlt_state = 1;
+    vr_dlt_wait = time + 0.8; // (its start_go: up to half a second's spread)
+    vr_dlt_until = time + 6;
+};
+
+// Its move begun (self the beast) and watched.
+void(entity p, float c) VR_DLT_Move =
+{
+    float k = c - floor(c / VR_DLT_CASES) * VR_DLT_CASES;
+    entity oself = self;
+    self = vr_dlt_e;
+    self.enemy = self.goalentity = p;
+    self.attack_finished = time + 100; // (no attacks: a muzzle flash's frames are drawn unlerped on purpose, cl_main.c)
+    if(k == 0)
+    {
+        dog_leap1();
+    }
+    else if(k == 1)
+    {
+        dog_run1();
+    }
+    else if(k == 2)
+    {
+        makevectors('0 1 0' * self.angles_y);
+        VR_Push(self, -v_forward, 300, 120);
+        dog_painb1();
+    }
+    else if(k == 3)
+    {
+        wiz_run1();
+    }
+    else
+    {
+        ogre_run1();
+    }
+    self = oself;
+    localcmd(sprintf("vr_drawnlerp_watch %s\n", vr_dlt_e.classname));
+    vr_dlt_state = 2;
+    vr_dlt_wait = time + (k == 2 ? 1.6 : 0.8); // (the run, the flight: 8 frames; the roll: its 16)
+};
+
+void(float req) VR_DLT_Frame =
+{
+    entity p = VR_Player();
+    if(req == 21)
+    {
+        VR_Test_BeginFlags("doglerp test", VR_TEST_LOUD);
+        vr_dlt_busy = TRUE;
+        vr_dlt_scale0 = cvar_hget(cvarh_vr_timescale);
+        vr_dlt_ramp0 = cvar_hget(cvarh_vr_timescale_ramp);
+        vr_dlt_kd0 = cvar_hget(cvarh_vr_knockdown_chance);
+        cvar_set("vr_timescale_ramp", "0");
+        cvar_set("vr_knockdown_chance", "0"); // (the roll is its pain frames, not a knockdown's ragdoll)
+        p.flags = p.flags | FL_NOTARGET | FL_GODMODE;
+        vr_dlt_case = 0;
+        VR_DLT_Spawn(p, 0);
+        return;
+    }
+    if(time > vr_dlt_until && vr_dlt_state < 3)
+    {
+        VR_Test_Check(FALSE, sprintf("%s: timed out in state %g", VR_DLT_Name(vr_dlt_case), vr_dlt_state));
+        localcmd("vr_drawnlerp_watch 0 timedout\n");
+        vr_dlt_state = 3;
+        vr_dlt_ticks = -1000; // (no result read)
+    }
+    if(vr_dlt_state == 1)
+    {
+        if(time >= vr_dlt_wait)
+        {
+            VR_DLT_Move(p, vr_dlt_case);
+        }
+        return;
+    }
+    if(vr_dlt_state == 2)
+    {
+        float k = vr_dlt_case - floor(vr_dlt_case / VR_DLT_CASES) * VR_DLT_CASES;
+        if(!(vr_dlt_e.flags & FL_ONGROUND))
+        {
+            vr_dlt_flew = TRUE;
+        }
+        // The leap: watched until it is down again; the roll: through its frames; the rest a while.
+        float done = k == 0 ? (vr_dlt_flew && (vr_dlt_e.flags & FL_ONGROUND) && time >= vr_dlt_wait - 0.6) : time >= vr_dlt_wait;
+        if(!done)
+        {
+            return;
+        }
+        if(k == 0 || k == 2)
+        {
+            VR_Test_Check(vr_dlt_flew, sprintf("%s: off the ground in it", VR_DLT_Name(vr_dlt_case)));
+        }
+        localcmd(sprintf("vr_drawnlerp_watch 0 \"%s at %s\"\n", VR_DLT_Name(vr_dlt_case), vr_dlt_case < VR_DLT_CASES ? "0.25x" : "1x"));
+        vr_dlt_state = 3;
+        vr_dlt_ticks = 0;
+        return;
+    }
+    if(vr_dlt_state == 3)
+    {
+        vr_dlt_ticks = vr_dlt_ticks + 1;
+        if(vr_dlt_ticks >= 0 && vr_dlt_ticks < 3)
+        {
+            return; // (the watch's end runs at the next frame's commands)
+        }
+        if(vr_dlt_ticks >= 0)
+        {
+            float r = cvar_hget(cvarh_vr_drawnlerp_result);
+            VR_Test_Check(r == 1, sprintf("%s at %s: drawn smoothly, the armour in step (%s)", VR_DLT_Name(vr_dlt_case),
+                vr_dlt_case < VR_DLT_CASES ? "0.25x" : "1x", r == 0 ? "not smooth" : r < 0 ? "too few frames" : "smooth"));
+        }
+        if(vr_dlt_e) remove(vr_dlt_e);
+        vr_dlt_e = world;
+        vr_dlt_case = vr_dlt_case + 1;
+        if(vr_dlt_case < 2 * VR_DLT_CASES)
+        {
+            VR_DLT_Spawn(p, vr_dlt_case);
+            return;
+        }
+        cvar_set("vr_timescale", ftos(vr_dlt_scale0));
+        cvar_set("vr_timescale_ramp", ftos(vr_dlt_ramp0));
+        cvar_set("vr_knockdown_chance", ftos(vr_dlt_kd0));
+        p.flags = p.flags - (p.flags & (FL_NOTARGET | FL_GODMODE));
+        vr_dlt_busy = FALSE;
+        vr_dlt_state = 0;
+        VR_Test_Verdict();
+    }
+};
 #endif

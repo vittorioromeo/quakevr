@@ -28,6 +28,10 @@ inline constexpr int U_QVR_NOMAG = 1 << 30;        // no data: a weapon prop wit
 // The bits above are full (1 << 31 is the sign: sv_main.c's "bits >= 1 << 24" test); this one is the protocol's spare
 // U_UNUSED21, set only by the VR server (VR_EntityUpdateBits) and read only by the VR client (VR_ParseEntityUpdate).
 inline constexpr int U_QVR_SSGOPEN = 1 << 21;      // byte: a super shotgun prop broken open (QC QVR_WPNFLAG_SSG_OPEN), its chambers loaded (0-2)
+// The protocol's spare U_UNUSED22, likewise: no data. A stepping monster moved every server frame (in the air: a leap, a
+// shove, a fall; VR_StepMovesEveryFrame): its move drawn over the time between messages (LERP_MOVEFRAME), not to its
+// next think; U_LERPFINISH keeps its think's time, for its frames' lerp.
+inline constexpr int U_QVR_MOVEFRAME = 1 << 22;
 
 // Server -> client.
 inline constexpr int svc_quakevr = 39;

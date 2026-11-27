@@ -691,8 +691,9 @@ Kind* ready(edict_t* ent)
 
 // Where piece `s` of `ent` is now: its bone's vertices as drawn, the rigid motion (and the body's scale) from their rest
 // places, armour.txt's move and turn laid on in the rest pose; not drawn (no model to pose), its rest place where the
-// entity stands.
-bool place(edict_t* ent, const Slot& s, Placed& out)
+// entity stands. `lerp`: the body as the client draws it this frame (hitmodel::clientLerp), for the drawn pieces: they keep
+// to the drawn body (the one source of its pose; ROUND26.md, "doglerp"); none: the hit model's (shots, the server).
+bool place(edict_t* ent, const Slot& s, Placed& out, const hitmodel::DrawnLerp* lerp = nullptr)
 {
     if(!s.on || s.numAnchors < 3)
     {
@@ -704,7 +705,8 @@ bool place(edict_t* ent, const Slot& s, Placed& out)
     // animation bends the bone's flesh, and a size taken from it made the plates grow and shrink (his note 2026-11-27).
     const float k = za::clamp(hitmodel::drawnScale(ent), 0.05f, 20.f);
     glm::vec3 posed[maxAnchors];
-    if(!hitmodel::drawnVertexPoints(ent, s.anchor, s.numAnchors, posed))
+    if(lerp ? !hitmodel::drawnVertexPoints(ent, *lerp, s.anchor, s.numAnchors, posed)
+            : !hitmodel::drawnVertexPoints(ent, s.anchor, s.numAnchors, posed))
     {
         const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
         out.axes = axes * turn;
@@ -779,7 +781,8 @@ float crossing(const Slot& s, const Placed& pl, const glm::vec3& a, const glm::v
 // The junctions' bones now (2 a junction: its piece's end, the joined piece's), as 3x4 matrices from the rest pose to the
 // world less `base`: each end carried as its piece is placed; a piece not worn (broken off), its end shrunk onto the skin
 // there; neither worn, or the junctions off, collapsed (not drawn). Returns the junctions drawn.
-int junctionBones(edict_t* ent, const Kind& k, int pieces, const glm::vec3& base, float* out)
+int junctionBones(edict_t* ent, const Kind& k, int pieces, const glm::vec3& base, float* out,
+    const hitmodel::DrawnLerp* lerp = nullptr)
 {
     ZA_MEMSET(out, 0, sizeof(float) * 12u * static_cast<za::SizeT>(2 * k.numJunctions));
     int drawn = 0;
@@ -788,7 +791,7 @@ int junctionBones(edict_t* ent, const Kind& k, int pieces, const glm::vec3& base
         const Junction& jn = k.junction[j];
         const bool worn[2] = {((pieces >> jn.child) & 1) != 0, ((pieces >> jn.parent) & 1) != 0};
         Placed pl[2];
-        if((!worn[0] && !worn[1]) || !place(ent, k.slot[jn.child], pl[0]) || !place(ent, k.slot[jn.parent], pl[1]))
+        if((!worn[0] && !worn[1]) || !place(ent, k.slot[jn.child], pl[0], lerp) || !place(ent, k.slot[jn.parent], pl[1], lerp))
         {
             continue;
         }
@@ -1214,11 +1217,15 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
         return;
     }
     const bool studio = studioEnt > 0 && num == studioEnt;
+    // The body as it is drawn this frame (its frame lerp and step lerp, the renderer's), not the hit model's own lerp of
+    // the server's frames: the pieces move with the drawn body, in slow motion too (ROUND26.md, "doglerp").
+    hitmodel::DrawnLerp drawnLerp;
+    const hitmodel::DrawnLerp* lerp = hitmodel::clientLerp(e, drawnLerp) ? &drawnLerp : nullptr;
     for(int i = 0; i < numSlots && numEnts < maxEnts && cl_numvisedicts < MAX_VISEDICTS; i++)
     {
         Slot& s = k->slot[i];
         Placed pl;
-        if(!(pieces & (1 << i)) || !place(ent, s, pl))
+        if(!(pieces & (1 << i)) || !place(ent, s, pl, lerp))
         {
             continue;
         }
@@ -1257,7 +1264,7 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
             k->leather = Mod_ForName(k->leatherName, false);
         }
         const int n = numLeather;
-        if(k->leather && junctionBones(ent, *k, pieces, geom::vec(e->origin), leatherBones[n]) > 0)
+        if(k->leather && junctionBones(ent, *k, pieces, geom::vec(e->origin), leatherBones[n], lerp) > 0)
         {
             numLeather++;
             leatherBoneCount[n] = 2 * k->numJunctions;
