@@ -190,13 +190,17 @@ Each release also has the package itself, `QuakeVR.zip`, for people who'd rather
 
 - Install the [Visual C++ runtime](#requirements) yourself if needed.
 - Unzip it **into your Quake folder**, so that `quakevr` sits next to `id1`, and run **`QuakeVR.bat`** (it runs
-  `ironwail.exe -game quakevr`; anything you add to its command line goes to the engine). Your settings, saves,
+  `ironwail.exe -game quakevr`; anything you add to its command line goes to the engine). Since 1.2 starting
+  `ironwail.exe` itself, or a shortcut of your own without `-game quakevr`, works the same: the game adds Quake VR's
+  `quakevr` folder whenever it is missing from the command line (under a mod given with `-game <mod>`), and says so
+  in every menu when it can't find it (a broken install: reinstall). Your settings, saves,
   screenshots and notes go in `quakevr`; the Map Library writes `cache` and `qvr_addons` in the Quake folder.
   Don't unzip it into the re-release's own folder (`Quake\rerelease`): the package's `SDL2.dll` would replace the
   re-release's.
 - Or keep it in a folder of its own and name both folders on the command line:
   `ironwail.exe -basedir "<Quake folder>" -basedir "<QVR:U folder>" -game quakevr`, started in the QVR:U folder.
-  Don't end either path with a `\`.
+  Don't end either path with a `\`. (Started without `-basedir` from its own folder, the game finds Quake as
+  Ironwail does, from Steam, GOG or Epic, and its own folder's `quakevr`.)
 - **Updating:** unzip the new package over the old one. Your settings, saves, relit maps and notes are kept.
 - **Uninstalling:** delete `quakevr`, `ironwail.exe`, `ironwail.pak`, `ironwail.pdb`, `QuakeVR.bat`,
   `README-QuakeVR.txt`, `manifest.json` and the DLLs from the folder you unzipped it into. Check first that nothing
