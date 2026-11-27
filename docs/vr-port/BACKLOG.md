@@ -303,11 +303,6 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   0.37-0.46 ms step; `vr_ragdoll_self_pairs 0` A/B). An exact skip (a Box3D change: a self pair's narrow phase skipped
   while its last distance less a motion bound stays over the speculative distance) would save at most that. Left: the
   GPU side close up, and a test on a lower-end PC to see whether the drop remains.
-- **The knight's ledge grab "pulled away"** (ROUND25.md "box3dup2"): climb_test pull, seeds 7-10, with upstream's mesh
-  ghost handling (the default, `vr_box3d_mesh_ghosts 1`): 21/24, the ogre 4/4 now (its "not hanging" fixed), but the
-  knight 2/4 (4/4 before the Box3D update and with the handling off): falling past the lip at speed, a hand's hold
-  stretches 11-15 units off at the cap and lets go ("pulled away"), sometimes both. Chaotic: which seeds fail changes
-  between the batched and the single runs. Look at its grab's load (the cap against the fall) before tuning.
 - **Linux Flatpak needed Steam folder access** (same tester): it worked once she granted access to
   ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
   `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,

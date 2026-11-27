@@ -304,10 +304,12 @@ struct Climb
     float prog{0.f}, prog2{0.f}; // the way of this phase (Over: up over the lip, then in) done, 0..1
     double reachAgain{0.0}; // holding by one hand: the other reaches for the lip again then (climbRetries times: retries)
     int retries{0};
-    // Its catch (Hang): from its first hold (caughtAt) its muscles take its fall (catchFrame), until caught; the most they
-    // took (body weights) and its fall then (m/s), for the tests.
+    // Its catch (Hang): its muscles taking its fall (catchFrame) while catching; caught: its first fall (from its first
+    // hold, caughtAt) stopped; catches: falls caught again since; the most they took (body weights) and its fall at its
+    // first hold (m/s).
     double caughtAt{-1.0};
-    bool caught{false};
+    bool catching{false}, caught{false};
+    int catches{0};
     float catchMost{0.f}, catchFall{0.f};
     // The tests: its chest over the top at most (m), why it ended; its feet's travel against its pelvis while it hung and
     // pulled (m: its struggle's kicks, vr_ragdoll_active_hang_kick).
