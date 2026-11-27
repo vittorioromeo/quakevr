@@ -74,13 +74,13 @@ jobs:
       # runtime. It prints the glibc it needs.
       - name: Make the Linux tarball
         shell: bash
-        run: bash Misc/linux/tarball/make_tarball.sh flatpak_app/files .
+        run: bash Misc/linux/tarball/make_tarball.sh flatpak_app/files tarball
 
       - name: Upload the tarball
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.meta.outputs.name }}-linux-x86_64
-          path: QuakeVR-linux-x86_64.tar.gz
+          path: tarball/QuakeVR-linux-x86_64.tar.gz
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
