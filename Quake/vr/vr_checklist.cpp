@@ -1,5 +1,5 @@
 // vr_checklist.cpp -- the playtest checklist (vr_checklist.hpp): quakevr/checklist.txt read at runtime ("[Section]"
-// lines, one item a line, '#' or "//" comments, an item's trailing "{test:<id>}" its scenario), its marks in
+// lines, "## Name" sub-headings, one item a line, '#' or "//" comments, an item's trailing "{test:<id>}" its scenario), its marks in
 // quakevr/checklist_ticks.txt (a passed item's text a line, a failed one's after "[fail] "), the sections folded or
 // unfolded by hand in quakevr/checklist_sections.txt ("collapsed <name>" / "expanded <name>").
 
@@ -37,6 +37,7 @@ struct State
     za::Vector<za::String> scenarios;            // each item's "{test:<id>}" tag's id ("" none)
     za::Vector<za::String> shown;                // as drawn: characters the menu's font lacks replaced
     za::Vector<int> section;                      // each item's (-1: none)
+    za::Vector<za::String> subs;                  // each item's sub-heading: the last "## Name" line above it ("" none)
     za::Vector<int> firstLine;                    // each item's first wrapped line in `lines`
     za::Vector<za::Pair<int, int>> lines;        // start and length in its `shown` text
     ankerl::unordered_dense::set<za::String> tickedTexts;   // every passed item's text, those no longer listed too
@@ -50,7 +51,7 @@ struct State
     ankerl::unordered_dense::set<za::String> expandedNames;  // and unfolded by hand
     auto members()
     {
-        return qvr::mem::list(sections, texts, scenarios, shown, section, firstLine, lines, tickedTexts, failedTexts,
+        return qvr::mem::list(sections, texts, scenarios, shown, section, subs, firstLine, lines, tickedTexts, failedTexts,
             undoTexts, undoWasTicked, sectionOpens, sectionTotals, sectionDefaults, collapsedNames, expandedNames);
     }
 };
@@ -377,14 +378,21 @@ void readList()
     state.scenarios.clear();
     state.shown.clear();
     state.section.clear();
+    state.subs.clear();
     state.firstLine.clear();
     state.lines.clear();
 
     za::Vector<za::String> lines;
     fileFound = readLines(listPath(), lines);
     int current = -1;
+    za::String sub;
     for(const za::String& l : lines)
     {
+        if(l.size() > 3 && l[0] == '#' && l[1] == '#' && l[2] == ' ')
+        {
+            sub = za::String("> ") + drawable(qvr::strings::trim(l.substrByPosLen(3, l.size() - 3))); // "## Name": a sub-heading
+            continue;
+        }
         if(l.empty() || l[0] == '#' || (l.size() >= 2 && l[0] == '/' && l[1] == '/'))
         {
             continue;
@@ -393,6 +401,7 @@ void readList()
         {
             state.sections.pushBack(drawable(qvr::strings::trim(l.substrByPosLen(1, l.size() - 2))));
             current = static_cast<int>(state.sections.size()) - 1;
+            sub.clear();
             continue;
         }
         za::String id;
@@ -401,6 +410,7 @@ void readList()
         state.texts.pushBack(ZA_MOVE(text));
         state.scenarios.pushBack(ZA_MOVE(id));
         state.section.pushBack(current);
+        state.subs.pushBack(sub);
         state.firstLine.pushBack(static_cast<int>(state.lines.size()));
         wrap(state.shown.back(), state.lines);
     }
@@ -537,6 +547,11 @@ int failedCount()
 const char* scenario(int item)
 {
     return item >= 0 && item < itemCount() ? state.scenarios[item].cStr() : "";
+}
+
+const char* subheading(int item)
+{
+    return item >= 0 && item < itemCount() ? state.subs[item].cStr() : "";
 }
 
 const char* text(int item)
