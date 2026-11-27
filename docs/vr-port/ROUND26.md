@@ -4272,3 +4272,34 @@ His words (2026-11-27): "make the scrag tail armor pieces individually destroyab
   splitting adds 2 points to the tail's total at green, 1 at yellow, none at red (the tail is rarely hit by the test's
   aim at the body's middle).
 - **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).
+
+## linuxtar: a plain Linux tarball beside the Flatpak, one launcher for both (branch agent/linuxtar, 2026-11-27)
+
+An Arch player on Monado: the Flatpak's runtime (freedesktop 25.08, glibc 2.42) can't load his host-built
+`libopenxr_monado.so` ("GLIBC_2.43 not found"); the Flatpak's files run outside the sandbox worked. Details and the
+options: LINUX.md, "The Flatpak and glibc" and "Linux tarball".
+- **What**: `QuakeVR-linux-x86_64.tar.gz` (QuakeVR/: ironwail, ironwail.pak, libopenxr_loader.so.1, the codec libraries,
+  quakevr/, quakevr.sh, README.txt, VERSION), made in the Flatpak CI job from `flatpak_app/files` by
+  `Misc/linux/tarball/make_tarball.sh` (artifact `QuakeVR-<branch>-<hash>-linux-x86_64`). The same binary as the Flatpak.
+- **glibc floor 2.38** (GLIBCXX_3.4.32): `__isoc23_*` and libm's `fmod` (unavoidable on the 25.08 SDK). The one 2.42
+  symbol, `__inet_pton_chk` (clang doesn't fold glibc's fortify check), is gone: `host_cmd.c` calls `inet_pton` through
+  a volatile pointer on fortified glibc builds (Windows and Android untouched). make_tarball fails above `QVR_GLIBC_MAX`
+  (2.38) and on a linked library that is neither bundled nor on its system list.
+- **Bundled from the runtime**: mpg123, opusfile, opus, FLAC 14, vorbisfile, vorbis, ogg (the engine links them; Ubuntu
+  24.04 has FLAC 12). The system's: glibc, libstdc++, libX11, libGLX/libOpenGL, SDL2, libcurl.
+- **Launcher** (`Misc/linux/flatpak/quakevr.sh`, shared): tarball mode when `ironwail` is beside it
+  (`LD_LIBRARY_PATH=<dir>`, base dir its folder, remembered folder `<dir>/quake-dir`). New for both: Snap and Debian
+  Steam roots, `config/libraryfolders.vdf`, Lutris/GOG `~/Games/gog/quake`, `/usr/share/games/quake`, `--flat`
+  (`-flatscreenmode`; the Flatpak had none), `--dry-run`, `--help`; the not-found message lists where it looked and, in
+  the Flatpak, the `flatpak override` for each Steam library the sandbox can't see (BACKLOG "Flatpak needed Steam folder
+  access": hint added, cause not found).
+- **Flatpak runtime bump: not done** (decision): 26.08 can't be built here offline, and a newer runtime only helps until
+  the host's glibc moves again. Three lines to try with one CI run (LINUX.md).
+- **Tests** (WSL Arch, glibc 2.44): `quakevr_sh_test.sh` 22/0 (fake homes: every Steam layout, rerelease, GOG/Heroic,
+  overrides, remembered folder, stub engine's command line and LD_LIBRARY_PATH, --flat, a link, the Flatpak's override
+  hint). An offline `flatpak-builder` build (cached sources), the tarball made, unpacked clean, run with a fake Steam
+  library from `libraryfolders.vdf`: e1m1 on the mock headset and with `--flat`, exit 0; then against the kit's
+  host-built Monado (its library needs GLIBC_2.43, the player's case): session FOCUSED with the bundled loader, while
+  `ldd` in the Flatpak runtime shows the player's error (`libm.so.6: version GLIBC_2.43 not found`).
+- **Open**: CI's step is untested on GitHub (the action's build dir `flatpak_app` assumed, as the manifest's skip list
+  has it); no real headset; no older-glibc build (Ubuntu 22.04 would need the AppImage plan's job).
