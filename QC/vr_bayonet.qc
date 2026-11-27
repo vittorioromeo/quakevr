@@ -7,6 +7,7 @@
 void() VR_Bayonet_Precache =
 {
     precache_model("progs/bayonet.mdl");
+    precache_model("progs/bayonet_mount.mdl"); // (bayomounts: drawn by the client on every gun a bayonet fits)
 };
 
 /*QUAKED vr_bayonet (0.5 0.5 0.6) (-1 -1 -1) (7 1 1)

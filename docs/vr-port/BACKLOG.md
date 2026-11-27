@@ -23,7 +23,7 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Dog wedged against a wall**: it can stay standing wedged with the wiggle off. ROUND25.md "wallglue".
 - **Flat: no low or sideways swing, so no flat leg sweeps** (his call 2026-11-24: not now).
 - **Splitscreen**: agent/split (6e6f2af6e, split19, SPLITSCREEN.md) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next if it still shows.
-- **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache is open; LRZ still dead in the opaque entity pass (some alias batch; next: bisect by batch); CPU-bound big fights
+- **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache across frames would rarely hit (questperf2: the instance data changes every frame with the flickering dynamic lights and the wounds' timers); LRZ in the opaque entity pass (questperf2): alive with no alias draws and after your first model, dead after your leg holsters (batches 2-3), not from one state alone; `vr_debug_alias_lrz 62` plus `vr_gl_alias_lazy_blend 1` together keep it (1.16M pixels killed): next, bisect that combination (ROUND26 "questperf2"); CPU-bound big fights
   (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
 - **Baseline failures, 2026-11-26 list, what is left** (agrunt 203 fixed: ROUND26 "basefix2"; `ragdoll_grab` and teleporters: "basefix1"/"basefix2"): `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14; agrunt 74 (78 vs 80%); the recoil test has 4 slots off the old defaults; agrunt 16 (the drawn grip 2.72 off, limit 2.5) and agrunt 65 (flaky) as in basefix2.
 - **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` points to `qvr-kit/relit`); no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
@@ -82,13 +82,6 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   95 monster_* edicts (the extra ones: a monster_morph spawner and a knight-class entity that counts itself without
   FL_MONSTER). The 95/94 on another skill is the same one-off. vr_run_enemies_check failing r2m1 on it needs an
   exemption, not a spawn-code fix.
-- **MP review lows not fixed by mpfix (2026-11-20; `qvr-kit/scratch/mprev_A.md`, `mprev_C.md`, MP_PLAN.md "Review
-  fixes")**: A6 (room service expire() on each over-cap REGISTER), A7 (server rule values unchecked on the client:
-  refuse non-finite, clamp to the menu range), A8 (connect "host:port" sets net_hostport for the session), A10
-  (control replies 5-10x their requests: pad or rate-limit), A11 (keyless rejoin records: bots' apart, a key required
-  from v40), A13 (guest ping from his clock: clamp 0..10 s), S1-S3, O1 (drain the shared socket once a frame), O2 (a
-  datagram pool), C7 (box3d hand shapes scan the model precache per hand per frame), C8 (Voice Chat page tests
-  "talking" in the row text: export voicechat::talking).
 - **mp_coopbots, rare flake (2026-11-20, mpfinal)**: vr_dm_test 11's "the bot kills the grunt" gave up once in ten
   takes (the grunt at 19 health at 864 frames; the fight is the bot's aim over 12 s of real time); the base before the
   review passed its ten. Known; don't chase unless it repeats.
@@ -143,6 +136,8 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
      the takes tool), so the last shot is real flat play.
   New work, small: the desk map generator, the scene QC (actor walk + camera), optionally the hands-to-face fade and a
   sit pose. Everything else exists.
+- **Splitscreen: per-seat controller bindings in the rebinding screen** (2026-11-28, todo): the Controller Bindings
+  screen edits the one bind table; with true seats (agent/split) each seat's controller gets its own page and binds.
 
 ## 4. Monsters' movement: the navmesh (NAVMESH.md)
 

@@ -824,7 +824,8 @@ struct RunLaunchPicks
 };
 // A: Melee Only (the gun held at Nothing), a dagger, 3x enemies. B: the revolver, Glass Cannon, 1x, Anything Goes
 // enemies and pickups. G: Melee Only and Glass Cannon (the firing range's dummy).
-constexpr RunLaunchPicks runLaunchPicks[] = {{0, 1, 1, 0, 2, 0, 0}, {2, 0, 0, 1, 0, 2, 2}, {0, 0, 1, 1, 0, 0, 0}};
+// S: the spear start (shotgun, spear, 1x, no mutators).
+constexpr RunLaunchPicks runLaunchPicks[] = {{0, 1, 1, 0, 2, 0, 0}, {2, 0, 0, 1, 0, 2, 2}, {0, 0, 1, 1, 0, 0, 0}, {0, 3, 0, 0, 0, 0, 0}};
 
 enum class RunLaunchWay
 {
@@ -881,6 +882,7 @@ constexpr RunLaunchStep runLaunchSteps[] = {
     // them at the map's spawn (the first run Unleashed; nothing for beforeMapLoad to set back).
     {RunLaunchWay::Scene, "e1m1", -1, false, false, false, "the classic_drops test scene", -1, -1, -1},
     {RunLaunchWay::Level, "e1m1", 0, true, true, false, "the Levels list during a test scene", 3, 1, 0},
+    {RunLaunchWay::Level, "e1m1", 3, true, true, false, "the Levels list: the spear start", 2, 2, 0},
 };
 constexpr const char* runLaunchScene = "classic_drops";
 constexpr int runLaunchStepCount = static_cast<int>(sizeof(runLaunchSteps) / sizeof(runLaunchSteps[0]));

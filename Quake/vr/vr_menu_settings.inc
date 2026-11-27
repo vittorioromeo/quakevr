@@ -380,7 +380,11 @@ void resetBodyEquipment()
 
 [[nodiscard]] za::Vector<Item> pageVrsControls()
 {
-    return {cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp)};
+    return {cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp),
+        action("Controller Bindings", []() { VR_BindSetup_Open(); })
+            .help("Your controllers drawn with each button labelled by its binding: drag a label onto another to swap "
+                  "them, click one to pick its action from a list; Reset to Defaults for the shipped ones. Also in "
+                  "Options.")};
 }
 
 [[nodiscard]] za::Vector<Item> pageVrsLocomotion()

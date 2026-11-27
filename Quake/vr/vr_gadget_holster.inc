@@ -411,6 +411,118 @@ constexpr float bindColGap = 12.f;
     return static_cast<float>(strlen(key)) * bindChar + 4.f;
 }
 
+// A key's width on the panel: its glyph's (a controller's button), else its cap's.
+[[nodiscard]] float bindKeyW(const BindPanelRow& r, int s)
+{
+    return r.glyphs[s] ? bindChar + 3.f : bindCapW(r.keys[s]);
+}
+
+// A glyph or a controller's picture (a qpic_t) over (x, y, w, h), in its own colours.
+void bindPicture(const void* pic, float x, float y, float w, float h)
+{
+    if(pic)
+    {
+        Draw_SubPic(x, y, w, h, static_cast<qpic_t*>(const_cast<void*>(pic)), 0.f, 0.f, 1.f, 1.f, nullptr, 1.f);
+    }
+}
+
+// bindpanel2: the pictures' layout (the headset's weapon wheel's panel): the title on top, the pictures side by side in
+// the middle, `calloutRowH` rows of callouts in a column each side (a VR pair: each hand's on its own side; a gamepad:
+// by the side its button is on), each at its button's height as far as they fit apart.
+constexpr float calloutChar = 5.f;
+constexpr float calloutRowH = 11.f;
+constexpr float calloutGlyph = 9.f;
+constexpr float calloutPicH = 96.f; // a picture's height
+constexpr float calloutGap = 8.f;   // between a column and the pictures, and between the pictures
+constexpr int maxCallouts = 32;
+
+struct CalloutLayout
+{
+    glm::vec2 size{0.f};
+    float picX[2]{}, picW[2]{}, picY{0.f};
+    float colX[2]{}, colW[2]{};
+    glm::vec2 at[maxCallouts]{};     // each callout's row: its top left
+    glm::vec2 anchor[maxCallouts]{}; // its button on the picture
+    bool left[maxCallouts]{};
+};
+
+[[nodiscard]] float calloutW(const BindPanelCallout& c)
+{
+    return calloutGlyph + 3.f + static_cast<float>(strlen(c.text)) * calloutChar;
+}
+
+[[nodiscard]] CalloutLayout calloutLayout(const BindPanelView& v)
+{
+    CalloutLayout l;
+    const int pics = za::min(v.pictureCount, 2);
+    const int n = za::min(v.calloutCount, maxCallouts);
+    for(int i = 0; i < n; i++)
+    {
+        const BindPanelCallout& c = v.callouts[i];
+        l.left[i] = pics >= 2 ? c.picture == 0 : c.u < 0.5f;
+        const int side = l.left[i] ? 0 : 1;
+        l.colW[side] = za::max(l.colW[side], calloutW(c));
+    }
+    const float top = bindPad + (v.title[0] ? 10.f : 0.f);
+    int perSide[2] = {0, 0};
+    for(int i = 0; i < n; i++)
+    {
+        perSide[l.left[i] ? 0 : 1]++;
+    }
+    const float colH = static_cast<float>(za::max(perSide[0], perSide[1])) * calloutRowH;
+    const float areaH = za::max(calloutPicH, colH);
+    l.picY = top + (areaH - calloutPicH) * 0.5f;
+    l.colX[0] = bindPad;
+    float x = l.colX[0] + l.colW[0] + calloutGap;
+    for(int p = 0; p < pics; p++)
+    {
+        l.picW[p] = calloutPicH / za::max(v.aspects[p], 0.1f);
+        l.picX[p] = x;
+        x += l.picW[p] + (p + 1 < pics ? calloutGap * 0.5f : 0.f);
+    }
+    l.colX[1] = x + calloutGap;
+    l.size = {l.colX[1] + l.colW[1] + bindPad, top + areaH + bindPad};
+    l.size.x = za::max(l.size.x, bindPad * 2.f + static_cast<float>(strlen(v.title)) * bindChar);
+    // Each side's rows in their buttons' order down the picture, each at its button's height as far as they fit apart.
+    for(int side = 0; side < 2; side++)
+    {
+        int order[maxCallouts];
+        int count = 0;
+        for(int i = 0; i < n; i++)
+        {
+            if((l.left[i] ? 0 : 1) != side)
+            {
+                continue;
+            }
+            const BindPanelCallout& c = v.callouts[i];
+            const int p = pics >= 2 ? za::clamp(c.picture, 0, 1) : 0;
+            l.anchor[i] = {l.picX[p] + c.u * l.picW[p], l.picY + c.v * calloutPicH};
+            int j = count++;
+            for(; j > 0 && l.anchor[order[j - 1]].y > l.anchor[i].y; j--)
+            {
+                order[j] = order[j - 1];
+            }
+            order[j] = i;
+        }
+        float y = top;
+        for(int k = 0; k < count; k++)
+        {
+            const int i = order[k];
+            l.at[i] = {side == 0 ? l.colX[0] + l.colW[0] - calloutW(v.callouts[i]) : l.colX[1],
+                za::max(y, l.anchor[i].y - calloutRowH * 0.5f)};
+            y = l.at[i].y + calloutRowH;
+        }
+        float limit = top + areaH;
+        for(int k = count - 1; k >= 0; k--)
+        {
+            const int i = order[k];
+            l.at[i].y = za::min(l.at[i].y, limit - calloutRowH);
+            limit = l.at[i].y;
+        }
+    }
+    return l;
+}
+
 struct BindPanelMetrics
 {
     int perColumn{0};
@@ -429,9 +541,9 @@ struct BindPanelMetrics
         const BindPanelRow& r = v.rows[i];
         m.labelW = za::max(m.labelW, static_cast<float>(strlen(r.action)) * bindChar);
         float w = 0.f;
-        for(const char* k : r.keys)
+        for(int s = 0; s < 2; s++)
         {
-            w += k[0] ? bindCapW(k) + 2.f : 0.f;
+            w += r.keys[s][0] || r.glyphs[s] ? bindKeyW(r, s) + 2.f : 0.f;
         }
         keys = za::max(keys, w);
     }
@@ -442,6 +554,10 @@ struct BindPanelMetrics
 
 glm::vec2 bindPanelLayoutSize(const BindPanelView& v)
 {
+    if(v.pictureCount > 0)
+    {
+        return calloutLayout(v).size;
+    }
     if(v.rowCount <= 0)
     {
         return glm::vec2{0.f};
@@ -471,7 +587,32 @@ VisorImage bindPanelRender(const BindPanelView& v)
     gfx::begin2D(t, w, h);
     fill(0.f, 0.f, size.x, size.y, visorBlack);
     holsterOutline({1.f, 1.f, size.x - 2.f, size.y - 2.f}, pal.line * 0.6f);
-    for(int i = 0; i < v.rowCount; i++)
+    if(v.pictureCount > 0)
+    {
+        // The pictures, then each callout: its leader line to the button (a dot on it), its glyph and its text.
+        const CalloutLayout l = calloutLayout(v);
+        if(v.title[0])
+        {
+            drawText((size.x - static_cast<float>(strlen(v.title)) * bindChar) * 0.5f, bindPad, bindChar, v.title, pal.dim, pal);
+        }
+        for(int p = 0; p < za::min(v.pictureCount, 2); p++)
+        {
+            bindPicture(v.pictures[p], l.picX[p], l.picY, l.picW[p], calloutPicH);
+        }
+        for(int i = 0; i < za::min(v.calloutCount, maxCallouts); i++)
+        {
+            const BindPanelCallout& c = v.callouts[i];
+            const float cw = calloutW(c), mid = l.at[i].y + calloutRowH * 0.5f;
+            const float from = l.left[i] ? l.at[i].x + cw + 1.f : l.at[i].x - 2.f;
+            holsterStroke({from, mid, l.anchor[i].x, l.anchor[i].y}, pal.line * 0.7f);
+            fill(l.anchor[i].x - 1.f, l.anchor[i].y - 1.f, 2.f, 2.f, pal.value);
+            const float gx = l.left[i] ? l.at[i].x + cw - calloutGlyph : l.at[i].x;
+            const float tx = l.left[i] ? l.at[i].x : l.at[i].x + calloutGlyph + 3.f;
+            bindPicture(c.glyph, gx, l.at[i].y + 1.f, calloutGlyph, calloutGlyph);
+            drawText(tx, l.at[i].y + 3.f, calloutChar, c.text, c.text[0] ? pal.value : pal.dim, pal);
+        }
+    }
+    for(int i = 0; i < (v.pictureCount > 0 ? 0 : v.rowCount); i++)
     {
         const BindPanelRow& r = v.rows[i];
         const int col = m.perColumn > 0 ? i / m.perColumn : 0, row = m.perColumn > 0 ? i % m.perColumn : i;
@@ -479,10 +620,17 @@ VisorImage bindPanelRender(const BindPanelView& v)
         const float y = bindPad + static_cast<float>(row) * bindRowH;
         drawText(x, y + 1.f, bindChar, r.action, pal.label, pal);
         float kx = x + m.labelW;
-        const bool none = !r.keys[0][0] && !r.keys[1][0];
-        for(const char* k : r.keys)
+        const bool none = !r.keys[0][0] && !r.keys[1][0] && !r.glyphs[0];
+        for(int s = 0; s < 2; s++)
         {
-            if(!k[0] && !(none && k == r.keys[0]))
+            const char* k = r.keys[s];
+            if(r.glyphs[s])
+            {
+                bindPicture(r.glyphs[s], kx, y - 1.f, bindKeyW(r, s), bindKeyW(r, s));
+                kx += bindKeyW(r, s) + 2.f;
+                continue;
+            }
+            if(!k[0] && !(none && s == 0))
             {
                 continue;
             }

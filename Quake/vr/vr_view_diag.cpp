@@ -4,6 +4,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_admelee.hpp"
+#include "vr_attach.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
@@ -1748,6 +1749,7 @@ void qvr::view::registerDiagCommands()
 {
     Cmd_AddCommand("vr_aim_check", aimCheck_f);
     Cmd_AddCommand("vr_attach_report", printDrawnAttachments); // the attachments drawn last frame (mp_test.py attach)
+    attach::registerCommands(); // vr_attach_mdl_dump (bayomounts)
     Cmd_AddCommand("vr_hand_check", handCheck_f);
     Cmd_AddCommand("vr_dumpview", dumpView_f);
     Cmd_AddCommand("vr_grasp_dump", graspDump_f);

@@ -3418,10 +3418,10 @@ void goBack()
     return ui().page == PageMain ? -1 : homeOf(ui().page);
 }
 
-// A setting's value as shown: a server rule's is the remote server's (vr_serverrules.cpp), the rest their own.
+// A setting's value as shown: its cvar's (a server rule's holds the remote server's while joined: vr_serverrules.cpp).
 [[nodiscard]] float valueOf(const Item& item)
 {
-    return serverrules::shown(item.cvar);
+    return item.cvar->value;
 }
 
 // A server rule while connected to a remote server: shown, dimmed, not changed from here.
@@ -5498,7 +5498,7 @@ void attachFrameChecks(const Check& check, int shot, int ssg)
 // menu_vr attachtest (Misc/quakevr/attach_test.sh; attach2): Weapon Offsets > Attachments pinned to the shotgun's slot (no game
 // needed): its Bayonet Forward row there, a press right on it moves the mount forward by its step and the attachment system
 // reads the new mount (attach::mount), a press left puts it back. A bayonet fits the shotgun and the super shotgun, not the
-// nailgun (weapons.txt att1_ok). Every value put back after. Ends "attachmenu_test: N passed, M failed".
+// super nailgun (weapons.txt att1_ok); bayomounts' guns too. Every value put back after. Ends "attachmenu_test: N passed, M failed".
 void attachMenuTest()
 {
     using weapons::Key;
@@ -5510,8 +5510,19 @@ void attachMenuTest()
         }
     };
     const int shot = weapons::slotForName("progs/v_shot.mdl"), ssg = weapons::slotForName("progs/v_shot2.mdl"),
-              nail = weapons::slotForName("progs/v_nail.mdl");
-    check(shot >= 0 && ssg >= 0 && nail >= 0, "the shotgun's, the super shotgun's and the nailgun's slots");
+              nail = weapons::slotForName("progs/v_nail2.mdl"); // (bayomounts: the nailgun takes one now; the super nailgun not)
+    check(shot >= 0 && ssg >= 0 && nail >= 0, "the shotgun's, the super shotgun's and the super nailgun's slots");
+    // (bayomounts) the guns his 2026-11-28 list added, each with its bayonet's mount drawn (attach::railMount)
+    bool more = true;
+    for(const char* g : {"progs/v_nail.mdl", "progs/v_rock.mdl", "progs/v_rock2.mdl", "progs/v_light.mdl", "progs/v_prox.mdl",
+            "progs/v_plasma.mdl#vr", "progs/v_gruntgun.mdl", "progs/v_enfrifle.mdl", "progs/v_revolver.mdl", "progs/v_multi.mdl",
+            "progs/v_lava.mdl"})
+    {
+        const int s = weapons::slotForName(g);
+        more = more && s >= 0 && attach::mount(s, attach::Bayonet).fits && attach::mount(s, attach::Dagger).fits;
+    }
+    check(more, "a bayonet and a dagger fit the nailgun, the launchers, the lightning and plasma guns, the burst and laser "
+                "rifles and the heavy revolver (bayomounts; the multi grenade and lava nailgun through their slots' inherit)");
     if(shot < 0 || ssg < 0 || nail < 0)
     {
         tally.verdict("attachmenu_test");
@@ -5519,10 +5530,10 @@ void attachMenuTest()
     }
     check(attach::mount(shot, attach::Bayonet).fits && attach::mount(ssg, attach::Bayonet).fits &&
               !attach::mount(nail, attach::Bayonet).fits,
-        "a bayonet fits the shotgun and the super shotgun, not the nailgun (att1_ok)");
+        "a bayonet fits the shotgun and the super shotgun, not the super nailgun (att1_ok)");
     check(attach::mount(shot, attach::Dagger).fits && attach::mount(ssg, attach::Dagger).fits &&
               !attach::mount(nail, attach::Dagger).fits && attach::strikes(attach::Dagger),
-        "a dagger fits the shotgun and the super shotgun as a bayonet, not the nailgun (att2_ok; daggerattach)");
+        "a dagger fits the shotgun and the super shotgun as a bayonet, not the super nailgun (att2_ok; daggerattach)");
     attachFrameChecks(check, shot, ssg);
     cvar_t* const x = weapons::cvar(shot, Key::Att1X);
     Cvar_SetQuick(x, x->default_string);

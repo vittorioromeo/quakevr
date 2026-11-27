@@ -6,11 +6,13 @@
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
+#include "vr_mdldequant.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 
 namespace qvr::attach
@@ -51,6 +53,28 @@ constexpr MountKeys mountKeys[Count] = {
     {Key::Att1Ok, Key::Att1X, Key::Att1Y, Key::Att1Z, Key::Att1Pitch, Key::Att1Yaw, Key::Att1Roll, Key::Att1Scale},
     {Key::Att1Ok, Key::Att1X, Key::Att1Y, Key::Att1Z, Key::Att1Pitch, Key::Att1Yaw, Key::Att1Roll, Key::Att1Scale},
     {Key::Att2Ok, Key::Att2X, Key::Att2Y, Key::Att2Z, Key::Att2Pitch, Key::Att2Yaw, Key::Att2Roll, Key::Att2Scale},
+};
+
+// The map pickups' bayonet mounts (bayomounts; ATTACHMENTS.md "The bayonet", make_bayonet.py MOUNTS): the pickup model, the
+// weapon slot's model whose mnt_* tweaks it shares, the mount in the pickup's own space (level, along its +x) and its
+// scale (the view model's bayonet to its gun, kept in the pickup's proportion).
+struct PickupRail
+{
+    const char* model;
+    const char* gun;
+    glm::vec3 pos;
+    float scale;
+};
+constexpr PickupRail pickupRails[] = {
+    {"progs/g_shot0.mdl", "progs/v_shot.mdl", {18.2f, 0.f, 33.79f}, 2.3048f},
+    {"progs/g_shot.mdl", "progs/v_shot2.mdl", {21.6f, 0.f, 34.86f}, 2.9398f},
+    // bayomounts (scratch bm_auto.py: the underside at the front on the barrel's line; the scale the view model's bayonet
+    // to its gun, as above)
+    {"progs/g_nail.mdl", "progs/v_nail.mdl", {13.33f, -3.f, 34.24f}, 2.1315f},
+    {"progs/g_rock.mdl", "progs/v_rock.mdl", {17.3f, 0.f, 31.21f}, 2.107f},
+    {"progs/g_prox.mdl", "progs/v_prox.mdl", {17.4f, 0.f, 27.97f}, 2.1107f},
+    {"progs/g_rock2.mdl", "progs/v_rock2.mdl", {21.9f, 0.f, 28.39f}, 2.249f},
+    {"progs/g_light.mdl", "progs/v_light.mdl", {20.3f, 0.f, 34.63f}, 3.0316f},
 };
 
 // The client's: which weapon (by its id) has which attachment.
@@ -144,6 +168,57 @@ Mount mount(int slot, int kind)
 glm::vec3 onGun(const Mount& m, const glm::vec3& p)
 {
     return m.pos + m.basis * (p * (m.scale * m.own));
+}
+
+int railSlot(const qmodel_t* model)
+{
+    if(!model)
+    {
+        return -1;
+    }
+    for(const PickupRail& p : pickupRails)
+    {
+        if(!ZA_STRCMP(model->name, p.model))
+        {
+            return weapons::slotForName(p.gun);
+        }
+    }
+    return weapons::slotForModel(model);
+}
+
+bool railMount(const qmodel_t* model, Mount& out)
+{
+    out = Mount{};
+    if(!model || vr_attach_mount_show.value == 0.f)
+    {
+        return false;
+    }
+    const int slot = railSlot(model);
+    Mount base = mount(slot, Bayonet);
+    for(const PickupRail& p : pickupRails)
+    {
+        if(!ZA_STRCMP(model->name, p.model))
+        {
+            base.pos = p.pos;
+            base.basis = kindFrame(kinds[Bayonet]);
+            base.scale = p.scale;
+            base.own = 1.f;
+        }
+    }
+    if(!base.fits)
+    {
+        return false;
+    }
+    float size = weapons::value(slot, Key::MntSize);
+    size = size > 0.f ? size : 1.f;
+    const glm::vec3 move = weapons::vec(slot, Key::MntX, Key::MntY, Key::MntZ);
+    out = base;
+    out.pos = onGun(base, move);
+    out.angles = weapons::vec(slot, Key::MntPitch, Key::MntYaw, Key::MntRoll);
+    out.basis = base.basis * view::mountBasis(out.angles);
+    out.scale = base.scale * size;
+    out.own = 1.f;
+    return true;
 }
 
 // The dagger's mounts before its frame (vr_wofs_version 80, weapons.cpp): turned by its angles alone, its model's own axes.
@@ -306,6 +381,62 @@ void serverWriteAll(sizebuf_t* msg)
             writeKind(msg, uid, kind);
         }
     }
+}
+
+namespace
+{
+// vr_attach_mdl_dump <model> <file>: an alias model's frame 0 as the engine has it (made models too: AD's "#vr" guns), as
+// an OBJ (v x y z, f a b c): bayomounts measured the guns' mounts from these (scratch bm_measure.py).
+void mdlDump_f()
+{
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_attach_mdl_dump <model> <file>\n");
+        return;
+    }
+    qmodel_t* const model = Mod_ForName(Cmd_Argv(1), false);
+    if(!model || model->type != mod_alias)
+    {
+        Con_Printf("mdl_dump: %s: no alias model\n", Cmd_Argv(1));
+        return;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || hdr->numframes <= 0 || hdr->numverts <= 0)
+    {
+        Con_Printf("mdl_dump: %s: not a Quake pose model\n", Cmd_Argv(1));
+        return;
+    }
+    FILE* f = fopen(Cmd_Argv(2), "w");
+    if(!f)
+    {
+        Con_Printf("mdl_dump: can't write %s\n", Cmd_Argv(2));
+        return;
+    }
+    mdldequant::prepare(model);
+    const int pose = hdr->frames[0].firstpose;
+    const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    for(int i = 0; i < hdr->numverts; i++)
+    {
+        const glm::vec3 p = so + hs * mdldequant::poseVertex(hdr, pose, i);
+        fprintf(f, "v %.4f %.4f %.4f\n", static_cast<double>(p.x), static_cast<double>(p.y), static_cast<double>(p.z));
+    }
+    const auto* base = reinterpret_cast<const byte*>(hdr);
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+    const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+    for(int t = 0; t + 2 < hdr->numindexes; t += 3)
+    {
+        fprintf(f, "f %d %d %d\n", desc[indexes[t]].vertindex + 1, desc[indexes[t + 1]].vertindex + 1,
+            desc[indexes[t + 2]].vertindex + 1);
+    }
+    fclose(f);
+    Con_Printf("mdl_dump: %s: %d vertices -> %s\n", Cmd_Argv(1), hdr->numverts, Cmd_Argv(2));
+}
+} // namespace
+
+void registerCommands()
+{
+    Cmd_AddCommand("vr_attach_mdl_dump", mdlDump_f);
 }
 
 } // namespace qvr::attach

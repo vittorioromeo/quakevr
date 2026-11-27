@@ -538,7 +538,14 @@ za::Vector<Item> pageDebugProfiling()
         command("LRZ Probe: Behind the Scene", "vr_debug_lrz_probe -5")
             .help("vr_debug_lrz_probe -n: at point n one quad far behind the scene (the picture kept): killed where the "
                   "scene's own draws wrote the low-resolution depth."),
+        command("LRZ Probe: After Your Own Models", "vr_debug_lrz_probe 6")
+            .help("vr_debug_lrz_probe 6 / 7 / 8: the quads after your own models drawn first, after the world and brush "
+                  "models, or after opaque model batch vr_debug_alias_probe_at (vr_debug_alias_first and _count draw only "
+                  "some batches; vr_debug_alias_lrz changes their state: questperf2)."),
         command("LRZ Probe: Off", "vr_debug_lrz_probe 0").help("vr_debug_lrz_probe 0: no probe quads."),
+        command("Still Models' Set-up Check", "vr_alias_frame_cache 2")
+            .help("vr_alias_frame_cache 2: each model's instance data made anew and compared with the frame before's "
+                  "(vr_alias_frame_cache_stats); 1 kept while nothing it is made from changed; 0 off (the default)."),
         command("Hide Gibs, Heads and Limbs", "vr_debug_hide_models \"gib,h_,#limb\"")
             .help("vr_debug_hide_models <parts>: alias models whose name holds any of the comma-separated parts are not "
                   "drawn in the eyes (gib, h_ and #limb: the gore). A cost found by leaving things out (the Quest's GPU "
@@ -1348,6 +1355,12 @@ za::Vector<Item> pageDebugReports()
             .help("vr_serverrules: the settings the server judges by for every player (every balance page's, the gameplay "
                   "preset's, the melee timing): how many, those off their defaults, and on a remote server's client the "
                   "server's against yours."),
+        command("Server Rules: Self-Test", "vr_serverrules_selftest")
+            .help("vr_serverrules_selftest: a remote server's rule values as a client takes them: not finite or not a "
+                  "number refused, past the menu's range clamped to it; every default and gameplay preset value in range."),
+        command("Network: Control Reply Budget", "vr_net_ctlbudget selftest")
+            .help("vr_net_ctlbudget [selftest]: the server-info, player, rule and reject replies refused so far (each source "
+                  "address has a byte budget: no reflector); selftest: a budget spent, refused, refilled."),
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
@@ -1876,6 +1889,22 @@ za::Vector<Item> pageDebugTools()
         open("Texture Studio", pageIndex(pageTextureStudio))
             .help("The armed humanoids' recolours by weapon: each row's colour, strength, lightness and tint, and which "
                   "texels they dye (palette rows, painted texels), live on a row lined up ahead; saved to quakevr/humlook.txt."),
+        header("Controller Bindings"),
+        command("Controller Bindings Screen", "menu_bindsetup")
+            .help("menu_bindsetup [model]: the Controller Bindings screen for the controller in use (or a model's: quest3, "
+                  "index, vive, xboxone, playstation...; its arrows step through every picture)."),
+        command("Print Controller Bindings", "vr_bindsetup_print")
+            .help("vr_bindsetup_print [model]: the controller detected, and each of its buttons' key and binding."),
+        command("Bindings Screen Tests", "vr_bindsetup_detect_test; vr_bindsetup_test")
+            .help("The detection table (profiles and gamepad types to pictures) and the screen's swap, pick and reset on "
+                  "the binds (put back after): their verdict lines in the console."),
+        command("Reminder Panels: Next Controller", "vr_bindpanel_device next")
+            .help("vr_bindpanel_device next: the bindings reminder panels (above the weapon wheel, the main menu's) show the "
+                  "next controller's buttons and glyphs, as if it were connected (a pad's panel without a pad)."),
+        command("Reminder Panels: Detected Controller", "vr_bindpanel_device auto")
+            .help("vr_bindpanel_device auto: the reminder panels show the controller in use again."),
+        command("Reminder Panels Report", "vr_bindpanel_report")
+            .help("vr_bindpanel_report: the flat panel's rows (keys or a pad's glyphs) and the headset panel's callouts."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),

@@ -92,6 +92,22 @@ MOUNTS = [
     # (barrels' undersides z 34.84 at y +-1.2, from x 19.6 to the muzzle at 21.8), the socket's back in the shroud's front.
     ("g_shot0.mdl", (18.2, 0.0, 33.79), (0.0, 0.0, 0.0), (33.01 / 32.55) / 0.44),
     ("g_shot.mdl", (21.6, 0.0, 34.86), (0.0, 0.0, 0.0), (39.44 / 27.95) / 0.48),
+    # bayomounts (2026-11-28; measured on the models as the engine draws them, vr_attach_mdl_dump: the underside on the
+    # barrel's line at the front, the socket's length clear behind; weapons.txt att1_*, vr_attach.cpp pickupRails):
+    ("v_nail.mdl", (20.0, -1.48, 2.14), (0.0, 0.0, 0.0), 1.0 / 0.48),     # under the shroud's front, the barrels' line
+    ("v_rock.mdl", (29.2, 0.0, 0.55), (0.0, 0.0, 0.0), 1.0 / 0.38),      # the GL: under the body's front (lip too short)
+    ("v_prox.mdl", (29.2, 0.0, 0.58), (0.0, 0.0, 0.0), 1.0 / 0.38),      # likewise
+    ("v_rock2.mdl", (50.6, 0.0, -1.95), (0.0, 0.0, 0.0), 1.0 / 0.34),    # the RL: where the nose's bevel starts
+    ("v_light.mdl", (33.4, 0.0, 7.55), (0.0, 0.0, 0.0), 1.0 / 0.35),     # under the barrels at the muzzle
+    ("v_plasma.mdl#vr", (30.3, 0.0, 2.62), (0.0, 0.0, 0.0), 1.0 / 0.35), # (made in the engine) under the body's front
+    ("v_gruntgun.mdl", (32.85, 0.0, 6.74), (0.0, 0.0, 0.0), 1.0 / 0.39), # the burst rifle (and its #adv variants)
+    ("v_enfrifle.mdl", (40.6, 0.0, 4.28), (0.0, 0.0, 0.0), 1.0 / 0.4),
+    ("v_revolver.mdl", (20.26, 0.0, 5.56), (0.0, 0.0, 0.0), 1.0 / 0.45),
+    ("g_nail.mdl", (13.33, -3.0, 34.24), (0.0, 0.0, 0.0), (26.61 / 26.01) / 0.48),
+    ("g_rock.mdl", (17.3, 0.0, 31.21), (0.0, 0.0, 0.0), (30.75 / 38.4) / 0.38),
+    ("g_prox.mdl", (17.4, 0.0, 27.97), (0.0, 0.0, 0.0), (30.8 / 38.4) / 0.38),
+    ("g_rock2.mdl", (21.9, 0.0, 28.39), (0.0, 0.0, 0.0), (47.5 / 62.11) / 0.34),
+    ("g_light.mdl", (20.3, 0.0, 34.63), (0.0, 0.0, 0.0), (42.74 / 40.28) / 0.35),
 ]
 
 
@@ -197,6 +213,53 @@ def build():
     out.loft([blade_ring(*b) for b in BLADE], lambda x: BLADE_S0 + (x - BLADE[0][0]) * BPU, T_BLADE, (CAP_P, None))
     out.box(*GUARD, GUARD_P)
     out.box(*LUG, LUG_P)
+    out.mesh.verts = [(p, norm(n) if dot(n, n) > 1e-12 else (0.0, 0.0, 1.0), uv)
+                      for (p, _, uv), n in zip(out.mesh.verts, out.normals)]
+    return out.mesh
+
+
+# ----------------------------------------------------------------------------
+# The bayonet's mount (bayomounts, his 2026-11-28: "a small/subtle mounting rail/hinge ... in the place where the attachment
+# takes place, so that the user is aware"): progs/bayonet_mount.mdl, drawn by the engine on every gun a bayonet fits, at
+# its bayonet mount (attach::railMount), always. In the bayonet's own space (its origin the bayonet's mounting point, the
+# barrel's underside at the muzzle): a short iron rail along under the barrel behind the socket (x -2.15 .. -0.95, its top
+# flush with the barrel's underside), and a ring round the socket's axis just behind where the socket's back sits (x
+# -1.12 .. -0.96: the socket slides up to it), hanging under the barrel. The bayonet's skin (its iron bands and patches).
+
+RAIL = ((-1.55, 0.0, -0.1), (0.6, 0.2, 0.1))
+RING_X = (-1.12, -0.96)
+RING_APOTHEM = (0.47, 0.56)                      # inner, outer (round the socket's axis, SOCKET_Z)
+
+
+def build_mount():
+    out = Out()
+    out.box(*RAIL, LUG_P)
+    rings = {}
+    for which, a in (("in", RING_APOTHEM[0]), ("out", RING_APOTHEM[1])):
+        rings[which] = [oct_ring(x, SOCKET_Z, a) for x in RING_X]
+    # the outer face (facing out) and the inner (facing the axis), each facet its own strip, on the socket's iron band
+    for which, sign in (("out", 1.0), ("in", -1.0)):
+        (c0, r0), (c1, r1) = rings[which]
+        for f in range(8):
+            g = (f + 1) % 8
+            ta, tb = T_ROUND[0] + (T_ROUND[1] - T_ROUND[0]) * f / 8, T_ROUND[0] + (T_ROUND[1] - T_ROUND[0]) * (f + 1) / 8
+            a0, b0 = out.vert(r0[f], (4.5, ta)), out.vert(r0[g], (4.5, tb))
+            a1, b1 = out.vert(r1[f], (7.0, ta)), out.vert(r1[g], (7.0, tb))
+            mid = mul(add(add(r0[f], r0[g]), add(r1[f], r1[g])), 0.25)
+            outward = mul(sub(mid, mul(add(c0, c1), 0.5)), sign)
+            out.tri(a0, b0, b1, outward)
+            out.tri(a0, b1, a1, outward)
+    # the two end faces (annuli), from the caps' patch
+    s0, t0, s1, t1 = CAP_P
+    for k, sign in ((0, -1.0), (1, 1.0)):
+        ri, ro = rings["in"][k][1], rings["out"][k][1]
+        for f in range(8):
+            g = (f + 1) % 8
+            ids = [out.vert(p, ((s0 + s1) / 2 + (s1 - s0 - 2) / 2 * p[1] / 0.6,
+                                (t0 + t1) / 2 - (t1 - t0 - 2) / 2 * (p[2] - SOCKET_Z) / 0.6))
+                   for p in (ri[f], ro[f], ro[g], ri[g])]
+            out.tri(ids[0], ids[1], ids[2], (sign, 0.0, 0.0))
+            out.tri(ids[0], ids[2], ids[3], (sign, 0.0, 0.0))
     out.mesh.verts = [(p, norm(n) if dot(n, n) > 1e-12 else (0.0, 0.0, 1.0), uv)
                       for (p, _, uv), n in zip(out.mesh.verts, out.normals)]
     return out.mesh
@@ -317,9 +380,11 @@ def main():
     args = [a for a in args if not a.startswith("--")]
     out_dir = args[0] if args else os.path.join(HERE, "..", "..", "quakevr", "progs")
     path = os.path.join(out_dir, "bayonet.mdl")
-    guard = genguard.Guard("make_bayonet.py", [path, path + "_0.png"])
+    mpath = os.path.join(out_dir, "bayonet_mount.mdl")
+    guard = genguard.Guard("make_bayonet.py", [path, path + "_0.png", mpath, mpath + "_0.png"])
     mesh = build()
-    bad = mesh.check_winding()
+    mount_mesh = build_mount()
+    bad = mesh.check_winding() + mount_mesh.check_winding()
     if bad:
         raise SystemExit("%d triangles wound the wrong way" % bad)
     import numpy as np
@@ -331,7 +396,13 @@ def main():
         mdlgen.write_mdl(path, mesh, [skin], "bayonet")
     if path + "_0.png" not in guard.kept:
         Image.fromarray(np.round(rgb * 255).astype(np.uint8)).save(path + "_0.png", optimize=True)
+    if mpath not in guard.kept:
+        mdlgen.write_mdl(mpath, mount_mesh, [skin], "bayonet_mount")
+    if mpath + "_0.png" not in guard.kept:
+        Image.fromarray(np.round(rgb * 255).astype(np.uint8)).save(mpath + "_0.png", optimize=True)
     guard.finish()
+    print("bayonet_mount.mdl: %d vertices, %d triangles -> %s" % (len(mount_mesh.verts), len(mount_mesh.tris),
+                                                                   os.path.normpath(mpath)))
     lo = [min(v[0][k] for v in mesh.verts) for k in range(3)]
     hi = [max(v[0][k] for v in mesh.verts) for k in range(3)]
     print("bayonet.mdl: %d vertices, %d triangles -> %s" % (len(mesh.verts), len(mesh.tris), os.path.normpath(path)))
