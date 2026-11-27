@@ -30,6 +30,7 @@ Flat-screen or VR: the Monsters tab's tiles are a little shorter now to make roo
 Fire the shotgun indoors in a small stone room and in a big hall: its crack is clear and sharp over the room's ring, not muffled under a boomy wash; Sound > Walls and Rooms > Your Sounds' Reverb at 1 brings the old wash back to compare (0.25 the default). {test:start_shotgun}
 In the Armour Studio, pick the scrag: his lower body is now two parts, "Plate 8 Front" and "Plate 8 Back" (seamed at his sides); move or scale one and the other stays put, and "Wear the Part Alone" on either shows just that half. {test:beaststudio}
 Look at the armoured scrags from the side: the lower body's front and back halves meet at his sides without a gap or overlap you notice, and the tail's leather joins the back half. {test:armour_beasts}
+With AD's data, open the toolgun's Spawn > Monsters > Armed Humanoid page and pick Kind Death Guard, then Crossbow Knight: each shows its own picture in the kind box (and on the Armed Humanoid tile), like the other kinds. {test:ad_knights_armed}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
