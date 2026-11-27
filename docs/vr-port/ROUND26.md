@@ -4476,3 +4476,24 @@ both (`vr_gadget_holster.inc`), so every slot change shows in both.
 - Tests: new `Misc/quakevr/bindpanel_test.sh` 8/0 (rows and keys, shown, Setup Bindings opens Controls; `vr_bindpanel_report`,
   `vr_bindpanel_setup`); flatholster_test 54/0, weaponwheel_test vr 25/0 and flat 21/0. Screenshots for his review:
   scratch/flatholster/menu.png, scratch/weaponwheel/wheel_flat.png, scratch/bindpanel/main.png (the worktree's).
+## holsterattach: attachments on holstered weapons (branch agent/holsterattach, 2026-11-28)
+
+His words 2026-11-28: bayonets don't seem to show on holstered weapons (flat, F8). Found on origin/next: your own holstered
+guns' attachments were already drawn (setupAttachments; flat and VR, the fly camera too: vr_attach_report and screenshots of
+both hips and the back holster), another player's by drawGunParts (the avatar's attachment byte; mp_test.py attach,
+other_holster). What did not follow: a super shotgun broken open off your hands (holstered, lying, another player's held or
+holstered) kept its bayonet where the closed barrels are, in front of the dropped barrels: likely what he saw on a holstered
+super shotgun (drawn open in immersive reloading). Also a lying gun's attachment counted as worn (faded by the third-person
+fade and invisibility, copied into the body's mirror).
+- **One draw path**: `view::placeAttachment(out, gun, kind, ssgHand, ssgOpen = 0)`: `ssgOpen` > 0 carries it down with that
+  super shotgun's barrels (`view::ssgCarry(gun, deg, ...)`, which `ssgBarrelsCarry(hand)` now calls). Your holsters: the
+  holster's SsgDrawn angle (setupSsgParts now runs before setupAttachments); lying: setupWorldSsgs' open angle; another
+  player's (drawGunParts): its SsgDrawn (a holstered one's ssgHolsterParts stepped before the placement). Four-argument
+  callers (the wheel previews) are unchanged.
+- **worn()** leaves out `worldAttach`.
+- **vr_attach_report** lines end `gap=`: the drawn mount's distance from the gun's mount as the gun is drawn (on the open
+  barrels' part when there is one).
+- **Test**: `vr_embed_test 88` (QC/vr_attach_test.qc `VR_AT_HolsterSet`: shotgun + bayonet in the right hip, super shotgun +
+  bayonet broken open in the left hip); `Misc/quakevr/attach_holster_test.sh` (flat, its fly camera beside the hip, VR;
+  `attach_holster_check.py`: each holstered gun's bayonet drawn, gap <= 0.05), also run at the end of attach_test.sh.
+- Armed humanoids carry no holstered guns; bots and dead players' bodies draw through drawHolsteredParts (the same path).
