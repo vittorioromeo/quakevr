@@ -10,4 +10,5 @@ spawnarmed monster_vr_dguard 0 0 140 -50 0 180
 spawnarmed monster_vr_dcrossbow 0 0 140 50 0 180
 spawnarmed monster_vr_dguard 3 0 230 -50 0 180
 spawnarmed monster_vr_dcrossbow 4 0 230 50 0 180
-hint Front left: a death guard with its own sword; front right: a crossbow knight with its crossbow; behind them the same two with a shotgun and a super shotgun. Look round each: no hand off its weapon, no weapon through the body, no twisted elbow or shoulder. VR Settings > Armed Grunts > Grip Editor > Pose Studio edits their holds (they share the knight's keys).
+spawnarmed monster_vr_knight 0 0 320 0 0 180
+hint Front left: a death guard with its own sword; front right: a crossbow knight with its crossbow; behind them the same two with a shotgun and a super shotgun; at the back a regular knight. Look round each: no hand off its weapon, no weapon through the body, no twisted elbow or shoulder. VR Settings > Armed Grunts > Grip Editor > Pose Studio edits their holds: the AD knights share their own kind, AD Knight (seeded from the knight's); an edit there leaves the regular knight as he is.

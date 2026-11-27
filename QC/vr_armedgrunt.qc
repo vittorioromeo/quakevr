@@ -3416,7 +3416,7 @@ float() VR_AG_Dying =
     VR_EnemyHeld_Scenery(VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70'));
     VR_EnemyHeld_Scenery(VR_AG_DropHeld(self, v_forward * 25 + v_right * 20 + v_right * (crandom() * 15) + '0 0 70')); // (its other, if two)
     VR_AG_DropMain(self, v_forward * 15 + v_right * (crandom() * 25) + '0 0 60'); // (its own, stowed behind a flare gun)
-    if(VR_AM_PoseKind(self.vr_ag_kind) == VR_AM_KNIGHT || self.vr_ag_kind == VR_AM_DKNIGHT)
+    if(VR_AM_KnightBody(self.vr_ag_kind) || self.vr_ag_kind == VR_AM_DKNIGHT)
     {
         VR_AG_SoldierDrop(); // (their deaths drop no loot of their own: what's left of its rounds into the pack it wears)
     }
