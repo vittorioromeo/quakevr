@@ -23,6 +23,7 @@ import os
 import re
 import sys
 import warnings
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -60,21 +61,42 @@ def piece(slot, bone, t, face, span, rows=2, tile="plain", more=(), spikes=0, st
              stand=stand, thick=thick, pivot=pivot, end=end, cap=cap)
 
 
-def spiece(slot, bone, t, face, span, ref, pair=None, mid=False, rows=1, tile="plain", more=(), pct=95, cap_r=1.6,
-           tilt=0.0, even=0.0, stand=0.0, thick=0.0, cap=False, dome=None, pole=(0.0, 0.0, 1.0)):
-    """A symmetric kind's piece (shell_sym): `ref` the left/right bones whose line is the body's side to side here,
-    `pair` the mirrored piece's bone, `mid` a middle piece; `face` front, back, out (from the body), up, down; `pct` the
-    flesh's percentile covered, `cap_r` the radius's cut (times its median), `tilt` the facing raised, `even` how much
-    of the largest radius round it each row takes (a band's straight sides); `dome` (its middle along the bone, its
-    rim's angle from the pole): a dome round that middle, its pole `pole` (forward, out, up), `span` round it."""
-    return P(slot=slot, bone=bone, t=t, face=face, span=span, rows=rows, tile=tile, more=more, spikes=0, stand=stand,
-             thick=thick, pivot=None, end=None, cap=cap, ref=ref, pair=pair, mid=mid, pct=pct, cap_r=cap_r, tilt=tilt,
-             even=even, dome=dome, pole=pole)
+def fpiece(slot, bone, ref, shapes, pair=None, mid=False, face="out", tile="plain", more=(), pct=100, cap_r=1.6, tilt=0.0):
+    """A faceted kind's piece (beastplates: facet_plates): `ref` the left/right bones whose line is the body's side to side
+    here, `pair` the mirrored piece's bone, `mid` a middle piece (on the body's middle plane, mirrored across it; neither:
+    measured as it stands, a tail); `face` front, back, out (from the body), up, down: the angle 0 of its shapes (`band`,
+    `dome`); `pct` the flesh's percentile covered, `cap_r` the radius's cut (times its median), `tilt` the facing raised. A
+    second piece of a slot already made (another bone) is a part of it: drawn, hit and broken with it (beastarmour.txt's
+    later line)."""
+    return P(slot=slot, bone=bone, ref=ref, shapes=shapes, pair=pair, mid=mid, face=face, tile=tile, more=more, pct=pct,
+             cap_r=cap_r, tilt=tilt, stand=0.0, thick=0.0, even=0.0)
+
+
+def band(t, rows, span=360, cw=None, step=0.45, lap=0.5, gap=0.35, ridge=0.0, ridge_rows=(), flare=0.0, lift=0.0,
+         tiles=None, spike=None, line=None, heights=None, turn=0.0):
+    """Rows of plates along the bone from t[0] (the top: the row above laps over the next) to t[1], round it over `span`
+    degrees: `rows` each row's plates, `cw` a row's plates' widths (shares), `step` how far a row's lower edge stands proud
+    of its top, `lap` (units) how far it reaches over the row below, `gap` (units) between a row's plates, `ridge` (units)
+    the line facing `face` raised on `ridge_rows`, `flare` the first row's top edge raised (a collar), `lift` the whole shape
+    raised, `tiles` each row's tile kind, `spike` (where along 0..1, angle, height, width, way: "axis" or (fwd, out, up)),
+    `line` (bone, t, bone, t): the line it lies round (t 0 and 1 its ends) instead of its bone's, `heights` the rows' shares,
+    `turn` its span's middle this far round from `face` (degrees)."""
+    return P(kind="band", u=t, rows=rows, span=span, cw=cw, step=step, lap=lap, gap=gap, ridge=ridge, ridge_rows=ridge_rows,
+             flare=flare, lift=lift, tiles=tiles, spike=spike, line=line, heights=heights, turn=math.radians(turn))
+
+
+def dome(mid, polar, rows, pole, span=360, step=0.45, lap=0.5, gap=0.35, lift=0.0, tiles=None, spike=None, heights=None):
+    """Rings of plates round a middle `mid` along the bone, from the pole `pole` (fwd, out, up) down to `polar` degrees: a
+    row of 1 is a cap (one flat plate of `capn` sides over the pole), the rest as `band`'s."""
+    return P(kind="dome", mid=mid, u=(0.0, polar), rows=rows, pole=pole, span=span, cw=None, step=step, lap=lap, gap=gap,
+             ridge=0.0, ridge_rows=(), flare=0.0, lift=lift, tiles=tiles, spike=spike, line=None, heights=heights, turn=0.0)
 
 
 SH_OGRE = ("upperarm_l", "upperarm_r")  # (the ogre's shoulders: his chest's side to side)
 HIP_OGRE = ("thigh_l", "thigh_r")
 SH_WIZ = ("arm_l", "arm_r")
+WIZ_BELLY = ("pelvis", 1.0, "tail1", 0.0)
+PEC = (1.0, 1.7, 1.7, 1.0)  # (a breastplate's top row: two broad panels either side of its ridge)
 
 KINDS = [
     # The rottweiler: barding over his chest and croup (the cuirass: two pieces), a chanfron down his face, a spiked collar,
@@ -89,35 +111,68 @@ KINDS = [
         piece(6, "thigh_bl", (-0.1, 0.75), "out", 150, rows=2, tile="plain"),
         piece(7, "thigh_br", (-0.1, 0.75), "out", 150, rows=2, tile="plain"),
     ]),
-    # The ogre (beastlook: symmetric, shell_sym): a cuirass of three (breastplate, back plate, the faulds over his belly),
-    # a helmet, pauldrons, bracers and tassets over his thighs; his twisted stance's middle from his shoulders and hips.
-    P(name="ogre", model="progs/ogre.mdl", seeds="ogre", stand=0.6, thick=1.0, group=(0, 8, 9), sym=True, pieces=[
-        spiece(0, "chest", (0.0, 1.0), "front", 170, SH_OGRE, mid=True, tile="panel", pct=90),
-        spiece(8, "chest", (0.1, 0.95), "back", 130, SH_OGRE, mid=True, tile="plain", pct=90),
-        spiece(9, "pelvis", (-0.15, 0.95), "front", 160, HIP_OGRE, mid=True, rows=2, tile="rib"),
-        spiece(1, "head", (0, 0), "back", 360, SH_OGRE, mid=True, rows=2, dome=(0.45, 80), pole=(-0.15, 0.0, 1.0)),
-        spiece(2, "upperarm_l", (0, 0), "out", 360, SH_OGRE, pair="upperarm_r", rows=2, tile="emblem", dome=(0.0, 75),
-               pole=(0.0, 0.7, 1.0)),
-        spiece(3, "upperarm_r", (0, 0), "out", 360, SH_OGRE, pair="upperarm_l", rows=2, tile="emblem", dome=(0.0, 75),
-               pole=(0.0, 0.7, 1.0)),
-        spiece(4, "forearm_l", (0.3, 0.9), "out", 360, SH_OGRE, pair="forearm_r", tile="vent", even=0.6),
-        spiece(5, "forearm_r", (0.3, 0.9), "out", 360, SH_OGRE, pair="forearm_l", tile="vent", even=0.6),
-        spiece(6, "thigh_l", (0.2, 0.75), "front", 150, HIP_OGRE, pair="thigh_r", rows=2, tile="plain"),
-        spiece(7, "thigh_r", (0.2, 0.75), "front", 150, HIP_OGRE, pair="thigh_l", rows=2, tile="plain"),
+    # The ogre (beastplates: faceted, his mockup of 2026-11-27): a cuirass of three (a breastplate of angled panels with a
+    # ridge and a raised collar edge, a back plate, a belt band and faulds), a helmet, layered pauldrons over upper arms in
+    # bands, forearms in bands, thighs in bands, and his shins with knee cops (parts of the thighs' slots); his twisted
+    # stance's middle from his shoulders and hips (beastlook's symmetric measuring).
+    P(name="ogre", model="progs/ogre.mdl", seeds="ogre", stand=0.6, thick=1.0, group=(0, 8, 9), facet=True,
+      skip=("death", "bdeath", "base", "frame", "pull"), pieces=[  # (pull: frames he never plays)
+        fpiece(0, "chest", SH_OGRE, [
+            band((1.1, 0.0), (4, 4, 4), span=190, cw=(PEC, None, None), ridge=0.9, ridge_rows=(0, 1), flare=0.9,
+                 tiles=("panel", "plain", "rib"))], mid=True, face="front"),
+        fpiece(8, "chest", SH_OGRE, [band((1.05, 0.05), (4, 4, 4), span=160)], mid=True, face="back"),
+        fpiece(9, "pelvis", HIP_OGRE, [
+            band((0.98, 0.72), (10,), step=0.2, lap=0.3, tiles=("panel",)),
+            band((0.72, 0.1), (4,), span=150, tiles=("rib",)),
+            band((0.72, 0.0), (4,), span=150, turn=180)], mid=True, face="front"),
+        fpiece(1, "head", SH_OGRE, [dome(0.45, 80, (1, 6, 8), (-0.15, 0.0, 1.0), heights=(0.6, 1, 1))], mid=True, face="back"),
+        fpiece(2, "upperarm_l", SH_OGRE, [
+            dome(0.0, 72, (1, 5, 6), (0.0, 0.7, 1.0), heights=(0.7, 1, 1)),
+            band((0.45, 0.95), (6, 6), lift=0.2)], pair="upperarm_r"),
+        fpiece(3, "upperarm_r", SH_OGRE, [
+            dome(0.0, 72, (1, 5, 6), (0.0, 0.7, 1.0), heights=(0.7, 1, 1)),
+            band((0.45, 0.95), (6, 6), lift=0.2)], pair="upperarm_l"),
+        fpiece(4, "forearm_l", SH_OGRE, [band((0.1, 0.92), (6, 6, 6), tiles=("plain", "plain", "vent"))], pair="forearm_r"),
+        fpiece(5, "forearm_r", SH_OGRE, [band((0.1, 0.92), (6, 6, 6), tiles=("plain", "plain", "vent"))], pair="forearm_l"),
+        fpiece(6, "thigh_l", HIP_OGRE, [band((0.1, 0.88), (5, 5), span=260)], pair="thigh_r", face="front"),
+        fpiece(7, "thigh_r", HIP_OGRE, [band((0.1, 0.88), (5, 5), span=260)], pair="thigh_l", face="front"),
+        fpiece(6, "shin_l", HIP_OGRE, [
+            band((-0.1, 0.15), (2,), span=150, ridge=0.7, ridge_rows=(0,), flare=0.5, tiles=("rim",)),
+            band((0.15, 0.95), (5, 5, 5), span=250, tiles=("plain", "plain", "vent"))], pair="shin_r", face="front"),
+        fpiece(7, "shin_r", HIP_OGRE, [
+            band((-0.1, 0.15), (2,), span=150, ridge=0.7, ridge_rows=(0,), flare=0.5, tiles=("rim",)),
+            band((0.15, 0.95), (5, 5, 5), span=250, tiles=("plain", "plain", "vent"))], pair="shin_l", face="front"),
     ]),
-    # The scrag (beastlook: symmetric): a plastron and a back plate on his chest and a belly plate (the cuirass: three), a
-    # mask over his face, plates over his shoulders, plates over his claws' roots; his middle from his shoulders.
-    P(name="wizard", model="progs/wizard.mdl", seeds="wizard", stand=0.5, thick=0.8, group=(0, 8, 9), sym=True, pieces=[
-        spiece(0, "chest", (0.0, 1.0), "front", 130, SH_WIZ, mid=True, tile="panel"),
-        spiece(9, "chest", (0.05, 0.95), "back", 140, SH_WIZ, mid=True, tile="plain"),
-        spiece(8, "pelvis", (-0.3, 0.9), "front", 150, SH_WIZ, mid=True, rows=2, tile="rib"),
-        spiece(1, "head", (0, 0), "up", 360, SH_WIZ, mid=True, dome=(0.5, 80), pole=(1.0, 0.0, 0.6)),
-        spiece(2, "arm_l", (0, 0), "out", 360, SH_WIZ, pair="arm_r", rows=2, tile="emblem", dome=(0.35, 60),
-               pole=(0.0, 0.5, 1.0)),
-        spiece(3, "arm_r", (0, 0), "out", 360, SH_WIZ, pair="arm_l", rows=2, tile="emblem", dome=(0.35, 60),
-               pole=(0.0, 0.5, 1.0)),
-        spiece(4, "hand_l", (0.0, 0.35), "up", 140, SH_WIZ, pair="hand_r", tile="vent", cap_r=3.0),
-        spiece(5, "hand_r", (0.0, 0.35), "up", 140, SH_WIZ, pair="hand_l", tile="vent", cap_r=3.0),
+    # The scrag (beastplates: faceted, his mockup): a cuirass of three (a plastron of two angled pec panels on a ridge over
+    # stacked bands, a raised collar round his neck, a back plate; a riveted belt over stacked bands narrowing down, his tail
+    # in overlapping segments down to a spike: parts of the belt's slot), a mask, spiked layered shoulder plates, plates over
+    # his claws' roots; his middle from his shoulders.
+    P(name="wizard", model="progs/wizard.mdl", seeds="wizard", stand=0.5, thick=0.8, group=(0, 8, 9), facet=True, pieces=[
+        fpiece(0, "chest", SH_WIZ, [
+            band((1.14, 0.97), (4,), span=190, step=0.15, lap=0.3, flare=1.3, lift=0.5),
+            band((0.97, 0.55), (4,), span=180, cw=(PEC,), ridge=0.8, ridge_rows=(0,), tiles=("panel",)),
+            band((0.55, 0.0), (4, 4), span=160, ridge=0.4, ridge_rows=(0, 1), tiles=("rib", "rib"))],
+            mid=True, face="front"),
+        fpiece(9, "chest", SH_WIZ, [
+            band((1.14, 0.97), (4,), span=180, step=0.15, lap=0.3, flare=1.3, lift=0.5),
+            band((0.97, 0.05), (4, 4, 4), span=170)], mid=True, face="back"),
+        fpiece(8, "pelvis", SH_WIZ, [
+            # (round the line down from his waist to his tail's root: his body bends back into it)
+            band((-0.02, 0.14), (10,), step=0.2, lap=0.3, tiles=("panel",), line=WIZ_BELLY),
+            band((0.14, 1.0), (8, 8, 7), line=WIZ_BELLY)], mid=True, face="front"),
+        fpiece(8, "tail1", SH_WIZ, [band((0.0, 1.0), (6, 6))], face="up"),
+        fpiece(8, "tail2", SH_WIZ, [band((0.0, 1.0), (6, 6))], face="up"),
+        fpiece(8, "tail3", SH_WIZ, [band((0.0, 1.0), (6, 5))], face="up"),
+        fpiece(8, "tail4", SH_WIZ, [band((0.0, 0.9), (5, 5), lift=0.2, spike=(2.25, 0, 5.0, 0.9, "axis"))], face="up"),
+        fpiece(1, "head", SH_WIZ, [dome(0.5, 80, (1, 6, 8), (1.0, 0.0, 0.6), heights=(0.6, 1, 1))], mid=True, face="up"),
+        fpiece(2, "arm_l", SH_WIZ, [dome(0.35, 65, (1, 5, 6), (0.0, 0.5, 1.0), heights=(0.6, 1, 1),
+                                    spike=(0.8, 0, 5.5, 1.3, (0.0, 1.0, -0.3)))],
+               pair="arm_r"),
+        fpiece(3, "arm_r", SH_WIZ, [dome(0.35, 65, (1, 5, 6), (0.0, 0.5, 1.0), heights=(0.6, 1, 1),
+                                    spike=(0.8, 0, 5.5, 1.3, (0.0, 1.0, -0.3)))],
+               pair="arm_l"),
+        fpiece(4, "hand_l", SH_WIZ, [band((0.0, 0.35), (3,), span=150, tiles=("vent",))], pair="hand_r", face="up", cap_r=3.0),
+        fpiece(5, "hand_r", SH_WIZ, [band((0.0, 0.35), (3,), span=150, tiles=("vent",))], pair="hand_l", face="up", cap_r=3.0),
     ]),
     # The fiend: plates over his hunched back and shoulders and over his haunches, a breastplate under his chest (the cuirass:
     # three), a helmet, pauldrons, bracers, plates over his thighs.
@@ -161,8 +216,6 @@ def unit(v):
 
 def shell(kind, spec, seeds, pos, frames=None):
     """The piece's lames: a list of (outer grid, inner grid) arrays [rows+1 along, cols+1 round, 3], its frame."""
-    if kind.get("sym"):
-        return shell_sym(kind, spec, seeds, pos, frames)
     byname = {b[0]: b for b in seeds}
     name, _, _, pivot, end = byname[spec["bone"]]
     pivot = np.array(spec["pivot"]) if spec["pivot"] is not None else pivot
@@ -324,8 +377,9 @@ def sym_cloud(ctx, bones):
     mine = np.where(np.isin(ctx["label"], want))[0]
     own = np.where(ctx["label"] == want[0])[0]
     rest = ctx["pos"]
-    # (the engine's anchors: spread over the bone, the first nearest its middle)
-    mid = rest[own].mean(0)
+    # (the engine's anchors: spread over the bone, the first nearest the piece's middle: `first`, else its flesh's)
+    mid = ctx.get("first", {}).get(bones[0])
+    mid = rest[own].mean(0) if mid is None else mid
     anc = [own[np.argmin(np.linalg.norm(rest[own] - mid, axis=1))]]
     while len(anc) < 10 and len(anc) < len(own):
         d = np.min(np.linalg.norm(rest[own][:, None] - rest[anc][None], axis=2), axis=1)
@@ -340,9 +394,15 @@ def sym_cloud(ctx, bones):
     return np.concatenate(out)
 
 
-def sym_frame(ctx, spec, bone, side):
+def sym_frame(ctx, spec, bone, side, line=None):
     _, b = ctx["byname"][bone]
     pivot, end = np.array(b[3]), np.array(b[4])
+    if line:  # (a band's own line: (bone, t, bone, t) of the rest pose)
+        ends = []
+        for nm, t in ((line[0], line[1]), (line[2], line[3])):
+            bb = ctx["byname"][nm if side > 0 else nm.replace("_l", "_r")][1]
+            ends.append(np.array(bb[3]) + (np.array(bb[4]) - np.array(bb[3])) * t)
+        pivot, end = ends
     refl, refr = spec["ref"]
     pl, pr = ctx["byname"][refl][1][3], ctx["byname"][refr][1][3]
     lat = unit(np.array(pl) - np.array(pr))
@@ -406,97 +466,286 @@ def sym_smooth(spec, rad, ring):
     return np.maximum(rad, 1.0)
 
 
-def shell_dome(kind, spec, ctx, side):
-    """A dome (a helmet, a pauldron): rings of lames from its pole down to `dome`[1] degrees, round a middle on its bone
-    (`dome`[0] along it); the pole `pole` (forward, out, up in the body's frame), the rings' angles from `face`."""
-    t_mid, polar = spec["dome"]
-    rows, sub = spec["rows"], 2
-    span = math.radians(spec["span"])
-    ring = spec["span"] >= 359.0
-    cols = max(8, int(round(spec["span"] / 20.0)))
-    cols += cols % 2
-    nt = rows * sub + 1
-    ts = np.linspace(0.0, math.radians(polar), nt)
-    ps = np.linspace(-span / 2, span / 2, cols + 1) if not ring else np.linspace(-math.pi, math.pi, cols + 1)
+# --- Faceted plates (beastplates, ROUND26.md: the ogre and the scrag) ---------------------------------------------------
+# The humanoids' look (make_agarmor.py's atlas, vr_agarmor.cpp addPlate's slab): every plate a flat trapezoid on ONE
+# tile of the atlas (its bevel, trim, corner rivets and the under-layer at its top painted there): a face inset by its
+# bevel, the bevel round it, its sides on the rim (the dark gaps between plates), its inside on the padding. Rows are
+# shingled: each row's top, thin, tucked under the row above, whose lower edge stands proud and laps over it; a gap
+# between a row's plates. A piece is shapes of rows, a band along its bone or a dome round a pole, laid over the body's
+# envelope as measured above (symmetric pairs and middles, every frame), each corner raised so its plate's flat face
+# clears the flesh under it.
 
-    def frame(bone, sd):
-        pivot, a, length, _, _ = sym_frame(ctx, spec, bone, sd)
-        refl, refr = spec["ref"]
-        pl, pr = ctx["byname"][refl][1][3], ctx["byname"][refr][1][3]
-        lat = unit(np.array(pl) - np.array(pr))
-        lat = unit(lat - np.array([0.0, 0.0, lat[2]]))
-        fwd = np.cross(lat, [0.0, 0.0, 1.0])
-        up = np.array([0.0, 0.0, 1.0])
-        pole = unit(spec["pole"][0] * fwd + spec["pole"][1] * lat * sd + spec["pole"][2] * up)
-        f = {"front": fwd, "back": -fwd, "out": lat * sd, "up": up, "down": -up}[spec["face"]]
-        r0 = f - pole * float(np.dot(f, pole))
-        r0 = unit(r0 if np.linalg.norm(r0) > 1e-3 else np.cross(pole, lat))
-        r1 = np.cross(pole, r0) * sd
-        return pivot + a * (t_mid * length), pole, r0, r1
 
-    def radius(bone, sd, fr):
+def body_axes(ctx, ref):
+    """The body's forward, left and up where its `ref` pair (shoulders, hips) stands: level, square to the pair."""
+    pl, pr = ctx["byname"][ref[0]][1][3], ctx["byname"][ref[1]][1][3]
+    lat = unit(np.array(pl) - np.array(pr))
+    lat = unit(lat - np.array([0.0, 0.0, lat[2]]))
+    return np.cross(lat, [0.0, 0.0, 1.0]), lat, np.array([0.0, 0.0, 1.0])
+
+
+def dome_frame(ctx, spec, shape, bone, side):
+    pivot, a, length, _, _ = sym_frame(ctx, spec, bone, side)
+    fwd, lat, up = body_axes(ctx, spec["ref"])
+    pole = unit(shape["pole"][0] * fwd + shape["pole"][1] * lat * side + shape["pole"][2] * up)
+    f = {"front": fwd, "back": -fwd, "out": lat * side, "up": up, "down": -up}[spec["face"]]
+    r0 = f - pole * float(np.dot(f, pole))
+    r0 = unit(r0 if np.linalg.norm(r0) > 1e-3 else np.cross(pole, lat))
+    r1 = np.cross(pole, r0) * side
+    return pivot + a * (shape["mid"] * length), pole, r0, r1
+
+
+def dome_radius(ctx, spec, bone, side, fr, us, ps):
+    """The flesh's radius from a dome's middle by polar angle (us) and angle round its pole (ps)."""
+    c, pole, r0, r1 = fr
+    pts = sym_cloud(ctx, [bone] + [m if side > 0 else m.replace("_l", "_r") for m in spec["more"]]) - c
+    d = np.linalg.norm(pts, axis=1)
+    u = pts / np.maximum(d, 1e-6)[:, None]
+    th = np.arccos(np.clip(u @ pole, -1.0, 1.0))
+    ph = np.arctan2(u @ r1, u @ r0)
+    rad = np.full((len(us), len(ps)), np.nan)
+    for i, t in enumerate(us):
+        near = np.abs(th - t) < math.radians(18)
+        for j, p in enumerate(ps):
+            # (round the pole every angle is near: there by the polar angle alone)
+            dp = np.abs((ph[near] - p + math.pi) % (2 * math.pi) - math.pi) * max(math.sin(t), 0.3)
+            sel = d[near][dp < math.radians(20)]
+            if len(sel) >= 3:
+                rad[i, j] = np.percentile(sel, spec["pct"])
+    return rad
+
+
+def surface(ctx, spec, shape, side):
+    """A shape's surface: at(u, p, r) (u along the bone, or the polar angle of a dome), the units a step of u is at radius
+    r, its axis's point at u, and the flesh's radius over a fine grid (us, ps) as the symmetric kinds measure it."""
+    ring = shape["span"] >= 359.0
+    span = math.radians(shape["span"])
+    u0, u1 = shape["u"]
+    if shape["kind"] == "dome":
+        u0, u1 = math.radians(u0), math.radians(u1)
+    us = np.linspace(min(u0, u1), max(u0, u1), len(shape["rows"]) * 6 + 1)
+    n = max(9, int(shape["span"] / 8.0))
+    n += 1 - n % 2  # (odd: a sample on the middle line)
+    ps = np.linspace(-math.pi, math.pi, n) if ring else np.linspace(-span / 2, span / 2, n) + shape["turn"]
+    if shape["kind"] == "band":
+        fr = sym_frame(ctx, spec, spec["bone"], side, shape["line"])
+        rad = sym_radius(ctx, spec, spec["bone"], side, us, ps, fr)
+        length = fr[2]
+        if spec["pair"]:
+            fo = sym_frame(ctx, spec, spec["pair"], -side, shape["line"])
+            rad = np.fmax(rad, sym_radius(ctx, spec, spec["pair"], -side, us, ps, fo))
+            length = (fr[2] + fo[2]) * 0.5
+        pivot, a, _, r0, r1 = fr
+
+        def at(u, p, r):
+            return pivot + a * (u * length) + (math.cos(p) * r0 + math.sin(p) * r1) * r
+
+        def axis(u):
+            return pivot + a * (u * length)
+
+        def ulen(r):
+            return length
+        way = a * math.copysign(1.0, u1 - u0)
+    else:
+        fr = dome_frame(ctx, spec, shape, spec["bone"], side)
+        rad = dome_radius(ctx, spec, spec["bone"], side, fr, us, ps)
+        if spec["pair"]:
+            rad = np.fmax(rad, dome_radius(ctx, spec, spec["pair"], -side, dome_frame(ctx, spec, shape, spec["pair"], -side),
+                                           us, ps))
         c, pole, r0, r1 = fr
-        pts = sym_cloud(ctx, [bone] + [m if sd > 0 else m.replace("_l", "_r") for m in spec["more"]]) - c
-        d = np.linalg.norm(pts, axis=1)
-        u = pts / np.maximum(d, 1e-6)[:, None]
-        th = np.arccos(np.clip(u @ pole, -1.0, 1.0))
-        ph = np.arctan2(u @ r1, u @ r0)
-        rad = np.full((nt, cols + 1), np.nan)
-        for i, t in enumerate(ts):
-            near = np.abs(th - t) < math.radians(18)
-            for j, p in enumerate(ps):
-                # (round the pole every angle is near: there by the polar angle alone)
-                dp = np.abs((ph[near] - p + math.pi) % (2 * math.pi) - math.pi) * max(math.sin(t), 0.3)
-                sel = d[near][dp < math.radians(20)]
-                if len(sel) >= 3:
-                    rad[i, j] = np.percentile(sel, spec["pct"])
-        return rad
 
-    fr = frame(spec["bone"], side)
-    if spec["pair"]:
-        rad = np.fmax(radius(spec["bone"], side, fr), radius(spec["pair"], -side, frame(spec["pair"], -side)))
-    else:
-        rad = radius(spec["bone"], side, fr)
-        rad = np.fmax(rad, rad[:, ::-1])
-    return fr, ts, ps, ring, rows, sub, cols, nt, rad
+        def at(u, p, r):
+            return c + (math.cos(u) * pole + math.sin(u) * (math.cos(p) * r0 + math.sin(p) * r1)) * r
 
+        def axis(u):
+            return c
 
-def shell_sym(kind, spec, seeds, pos, frames):
-    ctx = sym_context(kind, seeds, pos, frames)
-    side = -1.0 if spec["bone"].endswith("_r") else 1.0
-    if spec["dome"]:
-        (c, pole, r0, r1), ts, ps, ring, rows, sub, cols, nt, rad = shell_dome(kind, spec, ctx, side)
-        rad = sym_smooth(spec, rad, ring)
-        length = float(np.mean(rad))
-
-        def at(t, p, r):
-            return c + (math.cos(t) * pole + math.sin(t) * (math.cos(p) * r0 + math.sin(p) * r1)) * r
-
-        return build_lames(kind, spec, c, pole, length, r0, r1, rad, ts, ps, ring, rows, sub, cols, ts[0], ts[-1], nt, at)
-    t0, t1 = spec["t"]
-    span = math.radians(spec["span"])
-    ring = spec["span"] >= 359.0
-    rows, sub = spec["rows"], 2
-    cols = max(4, int(round(spec["span"] / 20.0)))
-    cols += cols % 2  # (an even count: a middle column, the mirror's line)
-    nt = rows * sub + 1
-    ts = np.linspace(t0, t1, nt)
-    ps = np.linspace(-span / 2, span / 2, cols + 1) if not ring else np.linspace(-math.pi, math.pi, cols + 1)
-    frame = sym_frame(ctx, spec, spec["bone"], side)
-    if spec["pair"]:
-        other = spec["pair"]
-        fo = sym_frame(ctx, spec, other, -side)
-        rad = np.fmax(sym_radius(ctx, spec, spec["bone"], side, ts, ps, frame),
-                      sym_radius(ctx, spec, other, -side, ts, ps, fo))
-        length = (frame[2] + fo[2]) * 0.5
-        frame = (frame[0], frame[1], length, frame[3], frame[4])
-    else:
-        rad = sym_radius(ctx, spec, spec["bone"], side, ts, ps, frame)
+        def ulen(r):
+            return max(r, 1.0)
+        way = pole
+    if spec["mid"] and not spec["pair"]:
         rad = np.fmax(rad, rad[:, ::-1])  # (mirrored across the middle plane)
-    rad = sym_smooth(spec, rad, ring)
-    rad = np.maximum(rad, 1.0)
-    pivot, a, length, r0, r1 = frame
-    return build_lames(kind, spec, pivot, a, length, r0, r1, rad, ts, ps, ring, rows, sub, cols, t0, t1, nt)
+    rad = sym_smooth(dict(cap_r=spec["cap_r"], even=0.0), rad, ring)
+    return SimpleNamespace(at=at, axis=axis, ulen=ulen, us=us, ps=ps, rad=rad, ring=ring, span=span, u0=u0, u1=u1, way=way)
+
+
+def wrapped(d):
+    return np.abs((d + math.pi) % (2 * math.pi) - math.pi)
+
+
+def node_radius(s, ua, ub, top, p, half):
+    """The flesh's radius a plate's corner clears: the most of its row near it (round it: half its plates' widths), between
+    the most of the row's half by the corner and of the whole row (a straight plate's edge over the row's bulge)."""
+    lo, hi = min(ua, ub) - 1e-9, max(ua, ub) + 1e-9
+    um = (ua + ub) * 0.5
+    hl, hh = (min(ua, um) - 1e-9, max(ua, um) + 1e-9) if top else (min(um, ub) - 1e-9, max(um, ub) + 1e-9)
+    rows = (s.us >= lo) & (s.us <= hi)
+    halfrows = (s.us >= hl) & (s.us <= hh)
+    if not rows.any():
+        rows = halfrows = np.abs(s.us - um) == np.abs(s.us - um).min()
+    dp = wrapped(s.ps - p) if s.ring else np.abs(s.ps - p)
+    cols = dp <= half + 1e-9
+    if not cols.any():
+        cols = dp == dp.min()
+    whole = float(s.rad[rows][:, cols].max())
+    part = float(s.rad[halfrows][:, cols].max()) if halfrows.any() else whole
+    return 0.5 * (whole + part)
+
+
+def facet_plates(kind, spec, ctx):
+    """A faceted piece's plates [(corners, thickness at each, outward, tile)] and spikes [(base, way, height, width)]."""
+    side = -1.0 if spec["bone"].endswith("_r") else 1.0
+    stand, thick = kind["stand"], kind["thick"]
+    plates, spikes = [], []
+    for si, shape in enumerate(spec["shapes"]):
+        s = surface(ctx, spec, shape, side)
+        rows = shape["rows"]
+        dome_ = shape["kind"] == "dome"
+        for k, ncol in enumerate(rows):
+            share = np.concatenate([[0.0], np.cumsum(shape["heights"] or (1.0,) * len(rows))])
+            share /= share[-1]
+            ua = s.u0 + (s.u1 - s.u0) * share[k]
+            ub = s.u0 + (s.u1 - s.u0) * share[k + 1]
+            tiles = TILES[(shape["tiles"] or (spec["tile"],) * len(rows))[k]]
+            # (every row's top under the row above, thin there; a piece's first edge whole)
+            top_th = thick if (si == 0 and k == 0) else 0.35 * thick
+            lift = stand + shape["lift"]
+            if dome_ and ncol == 1:
+                # A cap: one flat plate over the pole, its rim's corners clear of the flesh under its middle too.
+                capn = 6
+                ps = [-math.pi + 2 * math.pi * (i + 0.5) / capn for i in range(capn)]
+                under = float(s.rad[s.us <= ub + 1e-9].max())
+                chord = 1.0 / math.cos(math.pi / capn)
+                r = [max(node_radius(s, 0.0, ub, False, p, math.pi / capn) * chord, under / max(math.cos(ub), 0.3)) for p in ps]
+                lapu = shape["lap"] / s.ulen(float(np.mean(r)))
+                c = [s.at(ub + lapu, p, rr + lift) for p, rr in zip(ps, r)]
+                plates.append((np.array(c), [thick] * capn, s.axis(ub), tiles[(spec["slot"] + k) % len(tiles)]))
+                continue
+            ring = s.ring
+            widths = np.array((shape["cw"] or (None,) * len(rows))[k] or (1.0,) * ncol, dtype=float)
+            full = 2 * math.pi if ring else s.span
+            start = -math.pi + (math.pi / ncol if dome_ and k % 2 == 0 else 0.0) if ring else shape["turn"] - s.span / 2
+            bnd = start + np.concatenate([[0.0], np.cumsum(widths)]) / widths.sum() * full
+            wide = np.diff(bnd)
+            rt, rb = [], []
+            for j, p in enumerate(bnd):
+                near = max(wide[j - 1] if j > 0 else (wide[-1] if ring else 0.0), wide[j] if j < ncol else (wide[0] if ring else 0.0))
+                chord = 1.0 / math.cos(min(near / 2, 1.1))
+                if dome_:
+                    chord /= math.cos(min(abs(ub - ua) / 2, 1.1))
+                ridge = shape["ridge"] if k in shape["ridge_rows"] and abs(math.remainder(p, 2 * math.pi)) < 1e-6 else 0.0
+                rt.append(node_radius(s, ua, ub, True, p, near / 2) * chord + ridge)
+                rb.append(node_radius(s, ua, ub, False, p, near / 2) * chord + ridge)
+            for j in range(ncol):
+                pa, pb = bnd[j], bnd[j + 1]
+                r_mean = 0.25 * (rt[j] + rt[j + 1] + rb[j] + rb[j + 1])
+                g = shape["gap"] * 0.5 / max(r_mean, 1.0)
+                pa, pb = pa + g, pb - g
+                lapu = shape["lap"] / s.ulen(r_mean) * math.copysign(1.0, s.u1 - s.u0)
+                flare = shape["flare"] if k == 0 else 0.0
+                c = [s.at(ua, pa, rt[j] + lift + flare), s.at(ua, pb, rt[j + 1] + lift + flare),
+                     s.at(ub + lapu, pb, rb[j + 1] + lift + shape["step"]), s.at(ub + lapu, pa, rb[j] + lift + shape["step"])]
+                plates.append((np.array(c), [top_th, top_th, thick, thick], s.axis((ua + ub) * 0.5),
+                               tiles[(spec["slot"] + 3 * k + j) % len(tiles)]))
+        if shape["spike"]:
+            f, pdeg, h, w, way = shape["spike"]
+            u = s.u0 + (s.u1 - s.u0) * f
+            if way == "axis":
+                spikes.append((s.axis(u) + s.way * (shape["lap"] if not dome_ else 0.0), unit(s.way), h, w))
+            else:
+                fwd, lat, up = body_axes(ctx, spec["ref"])
+                p = math.radians(pdeg)
+                r = node_radius(s, u, u, True, p, 0.3)
+                spikes.append((s.at(u, p, r + lift + thick * 0.6), unit(way[0] * fwd + way[1] * lat * side + way[2] * up), h, w))
+    return plates, spikes
+
+
+def emit_plate(b, c, th, inside, tile):
+    """One plate as vr_agarmor.cpp addPlate's slab: its face (inset by its bevel) on the tile's face, the bevel round it
+    from the tile's edge, its sides down on the rim, its inside on the padding. Corners c[0..n] (a quad's top edge first:
+    the tile's top, its under-layer, is the plate's top), th the thickness at each, `inside` a point within the body."""
+    n_ = len(c)
+    cen = c.mean(axis=0)
+    nrm = np.zeros(3)
+    for i in range(n_):  # (Newell's normal)
+        a, d = c[i], c[(i + 1) % n_]
+        nrm += np.array([(a[1] - d[1]) * (a[2] + d[2]), (a[2] - d[2]) * (a[0] + d[0]), (a[0] - d[0]) * (a[1] + d[1])])
+    nrm = unit(nrm)
+    if np.dot(nrm, cen - inside) < 0.0:
+        nrm = -nrm
+    rect = tile_rect(tile)
+    if n_ == 4:
+        uv = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+    else:
+        e1 = unit(c[0] - cen)
+        e2 = np.cross(nrm, e1)
+        q = np.array([[np.dot(x - cen, e1), np.dot(x - cen, e2)] for x in c])
+        q = (q - q.min(0)) / np.maximum(q.max(0) - q.min(0), 1e-6)
+        uv = [tuple(x) for x in q]
+    uvf = [(0.5 + (u - 0.5) * (1 - 2 * make_agarmor.BEVEL), 0.5 + (v - 0.5) * (1 - 2 * make_agarmor.BEVEL)) for u, v in uv]
+    edge = [c[i] + nrm * th[i] * 0.45 for i in range(n_)]
+    face = []
+    for i in range(n_):
+        d = cen - c[i]
+        dl = float(np.linalg.norm(d))
+        bw = min(0.55 * max(th), 0.3 * dl)
+        face.append(c[i] + (d / max(dl, 1e-6)) * bw + nrm * th[i])
+    for i in range(1, n_ - 1):
+        b.quad([face[0], face[i], face[i + 1], face[i + 1]],
+               [st(rect, *uvf[0]), st(rect, *uvf[i]), st(rect, *uvf[i + 1]), st(rect, *uvf[i + 1])], nrm)
+        b.quad([c[0], c[i], c[i + 1], c[i + 1]], [st(INNER, *uv[0]), st(INNER, *uv[i]), st(INNER, *uv[i + 1]),
+                                                  st(INNER, *uv[i + 1])], -nrm)
+    for i in range(n_):
+        j = (i + 1) % n_
+        out = unit((c[i] + c[j]) * 0.5 - cen)
+        b.quad([edge[i], edge[j], face[j], face[i]], [st(rect, *uv[i]), st(rect, *uv[j]), st(rect, *uvf[j]), st(rect, *uvf[i])],
+               nrm + out)
+        b.quad([c[i], c[j], edge[j], edge[i]], [st(RIM, 0, 1), st(RIM, 1, 1), st(RIM, 1, 0), st(RIM, 0, 0)], out)
+
+
+def emit_spike(b, base, way, h, w):
+    s1 = unit(np.cross(way, [0.0, 0.0, 1.0] if abs(way[2]) < 0.9 else [1.0, 0.0, 0.0]))
+    s2 = np.cross(way, s1)
+    tip = base + way * h
+    corners = [base + (s1 + s2) * w, base + (s2 - s1) * w, base - (s1 + s2) * w, base + (s1 - s2) * w]
+    for q in range(4):
+        p0, p1 = corners[q], corners[(q + 1) % 4]
+        c = (p0 + p1 + tip) / 3.0
+        b.quad([p0, p1, tip, tip], [st(RIM, 0, 1), st(RIM, 1, 1), st(RIM, 0.5, 0), st(RIM, 0.5, 0)], c - base + way * 0.1)
+
+
+def piece_key(spec):
+    return "%d %s" % (spec["slot"], spec["bone"])
+
+
+def facet_context(kind, spec, seeds, pos, frames):
+    """The kind's measuring context (made once), the engine's first anchors set for this piece and its pair: their
+    middles as a first pass made them (a piece rides the fit of anchors from its middle out, so it is measured so)."""
+    if "ctx" not in kind:
+        kind["ctx"] = sym_context(kind, seeds, pos, frames)
+        middles = {}
+        for p in kind["pieces"]:
+            kind["ctx"]["first"] = {}
+            c = []
+            build_facets(kind, p, kind["ctx"], c)
+            middles[piece_key(p)] = np.array(c)
+        kind["middles"] = middles
+    ctx = kind["ctx"]
+    ctx["first"] = {spec["bone"]: kind["middles"][piece_key(spec)]}
+    if spec["pair"]:
+        mate = next(p for p in kind["pieces"] if p["bone"] == spec["pair"] and p["pair"] == spec["bone"])
+        ctx["first"][spec["pair"]] = kind["middles"][piece_key(mate)]
+    return ctx
+
+
+def build_facets(kind, spec, ctx, centre_out):
+    plates, spikes = facet_plates(kind, spec, ctx)
+    b = Builder()
+    for c, th, inside, tile in plates:
+        emit_plate(b, c, th, inside, tile)
+    for base, way, h, w in spikes:
+        emit_spike(b, base, way, h, w)
+    return centred(b, centre_out)
 
 
 def tile_rect(tile):
@@ -531,6 +780,8 @@ class Builder:
 
 
 def build_piece(kind, spec, seeds, pos, centre_out, frames=None):
+    if kind.get("facet"):
+        return build_facets(kind, spec, facet_context(kind, spec, seeds, pos, frames), centre_out)
     lames, spikes, ring = shell(kind, spec, seeds, pos, frames)
     b = Builder()
     tiles = TILES[spec["tile"]]
@@ -571,6 +822,11 @@ def build_piece(kind, spec, seeds, pos, centre_out, frames=None):
             # (a pyramid's face: a quad with two corners at its tip)
             c = (p0 + p1 + tip) / 3.0
             b.quad([p0, p1, tip, tip], [st(rim, 0, 1), st(rim, 1, 1), st(rim, 0.5, 0), st(rim, 0.5, 0)], c - base + out * 0.1)
+    return centred(b, centre_out)
+
+
+def centred(b, centre_out):
+    """The mesh about its box's middle (written to centre_out: the piece's middle in the rest pose)."""
     pts = np.array([v[0] for v in b.mesh.verts])
     centre = (pts.min(axis=0) + pts.max(axis=0)) * 0.5
     b.mesh.verts = [(tuple(float(x) for x in np.array(p) - centre), n, c) for p, n, c in b.mesh.verts]
@@ -605,7 +861,7 @@ def main():
     for kind in KINDS:
         pos = load_mdl(os.path.join(progs, os.path.basename(kind["model"]))).pos
         frames = None
-        if kind.get("sym"):
+        if kind.get("facet"):
             names, poses, _ = ragdoll_mdl.load(os.path.join(progs, os.path.basename(kind["model"])))
             frames = (names, poses)
         group = sum(1 << s for s in kind["group"])
@@ -613,7 +869,9 @@ def main():
         for spec in kind["pieces"]:
             centre = []
             mesh = build_piece(kind, spec, seeds[kind["seeds"]], pos, centre, frames)
-            path = "progs/vrbarmor_%s_%d.mdl" % (kind["name"], spec["slot"])
+            # (a slot's later piece, a part of it on another bone: named by its bone too)
+            first = spec is next(p for p in kind["pieces"] if p["slot"] == spec["slot"])
+            path = "progs/vrbarmor_%s_%d%s.mdl" % (kind["name"], spec["slot"], "" if first else "_" + spec["bone"])
             meshes.append((os.path.join(ROOT, "quakevr", path.replace("/", os.sep)), mesh, path))
             lines.append("piece %s %d %s %s %.2f %.2f %.2f" % (kind["model"], spec["slot"], spec["bone"], path, *centre))
     guard = genguard.Guard("make_beastarmour.py", [m[0] for m in meshes] + [data])
