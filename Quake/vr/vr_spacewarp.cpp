@@ -127,7 +127,7 @@ struct State
     int skippedAtStill{0}; // (vr_spacewarp_check jumped: a skip since `still`)
     za::Vector<float> readback;
 };
-State state;
+State state; // seat-shared: the headset's frame pacing (seat 1's eyes only)
 
 [[nodiscard]] GLuint compile(GLenum type, const char* source, const char* name)
 {

@@ -1,6 +1,7 @@
 // vr_beastarmour.cpp -- see vr_beastarmour.hpp (the beasts' armour: rigid pieces on their derived rigs' bones).
 
 #include "vr_beastarmour.hpp"
+#include "vr_seat.hpp"
 
 #include "vr_agarmor.hpp"
 #include "vr_geom.hpp"
@@ -66,10 +67,18 @@ struct Placed
     float scale{1.f};
 };
 
-za::Vector<Kind> kinds; // (reserved once, when read: the models' names handed to QC stay where they are)
-bool loaded = false;
-entity_t ents[maxEnts];
-int numEnts = 0;
+za::Vector<Kind> kinds; // seat-shared: the data file's (reserved once, when read: the models' names handed to QC stay where they are)
+bool loaded = false;    // seat-shared: the data file read
+// split19: each seat's (seat::Part::BeastArmour): the armour pieces its relink added to its client's visible entities (its pass draws them).
+struct BeastArmourSeat
+{
+    entity_t ents[maxEnts];
+    int numEnts = 0;
+};
+[[nodiscard]] BeastArmourSeat& armourSeat()
+{
+    return seat::part<BeastArmourSeat>(seat::current(), seat::Part::BeastArmour);
+}
 
 void load()
 {
@@ -534,7 +543,7 @@ void plateWhere(edict_t* ent, int slot, int what, float* out)
 
 void beginRelink()
 {
-    numEnts = 0;
+    armourSeat().numEnts = 0;
 }
 
 void relinkEntity(const entity_t* e, int num, int type, int pieces, int wear)
@@ -551,7 +560,7 @@ void relinkEntity(const entity_t* e, int num, int type, int pieces, int wear)
     {
         return;
     }
-    for(int i = 0; i < numSlots && numEnts < maxEnts && cl_numvisedicts < MAX_VISEDICTS; i++)
+    for(int i = 0; i < numSlots && armourSeat().numEnts < maxEnts && cl_numvisedicts < MAX_VISEDICTS; i++)
     {
         const Slot& s = k->slot[i];
         Placed pl;
@@ -566,7 +575,7 @@ void relinkEntity(const entity_t* e, int num, int type, int pieces, int wear)
         }
         const int level = (wear >> numSlots) & (1 << i) ? 2 : (wear & (1 << i)) ? 1 : 0;
         const int numSkins = m->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(m))->numskins : 1;
-        entity_t& a = ents[numEnts++];
+        entity_t& a = armourSeat().ents[armourSeat().numEnts++];
         a = *e;
         a.model = m;
         a.frame = 0;
@@ -585,7 +594,7 @@ void relinkEntity(const entity_t* e, int num, int type, int pieces, int wear)
 
 int drawnCount()
 {
-    return numEnts;
+    return armourSeat().numEnts;
 }
 
 void init()

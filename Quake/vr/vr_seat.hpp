@@ -122,6 +122,7 @@ enum class Part
     AdSpins,       // vr_adweapons.cpp: the Widowmaker's barrels' spins in the seat's hands, as drawn
     AdMotor,       // vr_adweapons.cpp: the Widowmaker's motor sound
     GunSfx,        // vr_gunsfx.cpp: the seat's guns' haptics and sounds
+    BeastArmour,   // vr_beastarmour.cpp: the armour pieces the seat's relink added to its visible entities
     Count
 };
 
