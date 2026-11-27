@@ -33,6 +33,7 @@ Watch an armoured ogre run: his bracers should sit on the upper forearm near the
 Look at an armoured ogre's breastplate from the front: its top edge should dip in a shallow V at the neck, leaving room for his chin as he moves. {test:armour_beasts}
 Flat-screen or VR: an armoured ogre has leather at both knees, a closed ring between each thigh plate and its shin plate (mostly under the knee cops; look behind and as the knees bend in his run). {test:armour_beasts}
 Flat-screen or VR: in the Armour Studio, pick a leather sleeve or junction (Knee Leather on the ogre, a grunt's Knee Sleeves): the new Own End / Joined End move and size rows, Twist, Bulge, Segments (and on beasts Far Edge and Closed All Round) move the end they name; Reset Part puts the leather back exactly. {test:beaststudio}
+Armoured beasts: look closely at the ogre (and the rottweiler and scrag) as they idle, and in a fight as the ogre runs and swings his chainsaw: the armour pieces and the leather between them stay on the body as drawn, no sliding or floating over the skin; Debug > Reports > Beast Armour On The Drawn Body Off shows the old drift to compare. {test:armour_beasts}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
