@@ -4288,6 +4288,7 @@ vr_image_cache_mb|2|Tunables|Decoded Image Cache|Advanced VR Options > Debug > T
 vr_anim_smooth_rig_error|2|Tunables|Limb Fit Limit|Advanced VR Options > Debug > Tunables > Limb Fit Limit
 vr_anim_smooth_rebuild_error|2|Tunables|Rebuild Fit Limit|Advanced VR Options > Debug > Tunables > Rebuild Fit Limit
 vr_anim_smooth_rebuild_blend|2|Tunables|Rebuild Joints From Two Bones|Advanced VR Options > Debug > Tunables > Rebuild Joints From Two Bones
+vr_hitmodel_drawn|2|Tunables|Shots Meet The Drawn Body|Advanced VR Options > Debug > Tunables > Shots Meet The Drawn Body
 vr_armour_on_drawn|2|Tunables|Beast Armour On The Drawn Body|Advanced VR Options > Debug > Tunables > Beast Armour On The Drawn Body
 vr_gore_streams_chance|2|Tunables|Stream Chance|Advanced VR Options > Debug > Tunables > Stream Chance
 vr_gore_streams_melee_blunt|2|Tunables|Melee Blunt Chance|Advanced VR Options > Debug > Tunables > Melee Blunt Chance
@@ -5303,6 +5304,19 @@ vr_flat_xhair_melee_kick|2|Tunables|Melee Crosshair Kick|Advanced VR Options > D
 vr_flat_xhair_melee_mass|2|Tunables|Melee Kick Weight|Advanced VR Options > Debug > Tunables > Melee Kick Weight
 vr_flat_xhair_melee_fist|2|Tunables|Fist Kick Share|Advanced VR Options > Debug > Tunables > Fist Kick Share
 vr_flat_xhair_melee_decay|2|Tunables|Melee Kick Decay|Advanced VR Options > Debug > Tunables > Melee Kick Decay
+vr_agrunt_dazzle|2|Tunables|Flashlight Dazzle|Advanced VR Options > Debug > Tunables > Flashlight Dazzle
+vr_agrunt_dazzle_cone|2|Tunables|Cone|Advanced VR Options > Debug > Tunables > Cone
+vr_agrunt_dazzle_near|2|Tunables|Full Strength Within|Advanced VR Options > Debug > Tunables > Full Strength Within
+vr_agrunt_dazzle_range|2|Tunables|Range|Advanced VR Options > Debug > Tunables > Range
+vr_agrunt_dazzle_dark|2|Tunables|Darkness Bonus|Advanced VR Options > Debug > Tunables > Darkness Bonus
+vr_agrunt_dazzle_build|2|Tunables|Build Time|Advanced VR Options > Debug > Tunables > Build Time
+vr_agrunt_dazzle_fade|2|Tunables|Fade Time|Advanced VR Options > Debug > Tunables > Fade Time
+vr_agrunt_dazzle_threshold|2|Tunables|Hand Up From|Advanced VR Options > Debug > Tunables > Hand Up From
+vr_agrunt_dazzle_spread|2|Tunables|Aim Spread|Advanced VR Options > Debug > Tunables > Aim Spread
+vr_agrunt_dazzle_pose|2|Tunables|Hand Pose|Advanced VR Options > Debug > Tunables > Hand Pose
+vr_agrunt_dazzle_hand_fwd|2|Tunables|Hand Forward|Advanced VR Options > Debug > Tunables > Hand Forward
+vr_agrunt_dazzle_hand_left|2|Tunables|Hand Left|Advanced VR Options > Debug > Tunables > Hand Left
+vr_agrunt_dazzle_hand_up|2|Tunables|Hand Up|Advanced VR Options > Debug > Tunables > Hand Up
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
