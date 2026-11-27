@@ -12,8 +12,8 @@ Quake's folder without Quake VR) and the tree itself (its quakevr: Quake VR's fo
 - nogame: "-basedir <Quake> -basedir <Quake VR>" and no -game: quakevr added, its game code and data read, e1m1 played;
 - testmod: ... "-game testmod" (a mod folder in Quake's folder): "-game quakevr" put under it (game dirs quakevr;testmod).
 - testmod_explicit: "-game quakevr -game testmod" given: unchanged (the same game dirs).
-Each map run ends by itself (its script's quit), a 120 s timeout only a safety net. Prints "<case>: ok|FAIL ..." and
-"nogamedir_test: N passed, M failed". The campaigns' launches (-game ad, -game hipnotic) go through run.sh (ROUND26).
+Each map run ends by itself (its script's quit), a 120 s timeout only a safety net. Prints "nogamedir_test: PASS|FAIL <case> ..."
+and "nogamedir_test: N passed, M failed". The campaigns' launches (-game ad, -game hipnotic) go through run.sh (ROUND26).
 """
 import argparse
 import glob
@@ -21,8 +21,11 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 
-KIT = "C:/OHWorkspace/qvr-kit"
+import qvrtest
+
+KIT = qvrtest.KIT
 
 SCRIPT = [
     "vr_backend mock", "vr_mock_fast 1", "vr_fixed_frames 1", "sv_autosave 0", "con_logcenterprint 1",
@@ -37,7 +40,7 @@ def main():
     ap.add_argument("--id1", default=KIT + "/qbase/id1")
     ap.add_argument("cases", nargs="*")
     a = ap.parse_args()
-    tree = f"C:/OHWorkspace/qvr-agents/{a.agent}"
+    tree = qvrtest.tree(a.agent)
     exe = tree + "/Windows/VisualStudio/Build-ironwail/bin/x64/Release/ironwail.exe"
     base = tree + "/scratch/nogamedir_base"
     os.makedirs(base + "/id1", exist_ok=True)
@@ -54,7 +57,7 @@ def main():
         "testmod_explicit": (["-basedir", base, "-basedir", tree, "-game", "quakevr", "-game", "testmod"], True, False, False),
     }
     names = a.cases or list(cases)
-    passed = 0
+    tally = qvrtest.Tally("nogamedir_test")
     for name in names:
         extra, wantVr, wantNotice, wantMap = cases[name]
         with open(base + "/id1/autoexec.cfg", "w") as f:
@@ -68,7 +71,7 @@ def main():
         try:
             subprocess.run(args, cwd=base, env=env, timeout=120, creationflags=0x40)  # (IDLE_PRIORITY_CLASS)
         except subprocess.TimeoutExpired:
-            print(f"{name}: FAIL timed out")
+            tally.check(False, f"{name} timed out")
             continue
         finally:
             # (what a run makes in the tree's root, the last base dir: moved into scratch)
@@ -87,11 +90,9 @@ def main():
         ok = mounted == wantVr and notice == wantNotice and noData != wantVr and ("Player pos" in text or not wantMap)
         if name.startswith("testmod"):
             ok = ok and dirs[-2:] == ["quakevr", "testmod"]
-        passed += ok
-        print(f"{name}: {'ok' if ok else 'FAIL'} (game dirs {';'.join(dirs) or 'id1'}, notice {notice}, "
-              f"data missing {noData})")
-    print(f"nogamedir_test: {passed} passed, {len(names) - passed} failed")
+        tally.check(ok, f"{name} (game dirs {';'.join(dirs) or 'id1'}, notice {notice}, data missing {noData})")
+    return tally.verdict()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
