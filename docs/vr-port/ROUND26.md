@@ -2538,3 +2538,9 @@ The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subh
   76226902...f39929; versionName 1.2.0-beta5, versionCode 1: a dev build), not beta5's release-signed one: the release
   APK's cert differs, so it can't be installed over it (install -r refuses; never uninstall: his saves). Pulled copy:
   scratch/b6_installed_before.apk. Nothing changed on the headset.
+- **Second make_release (coordinator's go) on 6ff0c383e: stopped again, nothing published.** Beta profile 11/1:
+  scenario_check 210 run, 8 failed: the 3 allowed package scenes plus 5 vrtesthall scenes 'placed in a wall'
+  (pd_jolts, pose_enforcers_guns/_melee, pose_grunts_guns/_melee; spawns 120-147 left of the start). scenario_check
+  alone right after, same tree: PASS (3 failed = the package scenes). Not seen in the first make_release run either
+  (also parallel lanes): intermittent, maybe the suite's parallel lanes (a lane writing vrtesthall's collision cache
+  while this one reads it?) - not investigated. Raw log: scratch/beta6_scn_release2_raw.log.
