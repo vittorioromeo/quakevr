@@ -441,6 +441,21 @@ void publish(int zone, const glm::vec3& pivot, const glm::vec3& out, const glm::
     d.frame = host_framecount;
 }
 
+bool drawnAt(int zone, glm::vec3& out)
+{
+    if(zone < 0 || zone >= ZoneCount)
+    {
+        return false;
+    }
+    const Drawn& d = zoneState.drawn[zone];
+    if(d.frame < host_framecount - 4)
+    {
+        return false;
+    }
+    out = d.pivot + d.out * d.atLocal.x + d.side * d.atLocal.y + d.up * d.atLocal.z;
+    return true;
+}
+
 void publishGrip(int zone, const glm::vec3& grip)
 {
     if(zone < 0 || zone >= body::HolsterCount)

@@ -50,9 +50,10 @@ enum class Model : unsigned char
 // The controller in use now: the headset's while VR runs, else the gamepad's, else Keyboard.
 [[nodiscard]] Model detect();
 
-// Opens the screen (from Options > Controller Bindings, the VR menu, the main menu's Setup Bindings): `model` shown
-// instead of the detected one when not Count. Keyboard opens Options > Controls (the keyboard's tab).
-void open(Model model = Model::Count);
+// Opens the screen (from Options > Controller Bindings, the VR menu, the main menu's bindings panel's Setup Bindings:
+// vr_bindpanel.cpp): `model` shown instead of the detected one when not Count. False when it did not open (keyboard and
+// mouse: no controller in use): the caller opens the keyboard's page instead (VR_BindSetup_Open: Options > Controls).
+[[nodiscard]] bool open(Model model = Model::Count);
 
 void registerCommands();
 

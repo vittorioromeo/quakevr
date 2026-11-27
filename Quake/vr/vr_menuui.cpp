@@ -48,6 +48,9 @@
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_menupaint.hpp"
+#include "vr_bindpanel.hpp"
+
+extern "C" void M_Main_RowsExtent(float* left, float* right); // menu.c: the main menu's rows' ends as last drawn
 #include "vr_ragtool.hpp"
 #include "vr_obs.hpp"
 #include "vr_renderdoc.hpp"
@@ -1267,6 +1270,119 @@ struct FlatRecording
 };
 FlatRecording flatRecording;
 
+// wheelui (his words 2026-11-28): the flat bindings reminder in the main menu on a flat screen, left of its rows under the
+// corner's buttons (vr_bindpanel.cpp's rows: an action, its keys as caps), its letters as large as fit there (the corner
+// buttons' 8 at most), and Setup Bindings under it (bindpanel::setupBindings). Its button as last drawn (menu x and y),
+// for the click.
+struct BindPanelMenu
+{
+    static constexpr float most = 8.f;  // the letters' size at most (menu units), and the least drawn
+    static constexpr float least = 4.f;
+    static constexpr float gap = 8.f;   // from the corner's buttons above and the rows right of it
+    static constexpr const char* button = "Setup Bindings";
+    float x0{0.f}, x1{-1.f}, y0{0.f}, y1{-1.f};
+    int frame{-10}; // host_framecount it was drawn in
+    int rows{0};    // (vr_bindpanel_report: menuui::bindPanelReport)
+    float size{0.f};
+    glm::vec4 room{0.f}; // x0, y0, x1, y1 (menu units)
+};
+BindPanelMenu bindPanelMenu;
+
+[[nodiscard]] bool bindPanelButtonAt(float x, float y)
+{
+    const BindPanelMenu& b = bindPanelMenu;
+    return b.frame >= host_framecount - 1 && m_state == m_main && x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
+}
+
+void drawBindPanel(const Painter& p, const ToolbarLayout& l)
+{
+    BindPanelMenu& b = bindPanelMenu;
+    if(menuui::inHeadset() || m_state != m_main || !bindpanel::inMainMenu() || l.row)
+    {
+        return;
+    }
+    gadget::BindPanelRow rows[bindpanel::maxRows];
+    const int n = bindpanel::rows(rows, bindpanel::maxRows);
+    if(n <= 0)
+    {
+        return;
+    }
+    // The room: from the canvas's left to the main menu's rows, from under the corner's buttons to the canvas's bottom
+    // (less the bottom corner's row and the build label).
+    float rowsLeft = 0.f, rowsRight = 0.f;
+    M_Main_RowsExtent(&rowsLeft, &rowsRight);
+    const float x1 = rowsLeft - BindPanelMenu::gap;
+    float x0 = l.x0; // (under the corner's buttons, from their left edge; from the canvas's left when that has more room)
+    const float y0 = l.buttonsBottom() + BindPanelMenu::gap, y1 = l.bottom - 24.f;
+    // In characters: the longest action and its keys' caps (each its letters and 2 a side, 1 apart).
+    float labelChars = 0.f, keyChars = 0.f;
+    for(int i = 0; i < n; i++)
+    {
+        labelChars = za::fmax(labelChars, static_cast<float>(ZA_STRLEN(rows[i].action)) + 1.f);
+        float k = 0.f;
+        for(const char* key : rows[i].keys)
+        {
+            k += key[0] ? static_cast<float>(ZA_STRLEN(key)) + 1.f : 0.f;
+        }
+        keyChars = za::fmax(keyChars, k);
+    }
+    const float wide = labelChars + keyChars + 1.f, tall = static_cast<float>(n) * 1.6f + 3.2f; // (the button: 2 rows)
+    const auto fit = [&](float from) { return za::fmin(BindPanelMenu::most, za::fmin((x1 - from) / wide, (y1 - y0) / tall)); };
+    if(fit(x0) < BindPanelMenu::most)
+    {
+        x0 = l.left + ToolbarLayout::corner;
+    }
+    const float s = fit(x0);
+    if(s < BindPanelMenu::least)
+    {
+        return; // (no room: not drawn)
+    }
+    b.frame = host_framecount;
+    b.rows = n;
+    b.size = s;
+    b.room = {x0, y0, x1, y1};
+    const float step = s * 1.6f;
+    for(int i = 0; i < n; i++)
+    {
+        const float y = y0 + static_cast<float>(i) * step;
+        for(const char* c = rows[i].action; *c; c++)
+        {
+            Draw_CharacterEx(x0 + static_cast<float>(c - rows[i].action) * s, y, s, s, *c | 128);
+        }
+        float kx = x0 + labelChars * s;
+        for(const char* key : rows[i].keys)
+        {
+            if(!key[0])
+            {
+                continue;
+            }
+            const float w = static_cast<float>(ZA_STRLEN(key)) * s + 2.f;
+            p.rounded(kx - 1.f, kx + w - 1.f, y + s * 0.5f, s * 0.5f + 1.f, 1.5f, colors::boxBorder);
+            p.rounded(kx - 0.5f, kx + w - 1.5f, y + s * 0.5f, s * 0.5f + 0.5f, 1.f, colors::boxFill);
+            for(const char* c = key; *c; c++)
+            {
+                Draw_CharacterEx(kx + static_cast<float>(c - key) * s, y, s, s, *c);
+            }
+            kx += w + s * 0.5f;
+        }
+    }
+    // Setup Bindings: a button under the rows.
+    const float by = y0 + static_cast<float>(n) * step + s;
+    const float bw = static_cast<float>(ZA_STRLEN(BindPanelMenu::button)) * s + 8.f;
+    b.x0 = x0;
+    b.x1 = x0 + bw;
+    b.y0 = by;
+    b.y1 = by + s + 6.f;
+    const bool hot = flatMouse.moved && ui_mouse.value && bindPanelButtonAt(m_mousex, m_mousey);
+    const float yc = (b.y0 + b.y1) * 0.5f, half = (b.y1 - b.y0) * 0.5f;
+    p.rounded(b.x0, b.x1, yc, half, 3.f, hot ? colors::highlightEdge : colors::boxBorder);
+    p.rounded(b.x0 + 1.f, b.x1 - 1.f, yc, half - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
+    for(const char* c = BindPanelMenu::button; *c; c++)
+    {
+        Draw_CharacterEx(b.x0 + 4.f + static_cast<float>(c - BindPanelMenu::button) * s, yc - s * 0.5f, s, s, hot ? *c : (*c | 128));
+    }
+}
+
 void placeFlatRecording(const ToolbarLayout& l)
 {
     FlatRecording& f = flatRecording;
@@ -1668,6 +1784,14 @@ void pressZoom(int button, int hand)
 
 namespace qvr::menuui
 {
+
+void bindPanelReport()
+{
+    const BindPanelMenu& b = bindPanelMenu;
+    Con_Printf("bindpanel: main menu panel %s: %d rows, letters %.2f, room %.0f %.0f .. %.0f %.0f, button %.0f %.0f .. %.0f %.0f\n",
+        b.frame >= host_framecount - 2 ? "drawn" : "not drawn", b.rows, b.size, b.room.x, b.room.y, b.room.z, b.room.w, b.x0,
+        b.y0, b.x1, b.y1);
+}
 
 void zoom_f()
 {
@@ -3639,6 +3763,8 @@ extern "C" void VR_MenuDrawOverlay()
         }
     }
 
+    drawBindPanel(p, l);
+
     // On the runtime's panel (no world to draw the laser in), where the laser points: a dot in its hue.
     if(const Hit& hit = hits[pointingHand]; hit.valid && hit.onRuntimePanel)
     {
@@ -3697,6 +3823,12 @@ extern "C" int VR_MenuKey(int key, int repeat)
         return 0;
     }
 
+    if(key == K_MOUSE1 && !repeat && bindPanelButtonAt(m_mousex, m_mousey))
+    {
+        tb().focused = -1;
+        bindpanel::setupBindings(); // (the bindings panel's Setup Bindings: wheelui)
+        return 1;
+    }
     if(key == K_MOUSE1 && !repeat && recordingAt(m_mousex, m_mousey) && menuui::pointerOn(false))
     {
         tb().focused = -1;

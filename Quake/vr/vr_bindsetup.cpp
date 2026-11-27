@@ -915,7 +915,10 @@ void menu_f()
         Con_Printf(")\n");
         return;
     }
-    open(m);
+    if(!open(m))
+    {
+        M_Menu_Keys_f(); // keyboard and mouse: Options > Controls
+    }
 }
 
 void print_f()
@@ -1228,15 +1231,15 @@ Model detect()
     return modelForPad(IN_GetGamepadSdlType());
 }
 
-void open(Model model)
+bool open(Model model)
 {
-    screen.forced = model != Model::Count;
-    screen.shown = screen.forced ? model : detect();
-    if(screen.shown == Model::Keyboard)
+    const Model shown = model != Model::Count ? model : detect();
+    if(shown == Model::Keyboard)
     {
-        M_Menu_Keys_f(); // the keyboard's bindings: Options > Controls
-        return;
+        return false; // (the caller opens the keyboard's bindings)
     }
+    screen.forced = model != Model::Count;
+    screen.shown = shown;
     if(m_state != m_bindsetup)
     {
         screen.from = m_state == m_none ? m_none : static_cast<int>(m_state);
@@ -1247,6 +1250,7 @@ void open(Model model)
     key_dest = key_menu;
     m_state = m_bindsetup;
     m_entersound = true;
+    return true;
 }
 
 void registerCommands()
@@ -1264,7 +1268,10 @@ using namespace qvr::bindsetup;
 
 extern "C" void VR_BindSetup_Open()
 {
-    open();
+    if(!open())
+    {
+        M_Menu_Keys_f(); // keyboard and mouse: their bindings, Options > Controls
+    }
 }
 
 extern "C" void VR_BindSetup_Draw()

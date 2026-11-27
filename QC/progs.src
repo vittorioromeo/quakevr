@@ -618,6 +618,7 @@ vr_armedgrunt_ai.qc
 vr_armedgrunt.qc
 vr_ogre_friends.qc // ogres mind their friends (with the armed humanoids' VR_AI_FriendCare)
 vr_armedgrunt_pose.qc
+vr_armedgrunt_dazzle.qc // blinded by a flashlight: the dazzle, the shield pose, the worse aim (after the poses it reuses)
 vr_armedgrunt_play.qc
 vr_armedgrunt_shot.qc
 vr_ownclash.qc // weapon clash: your own two weapons meeting; the weapon-on-weapon material table (after VR_AG_SegDist)
@@ -664,6 +665,7 @@ vr_armedgrunt_aware_test.qc // test 200: disarm attempts on unaware grunts wake 
 vr_armedgrunt_blade_test.qc // test 77: blade on blade
 vr_armedgrunt_extent_test.qc // test 214: a held weapon's drawn extent follows its transform tuned mid-map
 vr_ownclash_test.qc // vr_clash_test: your two weapons clashing
+vr_armedgrunt_dazzle_test.qc // test 232: armed humanoids blinded by the flashlight
 vr_dirparry_test.qc // test 78: the directional parry
 vr_armedgrunt_preparry_test.qc
 vr_armedgrunt_bugs_test.qc
