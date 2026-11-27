@@ -401,12 +401,13 @@ kind "progs/demon.mdl"
     }
     helmet
     {
-        offset "0 0 0.91"
+        offset "-1.42673 0 1.78218"
         rotate "8.3 0 0"
         scale "1"
         standoff "0"
         taper_start "0.978"
         taper_end "0.63"
+        scale_x "0.850913"
     }
     pauldron
     {
@@ -419,12 +420,18 @@ kind "progs/demon.mdl"
     }
     thigh
     {
+        offset "-0 0 0.4408"
         scale "0.788"
+    }
+    thigh_l
+    {
+        offset "1.41819 2.62544 -0.876925"
+        rotate "0 0 -13.0305"
     }
     plate8
     {
-        offset "1.63 0.91 2.54"
-        rotate "17.1 0 -3.9"
+        offset "1.43461 1.0372 2.94589"
+        rotate "23.5 0 -3.9"
         scale "0.934"
         taper_start "0.734"
         taper_end "0.946"
