@@ -1054,9 +1054,28 @@ void beastTestFrame()
             bt.middle[c] = j.middle[c];
         }
         Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartCuirass));
-        bt.step = 2;
+        Cvar_SetValueQuick(&vr_armourstudio_alone, 1.f);
+        bt.step = 20;
         return;
     }
+    case 20: // the cuirass worn alone: that piece and no other of its cuirass group (his note 2026-11-27: the scrag's plates 8, 9)
+        if(!beastWait(st.selPart == PartCuirass && beastarmour::drawnCount() == 1, "timed out: the cuirass not worn alone (other pieces drawn)"))
+        {
+            return;
+        }
+        t.check(beastarmour::cuirassGroup(e) != 1 << agarmor::Cuirass, beastTestName,
+            "the rottweiler's cuirass group is the cuirass alone (the check proves nothing)");
+        Con_Printf("%s: worn alone: %d piece drawn (its cuirass group %d)\n", beastTestName, beastarmour::drawnCount(), beastarmour::cuirassGroup(e));
+        Cvar_SetValueQuick(&vr_armourstudio_alone, 0.f);
+        bt.step = 21;
+        return;
+    case 21:
+        if(!beastWait(beastarmour::drawnCount() >= 8, "timed out: every piece not worn again after wear-alone off"))
+        {
+            return;
+        }
+        bt.step = 2;
+        return;
     case 2: // the cuirass picked: moved forward 2
         if(!beastWait(st.selPart == PartCuirass, "timed out: the cuirass not picked"))
         {
@@ -1111,6 +1130,68 @@ void beastTestFrame()
         const float grewR = (hi3[0] - lo3[0]) / za::max(bt.hiR[0] - bt.loR[0], 1e-3f);
         t.check(za::abs(grewR - 1.25f) < 0.01f, beastTestName, "the right shoulder not scaled as the left");
         t.check(strstr(beastarmour::drawnModel(dog, agarmor::PauldronR), "#tweak") != nullptr, beastTestName, "the shoulder not drawn shaped");
+        Cvar_SetValueQuick(&vr_armourstudio_scale_x, 1.2f);
+        bt.step = 50;
+        return;
+    }
+    case 50: // the shoulders' size forward alone 1.2 more (scale_x): forward 1.5x, left and up 1.25x
+    {
+        const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
+        if(!beastWait(o && (o->has & (1u << ScaleX)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale_x not in the table"))
+        {
+            return;
+        }
+        float lo[3], hi[3];
+        (void)beastarmour::pieceExtent(dog, agarmor::PauldronL, lo, hi);
+        float grew[3];
+        for(int c = 0; c < 3; c++)
+        {
+            grew[c] = (hi[c] - lo[c]) / za::max(bt.hi[c] - bt.lo[c], 1e-3f);
+        }
+        Con_Printf("%s: the left shoulder with scale_x 1.2: %.3f %.3f %.3f\n", beastTestName, static_cast<double>(grew[0]), static_cast<double>(grew[1]),
+            static_cast<double>(grew[2]));
+        t.check(za::abs(grew[0] - 1.5f) < 0.02f && za::abs(grew[1] - 1.25f) < 0.02f && za::abs(grew[2] - 1.25f) < 0.02f, beastTestName,
+            "scale_x not the forward size alone (1.5, 1.25, 1.25)");
+        Cvar_SetValueQuick(&vr_armourstudio_scale_x, 1.f);
+        Cvar_SetValueQuick(&vr_armourstudio_scale, 1.f);
+        bt.step = 51;
+        return;
+    }
+    case 51: // both back to 1: drawn as the piece's own .mdl again (not its #tweak), its size as made
+    {
+        const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
+        const auto one = [&](int f) { return !o || !(o->has & (1u << static_cast<unsigned>(f))) || o->v[f] == 1.f; };
+        if(!beastWait(one(Scale) && one(ScaleX) && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale not back to 1"))
+        {
+            return;
+        }
+        float lo[3], hi[3];
+        (void)beastarmour::pieceExtent(dog, agarmor::PauldronL, lo, hi);
+        const float size = (hi[0] - lo[0]) / za::max(bt.hi[0] - bt.lo[0], 1e-3f);
+        Con_Printf("%s: scale back to 1: %.3fx, drawn as %s (the table's bits 0x%x: scale %g, scale_x %g, standoff %g, tapers %g %g)\n", beastTestName,
+            static_cast<double>(size), beastarmour::drawnModel(dog, agarmor::PauldronR), o ? o->has : 0u, o ? static_cast<double>(o->v[Scale]) : 0.0,
+            o ? static_cast<double>(o->v[ScaleX]) : 0.0, o ? static_cast<double>(o->v[Standoff]) : 0.0, o ? static_cast<double>(o->v[TaperStart]) : 0.0,
+            o ? static_cast<double>(o->v[TaperEnd]) : 0.0);
+        // (its own .mdl again unless another shape tweak keeps it made: his rottweiler's shoulders' taper_end 0.5 does)
+        Override r;
+        (void)resolveBeast(beastTestModel, agarmor::PauldronR, false, r);
+        const bool otherShape = ((r.has >> Standoff) & 1u && r.v[Standoff] != 0.f) || ((r.has >> TaperStart) & 1u && r.v[TaperStart] != 1.f) ||
+            ((r.has >> TaperEnd) & 1u && r.v[TaperEnd] != 1.f);
+        float axes[3];
+        t.check(za::abs(size - 1.f) < 0.005f && !scaleAxes(r, axes) &&
+                (strstr(beastarmour::drawnModel(dog, agarmor::PauldronR), "#tweak") == nullptr) == !otherShape,
+            beastTestName, "scale back to 1 not the piece as made (its own model unless another shape tweak)");
+        Cvar_SetValueQuick(&vr_armourstudio_scale, 1.25f); // (the read-back below wants it)
+        bt.step = 52;
+        return;
+    }
+    case 52:
+    {
+        const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
+        if(!beastWait(o && (o->has & (1u << Scale)) != 0u && o->v[Scale] == 1.25f, "timed out: the shoulders' scale not 1.25 again"))
+        {
+            return;
+        }
         Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartPauldronSleeve));
         Cvar_SetValueQuick(&vr_armourstudio_side, static_cast<float>(SideLeft));
         bt.step = 6;
