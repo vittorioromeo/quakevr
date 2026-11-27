@@ -152,7 +152,7 @@ void(entity e, float kind) VR_BAT_PartsAlone =
         float owner = ragdollbone(e, [4, b, 0], QVR_ARMOR_BEAST);
         float pieces = ragdollbone(e, [3, b, 0], QVR_ARMOR_BEAST);
         float split = VR_AgArmor_FullOf(e, owner) + VR_AgArmor_FullOf(e, 10) * (owner == 8 ? 2 : 1);
-        float whole = rint(VR_AgArmor_Full(2, owner) * max(0, cvar_hget(cvarh_vr_agarmor_beast_pool)));
+        float whole = rint(VR_AgArmor_Full(2, owner) * VR_AgArmor_PoolScale(e));
         VR_Test_Check(owner >= 0 && VR_AgArmor_On(e, b) && e.vr_ar_hp[b] == VR_AgArmor_FullOf(e, b) && fabs(split - whole) <= 2,
             sprintf("%s: part %g (with slot %g, %g pieces) worn, its pool %g; its slot split %g of %g", e.classname, b, owner,
             pieces, e.vr_ar_hp[b], split, whole));
@@ -626,8 +626,8 @@ float vr_ttk_res[72];  // shots to kill, summed over the trials
 float VR_TTK_TARGETS = 6;
 float VR_TTK_TRIALS = 2;
 float VR_TTK_MAXSHOTS = 400;
-float VR_TTK_LO = 0.6;  // a beast's armoured / bare ratio over the humanoids', at least ...
-float VR_TTK_HI = 1.5;  // ... and at most (the three weapons' summed shots)
+float VR_TTK_LO = 0.15; // a beast's armoured / bare ratio over the humanoids', at least (its armour does something) ...
+float VR_TTK_HI = 1.1;  // ... and at most (never relatively tougher than they are; the three weapons' summed shots)
 
 string(float t) VR_TTK_Name =
 {
@@ -781,18 +781,24 @@ void(float req) VR_TTK_Frame =
         vr_ttk_run = 0;
         vr_ttk_trial = 0;
         vr_ttk_step = 0;
+        vr_ttk_until = time + 1; // (the level settled: the player standing where he spawned)
         return;
     }
     if(vr_ttk_step == 0)
     {
+        if(time < vr_ttk_until)
+        {
+            return;
+        }
         vr_ttk_e = VR_TTK_Spawn(p, floor(vr_ttk_run / 12));
         vr_ttk_step = 1;
-        vr_ttk_until = time + 2; // (its start: up to half a second's spread)
+        vr_ttk_nail_until = time + 0.6; // (its start_go: up to half a second's spread)
+        vr_ttk_until = time + 2;
         return;
     }
     if(vr_ttk_step == 1)
     {
-        if(vr_ttk_e.takedamage == DAMAGE_NO && time < vr_ttk_until)
+        if((vr_ttk_e.takedamage == DAMAGE_NO || time < vr_ttk_nail_until) && time < vr_ttk_until)
         {
             return; // (walkmonster_start_go not run yet)
         }
@@ -811,15 +817,18 @@ void(float req) VR_TTK_Frame =
     }
     // vr_ttk_step 2: a shot a frame (a nail: once it is gone), until it dies.
     entity e = vr_ttk_e;
+    float dead = e.health <= 0 || e.modelindex == 0;
+    if(!dead)
+    {
+        VR_TTK_Hold(e); // (every frame: a hit's flinch never carries it out of the next nail's way)
+    }
     if(vr_ttk_nail != world && vr_ttk_nail.modelindex != 0 && vr_ttk_nail.classname == "spike" && time < vr_ttk_nail_until)
     {
         return;
     }
     vr_ttk_nail = world;
-    float dead = e.health <= 0 || e.modelindex == 0;
     if(!dead && vr_ttk_shots < VR_TTK_MAXSHOTS && time < vr_ttk_until)
     {
-        VR_TTK_Hold(e);
         VR_TTK_Fire(p);
         return;
     }

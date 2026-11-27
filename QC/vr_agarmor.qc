@@ -80,10 +80,19 @@ float(entity e, float i) VR_AgArmor_ShareOf =
     return VR_AgArmor_Share(owner) / n;
 };
 
-// Bit `i`'s full pool on `e` in its type: its share of Quake's total; a beast's times vr_agarmor_beast_pool.
+// A beast's pools' scale (vr_agarmor_pool_<kind>: each kind as much harder to kill armoured than bare as the armed
+// humanoids are; ROUND26.md, "armourhits", vr_agarmor_test 22); 1 anyone else.
+float(entity e) VR_AgArmor_PoolScale =
+{
+    float h = e.classname == "monster_dog" ? cvarh_vr_agarmor_pool_dog : e.classname == "monster_ogre" ? cvarh_vr_agarmor_pool_ogre :
+        e.classname == "monster_wizard" ? cvarh_vr_agarmor_pool_scrag : e.classname == "monster_demon1" ? cvarh_vr_agarmor_pool_fiend : 0;
+    return h ? max(0, cvar_hget(h)) : 1;
+};
+
+// Bit `i`'s full pool on `e` in its type: its share of Quake's total; a beast's times its kind's scale.
 float(entity e, float i) VR_AgArmor_FullOf =
 {
-    float scale = ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST) > 0 ? max(0, cvar_hget(cvarh_vr_agarmor_beast_pool)) : 1;
+    float scale = ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST) > 0 ? VR_AgArmor_PoolScale(e) : 1;
     return max(1, rint((50 + 50 * e.vr_ar_type) * VR_AgArmor_ShareOf(e, i) / 96 * scale));
 };
 

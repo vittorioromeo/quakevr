@@ -3620,7 +3620,12 @@ QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log eac
 QVR_CVAR(vr_rag1108_test, "0", CVAR_NONE)             // the QC test of the 11-08 round's fixes (vr_rag1108_test.qc; Debug > Tests): 1 removal takes an armed one's pack, weapon and tank; 2 the back tanks beside the packs (a screenshot); 3 the gib rule; 4 shoves getting up; each ends on "rag1108<part>: N passed, M failed"
 QVR_CVAR(vr_wornpack_test, "0", CVAR_NONE)            // the QC test of worn backpacks (vr_wornpack_test.qc; Debug > Tests): 1 all, ends on "wornpack: N passed, M failed"; 2 the eyeshot's grunts (back on, side on, knocked down); 3 vr_worn_backpack_pull 1 (pulls lift), ends on "wornpull: N passed, M failed"
 QVR_CVAR(vr_agarmor_beasts, "1", CVAR_ARCHIVE | QVR_RULE)        // armour: the rottweilers, ogres, scrags and fiends roll for it too, by the same skill chances (vr_beastarmour.cpp; QC VR_BeastArmour_Spawn)
-QVR_CVAR(vr_agarmor_beast_pool, "1", CVAR_ARCHIVE | QVR_RULE)    // armour: a beast's pieces' pools times this (QC VR_AgArmor_FullOf; ROUND26.md, "armourhits": armoured beasts as much harder to kill than bare ones as the armed humanoids are)
+// Armour: each beast kind's pieces' pools times this (QC VR_AgArmor_PoolScale; ROUND26.md, "armourhits"): an armoured
+// beast as much harder to kill than a bare one as the armed humanoids are (vr_agarmor_test 22 measures it)
+QVR_CVAR(vr_agarmor_pool_dog, "1", CVAR_ARCHIVE | QVR_RULE)      // the rottweiler's
+QVR_CVAR(vr_agarmor_pool_ogre, "1", CVAR_ARCHIVE | QVR_RULE)     // the ogre's
+QVR_CVAR(vr_agarmor_pool_scrag, "1", CVAR_ARCHIVE | QVR_RULE)    // the scrag's
+QVR_CVAR(vr_agarmor_pool_fiend, "1", CVAR_ARCHIVE | QVR_RULE)    // the fiend's
 QVR_CVAR(vr_beastarmour_leather, "1", CVAR_NONE)       // debug: the beasts' leather junctions between their armour's pieces drawn (armour.txt's <part>_sleeve leather "0" turns one off; vr_beastarmour.cpp)
 QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE | QVR_RULE)        // armour: the chance an armed grunt spawns armoured on Easy
 QVR_CVAR(vr_agarmor_skill0_type, "1", CVAR_ARCHIVE | QVR_RULE)   // armour on Easy: its best type (1 green, 2 yellow, 3 red: rolled up to it)
