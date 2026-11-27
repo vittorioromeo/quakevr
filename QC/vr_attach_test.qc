@@ -29,6 +29,8 @@ float vr_at_count;            // a counter noted before a step (attached, detach
 float vr_at_health;
 float vr_at_shells;
 float vr_at_flat;
+entity vr_at_dg;              // the dagger's record (84/85)
+float vr_at_kind;             // the attachment tested: the bayonet (79/80), the dagger (84/85: daggerattach)
 float vr_at_wid;              // the gun the stab case is for
 entity vr_at_rec;             // the gun's record
 entity vr_at_w;               // the gun lying, thrown or stuck
@@ -58,12 +60,63 @@ entity(float xHand) VR_AT_Bayonet =
     return e;
 };
 
+// daggerattach: 84/85 run 79/80 with the dagger (Daggers as Bayonets) in place of the bayonet.
+string() VR_AT_Name =
+{
+    if(vr_at_kind == VR_ATT_DAGGER)
+    {
+        return vr_at_flat ? "attachdaggerflat" : "attachdagger";
+    }
+    return vr_at_flat ? "attachflat" : "attach";
+};
+
+// The attachment the test puts on, into `xHand` of self: a bayonet carried, or a dagger held (a weapon, its own record).
+void(float xHand) VR_AT_Attachment =
+{
+    if(vr_at_kind == VR_ATT_DAGGER)
+    {
+        VRGiveEntWeapon(self, xHand, WID_SWORD, VR_ADMelee_Flags(VR_SWORDKIND_DAGGER), 0);
+        vr_at_dg = VRGetEntWeaponInst(self, xHand);
+        W_SetCurrentAmmo();
+        return;
+    }
+    VR_AT_Bayonet(xHand);
+};
+
+// Whether the off hand of `p` holds the attachment (taken off into it), and whether it holds nothing (put on).
+float(entity p) VR_AT_OffHolds =
+{
+    if(vr_at_kind == VR_ATT_DAGGER)
+    {
+        return VRGetEntWeapon(p, cVR_OffHand) == WID_SWORD && VR_ADMelee_Kind(VRGetEntWeaponFlags(p, cVR_OffHand)) == VR_SWORDKIND_DAGGER &&
+               VRGetEntWeaponInst(p, cVR_OffHand) == vr_at_dg && vr_at_dg != world; // (the same dagger: its record kept on the gun)
+    }
+    entity c = VR_Carry_Held(p, cVR_OffHand);
+    return c != world && c.classname == "vr_bayonet";
+};
+float(entity p) VR_AT_OffEmpty =
+{
+    return VR_Carry_Held(p, cVR_OffHand) == world && (vr_at_kind != VR_ATT_DAGGER || VRIsHandEmpty(p, cVR_OffHand));
+};
+
+// The off hand's attachment's gap to where it goes on (a bayonet's mount to the gun's mount; a dagger's tip to the drawn
+// one's tip), -1 if it holds none.
+float(entity p) VR_AT_SnapGap =
+{
+    if(vr_at_kind == VR_ATT_DAGGER)
+    {
+        return VR_AT_OffHolds(p) ? vlen(VR_Attach_MuzzleOf(p, cVR_OffHand) - VR_Attach_HandPoint(p, cVR_MainHand, vr_at_kind, 2)) : -1;
+    }
+    entity c = VR_Carry_Held(p, cVR_OffHand);
+    return c != world ? vlen(c.origin - VR_Attach_HandPoint(p, cVR_MainHand, vr_at_kind, 1)) : -1;
+};
+
 // The gun `xWid` in the main hand with a new record (its bayonet on if `xOn`), its clip full and plenty of shells.
 void(float xWid, float xOn) VR_AT_Give =
 {
     VR_EH_Give(xWid, 0);
     vr_at_rec = VRGetEntWeaponInst(self, cVR_MainHand);
-    vr_at_rec.wi_attach = xOn ? VR_ATT_BAYONET : 0;
+    vr_at_rec.wi_attach = xOn ? vr_at_kind : 0;
     self.ammo_shells = 60;
     vr_at_rec.wi_clip = VR_ClipSizeIn(self, cVR_MainHand);
     W_SetCurrentAmmoFor(cVR_MainHand);
@@ -86,26 +139,29 @@ void() VR_AT_Finish =
 float() VR_AT_Snap =
 {
     entity p = self;
-    if(vr_at_rec.wi_attach == VR_ATT_BAYONET)
+    if(vr_at_rec.wi_attach == vr_at_kind)
     {
         return TRUE;
     }
     entity c = VR_Carry_Held(p, cVR_OffHand);
-    if(c == world)
+    float dg = vr_at_kind == VR_ATT_DAGGER;
+    if(dg ? !VR_AT_OffHolds(p) : c == world)
     {
         return FALSE;
     }
     if(vr_at_n == 0 || floor((time - vr_at_t0) * 72 + 0.5) >= vr_at_n * VR_AT_SNAP_FRAMES)
     {
-        vector at = VR_Attach_HandPoint(p, cVR_MainHand, VR_ATT_BAYONET, 1);
+        // (a dagger: its tip to the drawn one's tip, its grip-to-tip along the mounted one's way: VR_Attach_Frame's test)
+        vector at = VR_Attach_HandPoint(p, cVR_MainHand, vr_at_kind, dg ? 2 : 1);
+        vector src = dg ? VR_Attach_MuzzleOf(p, cVR_OffHand) : c.origin;
         // (The hand's aim nudged until the carried bayonet points the way it sits on the gun: its hold turns it off the aim.)
-        vector want = VR_Attach_Way(p, cVR_MainHand, VR_ATT_BAYONET);
+        vector want = VR_Attach_Way(p, cVR_MainHand, vr_at_kind);
         vector ca = c.angles;
         ca_x = -ca_x;
         makevectors(ca);
         // (bayonet2: held In the Palm it may lie reversed in the hand, pointing back up the arm, where adding the difference
         // never turns it round: the aim is turned by the turn that takes the bayonet's way onto the mounted way.)
-        vector bf = v_forward;
+        vector bf = dg ? normalize(src - VRGetEntHandPos(p, cVR_OffHand)) : v_forward;
         vector k = VR_Cross(bf, want);
         if(vlen(k) < 0.01)
         {
@@ -118,11 +174,11 @@ float() VR_AT_Snap =
         vector a0 = vr_at_n == 0 ? v_forward : vr_at_aim;
         vr_at_aim = normalize(a0 * cosA + VR_Cross(k, a0) * sinA + k * ((k * a0) * (1 - cosA)));
         localcmd(sprintf("vr_mock_hand_aim off %v\nvr_mock_hand_to off by %v\n", VRGetEntHandPos(p, cVR_OffHand) + vr_at_aim * 8000,
-            at - c.origin));
+            at - src));
         if(cvar_hget(cvarh_developer) && !(vr_at_n & 7))
         {
-            dprint(sprintf("attach: snap nudge %g: bayonet %v, mount %v (%.1f off); ", vr_at_n, c.origin, at, vlen(at - c.origin)));
-            dprint(sprintf("bayonet angles %v, gun hand %v, off hand %v\n", c.angles, VRGetEntHandRot(p, cVR_MainHand), VRGetEntHandRot(p, cVR_OffHand)));
+            dprint(sprintf("attach: snap nudge %g: attachment %v, target %v (%.1f off, %.2f along); ", vr_at_n, src, at, vlen(at - src), bf * want));
+            dprint(sprintf("its angles %v, gun hand %v, off hand %v\n", c.angles, VRGetEntHandRot(p, cVR_MainHand), VRGetEntHandRot(p, cVR_OffHand)));
         }
         vr_at_n = vr_at_n + 1;
     }
@@ -138,7 +194,7 @@ void(string xWhat) VR_AT_TipCheck =
     if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("attach: tip drawn %v, server %v; mount %v; muzzle %v; hand %v %v\n", drawn, server,
-            VR_Attach_HandPoint(self, cVR_MainHand, VR_ATT_BAYONET, 1), self.muzzlepos, VRGetEntHandPos(self, cVR_MainHand),
+            VR_Attach_HandPoint(self, cVR_MainHand, vr_at_kind, 1), self.muzzlepos, VRGetEntHandPos(self, cVR_MainHand),
             VRGetEntHandRot(self, cVR_MainHand)));
     }
     VR_Test_Check(on && vlen(drawn - server) <= VR_AT_TIP_OFF, sprintf("%s: the drawn bayonet's tip where the server's is (%.2f units off)",
@@ -160,8 +216,10 @@ entity(entity r) VR_AT_Lying =
 
 void(float xAsk) VR_AT_Begin =
 {
-    vr_at_flat = xAsk == 80;
-    VR_Test_BeginFlags(vr_at_flat ? "attachflat" : "attach", VR_TEST_LOUD);
+    vr_at_flat = (xAsk == 80 || xAsk == 85);
+    vr_at_kind = (xAsk == 84 || xAsk == 85) ? VR_ATT_DAGGER : VR_ATT_BAYONET;
+    cvar_set("vr_attach_daggers", "1");
+    VR_Test_BeginFlags(VR_AT_Name(), VR_TEST_LOUD);
     vr_pe_saved_kd = cvar_hget(cvarh_vr_knockdown);
     vr_pe_saved_stag = cvar_hget(cvarh_vr_hit_stagger);
     vr_pe_saved_push = cvar_hget(cvarh_vr_melee_push);
@@ -204,7 +262,7 @@ void(string xWhat) VR_AT_HudCheck =
         p.ammocounter > 0 && p.weaponclipsize == VR_ClipSizeOf(vr_at_wid, vr_at_rec) && VRIsHandWeaponless(p, cVR_MainHand),
         sprintf("%s stuck: the HUD shows its ammo (prop weapon %g, ammo type %g, counter %g, clip size %g, its clip %g)", xWhat, main,
             p.currentammo, p.ammocounter, p.weaponclipsize, vr_at_rec.wi_clip));
-    bprint(sprintf("%s: hud probe: weapon %g clip %g\n", vr_at_flat ? "attachflat" : "attach", vr_at_wid, vr_at_rec.wi_clip));
+    bprint(sprintf("%s: hud probe: weapon %g clip %g\n", VR_AT_Name(), vr_at_wid, vr_at_rec.wi_clip));
     localcmd("vr_flathud_report\n");
 };
 
@@ -212,7 +270,7 @@ void(string xWhat) VR_AT_HudCheck =
 void() VR_AT_HeldProbe =
 {
     entity c = VR_Carry_Held(self, cVR_OffHand);
-    bprint(sprintf("%s: held probe: the off hand carries %s\n", vr_at_flat ? "attachflat" : "attach", c != world ? c.classname : "nothing"));
+    bprint(sprintf("%s: held probe: the off hand carries %s\n", VR_AT_Name(), c != world ? c.classname : "nothing"));
     localcmd("vr_held_report\n");
 };
 
@@ -265,7 +323,7 @@ void() VR_AT_Frame =
     else if(vr_at_s == 1 && u > 0.1 && VR_HandGrabUtil_IsHandGrabbing(p, h) && VR_HandGrabUtil_IsHandGrabbing(p, cVR_OffHand))
     {
         VR_AT_Give(WID_SHOTGUN, FALSE);
-        VR_AT_Bayonet(cVR_OffHand);
+        VR_AT_Attachment(cVR_OffHand);
         vr_at_count = vr_att_attached;
         vr_at_after = 3;
         VR_AT_To(2);
@@ -273,14 +331,13 @@ void() VR_AT_Frame =
     // The snap (2), then on to vr_at_after.
     else if(vr_at_s == 2 && u > 0.15 && VR_AT_Snap())
     {
-        VR_Test_Check(vr_at_rec.wi_attach == VR_ATT_BAYONET && VR_Carry_Held(p, cVR_OffHand) == world && vr_att_attached == vr_at_count + 1,
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind && VR_AT_OffEmpty(p) && vr_att_attached == vr_at_count + 1,
             sprintf("brought to the shotgun's mount, the bayonet snaps on (attach %g, after %g nudges)", vr_at_rec.wi_attach, vr_at_n));
         VR_AT_To(vr_at_after);
     }
     else if(vr_at_s == 2 && vr_at_n > VR_AT_SNAP_TRIES)
     {
-        VR_Test_Check(FALSE, sprintf("the bayonet never snapped on (%.1f units off the mount)", VR_Carry_Held(p, cVR_OffHand) != world ?
-            vlen(VR_Carry_Held(p, cVR_OffHand).origin - VR_Attach_HandPoint(p, h, VR_ATT_BAYONET, 1)) : -1));
+        VR_Test_Check(FALSE, sprintf("the attachment never snapped on (%.1f units off the mount)", VR_AT_SnapGap(p)));
         VR_AT_To(99);
     }
     else if(vr_at_s == 3 && u > 0.2)
@@ -291,7 +348,7 @@ void() VR_AT_Frame =
     }
     else if(vr_at_s == 4 && u > 0.1)
     {
-        localcmd(sprintf("vr_mock_hand_to off %v\n", VR_Attach_HandPoint(p, h, VR_ATT_BAYONET, 1)));
+        localcmd(sprintf("vr_mock_hand_to off %v\n", VR_Attach_HandPoint(p, h, vr_at_kind, 1)));
         VR_AT_To(5);
     }
     else if(vr_at_s == 5 && u > 0.15)
@@ -305,7 +362,7 @@ void() VR_AT_Frame =
     // mount alone leaves it on (vr_attach_pull_button); the grip held and B/Y pressed pulls it off, as the head torch comes off.
     else if(vr_at_s == 60 && (vr_att_detached > vr_at_count || u > 0.3))
     {
-        VR_Test_Check(vr_at_rec.wi_attach == VR_ATT_BAYONET && vr_att_detached == vr_at_count,
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind && vr_att_detached == vr_at_count,
             sprintf("the empty hand's grip at the mount alone leaves the bayonet on (attach %g)", vr_at_rec.wi_attach));
         localcmd("vr_mock_button off secondary 1\n");
         VR_AT_To(6);
@@ -314,9 +371,9 @@ void() VR_AT_Frame =
     {
         localcmd("vr_mock_button off secondary 0\n");
         entity c = VR_Carry_Held(p, cVR_OffHand);
-        VR_Test_Check(vr_at_rec.wi_attach == 0 && c != world && c.classname == "vr_bayonet",
-            sprintf("gripping at the mount, its B/Y pulls it off into that hand (attach %g, carried %s)", vr_at_rec.wi_attach,
-                c != world ? c.classname : "nothing"));
+        VR_Test_Check(vr_at_rec.wi_attach == 0 && VR_AT_OffHolds(p),
+            sprintf("gripping at the mount, its B/Y pulls it off into that hand (attach %g, carried %s, weapon %g)", vr_at_rec.wi_attach,
+                c != world ? c.classname : "nothing", VRGetEntWeapon(p, cVR_OffHand)));
         VR_AT_To(7);
     }
     else if(vr_at_s == 7 && u > 0.3)
@@ -343,16 +400,16 @@ void() VR_AT_Frame =
         VRSetEntHolsterWeaponInst(p, hs, world);
         VRLetGoAtHolster(p, h, hs, WID_SHOTGUN, 0, TRUE);
         entity hr = VRGetEntHolsterWeaponInst(p, hs);
-        VR_Test_Check(getHolsterWeapon(hs) == WID_SHOTGUN && hr == vr_at_rec && hr.wi_attach == VR_ATT_BAYONET,
+        VR_Test_Check(getHolsterWeapon(hs) == WID_SHOTGUN && hr == vr_at_rec && hr.wi_attach == vr_at_kind,
             sprintf("holstered: the same record, the bayonet on it (attach %g)", hr != world ? hr.wi_attach : -1));
         VRDrawHolsterWeapon(p, h, hs);
         entity dr = VRGetEntWeaponInst(p, h);
-        VR_Test_Check(VRGetEntWeapon(p, h) == WID_SHOTGUN && dr == vr_at_rec && dr.wi_attach == VR_ATT_BAYONET,
+        VR_Test_Check(VRGetEntWeapon(p, h) == WID_SHOTGUN && dr == vr_at_rec && dr.wi_attach == vr_at_kind,
             sprintf("drawn again: the bayonet on it (attach %g)", dr != world ? dr.wi_attach : -1));
         VRLetGoAtHolster(p, h, hs, WID_SHOTGUN, 0, TRUE);
         VR_FlatHolster_Drop(hs);
         vr_at_w = VR_AT_Lying(vr_at_rec);
-        VR_Test_Check(vr_at_w != world && vr_at_rec.wi_attach == VR_ATT_BAYONET, sprintf("dropped: lying with its record, the bayonet on it (%s)",
+        VR_Test_Check(vr_at_w != world && vr_at_rec.wi_attach == vr_at_kind, sprintf("dropped: lying with its record, the bayonet on it (%s)",
             vr_at_w != world ? "lying" : "not found"));
         localcmd("-grabmain\n");
         VR_AT_To(9);
@@ -385,7 +442,7 @@ void() VR_AT_Frame =
     }
     else if(vr_at_s == 11)
     {
-        VR_Test_Check(VRGetEntWeaponInst(p, h) == vr_at_rec && vr_at_rec.wi_attach == VR_ATT_BAYONET,
+        VR_Test_Check(VRGetEntWeaponInst(p, h) == vr_at_rec && vr_at_rec.wi_attach == vr_at_kind,
             sprintf("picked up by the hand: the same record, the bayonet on it (weapon %g)", VRGetEntWeapon(p, h)));
         localcmd("vr_test_handcontact 1 0\n");
         // Thrown at a grunt, point first: stuck by the bayonet's point. (From 160 units back: at home the grunt stands on the
@@ -402,7 +459,7 @@ void() VR_AT_Frame =
     else if(vr_at_s == 12 && (vr_at_w == world || vr_at_w.vr_stick_kind != 0 || u > 1.5))
     {
         float thrownStuck = vr_at_w != world && VR_AxeStick_IsStuck(vr_at_w) && vr_at_w.vr_stick_embed == AXESTICK_POINT &&
-            vr_at_w.weaponinst == vr_at_rec && vr_at_rec.wi_attach == VR_ATT_BAYONET;
+            vr_at_w.weaponinst == vr_at_rec && vr_at_rec.wi_attach == vr_at_kind;
         string thrownWhat = sprintf("thrown point first: stuck by the bayonet's point, the bayonet on it (stick %g, embed %g)",
             vr_at_w != world ? vr_at_w.vr_stick_kind : -1, vr_at_w != world ? vr_at_w.vr_stick_embed : -1);
         VR_Test_Check(thrownStuck, thrownWhat); // (its Box3D body has the bayonet's hull: vr_box3d_mesh.cpp attachmentHull)
@@ -437,7 +494,7 @@ void() VR_AT_Frame =
             VR_Test_Check(vr_at_w != world && hurt > 0 && vr_at_w.vr_stick_embed == AXESTICK_POINT,
                 sprintf("%s stabbed with its bayonet: the grunt hurt (%g) and the gun stuck by its point (embed %g)", what, hurt,
                     vr_at_w != world ? vr_at_w.vr_stick_embed : -1));
-            VR_Test_Check(vr_at_w != world && vr_at_w.weaponinst.wi_attach == VR_ATT_BAYONET && VR_PropFire_Held(p, h) == vr_at_w,
+            VR_Test_Check(vr_at_w != world && vr_at_w.weaponinst.wi_attach == vr_at_kind && VR_PropFire_Held(p, h) == vr_at_w,
                 sprintf("%s stuck: the bayonet on it, its hand drives it", what));
             if(vr_at_w == world)
             {
@@ -571,7 +628,7 @@ void() VR_AT_Frame =
     {
         VR_AT_Trigger(FALSE);
         float left = p.ammo_shells + VRGetEntWeaponClip(p, h);
-        VR_Test_Check(left == vr_at_shells - 1 && vr_at_rec.wi_attach == VR_ATT_BAYONET,
+        VR_Test_Check(left == vr_at_shells - 1 && vr_at_rec.wi_attach == vr_at_kind,
             sprintf("the shotgun with its bayonet fires in the hand (%g shell spent)", vr_at_shells - left));
         VR_AT_To(99);
     }
@@ -601,22 +658,34 @@ void() VR_AT_FlatFrame =
         VRSetHandEmpty(p, cVR_OffHand);
         VRSetHandEmpty(p, h);
         VR_AT_Give(WID_SHOTGUN, FALSE);
-        VR_AT_Bayonet(cVR_OffHand);
+        VR_AT_Attachment(cVR_OffHand);
         vr_at_count = vr_att_attached;
+        if(vr_at_kind == VR_ATT_DAGGER)
+        {
+            cvar_set("vr_attach_daggers", "0"); // (Daggers as Bayonets off first: J puts nothing on)
+        }
         localcmd("impulse 52\n"); // (J: vr_flatplay.cpp sends the same impulse; weapons.qc runs VR_Attach_Key)
+        VR_AT_To(vr_at_kind == VR_ATT_DAGGER ? 40 : 1);
+    }
+    else if(vr_at_s == 40 && u > 0.1)
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == 0 && VR_AT_OffHolds(p) && vr_att_attached == vr_at_count,
+            "Daggers as Bayonets off: J leaves the dagger in the off hand, the shotgun as it was");
+        cvar_set("vr_attach_daggers", "1");
+        localcmd("impulse 52\n");
         VR_AT_To(1);
     }
     else if(vr_at_s == 1 && u > 0.1)
     {
-        VR_Test_Check(vr_at_rec.wi_attach == VR_ATT_BAYONET && VR_Carry_Held(p, cVR_OffHand) == world && vr_att_attached == vr_at_count + 1,
-            "J: the bayonet in the off hand goes on the shotgun");
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind && VR_AT_OffEmpty(p) && vr_att_attached == vr_at_count + 1,
+            vr_at_kind == VR_ATT_DAGGER ? "J: the dagger in the off hand goes on the shotgun as its bayonet (its hand empty)" :
+                "J: the bayonet in the off hand goes on the shotgun");
         localcmd("impulse 52\n");
         VR_AT_To(2);
     }
     else if(vr_at_s == 2 && u > 0.1)
     {
-        entity c = VR_Carry_Held(p, cVR_OffHand);
-        VR_Test_Check(vr_at_rec.wi_attach == 0 && c != world && c.classname == "vr_bayonet", "J again: taken off into the empty off hand");
+        VR_Test_Check(vr_at_rec.wi_attach == 0 && VR_AT_OffHolds(p), "J again: taken off into the empty off hand");
         VR_AT_To(5);
     }
     else if(vr_at_s == 5 && u > 0.3)
@@ -631,7 +700,7 @@ void() VR_AT_FlatFrame =
     }
     else if(vr_at_s == 3 && u > 0.1)
     {
-        VR_Test_Check(vr_at_rec.wi_attach == VR_ATT_BAYONET, "J: on again");
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind, "J: on again");
         vr_at_wid = WID_SHOTGUN;
         VR_AT_To(10);
     }
@@ -777,8 +846,16 @@ void() VR_AT_PersistSet =
     entity r = WeaponInst_New(0);
     r.wi_attach = VR_ATT_BAYONET;
     VRSetEntHolsterWeaponInst(p, hs, r);
+    // daggerattach: a shotgun with a dagger on it (its own record kept on the gun's) in the off hand.
+    cvar_set("vr_attach_daggers", "1");
+    VRGiveEntWeapon(p, cVR_OffHand, WID_SWORD, VR_ADMelee_Flags(VR_SWORDKIND_DAGGER), 0);
+    entity dg = VRGetEntWeaponInst(p, cVR_OffHand);
+    VRGiveEntWeapon(p, cVR_OffHand, WID_SHOTGUN, 0, 0);
+    VRGetEntWeaponInst(p, cVR_OffHand).wi_attach = VR_ATT_DAGGER;
+    VRGetEntWeaponInst(p, cVR_OffHand).wi_attach_inst = dg;
     W_SetCurrentAmmoFor(cVR_MainHand);
-    bprint("attachpersist: set\n");
+    W_SetCurrentAmmoFor(cVR_OffHand);
+    bprint(sprintf("attachpersist: set (the dagger #%g)\n", dg.wi_uid));
     self = oldself;
 };
 
@@ -795,6 +872,20 @@ void() VR_AT_PersistCheck =
     entity r = VRGetEntHolsterWeaponInst(p, hs);
     VR_Test_Check(getHolsterWeapon(hs) == WID_SUPER_SHOTGUN && r != world && r.wi_attach == VR_ATT_BAYONET,
         sprintf("the super shotgun in the left hip holster still has its bayonet (weapon %g, attach %g)", getHolsterWeapon(hs), r != world ? r.wi_attach : -1));
+    // daggerattach: the off hand's shotgun still has its dagger; the Attach key with the main hand empty takes it off into
+    // it: the dagger in the hand (a save keeps its record: the same id; a level change makes it a fresh one).
+    entity o = VRGetEntWeaponInst(p, cVR_OffHand);
+    float dgid = (o != world && o.wi_attach_inst != world) ? o.wi_attach_inst.wi_uid : 0;
+    VR_Test_Check(VRGetEntWeapon(p, cVR_OffHand) == WID_SHOTGUN && o != world && o.wi_attach == VR_ATT_DAGGER,
+        sprintf("the shotgun in the off hand still has its dagger (weapon %g, attach %g, the dagger's record #%g)",
+            VRGetEntWeapon(p, cVR_OffHand), o != world ? o.wi_attach : -1, dgid));
+    VRSetHandEmpty(p, cVR_MainHand);
+    VR_Attach_Key(p);
+    entity d = VRGetEntWeaponInst(p, cVR_MainHand);
+    VR_Test_Check(VRGetEntWeapon(p, cVR_MainHand) == WID_SWORD && VR_ADMelee_Kind(VRGetEntWeaponFlags(p, cVR_MainHand)) == VR_SWORDKIND_DAGGER &&
+        d != world && (!dgid || d.wi_uid == dgid) && o.wi_attach == 0 && o.wi_attach_inst == world,
+        sprintf("the Attach key takes it off into the empty main hand: the dagger (weapon %g, record #%g, was #%g)",
+            VRGetEntWeapon(p, cVR_MainHand), d != world ? d.wi_uid : -1, dgid));
     VR_Test_Verdict();
     self = oldself;
 };

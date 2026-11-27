@@ -309,8 +309,9 @@ void sweepWeaponInsts()
     {
         return;
     }
+    // (a record's wi_attach_inst: the dagger on a gun as its bayonet, its own record kept for when it comes off)
     const int refs[] = {f.weaponinst, f.weaponinst2, f.holsterweaponinst0, f.holsterweaponinst1, f.holsterweaponinst2,
-        f.holsterweaponinst3, f.holsterweaponinst4, f.holsterweaponinst5};
+        f.holsterweaponinst3, f.holsterweaponinst4, f.holsterweaponinst5, f.wi_attach_inst};
     const int count = qcvm->num_edicts;
     instReferenced.clear();
     instReferenced.resize(static_cast<za::SizeT>(count), 0);

@@ -2646,6 +2646,7 @@ QVR_TUNABLE(vr_embed_sword_depth_min, "30") // % of the blade in at the least sp
 QVR_TUNABLE(vr_embed_sword_depth_max, "80") // % of the blade in at vr_embed_sword_depth_speed
 QVR_TUNABLE(vr_embed_sword_depth_speed, "7") // m/s
 QVR_TUNABLE(vr_embed_bayonet_depth, "1.25") // a gun's bayonet: times its blade the depth shares above take (bayonet2: 1.25, 37-100% of it by speed; 1: as a sword's, the old depth)
+QVR_TUNABLE(vr_embed_attdagger_depth, "1") // a dagger put on a gun as its bayonet (daggerattach): the same (its blade ~7 units to the bayonet's ~5: 1 goes about as deep)
 QVR_TUNABLE(vr_embed_fire_push, "0.1") // a gun stuck in a body and fired into it: times the shove and kill throw (vr_hit_push, vr_kill_push) its shot gives that body (bayonet2: the shove took it off the hand)
 QVR_TUNABLE(vr_embed_fire_letgo, "8") // cm more a hand on a stuck weapon that just fired where it is may be off it before it lets go (the arm's reach and the hand's: the shot's flinch carries the wound; bayonet2)
 QVR_TUNABLE(vr_embed_fire_hold_time, "1") // s after such a shot that margin lasts

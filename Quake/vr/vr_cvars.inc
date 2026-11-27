@@ -197,6 +197,7 @@ QVR_CVAR(vr_attach_snap_radius, "5", CVAR_ARCHIVE | QVR_RULE)  // weapon attachm
 QVR_CVAR(vr_attach_snap_angle, "50", CVAR_ARCHIVE | QVR_RULE)  // and within how many degrees of the gun's way it must point
 QVR_CVAR(vr_attach_pull_radius, "6", CVAR_ARCHIVE | QVR_RULE)  // how near (units) the empty hand grips an attachment on the other hand's gun to pull it off
 QVR_CVAR(vr_attach_pull_button, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: pulled off by that hand's B/Y with its grip held (a grip there alone is the gun's two-handed grip); 0: by the grip alone
+QVR_CVAR(vr_attach_daggers, "1", CVAR_ARCHIVE | QVR_RULE)      // Daggers as Bayonets (daggerattach; his 2026-11-27, on for testing): 1 the dagger in a hand goes on the other hand's shotgun or super shotgun as its bayonet (brought to the mount; flat: the Attach key); 0 not (one already on still comes off)
 QVR_CVAR(vr_attach_turn, "1", CVAR_NONE)                // 1: the server's attachment points (QC attachinfo) turned by the gun's Pitch/Yaw/Roll in the hand; 0: not (attach2's comparison)
 QVR_CVAR(vr_attach_probe, "0", CVAR_NONE)              // 1: the client writes the main hand's drawn attachment tip into vr_attach_probe_x/y/z every frame (the tests: QC vr_attach_test.qc)
 QVR_CVAR(vr_attach_probe_drawn, "0", CVAR_NONE)         // with vr_attach_probe 1: 1 while the main hand's gun has an attachment drawn

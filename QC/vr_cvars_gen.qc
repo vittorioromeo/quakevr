@@ -462,6 +462,7 @@ float cvarh_vr_armor_scale;
 float cvarh_vr_armor_wear;
 float cvarh_vr_armoredfoes_chance;
 float cvarh_vr_armourstudio_anim;
+float cvarh_vr_attach_daggers;
 float cvarh_vr_attach_probe_drawn;
 float cvarh_vr_attach_probe_x;
 float cvarh_vr_attach_probe_y;
@@ -2700,6 +2701,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_armor_wear = VR_CVar_Make("vr_armor_wear");
     cvarh_vr_armoredfoes_chance = VR_CVar_Make("vr_armoredfoes_chance");
     cvarh_vr_armourstudio_anim = VR_CVar_Make("vr_armourstudio_anim");
+    cvarh_vr_attach_daggers = VR_CVar_Make("vr_attach_daggers");
     cvarh_vr_attach_probe_drawn = VR_CVar_Make("vr_attach_probe_drawn");
     cvarh_vr_attach_probe_x = VR_CVar_Make("vr_attach_probe_x");
     cvarh_vr_attach_probe_y = VR_CVar_Make("vr_attach_probe_y");

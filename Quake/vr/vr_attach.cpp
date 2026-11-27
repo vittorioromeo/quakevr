@@ -23,6 +23,9 @@ using weapons::Key;
 constexpr KindInfo kinds[Count] = {
     {"none", "", glm::vec3{0.f}, glm::vec3{0.f}},
     {"bayonet", "progs/bayonet.mdl", glm::vec3{6.5f, 0.f, -0.82f}, glm::vec3{1.2f, 0.f, -0.97f}},
+    // The dagger (daggerattach): its view model as held, its tip and its blade's root its weapons.txt muzzle_av and
+    // wpnbtn_av (slot 51); its origin by its grip (the mounts lay its blade, +z in its model, along the barrel).
+    {"dagger", "progs/v_dagger.mdl", glm::vec3{12.5665f, 0.0082f, 30.3419f}, glm::vec3{7.7205f, 0.0082f, 10.2118f}},
 };
 
 // Each kind's Weapon Offsets keys (attN_*): fits, x, y, z, pitch, yaw, roll, scale.
@@ -33,6 +36,7 @@ struct MountKeys
 constexpr MountKeys mountKeys[Count] = {
     {Key::Att1Ok, Key::Att1X, Key::Att1Y, Key::Att1Z, Key::Att1Pitch, Key::Att1Yaw, Key::Att1Roll, Key::Att1Scale},
     {Key::Att1Ok, Key::Att1X, Key::Att1Y, Key::Att1Z, Key::Att1Pitch, Key::Att1Yaw, Key::Att1Roll, Key::Att1Scale},
+    {Key::Att2Ok, Key::Att2X, Key::Att2Y, Key::Att2Z, Key::Att2Pitch, Key::Att2Yaw, Key::Att2Roll, Key::Att2Scale},
 };
 
 // The client's: which weapon (by its id) has which attachment.
@@ -89,6 +93,12 @@ const KindInfo* info(int kind)
     return kind > None && kind < Count ? &kinds[kind] : nullptr;
 }
 
+bool strikes(int kind)
+{
+    const KindInfo* const k = info(kind);
+    return k && glm::length(k->tip) > 1e-3f;
+}
+
 Mount mount(int slot, int kind)
 {
     Mount m;
@@ -130,7 +140,7 @@ bool fromMuzzle(qmodel_t* model, int kind, int what, glm::vec3& out)
     ve.ent.model = model;
     ve.ent.scale = ENTSCALE_DEFAULT;
     ve.zeroBlend = 1.f;
-    out = view::modelPoint(ve, onGun(m, what == 2 ? k->tip : glm::vec3{0.f})) - muzzle;
+    out = view::modelPoint(ve, onGun(m, what == 2 ? k->tip : what == 3 ? k->base : glm::vec3{0.f})) - muzzle;
     return true;
 }
 

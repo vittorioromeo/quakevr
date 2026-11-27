@@ -317,9 +317,14 @@ constexpr za::SizeT maxSamples = 256;
 // 2026-11-27: "a bit too shallow"; 1.25: 37-100% of it in by speed, a sword's 30-80%).
 [[nodiscard]] float pointLength(edict_t* ent, float drawn)
 {
-    if(attach::kindOfRef(ent, progs::fields().weaponinst) == attach::Bayonet)
+    const int kind = attach::kindOfRef(ent, progs::fields().weaponinst);
+    if(kind == attach::Bayonet)
     {
         return drawn * za::max(0.1f, vr_embed_bayonet_depth.value);
+    }
+    if(kind == attach::Dagger) // (daggerattach: its blade about 7 units, base to tip)
+    {
+        return drawn * za::max(0.1f, vr_embed_attdagger_depth.value);
     }
     const qmodel_t* m = modelOf(ent);
     return m && ZA_STRSTR(m->name, "dw_lance") ? za::min(drawn, za::max(0.5f, vr_dw_lance_embed_length.value)) : drawn;
