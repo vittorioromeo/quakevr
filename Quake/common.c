@@ -3244,6 +3244,82 @@ static void COM_AddExeBaseDir (void)
 
 /*
 =================
+COM_AddVRGameArg
+
+QVR: Quake VR's own game folder (quakevr: its game code, its data folder's txt files, models, sounds) is mandatory. A start without
+"-game quakevr" (ironwail.exe double-clicked, a player's own shortcut, a launcher's entry: id1 alone, every weapon's,
+prop's and monster's value 0, "tinyworld" in ROUND26) gets it, where the shipped launches put it: after the campaign
+folders given (-game hipnotic/rogue/ad/mg1...: Quake VR's campaigns, mounted by quakevr: "-game ad -game quakevr" as
+the Quest's), before the first other mod's ("-game quakevr -game <mod>": the mod over Quake VR, QuakeVR.bat's). No base
+dir with Quake VR's game data (a broken install): none added, and the player told (VR_NoteGameDataMissing).
+=================
+*/
+static qboolean COM_HasVRGameData (const char *base)
+{
+	char path[MAX_OSPATH];
+	if (Sys_FileType (va ("%s/quakevr/progs.dat", base)) == FS_ENT_FILE)
+		return true;
+	q_snprintf (path, sizeof (path), "%s/quakevr/pak0.pak", base);
+	return Sys_MatchFileCase (path); // (or PAK0.PAK)
+}
+
+static void COM_AddVRGameArg (void)
+{
+	int i, at = -1, found;
+	char lookedin[1024];
+	for (i = 1; i < com_argc - 1; i++)
+	{
+		if (q_strcasecmp (com_argv[i], "-game"))
+			continue;
+		if (!q_strcasecmp (com_argv[i + 1], "quakevr"))
+			return; // (Setup's shortcut, QuakeVR.bat, Steam's, the Quest's, the tests')
+		if (at < 0 && !VR_IsCampaignDirectory (com_argv[i + 1]))
+			at = i;
+		++i;
+	}
+	*lookedin = 0;
+	for (i = 0; i < com_numbasedirs; i++)
+	{
+		if (COM_HasVRGameData (com_basedirs[i]))
+			break;
+		if (*lookedin)
+			q_strlcat (lookedin, "; ", sizeof (lookedin));
+		q_strlcat (lookedin, com_basedirs[i], sizeof (lookedin));
+	}
+	if (i == com_numbasedirs)
+	{
+		// The folder named to the player: where Quake VR should be: the last -basedir given (Setup's shortcut's
+		// second, its install folder), else the exe's (a zip's, Setup's), not a base dir (it had no quakevr).
+		const char *where = host_parms->exedir && *host_parms->exedir ? host_parms->exedir : com_basedirs[0];
+		for (i = 1; i < com_argc - 1; i++)
+			if (!q_strcasecmp (com_argv[i], "-basedir"))
+				where = com_argv[i + 1];
+		Con_Warning ("VR: Quake VR's game data wasn't found: no quakevr folder with its game code in %s%s%s. Reinstall "
+			"with QuakeVR-Setup or start from its shortcut (a zip install: QuakeVR.bat, or ironwail.exe in the folder "
+			"that has quakevr).\n", lookedin, COM_CheckParm ("-basedir") ? "" : ", nor in the exe's folder ",
+			COM_CheckParm ("-basedir") ? "" : where);
+		VR_NoteGameDataMissing (where);
+		return;
+	}
+	if (com_argc + 2 > MAX_NUM_ARGVS)
+	{
+		Con_Warning ("VR: the command line is too long to add \"-game quakevr\": Quake VR's game folder not mounted\n");
+		return;
+	}
+	found = i;
+	if (at < 0)
+		at = com_argc;
+	for (i = com_argc; i >= at; i--) // (argvdummy, at com_argv[com_argc], moved too)
+		com_argv[i + 2] = com_argv[i];
+	com_argv[at] = "-game";
+	com_argv[at + 1] = "quakevr";
+	com_argc += 2;
+	Con_Printf ("VR: no \"-game quakevr\" on the command line: Quake VR's game folder added%s (%s/quakevr)\n",
+		at + 2 < com_argc ? ", under the mod given" : "", com_basedirs[found]);
+}
+
+/*
+=================
 COM_MigrateNightdiveUserFiles
 
 Checks the Nightdive dir for subdirs containing
@@ -3802,6 +3878,7 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 
 	if (startarg)
 		COM_PatchCmdLine (startarg);
+	COM_AddVRGameArg (); // QVR
 	VR_InitCampaignDirectories();
 
 	i = COM_CheckParm ("-basegame");

@@ -71,7 +71,34 @@ void QuestExtensions::want(const char* offered, za::Vector<const char*>& enabled
         enabled.pushBack(XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME);
         foveationParts |= swapchainUpdateStateBit;
     }
+    else if(!ZA_STRCMP(offered, XR_FB_SPACE_WARP_EXTENSION_NAME))
+    {
+        enabled.pushBack(XR_FB_SPACE_WARP_EXTENSION_NAME);
+        spaceWarp = true;
+    }
     foveation = foveationParts == foveationAll;
+}
+
+void QuestExtensions::spaceWarpProperties(XrInstance instance, XrSystemId system)
+{
+    if(spaceWarp)
+    {
+        XrSystemSpaceWarpPropertiesFB props{XR_TYPE_SYSTEM_SPACE_WARP_PROPERTIES_FB};
+        XrSystemProperties properties{XR_TYPE_SYSTEM_PROPERTIES};
+        properties.next = &props;
+        spaceWarp = XR_SUCCEEDED(xrGetSystemProperties(instance, system, &properties)) &&
+                    props.recommendedMotionVectorImageRectWidth > 0 && props.recommendedMotionVectorImageRectHeight > 0;
+        spaceWarpWidth = spaceWarp ? static_cast<int>(props.recommendedMotionVectorImageRectWidth) : 0;
+        spaceWarpHeight = spaceWarp ? static_cast<int>(props.recommendedMotionVectorImageRectHeight) : 0;
+    }
+    if(!questRuntime)
+    {
+        return; // (the PC's runtimes: never asked for)
+    }
+    Con_Printf("VR: SpaceWarp (XR_FB_space_warp): %s\n",
+        spaceWarp ? va("supported by the runtime (motion vectors %dx%d an eye; vr_xr_spacewarp %g)", spaceWarpWidth,
+                        spaceWarpHeight, static_cast<double>(vr_xr_spacewarp.value))
+                  : "not supported by this runtime (the setting does nothing)");
 }
 
 void QuestExtensions::bind(XrInstance instance)

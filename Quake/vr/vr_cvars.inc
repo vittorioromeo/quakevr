@@ -687,6 +687,13 @@ QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_preset_revert_fps, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
+// Application SpaceWarp (vr_spacewarp.cpp; the Quest's XR_FB_space_warp): 1 hands the runtime each eye's motion vectors
+// and depth, and it shows a made-up frame between the game's (the game at half the display's rate). The eyes go
+// through the post-process path then (the motion target needs the scene's own targets). Off by default (first beta).
+QVR_CVAR(vr_xr_spacewarp, "0", CVAR_ARCHIVE)
+// vr_spacewarp_test (tests, Debug > Profiling): 1 makes SpaceWarp's motion vectors and depth every frame into the
+// game's own images without a runtime that has it (the PC, the mock headset); vr_spacewarp_probe reads them.
+QVR_CVAR(vr_spacewarp_test, "0", CVAR_NONE)
 QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
 // qfov: the eye images drawn straight into (their scene with it) whenever vr_xr_foveation is on (vr_stereo.cpp); 1 lets
 // the runtime lower the level while the GPU has room (XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB), vr_xr_foveation the most.

@@ -1023,6 +1023,10 @@ int VR_CanLoadSaveMap(const char *map, const char *text);	// Host_Loadgame_f: th
 const char *VR_GameDirectoryRoot(const char *dir, int index);
 void VR_PrepareCampaignDirectories(const char *paths);
 void VR_InitCampaignDirectories(void);
+int VR_IsCampaignDirectory(const char *dir);	// id1, hipnotic, rogue or a campaign of the selector's (common.c COM_AddVRGameArg)
+void VR_NoteGameDataMissing(const char *exedir);	// COM_AddVRGameArg: no base dir has Quake VR's game data (the menus' status box, a centre print)
+const char *VR_GameDataMissingFolder(void);	// ... the folder named then (null: found; vr_gamedata_notice 1 previews it)
+const char *VR_GameDataMissingNotice(void);	// ... its centre print, once (null: none; vr_progs.cpp loadNoticeFrame)
 char *VR_LoadOwnedLocalization(const char *file);
 // "owned/<folder>/<path>": a file of a discovered Dopa/MG1/MG3 folder read in place, unmounted (COM_FindFile).
 int VR_OwnedFile(const char *name, char *out, int size, int *offset, int *length, int *packed);
