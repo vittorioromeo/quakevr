@@ -3779,3 +3779,94 @@ bigger after they have been detached"; "Please try to maintain my armour tweaks.
   `vr_agarmor_test 15` 55/0 (helmets broken off as #tweak debris), `21` 14/0.
 - **Open**: his headset look at a scaled plate with retro textures on; the normals of a shaped piece are its .mdl's
   (scale_x/y/z do not bend them).
+## flatdrag: flat-screen hands steady on a crate dragged with H (branch agent/flatdrag, 2026-11-27)
+
+His flat note 2026-11-27: "Hands/arms jitter/shake a lot when dragging a crate with H."
+- **Cause.** A prop dragged by its surface (Grab / Pull, `box3d::propDragHold`) had the hands drawn on the hold's point as the
+  Box3D body has it now, on the server's tick, while the crate itself is drawn as the client has it (a tick behind; with the
+  client faster than the server, a 144 Hz monitor, lerped between ticks). So the hands stepped every other frame and sat a tick
+  ahead of the crate: a crate dragged and tipping moved up to 10 cm and 5 degrees a frame between the two. Measured at 144 fps
+  (walk back, forward, strafe, turn): the hand off a smooth path 2.1 cm on average, 4.85 at most; slid on the crate as drawn
+  by up to 4.8-5.8 cm a frame. Not the floor contact, the spring or the arm IK (the drawn crate's own path is smooth: 0.06 cm).
+- **Fix** (`Quake/vr/vr_view_hands.cpp`, `limbHold`): the hold's point and the hand's turn there are taken in the prop's frame
+  as the server has it (its edict, which the step wrote) and put in its frame as drawn (`placeFrame`: shapeToWorld's place and
+  turn, a brush model's pitch the other way), as a ragdoll's limb already is (`ragdoll::drawnPart`). After, at 144 fps: 0.07 cm
+  on average, 0.82 at most; slid 0.37 cm at most where the hands reach it. 90 fps: 0.15 / 1.33 / 0.57 (before 1.09 / 4.76 / 7.31).
+  VR's two-handed carry draws its hands from the client's own drawn prop (`held::drawnHand`), not this path: unchanged.
+- **Probe** (`vr_hold_arm_probe`, Debug > Held Hands on Arms): the report adds `holdarm: jitter N frames, off its path at most
+  X cm (mean Y), slid at most Z cm (F frames)` (slid: only frames the hand reaches the prop, not held back on its arm by
+  keepOnArm); `vr_hold_arm_probe 2` (new row "Start, Each Frame Logged") prints each frame `holdjit:` (the prop drawn: origin,
+  angles), `holdjit2:` (the drawn hand, the eye), `holdjit3:` (the server's origin, angles, time), `holdjit4:` (the hold's point).
+- **Seen, not changed:** with his default reach (0.65 m) the hands are held back on their arms (keepOnArm, flathold3) on most
+  frames while walking with a crate (it lags its spring up to ~0.5 m behind them); that is flathold3's full stretch, not a shake.
+- **Test:** `Misc/quakevr/flatdrag_test.sh` (14/0; with the fix disabled 8/6): a crate grabbed with both hands, walked back,
+  forward, strafed and turned with at 144 and 90 fps (`vr_fixed_frames_rate`): the hand off its path under 0.4 cm on average and
+  2 at most, slid under 1.5 cm a frame. `flatgrabthrow_test.sh` 64/0.
+## flatfists: flat empty hands' alternating jabs and crossed-arms guard; V melees with a lone weapon in either hand (branch agent/flatfists, 2026-11-27)
+
+His flat notes 2026-11-27, items 2 and 9. FLATPLAY.md, "Fists: jabs and the crossed-arms guard" (and the LMB, RMB, V rows).
+- **Jabs** (item 2): both hands empty (`fistsOnly`: no weapon, nothing held), the left button is the fire button's straight
+  punch thrown by each hand in turn, the right first (vr_flatplay.cpp `pollJab`); held, the next `vr_flat_jab_repeat` 0.4 s
+  after the last began (and never before it draws back). `vr_flat_jab_alternate` 1 (0: as before).
+- **Crossed-arms guard** (item 2): the right button held, both forearms crossed before the face (`stepFistGuard`,
+  `fistGuardPose`; `vr_flat_fist_guard_fwd` 13, `_up` 0, `_cross` 3, `_stagger` 1.5, `_pitch` 45, `_yaw` 45, `_roll` 0,
+  `_in_time` 0.1, `_out_time` 0.12). Up, both hands' guard bits go in the move (no new wire bit); QC `VR_FlatFistGuard`
+  (vr_util.qc) and `VR_Parry_FlatFists` (combat.qc, beside `VR_Parry_FlatGuard`): a melee blow from within
+  `vr_flat_fist_guard_cone` 120 is the headset's crossed-arms parry (sound, knock, counter window), the damage cut by
+  `vr_flat_fist_guard_reduction` 0.45 (the headset's `vr_parry_unarmed_reduction`) and the push on you times
+  `vr_flat_fist_guard_push` 1. Reused: the crossed-arms parry branch of `VR_Parry` (only its cut and push take the flat
+  tunables), the guard bits of the weapon guard; the routing (`routeButtons`) sends no off-hand fire then. `vr_flat_fist_guard`
+  0: the right button the left hand's punch. A jab drops the guard; a press while it eases out is thrown once it is down.
+  Group Tunables > Flatscreen > Fists: Jabs and Guard (15 rows; the two switches are tunables, no menu rows).
+- **V** (item 9): `vKeyHand`: one weapon in the off hand and the main hand empty (no prop) is the off hand's quick melee
+  (its overhead swing; before, the empty main hand's overhand). Both empty: the two-fisted blow; one in each: the main's;
+  a prop in the off fist with an empty main still the prop's (vr_flat_prop_v).
+- **Status**: `vr_flatplay_status` prints `fists:` and `fist guard:` (the main fist off the off fist: right -5.0, gap 5.4:
+  the headset's `VR_Parry_ArmsCrossed` also holds). Debug lines `flatfists: crossed-arms guard up|down`, QC's
+  `flatfists: parry N (class), damage A -> B`.
+- **Tests**: new `Misc/quakevr/flatfists_test.sh` 17/0 (presses main/off/main; held 4 jabs alternating; two jabs at a grunt
+  hit; the guard up/crossed/down; V: left shotgun = off hand's swing and a hit, right shotgun and dual = main; a knight in
+  front parried 2.98 -> 1.64, behind lands, no guard lands). `flatmelee6_test.sh` 9/0 (its case 3, an axe in the off hand,
+  now expects the off hand's swing), `flatparry_test.sh` 43/0, `tunables_test.sh` 13/0. Scenes `flat_fists`,
+  `flat_v_offhand`. Shot: kit scratch flatfists_guard2.png (the guard at the defaults; flatfists_guard.png the
+  first try, up -5 / fwd 12: too low on the screen).
+## toolad: AD humanoids' previews in the toolgun's Armed Humanoid tool (branch agent/toolad, 2026-11-27)
+
+His words: "AD humanoids are missing previews in the toolgun armed humanoids tool."
+- **Cause**: the icon maker (`vr_toolgun_icons.cpp make`) asked `VR_DerivedModelFile` only for names with a `#`; the armed
+  death guard's and crossbow knight's `progs/vrdguard.mdl` / `vrdcrossbow.mdl` are no files (made as they load), so their
+  tile and page pictures failed. Every model now goes through `VR_DerivedModelFile` first, then the file. Without AD the
+  rows are not listed (unchanged). Flat and VR panels share the code.
+- **Test**: `vr_toolgun_armed_icons_test` (Debug menu: Armed Humanoids: Preview Test): every listed kind has its icon; with
+  AD (`vr_campaign_native ad`) 6 passed, 0 failed. Screenshot: `scratch/toolad_page.png` (flat panel, Death Guard).
+
+
+## promote1127 (agent/promote1127)
+
+His words 2026-11-27: "I've tweaked a bunch of cvars/offsets, please promote them." Source: his `ironwail.cfg`, `tunables.cfg` and
+the newest `proposed_defaults/2026-11-27_20-00-25.cfg` (`vr_propose_defaults`: the live changes from the shipped defaults; his data
+files `weapons.txt` / `props.txt` / `armour.txt` equal origin/next's already).
+
+**Promoted** (7):
+- `vr_agrunt_poses`: 9 keys into `vr_agpose.cpp` `shipped[]` (pole weapon Ready 22010, Run 22020, Overhead 22140-22142, Shove
+  22200-22202: new; knight rifle Idle 201000: changed). `pose_defaults.py --write` was NOT used: it knows no kind 4 (AD knights)
+  and rewrote the AD knight rows away; its tables got the names (crossbow knight, pole weapon) and the rows were laid in by hand.
+- `vr_agrunt_ik_stretch`: grunt pole weapon `{0,22}` 1.23 -> 1.25; knight rifle `{2,1}` 1.35 -> 1.26.
+- `weapons.txt`: shotgun (slot 2) bayonet mount att2_pitch -76.46 -> -70, att2_z -4.6 -> -2.5; double shotgun (slot 3)
+  att2_pitch -76.46 -> -68.5, att2_z -3.22 -> 0.95 (his dagger-bayonet offsets: the flatbayonet worker converts them).
+- `props.txt`: bayonet (slot 72) grip_yaw 0 -> -10, grip_z 0 -> 2.5 (its grip 2 is shipped already; his live table numbered it 80).
+- `vr_flat_tp_fov` 1.1 -> 1 (third-person camera FOV: promoted once, his value changed back).
+- `tunables.cfg`: `vr_flat_parry_rev_roll` -60 already the default.
+Sparse configs: no configVersion bump (a config holding none of these takes the new values). Test fix: `agspear` (vr_agrunt_test
+230) assumed no shipped pole Ready key; it now sets a 1-up base key first and expects the 6-up key to move the spear by 5.
+
+**Skipped** (personal, studio/tool state, or not defaults): vr_handedness, vr_comfort_preset, vr_height_calibration, vr_bodycal_*,
+vr_xr_runtime, vr_enabled, vr_menu_* (flat scale, x, y, folded, level, positions), vr_motion_button, vr_spectator_fov/scale,
+vr_window_view, vr_notes, vr_debug_spawn_toolgun, vr_toolgun_*, vr_rope_spawn_*, vr_rigstudio_*, vr_armourstudio_*,
+vr_humstudio_*, vr_gore_dents 0 and vr_flat_taa 1 (graphics/gore preferences), volume, cl_alwaysrun, vr_autosave_list_all,
+vr_maps_skill, vr_runpick_*, vr_takes_keys, vr_show_controller_off_own, vr_mp_*, vr_flatplay (not archived), vr_blood_tally*,
+vr_bindings_version, vr_props_version, vr_wofs_version, vr_cfg_version, vr_pickup_scale and vr_gameplayfix_* (quakevr.cfg already),
+the flat/graphics block (fov, gamma, contrast, crosshair, hudstyle, scr_*, sensitivity, viewsize, host_maxfps...), the proposal's
+prop ids for slots 73-80 (the numbering of his older table), float-noise `vr_wofs_*` rows (equal to the default to 5 digits).
+Tests: agspear 3/0 (after the fix), flattp_test 1/0; `vr_agrunt_test 83` has one failure ("Pistol Aim key never set") that
+also fails on unchanged origin/next (not mine).

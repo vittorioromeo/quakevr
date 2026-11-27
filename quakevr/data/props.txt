@@ -813,6 +813,8 @@ prop 71
     mass "0.45"
     com_x "-1.2"
     grip "2"
+    grip_yaw "-10"
+    grip_z "2.5"
     handle_from "-0.9"
     handle_to "1.06"
     two_hands "0"
