@@ -2318,6 +2318,26 @@ His flat notes 2026-11-26, items 1 and 6.
   dagger's swing at a wall leaves no melee mark (no landing to compare): left out. Not run: the full flat suite.
 - Code shared, not copied: the swing and the thrust are the pose's own functions; the throw's speed, launch velocities and
   gravity are the release's own helpers.
+- **xhairmiss (2026-11-27, branch agent/xhairmiss): its two known misses.**
+  - flip24 (the flipped spear 24 units off, 7.3 apart with his promoted vr_flat_revgrip_pole_off_along 9): not a turn of
+    the pole. Measured per frame, the rehearsal was the pose to 0.01 unit, but flatsight's pinToGrip then pulled the
+    holding hand in up to 8 units late in the thrust (the free hand's grip, 9 along the pole and thrust out, went past
+    gripKeep of the free arm's reach). The rehearsal now replays that pull on each point: `flatsight::gripPull` (the grip
+    as last placed in the hand's frame, notePlaced, turned with the hand and slid with flatplay::thrustOffSlide; the same
+    `reachPull` pinToGrip now uses). 3.8 apart; flipfar's tip's end comes in with it (y 752).
+  - The thrown axe "10 over": its origin is its handle, which circles the centre of mass as it spins; where the axe
+    actually sticks (QC now prints `flat throw: stuck at`, its edge's point in the wall) was 2.3 from the crosshair, by two
+    misses cancelling. Both now modelled: (1) the release leaves from the hand vr_flat_throw_release_time into the
+    follow-through, ~7 units on from the wound-up hand (and a sword's way from there tilts 1 degree up): the aim now goes
+    from there, `flatgrenade::releaseShift` (apply's own places at the release's shares) through the builtin
+    `flatthrowfrom`; (2) a thrown weapon's body flies its centre of mass's arc, 6 units up the weapon from the hand: the
+    aim's arc starts there, builtin `weaponmasscentre` (box3d::weaponMassCentre: the centroid of the hull of the model's
+    drawn corners, the thrown body's own shape), turned as the release turns it. The test now measures a stuck blade at its
+    stick point (else the old arc on to the wall): axe 1.0 units apart (was 2.3 by its stick point), sword 4.1 (was 9.6;
+    its release velocity still differs by 1 degree up: the throw assist, not chased), the quick grenades 0.3-0.5 (were
+    1.8-2.6: the release shift alone).
+  - `flatxhair_melee_test.sh` 25/0 (tolerances unchanged). Not run: flatthrow_test (the release itself is unchanged; only
+    the aim and a debug line).
 
 
 ## Map-made armed humanoids hold their guns right: Quoth's kellbase1 enforcers (branch agent/quothpose, 2026-11-26)

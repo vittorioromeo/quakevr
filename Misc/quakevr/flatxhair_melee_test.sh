@@ -58,7 +58,7 @@ T="map vrtutorial; god; notarget; developer 1; vr_flat_xhair_smooth 0; vr_flat_g
 T="$T; $GB; $(gren grenatk +attack -attack); vr_test_give_wid 6; impulse 149; wait30; $(gren grenoff +offhandattack -offhandattack)"
 T="$T; echo flatxhair_melee_test: throws end"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Script "$T; toggleconsole; quit" -QuitOn "flatxhair_melee_test: throws end" \
-    -Timeout 200 -Filter "^flatxhair|^flat throw: (first hit|hit from|landed)|^flat grenade: (thrown|the|winding)" > "$tlog" 2>&1
+    -Timeout 200 -Filter "^flatxhair|^flat throw: (first hit|hit from|stuck at|landed)|^flat grenade: (thrown|the|winding)" > "$tlog" 2>&1
 # `field <tag> <phase> <line pattern> <field>`: the number after <field> on the first probe line matching the pattern in
 # that phase's section.
 field() {
@@ -104,6 +104,10 @@ for c in axe sword grenb grenatk grenoff; do
     hit=$(sec aim | grep -a "flat throw: hit from" | head -1 | tr -d "'" | awk '{ print $5, $6, $7, $9, $10, $11 }')
     printf '  %-7s %s hand aim: %s  before the hit (place, velocity): %s\n' "$c" "${hand:-no}" "${aim:-none}" "${hit:-none}"
     d=$(echo "$aim $hit" | awk 'NF == 9 && $8 != 0 { k = ($2 - $5) / $8; dx = $1 - ($4 + $7 * k); dz = $3 - ($6 + $9 * k); printf "%.1f", sqrt(dx * dx + dz * dz) }')
+    # (xhairmiss: a blade that sticks in the wall lands where it stuck, its edge or point ("stuck at"): against that.)
+    stuck=$(sec aim | grep -a "flat throw: stuck at" | head -1 | tr -d "'" | awk '{ print $5, $6, $7 }')
+    [ -n "$stuck" ] && d=$(echo "$aim $stuck" | awk 'NF == 6 { dx = $1 - $4; dz = $3 - $6; printf "%.1f", sqrt(dx * dx + dz * dz) }')
+    [ -n "$stuck" ] && printf '  %-7s stuck at: %s\n' "$c" "$stuck"
     check $(ok "${shown:-0} == 1 && ${d:-99} < 12") "$c: the wound-up throw's crosshair is shown on where it lands (${d:-?} units apart on the wall)"
 done
 verdict
