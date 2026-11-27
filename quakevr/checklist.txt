@@ -21,11 +21,7 @@ On the Quest, stand on the hub's terrace and in a gib fight for a minute each: f
 Flat-screen or VR: in AD, cut the arms and legs off a Death Guard and a Crossbow Knight: each limb comes off in their own look, and AD maps with them (ad_azad, ad_tears) load without an error. {test:ad_knights_armed}
 Flat-screen: open Debug > Tools > Rig Studio on an AD death guard, then on a crossbow knight: beside the subject the menu bar says their poses are shared; key a pose or an override on one and the other moves the same way at once, and after Save both read it back. {test:ad_knights_armed}
 Flat-screen: in the Rig Studio, the bone, aim target and Pose Keys handles still look and drag as before (they share the Armour Studio's handle code now). {test:rigstudio_strike}
-Flat-screen or VR: toolgun Spawn > Monsters: pick a Rottweiler, Ogre, Scrag or Fiend and set the new Armour and Pieces row under the tiles (it is dimmed for other monsters); each one spawned wears what you chose: None bare, Red Full every piece, Green Core the cuirass and helmet, Random a mix, By Skill its own roll as on a map. {test:toolgun_beasts}
-Flat-screen or VR: the Monsters tab's tiles are a little shorter now to make room for that row: check the pictures and two-line names (Death Knight, Armed Humanoid) still read cleanly. {test:toolgun_beasts}
 Fire the shotgun indoors in a small stone room and in a big hall: its crack is clear and sharp over the room's ring, not muffled under a boomy wash; Sound > Walls and Rooms > Your Sounds' Reverb at 1 brings the old wash back to compare (0.25 the default). {test:start_shotgun}
-In the Armour Studio, pick the scrag: his lower body is now two parts, "Plate 8 Front" and "Plate 8 Back" (seamed at his sides); move or scale one and the other stays put, and "Wear the Part Alone" on either shows just that half. {test:beaststudio}
-Look at the armoured scrags from the side: the lower body's front and back halves meet at his sides without a gap or overlap you notice, and the tail's leather joins the back half. {test:armour_beasts}
 With AD's data, open the toolgun's Spawn > Monsters > Armed Humanoid page and pick Kind Death Guard, then Crossbow Knight: each shows its own picture in the kind box (and on the Armed Humanoid tile), like the other kinds. {test:ad_knights_armed}
 Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, and the knight with a rifle carries it your way: look at the spear grunt in each pose. {test:pose_grunt_pole}
 The shotgun and double shotgun bayonet mounts (Daggers as Bayonets) sit at your new pitch and height: attach a dagger and check the blade lines up with the barrels. {test:attach_dagger}
@@ -44,6 +40,7 @@ Flat-screen: the same with the dagger in the free hand (Daggers as Bayonets): J 
 Shoot an armoured ogre's shin plate: it cracks and falls alone while the thigh plate above it stays on; then the same on the other leg. {test:armour_beasts}
 Shoot the armoured scrag's tail until it cracks: all four tail segments fall as debris while his belt's front and back halves stay on; then break the back half alone, then the front half alone. {test:armour_beasts}
 The armoured beasts in the scene now die in a normal number of shotgun shots (they had 1000 health before): roughly ogre 10-14, fiend about 10, scrag about 7, rottweiler 1-2. {test:armour_beasts}
+Watch an ogre walk, run and swing his chainsaw up close: his limbs and belly should ripple much less from frame to frame than before, his shape the same; Debug > Reports > Rebuild Joints From Two Bones Off shows the old look to compare. {test:ogre_hall}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
