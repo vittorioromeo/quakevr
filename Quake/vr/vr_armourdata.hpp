@@ -40,14 +40,18 @@ enum Field : int
     Hero,       // its hero plates (a row's plates merged into one: the breastplate, the pauldrons' top row, the elbows' and knees'
                 // cops; vr_agarmor_hero): 1 (as made) or 0, every plate its own; the cuirass's and the limbs' plates
     Sag,        // a beast's leather junction's middle dropped this far (units, below 0 raised; vr_beastarmour.cpp): its sleeve parts'
+    ScaleX,     // its size along the model's forward, left and up (its rest pose), round its middle, times Scale (1 as made):
+    ScaleY,     // a piece made wider than it is deep, or longer (studioui, 2026-11-27)
+    ScaleZ,
     NumFields
 };
 inline constexpr const char* fieldNames[NumFields] = {"offset_x", "offset_y", "offset_z", "pitch", "yaw", "roll", "scale",
-    "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather", "folds", "fold_depth", "hero", "sag"};
+    "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather", "folds", "fold_depth", "hero", "sag",
+    "scale_x", "scale_y", "scale_z"};
 // A field's value where nothing is set.
 [[nodiscard]] constexpr float fieldDefault(int field)
 {
-    return field == Scale || field == TaperStart || field == TaperEnd || field == Leather || field == Hero ? 1.f : 0.f; // (Sag 0)
+    return field == Scale || field == ScaleX || field == ScaleY || field == ScaleZ || field == TaperStart || field == TaperEnd || field == Leather || field == Hero ? 1.f : 0.f; // (Sag 0)
 }
 
 enum Part : int
@@ -118,6 +122,24 @@ struct Override
     float v[NumFields]{};
     uint32_t has{0}; // (1 << Field)
 };
+
+// A piece's size along the model's forward, left and up (its rest pose): scale times scale_x / _y / _z, each set one
+// clamped to 0.2 .. 3 (unset: 1). Whether any is set and not 1 (the piece's shape changed by its size).
+inline bool scaleAxes(const Override& o, float out[3])
+{
+    const auto value = [&](int f) {
+        const float x = ((o.has >> static_cast<unsigned>(f)) & 1u) != 0u ? o.v[f] : 1.f;
+        return x < 0.2f ? 0.2f : x > 3.f ? 3.f : x;
+    };
+    const float s = value(Scale);
+    bool changed = false;
+    for(int i = 0; i < 3; i++)
+    {
+        out[i] = s * value(ScaleX + i);
+        changed = changed || out[i] != 1.f;
+    }
+    return changed;
+}
 
 // The kind a wearer's model is (-1 none).
 [[nodiscard]] int kindOf(const char* model);

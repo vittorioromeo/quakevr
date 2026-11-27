@@ -55,6 +55,7 @@ constexpr const char* fileHead =
     "//   offset   \"x y z\"   units along the model's forward, left and up (its rest pose)\n"
     "//   rotate   \"p y r\"   degrees about the model's left, up and forward axes, round the piece's middle\n"
     "//   scale    \"s\"       its size round its middle (1 as made)\n"
+    "//   scale_x / scale_y / scale_z \"s\"  its size along the model's forward, left and up alone, times scale (1 as made)\n"
     "//   standoff \"u\"       units further off the skin (below 0 closer)\n"
     "//   start    \"u\"       units its first row of plates starts further along it (towards the waist, hand or foot)\n"
     "//   end      \"u\"       units its last row ends further along it\n"
@@ -296,7 +297,7 @@ void parse(const char* text, za::Vector<Entry>& into)
                 if(field < 0)
                 {
                     Con_Printf("\x02%s: no key \"%s\" (offset, rotate, scale, standoff, start, end, rows, taper_start, taper_end, "
-                               "leather, folds, fold_depth, hero, sag): ignored\n", pathText, key.cStr());
+                               "leather, folds, fold_depth, hero, sag, scale_x, scale_y, scale_z): ignored\n", pathText, key.cStr());
                     problems++;
                     continue;
                 }

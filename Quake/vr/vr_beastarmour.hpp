@@ -73,6 +73,9 @@ void studioPart(int part);
 // The slots (bits) whose pieces or parts are armour.txt's `part` (a sleeve: their junctions) on `side` (a limb part's): the
 // scrag's tail its belt's slot 8, the ogre's shins the thighs' 6/7 (ROUND26.md, "beastfit").
 [[nodiscard]] int partPieces(int kind, int part, int side);
+// The first piece of `pieces` on `ent` as placed now: its middle (world) and the map from its tweaks' space to the world's
+// (agarmor::studioPartFrame).
+bool partFrame(struct edict_s* ent, int pieces, glm::vec3& centre, glm::mat3& parent);
 // The tests: piece `slot`'s junction on `ent` wearing `pieces` as posed now: its end rings' furthest from where their
 // pieces' places carry them, its longest edge along it, its middle ring's middle.
 struct JunctionCheck

@@ -2406,7 +2406,8 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, bool 
     const auto has = [&](int field) { return ((o.has >> static_cast<unsigned>(field)) & 1u) != 0u; };
     const bool pushed = has(armourdata::Standoff) && push;
     const bool moved = has(armourdata::OffsetX) || has(armourdata::OffsetY) || has(armourdata::OffsetZ) || has(armourdata::Pitch) ||
-        has(armourdata::Yaw) || has(armourdata::Roll) || has(armourdata::Scale);
+        has(armourdata::Yaw) || has(armourdata::Roll) || has(armourdata::Scale) || has(armourdata::ScaleX) || has(armourdata::ScaleY) ||
+        has(armourdata::ScaleZ);
     if(from >= to || (!pushed && !moved))
     {
         return;
@@ -2427,7 +2428,9 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, bool 
         }
     }
     const glm::mat3 turn = tweakTurn(o.v[armourdata::Pitch], o.v[armourdata::Yaw], o.v[armourdata::Roll]);
-    const float scale = has(armourdata::Scale) ? za::clamp(o.v[armourdata::Scale], 0.2f, 3.f) : 1.f;
+    float axes[3];
+    (void)armourdata::scaleAxes(o, axes); // (scale, times scale_x / _y / _z along the model's axes)
+    const glm::vec3 scale{axes[0], axes[1], axes[2]};
     const glm::vec3 move{o.v[armourdata::OffsetX], o.v[armourdata::OffsetY], o.v[armourdata::OffsetZ]};
     for(int i = from; i < to; i++)
     {
@@ -4570,6 +4573,63 @@ void debugDraw()
             lines::line(w[2], w[0], width, col, col);
         }
     }
+}
+
+bool studioPartFrame(glm::vec3& centre, glm::mat3& parent)
+{
+    if(studio.ent <= 0 || studio.pieces == 0 || studio.sleeve || !sv.active || studio.ent >= sv.qcvm.num_edicts)
+    {
+        return false;
+    }
+    const progs::ServerVm vm; // (as debugDraw: the server's entities)
+    edict_t* e = EDICT_NUM(studio.ent);
+    if(e->free)
+    {
+        return false;
+    }
+    if(beastarmour::wears(e))
+    {
+        return beastarmour::partFrame(e, studio.pieces, centre, parent);
+    }
+    const int mask = wornMask(e) & studio.pieces;
+    const Shell* s = mask ? serverShell(baseOf(e)) : nullptr;
+    if(!s)
+    {
+        return false;
+    }
+    int piece = 0;
+    while(piece < NumPieces && !((mask >> piece) & 1))
+    {
+        piece++;
+    }
+    if(piece >= NumPieces)
+    {
+        return false;
+    }
+    PlatePoses pp;
+    posePlates(e, *s, 1 << piece, pp);
+    if(!pp.ok[piece])
+    {
+        return false;
+    }
+    // (its middle: its plates' box, tweaked, in the shell's space; the shell's space is the tweaks')
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    for(int i = 0; i < count(s->verts); i++)
+    {
+        const Vert& v = at(s->verts, i);
+        if(v.piece == piece)
+        {
+            lo = glm::min(lo, v.p);
+            hi = glm::max(hi, v.p);
+        }
+    }
+    if(lo.x > hi.x)
+    {
+        return false;
+    }
+    centre = pp.origin[piece] + pp.turn[piece] * ((lo + hi) * 0.5f);
+    parent = pp.turn[piece];
+    return true;
 }
 
 // The limb whose plates enclose `p` as `ent` is drawn (-1 none): by each piece's grid, its point taken back to the rest pose by

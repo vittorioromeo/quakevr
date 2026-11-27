@@ -78,6 +78,17 @@ const Row fieldRows[NumFields] = {
     {"Fold Depth", &vr_armourstudio_fold_depth, 0.f, 1.f, 0.02f, "%.2f"},
     {"Hero Plates", &vr_armourstudio_hero, 0.f, 1.f, 1.f, "%.0f"},
     {"Sag", &vr_armourstudio_sag, -4.f, 4.f, 0.1f, "%.2f"},
+    {"Size Fwd", &vr_armourstudio_scale_x, 0.5f, 1.5f, 0.02f, "%.3fx"},
+    {"Size Left", &vr_armourstudio_scale_y, 0.5f, 1.5f, 0.02f, "%.3fx"},
+    {"Size Up", &vr_armourstudio_scale_z, 0.5f, 1.5f, 0.02f, "%.3fx"},
+};
+// The subject's place and tilt (vr_armourstudio_subject_*: a look from another angle; never in armour.txt).
+const Row subjectRows[5] = {
+    {"Away", &vr_armourstudio_subject_x, -48.f, 48.f, 1.f, "%.0f"},
+    {"Left", &vr_armourstudio_subject_y, -48.f, 48.f, 1.f, "%.0f"},
+    {"Up", &vr_armourstudio_subject_z, -32.f, 48.f, 1.f, "%.0f"},
+    {"Pitch", &vr_armourstudio_subject_pitch, -90.f, 90.f, 1.f, "%.0f deg"},
+    {"Roll", &vr_armourstudio_subject_roll, -90.f, 90.f, 1.f, "%.0f deg"},
 };
 constexpr int maxSubjects = 32;
 constexpr const char* tierLabels[3] = {"Green", "Yellow", "Red"};
@@ -464,6 +475,34 @@ void drawWindow()
         {
             Cvar_SetValueQuick(&vr_armourstudio_turn, turn);
         }
+        if(ImGui::TreeNode("Place and Tilt"))
+        {
+            // (its place moved from where it was put, tipped and rolled: its sides, top and underside in view)
+            ImGui::PushID("subject");
+            for(int i = 0; i < 5; i++)
+            {
+                const Row& r = subjectRows[i];
+                float v = r.cvar->value;
+                ImGui::SetNextItemWidth(220.f);
+                if(ImGui::SliderFloat(r.label, &v, r.lo, r.hi, r.format))
+                {
+                    Cvar_SetValueQuick(r.cvar, v);
+                }
+                if(ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("%s (Ctrl+click to type; not saved in armour.txt)", r.cvar->name);
+                }
+            }
+            if(ImGui::Button("Put Back"))
+            {
+                for(const Row& r : subjectRows)
+                {
+                    Cvar_SetValueQuick(r.cvar, 0.f);
+                }
+            }
+            ImGui::PopID();
+            ImGui::TreePop();
+        }
         float ghost = vr_armourstudio_ghost.value;
         ImGui::SetNextItemWidth(220.f);
         if(ImGui::SliderFloat("Body Ghost", &ghost, 0.f, 1.f, "%.2f"))
@@ -513,6 +552,7 @@ void drawWindow()
         {
             ImGui::TextDisabled("Side: one piece (no sides)");
         }
+        gizmoRows(); // (the handle on the part in the view: vr_armourstudio_gizmo.cpp)
         const int partNow = cvarIndex(vr_armourstudio_part, 0, NumParts - 1);
         for(int f = 0; f < NumFields; f++)
         {
@@ -524,14 +564,19 @@ void drawWindow()
             valueRow(fieldRows[f], f);
         }
 
+        // (each section its own ID scope: the Animation header and its Animation combo were one ID, his screenshot 2026-11-27)
         if(ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            ImGui::PushID("anim");
             animRows();
+            ImGui::PopID();
         }
 
         if(ImGui::CollapsingHeader("The file's values (this part)", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            ImGui::PushID("file");
             fileValues();
+            ImGui::PopID();
         }
         ImGui::TextDisabled("Escape or the X closes this window, and the studio with it (vr_armourstudio_autoclose 0: it keeps running); the menu page is the same studio.");
     }
@@ -591,6 +636,7 @@ void closeWindow()
         win.keyPhase = 0;
     }
     win.clickPhase = 0;
+    gizmoEdit(false); // (a handle's drag cut short ends here)
     imgui::want(false);
     IN_Activate();
     Con_Printf("armourstudio: window closed\n");
@@ -874,6 +920,7 @@ void windowInit()
 
 void windowFrame()
 {
+    gizmoTestFrame(); // (its steps: before the window opens too)
     if(!win.open)
     {
         if(win.step != 0)
@@ -890,6 +937,7 @@ void windowFrame()
     imgui::setPanel(0, 0, 0, 1.f); // (the screen only: no headset panel)
     imgui::want(true);
     feedMock();
+    gizmoFeed();
     if(!imgui::beginFrame())
     {
         return;
@@ -908,6 +956,7 @@ void windowFrame()
         return; // (the test's verdict closed it)
     }
     drawWindow();
+    gizmoFrame(); // (the handle on the part, over the game's view: after the window, so its hover is known)
     if(win.askClose)
     {
         closeWindowByPlayer(); // (after ImGui::End)

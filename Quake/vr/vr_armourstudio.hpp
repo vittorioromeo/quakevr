@@ -54,4 +54,17 @@ void windowFrame();    // vr_main's client frame, before the other ImGui tools (
 void windowShutdown(); // closed (the input grab given back)
 [[nodiscard]] bool windowOpen();
 
+// The window's handle on the part picked (vr_armourstudio_gizmo.cpp; vr_gizmo.hpp's, shared with the Rig Studio): move
+// arrows and planes, rotate rings, scale arms, in the part's own frame (vr_armourstudio_gizmo 0-3; keys Q W E R), its drags
+// writing the same offset / rotate / scale / scale_x-_z cvars as the rows, one undo step a drag.
+void gizmoInit();      // the command: vr_armourstudio_gizmo_test
+void gizmoFeed();      // the test's mock mouse, before ImGui's frame begins
+void gizmoTestFrame(); // the test's steps (each frame, the window open or not)
+void gizmoFrame();     // inside the window's ImGui frame, after the window: hover, drag, draw
+void gizmoRows();      // the window's mode row
+// A drag begins (one undo step for it: the rows' merging of steps held off) or ends.
+void gizmoEdit(bool on);
+// The subject standing now (vr_armourstudio_kind's numbering), -1 none.
+[[nodiscard]] int subjectShown();
+
 } // namespace qvr::armourstudio

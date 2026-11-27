@@ -14,6 +14,8 @@
 // it spawns (VR_AgArmor_Toolgun).
 
 float VR_AR_PIECES = 10;
+float VR_AR_EXACT = 1024; // (VR_AgArmor_SetCmd's pieces: these pieces exactly, a beast's cuirass not grown to its cuirass group)
+float vr_ar_give_exact;   // 1 while VR_AgArmor_SetCmd gives an exact mask (VR_AgArmor_Give)
 float VR_AR_HELMET = 1;
 
 // Each piece's share of its type's total (out of 96: the cuirass 30, the helmet 12, pauldrons 7, bracers 6, thighs 8,
@@ -77,7 +79,7 @@ void(entity e, float type, float mask) VR_AgArmor_Give =
     float beast = ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST);
     if(beast > 0)
     {
-        if(mask & 1)
+        if((mask & 1) && !vr_ar_give_exact) // (the Armour Studio's part worn alone: that piece alone, agarmor::give exact)
         {
             mask = mask | ragdollbone(e, '1 0 0', QVR_ARMOR_BEAST);
         }
@@ -98,14 +100,18 @@ void(entity e, float type, float mask) VR_AgArmor_Give =
     }
 };
 
-// vr_agarmor_set <entity> <type> [pieces] in a live game (vr_agarmor.cpp set_f): a monster's armour.
+// vr_agarmor_set <entity> <type> [pieces] in a live game (vr_agarmor.cpp set_f): a monster's armour. Pieces with
+// VR_AR_EXACT (1024): those pieces exactly (a beast's cuirass alone, not its cuirass group: the Armour Studio's Wear the
+// Part Alone).
 float(entity e, float type, float pieces) VR_AgArmor_SetCmd =
 {
     if(!(e.flags & FL_MONSTER) && !e.vr_corpse)
     {
         return FALSE;
     }
-    VR_AgArmor_Give(e, max(0, min(3, type)), pieces);
+    vr_ar_give_exact = (pieces & VR_AR_EXACT) ? 1 : 0;
+    VR_AgArmor_Give(e, max(0, min(3, type)), pieces - (pieces & VR_AR_EXACT));
+    vr_ar_give_exact = 0;
     dprint(sprintf("agarmor: %s (kind %g) wears type %g, pieces %g\n", e.classname, e.vr_ag_kind, e.vr_ar_type, e.vr_ar_mask));
     return TRUE;
 };

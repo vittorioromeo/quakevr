@@ -3509,6 +3509,7 @@ QVR_CVAR(vr_agarmor, "0", CVAR_NONE)                  // debug (P0, vr_agarmor.c
 QVR_CVAR(vr_agarmor_wear, "0", CVAR_NONE)            // debug (vr_agarmor.cpp): every armour piece drawn with this wear's damage marks: 0 the server's (each piece at two thirds and a third of its pool), 1 dented, 2 battered and scorched
 QVR_CVAR(vr_armour_file, "data/armour.txt", CVAR_NONE) // debug (vr_armourdata.cpp): the armour's hand tweaks' file, in quakevr/ (the tests point it elsewhere)
 QVR_CVAR(vr_armour_watch, "1", CVAR_NONE)             // debug (vr_armourdata.cpp): 1 the armour tweaks' file read again when it changes on disk (looked at once a second)
+QVR_CVAR(vr_imgui_idcheck, "0", CVAR_NONE)            // debug (vr_imgui.cpp): 1 every ImGui frame's items checked for two with one ID (ImGui's "conflicting ID!"), each named once on the console
 QVR_CVAR(vr_armourstudio_kind, "0", CVAR_NONE)        // debug (vr_armourstudio.cpp): the Armour Studio's kind: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 the player (your own body)
 QVR_CVAR(vr_armourstudio_tier, "3", CVAR_NONE)        // debug: its subject's armour: 1 green, 2 yellow, 3 red
 QVR_CVAR(vr_armourstudio_turn, "0", CVAR_NONE)        // debug: its subject turned this many degrees from facing you
@@ -3534,6 +3535,16 @@ QVR_CVAR(vr_armourstudio_leather, "1", CVAR_NONE)     // debug: a sleeve part's 
 QVR_CVAR(vr_armourstudio_folds, "4", CVAR_NONE)       // debug: a joint's leather's bellows folds (0-4; as vr_agarmor_folds: not written)
 QVR_CVAR(vr_armourstudio_fold_depth, "0.3", CVAR_NONE) // debug: ... their depth on the inside of a bend (units; as vr_agarmor_fold_depth: not written)
 QVR_CVAR(vr_armourstudio_hero, "1", CVAR_NONE)        // debug: the part's hero plates (1, as made: not written) or every plate its own (0)
+QVR_CVAR(vr_armourstudio_scale_x, "1", CVAR_NONE)     // debug: its size along the model's forward alone (times the scale; 1 as made)
+QVR_CVAR(vr_armourstudio_scale_y, "1", CVAR_NONE)     // debug: ... along its left
+QVR_CVAR(vr_armourstudio_scale_z, "1", CVAR_NONE)     // debug: ... along its up
+QVR_CVAR(vr_armourstudio_subject_x, "0", CVAR_NONE)   // debug: its subject moved from where it was put: units away from you (not in armour.txt)
+QVR_CVAR(vr_armourstudio_subject_y, "0", CVAR_NONE)   // debug: ... units to your left
+QVR_CVAR(vr_armourstudio_subject_z, "0", CVAR_NONE)   // debug: ... units up
+QVR_CVAR(vr_armourstudio_subject_pitch, "0", CVAR_NONE) // debug: its subject tipped this many degrees (its front down), a look from above or below
+QVR_CVAR(vr_armourstudio_subject_roll, "0", CVAR_NONE)  // debug: ... rolled this many degrees onto its side
+QVR_CVAR(vr_armourstudio_gizmo, "1", CVAR_ARCHIVE)      // debug: the ImGui window's handle on the part: 0 none, 1 move, 2 rotate, 3 scale (keys Q W E R)
+QVR_CVAR(vr_armourstudio_gizmo_size, "80", CVAR_ARCHIVE) // debug: pixels: that handle's size
 QVR_CVAR(vr_armourstudio_sag, "0", CVAR_NONE)          // debug: a beast's leather junction's middle dropped (units; 0 as made: not written)
 QVR_CVAR(vr_armourstudio_anim, "0", CVAR_NONE)        // debug: 1 its subject plays one of its model's animations (below), 0 it stands still
 QVR_CVAR(vr_armourstudio_anim_group, "0", CVAR_NONE)  // debug: the animation: its model's frames grouped by name (stand, run, pain...), by index

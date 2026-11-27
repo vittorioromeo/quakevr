@@ -52,7 +52,8 @@ constexpr int subjectKinds = 4;        // (QC's VR_AM_GRUNT .. VR_AM_DKNIGHT; th
 cvar_t* const fieldCvars[NumFields] = {&vr_armourstudio_offset_x, &vr_armourstudio_offset_y, &vr_armourstudio_offset_z,
     &vr_armourstudio_pitch, &vr_armourstudio_yaw, &vr_armourstudio_roll, &vr_armourstudio_scale, &vr_armourstudio_standoff,
     &vr_armourstudio_start, &vr_armourstudio_end, &vr_armourstudio_rows, &vr_armourstudio_taper_start, &vr_armourstudio_taper_end,
-    &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth, &vr_armourstudio_hero, &vr_armourstudio_sag};
+    &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth, &vr_armourstudio_hero, &vr_armourstudio_sag,
+    &vr_armourstudio_scale_x, &vr_armourstudio_scale_y, &vr_armourstudio_scale_z};
 
 // The subject's model's animations: its frames grouped by name ("stand1".."stand8": stand).
 constexpr int maxAnims = 64;
@@ -79,6 +80,8 @@ struct State
     int subjectTier{-1};
     int subjectWorn{-1};  // (the pieces it was given)
     char subjectMap[64]{}; // (the map it was put in: a new map, it is gone)
+    float placed[3]{};     // where it was put, and the way from you to it (flat): vr_armourstudio_subject_* move it from there
+    float placedFwd[2]{1.f, 0.f};
     float freezeWas{0.f};  // vr_agrunt_freeze before the studio
     int selKind{-1}, selPart{-1}, selSide{-1}, selGen{-1};
     float shown[NumFields]{};  // the cvars' values as last written or read
@@ -86,6 +89,8 @@ struct State
     int savedGen{-1};          // ... as saved or read
     int undoField{-1}, undoSel{-1};
     double undoAt{-1e9};
+    bool gizmoDrag{false};     // the window's handle dragged (gizmoEdit): one undo step for the drag,
+    bool gizmoPushed{false};   // ... pushed at its first change
     char statusText[256]{};
     char animText[160]{};
     bool playerShown{false}; // the player's kind shown last frame (playerArmour; its tier taken from yours as it first shows)
@@ -251,9 +256,11 @@ void syncFields()
             continue;
         }
         const int sel = (kind * NumParts + part) * NumSides + side;
-        if(!any && (f != st.undoField || sel != st.undoSel || realtime - st.undoAt > undoMerge))
+        // (a slider's run of steps on one value is one undo step; a drag of the window's handle is one step, its first change's)
+        if(!any && (st.gizmoDrag ? !st.gizmoPushed : (f != st.undoField || sel != st.undoSel || realtime - st.undoAt > undoMerge)))
         {
             pushUndo();
+            st.gizmoPushed = st.gizmoDrag;
         }
         st.undoField = f;
         st.undoSel = sel;
@@ -355,6 +362,25 @@ void spawnSubject()
     }
     st.subject = num;
     q_strlcpy(st.subjectMap, sv.name, sizeof(st.subjectMap));
+    if(num)
+    {
+        const progs::ServerVm vm;
+        const edict_t* e = progs::edictAt(num);
+        const edict_t* player = progs::playerEdict();
+        if(e && player)
+        {
+            float dx = e->v.origin[0] - player->v.origin[0], dy = e->v.origin[1] - player->v.origin[1];
+            const float len = za::sqrt(dx * dx + dy * dy);
+            dx = len > 1e-3f ? dx / len : 1.f;
+            dy = len > 1e-3f ? dy / len : 0.f;
+            st.placedFwd[0] = dx;
+            st.placedFwd[1] = dy;
+            for(int c = 0; c < 3; c++)
+            {
+                st.placed[c] = e->v.origin[c];
+            }
+        }
+    }
     Con_Printf(num ? "armourstudio: a %s ahead (entity %d)\n" : "armourstudio: no %s made (a map with you in it needed)\n", subjectLabel(kind), num);
 }
 
@@ -472,7 +498,8 @@ void keepSubject()
     bool sleeve = false;
     const int pieces = partValid(subjectNow(), st.selPart) ? piecesOf(st.selPart, st.selSide, sleeve) : 0; // (a part not on it: none outlined)
     const int tier = za::clamp(static_cast<int>(vr_armourstudio_tier.value), 1, 3);
-    const int worn = vr_armourstudio_alone.value ? piecesOf(st.selPart, SideBoth, sleeve) : agarmor::allPieces;
+    // (alone: that part's pieces exactly, a beast's cuirass without the rest of its cuirass group: his note 2026-11-27)
+    const int worn = vr_armourstudio_alone.value ? piecesOf(st.selPart, SideBoth, sleeve) | agarmor::exactPieces : agarmor::allPieces;
     if(st.subject && (tier != st.subjectTier || worn != st.subjectWorn))
     {
         const bool given = agarmor::give(st.subject, tier, worn);
@@ -486,9 +513,23 @@ void keepSubject()
         const edict_t* player = progs::playerEdict();
         if(e && player)
         {
+            // Its place: where it was put, moved by the Subject's position rows (away from you, to your left, up; a better
+            // look from another angle, his note 2026-11-27); never written to armour.txt.
+            const float fx = st.placedFwd[0], fy = st.placedFwd[1];
+            const float ax = vr_armourstudio_subject_x.value, ay = vr_armourstudio_subject_y.value, az = vr_armourstudio_subject_z.value;
+            const float want[3] = {st.placed[0] + fx * ax - fy * ay, st.placed[1] + fy * ax + fx * ay, st.placed[2] + az};
+            if(want[0] != e->v.origin[0] || want[1] != e->v.origin[1] || want[2] != e->v.origin[2])
+            {
+                for(int c = 0; c < 3; c++)
+                {
+                    e->v.origin[c] = want[c];
+                }
+                SV_LinkEdict(e, false);
+            }
             const float dx = player->v.origin[0] - e->v.origin[0], dy = player->v.origin[1] - e->v.origin[1];
             e->v.angles[1] = za::atan2(dy, dx) * (180.f / 3.14159265f) + vr_armourstudio_turn.value;
-            e->v.angles[0] = e->v.angles[2] = 0.f;
+            e->v.angles[0] = vr_armourstudio_subject_pitch.value; // (tipped and rolled: its tops and undersides in view)
+            e->v.angles[2] = vr_armourstudio_subject_roll.value;
             e->v.takedamage = DAMAGE_NO; // (its start, a few frames after its spawn, makes it take damage)
             playAnim(e);
         }
@@ -1023,9 +1064,28 @@ void beastTestFrame()
             bt.middle[c] = j.middle[c];
         }
         Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartCuirass));
-        bt.step = 2;
+        Cvar_SetValueQuick(&vr_armourstudio_alone, 1.f);
+        bt.step = 20;
         return;
     }
+    case 20: // the cuirass worn alone: that piece and no other of its cuirass group (his note 2026-11-27: the scrag's plates 8, 9)
+        if(!beastWait(st.selPart == PartCuirass && beastarmour::drawnCount() == 1, "timed out: the cuirass not worn alone (other pieces drawn)"))
+        {
+            return;
+        }
+        t.check(beastarmour::cuirassGroup(e) != 1 << agarmor::Cuirass, beastTestName,
+            "the rottweiler's cuirass group is the cuirass alone (the check proves nothing)");
+        Con_Printf("%s: worn alone: %d piece drawn (its cuirass group %d)\n", beastTestName, beastarmour::drawnCount(), beastarmour::cuirassGroup(e));
+        Cvar_SetValueQuick(&vr_armourstudio_alone, 0.f);
+        bt.step = 21;
+        return;
+    case 21:
+        if(!beastWait(beastarmour::drawnCount() >= 8, "timed out: every piece not worn again after wear-alone off"))
+        {
+            return;
+        }
+        bt.step = 2;
+        return;
     case 2: // the cuirass picked: moved forward 2
         if(!beastWait(st.selPart == PartCuirass, "timed out: the cuirass not picked"))
         {
@@ -1080,6 +1140,68 @@ void beastTestFrame()
         const float grewR = (hi3[0] - lo3[0]) / za::max(bt.hiR[0] - bt.loR[0], 1e-3f);
         t.check(za::abs(grewR - 1.25f) < 0.01f, beastTestName, "the right shoulder not scaled as the left");
         t.check(strstr(beastarmour::drawnModel(dog, agarmor::PauldronR), "#tweak") != nullptr, beastTestName, "the shoulder not drawn shaped");
+        Cvar_SetValueQuick(&vr_armourstudio_scale_x, 1.2f);
+        bt.step = 50;
+        return;
+    }
+    case 50: // the shoulders' size forward alone 1.2 more (scale_x): forward 1.5x, left and up 1.25x
+    {
+        const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
+        if(!beastWait(o && (o->has & (1u << ScaleX)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale_x not in the table"))
+        {
+            return;
+        }
+        float lo[3], hi[3];
+        (void)beastarmour::pieceExtent(dog, agarmor::PauldronL, lo, hi);
+        float grew[3];
+        for(int c = 0; c < 3; c++)
+        {
+            grew[c] = (hi[c] - lo[c]) / za::max(bt.hi[c] - bt.lo[c], 1e-3f);
+        }
+        Con_Printf("%s: the left shoulder with scale_x 1.2: %.3f %.3f %.3f\n", beastTestName, static_cast<double>(grew[0]), static_cast<double>(grew[1]),
+            static_cast<double>(grew[2]));
+        t.check(za::abs(grew[0] - 1.5f) < 0.02f && za::abs(grew[1] - 1.25f) < 0.02f && za::abs(grew[2] - 1.25f) < 0.02f, beastTestName,
+            "scale_x not the forward size alone (1.5, 1.25, 1.25)");
+        Cvar_SetValueQuick(&vr_armourstudio_scale_x, 1.f);
+        Cvar_SetValueQuick(&vr_armourstudio_scale, 1.f);
+        bt.step = 51;
+        return;
+    }
+    case 51: // both back to 1: drawn as the piece's own .mdl again (not its #tweak), its size as made
+    {
+        const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
+        const auto one = [&](int f) { return !o || !(o->has & (1u << static_cast<unsigned>(f))) || o->v[f] == 1.f; };
+        if(!beastWait(one(Scale) && one(ScaleX) && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale not back to 1"))
+        {
+            return;
+        }
+        float lo[3], hi[3];
+        (void)beastarmour::pieceExtent(dog, agarmor::PauldronL, lo, hi);
+        const float size = (hi[0] - lo[0]) / za::max(bt.hi[0] - bt.lo[0], 1e-3f);
+        Con_Printf("%s: scale back to 1: %.3fx, drawn as %s (the table's bits 0x%x: scale %g, scale_x %g, standoff %g, tapers %g %g)\n", beastTestName,
+            static_cast<double>(size), beastarmour::drawnModel(dog, agarmor::PauldronR), o ? o->has : 0u, o ? static_cast<double>(o->v[Scale]) : 0.0,
+            o ? static_cast<double>(o->v[ScaleX]) : 0.0, o ? static_cast<double>(o->v[Standoff]) : 0.0, o ? static_cast<double>(o->v[TaperStart]) : 0.0,
+            o ? static_cast<double>(o->v[TaperEnd]) : 0.0);
+        // (its own .mdl again unless another shape tweak keeps it made: his rottweiler's shoulders' taper_end 0.5 does)
+        Override r;
+        (void)resolveBeast(beastTestModel, agarmor::PauldronR, false, r);
+        const bool otherShape = ((r.has >> Standoff) & 1u && r.v[Standoff] != 0.f) || ((r.has >> TaperStart) & 1u && r.v[TaperStart] != 1.f) ||
+            ((r.has >> TaperEnd) & 1u && r.v[TaperEnd] != 1.f);
+        float axes[3];
+        t.check(za::abs(size - 1.f) < 0.005f && !scaleAxes(r, axes) &&
+                (strstr(beastarmour::drawnModel(dog, agarmor::PauldronR), "#tweak") == nullptr) == !otherShape,
+            beastTestName, "scale back to 1 not the piece as made (its own model unless another shape tweak)");
+        Cvar_SetValueQuick(&vr_armourstudio_scale, 1.25f); // (the read-back below wants it)
+        bt.step = 52;
+        return;
+    }
+    case 52:
+    {
+        const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
+        if(!beastWait(o && (o->has & (1u << Scale)) != 0u && o->v[Scale] == 1.25f, "timed out: the shoulders' scale not 1.25 again"))
+        {
+            return;
+        }
         Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartPauldronSleeve));
         Cvar_SetValueQuick(&vr_armourstudio_side, static_cast<float>(SideLeft));
         bt.step = 6;
@@ -1294,6 +1416,19 @@ void init()
     });
     st.savedGen = st.ownGen = generation();
     windowInit();
+    gizmoInit();
+}
+
+void gizmoEdit(bool on)
+{
+    st.gizmoDrag = on;
+    st.gizmoPushed = false;
+    st.undoField = -1; // (a row's edit after a drag is a step of its own)
+}
+
+int subjectShown()
+{
+    return st.subject > 0 ? st.subjectKind : -1;
 }
 
 int subjectCount()
@@ -1355,14 +1490,15 @@ bool fieldShown(int subject, int part, int field)
         // stand-off (thickness), folds, sag)
         return sleeve ? (field == Leather || field == TaperStart || field == TaperEnd || field == Standoff || field == Folds || field == FoldDepth ||
                             field == Sag)
-                      : (field <= Standoff || field == TaperStart || field == TaperEnd);
+                      : (field <= Standoff || field == TaperStart || field == TaperEnd || field >= ScaleX);
     }
     // (the plates' rows: not the helmet's or a sleeve's; the tapers: not the helmet's (a sleeve's leather tapers too); leather:
     // the sleeves' alone; hero plates: the parts that have them; sag: the beasts')
     const bool plates = part != PartHelmet && !sleeve;
     const bool heroPart = part == PartCuirass || part == PartPauldron || part == PartBracer || part == PartShin;
     return !(((field == Leather || field == Folds || field == FoldDepth) && !sleeve) || ((field == Start || field == End || field == Rows) && !plates) ||
-        ((field == TaperStart || field == TaperEnd) && part == PartHelmet) || (field == Hero && !heroPart) || field == Sag);
+        ((field == TaperStart || field == TaperEnd) && part == PartHelmet) || (field == Hero && !heroPart) || field == Sag ||
+        (field >= ScaleX && sleeve));
 }
 
 bool running()

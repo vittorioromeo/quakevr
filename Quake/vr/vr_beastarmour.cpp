@@ -158,6 +158,16 @@ int studioPartSel = -1; // (the Armour Studio's part: outline draws its pieces a
     return ((o.has >> static_cast<unsigned>(field)) & 1u) != 0u;
 }
 
+// Whether tweaks `o` change a piece's shape (drawn "#tweak"): only while a value differs from as made, so a slider put
+// back draws the piece's own .mdl again, exactly.
+[[nodiscard]] bool shapedBy(const Override& o)
+{
+    float axes[3];
+    return armourdata::scaleAxes(o, axes) || (has(o, armourdata::Standoff) && o.v[armourdata::Standoff] != 0.f) ||
+        (has(o, armourdata::TaperStart) && o.v[armourdata::TaperStart] != 1.f) ||
+        (has(o, armourdata::TaperEnd) && o.v[armourdata::TaperEnd] != 1.f);
+}
+
 // Whether piece or part `i` of `k` is armour.txt's `part` (or its junction the part's sleeve): its own part, else its slot's.
 [[nodiscard]] bool isPart(const Kind& k, int i, int part)
 {
@@ -280,9 +290,10 @@ Kind* kindOf(edict_t* ent)
         const float m = za::clamp(o.v[armourdata::TaperStart] + (o.v[armourdata::TaperEnd] - o.v[armourdata::TaperStart]) * t, 0.2f, 3.f);
         v = s.along * a + (v - s.along * a) * m;
     }
-    if(has(o, armourdata::Scale))
+    float axes[3];
+    if(armourdata::scaleAxes(o, axes))
     {
-        v *= za::clamp(o.v[armourdata::Scale], 0.2f, 3.f);
+        v *= glm::vec3{axes[0], axes[1], axes[2]}; // (scale, times scale_x / _y / _z along the model's axes)
     }
     return v;
 }
@@ -603,8 +614,7 @@ void refresh(Kind& k)
         Slot& s = k.slot[i];
         (void)armourdata::resolveBeast(k.model, i, false, s.tw);
         (void)armourdata::resolveBeast(k.model, i, true, s.jt);
-        s.shaped = has(s.tw, armourdata::Scale) || has(s.tw, armourdata::Standoff) || has(s.tw, armourdata::TaperStart) ||
-            has(s.tw, armourdata::TaperEnd);
+        s.shaped = shapedBy(s.tw);
         q_snprintf(s.drawn, sizeof(s.drawn), "%s%s", s.model, s.shaped ? tweakSuffix : "");
         shapeTris(s);
     }
@@ -621,8 +631,7 @@ void refresh(Kind& k)
             const int side = (s.owner - agarmor::PauldronL) % 2 == 0 ? armourdata::SideLeft : armourdata::SideRight;
             (void)armourdata::resolveBeastPart(k.model, s.tweakPart, side, false, s.tw);
             (void)armourdata::resolveBeastPart(k.model, s.tweakPart, side, true, s.jt);
-            s.shaped = has(s.tw, armourdata::Scale) || has(s.tw, armourdata::Standoff) || has(s.tw, armourdata::TaperStart) ||
-                has(s.tw, armourdata::TaperEnd);
+            s.shaped = shapedBy(s.tw);
         }
         q_snprintf(s.drawn, sizeof(s.drawn), "%s%s", s.model, s.shaped ? tweakSuffix : "");
         shapeTris(s);
@@ -1416,6 +1425,26 @@ int partPieces(int i, int part, int side)
         bits |= k.slot[s].on && sideOk && isPart(k, s, part) ? 1 << k.slot[s].owner : 0;
     }
     return bits;
+}
+
+bool partFrame(edict_t* ent, int pieces, glm::vec3& centre, glm::mat3& parent)
+{
+    const Kind* k = ready(ent);
+    for(int i = 0; k && i < k->numParts; i++)
+    {
+        const Slot& s = k->slot[i];
+        Placed pl;
+        if(!s.on || !((pieces >> s.owner) & 1) || !place(ent, s, pl))
+        {
+            continue;
+        }
+        // (placed: axes = the rig's turn x the tweaks' turn, the size k; the offset moves it by turn x k)
+        const glm::mat3 turn = agarmor::detail::tweakTurn(s.tw.v[armourdata::Pitch], s.tw.v[armourdata::Yaw], s.tw.v[armourdata::Roll]);
+        centre = pl.origin;
+        parent = pl.axes * glm::transpose(turn) * pl.scale;
+        return true;
+    }
+    return false;
 }
 
 void outline(edict_t* ent, int pieces, bool sleeve)
