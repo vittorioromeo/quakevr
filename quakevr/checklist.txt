@@ -20,7 +20,6 @@ Setup on the PC with the Quest plugged in (developer mode, USB allowed): pick In
 Installer with the Quest 3 plugged in, over an install already on it: run Setup and tick the Quest; it says how many files it copied (if adb cannot write straight into the app's folder, the log says it copies through /data/local/tmp instead) and the game starts with your saves and settings as before. {test:hub_start}
 With Dwell or Quoth in your Quake folder (not installed by Setup), a Quest install puts them on the headset and they show in its mod list. {test:hub_start}
 Quest install after Doom was opened before its WADs were copied: Setup copies everything else and names the folder the game made itself (quakevr/doom) instead of failing. {test:hub_start}
-Install the new Quest APK (Setup's Quest step or adb) and look in the headset's Library > Unknown Sources: the app is now listed as "Quake VR: Unleashed" (it still updates over the old install, saves kept). {test:hub_start}
 ## Setup options and updates
 Installer: the desktop also gets a "Quake VR Unleashed (Flat Screen)" shortcut (own checkbox on the options page, on by default; see the Start menu, desktop and an uninstall). {test:hub_start}
 Installer: install into a fresh folder with Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours. {test:hub_start}
@@ -49,34 +48,7 @@ Right after a map loads whose collision was built from scratch, crouch and lie d
 Flat-screen or VR: the hub's open grass and the cliff faces round the lake are simplified for cheaper collision: walk and look round the island's open ground and along the cliffs; the grass and cliffs should look as before, with no new spots where you snag on flat or gently sloped ground. {test:vrstart}
 Flat-screen or VR: On the hub, lie down and crawl around the south-west near the shore (around x -550, y 1000-1200): no invisible wall where there's nothing to bump into. {test:hub_start}
 
-[2. Quest Standalone]
-## Start-up and app
-Quest: run "adb logcat -s QuakeVR" while starting the game: each start-up step shows as it begins and ends, and a long step prints "still in <step>" every 2 seconds; vr_android_export startup.log copies the file out. {test:hub_start}
-On the Quest, start the game with your saved settings: it reaches vrstart without crashing and runs smoothly (an old config left at full resolution with OIT on is put back to the Standalone budget, said on the console); open and close the menu a few times. {test:vrstart}
-On the Quest, close the game from the headset menu while the first start is still compiling shaders, then start it again: no "GL safe mode" warning and the hub plays normally; then enter the hub three times (once with GL safe mode on: Debug > Startup) and open and close the system menu in it: no crash. {test:hub_start}
-On the Quest, close the game from the system menu (also after taking the headset off for a minute) and start it again at once: it reaches the hub every time, never stuck on the app loading screen. {test:hub_start}
-On the Quest, after running only part of an update (a new app with the old game data), the start says "The game data on the Quest is from Quake VR X; this app is Y" in the middle of the view; running Setup's Quest step again makes it go away. {test:hub_start}
-Quest standalone: from Select Campaign start each campaign in turn (Quake, the mission packs, Arcane Dimensions, Dwell, Quoth): each reaches its own start map (Quoth's and AD's, not Quake's), none is tagged missing or language data; run Setup's Quest install again with nothing new to copy: it finishes normally and every campaign stays playable. {test:hub_start}
-## Performance
-Quest (Standalone preset): a fight, explosions and torch-lit rooms run smoothly, and the loading panel shows on a first start while the shaders compile. {test:hub_start}
-Quest: in a big close fight the picture may soften a little (down to 0.55) and holds its frame rate; after the fight it sharpens back within seconds; walking about e1m1 it never softens. {test:agrunts_fight}
-Quest: after a fight, gibs and limbs far from you thin out after a few seconds; near ones stay. {test:rag_gib}
-On the Quest, from Standalone pick "Quake (off)", then Low, then Medium on the Graphics Presets page mid-game: the frame rate stays playable, the menu stays usable, and Standalone can be picked again. {test:hub_start}
-## Standalone look
-Quest (Standalone preset): picking it again turns Retro Textures and Retro Lighting off (turn them on by hand for the retro look; it costs frame time in fights). {test:quest_gibfight}
-Quest (Standalone preset): your hands, held gun, holsters and body read well without surface bumps and shine (Plain Own Models); gibs near a lit rocket or the flashlight still look lit. {test:rag_gib}
-Quest (Standalone preset): cut a group of grunts apart up close: the walls and floor under the blood marks keep their light (no change when the first mark lands) and the frame rate holds. {test:quest_gibfight}
-Quest standalone (Standalone preset): in the tutorial's dark course take the flashlight and point it down the corridor and at the far walls; the beam should light whatever it lands on, not just the first part of the room near the door. {test:quest_darkroom}
-Quest: music from Ogg files plays (start map and each episode's soundtrack, copied by Setup) and loops at the end. {test:hub_start}
-On the Quest 3 (Standalone), fight in e1m1's first room and look at the floor's and walls' dark gradients: no banding and no fixed noise pattern in the lens, as before (the dither is now drawn by the scene itself). {test:quest_gibfight}
-On the Quest 3 (Standalone), start bullet time in a fight: the world still turns grey and tinted with darkened edges, and the comfort vignette still shows when you move with the stick. {test:quest_gibfight}
-## Foveation
-Quest: VR Settings > Scaling lists Quest Foveation and Quest Foveation: Dynamic (Foveated Rendering is dimmed on the Quest; on PC the other way round). {test:hub_start}
-Quest standalone (Standalone graphics set Quest Foveation High): in a close fight and walking a level, look at the bottom third and outer edge of each eye for blocky floor, weapons or hands (set Low in VR Settings if it shows); the picture stays sharp and the frame rate holds; switch High, Off, Low and Medium mid-game, also with the menu open: no crash, no black or stretched eye, the right picture after each switch. {test:quest_gibfight}
-Quest standalone: Debug > Show Foveation on, with Quest Foveation at High: the eyes' edges should show yellow (half resolution) and red (quarter) zones round a clear centre; at Low only the far corners. On the PC, Show Foveation "Quest Pattern" shows the same zones. {test:quest_foveation}
-On the Quest, switch Quest Foveation from High to Off and back a few times mid-game, then quit and start again with Off saved: no crash, the game reaches vrstart and plays. {test:hub_start}
-
-[3. Flat screen]
+[2. Flat screen]
 ## Grab, hold and push
 Flat-screen: grab a crate with H and back away from it (or let a held ragdoll fall behind): the drawn hands stay on the wrists at full stretch until the hold lets go, never floating off the arms. {test:flat_grab_pull}
 ## Spear and Crystal Lance
@@ -91,12 +63,12 @@ Flat-screen: hold a sword, a dagger, an axe or the crowbar, upright and flipped 
 Flat-screen: hold the throw key with an axe, a sword, a carried box or the quick grenade: the crosshair moves to where the throw will land (it rises as the throw charges) and the thing lands there when you let go. {test:flat_throw_cancel}
 ## Throwing and catching
 
-[4. Tutorial and VR interface]
+[3. Tutorial and VR interface]
 ## Menus and settings
 ## Tutorial
 Flat-screen or VR: climb the tutorial's lesson 3 ladder: each hand closes round its round rung (the rung through the fist, the fingers over its top) instead of sitting on top of it; square rungs elsewhere (vrtesthall's) are still held like ledges. Hand Round Thin Rungs (Climbing settings, Hand on a Hold) switches it off. {test:tutorial_ladder}
 
-[5. Weapons and holsters]
+[4. Weapons and holsters]
 ## Holsters and the flashlight
 Reach for the belt flashlight quickly and grip as your hand passes it, without stopping: it comes into your hand at once, like a holstered gun. {test:start_shotgun}
 Close your hand on the way to the belt flashlight and arrive with it already closed: it does not take the torch; open and press the grip at it and it comes at once, moving or not. {test:start_shotgun}
@@ -117,7 +89,7 @@ Stab a grunt with the bayonet shotgun so it sticks, keep your hand on it, and br
 ## Thrown weapons and the hook
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
 
-[6. Ropes and chains]
+[5. Ropes and chains]
 ## Climbing
 Climb a rope, a chain and a pole hand over hand: no grunt on any pull. {test:ropes}
 ## Two players
@@ -125,7 +97,7 @@ Flat-screen or VR: in a two-player game in the ropes hall both climb the same up
 Flat-screen or VR: in multiplayer watch another player climb a rope, hang on it and swing it hard: his hands grip it and move up hand over hand, his body hangs close under his hands, his feet stay wrapped round it. {test:ropes}
 Flat-screen or VR: in a two-player game one goes along the level strung rope hand over hand while the other watches: the hands stay on the rope, the legs hang. {test:ropes}
 
-[7. Armed humanoids, ragdolls and physics]
+[6. Armed humanoids, ragdolls and physics]
 ## Ragdolls and props
 Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg still on top) pulls itself up instead of falling. {test:ogre_hall}
 ## Armed humanoids
@@ -133,7 +105,7 @@ Pose Studio on the spear holders: a frozen armed enforcer, knight and death knig
 ## Lifts
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
 
-[8. Quoth]
+[7. Quoth]
 ## Setup and maps
 Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason. {test:hub_start}
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:quoth_ne_marb}
@@ -143,11 +115,11 @@ Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminat
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:quoth_lpqsp1}
 Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere. {test:quoth_metmon}
 
-[9. Arcane Dimensions]
+[8. Arcane Dimensions]
 ## Monsters
 In an Arcane Dimensions map with crossbow knights: they are AD's own crossbow knights, while the other AD soldier variants are still armed humanoids. {test:humrepl_variants}
 
-[10. Survival Arena (Select Campaign > Arena Mode)]
+[9. Survival Arena (Select Campaign > Arena Mode)]
 ## Waves and weapons
 Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}
 Survival Arena from wave 6 (Normal): grunts and enforcers bring the heavy revolver, burst rifle, laser rifle, the knights' swords, chainsaw, Mjolnir and the Super Axe, each first on one foe at its wave; their drops are yours to fire. {test:arena_newguns}
@@ -163,7 +135,7 @@ Survival Arena budget director (on by default: Combat > Survival Arena > Budget 
 ## Wave editor
 Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler, save it, assign it to Normal and play from wave 1: the panel is readable, laser, stick scrolling and panel keys work. {test:vrarena_calm}
 
-[11. Multiplayer and bots]
+[10. Multiplayer and bots]
 ## Hosting and joining
 Host and join a coop game over the room service and play a level together: voice, held weapons and melee look right on both sides. {test:mp_coop_bot}
 Host Game says whether your port 26000 is reachable (and shows the net HUD while hosting); forward UDP 26000 on your router and host again: it reads reachable. {test:mp_coop_bot}
@@ -209,7 +181,7 @@ Debug > Reports > Network: Drawn Near Me (vr_mp_near) in mp_local.ps1's client l
 Debug > Show Disarm Volumes in a deathmatch with a bot and another player (host, then join): orange outlines along each one's held weapon (the grab), magenta on it and cyan on the hand (shots), none on your own. {test:mp_dm_disarmviz}
 Flat-screen or VR: Debug > Show Hit Zones in a deathmatch with a bot and another player (host, then join): a red sphere on each head, green torso, yellow arms and blue legs, following and turning with them; none on you. {test:mp_dm_hitzones}
 
-[12. Recording and dev tools]
+[11. Recording and dev tools]
 ## Takes
 Takes: with OBS running, press TAKE on the wrist gadget, act, press STOP: a small blinking red light in the headset only, then the rating prompt; KEEP renames OBS's file to <date>_<scene>_t01_keep, REJECT moves it to rejected/. Left grip + X then Y marks in and out (vr_take_list); SET UP, knock props about, RETAKE: the scene comes back and a new take starts. {test:takes}
 Takes, Clip That: in a take session press CLIP (or F8): OBS's folder gets a <date>_<scene>_tNN_clip file of the last seconds, rated like a take. Flat-screen: F7 starts and stops a take (a REC line top right), keypad 1 / 2 / 3 rate it, F8 clips, Home / PgUp mark in and out. {test:takes}
