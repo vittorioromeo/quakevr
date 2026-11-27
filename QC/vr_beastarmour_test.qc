@@ -605,8 +605,9 @@ void(float req) VR_DLT_Frame =
 // `vr_agarmor_test 22` (armourhits; ROUND26.md): time to kill. Each of a rottweiler, an ogre, a scrag, a fiend, an armed
 // grunt and an armed knight stands still ahead (its own health), bare, then in each skill's armour (Normal, Hard,
 // Nightmare: the skill's best type and its count of pieces, the cuirass, the helmet, then the limb plates in order), and
-// is shot from 128 units until it dies: the shotgun (6 pellets, a shot each 0.5 s), the super shotgun (14, 0.7 s), the
-// nailgun (a nail each 0.1 s), aimed over the middle of its body (the same points each run), Plate Blocks All as set.
+// is shot from 128 units until it has taken its own health (one body a target, kept alive past it): the shotgun (6
+// pellets, a shot each 0.5 s), the super shotgun (14, 0.7 s), the nailgun (a nail each 0.1 s), aimed over the middle of
+// its body (the same points each run), Plate Blocks All as set (the default).
 // Each run twice; the shots and seconds printed, and each beast's armoured / bare ratio checked against the humanoids'
 // (the mean of the grunt's and the knight's) for the same weapon and skill: within VR_TTK_LO..VR_TTK_HI of it, the three
 // weapons together. Ends on "armour ttk test: N passed, M failed".
@@ -619,6 +620,7 @@ float vr_ttk_aim;     // the aim's sequence (each run from 0)
 float vr_ttk_until;   // give up on the run
 float vr_ttk_nail_until;
 float vr_ttk_frame0;
+float vr_ttk_own;     // its own health
 float vr_ttk_god;
 vector vr_ttk_org, vr_ttk_ang;
 entity vr_ttk_e, vr_ttk_nail;
@@ -702,7 +704,7 @@ void(entity p) VR_TTK_Fire =
     self = p;
     if(w == 2)
     {
-        vr_ttk_nail = launch_spike(src, dir);
+        vr_ttk_nail = launch_spike(aim - dir * 48, dir); // (on the same line, near: a frame or two in flight)
         vr_ttk_nail_until = time + 0.5;
     }
     else
@@ -802,12 +804,21 @@ void(float req) VR_TTK_Frame =
         {
             return; // (walkmonster_start_go not run yet)
         }
-        float st = floor(vr_ttk_run / 3) - floor(vr_ttk_run / 12) * 4;
-        VR_AgArmor_Give(vr_ttk_e, VR_TTK_Type(st), st > 0 ? VR_TTK_Mask(st) : 0);
+        vr_ttk_own = vr_ttk_e.health;
         vr_ttk_org = vr_ttk_e.origin;
         vr_ttk_ang = vr_ttk_e.angles;
         vr_ttk_frame0 = floor(vr_ttk_run / 12) == 0 ? 69 : 0; // (VR_BAT_FrameA: standing)
-        VR_TTK_Hold(vr_ttk_e);
+        vr_ttk_step = 3;
+    }
+    entity e = vr_ttk_e;
+    if(vr_ttk_step == 3)
+    {
+        // A run on the same body: dressed for its state, a health far past its own (it never dies: no corpse, no new
+        // spawn), its own health's worth of damage taken counted as the kill.
+        float st = floor(vr_ttk_run / 3) - floor(vr_ttk_run / 12) * 4;
+        VR_AgArmor_Give(e, VR_TTK_Type(st), st > 0 ? VR_TTK_Mask(st) : 0);
+        e.health = vr_ttk_own + 100000;
+        VR_TTK_Hold(e);
         vr_ttk_shots = 0;
         vr_ttk_aim = 0;
         vr_ttk_nail = world;
@@ -815,18 +826,14 @@ void(float req) VR_TTK_Frame =
         vr_ttk_until = time + 120;
         return;
     }
-    // vr_ttk_step 2: a shot a frame (a nail: once it is gone), until it dies.
-    entity e = vr_ttk_e;
-    float dead = e.health <= 0 || e.modelindex == 0;
-    if(!dead)
-    {
-        VR_TTK_Hold(e); // (every frame: a hit's flinch never carries it out of the next nail's way)
-    }
+    // vr_ttk_step 2: a shot a frame (a nail: once it is gone), until its own health's worth is taken.
+    VR_TTK_Hold(e); // (every frame: a hit's flinch never carries it out of the next nail's way)
     if(vr_ttk_nail != world && vr_ttk_nail.modelindex != 0 && vr_ttk_nail.classname == "spike" && time < vr_ttk_nail_until)
     {
         return;
     }
     vr_ttk_nail = world;
+    float dead = vr_ttk_own + 100000 - e.health >= vr_ttk_own || e.modelindex == 0;
     if(!dead && vr_ttk_shots < VR_TTK_MAXSHOTS && time < vr_ttk_until)
     {
         VR_TTK_Fire(p);
@@ -834,25 +841,31 @@ void(float req) VR_TTK_Frame =
     }
     if(!dead)
     {
-        VR_Test_Check(FALSE, sprintf("%s, %s, %s: not dead after %g shots (health %g; timed out)", VR_TTK_Name(floor(vr_ttk_run / 12)),
+        VR_Test_Check(FALSE, sprintf("%s, %s, %s: not killed after %g shots (took %g of %g; timed out)", VR_TTK_Name(floor(vr_ttk_run / 12)),
             VR_TTK_State(floor(vr_ttk_run / 3) - floor(vr_ttk_run / 12) * 4), VR_TTK_Weapon(vr_ttk_run - floor(vr_ttk_run / 3) * 3),
-            vr_ttk_shots, e.health));
+            vr_ttk_shots, vr_ttk_own + 100000 - e.health, vr_ttk_own));
     }
     vr_ttk_res[vr_ttk_run] = vr_ttk_res[vr_ttk_run] + vr_ttk_shots;
+    vr_ttk_run = vr_ttk_run + 1;
+    vr_ttk_step = 3;
+    if(vr_ttk_run - floor(vr_ttk_run / 12) * 12 != 0)
+    {
+        return; // (this body's next run)
+    }
+    vr_ttk_trial = vr_ttk_trial + 1;
+    if(vr_ttk_trial < VR_TTK_TRIALS)
+    {
+        vr_ttk_run = vr_ttk_run - 12; // (its runs again)
+        return;
+    }
+    vr_ttk_trial = 0;
     if(e.modelindex != 0)
     {
         remove(e);
     }
     vr_ttk_e = world;
     vr_ttk_step = 0;
-    vr_ttk_run = vr_ttk_run + 1;
     if(vr_ttk_run < VR_TTK_TARGETS * 12)
-    {
-        return;
-    }
-    vr_ttk_run = 0;
-    vr_ttk_trial = vr_ttk_trial + 1;
-    if(vr_ttk_trial < VR_TTK_TRIALS)
     {
         return;
     }
