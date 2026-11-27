@@ -377,7 +377,8 @@ kind "progs/wizard.mdl"
         scale "0.772"
         standoff "0"
         taper_start "1.12"
-        scale_z "1.18369"
+        scale_y "1.13246"
+        scale_z "1.26525"
     }
     helmet
     {
@@ -389,6 +390,7 @@ kind "progs/wizard.mdl"
         offset "0 0.185912 1.14676"
         rotate "0 0 -9.20863"
         scale "0.837"
+        scale_z "1.3488"
     }
     pauldron_r
     {
@@ -415,19 +417,14 @@ kind "progs/wizard.mdl"
     }
     plate8
     {
-        offset "-0.054454 -2.3302 0.064573"
+        offset "0.510862 -0.442659 0.957597"
+        rotate "0 5.81991 0"
         scale "0.858"
         standoff "0.05"
-        taper_start "0.674"
-        taper_end "1.201"
-    }
-    plate8_back
-    {
-        offset "-0.054454 -2.3302 0.064573"
-        scale "0.858"
-        standoff "0.05"
-        taper_start "0.674"
-        taper_end "1.201"
+        taper_start "0.745"
+        taper_end "1.119"
+        scale_x "1.071"
+        scale_y "1.08876"
     }
     plate9
     {
@@ -437,10 +434,23 @@ kind "progs/wizard.mdl"
     }
     tail
     {
-        scale "0.799"
-        standoff "0.6"
-        taper_start "0.995"
+        offset "0.98 0.008732 -1.24"
+        rotate "-7.7 0 0"
+        scale "0.913"
+        standoff "0.26"
+        taper_start "0.952"
         taper_end "0.967"
+        scale_x "1.087"
+        scale_y "1"
+        scale_z "1.005"
+    }
+    plate8_back
+    {
+        offset "-2.21 -2.3302 0.064573"
+        scale "0.858"
+        standoff "0.05"
+        taper_start "0.674"
+        taper_end "1.201"
     }
 }
 
@@ -499,12 +509,12 @@ kind "progs/ogre.mdl"
 {
     cuirass
     {
-        offset "-1.08827 1.88159 -4.69437"
+        offset "-1.03959 1.70739 -3.00309"
         rotate "2.0993 -4.4319 5.73315"
         scale "0.929"
         taper_start "0.859"
         scale_y "1.09328"
-        scale_z "0.971887"
+        scale_z "0.854265"
     }
     helmet
     {
@@ -524,10 +534,16 @@ kind "progs/ogre.mdl"
         rotate "0 0 8.73472"
         scale "0.891"
     }
+    bracer_l
+    {
+        offset "-1.80072 1.86124 -0.650012"
+        rotate "-11.3415 -1.76593 8.91009"
+    }
     bracer_r
     {
-        offset "3.96089 0.935639 -2.73927"
-        rotate "-32.5157 -3.83496 -4.0755"
+        offset "4.09017 2.29139 -2.4493"
+        rotate "-32.5157 -3.83496 6.84535"
+        scale "0.826"
     }
     thigh
     {
@@ -545,6 +561,15 @@ kind "progs/ogre.mdl"
     {
         scale "0.832"
     }
+    shin_l
+    {
+        offset "0.146046 0.657742 -1.057"
+        rotate "-3.08195 0.253426 -9.17474"
+    }
+    shin_r
+    {
+        offset "-0.073816 0.187265 0.137881"
+    }
     helmet_sleeve
     {
         leather "0"
@@ -559,6 +584,8 @@ kind "progs/ogre.mdl"
     }
     plate9
     {
-        scale "0.908"
+        offset "-0.058179 -0.057642 0.142054"
+        rotate "-3.69556 0.222952 -3.83045"
+        scale "0.924"
     }
 }
