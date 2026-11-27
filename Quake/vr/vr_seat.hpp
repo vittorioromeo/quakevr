@@ -110,6 +110,7 @@ enum class Part
     // split18: fixes from his splitscreen test.
     Flashlight,    // vr_flashlight.cpp: the seat's torch (state, visible beam, cord), switched by its own key
     NailSlide,     // vr_nailslide.cpp: the slides of the nail pistols in the seat's own hands
+    DrawBlend,     // vr_drawblend.cpp: the seat's hands' and holsters' draws eased, the guns its hands caught
     Count
 };
 

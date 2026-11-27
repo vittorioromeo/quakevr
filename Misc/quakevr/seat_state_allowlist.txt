@@ -1650,9 +1650,6 @@ Quake/vr/vr_doom.cpp|picture
 Quake/vr/vr_doom.cpp|screen
 Quake/vr/vr_doom.cpp|session
 Quake/vr/vr_doom.cpp|sounds
-Quake/vr/vr_drawblend.cpp|catches
-Quake/vr/vr_drawblend.cpp|handStates
-Quake/vr/vr_drawblend.cpp|holsterStates
 Quake/vr/vr_drips.cpp|bleeders
 Quake/vr/vr_drips.cpp|counters
 Quake/vr/vr_drips.cpp|cursor
@@ -2554,7 +2551,6 @@ Quake/vr/vr_muzzlewisps.cpp|hands
 Quake/vr/vr_muzzlewisps.cpp|lastTime
 Quake/vr/vr_muzzlewisps.cpp|lightCache
 Quake/vr/vr_muzzlewisps.cpp|scratch
-Quake/vr/vr_nailslide.cpp|hands
 Quake/vr/vr_nailslide.cpp|measured
 Quake/vr/vr_nav.cpp|brushSite
 Quake/vr/vr_nav.cpp|crowdDump

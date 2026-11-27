@@ -41,5 +41,20 @@ if [ -z "$V" ]; then F=$((F + 1)); echo "seat_render_test: FAIL torches: no verd
     P=$((P + $(echo "$V" | sed 's/.*: \([0-9]*\) passed.*/\1/')))
     F=$((F + $(echo "$V" | sed 's/.* \([0-9]*\) failed.*/\1/')))
 fi
+# split18: 2 seats at 144 frames a second (the test sets it): a grunt and its ragdoll drawn alike in both passes, no pose
+# flicker (anim); the same nail pistol in both seats' main hands, then in different hands, seat 1 firing (guns).
+for MODE in anim guns; do
+    LOG=$S/seat_render_test_$MODE.log
+    bash $KIT/run.sh $AGENT -Sound -ExtraArgs "-flatscreenmode" -QuitOn "seat_render_test: [0-9]+ passed" -Timeout 240 -Clean \
+        -Out "$SHOTS/${PREFIX}_$MODE.png" \
+        -Filter "^seat_render_test|^seat [0-9]|seat_join|Host_Error|SV_Error|Sys_Error|ENGINE CRASH" \
+        -Script "volume 0; bgmvolume 0; deathmatch 0; coop 1; maxplayers 4; vr_seat_render_test 2 $MODE; map e1m1" > "$LOG" 2>&1
+    echo "== 2 seats, $MODE"
+    grep -a "seat_render_test\|Host_Error\|SV_Error\|Sys_Error\|ENGINE CRASH" "$LOG"
+    V=$(grep -a "seat_render_test: [0-9]* passed" "$LOG" | tail -1)
+    if [ -z "$V" ]; then F=$((F + 1)); echo "seat_render_test: FAIL $MODE: no verdict (see $LOG)"; continue; fi
+    P=$((P + $(echo "$V" | sed 's/.*: \([0-9]*\) passed.*/\1/')))
+    F=$((F + $(echo "$V" | sed 's/.* \([0-9]*\) failed.*/\1/')))
+done
 echo "seat_render_test.sh: $P passed, $F failed"
 [ $F -eq 0 ]

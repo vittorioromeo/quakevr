@@ -19,6 +19,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_geom.hpp"
+#include "vr_seat.hpp"
 #include "vr_view.hpp"
 #include "vr_view_internal.hpp"
 
@@ -88,7 +89,6 @@ struct Catch
     Pose from; // where the weapon was drawn, flying
     double at{-1e9};
 };
-Catch catches[2];
 
 // Starts `b`: from `from` (a world pose) to `to` (this frame's), over `time` seconds.
 void start(Blend& b, const Pose& from, const Pose& to, float time)
@@ -153,8 +153,20 @@ struct HolsterState
     Blend blend;
 };
 
-HandState handStates[2];
-HolsterState holsterStates[body::HolsterCount];
+
+// split18: each seat's (seat::Part::DrawBlend): its hands' and holsters' draws, the guns its hands caught. One set had a
+// seat with no gun in a hand restart the other seat's draw into that hand every frame, from its own holster: the gun
+// drawn far from the hand holding it (at the other player), out of its own view
+struct SeatBlends
+{
+    Catch catches[2];
+    HandState handStates[2];
+    HolsterState holsterStates[body::HolsterCount];
+};
+[[nodiscard]] SeatBlends& blends()
+{
+    return seat::part<SeatBlends>(seat::current(), seat::Part::DrawBlend);
+}
 
 [[nodiscard]] bool sameGun(const qmodel_t* a, const qmodel_t* b)
 {
@@ -181,7 +193,7 @@ HolsterState holsterStates[body::HolsterCount];
 [[nodiscard]] const Pose* passedFrom(int hand, const qmodel_t* model)
 {
     const int other = hand == HAND_MAIN ? HAND_OFF : HAND_MAIN;
-    const HandState& o = handStates[other];
+    const HandState& o = blends().handStates[other];
     if(o.lostAt == vr_gametime && sameGun(o.lost, model))
     {
         return &o.lostPose;
@@ -194,7 +206,7 @@ HolsterState holsterStates[body::HolsterCount];
 
 void hand(const hands::State& s, int hand, entity_t& e, bool gun)
 {
-    HandState& st = handStates[hand];
+    HandState& st = blends().handStates[hand];
     const qmodel_t* const model = gun ? e.model : nullptr;
     if(const int h = holsterAt(s, hand); h >= 0)
     {
@@ -232,7 +244,7 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
         if(model && !passed && recent >= 0 && time > 0.f)
         {
             // Taken from the holster the hand is at, which showed this gun a moment ago.
-            const HolsterState& from = holsterStates[recent];
+            const HolsterState& from = blends().holsterStates[recent];
             if(sameGun(from.model, model) && vr_gametime - from.shownAt <= pairing)
             {
                 start(st.blend, from.drawn, poseOf(e), time);
@@ -243,7 +255,7 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
 
     // Caught from a force grab (the catch and the gun's stats come in the same update, either first): eased in from
     // where the weapon flew.
-    Catch& c = catches[hand];
+    Catch& c = blends().catches[hand];
     if(c.on && za::fabs(vr_gametime - c.at) > pairing)
     {
         c.on = false;
@@ -280,7 +292,7 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
 void holster(const hands::State& s, int holster, entity_t* e, bool live)
 {
     (void)s;
-    HolsterState& st = holsterStates[holster];
+    HolsterState& st = blends().holsterStates[holster];
     const qmodel_t* const model = live && e ? e->model : nullptr;
     if(model != st.model)
     {
@@ -294,7 +306,7 @@ void holster(const hands::State& s, int holster, entity_t* e, bool live)
     const bool quickSlots = vr_holster_mode.value != 0.f;
     for(int hand = 0; hand < 2 && model && time > 0.f && !st.blend.on; hand++)
     {
-        HandState& h = handStates[hand];
+        HandState& h = blends().handStates[hand];
         if(h.lostHolster == holster && sameGun(h.lost, model) && vr_gametime - h.lostAt <= pairing &&
             (quickSlots || vr_gametime - st.changedAt <= pairing))
         {
@@ -337,7 +349,7 @@ void parseCatch()
 
     // Where this client drew it last (its interpolated pose; still there: its removal comes with this update), else
     // where the server had it.
-    Catch& c = catches[hand];
+    Catch& c = blends().catches[hand];
     const bool drawn = ent > 0 && ent < cl.num_entities && cl_entities[ent].model &&
                        glm::distance(glm::vec3{cl_entities[ent].origin[0], cl_entities[ent].origin[1], cl_entities[ent].origin[2]},
                            geom::vec(origin)) < 48.f;
@@ -348,17 +360,9 @@ void parseCatch()
 
 void reset()
 {
-    for(Catch& c : catches)
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: split18)
     {
-        c = Catch{};
-    }
-    for(HandState& h : handStates)
-    {
-        h = HandState{};
-    }
-    for(HolsterState& h : holsterStates)
-    {
-        h = HolsterState{};
+        seat::part<SeatBlends>(seat::at(i), seat::Part::DrawBlend) = SeatBlends{};
     }
 }
 

@@ -21,6 +21,7 @@
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
 #include "vr_engine.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_mpavatar.hpp"
@@ -57,6 +58,8 @@ enum class Step
     AnimOneNear, // seat 2 turned away: seat 1 draws the ragdoll (never the standing pose) each frame
     GunsSame,   // split18 (guns): both seats a nail pistol in the main hand; seat 1 fires: seat 2's gun never animates
     GunsApart,  // seat 2's nail pistol in its off hand: each seat's drawn in its own hand every frame, seat 1 firing
+    TorchOne,   // split18 (guns): seat 2 switches its flashlight on: its own lit, seat 1's still off
+    TorchBoth,  // seat 1 switches its own on too: both lit, each at its own player
     WaitBooted, // every seat's visor powered on (its boot sweep), then the screenshot
     WaitShot,   // the screenshot taken (the frame after its command)
     FlashBase,  // split11: no seat under water; each seat's picture read (its probe grid), then every flash on every seat
@@ -145,6 +148,7 @@ constexpr int handFramesWanted = 8; // split13: drawn frames read in Step::Hands
 constexpr int gunSettleFrames = 72;  // split18: frames after the guns are given before they are read (in the hands, raised)
 constexpr int gunFramesWanted = 48;  // ... drawn frames read in each guns step (seat 1 firing from the first)
 constexpr float gunHandReach = 32.f; // units: a held gun's model origin from its hand's (the bug: left where it was)
+constexpr float torchReach = 48.f;   // units: a lit flashlight's lens from its player's origin (worn on the head in flat play)
 // units: another seat's avatar hand from that seat's drawn hand (the networked hand as any client draws it: the empty off
 // hand 5-6 units off, the gun hand 1-2; split12's bug drew it at the viewing seat's own hand, ~100 units off here)
 constexpr float avatarHandTolerance = 8.f;
@@ -1232,6 +1236,41 @@ void testFrame()
                 return;
             }
             checkGuns("other hands");
+            Cbuf_AddText("seat 2 vr_flashlight_toggle\n"); // (seat 2's F / d-pad right: its torch alone lit)
+            go(Step::TorchOne);
+            return;
+        }
+        case Step::TorchOne:
+        case Step::TorchBoth:
+        {
+            if(!drawnSince(drawsWanted))
+            {
+                return;
+            }
+            const bool both = t.step == Step::TorchBoth;
+            bool lit[2] = {};
+            float off[2] = {};
+            for(int s = 0; s < 2; s++)
+            {
+                const Scope in(at(s));
+                glm::vec3 lens{0.f}, dir{0.f};
+                float range = 0.f, cosOuter = 0.f;
+                vec3_t org{};
+                lit[s] = flashlight::beamNow(lens, dir, range, cosOuter);
+                off[s] = lit[s] && playerOrigin(s, org) ? glm::distance(lens, glm::vec3{org[0], org[1], org[2]}) : -1.f;
+            }
+            const bool near = (!lit[0] || (off[0] >= 0.f && off[0] < torchReach)) && (!lit[1] || (off[1] >= 0.f && off[1] < torchReach));
+            check(lit[0] == both && lit[1] && near,
+                va("%s: seat 1's torch %s, seat 2's lit, each at its own player (%d %d; %.0f %.0f units)",
+                    both ? "seat 1 switched on too" : "seat 2 switched its flashlight on", both ? "lit" : "still off",
+                    lit[0] ? 1 : 0, lit[1] ? 1 : 0, static_cast<double>(off[0]), static_cast<double>(off[1])));
+            if(!both)
+            {
+                Cbuf_AddText("seat 1 vr_flashlight_toggle\n");
+                go(Step::TorchBoth);
+                return;
+            }
+            // (both left lit: the flash steps compare each tile with its picture before, lit alike)
             go(Step::WaitBooted);
             return;
         }
