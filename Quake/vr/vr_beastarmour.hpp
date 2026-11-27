@@ -41,8 +41,9 @@ void plateWhere(struct edict_s* ent, int slot, int what, float* out);
 // shapes drawn as "<piece model>#tweak") and one for its leather junctions ("<model>#bridge", its bones the pieces').
 void beginRelink();
 void relinkEntity(struct entity_s* e, int num, int type, int pieces, int wear);
-// How many pieces' entities were drawn this frame, and junctions' entities (the tests).
-[[nodiscard]] int drawnCount();
+// How many pieces were drawn this frame (`parts`: every entity, a slot's parts on other bones too), and junctions'
+// entities (the tests).
+[[nodiscard]] int drawnCount(bool parts = false);
 [[nodiscard]] int leatherDrawn();
 // A junctions' entity's bones (VR_AliasBonePoses through agarmor::bonePoses; 0 not one), and the models made here
 // ("#tweak", "#bridge"; through agarmor::makeModel).

@@ -3270,6 +3270,49 @@ these enemies also dynamically change size (grow/shrink) as animations play".
   `bl_ingame_after.png` (tests 18, 19). Tool: `scratch/bl_beast.py <kind> <out.png|-> <frames> [--pen [--allpen]]`.
 - **Open:** pauldron/chest overlap at the shoulders in the ogre's big swings (a chest-riding pauldron would trade it for
   the arm's flesh); his review of the look (Armour Studio tweaks go on the tables).
+
+## beastplates: the ogre's and the scrag's armour as faceted plates (branch agent/beastplates, 2026-11-27)
+
+His words: the armoured ogres/scrags "still look a bit weird ... mostly ring-shaped plates that surround their bodies"; like the
+grunts'/knights' armour, "geometrical plates made out of smaller trapezoid-shaped plates" (his two mockups).
+- **Look** (`make_beastarmour.py`, facet kinds; rottweiler and fiend bit for bit as before): every plate a flat trapezoid on ONE
+  tile of make_agarmor.py's atlas (its bevel, trim, corner rivets and the dark under-layer at its top are the tile's paint),
+  built as vr_agarmor.cpp addPlate's slab: a face inset by its bevel, the bevel round it, its sides on the atlas's rim (the dark
+  gaps), its inside on the padding. Rows are shingled (each row's top, thin, under the row above, whose lower edge stands proud
+  and laps over it), with a gap between a row's plates. A piece is shapes: `band` (rows along its bone round it, per-row plate
+  counts and widths, a ridge on the line it faces, a flared top edge, a span turned) or `dome` (a flat cap over a pole and
+  rings round it); laid over beastlook's measured envelope (symmetric pairs and middles, the engine's labels, rest-pose
+  correction, every played frame), each corner raised so its flat face clears the flesh under it (the chord).
+  Ogre: breastplate (two broad pec panels on a ridge, a flared collar edge, two rows below), back plate, a riveted belt round
+  his waist with faulds front and back, a faceted helmet, layered pauldrons over bands down the upper arm, forearms in three
+  bands, thighs in bands, and shins with knee cops. Scrag: a plastron (flared collar, pec panels on a ridge, stacked bands), a
+  back plate with the collar's back half, a belt and bands narrowing down round the line from his waist to his tail's root,
+  his tail in four segments of overlapping bands to a spike, a faceted mask, spiked layered shoulder plates, plates over his
+  claws' roots. Triangles: ogre 3 936 in full, scrag 3 288 (20 a plate).
+- **Parts of a slot (data, additive):** the ten slots couldn't hold the shins and the tail, so a slot's later `piece` line in
+  beastarmour.txt is a PART of it on another bone (`vrbarmor_<kind>_<slot>_<bone>.mdl`): the ogre's shins with his thighs'
+  slots 6/7, the scrag's tail1..4 with his belt's slot 8 (the cuirass group). `vr_beastarmour.cpp`: `Slot::owner`,
+  `Kind::numParts` (at most 6 parts: the leather's 2 bones a junction within rig2::maxBones 32); a part is drawn, hit
+  (`shotPiece`/`pieceAt` answer its slot), worn (wear skins) and broken with its slot, takes its slot's armour.txt tweaks
+  (offset, turn, scale, stand-off, taper: the Armour Studio's piece moves its parts too) and joins the rig's nearest piece up
+  (junctions: the ogre's knees shin->thigh, the scrag's tail segments down from his belt; `leather "0"` of the slot turns
+  them off too). `pieceBones` has the parts' bones. QC unchanged (slots, groups, rules); debris of a broken slot is its
+  first piece's model. `vr_beastarmour_info` lists parts ("part of 6: ... on shin_l").
+- **Clipping** (offline, `scratch/bp_pen.py`, every played frame; the ogre's unused `pull` frames now skipped in the
+  envelope too; the measure's anchors now as the engine's: from the piece's middle, a first pass finds the middles): own
+  bone's flesh (the convex hull of its vertices in that frame): 0 for every piece and part of both. Neighbours (inside the body
+  elsewhere): ogre 3.97-8.32 (worst: thighs in paine6 and smash9, pauldrons in shoot5/smash6, forearms in painb1/swing13),
+  scrag 0-4.27 (shoulder plates in magatt7, plastron 3.51 in magatt7).
+- **Tests:** `vr_agarmor_test 15` 55/0 (new: every part drawn, 42 entities for 36 pieces and 6 parts; frames B now the
+  ogre's run4 and the scrag's magatt3, so the arms stand clear of the chests the shots go through: the bulkier forearms
+  crossed the ogre's breastplate in swing1). `vr_beaststudio_test` 20/0. Tests 17-20 take the tier from `temp1` (1-3).
+- **Renders** (scratch/, his review): `beastplates_ingame.png` (tests 18, 19 in the test hall: ogre, scrag, green then yellow;
+  low-res: his game was up), `bp_ingame_full.png` (the four whole frames), `beastplates_sheet_ogre.png` (idle, run4, swing1)
+  and `beastplates_sheet_wizard.png` (hover, fly, magatt3): beastlook's 6 views, pieces coloured by slot.
+- **Open / decisions:** the helmet and the scrag's mask kept (his mockups show bare heads; dropping them would change the
+  roll and the headshot rule): faceted domes now. The scrag's belly reads as a barrel: its flesh round his waist is wide in
+  every frame and the own-flesh rule keeps the plates over it (a slimmer waist needs a lower percentile there). Tuning goes on
+  the tables (band/dome per piece) or in the Armour Studio.
 ## adrigfix: AD's knights in the Rig Studio: no stretched tabard, the Grips tab drives them, the grunt's taunt copied (branch agent/adrigfix, 2026-11-27)
 
 His words (2026-11-27): the crossbow knight and the death guard have a stretched vertex as an arm moves; the Grips tab has

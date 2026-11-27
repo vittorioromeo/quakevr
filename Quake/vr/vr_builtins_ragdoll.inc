@@ -239,10 +239,10 @@ void PF_ragdollbone()
         return;
     }
     if(within == -1006.f) // QVR_ARMOR_BEAST: e's beast kind's armour (vr_beastarmour.cpp): p_x 0 its slots (bits; 0 not a
-    {                     // beast), 1 its cuirass group, 2 the pieces' entities drawn this frame (the tests)
+    {                     // beast), 1 its cuirass group, 2 the pieces drawn this frame (p_y 1: their parts too; the tests)
         edict_t* e = G_EDICT(OFS_PARM0);
         const int what = static_cast<int>(p[0]);
-        G_FLOAT(OFS_RETURN) = static_cast<float>(what == 2 ? beastarmour::drawnCount() : what == 1 ? beastarmour::cuirassGroup(e) :
+        G_FLOAT(OFS_RETURN) = static_cast<float>(what == 2 ? beastarmour::drawnCount(p[1] != 0.f) : what == 1 ? beastarmour::cuirassGroup(e) :
             beastarmour::slots(e));
         return;
     }
