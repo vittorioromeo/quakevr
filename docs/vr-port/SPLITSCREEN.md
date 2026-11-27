@@ -1198,7 +1198,10 @@ so each seat's frame or pass overwrote or undid the other's.
 - **The merge**: 26 commits, 4 conflicting files (vr_flatgrenade.cpp's release shift, vr_flatsight.cpp's reach pull,
   vr_twohand.cpp's flipped judicator grip, vr_view_hands.cpp's let-go ease): next's side through `gs()`, `st()`, `th()`,
   `vh()`; next's new `GripSwitch::letGoBlend` went into the seat's `ViewHands` struct. Next's 5 new statics marked
-  seat-shared (vr_box3d_api.cpp's weapon centre memo, vr_gamedir.cpp's missing-install notice).
+  seat-shared (vr_box3d_api.cpp's weapon centre memo, vr_gamedir.cpp's missing-install notice). Merged again before
+  reporting (23 commits, no conflicts): next's beast armour's drawn pieces (vr_beastarmour.cpp `ents`, `numEnts`, added
+  to the relinking seat's visible entities) are each seat's (`Part::BeastArmour`); its armour data and the spacewarp's
+  state (the headset's frame pacing) are marked seat-shared.
 - **seat_state**: 3,697 -> 3,677 allowlisted.
 - **Tests**: `vr_seat_render_test 2 guns` checks, with seat 1 firing, its gun's recoil kick > 0 and seat 2's 0, seat 2's
   barrel heat 0 (same hand and different hands: before the fix 2 failures, seat 2's kick 5.45 and heat 0.13 in the same
