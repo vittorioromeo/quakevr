@@ -101,6 +101,10 @@ struct Scenario
     // sha when installed, "" when not (packageMissing: the package line said so, the map line adds nothing).
     za::String packageSha;
     bool packageMissing{false};
+    // Errors that are only an add-on not here (its `campaign` not installed, its `package` not installed): a scene with
+    // no other error is skipped by validate and runall (SCNSKIP, SCNRUN SKIP), not failed (ROUND26 "basefix1").
+    int notInstalled{0};
+    bool campaignMissing{false}; // the `campaign` line's campaign is not installed: the map line adds nothing
     float start[3]{};
     float startYaw{0.f};
     bool hasStartYaw{false};
@@ -176,6 +180,7 @@ bool runAll = false;        // vr_scenario runall in progress
 bool runAllQuit = false;    // and the game quit after it
 int runAllFrames = 0;       // its frames since the current one was placed
 int runAllCount = 0, runAllFailed = 0, runAllSkipped = 0;
+bool startNotInstalled = false; // the last start() failed only on an add-on not installed (runall: SKIP, not FAIL)
 float givenWeapon[2] = {-1.f, -1.f}; // per QC hand (0 off, 1 main): the weapon its give left there (-1: none given)
 double placedAt = 0.0;      // the server's time when the current one was placed
 // runall: each scene runs this long in game time; a hand given a weapon must still hold it then (it stays until let go).
@@ -460,6 +465,8 @@ bool read(const char* id, Scenario& out)
             if(VR_ActiveCampaign() != idx && !VR_SelectCampaignNoMapNative(idx))
             {
                 error(lineNo, va("campaign %s is not installed or cannot be played here", w[1].cStr()));
+                out.campaignMissing = true;
+                out.notInstalled++;
                 return;
             }
             out.campaignSet = true;
@@ -479,6 +486,7 @@ bool read(const char* id, Scenario& out)
             if(out.packageMissing)
             {
                 error(lineNo, packageMissingText(w[1], rest(rest(l))).cStr());
+                out.notInstalled++;
             }
         }
         else if(!q_strcasecmp(d, "map"))
@@ -489,9 +497,9 @@ bool read(const char* id, Scenario& out)
                 return;
             }
             out.map = w[1];
-            if(out.packageMissing)
+            if(out.packageMissing || out.campaignMissing)
             {
-                return; // (the package line said what to install)
+                return; // (the package or campaign line said what to install)
             }
             if(out.packageSha.size() && mapinstall::packageFor(w[1].cStr()) != out.packageSha)
             {
@@ -728,6 +736,13 @@ void printErrors(const char* id)
     {
         Con_Printf("SCNERR|%s|%s\n", id, e.cStr());
     }
+}
+
+// The file just read failed only because an add-on it needs is not here (its campaign or Map Library package not
+// installed): validate and runall skip it instead of failing it; a Test started by hand still says what to install.
+[[nodiscard]] bool onlyNotInstalled(const Scenario& s)
+{
+    return s.notInstalled > 0 && s.notInstalled == static_cast<int>(state.errors.size());
 }
 
 // The settings changed put back.
@@ -1211,8 +1226,16 @@ void runNext()
     runAllCount++;
     if(!start(id.cStr(), ""))
     {
-        runAllFailed++;
-        Con_Printf("SCNRUN|%s|FAIL|%s\n", id.cStr(), state.error.cStr());
+        if(startNotInstalled)
+        {
+            runAllSkipped++;
+            Con_Printf("SCNRUN|%s|SKIP|%s\n", id.cStr(), state.error.cStr());
+        }
+        else
+        {
+            runAllFailed++;
+            Con_Printf("SCNRUN|%s|FAIL|%s\n", id.cStr(), state.error.cStr());
+        }
         runNext();
     }
 }
@@ -1242,7 +1265,7 @@ void validate()
 {
     za::Vector<za::String> ids;
     allIds(ids);
-    int bad = 0;
+    int bad = 0, notHere = 0;
     Scenario s;
     for(const za::String& id : ids)
     {
@@ -1251,6 +1274,14 @@ void validate()
             Con_Printf("SCNOK|%s|%s|%d spawns|%d gives|%d cvars|%d cmds\n", id.cStr(), s.map.cStr(),
                 static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(s.cvars.size()),
                 static_cast<int>(s.cmds.size()));
+        }
+        else if(onlyNotInstalled(s))
+        {
+            notHere++;
+            for(const za::String& e : state.errors)
+            {
+                Con_Printf("SCNSKIP|%s|%s\n", id.cStr(), e.cStr());
+            }
         }
         else
         {
@@ -1296,8 +1327,8 @@ void validate()
             Con_Printf("SCNERR|%s|0|checklist item %d's tag: no file scenarios/%s.txt\n", id, i, id);
         }
     }
-    Con_Printf("SCNSUM|%d files|%d with errors|%d checklist tags|%d missing\n", static_cast<int>(ids.size()), bad, tags,
-        missing);
+    Con_Printf("SCNSUM|%d files|%d with errors|%d not installed|%d checklist tags|%d missing\n",
+        static_cast<int>(ids.size()), bad, notHere, tags, missing);
 }
 
 // vr_scenario where: where you stand and face (a start line), how far the walls are, the nearest water.
@@ -1380,10 +1411,16 @@ void where()
 bool start(const char* id, const char* hint)
 {
     Scenario s;
+    startNotInstalled = false;
     if(!read(id, s))
     {
-        printErrors(id);
         state.error = state.errors.empty() ? za::String{"errors"} : state.errors.front();
+        startNotInstalled = onlyNotInstalled(s);
+        if(runAll && startNotInstalled)
+        {
+            return false; // (runNext says SCNRUN SKIP with the reason)
+        }
+        printErrors(id);
         Con_Printf("vr_scenario: %s not started: %s\n", id, state.error.cStr());
         return false;
     }
