@@ -59,6 +59,9 @@ struct SmoothModel
     // partly, their fits' rms (median, 90th percentile, most: units); off for the model if too few are.
     float rebuildError{-1.f};
     int rebuildDequant{-1};                // whether the poses were dequantised yet when it was made
+    int rebuildBlend{-1};                  // the vr_anim_smooth_rebuild_blend it was made with (1: two-bone vertices)
+    int blendedVerts{0};                   // vertices rebuilt from two bones (rest row 2's w: the second bone + half its weight)
+    za::Vector<uint32_t> rebuildUnfit;     // per pose: the bones (bits) not rebuilt in it (unfit; with the blend: by their refits)
     za::Vector<rigpose::Rigid> rebuildKeys; // [pose * numBones + bone]: the bones refitted to the drawn (dequantised) poses
     int rebuiltVerts{0}, rebuildFaded{0};
     float rebuildMedian{0.f}, rebuildP90{0.f}, rebuildMost{0.f};
@@ -71,7 +74,8 @@ struct SmoothModel
 [[nodiscard]] inline za::SizeT heldBytes(const SmoothModel& m)
 {
     return mem::heldBytes(m.next) + mem::heldBytes(m.prev) + mem::heldBytes(m.seen) + mem::heldBytes(m.votes) + mem::heldBytes(m.frameOfPose) +
-           mem::heldBytes(m.namedNext) + mem::heldBytes(m.unfit) + mem::heldBytes(m.rest) + mem::heldBytes(m.rebuildKeys);
+           mem::heldBytes(m.namedNext) + mem::heldBytes(m.unfit) + mem::heldBytes(m.rest) + mem::heldBytes(m.rebuildKeys) +
+           mem::heldBytes(m.rebuildUnfit);
 }
 
 // vr_anim_smooth_pin: an entity drawn between two frames at a fixed blend (the comparison strips: ROUND22.md), its

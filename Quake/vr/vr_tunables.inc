@@ -1824,6 +1824,7 @@ QVR_TUNABLE(vr_image_cache_mb, "512") // decoded image files (a texture pack's w
 // Debug > Reports
 QVR_TUNABLE(vr_anim_smooth_rig_error, "1.5") // ... a bone whose fit to a frame is off by more than this (rms, units) isn't swung between it and its neighbours; a vertex off its bone by more swings less (none at twice it)
 QVR_TUNABLE(vr_anim_smooth_rebuild_error, "0.5") // ... a vertex off its bone's fits by more than this (rms over the frames, units) is rebuilt less (not at twice it); a model with too few vertices rebuilt draws as before
+QVR_TUNABLE(vr_anim_smooth_rebuild_blend, "1") // ... a vertex its own bone fits badly (round a joint, the ogre's skin) rebuilt from two bones blended (its own and its parent or a child, the weight fitted to the frames) when that fits it much better; 0: one bone each (ROUND26 "ogredequant")
 
 // Gore > Blood Streams
 QVR_TUNABLE(vr_gore_streams_chance, "0.6") // the chance a shot or a nail (each pellet) opens one
@@ -2315,9 +2316,9 @@ QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee bl
 QVR_TUNABLE(vr_flat_jab_alternate, "1") // flatscreen, both hands empty: the left button's jab is thrown by each hand in turn, the right first (held: one after another, vr_flat_jab_repeat); 0 the left button the right hand's punch, the right button the left's (before 2026-11-27)
 QVR_TUNABLE(vr_flat_jab_repeat, "0.4") // the left button held: seconds from one jab's start to the next one's (at least until the last one draws back: one hand at a time, vr_flat_punch_both)
 QVR_TUNABLE(vr_flat_fist_guard, "1") // flatscreen, both hands empty: the right button held crosses the forearms before the face in a guard that parries melee blows from the front (QC VR_Parry_FlatFists); 0 the right button the left hand's punch (before 2026-11-27)
-QVR_TUNABLE(vr_flat_fist_guard_fwd, "13") // the guard: each fist this far ahead of the eye (units)
-QVR_TUNABLE(vr_flat_fist_guard_up, "0") // and this far above it (units; negative below)
-QVR_TUNABLE(vr_flat_fist_guard_cross, "3") // and this far past the middle onto the other side (units: the forearms crossed in an X; negative: each on its own side)
+QVR_TUNABLE(vr_flat_fist_guard_fwd, "9") // the guard: each fist this far ahead of the eye (units)
+QVR_TUNABLE(vr_flat_fist_guard_up, "3") // and this far above it (units; negative below)
+QVR_TUNABLE(vr_flat_fist_guard_cross, "4") // and this far past the middle onto the other side (units: the forearms crossed in an X; negative: each on its own side)
 QVR_TUNABLE(vr_flat_fist_guard_stagger, "1.5") // the right fist this much further ahead than the left (units: the forearms on one another, not in one another)
 QVR_TUNABLE(vr_flat_fist_guard_pitch, "45") // each fist turned up off the level look (degrees: the forearms rising to the fists)
 QVR_TUNABLE(vr_flat_fist_guard_yaw, "45") // and in, across the body (degrees; negative out)

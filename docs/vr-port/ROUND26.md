@@ -4039,3 +4039,107 @@ the wrist/hand in the run, "attached a bit closer to the elbow"; the cuirass sli
   run4 close on the bracers).
 - **Open**: his headset look; the helmet tweak reset (his call); the cheek guards' width (`guard_wide`) and the back
   plate's flatness (`flat_outer`) are one number each in the table.
+
+
+## ogredequant: the ogre's vertex warping, measured and rebuilt from his skeleton (branch agent/ogredequant, 2026-11-27)
+
+His words: "the ogre animations seem to have an obscene amount of vertex warping ... Is the ogre a special case?"
+
+**Why the ogre was a special case.** He was never rebuilt from his skeleton (ROUND22 "Model vertex wobble 3"): the
+rebuild needs half a model's vertices within 0.5 units rms of their bone, and his frames bend his limbs by about a unit
+everywhere (271 of 651 fully: "too few: drawn as before"; the shambler too, 287 of 648). Worse, each bone was rebuilt
+only in the frames its *stored* fit fits within the swing's limit (1.5 units): his chest fits in 65 of 149 frames, his
+left thigh in 9. So he drew as his frames, dequantised only (the rounding gone, the artist's warping left).
+
+**Measure** (`vr_anim_warp_check [model ...]`, Debug > Reports > Skeleton Warp Check; verdict line `anim warp check: N
+passed, M failed`): each bone's vertices in a frame laid on the same vertices in the next frame of its animation (the
+dequantiser's runs) by their best rigid motion; what is left (rms, units) is how much a limb changes shape from frame to
+frame (0 for a rigid limb, whatever it does). Columns: the stored bytes, dequantised, drawn now at the frames (the
+rebuild's mix on the CPU), and how far the drawing departs from the dequantised frames. e1m1, all frames:
+
+| model | stored | dequantised | drawn, before (one bone) | drawn, now | off the frames now (rms / most) |
+|---|---|---|---|---|---|
+| ogre | 1.010 | 0.917 | 0.917 (100%: not rebuilt) | **0.678 (74%)** | 0.563 / 4.58 |
+| shambler | 1.033 | 0.996 | 0.996 (100%: not rebuilt) | 0.833 (84%) | 0.631 / 4.51 |
+| soldier | 0.352 | 0.330 | 0.268 (81%) | 0.245 (74%) | 0.278 / 3.61 |
+| knight | 0.413 | 0.386 | 0.278 (72%) | 0.265 (69%) | 0.316 / 1.67 |
+| demon | 0.619 | 0.556 | 0.430 (77%) | 0.352 (63%) | 0.408 / 3.03 |
+| dog | 0.471 | 0.459 | 0.372 (81%) | 0.347 (76%) | 0.287 / 1.76 |
+| wizard | 0.434 | 0.354 | 0.283 (80%) | 0.246 (70%) | 0.350 / 2.18 |
+| zombie | 0.394 | 0.358 | 0.260 (72%) | 0.228 (64%) | 0.402 / 3.74 |
+| enforcer | 0.622 | 0.589 | 0.565 (96%) | 0.546 (93%) | 0.281 / 1.90 |
+| hknight | 0.948 | 0.919 | 0.844 (92%) | 0.786 (86%) | 0.391 / 4.77 |
+
+The ogre's frames warp 2-3x the grunt's/knight's even as stored: the warping is in his animation, not the rounding.
+
+**Now** (`vr_anim_smooth_rebuild_blend`, default 1; Debug > Reports > Rebuild Joints From Two Bones; 0 = before):
+1. every bone refitted in every frame it isn't folded away in, and rebuilt in the frames its refit fits within twice
+   the swing's limit (the ogre's chest: 3 frames left out instead of 84);
+2. a vertex its bone fits badly tries its bone blended with its parent or a child (linear blend skinning, the weight
+   fitted to the frames: a 3x3 least squares per weight), kept if it fits in under 0.8x (rest row 2's w; RigRebuild);
+3. the vertices' limit is the model's own median fit when that is over `vr_anim_smooth_rebuild_error` (only the ogre
+   and shambler: every other monster's median is within 0.5); no more "under half: drawn as before" with the blend.
+Load: the blend's search runs once a model on the pool (only badly fitted vertices).
+
+**Measured and not kept:** a second bone from any bone (not only a neighbour) fits the ogre no better (83% either way);
+a much larger limit makes him more rigid (3 units: 47%) but moves his vertices up to 7.8 units off his frames (1.07 rms):
+his shape, not his warping. What is left needs per-frame offsets (time smoothing of each vertex on its bone), which the
+GPU rebuild's one place a vertex can't hold: a wider dequant offset (now +-0.5 step, snorm8) would carry it.
+
+**Not following:** the armour (vr_agarmor/vr_beastarmour) and the hit model read the frames' stored bytes on the CPU
+(hitmodel::Verts::at), not the drawn rebuild, so the ogre's armour still moves with his frames (as every rebuilt
+monster's did before). A CPU mirror of the rebuild for drawnVertexPoints is the next step.
+
+**Tests:** `vr_anim_warp_check` 10/0 (no model's drawing warps more than its frames, none departs over 1 unit rms, the
+ogre at most 0.8 of his frames'); animsmooth_test.sh 9 PASS 0 FAIL; vr_beastfit_test 101/0 (its CPU path untouched).
+**Render:** `scratch/ogredequant_strip.png` (worktree qfov): the ogre's run (25, 27, 29, 31) and chainsaw (36, 39, 42,
+45) frames pinned, two columns, top 8 the blend off, bottom 8 on (close and low in frame: the shape and seams, no tears).
+## mpoverflow: a Quest client no longer dropped with "overflow"; every overflow path names its buffer (branch agent/mpoverflow, 2026-11-27)
+
+A player (beta6, PC host, Quest 3 standalone client, LAN or join code, dm1) kept being disconnected on the Quest, the
+console saying "overflow" (full line not known). The Android build has no network limits of its own (no `__ANDROID__`
+in net/sv/cl code; MAX_MSGLEN, MAX_DATAGRAM, NET_MAXMESSAGE, cls.message 4096 the same everywhere). What is the
+Quest's own: Wi-Fi stalls and loss, the app paused (headset off, system menu: SDL blocks the loop, nothing acked), slow
+map loads, a VR player's moves. Every "overflow" a client could cause, and the fix:
+
+- **The client's move packet** (`CL_SendMove`, 1024 B; most likely, VR only): with no move acknowledged for `ring`
+  moves (0.9 s: any stall) each packet's first move goes whole, plus two repeats; a real VR player's whole move (447
+  values, up to 5 B each) with its repeats could pass 1024 B. Its `allowoverflow` was the stack's garbage: by chance a
+  Host_Error ("SZ_GetSpace: overflow without allowoverflow set") or "SZ_GetSpace: overflow" and the moves cleared half
+  written (the server then misreads the rest: dropped). Now `netmove::writeMoves` renders into scratch and cuts the
+  oldest repeats until it fits 960 B; the newest always goes (the buffer is `QVR_MOVE_BUFFER` 4096, vr_api.h; the voice
+  frames after it keep their old 1024 B room); the flags are set. `vr_netmove_selftest` checks the cut (no base, a room
+  for one: 1-2 moves; room: 3).
+- **The client's reliable commands** (`cls.message`, 4096 B, a Host_Error): `Cmd_ForwardToServer` (typed commands,
+  menus) and the weapon wheel's, voice chat's and nav follow's commands wrote with no check; while the server had not
+  acknowledged the last message they piled up. Now `qvr::client::forwardCommand` (vr_client.cpp): onto cls.message, or
+  held in order (up to 64 KB, then dropped with a line) and flushed as room comes (`CL_SendCmd`); `roomForCommand` is
+  false while any is held. A forwarded command over 4000 characters is refused with a line (it overflowed outright).
+- **The server's reliable stream to a client** (`client->message`, 64000 B; the host prints "SZ_GetSpace: overflow",
+  drops him without a word, his game freezes and times out): `sv.reliable_datagram` is copied in each frame with no
+  check, and while he acknowledges nothing (paused, loading: the unspawned wait path never sends) it piles up. Now
+  (vr_server.cpp `VR_ReliableBacklog`) past 32000 B unsendable it goes to a per-client backlog of whole frames' parts
+  (a frame's end is a message boundary), later frames' parts follow while it holds anything, and as he acknowledges
+  the longest run of parts within MAX_MSGLEN is sent; the bookkeeping of the engine's send (serverinfo_unsent,
+  PRESPAWN_FLUSH) runs when it empties. Past 4 MB he is dropped with `VR_ReliableOverflowed`: the host's line names
+  him, the bytes, the seconds without his acknowledgement and the most one frame added, and he is told in a datagram
+  ("The server dropped you: N s without a reply from your game, K KB ... waiting") before svc_disconnect.
+- **Names**: `SZ_GetSpace`'s lines say the bytes held, the write and the buffer's size (4096: the client's commands;
+  64000: a reliable stream; 1024/4096: the moves). `vr_net_stats` (Debug > Network: Entities Sent) gains, per client,
+  "    reliable: peak, backlog now, most a frame, longest wait, backlogged N times" and, on a connected client,
+  "vr_net_stats: client: reliable out peak, commands held, dropped; moves peak". `vr_net_bytes` adds
+  `mp_netbytes_rel:` (the reliable stream's six biggest kinds).
+- **Measured** (mock clients; the Quest's real hands and load times not available): dm1, a flat host, 2 bots, B (VR)
+  mid-game: B's reliable stream in play peaks ~100 B (svc_serverinfo 8.8 KB and baselines at the join are most of it);
+  coop e1m1 -> e1m3 with B's link up silent 8 s from the changelevel: the host held 16.6 KB for him (no backlog). So
+  the 64000 B stream needs a long silence (a paused Quest) or a big burst; the 4096 B and 1024 B client buffers were the
+  likelier "overflow". A mock move packet with no base: 639 B.
+- **Tests**: `mp_test.py overflow` (mp_overflow, in the suite) 14/0: a flat listen host on dm1 with 2 bots, B (VR, a
+  proxy) joins mid-game; his link silent both ways 8 s while the host writes him 6 x 30000 B and he forwards 300
+  commands: all arrive in order (backlog peak 150 KB, held commands 10 KB), his move packets <= 1 KB, nobody dropped,
+  no overflow; then his rejoin with his link up silent 6 s from his connect, 4 x 30000 B meanwhile, all his.
+  `mp_test.py overflow_coop` (diagnostic, not in the suite) 7/0. `vr_netmove_selftest` 6/0. Suite --only coop,
+  coop_lag, retransmit, moves, loss (one run 12816 B/s against 12288 at 10% loss, the rerun 11304: margin noise),
+  voice, weaponwheel, rejoin, lockstep, campaign, prefs, lagcomp: all pass. No protocol change (QVR_NET_VERSION kept).
+- **Open**: which buffer the player hit is not pinned (ask him for the whole line, Quest or PC console, and when: headset
+  off, a level change, Wi-Fi); no headset run (the Quest's real move sizes untested).

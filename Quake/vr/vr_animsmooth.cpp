@@ -110,6 +110,7 @@ mem::Scratch<SmoothBatches> batches{"anim smooth"};
 
 constexpr int rebuildRowsPerBone = 9;   // the rebuild's rows a bone: its swing (3), its motion (3), its turn (3; the share in the first's w)
 constexpr float rebuildMinShare = 0.5f; // a model with fewer of its vertices rebuilt fully than this isn't rebuilt
+constexpr float rebuildPoseLimit = 2.f; // (the blend) a bone is rebuilt in a pose its refit fits within this times the swing's limit
 
 // What an entity's spline was last worked out for, and what came of it: drawn again so (the other eye, each shadow
 // map's light, the next frame paused) it is copied. By the entity (the renderer's thread; a map change frees it, and a
@@ -324,13 +325,15 @@ bool rigStale(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, bool& rigg
     }
     const float rebuildError = za::max(vr_anim_smooth_rebuild_error.value, 0.01f);
     const int dequant = hdr->dequant && hdr->dequantready ? 1 : 0;
-    if(m.rigError == error && m.rebuildError == rebuildError && m.rebuildDequant == dequant)
+    const int blend = vr_anim_smooth_rebuild_blend.value != 0.f ? 1 : 0;
+    if(m.rigError == error && m.rebuildError == rebuildError && m.rebuildDequant == dequant && m.rebuildBlend == blend)
     {
         return false;
     }
     m.rigError = error;
     m.rebuildError = rebuildError;
     m.rebuildDequant = dequant;
+    m.rebuildBlend = blend;
     return true;
 }
 
@@ -427,11 +430,17 @@ void rigFit(SmoothModel& m, const aliashdr_t* hdr, RigFit& out)
                 keys[static_cast<za::SizeT>(p * rig.numBones + b)] = rigpose::key(rig, p, b);
             }
         }
-        const auto fits = [&](int p, int b) { return !(m.unfit[static_cast<za::SizeT>(p)] & (1u << b)); };
+        // The poses each bone is rebuilt in: at first those its stored fit fits (m.unfit); with
+        // vr_anim_smooth_rebuild_blend, after each refit, those its refit fits (any it isn't folded away in): the stored
+        // fits miss many of the ogre's (his chest in 84 of 149 poses, his left thigh in 140), which drew as the frames.
+        za::Vector<uint32_t>& rfit = m.rebuildUnfit;
+        rfit = m.unfit;
+        const auto fits = [&](int p, int b) { return !(rfit[static_cast<za::SizeT>(p)] & (1u << b)); };
         za::Vector<glm::vec3> place(nv), normal(nv);
         za::Vector<int> count(nv);
         za::Vector<float> share(nv, 1.f);
         za::Vector<float> sum(nv);
+        float vertLimit = rebuildError; // (a vertex's share: 1 within it, 0 at twice it)
         // Each vertex's place, normal and share from the poses its bone fits (vertices in chunks on the pool: each
         // vertex's sums over the poses in the same order whichever thread runs it, so the same numbers).
         const auto places = [&]() {
@@ -483,7 +492,7 @@ void rigFit(SmoothModel& m, const aliashdr_t* hdr, RigFit& out)
                 {
                     // (a vertex its bone fits in no pose: not rebuilt)
                     rebuildRms[k] = count[k] ? za::sqrt(sum[k] / static_cast<float>(count[k])) : 1e9f;
-                    share[k] = za::clamp(2.f - rebuildRms[k] / rebuildError, 0.f, 1.f);
+                    share[k] = za::clamp(2.f - rebuildRms[k] / vertLimit, 0.f, 1.f);
                 }
             });
         };
@@ -560,19 +569,195 @@ void rigFit(SmoothModel& m, const aliashdr_t* hdr, RigFit& out)
                 {
                     for(int b = 0; b < rig.numBones; b++)
                     {
-                        if(fits(p, b))
+                        if(m.rebuildBlend ? !ragdoll::collapsed(rig, p, b) : fits(p, b))
                         {
                             refit(p, b);
                         }
                     }
                 }
             });
+            if(m.rebuildBlend)
+            {
+                // which poses each bone's refit fits: its vertices' rms off it (weighted by their shares) within twice
+                // the swing's limit (the ogre's limbs bend, 1.5-3 units rms in many of his frames: his chest in 84 of 149
+                // at the swing's limit, 3 at twice it; only a frame a bone truly isn't in is left as the frames')
+                for(int p = 0; p < m.numPoses; p++)
+                {
+                    uint32_t mask = 0u;
+                    for(int b = 0; b < rig.numBones; b++)
+                    {
+                        if(ragdoll::collapsed(rig, p, b))
+                        {
+                            mask |= 1u << b;
+                            continue;
+                        }
+                        const rigpose::Rigid& k = keys[static_cast<za::SizeT>(p * rig.numBones + b)];
+                        float e2 = 0.f, wSum = 0.f;
+                        for(int i = boneFirst[static_cast<za::SizeT>(b)]; i < boneFirst[static_cast<za::SizeT>(b) + 1u]; i++)
+                        {
+                            const int v = boneVerts[static_cast<za::SizeT>(i)];
+                            const float w = 0.05f + share[static_cast<za::SizeT>(v)];
+                            const glm::vec3 d = x(p, v) - rigpose::apply(k, place[static_cast<za::SizeT>(v)]);
+                            e2 += w * glm::dot(d, d);
+                            wSum += w;
+                        }
+                        if(wSum > 0.f && za::sqrt(e2 / wSum) > rebuildPoseLimit * error)
+                        {
+                            mask |= 1u << b;
+                        }
+                    }
+                    rfit[static_cast<za::SizeT>(p)] = mask;
+                }
+                // The vertices' limit: the model's own median fit if over vr_anim_smooth_rebuild_error (the ogre's
+                // frames bend his limbs by about a unit everywhere, so at half a unit few of his vertices were rebuilt
+                // and the rest kept the frames' warping; every other monster's median is within it, its limit as before)
+                za::Vector<float> sorted;
+                for(za::SizeT k = 0; k < nv; k++)
+                {
+                    if(count[k])
+                    {
+                        sorted.pushBack(rebuildRms[k]);
+                    }
+                }
+                if(!sorted.empty())
+                {
+                    za::quickSort(sorted.begin(), sorted.end());
+                    vertLimit = za::max(rebuildError, sorted[sorted.size() / 2u]);
+                }
+            }
             places();
+        }
+        // Two bones (vr_anim_smooth_rebuild_blend; ROUND26 "ogredequant"): a vertex its bone fits badly (round a joint,
+        // and most of the ogre's skin: his frames bend him, so a vertex on one bone stays 0.5-2 units off it and the
+        // model, under half rebuilt, used to be drawn as its frames, warping and all) tried on its bone and its parent or
+        // a child blended (the blend's turn and move, weight w on the other, applied to one place in pose 0's frame:
+        // linear blend skinning). Per candidate and weight the place is a linear least squares over the poses both fit
+        // (3x3 normal equations); the best kept if it fits the vertex in under 0.8x the rms its bone alone does.
+        za::Vector<float> blendW(nv, 0.f);
+        za::Vector<int> blendBone(nv, -1);
+        if(m.rebuildBlend)
+        {
+            za::Vector<glm::mat3> rots(keys.size());
+            for(za::SizeT i = 0; i < keys.size(); i++)
+            {
+                rots[i] = glm::mat3_cast(keys[i].rot);
+            }
+            jobs::parallelFor(placesSite, nv, 0, [&](za::SizeT v0, za::SizeT v1) {
+                for(za::SizeT k = v0; k < v1; k++)
+                {
+                    if(share[k] >= 1.f || !count[k])
+                    {
+                        continue;
+                    }
+                    const int a = rig.vertBone[k];
+                    // (rms the fit leaves for bone b at weight w, its place; -1: too few poses both fit)
+                    const auto solve = [&](int b, float w, glm::vec3& at) -> float {
+                        glm::dmat3 aa{0.0};
+                        glm::dvec3 g{0.0};
+                        double c = 0.0;
+                        int n = 0;
+                        for(int p = 0; p < m.numPoses; p++)
+                        {
+                            if(!fits(p, a) || !fits(p, b))
+                            {
+                                continue;
+                            }
+                            const za::SizeT ia = static_cast<za::SizeT>(p * rig.numBones + a);
+                            const za::SizeT ib = static_cast<za::SizeT>(p * rig.numBones + b);
+                            const glm::dmat3 mm{(1.f - w) * rots[ia] + w * rots[ib]};
+                            const glm::dvec3 d{x(p, static_cast<int>(k)) - ((1.f - w) * keys[ia].pos + w * keys[ib].pos)};
+                            aa += glm::transpose(mm) * mm;
+                            g += glm::transpose(mm) * d;
+                            c += glm::dot(d, d);
+                            n++;
+                        }
+                        if(2 * n < count[k] || za::abs(glm::determinant(aa)) < 1e-9)
+                        {
+                            return -1.f;
+                        }
+                        const glm::dvec3 sol = glm::inverse(aa) * g;
+                        at = glm::vec3{sol};
+                        return za::sqrt(static_cast<float>(za::max(c - 2.0 * glm::dot(sol, g) + glm::dot(sol, aa * sol), 0.0) / n));
+                    };
+                    float bestRms = rebuildRms[k] * 0.8f;
+                    float bestW = 0.f;
+                    int bestB = -1;
+                    glm::vec3 bestAt{0.f};
+                    for(int b = 0; b < rig.numBones; b++)
+                    {
+                        // (any bone at all fits the ogre no better: measured, ROUND26 "ogredequant")
+                        if(b == a || (rig.bones[b].parent != a && rig.bones[a].parent != b))
+                        {
+                            continue;
+                        }
+                        // the weight on a grid of tenths, then a twentieth either side of the best
+                        float candW = 0.f, candRms = 1e9f;
+                        glm::vec3 candAt{0.f};
+                        const auto tryW = [&](float w) {
+                            glm::vec3 at{0.f};
+                            const float rms = solve(b, w, at);
+                            if(rms >= 0.f && rms < candRms)
+                            {
+                                candRms = rms;
+                                candW = w;
+                                candAt = at;
+                            }
+                        };
+                        for(int step = 1; step <= 10; step++)
+                        {
+                            tryW(0.1f * static_cast<float>(step));
+                        }
+                        if(candRms < 1e9f)
+                        {
+                            const float mid = candW;
+                            tryW(mid - 0.05f);
+                            if(mid < 0.99f)
+                            {
+                                tryW(mid + 0.05f);
+                            }
+                        }
+                        if(candRms < bestRms)
+                        {
+                            bestRms = candRms;
+                            bestW = candW;
+                            bestB = b;
+                            bestAt = candAt;
+                        }
+                    }
+                    if(bestB < 0)
+                    {
+                        continue;
+                    }
+                    // its normal: each pose's taken back by the blend's turn (near enough its inverse's transpose)
+                    glm::vec3 nsum{0.f};
+                    for(int p = 0; p < m.numPoses; p++)
+                    {
+                        if(fits(p, a) && fits(p, bestB))
+                        {
+                            const glm::mat3 mm = (1.f - bestW) * rots[static_cast<za::SizeT>(p * rig.numBones + a)] +
+                                                 bestW * rots[static_cast<za::SizeT>(p * rig.numBones + bestB)];
+                            const trivertx_t& t = base[static_cast<za::SizeT>(p) * nv + k];
+                            nsum += glm::transpose(mm) * geom::vec(r_avertexnormals[za::min<int>(t.lightnormalindex, NUMVERTEXNORMALS - 1)]);
+                        }
+                    }
+                    const float len = za::sqrt(glm::dot(nsum, nsum));
+                    if(len > 1e-4f)
+                    {
+                        normal[k] = nsum / len;
+                    }
+                    place[k] = bestAt;
+                    rebuildRms[k] = bestRms;
+                    share[k] = za::clamp(2.f - bestRms / vertLimit, 0.f, 1.f);
+                    blendW[k] = bestW;
+                    blendBone[k] = bestB;
+                }
+            });
         }
         for(za::SizeT k = 0; k < nv; k++)
         {
             rebuilt[2u * k] = glm::vec4{place[k], share[k]};
-            rebuilt[2u * k + 1u] = glm::vec4{normal[k], 0.f};
+            // (the second bone + half its weight: 0 none)
+            rebuilt[2u * k + 1u] = glm::vec4{normal[k], blendBone[k] >= 0 ? static_cast<float>(blendBone[k]) + 0.5f * za::min(blendW[k], 0.999f) : 0.f};
         }
     }
 }
@@ -595,7 +780,7 @@ void rigRest(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, const RigFi
     m.armSkin = false;
     m.legSkin = false;
     m.swungVerts = m.fadedVerts = 0;
-    m.rebuiltVerts = m.rebuildFaded = 0;
+    m.rebuiltVerts = m.rebuildFaded = m.blendedVerts = 0;
     za::Vector<float> rms(static_cast<za::SizeT>(hdr->numverts_vbo));
     for(int i = 0; i < hdr->numverts_vbo; i++)
     {
@@ -621,6 +806,7 @@ void rigRest(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, const RigFi
         }
         m.rebuiltVerts += r[1].w >= 1.f ? 1 : 0;
         m.rebuildFaded += r[1].w > 0.f && r[1].w < 1.f ? 1 : 0;
+        m.blendedVerts += r[2].w > 0.f ? 1 : 0;
         rms[static_cast<za::SizeT>(i)] = za::min(rebuildRms[static_cast<za::SizeT>(v)], 99.f);
     }
     za::quickSort(rms.begin(), rms.end());
@@ -628,8 +814,10 @@ void rigRest(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, const RigFi
     m.rebuildMedian = pct(0.5f);
     m.rebuildP90 = pct(0.9f);
     m.rebuildMost = pct(1.f);
+    // (with the blend every model is rebuilt, each vertex by its own share: the ogre's and the shambler's skin bends, so
+    // under half their vertices fit within the limit, and the rest of them were drawn as their frames' warping too)
     m.rebuildOk = hdr->numverts_vbo > 0 &&
-                  static_cast<float>(m.rebuiltVerts) >= rebuildMinShare * static_cast<float>(hdr->numverts_vbo);
+                  (m.rebuildBlend || static_cast<float>(m.rebuiltVerts) >= rebuildMinShare * static_cast<float>(hdr->numverts_vbo));
 }
 
 jobs::Site rigsSite{"anim smooth rigs"}; // (prepare's: each model's rigFit at once)
@@ -776,7 +964,7 @@ void rebuildRows(const SmoothModel& m, const int poses[4], const rigpose::Spline
             rows[0] = rows[1] = rows[2] = glm::vec4{0.f};
         }
     }
-    const uint32_t unfit1 = m.unfit[static_cast<za::SizeT>(poses[1])], unfit2 = m.unfit[static_cast<za::SizeT>(poses[2])];
+    const uint32_t unfit1 = m.rebuildUnfit[static_cast<za::SizeT>(poses[1])], unfit2 = m.rebuildUnfit[static_cast<za::SizeT>(poses[2])];
     for(int b = 0; b < rig.numBones; b++)
     {
         glm::vec4* rows = out + rebuildRowsPerBone * b;

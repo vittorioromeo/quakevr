@@ -1019,6 +1019,7 @@ void CL_SendCmd (void)
 {
 	usercmd_t		cmd;
 
+	VR_FlushHeldCommands (); // QVR: (mpoverflow) commands held while cls.message was full, as room comes (none when not connected)
 	if (cls.state != ca_connected)
 		return;
 
