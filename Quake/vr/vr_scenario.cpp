@@ -1535,6 +1535,14 @@ void frame()
         {
             Con_Printf("vr_scenario: %s abandoned: %s loaded instead\n", state.run.id.cStr(), sv.name);
             end(); // (another map asked for meanwhile: the settings back)
+            if(runAll)
+            {
+                // (A Host_Error in its map's load falls back to the start map: a failure, and runall goes on instead of
+                // waiting for its timeout.)
+                runAllFailed++;
+                Con_Printf("SCNRUN|%s|FAIL|abandoned: %s loaded instead (a Host_Error in the load?)\n", state.run.id.cStr(), sv.name);
+                runNext();
+            }
             return;
         }
         if(reloaded && sv.active && cls.signon == SIGNONS && !q_strcasecmp(sv.name, state.run.map.cStr()) && sv.qcvm.time >= 1.5)
