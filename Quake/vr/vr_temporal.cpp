@@ -32,6 +32,7 @@
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_profile.hpp"
+#include "vr_spacewarp.hpp"
 #include "vr_stereo.hpp"
 #include "vr_testkit.hpp"
 #include "vr_api_render.h"
@@ -361,6 +362,7 @@ struct EyeState
     float prevViewProj[16]{};
     bool havePrev{false};
     vec3_t origin{}, angles{}, prevOrigin{}, prevAngles{};
+    float nearUnits{0.f}, farUnits{0.f}; // this frame's projection's planes (SpaceWarp's depth)
 };
 
 struct State
@@ -379,7 +381,11 @@ struct State
     // The eye targets' generation (stereo::eyeTargetsGeneration) the attachment was made for: a remade set (a dynres step,
     // a Render Scale change) may be given back the same framebuffer and texture names, which alone looked unchanged.
     unsigned attachedGeneration{0};
-    GLuint motionTex{0};       // RGBA32F, the eye size (shared by the eyes)
+    GLuint motionTex{0};       // RGBA32F, the eye size (shared by the eyes); RGBA16F for SpaceWarp alone (motionHalf)
+    // SpaceWarp alone (no TAA, no debug view): the motion target in half floats. OpenGL ES blends no 32-bit float
+    // target without EXT_float_blend, and the engine's opaque draws keep GL_BLEND on (ONE, ZERO); half the bandwidth
+    // on the Quest's tiler. Its stamps stay within 1..1000.5 (exact in a half) and its depth test is looser.
+    bool motionHalf{false};
     GLuint maskTex{0};         // R8
     GLuint displayTex{0};      // RGBA16F: the debug views
     int texWidth{0}, texHeight{0};
@@ -564,9 +570,10 @@ void deleteTexture(GLuint& tex)
     }
 }
 
-void ensureTextures(int width, int height)
+void ensureTextures(int width, int height, bool history)
 {
-    if(state.motionTex && state.texWidth == width && state.texHeight == height)
+    if(state.motionTex && state.texWidth == width && state.texHeight == height && (state.maskTex || !history) &&
+        state.motionHalf == !history)
     {
         return;
     }
@@ -583,12 +590,17 @@ void ensureTextures(int width, int height)
         }
         e.valid = false;
     }
-    state.motionTex = makeTexture(GL_RGBA32F, width, height, GL_NEAREST, "taa motion");
-    state.maskTex = makeTexture(VR_GLESImageFormat(GL_R8), width, height, GL_NEAREST, "taa reactive mask");
-    state.displayTex = makeTexture(GL_RGBA16F, width, height, GL_NEAREST, "taa debug view");
+    state.motionHalf = !history;
+    state.motionTex = makeTexture(history ? GL_RGBA32F : GL_RGBA16F, width, height, GL_NEAREST, "taa motion");
+    // (SpaceWarp alone: the motion target, none of TAA's eye-sized history; made with TAA's first frame)
+    if(history)
+    {
+        state.maskTex = makeTexture(VR_GLESImageFormat(GL_R8), width, height, GL_NEAREST, "taa reactive mask");
+        state.displayTex = makeTexture(GL_RGBA16F, width, height, GL_NEAREST, "taa debug view");
+    }
     for(EyeState& e : state.eyes)
     {
-        for(int i = 0; i < 2; i++)
+        for(int i = 0; i < 2 && history; i++)
         {
             e.history[i] = makeTexture(GL_RGBA16F, width, height, GL_LINEAR, "taa history");
             e.depth[i] = makeTexture(GL_R32F, width, height, GL_NEAREST, "taa history depth");
@@ -712,7 +724,7 @@ Slot* slotFor(const entity_t* e)
 
 bool wanted()
 {
-    return (vr_taa.value != 0.f || vr_temporal_debug.value != 0.f) && vr_stereo_single.value == 0.f;
+    return (vr_taa.value != 0.f || vr_temporal_debug.value != 0.f || spacewarp::frameOn()) && vr_stereo_single.value == 0.f;
 }
 
 float eyeFsaa(float fsaa)
@@ -777,7 +789,7 @@ void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int 
         state.taaWas = taa;
         state.debugWas = static_cast<int>(vr_temporal_debug.value);
     }
-    ensureTextures(allocatedWidth, allocatedHeight);
+    ensureTextures(allocatedWidth, allocatedHeight, taa || vr_temporal_debug.value != 0.f);
     ensureBuffers();
     attach(state.motionTex);
     if(width != state.width || height != state.height)
@@ -975,6 +987,11 @@ extern "C" void VR_TemporalProjection(float proj[16], const float view[16])
     }
     temporal::EyeState& e = state.eyes[state.eye];
     temporal::mul4(proj, view, e.viewProj);
+    { // the planes from the depth terms (R_ViewMatrices: GL_FrustumMatrix, VR_OverrideProjection's near)
+        const float a = proj[0 * 4 + 2], b = proj[3 * 4 + 2];
+        e.nearUnits = gl_clipcontrol_able ? b / (1.f - a) : -b / (a + 1.f);
+        e.farUnits = gl_clipcontrol_able ? -b / a : -b / (a - 1.f);
+    }
     VectorCopy(r_refdef.vieworg, e.origin);
     VectorCopy(r_refdef.viewangles, e.angles);
 
@@ -986,7 +1003,8 @@ extern "C" void VR_TemporalProjection(float proj[16], const float view[16])
         proj[c * 4 + 1] += dy * proj[c * 4 + 3];
     }
 
-    state.stamp = static_cast<float>(((state.frameIndex * 2 + state.eye) & 0xFFFFF) + 1);
+    state.stamp = state.motionHalf ? static_cast<float>(((state.frameIndex * 2 + state.eye) % 1000) + 1)
+                                   : static_cast<float>(((state.frameIndex * 2 + state.eye) & 0xFFFFF) + 1);
     temporal::TemporalBlock block{};
     ZA_MEMCPY(block.prevViewProj, e.havePrev ? e.prevViewProj : e.viewProj, sizeof(block.prevViewProj));
     block.jitter[0] = state.jitter[0] / static_cast<float>(state.width);
@@ -1114,8 +1132,9 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
 
     // History resets: a gap in the frames, a jump (teleport, respawn) or a large turn (snap turn): one frame aliased
     // rather than a ghost of the old view (TEMPORAL.md 12, question 6: the conservative answer)
-    bool reset = !e.valid || e.frame != state.frameIndex - 1 || !e.havePrev;
-    if(!reset)
+    // (the jump alone: SpaceWarp's skipped frame; TAA's history also restarts when it has none)
+    bool jump = e.frame != state.frameIndex - 1 || !e.havePrev;
+    if(!jump)
     {
         vec3_t d;
         VectorSubtract(e.origin, e.prevOrigin, d);
@@ -1126,12 +1145,43 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
             a = a > 180.f ? 360.f - a : a;
             turn = q_max(turn, a);
         }
-        reset = VectorLength(d) > 40.f || turn > 25.f;
+        jump = VectorLength(d) > 40.f || turn > 25.f;
     }
+    const bool reset = !e.valid || jump;
 
     float inv[16];
     if(!temporal::invert4(e.viewProj, inv))
     {
+        return;
+    }
+    if(spacewarp::frameOn()) // (vr_spacewarp.cpp: the eye's motion vectors and depth for the runtime)
+    {
+        spacewarp::EyeInputs in;
+        in.eye = state.eye;
+        in.depthTex = depth;
+        in.motionTex = state.motionTex;
+        in.invViewProj = inv;
+        in.prevViewProj = e.havePrev ? e.prevViewProj : e.viewProj;
+        in.stamp = state.stamp;
+        in.drawnWidth = state.width;
+        in.drawnHeight = state.height;
+        in.nearUnits = e.nearUnits;
+        in.farUnits = e.farUnits;
+        in.reversed = gl_clipcontrol_able;
+        in.jump = jump;
+        in.halfMotion = state.motionHalf;
+        in.origin = e.origin;
+        in.angles = e.angles;
+        spacewarp::eyePass(in);
+    }
+    if(!state.maskTex || (!temporal::taaOn() && vr_temporal_debug.value == 0.f)) // (SpaceWarp alone)
+    {
+        e.valid = false;
+        e.frame = state.frameIndex;
+        ZA_MEMCPY(e.prevViewProj, e.viewProj, sizeof(e.prevViewProj));
+        e.havePrev = true;
+        VectorCopy(e.origin, e.prevOrigin);
+        VectorCopy(e.angles, e.prevAngles);
         return;
     }
     const int mode = static_cast<int>(za::clamp(vr_temporal_debug.value, 0.f, 3.f));

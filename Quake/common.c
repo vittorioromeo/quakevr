@@ -3017,9 +3017,14 @@ static qboolean COM_ValidateGameDirs (const char *newgamedirs)
 COM_SwitchGame
 =================
 */
+static qboolean COM_WithVRGame (const char *paths, char *out, size_t size); // QVR (below)
+
 static void COM_SwitchGameInternal (const char *paths, qboolean vrCampaign)
 {
 	extern cvar_t max_edicts;
+	char withvr[1024]; // QVR
+	if (!vrCampaign && COM_WithVRGame (paths, withvr, sizeof (withvr)))
+		paths = withvr; // QVR: Quake VR's folder kept under the mod (game <mod>, the Mods menu: id1;quakevr;<mod>)
 	if (!vrCampaign && !q_strcasecmp(paths, COM_GetGameNames(true)))
 	{
 		Con_Printf("\"game\" is already \"%s\"\n", COM_GetGameNames(true));
@@ -3046,6 +3051,9 @@ static void COM_SwitchGameInternal (const char *paths, qboolean vrCampaign)
 
 	VR_ModelsKeepBefore (vrCampaign); // QVR: a campaign switch keeps the alias models whose files stay the same
 	COM_ResetGameDirectories(paths);
+	// QVR: the mod's folder made where it's written (com_gamedir: the last base dir's, maybe not the mod's own: a mod
+	// in Quake's folder, Quake VR's the last base dir): Sys_mkdir("<com_gamedir>/motions") ended the game otherwise
+	COM_CreatePath (va ("%s/", com_gamedir));
 	VR_ModelsKeepDecide (); // QVR: ... decided now, in the new folders (vr_modelkeep.cpp)
 
 	//clear out and reload appropriate data
@@ -3263,20 +3271,39 @@ static qboolean COM_HasVRGameData (const char *base)
 	return Sys_MatchFileCase (path); // (or PAK0.PAK)
 }
 
+// Where "quakevr" goes in a list of game folders (the -game arguments in order; a game command's, the Mods menu's,
+// COM_WithVRGame): after the campaign folders leading it (id1, hipnotic, rogue, ad...), before the first other mod's.
+// -1: quakevr is in it already.
+static int COM_VRGameInsertAt (const char **games, int count)
+{
+	int i, at = -1;
+	for (i = 0; i < count; i++)
+	{
+		if (!q_strcasecmp (games[i], "quakevr"))
+			return -1;
+		if (at < 0 && !VR_IsCampaignDirectory (games[i]))
+			at = i;
+	}
+	return at < 0 ? count : at;
+}
+
 static void COM_AddVRGameArg (void)
 {
-	int i, at = -1, found;
+	const char *games[MAX_NUM_ARGVS];
+	int argat[MAX_NUM_ARGVS];
+	int i, n = 0, at, found;
 	char lookedin[1024];
 	for (i = 1; i < com_argc - 1; i++)
 	{
 		if (q_strcasecmp (com_argv[i], "-game"))
 			continue;
-		if (!q_strcasecmp (com_argv[i + 1], "quakevr"))
-			return; // (Setup's shortcut, QuakeVR.bat, Steam's, the Quest's, the tests')
-		if (at < 0 && !VR_IsCampaignDirectory (com_argv[i + 1]))
-			at = i;
-		++i;
+		argat[n] = i;
+		games[n++] = com_argv[++i];
 	}
+	at = COM_VRGameInsertAt (games, n);
+	if (at < 0)
+		return; // (Setup's shortcut, QuakeVR.bat, Steam's, the Quest's, the tests')
+	at = at < n ? argat[at] : com_argc;
 	*lookedin = 0;
 	for (i = 0; i < com_numbasedirs; i++)
 	{
@@ -3307,8 +3334,6 @@ static void COM_AddVRGameArg (void)
 		return;
 	}
 	found = i;
-	if (at < 0)
-		at = com_argc;
 	for (i = com_argc; i >= at; i--) // (argvdummy, at com_argv[com_argc], moved too)
 		com_argv[i + 2] = com_argv[i];
 	com_argv[at] = "-game";
@@ -3316,6 +3341,41 @@ static void COM_AddVRGameArg (void)
 	com_argc += 2;
 	Con_Printf ("VR: no \"-game quakevr\" on the command line: Quake VR's game folder added%s (%s/quakevr)\n",
 		at + 2 < com_argc ? ", under the mod given" : "", com_basedirs[found]);
+}
+
+// A game switch's folders ("id1;<mod>": the game command's, the Mods menu's, a save's) with quakevr where
+// COM_AddVRGameArg puts it ("id1;quakevr;<mod>", campaign folders under it): the mod over Quake VR, not id1's game
+// code alone. False: unchanged (quakevr in it, or no base dir has Quake VR's game data: a broken install).
+static qboolean COM_WithVRGame (const char *paths, char *out, size_t size)
+{
+	const char *games[64];
+	char copy[1024];
+	char *p;
+	int i, n = 0, at;
+	for (i = 0; i < com_numbasedirs && !COM_HasVRGameData (com_basedirs[i]); i++)
+		;
+	if (i == com_numbasedirs)
+		return false;
+	q_strlcpy (copy, paths, sizeof (copy));
+	for (p = copy; p && *p && n < (int) countof (games); )
+	{
+		games[n++] = p;
+		p = strchr (p, ';');
+		if (p)
+			*p++ = 0;
+	}
+	at = COM_VRGameInsertAt (games, n);
+	if (at < 0)
+		return false;
+	*out = 0;
+	for (i = 0; i <= n; i++)
+	{
+		const char *g = i == at ? "quakevr" : games[i < at ? i : i - 1];
+		if (*out)
+			q_strlcat (out, ";", size);
+		q_strlcat (out, g, size);
+	}
+	return true;
 }
 
 /*

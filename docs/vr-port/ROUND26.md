@@ -2595,6 +2595,90 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.
 
+## beastarmour: armoured rottweilers, ogres, scrags and fiends (branch agent/beastarmour, 2026-11-27)
+
+- **What:** the four beasts may spawn armoured by the armed humanoids' rules (the skill's chance, best type and pieces,
+  Armored Foes; `vr_agarmor_beasts` 1, Combat > Armed Grunts > Armour > Armoured Beasts). Pieces: the rottweiler barding
+  over chest and croup (a cuirass of two), a chanfron, a spiked collar, shoulder and haunch plates; the ogre a cuirass of
+  three (breastplate, back plate, faulds), a helmet with a crown, pauldrons, bracers, tassets; the scrag a cuirass of three
+  (breast, back, belly), a mask-helmet, shoulder plates, bracers at the claws; the fiend plates over his hunched back, a
+  breastplate under it and a haunch plate (a cuirass of three), a helmet, pauldrons, bracers, thigh plates. Every piece
+  breaks on its own (the same pools by slot share, rules, cracks, debris props, wear skins, cut blocking).
+- **Feasibility per monster:** the humanoids' shells need an authored rig (rig2: skin weights, humanoid joints); none of
+  the four has one, and a rig2 for a quadruped or the legless scrag would change how they are drawn. Every monster has a
+  derived ragdoll rig (vr_ragdoll.cpp seed tables: dog 13 bones, scrag 11, ogre 13, fiend 16, shambler 13), so the
+  general path is **rigid pieces on derived-rig bones**: a piece rides its bone's vertices as drawn
+  (`hitmodel::drawnVertexPoints`: the animation's lerp and a ragdoll's parts alike) by a rigid fit (`rigpose::fitRigid`
+  over 10 spread vertices) plus the body's scale. The ogre (humanoid) and the fiend (hunched, humanoid limbs) fit
+  easily; the dog's pieces face up and out from a level spine; the scrag's sit on an upright legless body (bracers on
+  the claws' bones). The shambler is one more table in the script (his bones are named like the ogre's); not built.
+- **Multi-part, data:** the pieces use the humanoids' ten slots (0 cuirass .. 9), so the QC is shared; a kind's *cuirass
+  group* (the ogre's 0|8|9) is given whole when the roll's cuirass is (VR_AgArmor_Give), each part then its own pool and
+  break. Kinds and pieces are data: `quakevr/data/beastarmour.txt` (kind: model, cuirass group; piece: slot, bone,
+  model, its middle in the rest pose), written with the models by `Misc/quakevr/make_beastarmour.py` (a table per kind:
+  bone, span along it, facing, arc, rows, tile, crown, spikes). Each piece is a conformal shell: rows of bevelled
+  lames on a tube round its bone whose radius follows the body (measured from the .mdl's pose 0; only measurements are
+  taken, every vertex is ours), with make_agarmor.py's nine skins halved to 128x64 (36 models, 3.2 MB).
+- **Engine:** `Quake/vr/vr_beastarmour.cpp/.hpp`; agarmor's `shotPiece`, `pieceAt`, `pieceBones`, `plateWhere` and
+  `halfModel` (none: a beast's piece falls whole) hand a beast to it; the client's `agarmor::relink` draws each worn
+  piece as an entity of its own (the wear skins by its wear bits). QC: `VR_BeastArmour_Spawn` (walkmonster_start,
+  flymonster_start), `VR_BeastArmour_Precache`, `VR_AgArmor_Model` (QVR_ARMOR_BEAST_MODEL), `ragdollbone(e, [what],
+  QVR_ARMOR_BEAST)`. `vr_beastarmour_info` lists the kinds and pieces.
+- **Tests:** `vr_agarmor_test 15` 49/0 (slots and groups, the client told, all 36 pieces drawn, pieces following frame
+  A to B, two pieces on one bone staying rigid, shots meeting the cuirass and the helmet, Plate Blocks All, a helmet
+  broken into debris, the skill's roll, two corpses keeping their pieces); `vr_agarmor_test 1` 38/0, `10` 21/1 (the known
+  "clear line" 36 of 40, ROUND24). Scene `armour_beasts` (`vr_agarmor_test 16`); `17`-`20` one beast close (renders).
+- **Open:** a remote MP client draws no beast pieces yet (the client draws them from the listen server's bodies); the
+  delayed spawns (MG/VR_SF prepare) skip the roll; the look is a first pass for his review (the lames' banding, the
+  scrag's coverage).
+## spacewarp: Application SpaceWarp on the Quest, off by default (branch agent/spacewarp, 2026-11-27)
+
+His words: "Performance is OK but still not smooth enough ... I think it's time to implement [SpaceWarp]."
+- **What it does**: `vr_xr_spacewarp` 1 (VR Settings > Scaling, "SpaceWarp", Quest only; off by default, archived) hands
+  the runtime each eye's motion vectors and depth with its colour (`XR_FB_space_warp`, `XrCompositionLayerSpaceWarpInfoFB`
+  on both projection views); the runtime then halves the game's rate and draws the frames between. The console says at
+  each VR start whether the runtime has it: `VR: SpaceWarp (XR_FB_space_warp): supported by the runtime (motion vectors
+  420x440 an eye ...)` on the Quest 3; the first frame with it says `VR: SpaceWarp on: motion vectors and depth 420x440 an
+  eye (depth GL_DEPTH24_STENCIL8)`. No runtime support, swapchains that fail, or a pass that won't compile: the full rate.
+- **Code**: `vr_spacewarp.cpp/.hpp` (policy, the eye pass, the play space's delta, the test checks); the backend's
+  SpaceWarp swapchains (2 motion RGBA16F + 2 depth, the recommended size, made at first use, gone with the session),
+  `acquire/releaseSpaceWarpImages`, `setSpaceWarpFrame`, the chain in `endFrame` (never on a held frame; `xr` timing line
+  counts "with SpaceWarp"). Reuse: the motion vectors are temporal AA's (`vr_temporal.cpp`): the scene's models and
+  moving brush models write their own motion into the motion target, the camera's (head + locomotion) comes from the
+  depth and the eye's view-projection a frame ago; `VR_TemporalResolve` calls the SpaceWarp pass (a fullscreen pass at
+  420x440: NDC now minus then, Meta's GLES sample's convention incl. the full previous view; z as GL NDC depth; the
+  depth as the projection wrote it, nearZ/farZ in metres, reversed Z as nearZ > farZ; the lenses' hidden area far, zero
+  motion). `appSpaceDeltaPose` = Inv(previous world-from-play-space) * current (Meta's sample), from the eye's Quake
+  pose and its OpenXR pose; a jump (40 units, 25 degrees, a gap in frames) marks the frame `FRAME_SKIP`.
+- **Decisions**: (1) the eyes go through the post-process path while SpaceWarp is on (`VR: eyes ... not now: SpaceWarp`):
+  the motion target can't be an attachment of the runtime's foveated images (an unfoveated attachment stops the
+  driver's foveation, qfov), so the scene's own targets are used; at half rate the budget doubles. (2) SpaceWarp alone
+  keeps the motion target in half floats (ES blends no 32-bit float target and the engine's opaque draws keep GL_BLEND
+  on; half the bandwidth), stamps 1..1000, looser depth match; none of TAA's history textures are made. (3) Menus and
+  the console turn it off for those frames (the UI over the eyes has no motion of its own; at the full rate they look as
+  before). The in-game UI drawn over the eyes (pointer lines, the status panel, head text) takes the scene's motion under
+  it: a world-fixed panel is nearly right, head-fixed text may judder in made-up frames (a quad layer would fix it).
+- **Headset** (Quest 3, unworn, `-unattended -noconfigwrite`, Standalone as his config has it, one launch; the
+  unworn headset pauses the app every ~20 s, so only the hub's parts are clean; the fight's never ran: open):
+
+| vrstart (the hub) | frame period | missed | CPU busy (period - waits) | GPU render | GPU total (incl. the runtime's in xrEndFrame) |
+|---|---|---|---|---|---|
+| SpaceWarp off (1) | 13.92 ms (71.9 fps) | 5 of 304 | 8.8 ms | 10.44 ms | 10.47 ms |
+| SpaceWarp on (1) | **27.79 ms (36.0 fps)** | **0 of 153** | 10.4 ms | 10.48 ms | 20.75 ms (10.26 the runtime's) |
+| off (2), a pause inside | 14.47 ms | 6 of 233 | - | - | - |
+| on (2) | 27.78 ms (36.0 fps) | 0 of 161 | - | - | - |
+
+  The runtime halved the rate at once and missed nothing. The render's GPU stayed ~10.5 ms with the post-process path
+  and the pass: dynamic resolution sees the doubled budget (27.78 ms), so it can draw sharper (the scale not logged).
+- **PC**: `spacewarp_test.sh` 16/0 (mock headset, `vr_spacewarp_test 1`: the images made into the game's own textures and
+  read back: still 0 motion and a depth range; the gun brought up has its own motion and the world none; walking, the
+  world streams by (mean 0.018 NDC) while the held gun stays 0.00003, the delta 8.7 cm forward a frame; the smooth turn
+  turns the delta; a setpos marks the frame skipped). Debug > Profiling "SpaceWarp Test Images".
+- **Open**: the fight's numbers (an unworn run is paused every ~20 s; a worn check or a proximity override needed); the
+  look of the made-up frames (worn only: hands, gun, HUD text); step 3's ranked profile of remaining costs: not done.
+- **Installed**: this branch's APK (origin/next with beta6's code, it says 1.2.0-beta5-dev, + SpaceWarp; debug key) and its progs.dat (06b6d2f8) left on the
+  headset; rollback: `scratch/sw_installed_before.apk` (bf4eecc2f, questcrash2's) + `scratch/sw_progs_before.dat`
+  (15e03c5b).
 ## testfails: four known test failures on next, each a stale test (branch agent/testfails, 2026-11-27)
 
 - `reload/pouch_test.sh` "super shotgun (main hand, dual-wielded): fills too": the off hand stayed at the pouch with its
@@ -2662,3 +2746,18 @@ The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subh
   the ogre run into at the real pace (32 units in 20 frames) is not let go of "too heavy for that pace". flatwall b:
   walking sighted into the wall, the tilt jumps 38.5 deg in one frame (limit 8). ragpush's grunt push check 60 -> 40
   units (he walks 47 in its 28 frames from a stand; 77 flown).
+  command and the Mods menu still switch to id1;<mod> without quakevr (unchanged). Both fixed by agent/gamecmd (below).
+- gamecmd (branch agent/gamecmd, 2026-11-27): the `game <mod>` command, the Mods menu (its `game "<mod>"`) and a KEX
+  save's game switch keep Quake VR's folder: common.c `COM_WithVRGame` in `COM_SwitchGameInternal` (not the campaign
+  reloads) puts quakevr where `COM_AddVRGameArg` does, both through one helper `COM_VRGameInsertAt` (after the leading
+  campaign folders, before the first other mod: `game testmod` -> id1;quakevr;testmod; `game id1` -> id1;quakevr). No
+  base dir with Quake VR's game data: unchanged. The switch also makes com_gamedir (`COM_CreatePath`): with the mod only
+  in Quake's folder it is the last base dir's, absent, and vr_motion.cpp's `Sys_mkdir("<com_gamedir>/motions")` ended
+  the game (Sys_Error) at the next map.
+- The empty mod's e1m1: the armed grunts' plates are made from the grunt's rig2 (vr_rig2.cpp `rigFor`), read from
+  `<com_gamedir>/rigs`: the mod's folder, which has none. The rigs' and animations' folder (vr_rigdata.cpp `rootDir`, the
+  Rig Studio's saves too) is now Quake VR's own (vr_gamedir.cpp `VR_QuakeVRGameDir`: `<its base>/quakevr` when mounted,
+  else com_gamedir): the same folder in every shipped launch, quakevr's under a mod.
+- Tests: nogamedir_test 5/0 (testmod and testmod_explicit now play e1m1 in the empty mod; new `gamecmd`: started
+  without -game, `game testmod` from the autoexec, the mod's autoexec then plays e1m1: game dirs quakevr;testmod);
+  tutorial_start_test 8/0; agrunt 1, 2, 80-82 (rigseq, vr_rigdata_dir) pass.

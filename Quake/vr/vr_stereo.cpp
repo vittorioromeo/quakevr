@@ -36,6 +36,7 @@
 #include "vr_portals.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
+#include "vr_spacewarp.hpp"
 #include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
 #include "vr_takes.hpp"
@@ -1411,6 +1412,7 @@ void releaseTargets()
     stereosingle::releaseTargets();
     gfx::releaseSceneTargets();
     temporal::releaseTargets();
+    spacewarp::releaseTargets();
     bloom::releaseTargets();
     haze::releaseTargets();
     water::releaseTargets();
@@ -1648,6 +1650,8 @@ extern "C" int VR_RenderView()
     {
         stereo::ensureResampleTarget(allocatedWidth, allocatedHeight);
     }
+    // SpaceWarp (vr_spacewarp.cpp): its motion vectors are temporal AA's, so it decides before temporal::beginFrame
+    spacewarp::beginFrame();
     // Temporal AA (vr_temporal.cpp): this frame's slots for the models' positions, the motion target on the eye targets
     temporal::beginFrame(stereo::eyeTargets.fb.scene.fbo, stereo::eyeTargets.fb.composite.fbo,
         stereo::ViewSize{allocatedWidth, allocatedHeight, drawnWidth, drawnHeight}, stereo::eyeTargets.fb.scene.samples);
@@ -1731,6 +1735,7 @@ extern "C" int VR_RenderView()
     const char* const notDirect = directWanted <= 0                       ? ""
                                   : !VR_GLESForm(VR_GLES_FORM_GLSL)       ? "not OpenGL ES"
                                   : singlePass                            ? "single-pass stereo"
+                                  : spacewarp::frameOn()                  ? "SpaceWarp (its motion target needs the scene's targets)"
                                   : splitTargets                          ? "split eye targets"
                                   : stereo::resampling                    ? "resampled into the image"
                                   : drawnWidth > imageWidth || drawnHeight > imageHeight ? "larger than the image"
@@ -2006,6 +2011,7 @@ extern "C" int VR_RenderView()
     R_AliasEyeCacheEnd();
     stereosingle::endFrame();
 
+    spacewarp::endFrame(); // (the frame's play-space delta, depth planes, skipped: given to the backend)
     // Both eyes, or no projection layer at all (an eye's image could not be acquired).
     profile::begin("xr submit", true); // xrEndFrame
     be->endFrame(eyesRendered == 2);

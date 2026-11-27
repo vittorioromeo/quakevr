@@ -22,6 +22,7 @@
 #include "Zancle/Base/Strncmp.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_agarms.hpp"
+#include "vr_beastarmour.hpp"
 #include "vr_axestick.hpp"
 #include "vr_attach.hpp"
 #include "vr_box3d.hpp"

@@ -545,6 +545,10 @@ za::Vector<Item> pageDebugProfiling()
                   "times one render pass as a whole)."),
         command("Show Every Model", "vr_debug_hide_models \"\"").help("vr_debug_hide_models \"\": every model drawn again."),
         row(opt::vr_profile_overlay),
+        toggle("SpaceWarp Test Images", "vr_spacewarp_test")
+            .help("vr_spacewarp_test 1: SpaceWarp's motion vectors and depth made every frame into the game's own images, "
+                  "without a runtime that has it (the PC); vr_spacewarp_check prints what the left eye's hold (the walk "
+                  "streams the world by, the held gun stays still)."),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
         row(opt::vr_profile_slow_ms),

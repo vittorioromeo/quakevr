@@ -12,6 +12,9 @@ Quake's folder without Quake VR) and the tree itself (its quakevr: Quake VR's fo
 - nogame: "-basedir <Quake> -basedir <Quake VR>" and no -game: quakevr added, its game code and data read, e1m1 played;
 - testmod: ... "-game testmod" (a mod folder in Quake's folder): "-game quakevr" put under it (game dirs quakevr;testmod).
 - testmod_explicit: "-game quakevr -game testmod" given: unchanged (the same game dirs).
+  Both testmod cases play e1m1 in the empty mod (its armed grunts' plates: quakevr's rigs, not the mod folder's).
+- gamecmd: started as nogame, "game testmod" in the console (the Mods menu's command): quakevr kept under the mod
+  (common.c COM_WithVRGame), e1m1 played there.
 Each map run ends by itself (its script's quit), a 120 s timeout only a safety net. Prints "nogamedir_test: PASS|FAIL <case> ..."
 and "nogamedir_test: N passed, M failed". The campaigns' launches (-game ad, -game hipnotic) go through run.sh (ROUND26).
 """
@@ -52,15 +55,20 @@ def main():
         # (arguments, quakevr mounted, the missing notice, the map played)
         "missing": (["-basedir", base], False, True, True),
         "nogame": (["-basedir", base, "-basedir", tree], True, False, True),
-        # (a mod over quakevr: e1m1 doesn't load there, "vrgrunt.mdl#plate0 not found", on next too: not this test's)
-        "testmod": (["-basedir", base, "-basedir", tree, "-game", "testmod"], True, False, False),
-        "testmod_explicit": (["-basedir", base, "-basedir", tree, "-game", "quakevr", "-game", "testmod"], True, False, False),
+        # (an empty mod over quakevr: e1m1 played, its armed grunts' plates made from quakevr's rigs: VR_QuakeVRGameDir)
+        "testmod": (["-basedir", base, "-basedir", tree, "-game", "testmod"], True, False, True),
+        "testmod_explicit": (["-basedir", base, "-basedir", tree, "-game", "quakevr", "-game", "testmod"], True, False, True),
+        # (started as nogame, then "game testmod" in the console, as the Mods menu does: quakevr kept under it)
+        "gamecmd": (["-basedir", base, "-basedir", tree], True, False, True),
     }
     names = a.cases or list(cases)
     tally = qvrtest.Tally("nogamedir_test")
     for name in names:
         extra, wantVr, wantNotice, wantMap = cases[name]
+        # (the mod's autoexec runs once it is mounted: gamecmd's id1 one only switches to it, quake.rc then runs it)
         with open(base + "/id1/autoexec.cfg", "w") as f:
+            f.write("game testmod\n" if name == "gamecmd" else "\n".join(SCRIPT) + "\n")
+        with open(base + "/testmod/autoexec.cfg", "w") as f:
             f.write("\n".join(SCRIPT) + "\n")
         log = base + "/qconsole.log"
         if os.path.exists(log):
@@ -88,8 +96,10 @@ def main():
         notice = "Quake VR's game data wasn't found" in text and "(looked for quakevr in" in text
         noData = "No data/weapons.txt" in text
         ok = mounted == wantVr and notice == wantNotice and noData != wantVr and ("Player pos" in text or not wantMap)
-        if name.startswith("testmod"):
+        if name.startswith("testmod") or name == "gamecmd":
             ok = ok and dirs[-2:] == ["quakevr", "testmod"]
+        if name == "gamecmd":
+            ok = ok and '"game" changed to' in text
         tally.check(ok, f"{name} (game dirs {';'.join(dirs) or 'id1'}, notice {notice}, data missing {noData})")
     return tally.verdict()
 
