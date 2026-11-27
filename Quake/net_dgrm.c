@@ -111,10 +111,42 @@ static dgrmqueue_t	controlQueue[MAX_NET_DRIVERS];	// each LAN driver's listening
 static byte		sharedBuffer[NET_DATAGRAMSIZE];
 static int		sharedQueueDrops;	// datagrams dropped from a full queue (net_stats)
 
+// QVR: (review O2) the queued datagrams' nodes, each of NET_DATAGRAMSIZE, kept for the next once popped (at most
+// DGRM_POOL_MOST kept: ~0.7 MB) instead of a malloc and a free per datagram (72 a second for each player)
+#define DGRM_POOL_MOST	512
+static dgrmpacket_t	*packetPool;
+static int		packetPoolCount;
+static int		packetPoolAllocs;	// nodes malloc'ed (net_stats)
+
+static dgrmpacket_t *PacketGet (void)
+{
+	dgrmpacket_t *p = packetPool;
+	if (p)
+	{
+		packetPool = p->next;
+		packetPoolCount--;
+		return p;
+	}
+	packetPoolAllocs++;
+	return (dgrmpacket_t *) malloc (sizeof (dgrmpacket_t) + NET_DATAGRAMSIZE);
+}
+
+static void PacketPut (dgrmpacket_t *p)
+{
+	if (packetPoolCount >= DGRM_POOL_MOST)
+	{
+		free (p);
+		return;
+	}
+	p->next = packetPool;
+	packetPool = p;
+	packetPoolCount++;
+}
+
 static void QueuePush (dgrmqueue_t *q, int most, const byte *data, int length, const struct qsockaddr *from)
 {
-	dgrmpacket_t *p = (dgrmpacket_t *) malloc (sizeof (dgrmpacket_t) + length);
-	if (!p)
+	dgrmpacket_t *p;
+	if (length < 0 || length > NET_DATAGRAMSIZE || !(p = PacketGet ()))
 		return;
 	p->next = NULL;
 	p->from = *from;
@@ -130,7 +162,7 @@ static void QueuePush (dgrmqueue_t *q, int most, const byte *data, int length, c
 		dgrmpacket_t *old = q->first;
 		q->first = old->next;
 		q->count--;
-		free (old);
+		PacketPut (old);
 		sharedQueueDrops++;
 	}
 }
@@ -149,7 +181,7 @@ static int QueuePop (dgrmqueue_t *q, byte *out, int size, struct qsockaddr *from
 	length = q_min (p->length, size);
 	memcpy (out, p->data, length);
 	*from = p->from;
-	free (p);
+	PacketPut (p);
 	return length;
 }
 
@@ -159,7 +191,7 @@ static void QueueClear (dgrmqueue_t *q)
 	{
 		dgrmpacket_t *p = q->first;
 		q->first = p->next;
-		free (p);
+		PacketPut (p);
 	}
 	q->last = NULL;
 	q->count = 0;
@@ -655,6 +687,9 @@ static void RoomHostTick (sys_socket_t acceptsock)
 // The listening socket's datagrams read: each client's queued for him, the room service's taken, the rest queued for
 // _Datagram_CheckNewConnections
 #define DGRM_SHARED_READS	1024
+#define DGRM_SHARED_IDLE	0.001
+static double	sharedEmptyAt[MAX_NET_DRIVERS];	// (review O1) when each driver's listening socket was last read empty
+static int		sharedReads;	// its reads (net_stats)
 static void ReadShared (int landriver, sys_socket_t acceptsock)
 {
 	struct qsockaddr	from;
@@ -664,13 +699,27 @@ static void ReadShared (int landriver, sys_socket_t acceptsock)
 	net_landriver_t	*driver = &net_landrivers[landriver];
 
 	int		reads = 0;
+	const double	now = Sys_DoubleTime ();
 
+	// QVR: (review O1) the socket found empty under DGRM_SHARED_IDLE ago: not read again (every client's
+	// Datagram_GetMessage came here: 16 players made 17 reads a frame, 16 of them empty); what came meanwhile waits in
+	// the system's buffer for the next read, within the next frame
+	if (now - sharedEmptyAt[landriver] < DGRM_SHARED_IDLE && now >= sharedEmptyAt[landriver])
+		return;
 	net_landriverlevel = landriver; // (dfunc: RoomHostRead's)
 
 	// (mpfix A5) DGRM_SHARED_READS a call at most: a flood as fast as it is read kept the server frame in this loop (the
 	// rest waits in the system's buffer for the next call, the next frame's at the latest)
-	while (reads++ < DGRM_SHARED_READS && (length = driver->Read (acceptsock, sharedBuffer, sizeof (sharedBuffer), &from)) > 0)
+	while (1)
 	{
+		if (reads++ >= DGRM_SHARED_READS)
+			break;
+		sharedReads++;
+		if ((length = driver->Read (acceptsock, sharedBuffer, sizeof (sharedBuffer), &from)) <= 0)
+		{
+			sharedEmptyAt[landriver] = now;
+			break;
+		}
 		if (RoomHostRead (sharedBuffer, length, &from))
 			continue;
 		head = length >= 4 ? ((unsigned int) sharedBuffer[0] << 24) : 0;
@@ -692,7 +741,8 @@ static int ReadDatagram (qsocket_t *sock, struct qsockaddr *from)
 {
 	if (!sock->qvrShared)
 		return sfunc.Read (sock->socket, (byte *)&packetBuffer, NET_DATAGRAMSIZE, from);
-	ReadShared (sock->landriver, sock->socket);
+	if (!sock->qvrIn.first) // (review O1: his queue's own first; the socket read when it is empty)
+		ReadShared (sock->landriver, sock->socket);
 	return QueuePop (&sock->qvrIn, (byte *)&packetBuffer, NET_DATAGRAMSIZE, from);
 }
 
@@ -1429,6 +1479,8 @@ static void NET_Stats_f (void)
 		Con_Printf("shortPacketCount           = %i\n", shortPacketCount);
 		Con_Printf("droppedDatagrams           = %i\n", droppedDatagrams);
 		Con_Printf("server queue drops         = %i\n", sharedQueueDrops); // QVR (B23)
+		Con_Printf("server socket reads        = %i\n", sharedReads); // QVR (review O1)
+		Con_Printf("server queue nodes         = %i made, %i kept\n", packetPoolAllocs, packetPoolCount); // QVR (review O2)
 		Con_Printf("out of window              = %i\n", outOfWindow); // QVR (review 2026-11-18, finding 2)
 	}
 	else if (Q_strcmp(Cmd_Argv(1), "*") == 0)
