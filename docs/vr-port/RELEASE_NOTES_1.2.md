@@ -1,8 +1,67 @@
-**Quake VR: UNLEASHED 1.2.0 beta 5**: the fifth preview of the next update. This is a **beta**: expect rough edges, and the standalone Quest version is still **experimental**. Beta 5 adds **Swap Face Buttons** for left-handed players, brings back blades sticking into enemies on the flat screen with a new stab key, adds a plain spear, and has a round of weapon fixes. Beta 3 and beta 4 players simply update. **On the Quest, players coming from beta 1 or beta 2 must uninstall the old app once before updating, and back up their saves first** (steps under beta 3 below). What came in betas 1 to 4 is further below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
+**Quake VR: UNLEASHED 1.2.0 beta 6**: the sixth preview of the next update. This is a **beta**: expect rough edges, and the standalone Quest version is still **experimental**. Beta 6 makes the **Quest standalone version stable and much quicker to load**, adds a loading progress panel, a long list of flat-screen play improvements, and a **bayonet** for the shotguns. Beta 3, 4 and 5 players simply update. **On the Quest, players coming from beta 1 or beta 2 must uninstall the old app once before updating, and back up their saves first** (steps under beta 3 below). **Multiplayer: everyone must update to beta 6** (network version 48). What came in betas 1 to 5 is further below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
 
 **The full patch notes** (every change since 1.1.0, by area): [PATCH_NOTES_1.1.1.md](https://github.com/vittorioromeo/quakevr/blob/next/docs/vr-port/PATCH_NOTES_1.1.1.md) (they become the 1.2 notes at the final release).
 
-# New in beta 5
+# New in beta 6
+
+## Quest standalone
+
+- **Crash fixes**: turning Foveation off, an old settings file carried over from an earlier beta, and a crash while the game starts its VR view no longer stop the game. Old settings with PC values are repaired at start.
+- **The first hub load after installing or updating takes about 17 s** (it was well over a minute): the hub's collision now ships ready-made, and Setup builds it for Quake's and the mission packs' maps at install time.
+- **Graphics presets keep the Quest within its limits**, and a setting that makes it too slow is put back. The flashlight now lights unlit walls on the Quest too.
+- Closing the app no longer leaves it stuck on the loading screen at the next launch.
+- The app is now called **Quake VR: UNLEASHED** on the headset.
+
+## Loading
+
+- A **loading panel** shows each slow step of a load with a progress bar (flat and VR) instead of a frozen screen.
+- The game ships its own cache of the starting maps' collision and lighting, so the first visit to the hub is much quicker on PC too.
+
+## Flat-screen play
+
+- **Parry**: the guard works with a flipped grip (and has its own reverse-grip guard); the other hand rests near the blade.
+- **Flip Grip** poses and attacks for daggers, swords and the spear; daggers and axes can be held one-handed (options).
+- **Throwing** (B, hold): a follow-through before the release, cancel with the hand's attack button, and the crosshair shows where the throw (or a quick grenade) will land. Reverse-grip throws fly point first.
+- **Crosshair**: every melee weapon shows where its blow lands, in both grips; melee blows widen it.
+- **Grab, hold and push** (H): props, ragdolls and gibs with all free hands; big props are dragged or pushed by their surface and let go when too steep or too heavy.
+- **V with both hands empty** is a two-fisted overhead blow (option, on).
+- New default keys: ammo N, throw B, crouch C and Left Ctrl; every flat action can have two keys.
+- Stuck blades: your hand stays on the weapon's arm, the other free hand joins stuck spears, and the ammo key ejects the loaded magazine.
+- Climbing and swimming: rung ladders climb, elbows bend outwards on ropes and poles, crouch swims down underwater, and prone is blocked underwater.
+
+## VR
+
+- **Spear and Crystal Lance**: your other hand closes round the shaft and stays fixed on it (option, on), also while the blade is stuck.
+- Reverse-grip throws settle point first.
+- **The belt flashlight grabs like a holster** (grip press in its zone; position and grab zone in Holster Setup).
+- The tutorial's hands close round thin rungs, and its hazards and rope pit are easier to read.
+
+## Weapons
+
+- **Bayonet** for the shotgun and super shotgun (the first weapon attachment): snap it on and it stays on; it stabs and sticks, and the gun still fires and reloads while stuck. A thrown gun sticks by its bayonet.
+- The Crystal Lance fires while embedded.
+- A thrown axe in a head that comes off drops instead of floating.
+
+## Physics and monsters
+
+- Box3D physics updated: ledge climbs finish on the top and fast grabs hold.
+- Monsters keep raised lift shafts clear instead of being bounced by the lift.
+- Monster fire hits your drawn body in single player.
+
+## Arcane Dimensions, Quoth and Dwell
+
+- Armed AD and Quoth humanoids hold their guns properly; AD crossbow knights are no longer replaced; Dwell no longer hides AD's monsters.
+
+## Setup
+
+- The Quest copy never loses a file (staged copies with a fallback), and collision for the installed maps is built at install time.
+
+## Multiplayer and known issues
+
+- **Network version 48: every player must update to beta 6** to play together (the bayonet needs it).
+- Beta 3's known issues below still apply.
+
+# Beta 5 (2026-11-25)
 
 ## Left-handed players: Swap Face Buttons
 
