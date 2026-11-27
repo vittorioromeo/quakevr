@@ -399,7 +399,7 @@ RIGS = {
                               forearm=2.8, hand=2.0, thigh=4.0, shin=3.0, foot=2.6),
                    max_hops=3, weld_gun=False),
     'dcrossbow': dict(build='vrdcrossbow', models=['vrdcrossbow'], skeleton=DCROSSBOW_SKELETON,
-                      gun=list(range(772, 1120)),
+                      gun=list(range(772, 1120)), poses_from='progs/vrdguard.mdl',  # (the death guard's poses)
                       thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
                                  forearm=2.8, hand=2.0, thigh=4.0, shin=3.0, foot=2.6),
                       max_hops=3, weld_gun=False),
@@ -849,13 +849,16 @@ def fmt(p):
     return '%.3f %.3f %.3f' % tuple(0.0 if abs(c) < 5e-4 else c for c in p)
 
 
-def write(path, model, bones, weights):
+def write(path, model, bones, weights, poses_from=None):
     lines = ['qvrrig2 1', 'model %s' % model,
              '# Made by Misc/quakevr/make_rig2.py (its header: the method); hand-editable. Model units, x forward,',
              '# y left, z up; degrees. bone <name> <parent|-> <root|ball|hinge|fixed> pivot <xyz> end <xyz>',
              '#   ball: neutral <xyz> fwd <xyz> side <xyz> swingx <min max> swingy <min max> twist <min max>',
              '#   hinge: axis <xyz> range <min max> (its bend from straight; the rest pose\'s own bend measured)',
              '# w <vertex> <bone> <weight> ... (up to 4, summing to 1)']
+    if poses_from:
+        # (its Rig Studio poses, override tracks and sequences are that model's: the same bones; RIGSTUDIO.md)
+        lines.append('poses_from %s' % poses_from)
     for b in bones:
         s = 'bone %s %s %s pivot %s end %s' % (b['name'], b['parent'] or '-', b['joint'], fmt(b['pivot']), fmt(b['end']))
         if b['joint'] == 'ball':
@@ -939,7 +942,7 @@ def main():
         for name in cfg['models']:
             os.makedirs(os.path.join(ROOT, 'quakevr', 'rigs'), exist_ok=True)
             out = os.path.join(ROOT, 'quakevr', 'rigs', name + '.rig2.txt')
-            write(out, 'progs/%s.mdl' % name, bones, weights)
+            write(out, 'progs/%s.mdl' % name, bones, weights, cfg.get('poses_from'))
             blended = sum(1 for v in mesh.used if len(weights[v]) > 1)
             if not quiet:
                 print('  wrote %s (%d bones; %d of %d drawn vertices blended)' % (os.path.relpath(out, ROOT),

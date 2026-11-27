@@ -9,6 +9,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_testkit.hpp"
 #include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
@@ -487,6 +488,76 @@ void refit(ragdoll::Rig& rig, const aliashdr_t* hdr, uint32_t changed)
     }
 }
 
+
+// The other models read this map whose files are `base` too (shared poses, filesBase), authored: their entries.
+template <typename F>
+void forSharers(const qmodel_t* model, const za::String& base, F&& f)
+{
+    for(Entry& o : registry.entries)
+    {
+        if(o.model == model || !o.model)
+        {
+            continue;
+        }
+        const ragdoll::Rig* rig = ragdoll::rigFor(const_cast<qmodel_t*>(o.model));
+        if(!rig || !rig->authored)
+        {
+            continue;
+        }
+        char b[64];
+        if(o.data)
+        {
+            q_strlcpy(b, o.data->base.cStr(), sizeof(b));
+        }
+        else
+        {
+            rigdata::filesBase(o.model->name, b, sizeof(b));
+        }
+        if(!ZA_STRCMP(b, base.cStr()))
+        {
+            f(o, *rig);
+        }
+    }
+}
+
+// A sharer given the published data as its files would give it (written on one rig, read on the other: each key in its
+// bone's own frame, so the same turns of the same joints).
+void shareTo(Entry& o, const ragdoll::Rig& dst, const ragdoll::Rig& src, const rigdata::ModelData& m)
+{
+    za::UniquePtr<rigdata::ModelData> d = za::makeUnique<rigdata::ModelData>();
+    d->model = o.model->name;
+    d->base = m.base;
+    d->sharedFrom = m.sharedFrom.empty() ? m.model : m.sharedFrom;
+    d->authored = true;
+    for(int b = 0; b < dst.numBones; b++)
+    {
+        d->boneName[b] = dst.bones[b].name;
+    }
+    za::String text, err;
+    rigdata::writeRig(m, src, text);
+    if(rigdata::readRig(text.cStr(), dst, *d, err))
+    {
+        d->haveRigFile = m.haveRigFile;
+    }
+    d->model = o.model->name;
+    for(const rigdata::Sequence& s : m.seqs)
+    {
+        rigdata::Sequence s2;
+        rigdata::writeSequence(m, s, src, text);
+        if(rigdata::readSequence(text.cStr(), dst, s2, err))
+        {
+            d->seqs.pushBack(ZA_MOVE(s2));
+        }
+    }
+    if(!ZA_STRCMP(d->sharedFrom.cStr(), d->model.cStr()))
+    {
+        d->sharedFrom.clear(); // (the master's own)
+    }
+    o.data = ZA_MOVE(d);
+    o.none = false;
+}
+
+
 void loadEntry(Entry& e)
 {
     e.none = true;
@@ -501,8 +572,26 @@ void loadEntry(Entry& e)
         return;
     }
     char base[64], path[MAX_OSPATH], dir[MAX_OSPATH];
-    rigdata::baseName(e.model->name, base, sizeof(base));
     za::UniquePtr<rigdata::ModelData> m = za::makeUnique<rigdata::ModelData>();
+    if(rig->authored)
+    {
+        rigdata::filesBase(e.model->name, base, sizeof(base), &m->sharedFrom); // (poses_from: another's files)
+        // (another model on the same files has them already, maybe with the studio's unsaved edits: theirs)
+        for(Entry& o : registry.entries)
+        {
+            const bool same = o.model && o.model != e.model && o.data && o.data->authored && !ZA_STRCMP(o.data->base.cStr(), base);
+            const ragdoll::Rig* src = same ? ragdoll::rigFor(const_cast<qmodel_t*>(o.model)) : nullptr;
+            if(src && src->authored)
+            {
+                shareTo(e, *rig, *src, *o.data);
+                return;
+            }
+        }
+    }
+    else
+    {
+        rigdata::baseName(e.model->name, base, sizeof(base));
+    }
     m->model = e.model->name;
     m->base = base;
     for(int b = 0; b < rig->numBones; b++)
@@ -517,6 +606,7 @@ void loadEntry(Entry& e)
     {
         if(rigdata::readRig(text.cStr(), *rig, *m, err))
         {
+            m->model = e.model->name; // (a shared file names the model it is: this one keeps its own)
             m->haveRigFile = true;
             any = true;
         }
@@ -720,6 +810,113 @@ void animPath(const char* base, const char* name, char* out, int size, bool auth
     q_snprintf(out, static_cast<za::SizeT>(size), "%s/%s.%s", dir, clean, authored ? "anim2.txt" : "anim.txt");
 }
 
+void filesBase(const char* model, char* out, int size, za::String* sharedFrom)
+{
+    if(sharedFrom)
+    {
+        sharedFrom->clear();
+    }
+    if(!model)
+    {
+        out[0] = 0;
+        return;
+    }
+    baseName(model, out, size);
+    za::UniquePtr<rig2::Rig> own = za::makeUnique<rig2::Rig>();
+    if(!rig2::peek(model, *own) || own->posesFrom.empty() || !q_strcasecmp(own->posesFrom.cStr(), model))
+    {
+        return;
+    }
+    za::UniquePtr<rig2::Rig> from = za::makeUnique<rig2::Rig>();
+    if(!rig2::peek(own->posesFrom.cStr(), *from))
+    {
+        Con_Printf("rigdata: %s: poses_from %s: that model has no authored rig: its own poses\n", model, own->posesFrom.cStr());
+        return;
+    }
+    if(!rig2::sameBones(*own, *from))
+    {
+        Con_Printf("rigdata: %s: poses_from %s: not the same bones (names, parents, joints): its own poses\n", model,
+            own->posesFrom.cStr());
+        return;
+    }
+    baseName(own->posesFrom.cStr(), out, size);
+    if(sharedFrom)
+    {
+        *sharedFrom = own->posesFrom;
+    }
+}
+
+void poseSharers(const char* model, za::Vector<za::String>& out)
+{
+    out.clear();
+    if(!model)
+    {
+        return;
+    }
+    char mine[64], root[MAX_OSPATH], game[MAX_OSPATH], dirs[2][MAX_OSPATH];
+    baseName(model, mine, sizeof(mine));
+    rootDir(root, sizeof(root));
+    VR_QuakeVRGameDir(game, sizeof(game));
+    q_snprintf(dirs[0], sizeof(dirs[0]), "%s/rigs", root);
+    q_snprintf(dirs[1], sizeof(dirs[1]), "%s/rigs", game);
+    constexpr const char* suffix = ".rig2.txt";
+    const za::SizeT sn = ZA_STRLEN(suffix);
+    for(int d = 0; d < (ZA_STRCMP(dirs[0], dirs[1]) ? 2 : 1); d++)
+    {
+        if(!files::isDirectory(dirs[d]))
+        {
+            continue;
+        }
+        files::forEachEntry(dirs[d], [&](const char* name, bool isDir) {
+            const za::SizeT n = ZA_STRLEN(name);
+            if(isDir || n <= sn || ZA_STRCMP(name + n - sn, suffix))
+            {
+                return;
+            }
+            char path[MAX_OSPATH], word[MAX_QPATH], other[MAX_QPATH], b[64];
+            q_snprintf(path, sizeof(path), "%s/%s", dirs[d], name);
+            za::String text;
+            if(!files::readText(path, text))
+            {
+                return;
+            }
+            // (its `model` and `poses_from` lines, each a word after the key)
+            const auto wordAfter = [&](const char* key, char* w) {
+                const char* at = strstr(text.cStr(), key);
+                w[0] = 0;
+                if(at && sscanf(at + ZA_STRLEN(key), "%63s", w) != 1)
+                {
+                    w[0] = 0;
+                }
+            };
+            wordAfter("\nposes_from ", word);
+            wordAfter("\nmodel ", other);
+            if(!word[0] || !other[0])
+            {
+                return;
+            }
+            baseName(word, b, sizeof(b));
+            if(ZA_STRCMP(b, mine))
+            {
+                return;
+            }
+            filesBase(other, b, sizeof(b)); // (the same bones: shared indeed)
+            if(ZA_STRCMP(b, mine))
+            {
+                return;
+            }
+            for(const za::String& s : out)
+            {
+                if(!ZA_STRCMP(s.cStr(), other))
+                {
+                    return;
+                }
+            }
+            out.pushBack(za::String{other});
+        });
+    }
+}
+
 void writeRig(const ModelData& m, const ragdoll::Rig& rig, za::String& out)
 {
     out.clear();
@@ -736,7 +933,7 @@ void writeRig(const ModelData& m, const ragdoll::Rig& rig, za::String& out)
         out += "# Quake VR rig overrides (the Rig Studio: docs/vr-port/RIGSTUDIO.md), laid on the rig computed from the model\n";
         out += "qvrrig 1\nmodel ";
     }
-    out += m.model;
+    out += m.sharedFrom.empty() ? m.model : m.sharedFrom; // (shared poses: the file is that model's)
     out += "\n";
     for(int b = 0; b < rig.numBones && !rig.authored; b++) // (the authored rig's rest and weights: its rig2.txt)
     {
@@ -838,7 +1035,7 @@ void writeSequence(const ModelData& m, const Sequence& s, const ragdoll::Rig& ri
         out += "# Quake VR animation (the Rig Studio: docs/vr-port/RIGSTUDIO.md): its bones' keys from the rest pose\n";
         out += "qvranim 1\nmodel ";
     }
-    out += m.model;
+    out += m.sharedFrom.empty() ? m.model : m.sharedFrom;
     out += "\nname ";
     out += name;
     out += "\nfps";
@@ -1159,6 +1356,12 @@ void publish(const qmodel_t* model, const ModelData& m)
     }
     *e->data = m;
     e->none = false;
+    // (shared poses: the other models on the same files take the edit at once, unsaved too)
+    const ragdoll::Rig* src = m.authored ? ragdoll::rigFor(const_cast<qmodel_t*>(model)) : nullptr;
+    if(src && src->authored)
+    {
+        forSharers(model, m.base, [&](Entry& o, const ragdoll::Rig& dst) { shareTo(o, dst, *src, m); });
+    }
     recount();
 }
 
@@ -1167,7 +1370,23 @@ void reload(const qmodel_t* model)
     Entry* e = entryOf(model, false);
     if(e)
     {
+        // (shared poses: the others on its files emptied first, so it reads the files, then read again from it)
+        const ragdoll::Rig* rig = ragdoll::rigFor(const_cast<qmodel_t*>(model));
+        char base[64];
+        filesBase(model->name, base, sizeof(base));
+        const bool shared = rig && rig->authored;
+        if(shared)
+        {
+            forSharers(model, za::String{base}, [](Entry& o, const ragdoll::Rig&) {
+                o.data.reset();
+                o.none = true;
+            });
+        }
         loadEntry(*e);
+        if(shared && e->data)
+        {
+            forSharers(model, e->data->base, [](Entry& o, const ragdoll::Rig&) { loadEntry(o); });
+        }
         recount();
     }
 }
@@ -1637,12 +1856,186 @@ void reload_f()
     Con_Printf("rigdata: the files are read again as each model is next drawn\n");
 }
 
+// ---- vr_rigdata_share_test [keep]: shared poses (RIGSTUDIO.md, "Shared poses") ----
+// AD's crossbow knight on the death guard's files (needs AD: both models are made from its). Its own folder
+// (vr_rigdata_dir rigstudio_test_share, put back after). Which files each uses and who shares them; the bones' guard;
+// an edit on the crossbow knight on the death guard at once; saved, read again by both; an edit on the death guard on
+// the crossbow knight. Ends on `rigdata share: N passed, M failed`. `keep`: then a pose on both, left published for a
+// look (every animation of theirs: the head turned, the chest bent; vr_rigdata_reload clears it).
+constexpr const char* shareTestName = "rigdata share";
+
+// `m` made ready for `model`'s data as loadEntry makes it, then `text` read into it (a rig2anim file's).
+bool shareTestData(ModelData& m, const qmodel_t* model, const ragdoll::Rig& rig, const char* text)
+{
+    m = ModelData{};
+    char b[64];
+    filesBase(model->name, b, sizeof(b), &m.sharedFrom);
+    m.base = b;
+    m.authored = true;
+    for(int i = 0; i < rig.numBones; i++)
+    {
+        m.boneName[i] = rig.bones[i].name;
+    }
+    za::String err;
+    const bool ok = readRig(text, rig, m, err);
+    m.model = model->name;
+    if(!ok)
+    {
+        Con_Printf("%s: %s\n", shareTestName, err.cStr());
+    }
+    return ok;
+}
+
+[[nodiscard]] bool hasPose(const ModelData* m, const char* name)
+{
+    for(za::SizeT i = 0; m && i < m->poses.size(); i++)
+    {
+        if(!ZA_STRCMP(m->poses[i].name.cStr(), name))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void shareTest_f()
+{
+    testkit::Tally t;
+    const auto check = [&](bool ok, const char* what) {
+        Con_Printf("%s: %s: %s\n", shareTestName, ok ? "ok" : "FAIL", what);
+        t.check(ok);
+    };
+    const bool keep = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "keep");
+    qmodel_t* guard = Mod_ForName("progs/vrdguard.mdl", false);
+    qmodel_t* xbow = Mod_ForName("progs/vrdcrossbow.mdl", false);
+    const ragdoll::Rig* rg = guard ? ragdoll::rigFor(guard) : nullptr;
+    const ragdoll::Rig* rx = xbow ? ragdoll::rigFor(xbow) : nullptr;
+    const bool both = rg && rx && rg->authored && rx->authored;
+    check(both, "both models on their authored rigs (AD's data mounted)");
+    if(!both)
+    {
+        t.verdict(shareTestName);
+        return;
+    }
+    char was[MAX_OSPATH];
+    q_strlcpy(was, vr_rigdata_dir.string, sizeof(was));
+    Cvar_Set("vr_rigdata_dir", "rigstudio_test_share");
+    newMap();
+
+    // Which files, and who shares them
+    char b[64];
+    za::String from;
+    filesBase(xbow->name, b, sizeof(b), &from);
+    check(!ZA_STRCMP(b, "vrdguard") && !ZA_STRCMP(from.cStr(), "progs/vrdguard.mdl"), "the crossbow knight's files are the death guard's");
+    filesBase(guard->name, b, sizeof(b), &from);
+    check(!ZA_STRCMP(b, "vrdguard") && from.empty(), "the death guard's files are its own");
+    za::Vector<za::String> sharers;
+    poseSharers(guard->name, sharers);
+    check(sharers.size() == 1 && !ZA_STRCMP(sharers[0].cStr(), "progs/vrdcrossbow.mdl"), "the death guard's files shared with the crossbow knight");
+
+    // The guard: only the same bones share
+    za::UniquePtr<rig2::Rig> a = za::makeUnique<rig2::Rig>(), c = za::makeUnique<rig2::Rig>();
+    const bool peeked = rig2::peek(guard->name, *a) && rig2::peek(xbow->name, *c);
+    check(peeked && rig2::sameBones(*a, *c) && c->posesFrom == za::String{"progs/vrdguard.mdl"}, "the same 20 bones; poses_from read");
+    if(peeked)
+    {
+        const int fl = rig2::boneByName(*c, "forearm_l");
+        if(fl >= 0)
+        {
+            c->bones[fl].joint = rig2::Joint::Ball;
+        }
+        check(fl >= 0 && !rig2::sameBones(*a, *c), "a joint changed: not the same bones (each keeps its own files)");
+    }
+
+    // An edit on the crossbow knight: on the death guard at once (the same joints' turns: the files' text the same)
+    const char* poseA = "qvrrig2anim 1\nmodel progs/vrdguard.mdl\npose sharetest\n  key chest 12 0 5 0 0 0\n"
+                        "  key forearm_r 40 0 0 0 0 0\nend\noverride stand\n  track head\n    key 2 smooth 0 0 25 0 0 0\n"
+                        "  end\nend\n";
+    ModelData mx;
+    za::String tx, tg;
+    const bool readA = shareTestData(mx, xbow, *rx, poseA);
+    publish(xbow, mx);
+    const ModelData* g = of(guard);
+    writeRig(mx, *rx, tx);
+    if(g)
+    {
+        writeRig(*g, *rg, tg);
+    }
+    check(readA && hasPose(g, "sharetest") && g->overrides.size() == 1 && tx == tg,
+        "the crossbow knight's edit on the death guard at once (the same keys)");
+
+    // Saved (as the studio's Save: the shared file), read again by both
+    char path[MAX_OSPATH], dir[MAX_OSPATH], root[MAX_OSPATH];
+    rootDir(root, sizeof(root));
+    q_snprintf(dir, sizeof(dir), "%s/rigs", root);
+    files::createDirectories(dir);
+    rigPath(mx.base.cStr(), path, sizeof(path), true);
+    const bool wrote = files::writeText(path, tx.toStringView());
+    check(wrote && strstr(path, "vrdguard.rig2anim.txt") && strstr(tx.cStr(), "model progs/vrdguard.mdl"),
+        "saved to the death guard's file, named the death guard's");
+    newMap();
+    g = of(guard);
+    const ModelData* x = of(xbow);
+    tg.clear();
+    za::String tx2;
+    if(g && x)
+    {
+        writeRig(*g, *rg, tg);
+        writeRig(*x, *rx, tx2);
+    }
+    check(hasPose(g, "sharetest") && hasPose(x, "sharetest") && tg == tx && tx2 == tx, "read again: both have it, the same keys");
+
+    // An edit on the death guard: on the crossbow knight at once
+    const char* poseB = "qvrrig2anim 1\nmodel progs/vrdguard.mdl\npose sharetest\n  key chest 20 0 -5 0 0 0\nend\n";
+    ModelData mg;
+    const bool readB = shareTestData(mg, guard, *rg, poseB);
+    publish(guard, mg);
+    x = of(xbow);
+    tg.clear();
+    tx2.clear();
+    writeRig(mg, *rg, tg);
+    if(x)
+    {
+        writeRig(*x, *rx, tx2);
+    }
+    check(readB && hasPose(x, "sharetest") && x->overrides.empty() && tg == tx2 && x->sharedFrom == za::String{"progs/vrdguard.mdl"},
+        "the death guard's edit on the crossbow knight at once");
+
+    // Put back: the test's file emptied (its folder is the test's own), the folder, the registry
+    const za::String empty{"qvrrig2anim 1\nmodel progs/vrdguard.mdl\n"};
+    (void)files::writeText(path, empty.toStringView());
+    Cvar_Set("vr_rigdata_dir", was);
+    newMap();
+    if(keep)
+    {
+        // (a look: on every animation of the death guard's, the head turned and the chest bent; the crossbow knight's too)
+        za::String text{"qvrrig2anim 1\nmodel progs/vrdguard.mdl\n"};
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(guard));
+        AnimGroup groups[128];
+        const int n = hdr ? animGroups(hdr, groups, 128) : 0;
+        for(int i = 0; i < n; i++)
+        {
+            text += va("override %s\n  track head\n    key 0 smooth 0 0 40 0 0 0\n  end\n"
+                       "  track chest\n    key 0 smooth 20 0 0 0 0 0\n  end\nend\n", groups[i].name);
+        }
+        ModelData mk;
+        if(shareTestData(mk, guard, *rg, text.cStr()))
+        {
+            publish(guard, mk);
+        }
+        Con_Printf("%s: kept: %d animations of the death guard's posed (head turned, chest bent), the crossbow knight's "
+                   "through the shared files\n", shareTestName, n);
+    }
+    t.verdict(shareTestName);
+}
+
 } // namespace
 
 void registerCommands()
 {
     Cmd_AddCommand("vr_rigdata_info", info_f);
     Cmd_AddCommand("vr_rigdata_reload", reload_f);
+    Cmd_AddCommand("vr_rigdata_share_test", shareTest_f);
 }
 
 } // namespace qvr::rigdata

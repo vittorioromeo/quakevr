@@ -3193,3 +3193,80 @@ guard and crossbow knight in the studio, one set of tweaks for both when their r
   Scene `beaststudio`. Renders: `scratch/beaststudio_junctions.png` (rottweiler then fiend: leather off, on, three-quarter).
 - **Open**: the junction defaults are all on (not judged in a headset); the menu page's Kind/Part cycles list fixed names
   (the window's are the subject's own); the remote MP client still draws no beast pieces (nor their leather).
+
+## adrigshare: AD's death guard and crossbow knight share one set of Rig Studio poses (branch agent/adrigshare, 2026-11-27)
+
+His words (2026-11-27): do the new AD rigs have the same bones and joints? If so, make them share the same poses in the
+Rig Studio so he edits only one.
+- **Same bones**: yes. `vrdguard.rig2.txt` and `vrdcrossbow.rig2.txt` have the same 20 bones (names, parents, joint
+  types); their pivots, limits and weights differ (585 vs 1120 vertices). The studio's data are per model
+  (`rigs/<model>.rig2anim.txt`: named poses, override tracks; `anims/<model>/*.anim2.txt`: sequences) and no models
+  shared any before, so a general mechanism: **`poses_from <model>`** in a rig's `rig2.txt` (`rig2::Rig::posesFrom`,
+  read and written back by Range of Motion's save; `make_rig2.py`'s config key `poses_from`). `rigdata::filesBase`
+  gives the named model's base for every read and write (loadEntry, the studio's subject, the rig2anim fixture), only
+  while `rig2::sameBones` (count, names, parents, joints; looked at with the new `rig2::peek`, which keeps nothing, so
+  latch's generations are untouched); otherwise the console says so and the model keeps its own files. Keys are in
+  each bone's own frame (Swing X / Swing Y / Twist, a hinge's bend), so they carry as they are, each rig turning about
+  its own pivots and axes.
+- **Master: the death guard** (`vrdcrossbow.rig2.txt`: `poses_from progs/vrdguard.mdl`). Neither had any poses,
+  overrides or sequences yet (no rig2anim or anims files for either: nothing to park); the crossbow knight's rig was
+  made from the death guard's. The armed holds (the Pose Studio's keys and grips) were already shared: both rows take
+  the knight's kind (`poseKind` 2, adknights).
+- **Live**: `rigdata::publish` hands an edit to the other models on the same files at once (written on the subject's
+  rig, read on theirs: `shareTo`), unsaved too; a model first drawn later takes a sharer's data; Revert (`reload`) reads
+  the files for the subject and then gives the others its data. A shared file's `model` line is the master's.
+- **Studio**: the menu bar says `poses shared with vrdcrossbow (files: vrdguard)` beside the subject (and the console
+  `rigstudio: <model>: poses shared with ...` when it is taken); Save writes the shared files. RIGSTUDIO.md, "Shared poses".
+- **Tests**: new `vr_rigdata_share_test [keep]` (needs AD: `vr_campaign_native ad;map e1m1;vr_rigdata_share_test`, own
+  folder `rigstudio_test_share`): which files, the sharers, the bones' guard (a joint changed: not shared), an edit on
+  the crossbow knight on the death guard at once, saved and read again by both (the same keys), an edit on the death
+  guard on the crossbow knight: 10/0. `vr_rigstudio_test_rig2anim` (flat) 10/0; `vr_agrunt_test` 80, 81, 82 PASS (80 took 250 s:
+  not looked into); humrepl (`vr_ad_test 219`) 65/0; scene ad_knights_armed 4 of 4 placed;
+  adlimbs (ad_azad) 3/0; ad_tears and e1m1 with AD load; the studio opened flat on both AD subjects: each says it shares.
+  Render: `scratch/adrigshare_pose.png` in the tree (low-res: his game was up): the scene's four in the `keep` pose
+  (the death guard's one animation group: head turned 40, chest bent 20), the crossbow knights through the shared files.
+## beastlook: the ogre's and the scrag's armour redesigned; beast plates keep their size (branch agent/beastlook, 2026-11-27)
+
+His words: "The scrag and ogre armours ... look very asymetrical, messy, and not well placed" and "the armour plates on
+these enemies also dynamically change size (grow/shrink) as animations play".
+- **Size (all four beasts):** `place()` scaled each piece by its 10 anchors' spread, frame by frame; the animation bends
+  a bone's flesh, so the spread (and the plate) breathed. Now the size is the body's as drawn and nothing else
+  (`hitmodel::drawnScale`: QC `scale`, a prop's Size, the network scale's mean; shared with `drawnOf`); a frame moves and
+  turns a piece only. The rottweiler's and the fiend's layouts are unchanged (their models bit for bit).
+- **Causes found** (offline: every frame placed as the engine does, renders and a penetration measure):
+  1. *Twisted rest pose:* the ogre's pose 0 stands turned ~33 degrees at the shoulders and ~40 at the hips (the chainsaw
+     stance); the pieces faced the model's +x, so the breastplate sat a third of the way round his chest. The scrag's
+     shoulders differ 4 units in height. 2. *Off-centre bones:* the chest, pelvis and head lines of the derived rig run
+     off the body's middle (the ogre's chest 2.5-5.4 units to his right); a middle piece was a tube round that line.
+     3. *Per-side tables:* each side measured on its own bone in its own pose (the ogre's left arm forward, the right
+     back; the scrag's arm bones 5.3 and 7.3 long), so the pairs came out different sizes and shapes (the left pauldron
+     twice the right). 4. *Wrong flesh:* the script measured a bone's flesh by the nearest seed, but the engine's derived
+     rig labels a third of the ogre's vertices otherwise (337 of 497 agree; the scrag 264 of 310), so pieces were
+     shaped round flesh their bone doesn't carry. 5. *Messy:* 2-3 rows of gapped lames on every piece read as stripes;
+     the helmets were tubes capped into cones (dunce hats); the 85th percentile radius from pose 0 alone left flesh
+     poking through (5-6.6 units in idle, run and swing frames).
+- **Redesign** (`make_beastarmour.py` `shell_sym`, `shell_dome`, the ogre's and scrag's tables; `sym=True` kinds):
+  a pair is ONE definition, measured on both bones in mirrored handed frames and the larger radius taken (not the
+  average: no clipping wins), built at the pair's mean length; a middle piece lies on the body's middle plane (through
+  the middle of the shoulders, or the hips for the ogre's faulds and tassets) facing the way that pair faces and is
+  mirrored across it; the radius is the flesh's envelope in every frame of the main animations (each frame's flesh
+  carried back to the rest pose by the bone's rigid fit, as the engine places the piece; deaths skipped), smoothed
+  upwards only, outliers (the chainsaw) cut at 1.6x the median. Helmets and pauldrons are domes (rings of lames from a
+  pole) instead of capped tubes; breast and back plates are single plates. The script reads the engine's labels from
+  `Misc/quakevr/beastarmour_labels.txt` (dumped by the new `vr_beastarmour_info labels`). Ogre: breastplate, back plate,
+  faulds (2 rows), dome helmet, dome pauldrons (2 rows), bracers, tassets (2 rows). Scrag: plastron, back plate, belly
+  plate (2 rows), a dome mask over his face, dome shoulder plates, plates over his claws' roots (slots 4/5, were rings).
+  Slots, groups and QC unchanged. The humanoid armour path for the ogre: not possible (it needs an authored rig2 with
+  skin weights; the ogre has only the derived rig), so the humanoid look was copied in the rigid pieces instead.
+- **Clipping** (max depth of a piece's vertex inside the body; offline, the engine's labels): before, idle/run6/swing8:
+  ogre 0.6-6.6 units a piece (5.25 the breastplate in idle), scrag 0.6-6.4. After, the same frames: ogre 1.0-3.4, scrag
+  1.0-5.0. After, every non-death frame: ogre 3.3-7.0 (worst: the pauldrons under the chest's flesh in shoot/smash, the
+  left tasset in paind), scrag 1.8-5.7 (the shoulder domes in magatt5, as the arms come together). What is left is a
+  neighbour's flesh sliding under a plate at a joint (or a limb touching another), not a plate inside its own bone's flesh.
+- **Tests:** `vr_agarmor_test 15` 54/0 (new: every piece's size the same through all frames of each kind, the scrag at
+  scale 1.25 with his pieces, the corpses' through their fall and ragdoll; the ogre's/scrag's breastplate shot from the
+  way the body faces). Renders (scratch, for his review): `bl_before_ogre.png`, `bl_after_ogre.png`,
+  `bl_before_wizard.png`, `bl_after_wizard.png` (6 views x idle, run/fly, attack; pieces coloured by slot),
+  `bl_ingame_after.png` (tests 18, 19). Tool: `scratch/bl_beast.py <kind> <out.png|-> <frames> [--pen [--allpen]]`.
+- **Open:** pauldron/chest overlap at the shoulders in the ogre's big swings (a chest-riding pauldron would trade it for
+  the arm's flesh); his review of the look (Armour Studio tweaks go on the tables).

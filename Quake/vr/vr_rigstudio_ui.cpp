@@ -271,6 +271,20 @@ void menuBar()
     }
     ImGui::Separator();
     ImGui::TextDisabled("%s%s", st.model ? st.model->name : "(no subject yet)", dirtyAny() ? "  * unsaved" : "");
+    if(st.model && !st.sharers.empty())
+    {
+        // (shared poses: its files are also the others'; a save writes theirs, an edit moves them at once)
+        za::String with;
+        for(const za::String& s : st.sharers)
+        {
+            char b[64];
+            rigdata::baseName(s.cStr(), b, sizeof(b));
+            with += with.empty() ? "" : ", ";
+            with += b;
+        }
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4{0.95f, 0.8f, 0.4f, 1.f}, "  poses shared with %s (files: %s)", with.cStr(), st.doc.base.cStr());
+    }
     if(st.status[0] && realtime - st.statusAt < 6.0)
     {
         ImGui::SameLine();

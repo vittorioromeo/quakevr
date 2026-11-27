@@ -431,6 +431,17 @@ void refit(const Mesh& m, const glm::vec3* pos, const glm::vec3* nor, za::Vector
     return t->nodes.data();
 }
 
+// The entity's own scale as drawn: QC's `scale` (as the network carries it) times a prop's Size; not its model's.
+float entityScale(edict_t* ent)
+{
+    float es = 1.f;
+    if(const eval_t* val = GetEdictFieldValue(ent, qcvm->extfields.scale); val && val->_float)
+    {
+        es = ENTSCALE_DECODE(ENTSCALE_ENCODE(val->_float));
+    }
+    return es * props::drawnSize(modelOf(ent)); // a prop's Size (Held Object Offsets)
+}
+
 } // namespace
 namespace detail
 {
@@ -488,12 +499,7 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
     const glm::vec3 ns = glm::vec3{1.f} + fieldVec(ent, f.model_scale);
     const glm::vec3 so = fieldVec(ent, f.model_scale_origin);
     const glm::vec3 off = fieldVec(ent, f.model_offset);
-    float es = 1.f;
-    if(const eval_t* val = GetEdictFieldValue(ent, qcvm->extfields.scale); val && val->_float)
-    {
-        es = ENTSCALE_DECODE(ENTSCALE_ENCODE(val->_float));
-    }
-    es *= props::drawnSize(modelOf(ent)); // a prop's Size (Held Object Offsets)
+    const float es = entityScale(ent);
     const glm::vec3 hs{d.hdr->scale[0], d.hdr->scale[1], d.hdr->scale[2]};
     const glm::vec3 ho{d.hdr->scale_origin[0], d.hdr->scale_origin[1], d.hdr->scale_origin[2]};
     d.L = es * ns * hs;
@@ -1236,6 +1242,13 @@ bool vertexPoint(edict_t* ent, int vert, glm::vec3& point)
     }
     point = vertsOf(d).at(d, vert, 0.f);
     return true;
+}
+
+float drawnScale(edict_t* ent)
+{
+    using namespace progs;
+    const glm::vec3 ns = glm::vec3{1.f} + fieldVec(ent, fields().model_scale);
+    return entityScale(ent) * (ns.x + ns.y + ns.z) / 3.f;
 }
 
 bool drawnVertexPoints(edict_t* ent, const int* verts, int n, glm::vec3* out)

@@ -372,7 +372,8 @@ void PF_ragdolllimbs()
 // `what` 10 / 11 (the builtins' table being full): armour piece `bone` of an armed humanoid as its own model
 // ("<model>#plate<piece>", vr_agarmor.cpp): its origin / its angles now, as drawn; 12 / 13 / 14 a point on its outer face
 // near one end / the other / at its middle (15% / 85% / 50% along it: the tests' hits on a plate); 15 the outer face's
-// outward normal at that middle (the tests' line to it).
+// outward normal at that middle (the tests' line to it). 18 (a beast's piece, vr_beastarmour.cpp): {its scale as drawn,
+// its box's diagonal as drawn, 0}.
 // limbpiece 30..33 (QC VR_WP_Place, the server's frame: the main thread): a worn pack's four (20..23) found at once by 25,
 // the other three read back from it (the same entity, frame and time; else found again).
 struct WornPackRead
@@ -406,7 +407,7 @@ void PF_limbpiece()
         o[2] = w.z;
         return;
     }
-    if(what >= 10 && what <= 17) // (16, 17: a split plate's halves' middles: vr_agarmor_split)
+    if(what >= 10 && what <= 18) // (16, 17: a split plate's halves' middles: vr_agarmor_split; 18 a beast's piece's size)
     {
         agarmor::plateWhere(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what - 10, G_VECTOR(OFS_RETURN));
         return;

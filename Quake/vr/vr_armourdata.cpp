@@ -325,6 +325,7 @@ void print_f()
 
 // AD's two knights (KindAdKnight).
 constexpr const char* adModels[2] = {"progs/vrdguard.mdl", "progs/vrdcrossbow.mdl"};
+int adSharedKnown = -1; // (adShared: -1 not looked yet, read again with the file)
 
 // Part `part`, side `side` laid over `out` from `first`, then `second` (either may be null): the most specific wins value by
 // value (each entry's side, then its both-sides value, mirrored on the right). Whether anything is set.
@@ -399,22 +400,14 @@ int kindOf(const char* model)
 
 bool adShared()
 {
-    const rig2::Rig* a = rig2::rigNamed(adModels[0]);
-    const rig2::Rig* b = rig2::rigNamed(adModels[1]);
-    if(!a || !b || a->numBones != b->numBones || a->numBones <= 0)
+    // (peeked, not kept: reading them through rig2::rigFor would count them in its edits' generations; once a read of the
+    // file, the authored rigs being files)
+    if(adSharedKnown < 0)
     {
-        return false;
+        rig2::Rig a, b;
+        adSharedKnown = rig2::peek(adModels[0], a) && rig2::peek(adModels[1], b) && a.numBones > 0 && rig2::sameBones(a, b) ? 1 : 0;
     }
-    for(int i = 0; i < a->numBones; i++)
-    {
-        const rig2::Bone& x = a->bones[i];
-        const rig2::Bone& y = b->bones[i];
-        if(ZA_STRCMP(x.name, y.name) != 0 || x.parent != y.parent || x.joint != y.joint)
-        {
-            return false;
-        }
-    }
-    return true;
+    return adSharedKnown == 1;
 }
 
 void beastPart(int slot, bool sleeve, int& part, int& side)
@@ -590,6 +583,7 @@ bool load()
         parse(text.cStr(), fresh);
     }
     table = fresh;
+    adSharedKnown = -1;
     fileTime = files::lastWriteTime(path);
     bump();
     return found;

@@ -250,6 +250,21 @@ void filePath(const char* model, char* out, int size)
     q_snprintf(out, static_cast<za::SizeT>(size), "%s/rigs/%s.rig2.txt", root, base);
 }
 
+// A model's rig file's text (vr_rigdata_dir's, else the game folder's: the tests' folder has none); `path` where.
+[[nodiscard]] bool readFileOf(const char* model, za::String& text, char* path, int size)
+{
+    filePath(model, path, size);
+    if(files::readText(path, text))
+    {
+        return true;
+    }
+    char base[64], game[MAX_OSPATH];
+    rigdata::baseName(model, base, sizeof(base));
+    VR_QuakeVRGameDir(game, sizeof(game));
+    q_snprintf(path, static_cast<za::SizeT>(size), "%s/rigs/%s.rig2.txt", game, base);
+    return files::readText(path, text);
+}
+
 [[nodiscard]] qmodel_t* skinnedOf(const qmodel_t* model)
 {
     char name[MAX_QPATH];
@@ -690,6 +705,7 @@ bool read(const char* text, Rig& out, za::String& error)
 {
     out.numBones = 0;
     out.weights.clear();
+    out.posesFrom.clear();
     const char* p = text;
     int line = 0;
     bool header = false;
@@ -713,6 +729,10 @@ bool read(const char* text, Rig& out, za::String& error)
         else if(w.is(0, "model") && w.n >= 2)
         {
             out.model = w.w[1];
+        }
+        else if(w.is(0, "poses_from") && w.n >= 2)
+        {
+            out.posesFrom = w.w[1];
         }
         else if(w.is(0, "bone") && w.n >= 4)
         {
@@ -795,6 +815,12 @@ void write(const Rig& rig, za::String& out)
     out += "#   ball: neutral <xyz> fwd <xyz> side <xyz> swingx <min max> swingy <min max> twist <min max>\n";
     out += "#   hinge: axis <xyz> range <min max> (its bend from straight; the rest pose's own bend measured)\n";
     out += "# w <vertex> <bone> <weight> ... (up to 4, summing to 1)\n";
+    if(!rig.posesFrom.empty())
+    {
+        out += "poses_from ";
+        out += rig.posesFrom;
+        out += "\n";
+    }
     for(int b = 0; b < rig.numBones; b++)
     {
         const Bone& bone = rig.bones[b];
@@ -870,40 +896,77 @@ bool save(Rig& rig, za::String& pathOut)
 
 Rig* rigFor(const qmodel_t* model)
 {
-    return model ? rigNamed(model->name) : nullptr;
+    return model ? rigForName(model->name) : nullptr;
 }
 
-Rig* rigNamed(const char* name)
+bool sameBones(const Rig& a, const Rig& b)
 {
-    if(!name || !name[0])
+    if(a.numBones != b.numBones)
+    {
+        return false;
+    }
+    for(int i = 0; i < a.numBones; i++)
+    {
+        const Bone& x = a.bones[i];
+        const Bone& y = b.bones[i];
+        if(ZA_STRCMP(x.name, y.name) || x.parent != y.parent || x.joint != y.joint)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool peek(const char* modelName, Rig& out)
+{
+    if(!modelName || !modelName[0])
+    {
+        return false;
+    }
+    for(const Entry& e : rigs)
+    {
+        if(!ZA_STRCMP(e.model.cStr(), modelName))
+        {
+            if(e.rig)
+            {
+                out = *e.rig;
+            }
+            return e.rig != nullptr;
+        }
+    }
+    char path[MAX_OSPATH];
+    za::String text, err;
+    if(!readFileOf(modelName, text, path, sizeof(path)) || !read(text.cStr(), out, err))
+    {
+        return false;
+    }
+    out.path = path;
+    out.model = modelName;
+    return true;
+}
+
+Rig* rigForName(const char* modelName)
+{
+    if(!modelName || !modelName[0])
     {
         return nullptr;
     }
     for(Entry& e : rigs)
     {
-        if(!ZA_STRCMP(e.model.cStr(), name))
+        if(!ZA_STRCMP(e.model.cStr(), modelName))
         {
             return e.rig.get();
         }
     }
     Entry e;
-    e.model = name;
+    e.model = modelName;
     e.tried = true;
     char path[MAX_OSPATH];
-    filePath(name, path, sizeof(path));
     za::String text, err;
-    if(!files::readText(path, text))
+    if(!readFileOf(modelName, text, path, sizeof(path)))
     {
-        // (the tests' folder has none: the game folder's)
-        char base[64], game[MAX_OSPATH];
-        rigdata::baseName(name, base, sizeof(base));
-        VR_QuakeVRGameDir(game, sizeof(game));
-        q_snprintf(path, sizeof(path), "%s/rigs/%s.rig2.txt", game, base);
-        if(!files::readText(path, text))
-        {
-            rigs.pushBack(ZA_MOVE(e));
-            return nullptr;
-        }
+        rigs.pushBack(ZA_MOVE(e));
+        return nullptr;
     }
     za::UniquePtr<Rig> r = za::makeUnique<Rig>();
     if(!read(text.cStr(), *r, err))
@@ -913,7 +976,7 @@ Rig* rigNamed(const char* name)
         return nullptr;
     }
     r->path = path;
-    r->model = name;
+    r->model = modelName;
     e.rig = ZA_MOVE(r);
     Rig* out = e.rig.get();
     rigs.pushBack(ZA_MOVE(e));
