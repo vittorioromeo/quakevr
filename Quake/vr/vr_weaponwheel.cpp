@@ -68,6 +68,7 @@ constexpr float actionH = 32.f;
 constexpr float innerR = 26.f;
 constexpr float outerR = ringR + 46.f;
 constexpr float fadeSeconds = 0.1f;
+constexpr float panelGap = 6.f; // a headset: between the bindings panel and the wheel's image above which it shows
 constexpr float flatCursorMargin = 60.f; // flatscreen play: how far past the image's edge the mouse's cursor goes (off the wheel)
 constexpr int giveUp = 400; // the test: frames a step may wait
 
@@ -91,6 +92,8 @@ struct WheelState
     float fade{0.f};
     double lastTime{-1.0};
     unsigned texture{0}; // the image, rendered this frame (render)
+    gadget::VisorImage panel; // the bindings panel above it (a headset's; render)
+    bool panelShown{false};   // the panel shown since the test began (the test)
     int ticks{0}, opens{0}, picks{0}, cancels{0}; // (vr_weaponwheel_dump, the test)
 };
 WheelState ws;
@@ -778,6 +781,9 @@ void testStep()
         aimAt(main, choiceOfKey(1));
         if(waitFor(++test.mark >= 3, "the screenshot"))
         {
+            result(vr_wheel_bind_panel.value == 0.f || ws.panelShown,
+                va("the bindings panel above the wheel (vr_wheel_bind_panel %g: the controllers' pictures, labelled)",
+                    vr_wheel_bind_panel.value));
             press(main, false);
         }
         break;
@@ -1342,6 +1348,9 @@ void render()
                                      : "Let go: take it";
     const gadget::VisorImage img = gadget::renderHolsterMenu(v);
     ws.texture = img.shown ? img.texture : 0;
+    // The bindings panel above it in a headset (bindpanel2; vr_wheel_bind_panel): the controllers' pictures, labelled.
+    ws.panel = ws.flat ? gadget::VisorImage{} : bindpanel::headsetImage();
+    ws.panelShown = ws.panelShown || ws.panel.shown;
 }
 
 void drawInEye(const hands::State& s)
@@ -1352,6 +1361,14 @@ void drawInEye(const hands::State& s)
     }
     const glm::vec3 corner[4] = {worldAt({0.f, panelH}), worldAt({panelW, panelH}), worldAt({panelW, 0.f}), worldAt({0.f, 0.f})};
     flatholster::drawImage(ws.texture, {panelW, panelH}, corner, gfx::sceneViewProjection(), ws.fade);
+    if(ws.panel.shown)
+    {
+        // Above the wheel, centred on it, at its scale (a wheel pixel a panel pixel), a little gap between.
+        const glm::vec2 p = ws.panel.size;
+        const float x0 = ringMid.x - p.x * 0.5f, y1 = -panelGap;
+        const glm::vec3 above[4] = {worldAt({x0, y1}), worldAt({x0 + p.x, y1}), worldAt({x0 + p.x, y1 - p.y}), worldAt({x0, y1 - p.y})};
+        flatholster::drawImage(ws.panel.texture, p, above, gfx::sceneViewProjection(), ws.fade);
+    }
 }
 
 void drawFlat()

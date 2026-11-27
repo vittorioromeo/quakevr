@@ -895,6 +895,7 @@ void VR_BindSetup_Key (int key);
 void VR_BindSetup_Char (int key);
 int VR_BindSetup_TextEntry (void);						// the action list is open: typing searches it
 int IN_GetGamepadSdlType (void);						// in_sdl.c: SDL's type of the gamepad in use (-1: none)
+int IN_GamepadLastUsed (void);							// in_sdl.c: a gamepad connected and the device last used
 // The VR menu style's widgets (vr_menuui.cpp): nonzero if they drew it in place of Quake's.
 int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc); // M_DrawSliderWithMarkers (marker < 0: none)
 void VR_MenuPanelInFront (void);						// the death menu opening: the menu panel in front of the head (not where a hand left it)
