@@ -108,6 +108,7 @@ DEFAULTS = dict(
     region_fix={},  # vertex -> bone: a vertex the rules put on the wrong side of a seam (vr_rig2_check's details)
     islands=[],  # bones whose region's detached pieces (no edge to the piece nearest the bone) go to the region round them
     regions_from=None,  # (rig2 base, n): the first n vertices' regions read from that rig (the same body, vertex for vertex)
+    regions_keep=[],  # ... except where both rigs say one of these bones (this rig's own seams among them kept)
     rigid_fix={},  # vertex -> bone: rigid on it, no blend (a shoulder pad: armour turns whole with its arm)
     weights_fix={},  # vertex -> {bone: weight}: painted, kept (a hip's side above the joint: half the thigh's)
     ties=[],  # groups of vertices given their average weights (the back of a knee: its triangle turns as one)
@@ -408,7 +409,8 @@ RIGS = {
                       thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
                                  forearm=2.8, hand=2.0, thigh=4.0, shin=3.0, foot=2.6),
                       # (the body, its first 544 vertices, labelled as the death guard's: build dguard first; adrigfix)
-                      regions_from=('vrdguard', 544), islands=AD_ARMS, max_hops=3, weld_gun=False),
+                      regions_from=('vrdguard', 544), regions_keep=['clavicle_r', 'upperarm_r', 'forearm_r', 'hand_r'],
+                      islands=AD_ARMS, max_hops=3, weld_gun=False),
     'knight': dict(build='vrknight', models=['vrknight'], skeleton=KNIGHT_SKELETON,
                    gun=[334, 335, 336, 363, 364, 365, 524] + list(range(535, 541)) + list(range(557, 649)),
                    thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
@@ -683,7 +685,12 @@ def build(mesh, cfg, quiet=False):
             t = ln.split()
             if len(t) >= 4 and t[0] == 'w' and int(t[1]) < min(n, mesh.nv) and t[2] in index and t[2] != 'weapon':
                 ws = [(float(t[k + 1]), t[k]) for k in range(2, len(t), 2)]
-                region[int(t[1])] = index[max(ws)[1]]
+                v, other = int(t[1]), max(ws)[1]
+                # (regions_keep: this rig's own where both say one of those bones: the crossbow knight's right arm,
+                # posed otherwise than the death guard's, keeps its own seams between the forearm and the hand)
+                if other in cfg['regions_keep'] and bones[region[v]]['name'] in cfg['regions_keep']:
+                    continue
+                region[v] = index[other]
                 taken += 1
         if not quiet:
             print('  regions of %d vertices from %s' % (taken, base))
