@@ -4611,3 +4611,38 @@ with each button labelled by its binding, drag to swap, click for a list of ever
   The Android build compiles.
 - **Open**: phase 2 not done (the reminder panels: BACKLOG section 3 has the VR weapon wheel's; the menu's goes on wheelui's
   vr_bindpanel.cpp); splitscreen per-seat bindings (TODO in vr_bindsetup.hpp, BACKLOG section 3).
+
+## bindpanel2: the controller reminder panels: VR above the weapon wheel, a pad's glyphs in flat and the main menu (branch agent/bindpanel2, 2026-11-28)
+
+His words (2026-11-28): "In VR mode, it would be nice for the weapon wheel to have the same reminder panel, but with the
+current controllers image + labeled buttons" ... "Use the correct icons for the controller buttons in reminder panels that
+match the connected controller type." Phase 2 of ctrlbind.
+- **One data path**: `bindsetup::panelButtons(model, pictures, out, max)` (vr_bindsetup.hpp): the model's small pictures
+  (`_s`: a VR pair, the left hand first, or the pad) and each button as the Controller Bindings screen labels it (its anchor,
+  name, glyph file and loaded glyph, its binding's action name from the same action list, the fixed menu button marked),
+  from the same art table (vr_bindsetup_art.inc), keyFor and binds. vr_bindpanel.cpp reads only that; the gadget's bind
+  panel renderer (vr_gadget_holster.inc) draws both kinds on its one target.
+- **VR** (`vr_wheel_bind_panel` 1, default on): above the headset's weapon wheel (6 wheel pixels over its top, centred, the
+  wheel's scale, faded with it; drawn by flatholster::drawImage as the wheel is) a panel with the detected controllers'
+  name, both hands' pictures in the middle and each bound button (menu left out) as a callout on its hand's side: its glyph
+  and action, a leader line to the button, rows at their buttons' heights as far as they fit apart
+  (`gadget::BindPanelView` pictures/callouts; `calloutLayout`). Made in weaponwheel::render (`bindpanel::headsetImage`).
+- **Flat with a pad** (the device last used: `IN_GamepadLastUsed`, in_sdl.c) the rows over the holster menu / flat wheel and
+  the main menu's are the pad's bound buttons (Start left out): the action and the pad type's glyph (Kenney's Xbox / Switch,
+  our drawn PlayStation and generic ones) in place of a key cap (`BindPanelRow::glyphs`; the main menu draws them square on
+  the stretched canvas). Keyboard and mouse: unchanged. The main menu's Setup Bindings opens the screen for the panel's
+  device (the pad's), else Options > Controls (it used to ask bindsetup::detect, which in -flatscreenmode with the mock gave
+  the headset's controllers and opened the controller screen for a keyboard player).
+- **Debug**: `vr_bindpanel_device <model|auto|next>` forces the panels' controller (Debug > Tools > Controller Bindings:
+  Reminder Panels: Next / Detected Controller, Reminder Panels Report); `vr_bindpanel_report` prints the rows (with
+  `glyph "<file>"`), the headset panel's callouts and how often it was made, and the device.
+- **Loose ends**: `quakevr/gfx/vr/glyphs/README.txt` (Kenney Input Prompts 1.5A, CC0, via OpenGameArt; our drawn_* ones).
+  flatmenu_esc_test's two "togglemenu reopens Options" failures were stale, not ctrlbind's: m_options is 9 since 78c69e4ce
+  removed m_net (ctrlbind appended m_bindsetup at the end); the test now expects 9 (7/0).
+- **Tests**: bindpanel_test 18/0 (adds an Xbox pad's rows and glyphs, the main menu drawn with them, a PlayStation pad's drawn
+  glyphs, the headset panel for a Quest 3 and an Index: both pictures, every callout a glyph, no glyph missing);
+  weaponwheel_test vr 26/0 (new: the panel shown over the open wheel), flat 21/0; flatmenu_esc 7/0; menu paths 0 missing.
+  Screenshots: scratch/weaponwheel/wheel.png (the mock headset's wheel with the panel), scratch/bindpanel/main.png (the main
+  menu: keyboard, then an Xbox pad).
+- **Open**: the VR panel is not interactive (no Setup Bindings in it); a gamepad's panel in a headset is not used (a headset
+  shows its controllers). Splitscreen per-seat bindings stay in BACKLOG section 3.

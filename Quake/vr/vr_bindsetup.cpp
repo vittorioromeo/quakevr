@@ -1253,6 +1253,45 @@ bool open(Model model)
     return true;
 }
 
+int panelButtons(Model m, PanelPictures& pictures, PanelButton* out, int max)
+{
+    pictures = PanelPictures{};
+    if(m == Model::Keyboard || static_cast<int>(m) >= static_cast<int>(Model::Count))
+    {
+        return 0;
+    }
+    if(screen.actions.empty())
+    {
+        buildActions(); // (the actions' names; open() builds them again)
+    }
+    const ModelInfo& mi = info(m);
+    const char* file = artFiles[static_cast<int>(mi.art)];
+    pictures.count = mi.vr ? 2 : 1;
+    for(int p = 0; p < pictures.count; p++)
+    {
+        pictures.pic[p] = imagePic(va("gfx/vr/controllers/%s%s_s", file, mi.vr ? (p == 0 ? "_l" : "_r") : ""), &pictures.aspect[p]);
+    }
+    int n = 0;
+    for(const ArtButton& a : artButtons)
+    {
+        if(a.art != mi.art || n >= max)
+        {
+            continue;
+        }
+        PanelButton& b = out[n++];
+        const int key = keyFor(a.pic, a.btn);
+        b.picture = a.pic == Pic::Right ? 1 : 0;
+        b.u = a.u;
+        b.v = a.v;
+        b.name = a.name;
+        b.glyphName = a.glyph;
+        b.glyph = imagePic(va("gfx/vr/glyphs/%s", a.glyph));
+        b.fixed = key < 0;
+        b.action = key < 0 ? "Menu" : bindingOf(key)[0] ? actionName(bindingOf(key)) : "";
+    }
+    return n;
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("menu_bindsetup", menu_f);
