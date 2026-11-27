@@ -3770,3 +3770,43 @@ His flat notes 2026-11-27, items 2 and 9. FLATPLAY.md, "Fists: jabs and the cros
   now expects the off hand's swing), `flatparry_test.sh` 43/0, `tunables_test.sh` 13/0. Scenes `flat_fists`,
   `flat_v_offhand`. Shot: kit scratch flatfists_guard2.png (the guard at the defaults; flatfists_guard.png the
   first try, up -5 / fwd 12: too low on the screen).
+## toolad: AD humanoids' previews in the toolgun's Armed Humanoid tool (branch agent/toolad, 2026-11-27)
+
+His words: "AD humanoids are missing previews in the toolgun armed humanoids tool."
+- **Cause**: the icon maker (`vr_toolgun_icons.cpp make`) asked `VR_DerivedModelFile` only for names with a `#`; the armed
+  death guard's and crossbow knight's `progs/vrdguard.mdl` / `vrdcrossbow.mdl` are no files (made as they load), so their
+  tile and page pictures failed. Every model now goes through `VR_DerivedModelFile` first, then the file. Without AD the
+  rows are not listed (unchanged). Flat and VR panels share the code.
+- **Test**: `vr_toolgun_armed_icons_test` (Debug menu: Armed Humanoids: Preview Test): every listed kind has its icon; with
+  AD (`vr_campaign_native ad`) 6 passed, 0 failed. Screenshot: `scratch/toolad_page.png` (flat panel, Death Guard).
+
+
+## promote1127 (agent/promote1127)
+
+His words 2026-11-27: "I've tweaked a bunch of cvars/offsets, please promote them." Source: his `ironwail.cfg`, `tunables.cfg` and
+the newest `proposed_defaults/2026-11-27_20-00-25.cfg` (`vr_propose_defaults`: the live changes from the shipped defaults; his data
+files `weapons.txt` / `props.txt` / `armour.txt` equal origin/next's already).
+
+**Promoted** (7):
+- `vr_agrunt_poses`: 9 keys into `vr_agpose.cpp` `shipped[]` (pole weapon Ready 22010, Run 22020, Overhead 22140-22142, Shove
+  22200-22202: new; knight rifle Idle 201000: changed). `pose_defaults.py --write` was NOT used: it knows no kind 4 (AD knights)
+  and rewrote the AD knight rows away; its tables got the names (crossbow knight, pole weapon) and the rows were laid in by hand.
+- `vr_agrunt_ik_stretch`: grunt pole weapon `{0,22}` 1.23 -> 1.25; knight rifle `{2,1}` 1.35 -> 1.26.
+- `weapons.txt`: shotgun (slot 2) bayonet mount att2_pitch -76.46 -> -70, att2_z -4.6 -> -2.5; double shotgun (slot 3)
+  att2_pitch -76.46 -> -68.5, att2_z -3.22 -> 0.95 (his dagger-bayonet offsets: the flatbayonet worker converts them).
+- `props.txt`: bayonet (slot 72) grip_yaw 0 -> -10, grip_z 0 -> 2.5 (its grip 2 is shipped already; his live table numbered it 80).
+- `vr_flat_tp_fov` 1.1 -> 1 (third-person camera FOV: promoted once, his value changed back).
+- `tunables.cfg`: `vr_flat_parry_rev_roll` -60 already the default.
+Sparse configs: no configVersion bump (a config holding none of these takes the new values). Test fix: `agspear` (vr_agrunt_test
+230) assumed no shipped pole Ready key; it now sets a 1-up base key first and expects the 6-up key to move the spear by 5.
+
+**Skipped** (personal, studio/tool state, or not defaults): vr_handedness, vr_comfort_preset, vr_height_calibration, vr_bodycal_*,
+vr_xr_runtime, vr_enabled, vr_menu_* (flat scale, x, y, folded, level, positions), vr_motion_button, vr_spectator_fov/scale,
+vr_window_view, vr_notes, vr_debug_spawn_toolgun, vr_toolgun_*, vr_rope_spawn_*, vr_rigstudio_*, vr_armourstudio_*,
+vr_humstudio_*, vr_gore_dents 0 and vr_flat_taa 1 (graphics/gore preferences), volume, cl_alwaysrun, vr_autosave_list_all,
+vr_maps_skill, vr_runpick_*, vr_takes_keys, vr_show_controller_off_own, vr_mp_*, vr_flatplay (not archived), vr_blood_tally*,
+vr_bindings_version, vr_props_version, vr_wofs_version, vr_cfg_version, vr_pickup_scale and vr_gameplayfix_* (quakevr.cfg already),
+the flat/graphics block (fov, gamma, contrast, crosshair, hudstyle, scr_*, sensitivity, viewsize, host_maxfps...), the proposal's
+prop ids for slots 73-80 (the numbering of his older table), float-noise `vr_wofs_*` rows (equal to the default to 5 digits).
+Tests: agspear 3/0 (after the fix), flattp_test 1/0; `vr_agrunt_test 83` has one failure ("Pistol Aim key never set") that
+also fails on unchanged origin/next (not mine).

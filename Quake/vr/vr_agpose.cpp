@@ -298,6 +298,22 @@ constexpr ShippedRow shipped[] = {
     {21010, {2.53f, 6.18f, 6.25f, -3.1f, 1.6f, -1.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, -0.47f, -0.88f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 2.63f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, the Widowmaker, Run
     {21020, {0.74f, 0.03f, 0.63f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.54f, 0.f, 0.09f, 47.f, -37.7f, -17.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Ready
+    {22010, {1.77f, -3.41f, -0.31f, 0.7f, 2.8f, 7.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Run
+    {22020, {3.f, 0.44f, 4.04f, -0.8f, -8.2f, 16.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Overhead, wind-up
+    {22140, {-4.78f, 2.37f, 3.11f, -14.5f, 3.f, 0.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Overhead, blow
+    {22141, {11.68f, 5.43f, 3.67f, -28.3f, -6.2f, -17.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Overhead, follow-through
+    {22142, {6.51f, 3.27f, 2.77f, -28.8f, -14.7f, -8.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Shove, wind-up
+    {22200, {3.31f, 7.95f, 7.07f, 62.7f, 18.4f, 80.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Shove, push
+    {22201, {16.99f, 3.14f, 8.34f, 24.2f, 24.9f, 77.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Shove, recover
+    {22202, {5.71f, 4.42f, 7.22f, 41.7f, 31.6f, 74.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, fists, Idle
     {100000, {6.47f, 3.7f, 1.68f, 0.f, 0.f, 0.f, 1.77f, -3.42f, 1.48f, 0.f, 0.f, 0.f, -0.36f, -0.83f, -0.42f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, fists, Guard
@@ -527,7 +543,7 @@ constexpr ShippedRow shipped[] = {
     // knight, fists, Cross, follow-through
     {200112, {-0.24f, 0.93f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.9f, 0.f, 0.f}},
     // knight, a rifle, Idle / Carry
-    {201000, {10.55f, 6.97f, 7.12f, -24.9f, 8.1f, 58.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.51f, -0.43f, -0.75f, -0.41f, 0.54f, -0.74f, 0.f, 0.f, 0.f, -0.86f, -1.82f, -1.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {201000, {30.93f, 3.24f, 5.03f, -20.2f, -12.9f, 86.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.51f, -0.43f, -0.75f, -0.41f, 0.54f, -0.74f, 0.f, 0.f, 0.f, -0.86f, -1.82f, -1.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // knight, a rifle, Aim
     {201010, {11.85f, 7.46f, 12.16f, 15.9f, 3.6f, -2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.48f, 0.78f, -0.39f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, -3.87f, -2.03f, -1.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // knight, a rifle, Run
@@ -1216,7 +1232,7 @@ constexpr StretchRow shippedStretch[] = {
     {0, 19, 1.25f}, // grunt, a sprayer
     {0, 20, 1.20f}, // grunt, the laser cannon
     {0, 21, 1.25f}, // grunt, the Widowmaker
-    {0, 22, 1.23f}, // grunt, a pole weapon (the two-handed melee weapon's: as it was before its own class)
+    {0, 22, 1.25f}, // grunt, a pole weapon (his, 2026-11-27; was the two-handed melee weapon's 1.23)
     {1, 0, 1.15f}, // enforcer, fists
     {1, 1, 1.25f}, // enforcer, a rifle
     {1, 2, 1.15f}, // enforcer, a one-handed melee weapon
@@ -1228,7 +1244,7 @@ constexpr StretchRow shippedStretch[] = {
     {1, 20, 1.34f}, // enforcer, the laser cannon
     {1, 21, 1.20f}, // enforcer, the Widowmaker
     {2, 0, 1.20f}, // knight, fists
-    {2, 1, 1.35f}, // knight, a rifle
+    {2, 1, 1.26f}, // knight, a rifle
     {2, 2, 1.25f}, // knight, a one-handed melee weapon
     {2, 3, 1.20f}, // knight, a two-handed melee weapon
     {2, 6, 1.20f}, // knight, two guns
