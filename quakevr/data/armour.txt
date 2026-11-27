@@ -28,6 +28,15 @@
 // bone). Each piece's <part>_sleeve is its leather junction to the piece it joins: leather "0" off, taper_start /
 // taper_end its width at this piece's end and the other's, standoff its thickness, folds, fold_depth, and
 //   sag      "u"       the junction's middle dropped this far (below 0 raised)
+// Any sleeve (a humanoid's too), its ends: "start" the end on the sleeve's own piece, "end" the one on the piece it
+// joins (a humanoid's joint: each end its own piece's sleeve's start_ value, else the other sleeve's end_ value):
+//   start_offset / end_offset "x y z"  that end's ring moved (units along the model's forward, left and up; it rides its piece)
+//   start_radius / end_radius "s"      that end's ring's size round its middle (1 as made)
+//   start_edge / end_edge "1"          a beast's: that end on its piece's far edge (0 or unset: the edge facing the other)
+//   twist    "deg"     the joined piece's end ring turned round the line between the ends (the leather's columns spiral)
+//   bulge    "x y z"   the junction's middle pushed this far this way (the model's axes; nothing at its ends)
+//   segments "n"       its rings less one, 1-8 (0 or unset: as made, from its folds)
+//   fill     "1"       a beast's junction closed all round (its open columns laid round from their neighbours' reach)
 
 kind "grunt"
 {
@@ -569,6 +578,10 @@ kind "progs/ogre.mdl"
     shin_r
     {
         offset "-0.073816 0.187265 0.137881"
+    }
+    shin_sleeve
+    {
+        fill "1"
     }
     helmet_sleeve
     {
