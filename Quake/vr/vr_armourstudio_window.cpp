@@ -95,7 +95,7 @@ constexpr const char* tierLabels[3] = {"Green", "Yellow", "Red"};
 constexpr const char* partLabels[NumParts] = {"Cuirass", "Helmet", "Pauldrons (Upper Arms)", "Bracers (Forearms)", "Thighs",
     "Shins", "Elbow Sleeves (Upper Arm's)", "Elbow Sleeves (Forearm's)", "Knee Sleeves (Thigh's)", "Knee Sleeves (Shin's)",
     "Cuirass's Leather Junction", "Helmet's Leather Junction", "Plate 8", "Plate 9", "Plate 8's Leather Junction", "Plate 9's Leather Junction",
-    "Tail", "Tail's Leather Junctions"};
+    "Tail", "Tail's Leather Junctions", "Plate 8 Back", "Plate 8 Back's Leather Junction"};
 // (a beast's limb parts' junctions: to the piece each joins)
 constexpr const char* beastSleeveLabels[4] = {"Pauldrons' Leather Junctions", "Bracers' Leather Junctions", "Thighs' Leather Junctions", "Shins' Leather Junctions"};
 constexpr const char* sideLabels[NumSides] = {"Both (Mirrored)", "Left Only", "Right Only"};
@@ -524,6 +524,8 @@ void drawWindow()
             int parts[NumParts];
             int n = 0, chosen = -1;
             const bool beast = subject >= 7;
+            // (a plate 8 split in two, the scrag's: its own part the front half)
+            const bool split = beast && partValid(subject, PartPlate8Back);
             for(int p = 0; p < NumParts; p++)
             {
                 if(!partValid(subject, p))
@@ -531,7 +533,10 @@ void drawWindow()
                     continue;
                 }
                 chosen = p == cvarIndex(vr_armourstudio_part, 0, NumParts - 1) ? n : chosen;
-                labels[n] = beast && p >= PartPauldronSleeve && p <= PartShinSleeve ? beastSleeveLabels[p - PartPauldronSleeve] : partLabels[p];
+                labels[n] = beast && p >= PartPauldronSleeve && p <= PartShinSleeve ? beastSleeveLabels[p - PartPauldronSleeve]
+                    : split && p == PartPlate8                                     ? "Plate 8 Front"
+                    : split && p == PartPlate8Sleeve                               ? "Plate 8 Front's Leather Junction"
+                                                                                   : partLabels[p];
                 parts[n++] = p;
             }
             ImGui::SetNextItemWidth(220.f);

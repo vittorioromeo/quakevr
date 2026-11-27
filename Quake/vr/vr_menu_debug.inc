@@ -1638,8 +1638,9 @@ za::Vector<Item> pageArmourStudio()
             {{0.f, "Cuirass"}, {1.f, "Helmet"}, {2.f, "Pauldrons (Upper Arms)"}, {3.f, "Bracers (Forearms)"}, {4.f, "Thighs"},
                 {5.f, "Shins"}, {6.f, "Elbow Sleeves (Upper Arm's)"}, {7.f, "Elbow Sleeves (Forearm's)"}, {8.f, "Knee Sleeves (Thigh's)"},
                 {9.f, "Knee Sleeves (Shin's)"}, {10.f, "Cuirass's Leather (Beasts)"}, {11.f, "Helmet's Leather (Beasts)"},
-                {12.f, "Plate 8 (Beasts)"}, {13.f, "Plate 9 (Beasts)"}, {14.f, "Plate 8's Leather (Beasts)"}, {15.f, "Plate 9's Leather (Beasts)"},
-                {16.f, "Tail (Beasts)"}, {17.f, "Tail's Leather (Beasts)"}})
+                {12.f, "Plate 8 (Beasts; the Scrag's Front)"}, {13.f, "Plate 9 (Beasts)"}, {14.f, "Plate 8's Leather (Beasts)"}, {15.f, "Plate 9's Leather (Beasts)"},
+                {16.f, "Tail (Beasts)"}, {17.f, "Tail's Leather (Beasts)"}, {18.f, "Plate 8 Back (Scrag)"},
+                {19.f, "Plate 8 Back's Leather (Scrag)"}})
             .help("vr_armourstudio_part: the piece edited, outlined on the subject. A beast's sleeves are each piece's leather "
                   "junction to the piece it joins (the line above names both); a part not on the kind says so."),
         cycle("Side", vr_armourstudio_side, {{0.f, "Both (Mirrored)"}, {1.f, "Left Only"}, {2.f, "Right Only"}})

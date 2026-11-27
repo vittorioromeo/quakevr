@@ -3703,3 +3703,41 @@ beta2 install from it (the details said `Package: ...\QuakeVR.zip`, `Repairing .
   installed: the record says beta5; offline -> Ask, yes -> Use, no -> Skip; same -> Use with no note; dev build's own;
   newer -> Use with a note; a manifest with no version -> Unknown -> Download / Ask; the APK check). Full SelfTest 65/65;
   the screenshot harness renders every page.
+
+## scragsplit: the scrag's plate 8 as two parts, front and back (branch agent/scragsplit, 2026-11-27)
+
+His words (2026-11-27): "split the scrag's plate 8 into two separate parts, a front part and back part? Hard to make it fit
+as a single piece."
+- **Two halves** (`make_beastarmour.py`, the scrag's slot 8): his lower body's belt and stacked bands were one piece round
+  360 degrees; now two pieces on the pelvis, each `span=180` (belt 5 plates, bands 4/4/4), the front facing front, the back
+  facing back: the seam at his sides. Each fitted from his skin as beastfit does (rest-pose rays, mid-plane mirrored). The
+  front is the slot's own part (`plate8`: shown "Plate 8 Front" on him), the back beastarmour.txt's last word `plate8_back`
+  (new `PartPlate8Back`, `PartPlate8BackSleeve`: "Plate 8 Back", "Plate 8 Back's Leather Junction"), the same mechanism as
+  beastfit's tail (`Slot::tweakPart`, `resolveBeastPart`, `beastSleeve`, the signature). Its model
+  `progs/vrbarmor_wizard_8_plate8_back.mdl` (a slot's later piece on its first piece's bone is named by its part). Damage,
+  breaking and debris: still one slot 8 (QC unchanged); the halves break together with the tail.
+- **Junctions**: a later piece of the same slot on the same bone no longer joins its sibling (`joinsOf`): it joins up the rig
+  as its slot's first piece does. The pelvis is the scrag's root, so neither half has a junction of its own (as plate 8 had
+  none); the cuirass's joins the front half, the tail's first segment the back half.
+- **Studio**: the window's part list names the scrag's halves "Plate 8 Front" / "Plate 8 Back" (other kinds' "Plate 8"
+  unchanged); the menu page's Part cycle has "Plate 8 Back (Scrag)" and its leather. Wear the Part Alone on a beast part now
+  draws that part's own pieces, not the rest of their slot (`beastarmour::studioPart(part, alone)`: the back half alone is
+  one piece; the tail alone its four segments); `partFrame` (the gizmo's handle) takes the picked part's own piece (was the
+  slot's first: the tail's handle sat on the belt).
+- **His tweaks** (armour.txt's scrag `plate8`: offset 0 -2.33 0, scale 0.858, standoff 0.05, tapers 0.674 / 1.201):
+  **reset**. Carried to both halves, `vr_beastfit_test` failed the scrag's target skin covered (0.833, limit 0.85; 0.92
+  without); bf_eval: the front's median gap 0.74 -> 0.00, the back's 1.37 -> 0.14, poke 0.11 -> 0.27 with them. His values
+  above, to put back by hand if he wants them.
+- **Measures** (`vr_beastfit_test`, rest pose): front half (`pelvis`) size 1.08, gap 1.09; back half (`pelvis plate8_back`)
+  size 1.11, gap 1.35; the pelvis's skin covered 0.92 (front's own share 0.26, back's 0.57); the scrag's skin through its
+  plates 0.13. The test's lines now name a piece by bone and part, with its own share. Its fails on origin/next's
+  armour.txt (his "armor tweas" commit, not this branch): the scrag's plate 9 (size 1.68, gap 4.06), the fiend (cover 0.43,
+  head gap 3.8), the rottweiler's upperleg_fl size 1.55.
+- **Generator note**: the committed `vrbarmor_wizard_8_tail4.mdl` (and its centre line) does not match what the script
+  makes from its own table (beastfit's script, unchanged, gives a tail4 4 units further forward); kept as committed.
+- **Tests**: `vr_beaststudio_test` 27/0 (new: the scrag's two parts listed; the back half moved 2 up alone, the front
+  0.000; the back half worn alone: 1 piece drawn); `vr_agarmor_test 15` 55/0 (the scrag's slot 8: 5 parts), `21` 14/0;
+  `vr_beastfit_test` 97/6 (the 6 above, none the halves'). `vr_armourstudio_gizmo_test` 19/1: the grunt's move 2.026 for 2
+  (humanoid path, untouched; low-impact run).
+- **Render**: `scratch/scragsplit_wizard.png` (bf_eval: front three-quarter, then front, back, left, right, top, back
+  three-quarter; the back half darker).

@@ -170,10 +170,15 @@ KINDS = [
         fpiece(9, "chest", SH_WIZ, [
             band((1.14, 0.97), (4,), span=180, step=0.15, lap=0.3, flare=1.3, lift=0.5),
             band((0.97, 0.05), (4, 4, 4), span=170)], mid=True, face="back"),
+        # (scragsplit: his lower body in two halves, each its own Studio part, seamed at his sides: the front the slot's own
+        # "plate8" (Plate 8 Front), the back "plate8_back" (Plate 8 Back); round the line down from his waist to his tail's
+        # root: his body bends back into it)
         fpiece(8, "pelvis", SH_WIZ, [
-            # (round the line down from his waist to his tail's root: his body bends back into it)
-            band((-0.02, 0.14), (10,), step=0.2, lap=0.3, tiles=("panel",), line=WIZ_BELLY),
-            band((0.14, 1.0), (8, 8, 7), line=WIZ_BELLY)], mid=True, face="front"),
+            band((-0.02, 0.14), (5,), span=180, step=0.2, lap=0.3, tiles=("panel",), line=WIZ_BELLY),
+            band((0.14, 1.0), (4, 4, 4), span=180, line=WIZ_BELLY)], mid=True, face="front"),
+        fpiece(8, "pelvis", SH_WIZ, [
+            band((-0.02, 0.14), (5,), span=180, step=0.2, lap=0.3, tiles=("panel",), line=WIZ_BELLY),
+            band((0.14, 1.0), (4, 4, 4), span=180, line=WIZ_BELLY)], mid=True, face="back", part="plate8_back"),
         fpiece(8, "tail1", SH_WIZ, [band((0.0, 1.0), (6, 6))], face="up", part="tail"),
         fpiece(8, "tail2", SH_WIZ, [band((0.0, 1.0), (6, 6))], face="up", part="tail"),
         fpiece(8, "tail3", SH_WIZ, [band((0.0, 1.0), (6, 5))], face="up", part="tail"),
@@ -802,7 +807,7 @@ def emit_spike(b, base, way, h, w):
 
 
 def piece_key(spec):
-    return "%d %s" % (spec["slot"], spec["bone"])
+    return "%d %s%s" % (spec["slot"], spec["bone"], " " + spec["part"] if spec.get("part") else "")
 
 
 def facet_context(kind, spec, seeds, pos, frames):
@@ -944,7 +949,7 @@ def main():
         "// by Misc/quakevr/make_beastarmour.py with the pieces' models: edit the script's tables and run it again.",
         "//   kind <monster model> <cuirass group: the slots' bits the roll's cuirass gives>",
         "//   piece <monster model> <slot 0-9> <its derived rig's bone> <the piece's model> <its middle in the rest pose: x y z>",
-        "//         [a slot's part: its own armour.txt part (tail, shin), else its slot's]",
+        "//         [a slot's part: its own armour.txt part (tail, shin, plate8_back), else its slot's]",
     ]
     for kind in KINDS:
         pos = load_mdl(os.path.join(progs, os.path.basename(kind["model"]))).pos
@@ -957,9 +962,11 @@ def main():
         for spec in kind["pieces"]:
             centre = []
             mesh = build_piece(kind, spec, seeds[kind["seeds"]], pos, centre, frames)
-            # (a slot's later piece, a part of it on another bone: named by its bone too)
-            first = spec is next(p for p in kind["pieces"] if p["slot"] == spec["slot"])
-            path = "progs/vrbarmor_%s_%d%s.mdl" % (kind["name"], spec["slot"], "" if first else "_" + spec["bone"])
+            # (a slot's later piece, a part of it on another bone: named by its bone too; on its first piece's bone, by its
+            # part: the scrag's back half)
+            first = next(p for p in kind["pieces"] if p["slot"] == spec["slot"])
+            suffix = "" if spec is first else "_" + (spec["part"] if spec["bone"] == first["bone"] else spec["bone"])
+            path = "progs/vrbarmor_%s_%d%s.mdl" % (kind["name"], spec["slot"], suffix)
             meshes.append((os.path.join(ROOT, "quakevr", path.replace("/", os.sep)), mesh, path))
             lines.append("piece %s %d %s %s %.2f %.2f %.2f%s" % (kind["model"], spec["slot"], spec["bone"], path, *centre,
                                                                  " " + spec["part"] if spec.get("part") else ""))

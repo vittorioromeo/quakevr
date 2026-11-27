@@ -2,7 +2,7 @@
 // by Misc/quakevr/make_beastarmour.py with the pieces' models: edit the script's tables and run it again.
 //   kind <monster model> <cuirass group: the slots' bits the roll's cuirass gives>
 //   piece <monster model> <slot 0-9> <its derived rig's bone> <the piece's model> <its middle in the rest pose: x y z>
-//         [a slot's part: its own armour.txt part (tail, shin), else its slot's]
+//         [a slot's part: its own armour.txt part (tail, shin, plate8_back), else its slot's]
 kind progs/dog.mdl 257
 piece progs/dog.mdl 0 chest progs/vrbarmor_dog_0.mdl 9.27 -2.09 2.63
 piece progs/dog.mdl 8 pelvis progs/vrbarmor_dog_8.mdl -4.91 -0.43 2.16
@@ -28,7 +28,8 @@ piece progs/ogre.mdl 7 shin_r progs/vrbarmor_ogre_7_shin_r.mdl -7.67 -9.92 -14.4
 kind progs/wizard.mdl 769
 piece progs/wizard.mdl 0 chest progs/vrbarmor_wizard_0.mdl 8.48 0.21 15.43
 piece progs/wizard.mdl 9 chest progs/vrbarmor_wizard_9.mdl -1.00 0.94 21.79
-piece progs/wizard.mdl 8 pelvis progs/vrbarmor_wizard_8.mdl 1.48 0.67 0.64
+piece progs/wizard.mdl 8 pelvis progs/vrbarmor_wizard_8.mdl 6.26 0.53 -0.08
+piece progs/wizard.mdl 8 pelvis progs/vrbarmor_wizard_8_plate8_back.mdl -5.75 0.82 1.20 plate8_back
 piece progs/wizard.mdl 8 tail1 progs/vrbarmor_wizard_8_tail1.mdl -6.73 -0.34 -15.27 tail
 piece progs/wizard.mdl 8 tail2 progs/vrbarmor_wizard_8_tail2.mdl -17.20 0.80 -19.65 tail
 piece progs/wizard.mdl 8 tail3 progs/vrbarmor_wizard_8_tail3.mdl -29.23 0.77 -18.82 tail

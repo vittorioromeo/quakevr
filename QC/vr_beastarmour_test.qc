@@ -250,10 +250,11 @@ void(float req) VR_BAT_Frame =
         }
         float drawn = ragdollbone(world, '2 0 0', QVR_ARMOR_BEAST);
         VR_Test_Check(drawn == want, sprintf("every piece drawn: %g of %g", drawn, want));
-        // (and the slots' parts on other bones: the ogre's shins with his thighs' pieces, the scrag's tail with his belt's)
-        float parts = VR_AgArmor_On(vr_bat_e1, 6) + VR_AgArmor_On(vr_bat_e1, 7) + 4 * VR_AgArmor_On(vr_bat_e2, 8);
+        // (and the slots' parts: the ogre's shins with his thighs' pieces, the scrag's tail and his plate 8's back half with his
+        // belt's front half: ROUND26.md, "scragsplit")
+        float parts = VR_AgArmor_On(vr_bat_e1, 6) + VR_AgArmor_On(vr_bat_e1, 7) + 5 * VR_AgArmor_On(vr_bat_e2, 8);
         float ents = ragdollbone(world, '2 1 0', QVR_ARMOR_BEAST);
-        VR_Test_Check((ents == want + parts) && (parts == 6), sprintf("every part drawn: %g entities, %g pieces and %g parts", ents, want,
+        VR_Test_Check((ents == want + parts) && (parts == 7), sprintf("every part drawn: %g entities, %g pieces and %g parts", ents, want,
             parts));
         vr_bat_state = 3;
         vr_bat_wait = time + 0.4;

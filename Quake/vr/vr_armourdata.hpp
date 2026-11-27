@@ -79,11 +79,15 @@ enum Part : int
     // scrag's tail (parts of his belt's slot 8) and its junctions. The ogre's shins (with their knee cops) are PartShin, by side.
     PartTail,
     PartTailSleeve,
+    // The scrag's lower body's back half (ROUND26.md, "scragsplit"): his slot 8's plate in two, its front the slot's own plate8
+    // ("Plate 8 Front" on him), its back this one, each with its junction.
+    PartPlate8Back,
+    PartPlate8BackSleeve,
     NumParts
 };
 inline constexpr const char* partNames[NumParts] = {"cuirass", "helmet", "pauldron", "bracer", "thigh", "shin", "pauldron_sleeve",
     "bracer_sleeve", "thigh_sleeve", "shin_sleeve", "cuirass_sleeve", "helmet_sleeve", "plate8", "plate9", "plate8_sleeve", "plate9_sleeve",
-    "tail", "tail_sleeve"};
+    "tail", "tail_sleeve", "plate8_back", "plate8_back_sleeve"};
 inline constexpr int humanParts = PartShinSleeve + 1; // (the humanoids' parts: the first ten)
 // Whether a part is a limb's (both sides, mirrored, or one side's own), and whether a sleeve (leather).
 [[nodiscard]] constexpr bool limbPart(int part)
@@ -93,7 +97,7 @@ inline constexpr int humanParts = PartShinSleeve + 1; // (the humanoids' parts: 
 [[nodiscard]] constexpr bool sleevePart(int part)
 {
     return (part >= PartPauldronSleeve && part <= PartHelmetSleeve) || part == PartPlate8Sleeve || part == PartPlate9Sleeve ||
-        part == PartTailSleeve;
+        part == PartTailSleeve || part == PartPlate8BackSleeve;
 }
 
 enum Side : int
@@ -155,7 +159,8 @@ bool resolveBeast(const char* model, int slot, bool sleeve, Override& out);
 // What applies to a beast's part of a slot with a part of its own (PartTail, PartShin: beastarmour.txt's last word) on `side`
 // (a limb part's left or right, SideBoth else; the both-sides values mirrored on the right); `sleeve` its junction.
 bool resolveBeastPart(const char* model, int part, int side, bool sleeve, Override& out);
-// A beast part's sleeve (its junction's part): PartShin's PartShinSleeve, PartTail's PartTailSleeve; itself if one already.
+// A beast part's sleeve (its junction's part): PartShin's PartShinSleeve, PartTail's PartTailSleeve, PartPlate8Back's
+// PartPlate8BackSleeve; itself if one already.
 [[nodiscard]] int beastSleeve(int part);
 // A hash of everything that applies to beast `model`'s pieces (0: nothing).
 [[nodiscard]] uint32_t beastSignature(const char* model);

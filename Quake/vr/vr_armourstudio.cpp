@@ -534,7 +534,7 @@ void keepSubject()
             playAnim(e);
         }
     }
-    beastarmour::studioPart(beastOf(subjectNow()) >= 0 ? st.selPart : -1);
+    beastarmour::studioPart(beastOf(subjectNow()) >= 0 ? st.selPart : -1, vr_armourstudio_alone.value != 0.f);
     agarmor::studioView(st.subject, za::clamp(vr_armourstudio_ghost.value, 0.f, 1.f), pieces, sleeve);
 }
 
@@ -969,6 +969,7 @@ void cloneTest_f()
 constexpr const char* beastTestName = "beaststudio";
 constexpr const char* beastTestFile = "data/armour_beasttest.txt";
 constexpr const char* beastTestModel = "progs/dog.mdl";
+constexpr const char* beastTestScrag = "progs/wizard.mdl"; // (his plate 8 in two parts: ROUND26.md, "scragsplit")
 constexpr int beastTestDog = subjectBeasts;    // (the rottweiler: beastarmour.txt's first kind)
 constexpr int beastStepFrames = 72 * 6;        // frames a step may wait (a safety net: FAIL "timed out")
 constexpr float beastNear = 0.1f;              // units: a junction's end ring on its piece's place (as posed)
@@ -1345,9 +1346,79 @@ void beastTestFrame()
             beastTestName, shared ? "the death guard's tweak not the crossbow knight's too" : "the death guard's tweak on the crossbow knight");
         t.check(!shared || (kindOf("progs/vrdcrossbow.mdl") == KindAdKnight && kindOf("progs/vrdguard.mdl") == KindAdKnight), beastTestName,
             "AD's knights not the ad_knight kind");
-        beastVerdict();
+        // The scrag: his plate 8 in two parts (ROUND26.md, "scragsplit"), its back half picked.
+        Cvar_SetValueQuick(&vr_armourstudio_kind, static_cast<float>(subjectBeasts + beastarmour::kindIndex(beastTestScrag)));
+        Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartPlate8Back));
+        bt.step = 60;
         return;
     }
+    case 60: // the scrag's two halves listed, each its own part (the back half the slot's part, the front the slot's own)
+    {
+        const int scrag = beastarmour::kindIndex(beastTestScrag);
+        if(!beastWait(scrag >= 0 && !ZA_STRCMP(subjectEntry(), beastTestScrag) && st.selPart == PartPlate8Back && beastarmour::drawnCount() >= 8,
+               "timed out: no scrag with his pieces, his plate 8's back half picked"))
+        {
+            return;
+        }
+        const int subject = subjectBeasts + scrag;
+        t.check(partValid(subject, PartPlate8) && partValid(subject, PartPlate8Back) && partValid(subject, PartTail) &&
+                beastarmour::partPieces(scrag, PartPlate8Back, SideBoth) == 1 << 8 && !partValid(beastTestDog, PartPlate8Back),
+            beastTestName, "the scrag's plate 8 not two parts (front, back) with his tail (or the rottweiler's split too)");
+        glm::mat3 parent{1.f};
+        glm::vec3 back{0.f};
+        t.check(beastarmour::partFrame(e, 1 << 8, back, parent), beastTestName, "the scrag's back half not placed");
+        beastarmour::plateWhere(e, 8, 0, bt.origin0);
+        for(int c = 0; c < 3; c++)
+        {
+            bt.middle[c] = back[c];
+        }
+        Con_Printf("%s: the scrag's plate 8: front at %.2f %.2f %.2f, back at %.2f %.2f %.2f\n", beastTestName, static_cast<double>(bt.origin0[0]),
+            static_cast<double>(bt.origin0[1]), static_cast<double>(bt.origin0[2]), static_cast<double>(back[0]), static_cast<double>(back[1]),
+            static_cast<double>(back[2]));
+        Cvar_SetValueQuick(&vr_armourstudio_offset_z, 2.f);
+        bt.step = 61;
+        return;
+    }
+    case 61: // the back half moved up 2 alone: the front half where it was
+    {
+        const Override* o = entry(beastTestScrag, PartPlate8Back, SideBoth, false);
+        if(!beastWait(o && (o->has & (1u << OffsetZ)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the back half's offset not in the table"))
+        {
+            return;
+        }
+        glm::mat3 parent{1.f};
+        glm::vec3 back{0.f};
+        (void)beastarmour::partFrame(e, 1 << 8, back, parent);
+        float front[3];
+        beastarmour::plateWhere(e, 8, 0, front);
+        float moved = 0.f, still = 0.f;
+        for(int c = 0; c < 3; c++)
+        {
+            moved += (back[c] - bt.middle[c]) * (back[c] - bt.middle[c]);
+            still += (front[c] - bt.origin0[c]) * (front[c] - bt.origin0[c]);
+        }
+        moved = za::sqrt(moved);
+        still = za::sqrt(still);
+        Override f;
+        (void)resolveBeast(beastTestScrag, 8, false, f);
+        Con_Printf("%s: the back half moved %.3f, the front half %.3f\n", beastTestName, static_cast<double>(moved), static_cast<double>(still));
+        t.check(za::abs(moved - 2.f) < 0.25f && still < 0.01f && !(f.has & (1u << OffsetZ)), beastTestName,
+            "the back half not tweaked apart from the front (moved 2, the front still)");
+        Cvar_SetValueQuick(&vr_armourstudio_offset_z, 0.f);
+        Cvar_SetValueQuick(&vr_armourstudio_alone, 1.f);
+        bt.step = 62;
+        return;
+    }
+    case 62: // the back half worn alone: that one piece drawn (not his front half or tail)
+        if(!beastWait(st.selPart == PartPlate8Back && beastarmour::drawnCount(true) == 1, "timed out: the back half not worn alone (other pieces drawn)"))
+        {
+            return;
+        }
+        Con_Printf("%s: the scrag's back half worn alone: %d piece drawn\n", beastTestName, beastarmour::drawnCount(true));
+        t.check(true);
+        Cvar_SetValueQuick(&vr_armourstudio_alone, 0.f);
+        beastVerdict();
+        return;
     default:
         beastVerdict();
         return;
