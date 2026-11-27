@@ -24,6 +24,7 @@
 #include "vr_cvars.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
+#include "vr_meleeshow.hpp"
 #include "vr_move.hpp"
 #include "vr_moveguard.hpp"
 #include "vr_mpavatar.hpp"
@@ -2841,6 +2842,7 @@ extern "C" void VR_ServerFrameBegin()
     // messages put his: the server's readers ask the slot alone (MP_PLAN B11a).
     qvr::heldpose::publishOwn();
     qvr::heldpose::placeBots(); // (bots3: each bot's weapons as every client draws them)
+    qvr::meleeshow::serverFrameBegin(); // (Show Melee Arcs: the last frame's swings for remote clients forgotten)
 }
 
 extern "C" void VR_ServerFrameEnd(int worldRan)
@@ -3389,6 +3391,7 @@ void init()
     foegrab::init();
     legsweep::init();
     bodycontact::init();
+    meleeshow::init();
     ledges::init();
 }
 

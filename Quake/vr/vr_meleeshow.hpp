@@ -31,6 +31,19 @@ void addFoe(int ent, int what, const glm::vec3& a, const glm::vec3& b, float v);
 
 // The frames draw drew any armed humanoid's swing (the tests: meleeshowfoe's return; vr_enemy_melee_arc_status).
 [[nodiscard]] int foeDrawnFrames();
+// ... and the trail's segments it drew (the swept surface between two of a swing's frames; vr_enemy_melee_arc_status).
+[[nodiscard]] int foeDrawnSegments();
+
+// Multiplayer (mparcs): a remote client whose vr_enemy_melee_arc_show is on asks the server for the swings ("vr_meleearcs_want
+// 1", from draw); the server sends each frame's addFoe records to those clients (QVR_SVC_MELEEARC: VR_WriteMeleeArcs in
+// SV_SendClientDatagram), and the client keeps them as addFoe keeps them on the host. A listen host draws the server's own.
+void init(); // the "vr_meleearcs_want" client command
+// The server: a remote client draws the swings (QC sends them while this or the host's vr_enemy_melee_arc_show is on).
+[[nodiscard]] bool remoteWanted();
+// The server frame's start (VR_ServerFrameBegin): the last frame's records for the remote clients forgotten.
+void serverFrameBegin();
+// The client: QVR_SVC_MELEEARC's body.
+void parseFoes();
 
 // Hand `hand`'s (QC's: 1 main, 0 off) blow line as QC last sent it (within half a second): its near end, grip and tip. The
 // blade shape editor's (vr_bladeedit.cpp) near end where the weapon has none of its own (the kind's).
