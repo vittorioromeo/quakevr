@@ -901,9 +901,10 @@ Rig* rigFor(const qmodel_t* model)
     if(!files::readText(path, text))
     {
         // (the tests' folder has none: the game folder's)
-        char base[64];
+        char base[64], game[MAX_OSPATH];
         rigdata::baseName(model->name, base, sizeof(base));
-        q_snprintf(path, sizeof(path), "%s/rigs/%s.rig2.txt", com_gamedir, base);
+        VR_QuakeVRGameDir(game, sizeof(game));
+        q_snprintf(path, sizeof(path), "%s/rigs/%s.rig2.txt", game, base);
         if(!files::readText(path, text))
         {
             rigs.pushBack(ZA_MOVE(e));

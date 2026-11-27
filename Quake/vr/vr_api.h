@@ -1021,6 +1021,7 @@ int VR_CanLoadSaveMap(const char *map, const char *text);	// Host_Loadgame_f: th
 
 // Official campaign context and read-only source roots.
 const char *VR_GameDirectoryRoot(const char *dir, int index);
+void VR_QuakeVRGameDir(char *out, size_t size);	// "<base>/quakevr": Quake VR's own folder (its rigs, anims), also under a mod (com_gamedir its)
 void VR_PrepareCampaignDirectories(const char *paths);
 void VR_InitCampaignDirectories(void);
 int VR_IsCampaignDirectory(const char *dir);	// id1, hipnotic, rogue or a campaign of the selector's (common.c COM_AddVRGameArg)

@@ -882,6 +882,16 @@ extern "C" const char* VR_GameDirectoryRoot(const char* dir, int index)
     return index < com_numbasedirs ? com_basedirs[index] : nullptr;
 }
 
+// Quake VR's own folder: com_gamedir in the shipped launches (quakevr the last game dir), the mod's under
+// "-game quakevr -game <mod>" (an empty mod had no rigs/: the armed grunts' plates, "progs/vrgrunt.mdl#plate0 not
+// found", ROUND26 "nogamedir"). com_gamedir when quakevr isn't mounted (a broken install, a test's own folders).
+extern "C" void VR_QuakeVRGameDir(char* out, size_t size)
+{
+    const char* base = gameDirAlreadyAdded(vrGameDir) ? VR_GameDirectoryRoot(vrGameDir, 0) : nullptr;
+    if(base && base[0]) { q_snprintf(out, size, "%s/%s", base, vrGameDir); }
+    else { q_strlcpy(out, com_gamedir, size); }
+}
+
 extern "C" void VR_PrepareCampaignDirectories(const char* paths)
 {
     discoverCampaigns();

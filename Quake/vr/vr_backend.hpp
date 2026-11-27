@@ -275,6 +275,40 @@ public:
         return false;
     }
 
+    // Application SpaceWarp (XR_FB_space_warp; vr_spacewarp.cpp): each eye's motion vectors and depth go to the runtime
+    // with its colour, and the runtime shows a made-up frame between the game's (the game drawn at half the display's
+    // rate). Offered: the runtime has it (the size its motion vector images are made at). The images: acquired for the
+    // eye (0s: none this frame), released with the frame's information (setSpaceWarpFrame, before endFrame); the frame
+    // carries them only when both eyes' were released.
+    struct SpaceWarpImages
+    {
+        unsigned motion{0}; // RGBA16F: xyz this frame's NDC minus the last frame's
+        unsigned depth{0};  // the eye's depth, as its projection writes it
+        int width{0};
+        int height{0};
+    };
+    struct SpaceWarpFrame
+    {
+        Pose appSpaceDelta;  // the play space's own motion in the world since the last frame (Inv(prev) * current)
+        float nearZ{0.f};    // metres at depth 0 and 1 (reversed Z: nearZ > farZ)
+        float farZ{0.f};
+        bool skip{false};    // a jump (teleport, snap turn, a new map): nothing made up from this frame
+    };
+    [[nodiscard]] virtual bool spaceWarpOffered(int& /* width */, int& /* height */) const
+    {
+        return false;
+    }
+    [[nodiscard]] virtual SpaceWarpImages acquireSpaceWarpImages(int /* eye */)
+    {
+        return {};
+    }
+    virtual void releaseSpaceWarpImages(int /* eye */)
+    {
+    }
+    virtual void setSpaceWarpFrame(const SpaceWarpFrame& /* frame */)
+    {
+    }
+
     // Finishes the frame begun by beginFrame; `rendered` if the eye images were rendered (or, FrameState::hold, the last
     // rendered ones are to be shown again).
     virtual void endFrame(bool rendered) = 0;

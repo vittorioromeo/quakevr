@@ -404,6 +404,7 @@ void armedGripsDragMode()
         row(opt::vr_agarmor_rule),
         row(opt::vr_agarmor_helmet_head),
         row(opt::vr_agarmor_block_cuts),
+        row(opt::vr_agarmor_beasts),
         row(opt::vr_agarmor_impulse),
         row(opt::vr_agarmor_debris_time),
         header("Broken Plates"),
