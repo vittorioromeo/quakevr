@@ -3878,6 +3878,18 @@ SeatPass seatPass()
     return p;
 }
 
+int ownGunHand(const entity_t* e)
+{
+    for(int h = 0; h < 2; h++)
+    {
+        if(e == &entities().weapon[h].ent)
+        {
+            return h;
+        }
+    }
+    return -1;
+}
+
 VrGunLook ownGunLook(int hand)
 {
     const bool main = hand == HAND_MAIN;

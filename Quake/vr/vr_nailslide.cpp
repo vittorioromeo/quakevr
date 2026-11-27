@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_protocol.hpp"
+#include "vr_seat.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_anchor.hpp"
 #include "vr_weapons.hpp"
@@ -40,7 +41,16 @@ struct ModelTravel
     glm::vec3 bytes{0.f};     // and that move in the model's byte space (anchor::posedAnchor's: the screen's shift)
 };
 
-Hand hands[2];
+// split18: each seat's (seat::Part::NailSlide): the slides of the guns in its own hands. One set had a seat firing kick
+// the other seat's gun in the same hand, and a seat with no nail pistol in a hand reset the other's every frame
+struct SlideHands
+{
+    Hand hand[2];
+};
+[[nodiscard]] SlideHands& slides()
+{
+    return seat::part<SlideHands>(seat::current(), seat::Part::NailSlide);
+}
 ModelTravel measured;
 
 // How far progs/v_nailpistol.mdl's back frame has its slide back from its rest frame (model units; build_nailpistol_slide.py).
@@ -86,7 +96,7 @@ ModelTravel measured;
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        if(e == &view_detail::entities().weapon[hand].ent && hands[hand].gun == e->model)
+        if(e == &view_detail::entities().weapon[hand].ent && slides().hand[hand].gun == e->model)
         {
             return hand;
         }
@@ -140,7 +150,7 @@ glm::vec3 screenShift(const entity_t& e, const char* anchor, float zeroBlend)
         return undo;
     }
     const int hand = handOf(&e);
-    const float w = hand >= 0 ? hands[hand].pos : propLocked(e) || e.frame == 1 ? 1.f : 0.f;
+    const float w = hand >= 0 ? slides().hand[hand].pos : propLocked(e) || e.frame == 1 ? 1.f : 0.f;
     const float k = travelBlend(hdr); // (measures the model first)
     return undo + measured.bytes * (w * k);
 }
@@ -183,7 +193,7 @@ void probe()
 
 void step(int hand, const qmodel_s* gun, int frame)
 {
-    Hand& h = hands[hand];
+    Hand& h = slides().hand[hand];
     const bool np = isNailPistol(gun);
     const bool back = np && frame == 1;
     const float dt = h.time >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - h.time, 0.0, 0.1)) : 0.f;
@@ -227,7 +237,7 @@ void step(int hand, const qmodel_s* gun, int frame)
 
 float position(int hand)
 {
-    return hands[hand].pos;
+    return slides().hand[hand].pos;
 }
 
 } // namespace qvr::nailslide
@@ -254,7 +264,7 @@ extern "C" void VR_NailSlidePose(const entity_t* e, const void* aliashdr, short*
     float w = (*pose1 == f1 ? 1.f - *blend : 0.f) + (*pose2 == f1 ? *blend : 0.f);
     if(const int hand = nailslide::handOf(e); hand >= 0)
     {
-        w = nailslide::hands[hand].pos;
+        w = nailslide::slides().hand[hand].pos;
     }
     else if(nailslide::propLocked(*e))
     {

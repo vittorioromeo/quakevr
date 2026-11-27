@@ -1102,6 +1102,7 @@ void swapModels()
     {
         return;
     }
+    restoreModels(); // split18: last frame's swaps put back, never dropped (see ragdoll::swapModels)
     for(Drawn& d : drawn)
     {
         d.here().swapped = false;

@@ -11,18 +11,23 @@
 // Phase 7 part 2: each seat's own drawn body (vr_avatar: posed at its own player); the shared particles fed once per
 // event (an explosion every seat reads drawn once, one only a later seat reads drawn too).
 #include "vr_seat.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
 #include "vr_avatar.hpp"
+#include "vr_backend.hpp"
 #include "vr_blood.hpp"
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_mpavatar.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
+#include "vr_trace.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_api.h"
 #include "vr_api_render.h"
@@ -50,6 +55,8 @@ enum class Step
     AnimLive,   // its pose drawn the same in both seats' passes of each frame, and animating
     AnimDead,   // killed: its ragdoll drawn in both passes of each frame, the same pose
     AnimOneNear, // seat 2 turned away: seat 1 draws the ragdoll (never the standing pose) each frame
+    GunsSame,   // split18 (guns): both seats a nail pistol in the main hand; seat 1 fires: seat 2's gun never animates
+    GunsApart,  // seat 2's nail pistol in its off hand: each seat's drawn in its own hand every frame, seat 1 firing
     WaitBooted, // every seat's visor powered on (its boot sweep), then the screenshot
     WaitShot,   // the screenshot taken (the frame after its command)
     FlashBase,  // split11: no seat under water; each seat's picture read (its probe grid), then every flash on every seat
@@ -104,12 +111,40 @@ struct RenderTest
     int animFar = 0;     // (AnimOneNear) seat 2 drew it
     za::U32 animLast = 0;
     float yaw1 = 0.f;    // seat 1's yaw (seat 2 turned so for the anim steps)
+    int animFlicker = 0;           // split18: a seat's pose back to the one two frames before (readAnim)
+    za::U32 animPrev[2][2] = {};   // each seat's last two poses' hashes
+    // split18 (vr_seat_render_test 2 guns): each seat's held guns as its pass drew them last (poseProbe: the frame, the
+    // pose's hash, the model matrix's origin), and the guns steps' tallies by seat
+    bool guns = false;
+    struct GunProbe
+    {
+        int frame = -1;
+        za::U32 hash = 0;
+        glm::vec3 at{0.f};
+        const qmodel_t* model = nullptr;
+    } gunProbe[maxSeats][2];
+    int gunHand[maxSeats] = {};     // the hand each seat's nail pistol is in this step
+    int gunRead = 0;                // frames read in the step
+    int gunDrawn[maxSeats] = {};    // its nail pistol drawn in its pass that frame, a nail pistol
+    int gunNear[maxSeats] = {};     // ... within gunHandReach of its own hand
+    float gunFar[maxSeats] = {};    // the farthest it was from that hand
+    int gunChanges[maxSeats] = {};  // its pose changed from the frame before
+    za::U32 gunLast[maxSeats] = {};
+    float frameRate = 0.f; // split18: vr_fixed_frames_rate before the anim run set its own (0: not set)
 } renderTest;
 
 constexpr int animFramesWanted = 16; // split13: drawn frames read in each anim step
+constexpr int animChangesWanted = 8;  // split18: the live grunt's pose changes seen (it animates) before AnimLive's check
+constexpr int animLiveMaxFrames = 288; // ... read at most (2 s at the anim run's 144 frames a second)
+// split18: the anim run's frames a second (vr_fixed_frames_rate): twice the server's ticks, so half the client frames read
+// no update for the monster (his test at a high refresh rate: seat 2 drew it in its rest pose every other frame)
+constexpr float animFrameRate = 144.f;
 constexpr const char* gruntModel = "progs/soldier.mdl";
 
 constexpr int handFramesWanted = 8; // split13: drawn frames read in Step::Hands
+constexpr int gunSettleFrames = 72;  // split18: frames after the guns are given before they are read (in the hands, raised)
+constexpr int gunFramesWanted = 48;  // ... drawn frames read in each guns step (seat 1 firing from the first)
+constexpr float gunHandReach = 32.f; // units: a held gun's model origin from its hand's (the bug: left where it was)
 // units: another seat's avatar hand from that seat's drawn hand (the networked hand as any client draws it: the empty off
 // hand 5-6 units off, the gun hand 1-2; split12's bug drew it at the viewing seat's own hand, ~100 units off here)
 constexpr float avatarHandTolerance = 8.f;
@@ -160,6 +195,10 @@ void finish()
     }
     Cvar_Set("scr_seatmarkers", "0");
     Cvar_SetValue("con_notifytime", renderTest.notifyTime);
+    if(renderTest.frameRate > 0.f)
+    {
+        Cvar_SetValue("vr_fixed_frames_rate", renderTest.frameRate);
+    }
     renderTest.step = Step::Off;
     renderTest.tally.verdict("seat_render_test");
 }
@@ -868,12 +907,80 @@ void readAnim()
     t.animLast = a.hash;
     t.animNear += a.frame == last && a.bones > 0 ? 1 : 0;
     t.animFar += b.frame == last ? 1 : 0;
+    // split18: each seat's own draws, frame to frame: a pose that goes back to the one two frames before (his flicker:
+    // the right pose, the rest pose, the right pose)
+    for(int s = 0; s < 2; s++)
+    {
+        const za::U32 h = t.probe[s].hash;
+        t.animFlicker += t.animRead > 2 && h == t.animPrev[s][1] && h != t.animPrev[s][0] ? 1 : 0;
+        t.animPrev[s][1] = t.animPrev[s][0];
+        t.animPrev[s][0] = h;
+    }
+}
+
+// split18: the guns steps' read of one drawn frame: each seat's nail pistol (in t.gunHand[s]) drawn in its pass that frame,
+// near its own hand, and its pose against the frame before.
+void readGuns()
+{
+    RenderTest& t = renderTest;
+    t.gunRead++;
+    for(int s = 0; s < t.seats; s++)
+    {
+        const int h = t.gunHand[s];
+        const RenderTest::GunProbe& g = t.gunProbe[s][h];
+        if(g.frame != host_framecount && g.frame != host_framecount - 1)
+        {
+            continue; // (not drawn in its last pass)
+        }
+        if(!g.model || !modelmeta::is(g.model, modelmeta::Id::VNailPistol))
+        {
+            continue;
+        }
+        t.gunDrawn[s]++;
+        const Scope in(at(s));
+        const view::SeatPass p = view::seatPass();
+        const float off = glm::distance(g.at, p.handAt[h]);
+        t.gunFar[s] = za::max(t.gunFar[s], off);
+        t.gunNear[s] += off < gunHandReach ? 1 : 0;
+        t.gunChanges[s] += t.gunRead > 1 && g.hash != t.gunLast[s] ? 1 : 0;
+        t.gunLast[s] = g.hash;
+    }
+}
+
+void gunsGo(const Step s)
+{
+    RenderTest& t = renderTest;
+    t.gunRead = 0;
+    for(int i = 0; i < maxSeats; i++)
+    {
+        t.gunDrawn[i] = t.gunNear[i] = t.gunChanges[i] = 0;
+        t.gunFar[i] = 0.f;
+        t.gunLast[i] = 0;
+    }
+    go(s);
+}
+
+// The guns steps' checks: each seat's nail pistol drawn every frame in its own hand; seat 1's (firing) animating and seat 2's
+// (idle) not.
+void checkGuns(const char* what)
+{
+    RenderTest& t = renderTest;
+    for(int s = 0; s < t.seats; s++)
+    {
+        check(t.gunDrawn[s] == t.gunRead && t.gunNear[s] == t.gunRead,
+            va("%s: seat %d's nail pistol (%s hand) drawn every frame (%d of %d) in its hand (%d; at most %.1f units off)", what,
+                s + 1, t.gunHand[s] == HAND_MAIN ? "main" : "off", t.gunDrawn[s], t.gunRead, t.gunNear[s],
+                static_cast<double>(t.gunFar[s])));
+    }
+    check(t.gunChanges[0] > 0 && t.gunChanges[1] == 0,
+        va("%s: seat 1 firing animates its own nail pistol alone (%d pose changes; seat 2's idle one %d)", what, t.gunChanges[0],
+            t.gunChanges[1]));
 }
 
 void animGo(const Step s)
 {
     RenderTest& t = renderTest;
-    t.animRead = t.animSame = t.animBones = t.animChanged = t.animNear = t.animFar = 0;
+    t.animRead = t.animSame = t.animBones = t.animChanged = t.animNear = t.animFar = t.animFlicker = 0;
     go(s);
 }
 
@@ -981,14 +1088,42 @@ void testFrame()
                 return;
             }
             checkHands();
+            if(t.guns)
+            {
+                // split18: a nail pistol (test impulse 149, vr_test_give_wid) in both seats' main hands (his report's gun:
+                // its drawn slide, vr_nailslide.cpp)
+                Cbuf_AddText(va("vr_test_give_wid %d; seat 1 impulse 149; seat 2 impulse 149\n", WID_NAILPISTOL));
+                t.gunHand[0] = t.gunHand[1] = HAND_MAIN;
+                gunsGo(Step::GunsSame);
+                return;
+            }
             if(!t.anim)
             {
                 go(Step::WaitBooted);
                 return;
             }
             {
+                // split18: the grunt goes 160 units ahead of seat 1: the way with the most room (seat 1's own 30
+                // degrees faced a wall at e1m1's start: the grunt spawned in it, out of every client's sight)
                 const Scope in(at(0));
+                vec3_t org{};
                 t.yaw1 = cl.viewangles[YAW];
+                if(playerOrigin(0, org))
+                {
+                    float best = -1.f;
+                    for(int y = 0; y < 360; y += 15)
+                    {
+                        const float r = glm::radians(static_cast<float>(y));
+                        const glm::vec3 from{org[0], org[1], org[2]};
+                        const float room = worldtrace::line(from, from + glm::vec3{za::cos(r), za::sin(r), 0.f} * 260.f);
+                        if(room > best + 0.01f)
+                        {
+                            best = room;
+                            t.yaw1 = static_cast<float>(y);
+                        }
+                    }
+                }
+                cl.viewangles[YAW] = t.yaw1;
             }
             for(int s = 1; s < t.seats; s++) // (both seats face the grunt: it is spawned ahead of seat 1)
             {
@@ -1016,13 +1151,15 @@ void testFrame()
                 return;
             }
             readAnim();
-            if(t.animRead < animFramesWanted)
+            // (split18: until it has animated a few times too: a monster's first think is up to half a second after its
+            // spawn, standing in its first frame meanwhile)
+            if(t.animRead < animFramesWanted || (t.animChanged < animChangesWanted && t.animRead < animLiveMaxFrames))
             {
                 return;
             }
-            check(t.animSame == t.animRead && t.animChanged > 0,
-                va("a live grunt: both seats' passes draw one pose a frame (%d of %d), it animates (%d changes)", t.animSame,
-                    t.animRead, t.animChanged));
+            check(t.animSame == t.animRead && t.animChanged > 0 && t.animFlicker == 0,
+                va("a live grunt: both seats' passes draw one pose a frame (%d of %d), it animates (%d changes), no pose "
+                   "flicker in either seat (%d)", t.animSame, t.animRead, t.animChanged, t.animFlicker));
             Cbuf_AddText("vr_test_kill 1\n");
             animGo(Step::AnimDead);
             return;
@@ -1036,9 +1173,9 @@ void testFrame()
             {
                 return;
             }
-            check(t.animBones == t.animRead,
-                va("its ragdoll: both seats' passes draw it, the same pose, each frame (%d of %d; one pose %d)", t.animBones,
-                    t.animRead, t.animSame));
+            check(t.animBones == t.animRead && t.animFlicker == 0,
+                va("its ragdoll: both seats' passes draw it, the same pose, each frame (%d of %d; one pose %d), no flicker (%d)",
+                    t.animBones, t.animRead, t.animSame, t.animFlicker));
             for(int s = 1; s < t.seats; s++)
             {
                 const Scope in(at(s));
@@ -1062,6 +1199,42 @@ void testFrame()
             t.probeNum = 0;
             go(Step::WaitBooted);
             return;
+        case Step::GunsSame:
+        case Step::GunsApart:
+        {
+            if(t.frames < gunSettleFrames)
+            {
+                return;
+            }
+            if(t.frames == gunSettleFrames)
+            {
+                Cbuf_AddText("seat 1 +attack\n"); // (seat 1 fires its main hand's nail pistol; seat 2 never fires)
+                (void)newFrameDrawn(); // (the frames read from the next drawn one)
+                return;
+            }
+            if(!newFrameDrawn())
+            {
+                return;
+            }
+            readGuns();
+            if(t.gunRead < gunFramesWanted)
+            {
+                return;
+            }
+            Cbuf_AddText("seat 1 -attack\n");
+            if(t.step == Step::GunsSame)
+            {
+                checkGuns("same hand");
+                // seat 2's nail pistol to its off hand (impulse 48: the hands' weapons swapped, QC VR_FlatSwapHands)
+                Cbuf_AddText("seat 2 impulse 48\n");
+                t.gunHand[1] = HAND_OFF;
+                gunsGo(Step::GunsApart);
+                return;
+            }
+            checkGuns("other hands");
+            go(Step::WaitBooted);
+            return;
+        }
         case Step::WaitBooted:
             for(int s = 0; s < t.seats; s++) // (each seat's visor powered on before the screenshot: its panels shown)
             {
@@ -1182,10 +1355,16 @@ void renderTest_f()
     renderTest.seats = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 2;
     renderTest.torches = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "torches");
     renderTest.anim = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "anim");
+    renderTest.guns = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "guns");
     if(renderTest.seats < 2 || renderTest.seats > maxSeats)
     {
         Con_Printf("vr_seat_render_test <2-%d>\n", maxSeats);
         return;
+    }
+    if(renderTest.anim || renderTest.guns)
+    {
+        renderTest.frameRate = vr_fixed_frames_rate.value;
+        Cvar_SetValue("vr_fixed_frames_rate", animFrameRate);
     }
     go(Step::WaitGame);
     Con_Printf("seat_render_test: started (%d seats)\n", renderTest.seats);
@@ -1201,6 +1380,25 @@ void registerRenderCommands()
 void poseProbe(const entity_t* e, const int pose1, const int pose2, const float blend, const float matrix[16])
 {
     RenderTest& t = renderTest;
+    if(t.guns && t.step != Step::Off)
+    {
+        // split18: the current seat's held guns as its pass draws them
+        const int hand = view::ownGunHand(e);
+        if(hand >= 0)
+        {
+            RenderTest::GunProbe& g = t.gunProbe[CLAMP(0, CL_SeatIndex(), maxSeats - 1)][hand];
+            za::U32 h = 2166136261u; // (FNV-1a over the frame lerp, quantized)
+            const int parts[3] = {pose1, pose2, static_cast<int>(lroundf(blend * 1000.f))};
+            for(const int v : parts)
+            {
+                h = (h ^ static_cast<za::U32>(v)) * 16777619u;
+            }
+            g.frame = host_framecount;
+            g.hash = h;
+            g.at = glm::vec3{matrix[12], matrix[13], matrix[14]};
+            g.model = e->model;
+        }
+    }
     if(t.probeNum <= 0 || !cl_entities || t.probeNum >= cl.num_entities || e != &cl_entities[t.probeNum])
     {
         return;

@@ -946,5 +946,8 @@ struct SeatPass
     int ghosts = 0;
 };
 [[nodiscard]] SeatPass seatPass();
+// Splitscreen (split18; vr_seat_render_test's guns run): the hand whose held gun `e` is in the current seat's view (-1:
+// not one of its guns).
+[[nodiscard]] int ownGunHand(const entity_t* e);
 
 } // namespace qvr::view

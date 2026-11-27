@@ -956,8 +956,8 @@ int CL_ReadFromServer (void)
 	dlight_t	*l; //johnfitz
 	int			i; //johnfitz
 
-	if (!CL_SeatHeadless ()) // QVR: (the drawn ragdolls are seat 0's until phase 7)
-		VR_RagdollRestore (); // QVR: the ragdolls' own models back (vr/vr_ragdoll.cpp)
+	VR_RagdollRestore (); // QVR: the ragdolls' and authored-rig grunts' own models back (vr/vr_ragdoll.cpp): each seat's own
+						  // (split18: seats 2-4's were never put back, drawn in their rest pose every other frame)
 	CL_AdvanceTime ();
 
 	if (!VR_LockstepReadHeld ()) // QVR: a lockstep client's moving frame reads nothing (its waiting frames: CL_ReadLockstep)

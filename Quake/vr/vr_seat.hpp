@@ -109,6 +109,7 @@ enum class Part
     AttachDrawn,   // vr_view.cpp: the hands' attachments as this seat drew them last (view::drawnAttachment)
     // split18: fixes from his splitscreen test.
     Flashlight,    // vr_flashlight.cpp: the seat's torch (state, visible beam, cord), switched by its own key
+    NailSlide,     // vr_nailslide.cpp: the slides of the nail pistols in the seat's own hands
     Count
 };
 

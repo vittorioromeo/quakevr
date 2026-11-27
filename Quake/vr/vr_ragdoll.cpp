@@ -3764,7 +3764,10 @@ void swapModels()
     {
         gunCheckNext = cl.time + 0.25;
     }
-    swappedHere().clear();
+    // split18: last frame's swaps put back first, never dropped: a splitscreen seat's client (no restore of its own
+    // before it read the server, CL_ReadFromServer's was seat 1's) kept the skinned model on a frame with no update for
+    // the entity, unlisted, so it was drawn in its rest pose every other frame at high frame rates
+    restoreModels();
     if((!sv.active && !netDraw.any) || cls.state != ca_connected) // (a remote server's: vr_netragdoll.cpp)
     {
         return;
