@@ -693,7 +693,8 @@ QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
 // the runtime lower the level while the GPU has room (XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB), vr_xr_foveation the most.
 QVR_CVAR(vr_xr_foveation_dynamic, "0", CVAR_ARCHIVE)
 // questfovmusic: the foveation pattern's vertical shift in degrees (XrFoveationLevelProfileCreateInfoFB's verticalOffset,
-// -30..30; negative: the sharp middle lower, more of the top reduced), with any level over 0; a change takes new swapchains.
+// -30..30; the runtime's sign convention is unspecified: Quest 3 at 0.9, -15 was 3.5 ms slower on the hub, +30 1.5 ms
+// faster in the gib fight), with any level over 0; a change takes new swapchains.
 QVR_CVAR(vr_xr_foveation_offset, "0", CVAR_ARCHIVE)
 // C4q (QUEST_PLAN.md 6x; a probe): the eye swapchains' foveation create flags, read when they are made: 1 scaled bins
 // (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).

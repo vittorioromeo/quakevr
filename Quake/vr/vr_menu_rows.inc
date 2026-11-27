@@ -4830,8 +4830,8 @@ QVR_CYCLE(vr_xr_foveation, "Quest Foveation",
     "and the lower middle, where you mostly look, kept sharp.",
     {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "High (Top)"})
 QVR_SLIDER(vr_xr_foveation_offset, "Quest Foveation: Shift", -30.f, 30.f, 5.f, "%+.0f deg", noExt,
-    "Moves the sharp middle of Quest Foveation up (positive) or down (negative), in degrees. Down blurs more of the "
-    "top of the view, which is faster; 0: centred.")
+    "Moves Quest Foveation's pattern vertically by this many degrees (the headset's own setting). On a Quest 3, +30 "
+    "was faster in a fight and -15 slower on the hub; 0 (centred) is the safe choice. Changing it can blink the view.")
 QVR_TOGGLE(vr_xr_foveation_dynamic, "Quest Foveation: Dynamic",
     "On: the headset uses less foveation than Quest Foveation's level while the graphics have room to spare, and "
     "up to that level when they are busy.")
