@@ -367,6 +367,8 @@
 .entity vr_embed_off;    // on a player: the blade its off hand holds in a body (VR_Embed_Derive; the engine reads it)
 .entity vr_embed_main;   // the main hand's
 .float  vr_embed_handle; // the hands on theirs by the handle (bits)
+.float  vr_pfire_hud;    // on a player: the weapon props its hands drive (vr_propfire.qc VR_PropFire_Held): their weapon ids,
+                         // the off hand's + 256 x the main's (0 none); the HUD readouts follow them (the engine's STAT_QVR_PROPHUD)
 .vector vr_embed_armgap; // on a player: cm each hand drawn on a blade is past its stretched arm (x off, y main; the engine's)
 .vector vr_embed_armpast; // on a player: cm each hand's drawn wrist is past the most its arm reaches, negative within it (x off, y main; the engine's)
 .vector vr_embed_armseenoff;  // on a player: the blade the off hand was on as the frame of .vr_embed_armpast drew it (the engine's)

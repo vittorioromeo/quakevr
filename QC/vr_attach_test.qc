@@ -177,6 +177,30 @@ void(string xWhat) VR_AT_ShotCheck =
     VR_Test_Check(shots >= 1 && hurt > 0, sprintf("%s: fired where it is stuck (shots from the prop %g, the grunt hurt %g)", xWhat, shots, hurt));
 };
 
+// The HUD while the hand drives the stuck gun (bayonetfix; his flat note 2026-11-27: the ammo count went away): the server's
+// readouts are the gun's (the engine's STAT_QVR_PROPHUD from .vr_pfire_hud, the counter, the ammo type, the clip size);
+// the client's (vr_flathud_report after the marker: the shell script) show it.
+void(string xWhat) VR_AT_HudCheck =
+{
+    entity p = self;
+    float aid = WeaponIdToAmmoId(vr_at_wid, 0);
+    float main = floor(p.vr_pfire_hud / 256);
+    VR_Test_Check(main == vr_at_wid && p.currentammo == aid && p.ammocounter == VR_AmmoUtil_GetAmmoCountByAmmoId(p, aid) &&
+        p.ammocounter > 0 && p.weaponclipsize == VR_ClipSizeOf(vr_at_wid, vr_at_rec) && VRIsHandWeaponless(p, cVR_MainHand),
+        sprintf("%s stuck: the HUD shows its ammo (prop weapon %g, ammo type %g, counter %g, clip size %g, its clip %g)", xWhat, main,
+            p.currentammo, p.ammocounter, p.weaponclipsize, vr_at_rec.wi_clip));
+    bprint(sprintf("%s: hud probe: weapon %g clip %g\n", vr_at_flat ? "attachflat" : "attach", vr_at_wid, vr_at_rec.wi_clip));
+    localcmd("vr_flathud_report\n");
+};
+
+// The bayonet just taken off into the off hand: the client's report of what that hand is drawn holding (the shell script).
+void() VR_AT_HeldProbe =
+{
+    entity c = VR_Carry_Held(self, cVR_OffHand);
+    bprint(sprintf("%s: held probe: the off hand carries %s\n", vr_at_flat ? "attachflat" : "attach", c != world ? c.classname : "nothing"));
+    localcmd("vr_held_report\n");
+};
+
 void(float xOn) VR_AT_Trigger =
 {
     if(vr_at_flat)
@@ -268,6 +292,7 @@ void() VR_AT_Frame =
     else if(vr_at_s == 7 && u > 0.3)
     {
         bprint("attach: the pull ends\n");
+        VR_AT_HeldProbe();
         VR_Test_Check(vr_at_rec.wi_attach == 0, "held at the mount just after the pull, it doesn't snap straight back on");
         localcmd("vr_mock_hand_to off by 0 0 -16\n"); // (taken away from the mount first: then it may go on again)
         VR_AT_To(70);
@@ -361,6 +386,7 @@ void() VR_AT_Frame =
             vr_et_m = world;
         }
         vr_at_wid = WID_SHOTGUN;
+        localcmd("-graboff\n"); // (the stabs one-handed: the off hand resting by the gun takes no two-handed grip on it)
         VR_ET_To(0);
         VR_AT_To(20);
     }
@@ -395,6 +421,7 @@ void() VR_AT_Frame =
     }
     else if(vr_at_s == 21 && u > 0.2)
     {
+        VR_AT_HudCheck(vr_at_wid == WID_SHOTGUN ? "the shotgun" : "the super shotgun");
         vr_at_count = vr_pfire_shots;
         vr_at_health = vr_et_m != world ? vr_et_m.health : 0;
         VRSetAttackFinished(h, 0);
@@ -409,6 +436,7 @@ void() VR_AT_Frame =
     else if(vr_at_s == 23 && u > 0.1)
     {
         VR_AT_ShotCheck(vr_at_wid == WID_SHOTGUN ? "the shotgun" : "the super shotgun");
+        localcmd("+graboff\n"); // (the off hand's grip again: it holds the round it brings)
         VR_AT_To((vr_at_w != world && VR_Reload_Immersive()) ? 24 : 29);
     }
     // Reloaded where it is stuck (attach4), its hand still on it: the super shotgun broken open by its B (the hand's frame
@@ -475,6 +503,7 @@ void() VR_AT_Frame =
         if(vr_at_wid == WID_SHOTGUN)
         {
             vr_at_wid = WID_SUPER_SHOTGUN;
+            localcmd("-graboff\n");
             VR_ET_To(0);
             VR_AT_To(20);
         }
@@ -547,6 +576,15 @@ void() VR_AT_FlatFrame =
     {
         entity c = VR_Carry_Held(p, cVR_OffHand);
         VR_Test_Check(vr_at_rec.wi_attach == 0 && c != world && c.classname == "vr_bayonet", "J again: taken off into the empty off hand");
+        VR_AT_To(5);
+    }
+    else if(vr_at_s == 5 && u > 0.3)
+    {
+        VR_AT_HeldProbe(); // (eased into the hand by now: drawn there, blade up, on the screen)
+        VR_AT_To(6);
+    }
+    else if(vr_at_s == 6 && u > 0.1)
+    {
         localcmd("impulse 52\n");
         VR_AT_To(3);
     }
@@ -585,6 +623,7 @@ void() VR_AT_FlatFrame =
     }
     else if(vr_at_s == 13 && u > 0.2)
     {
+        VR_AT_HudCheck(vr_at_wid == WID_SHOTGUN ? "the shotgun" : "the super shotgun");
         vr_at_count = vr_pfire_shots;
         vr_at_health = vr_et_m != world ? vr_et_m.health : 0;
         vr_at_shells = vr_at_rec.wi_clip;

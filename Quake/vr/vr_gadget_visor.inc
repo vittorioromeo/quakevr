@@ -187,7 +187,7 @@ void visorAmmoGrid(const Readout& r, const Palette& pal)
 void visorHand(const Readout& r, const Palette& pal, bool left)
 {
     const int hand = left ? 1 : 0; // (Readout's: 0 the main hand, the right)
-    const int wid = static_cast<int>(cl.stats[left ? protocol::STAT_QVR_WEAPON2 : protocol::STAT_QVR_WEAPON]);
+    const int wid = flathud::hudWeapon(left ? HAND_OFF : HAND_MAIN); // (a weapon prop the hand drives: its)
     const bool test = vr_gadget_test_state.value != 0.f;
     if(wid == WID_FIST && !test)
     {

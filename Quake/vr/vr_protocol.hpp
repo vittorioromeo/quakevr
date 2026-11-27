@@ -237,6 +237,11 @@ enum Stat : int
     // of Haste (bits 0-7), Berserk (8-15) and the Wetsuit (16-23), 0 not held; the wrist gadget's row and the flat
     // visor's (vr_gadget.cpp infoRows).
     STAT_QVR_DWPOWER,
+    // The weapon props the hands drive (QC .vr_pfire_hud, vr_propfire.qc: a gun stuck in a body by its bayonet, the
+    // Crystal Lance, held by the hand that fires them there): their weapon ids, the off hand's bits 0-7, the main's 8-15
+    // (0 none). The hand itself is empty (STAT_QVR_WEAPON the fist); its HUD readouts follow the prop (flathud::hudWeapon),
+    // whose clip is in STAT_QVR_WEAPONCLIP / 2 meanwhile (his flat note 2026-11-27: the ammo count went away).
+    STAT_QVR_PROPHUD,
     STAT_QVR_END
 
 };

@@ -370,12 +370,14 @@ float(entity p, float xHand) VR_Hand_HeldOff =
 };
 
 void(entity p) VR_Embed_Derive; // (vr_embedhold.qc)
+void(entity p) VR_PropFire_HudFrame; // (vr_propfire.qc)
 
 void(entity xPlayer) VR_Hand_Derive =
 {
     VR_Hand_DeriveHand(xPlayer, cVR_OffHand);
     VR_Hand_DeriveHand(xPlayer, cVR_MainHand);
     VR_Embed_Derive(xPlayer);
+    VR_PropFire_HudFrame(xPlayer); // (after the blades: the props the hands drive, the HUD's readouts on them)
     float heldOff = (VR_Hand_HeldOff(xPlayer, cVR_OffHand) ? 1 : 0) + (VR_Hand_HeldOff(xPlayer, cVR_MainHand) ? 2 : 0);
     if(heldOff != xPlayer.vr_hand_heldoff)
     {

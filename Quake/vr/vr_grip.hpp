@@ -9,7 +9,8 @@
 //   the palm, resting on it, the face of it nearest the palm flat on it, turned about the palm's normal as it was taken;
 // - Along the Handle (3): a stick (a torch) with its handle through the fist: its long axis along the fist's grip
 //   channel (at most Handle Tilt degrees off it, leaning as taken), held at the point of the handle the fist was at
-//   (Handle From .. To), its head towards the index finger unless taken the other way round, its roll as taken.
+//   (Handle From .. To), its head (its melee tip's end: a knife's blade; else its weight's: a torch's flame) towards the index
+//   finger unless taken the other way round, its roll as taken.
 // Then, in every mode but Fixed, the same six sliders are an offset on top: moved (X forward, Y left, Z up) and turned
 // (Pitch up, Yaw left, Roll right) in the hand's frame, about where the hand holds it (the palm; In the Palm, its
 // middle; Along the Handle, the grip channel), the left hand's mirrored.

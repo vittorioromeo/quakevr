@@ -14,6 +14,7 @@
 #include "vr_menuui.hpp"
 #include "vr_gadget.hpp"
 #include "vr_fontstyle.hpp"
+#include "vr_flathud.hpp" // hudWeapon (the visor's hands)
 #include "vr_doom.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_body.hpp"

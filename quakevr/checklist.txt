@@ -9,6 +9,9 @@
 
 [New: not yet sorted]
 Flat-screen: take a quick grenade (G), press the attack button to arm it, then hold attack: while it winds up the crosshair sits on where the grenade will land, as with B; let go and it lands there. Try it in the other hand too (a gun in the main hand, the off hand's attack). {test:flat_quick_grenade}
+Flat-screen or VR: Stab a grunt with the bayonet shotgun so it sticks and keep your hand on it: the HUD (status bar, visor or wrist) still shows the shotgun's shells and its clip; the same with the super shotgun and the stuck Crystal Lance. {test:attach_bayonet}
+Flat-screen: J with a bayonet on the shotgun and the other hand empty: the bayonet comes off into that hand and is drawn there, blade up out of the fist. {test:attach_bayonet}
+Pull the bayonet off the shotgun with your empty hand (or pick up a lying one): it sits in your fist with the blade out above your index finger, not hanging below. {test:attach_bayonet}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
