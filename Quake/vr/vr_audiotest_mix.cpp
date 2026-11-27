@@ -164,34 +164,9 @@ void bench(Result& res)
 // ----------------------------------------------------------------------------
 // Full band (vr_snd_fullband)
 
-// A sound of `inrate` loaded as S_LoadSound does (snd_mem.c): Quake's held samples at the mix's rate, and the
-// band-limited copy after them (VR_SndBandLimit).
-struct Loaded
+// Raw samples (`width` bytes each, little-endian 16-bit or unsigned 8-bit) of `inrate` loaded as S_LoadSound does.
+Loaded loadRaw(const unsigned char* raw, int inrate, int samples, int width, int loopstart)
 {
-    za::Vector<unsigned char> bytes;
-    [[nodiscard]] const sfxcache_t* cache() const
-    {
-        return reinterpret_cast<const sfxcache_t*>(bytes.data());
-    }
-};
-
-Loaded loadAt(int inrate, int samples, int width, bool loop, float (*gen)(int i, unsigned& seed))
-{
-    za::Vector<unsigned char> raw(static_cast<za::SizeT>(samples * width), 0);
-    unsigned seed = 4321;
-    for(int i = 0; i < samples; i++)
-    {
-        const int v = static_cast<int>(za::clamp(gen(i, seed), -32767.f, 32767.f));
-        if(width == 2)
-        {
-            raw[2 * i] = static_cast<unsigned char>(v & 255);
-            raw[2 * i + 1] = static_cast<unsigned char>((v >> 8) & 255);
-        }
-        else
-        {
-            raw[i] = static_cast<unsigned char>(za::clamp(v / 256 + 128, 0, 255));
-        }
-    }
     const float stepscale = static_cast<float>(inrate) / testRate;
     const int outcount = static_cast<int>(static_cast<float>(samples) / stepscale);
     const int fb = (outcount * width + 3) & ~3;
@@ -199,7 +174,7 @@ Loaded loadAt(int inrate, int samples, int width, bool loop, float (*gen)(int i,
     s.bytes.resize(sizeof(sfxcache_t) + static_cast<za::SizeT>(fb + 2 * outcount + 16), 0);
     sfxcache_t* sc = reinterpret_cast<sfxcache_t*>(s.bytes.data());
     sc->length = outcount;
-    sc->loopstart = loop ? 0 : -1;
+    sc->loopstart = loopstart >= 0 ? static_cast<int>(static_cast<float>(loopstart) / stepscale) : -1;
     sc->speed = testRate;
     sc->width = width;
     sc->fullband = fb;
@@ -220,9 +195,29 @@ Loaded loadAt(int inrate, int samples, int width, bool loop, float (*gen)(int i,
         src += frac >> 8;
         frac &= 255;
     }
-    VR_SndBandLimit(raw.data(), width, samples, loop ? 0 : -1, fracstep, reinterpret_cast<short*>(sc->data + fb),
-        outcount);
+    VR_SndBandLimit(raw, width, samples, loopstart, fracstep, reinterpret_cast<short*>(sc->data + fb), outcount);
     return s;
+}
+
+// A made sound of `inrate` (`gen`) loaded as S_LoadSound does.
+Loaded loadAt(int inrate, int samples, int width, bool loop, float (*gen)(int i, unsigned& seed))
+{
+    za::Vector<unsigned char> raw(static_cast<za::SizeT>(samples * width), 0);
+    unsigned seed = 4321;
+    for(int i = 0; i < samples; i++)
+    {
+        const int v = static_cast<int>(za::clamp(gen(i, seed), -32767.f, 32767.f));
+        if(width == 2)
+        {
+            raw[2 * i] = static_cast<unsigned char>(v & 255);
+            raw[2 * i + 1] = static_cast<unsigned char>((v >> 8) & 255);
+        }
+        else
+        {
+            raw[i] = static_cast<unsigned char>(za::clamp(v / 256 + 128, 0, 255));
+        }
+    }
+    return loadRaw(raw.data(), inrate, samples, width, loop ? 0 : -1);
 }
 
 za::Vector<float> samplesOf(const sfxcache_t* sc, bool full)

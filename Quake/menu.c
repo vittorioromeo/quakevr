@@ -191,7 +191,7 @@ qboolean	m_recursiveDraw;
 
 enum m_state_e	m_return_state;
 qboolean	m_return_onerror;
-char		m_return_reason [32];
+char		m_return_reason [256]; // QVR: (netmismatch) 32 before: a refusal's whole reason (drawn wrapped)
 
 #define StartingGame	(m_multiplayer_cursor == 1)
 #define JoiningGame		(m_multiplayer_cursor == 0)
@@ -7062,7 +7062,7 @@ void M_LanConfig_Draw (void)
 		M_DrawTextCursor (basex+16 + 8*strlen(lanConfig_roomcode), lanConfig_cursor_table [3]);
 
 	if (*m_return_reason)
-		M_PrintWhite (basex, 180, m_return_reason); // QVR: (B23; NetQuake's 148: the room code's row now)
+		M_PrintWordWrap (8, 172, m_return_reason, 304, 24, false); // QVR: (B23; NetQuake's 148: the room code's row now; netmismatch: its whole, wrapped)
 }
 
 
@@ -7795,8 +7795,12 @@ void M_ServerList_Draw (void)
 	M_Print (8, y, va ("%s join  %s favourite  %s search",
 		Key_KeynumToFriendlyString (K_ABUTTON), Key_KeynumToFriendlyString (K_YBUTTON),
 		Key_KeynumToFriendlyString (K_XBUTTON)));
+	// QVR: (netmismatch) why the last join failed (a refusal's whole reason), else why the row under the cursor can't
+	// be joined (another Quake VR version: the release it needs)
 	if (*m_return_reason)
-		M_PrintWhite (8, y + 12, m_return_reason);
+		M_PrintWordWrap (8, y + 12, m_return_reason, 304, 32, false);
+	else if (slist_list.cursor < slist_list.numitems - 1 && *VR_BrowserRowNote (slist_list.cursor))
+		M_PrintWordWrap (8, y + 12, VR_BrowserRowNote (slist_list.cursor), 304, 24, false);
 }
 
 

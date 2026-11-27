@@ -54,7 +54,7 @@ about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and Smart
 
 | Option | What |
 |---|---|
-| `--package <zip or folder>` | Install this package (otherwise `QuakeVR.zip`, a `QuakeVR\` folder or another `QuakeVR*.zip` with a `manifest.json` beside the exe, otherwise a download; without one and without a release online, the Options page offers "Use a local package…") |
+| `--package <zip or folder>` | Install this package (otherwise `QuakeVR.zip`, a `QuakeVR\` folder or another `QuakeVR*.zip` with a `manifest.json` beside the exe when it is the installer's own version or newer (an older or unreadable one is not used: the release is downloaded, or offline the player is asked), otherwise a download; without one and without a release online, the Options page offers "Use a local package…") |
 | `--textures <zip>` | The HD texture pack, already downloaded |
 | `--target <dir>` | The install folder (default `%LOCALAPPDATA%\Programs\QuakeVR`) |
 | `--shortcuts-dir <dir>` | Shortcuts go to `<dir>\Desktop` and `<dir>\Programs` instead of the real desktop and Start menu (tests) |

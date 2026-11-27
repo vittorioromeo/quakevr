@@ -92,7 +92,13 @@ for the others. Any PC with Quake VR installed can run one (the same port rule a
   - the servers you **joined last** (the newest 8),
   - the games found on your **LAN**,
 
-  each with its map, players and ping. **A** joins, **X** searches again.
+  each with its map, players and ping. **A** joins, **X** searches again. Host and players need the **same Quake VR
+  release** (the same network version): a server of another one shows `v46` (its network version) instead of its ping,
+  and with the cursor on it the line under the list names the release it needs ("Needs Quake VR 1.2.0-beta7"; servers
+  before 1.2.0-beta7 don't say theirs: joining one tells you). `slist` in the console marks them the same way.
+- **Refused?** Joining a server that won't take you (another release, full, banned) shows its reason under the list
+  and once in the console ("Couldn't join ...: This server runs Quake VR 1.2.0-beta7 (network version 49), newer than
+  your game (network version 48): update to Quake VR 1.2.0-beta7 to join.").
 - Or type the host's address in **Join Game** (`host` or `host:port`), or `connect <address>` in the console.
 - Or his **room code** in Join Game's **Join by room code** (or `connect @ABCDEF` in the console). If the code is
   wrong or his game ended you are told "No room with that code"; if the room service can't be reached, "Room service

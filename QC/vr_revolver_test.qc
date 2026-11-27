@@ -35,6 +35,8 @@
 //  15 its damage: a grunt to one slug at its head (x1.5, its head popped), another to two in its body, an ogre to 4-5 in its
 //     body (vr_revolver_heavy_mult); the head pop's chance by range against the shotguns'.
 //  16 an armed grunt with a revolver fires it.
+//  (Every step with vr_revolver_spent_first and vr_revolver_shell_pairs off: the revolver as it was; vr_rv_test 7,
+//  rvreload, tests them, below.)
 //  (18 in the code.) 19 the pouch's shells by the gun in use: blue slugs (kind 9) with the revolver, red (1) with a
 //     shotgun and its shell taken red. Steps 7 and 13 also check the revolver's shells blue (skin 1): those taken from the
 //     pouch for it, its live ones dropped. (Its spent casings: the client's, "shells eject ... kind 1 skin 1" with
@@ -54,6 +56,7 @@ float vr_rvt_prevcyl;
 float vr_rvt_shots0, vr_rvt_dry0, vr_rvt_live0, vr_rvt_blue0;
 string vr_rvt_want, vr_rvt_got; // the pulls' outcomes ("F" a shot, "c" a click): expected, seen
 float vr_rvt_mode, vr_rvt_grip, vr_rvt_tv, vr_rvt_notarget;
+float vr_rvr_step, vr_rvr_frames, vr_rvr_mode, vr_rvr_spent0, vr_rvr_pairs0; // (rvreload, vr_rv_test 7; the options' values)
 vector vr_rvt_flick0, vr_rvt_flick1; // the flicks' settings before (open, close: x speed, y angle)
 entity vr_rvt_player;
 entity vr_rvt_target;
@@ -108,6 +111,8 @@ void() VR_RVT_End =
         vr_rvt_flick0 = '0 0 0';
     }
     cvar_set("vr_decap_pop_roll", "-1");
+    cvar_set("vr_revolver_spent_first", ftos(vr_rvr_spent0));
+    cvar_set("vr_revolver_shell_pairs", ftos(vr_rvr_pairs0));
     VR_NPT_Trigger(0);
     localcmd("vr_mock_button main secondary 0\n");
     if(!vr_rvt_notarget) vr_rvt_player.flags = vr_rvt_player.flags - (vr_rvt_player.flags & FL_NOTARGET);
@@ -515,6 +520,242 @@ void() VR_RVP_Frame =
     VR_Test_Verdict();
 };
 
+// ----------------------------------------------------------------------------
+// vr_rv_test 7 (rvreload): the revolver's reload options (his note 2026-11-27). Ends on "rvreload: N passed, M failed".
+//   1 a revolver in the main hand (immersive reloading on it), both options on.
+//   2 swung out holding L S L S - L, B/Y: only the two spent shells drop; the motions' guard holds while the rod is out.
+//   3 B/Y again: the three live ones drop as rounds (none spent left).
+//   4 none spent (L L - L - -): one eject drops all three; vr_revolver_spent_first 0: L S L S - L all at once; the guard
+//     only with the option on.
+//   5 the pouch's taped pair of slugs (blue, the pair's model) between chambers 3 and 4: both in at once (the second
+//     shell's sound); one place left: a single slug; a pair with one empty chamber (a spent one not yet out): one in, the
+//     other kept in the hand; vr_revolver_shell_pairs 0: a single slug from the pouch, a loose pair loads one at a time.
+// ----------------------------------------------------------------------------
+
+// The rounds lying about cleared (between the checks: none rolls back in by contact).
+void() VR_RVR_ClearRounds =
+{
+    entity e = find(world, classname, VR_RELOAD_CLASS);
+    while(e)
+    {
+        entity nx = find(e, classname, VR_RELOAD_CLASS);
+        if(!e.carry_player) { remove(e); }
+        e = nx;
+    }
+};
+
+float(string xClass) VR_RVR_CountClass =
+{
+    float n = 0;
+    entity e = find(world, classname, xClass);
+    while(e)
+    {
+        n++;
+        e = find(e, classname, xClass);
+    }
+    return n;
+};
+
+// The revolver of record `r` set to `xBits` (VR_Revolver_Chamber's base-4 digits) swung out, its clip its live ones.
+void(entity r, float xBits) VR_RVR_Set =
+{
+    r.wi_rv = xBits;
+    r.wi_rv_open = 1;
+    VRSetEntWeaponClip(vr_rvt_player, cVR_MainHand, VR_Revolver_Count(r, 1));
+    vr_rv_ej_spent = vr_rv_ej_live = vr_rv_loaded = 0;
+};
+
+void() VR_RVR_End =
+{
+    VR_RVR_ClearRounds();
+    VR_NPT_Freeze(FALSE);
+    cvar_set("vr_reload_mode_revolver", ftos(vr_rvr_mode));
+    cvar_set("vr_revolver_spent_first", ftos(vr_rvr_spent0));
+    cvar_set("vr_revolver_shell_pairs", ftos(vr_rvr_pairs0));
+    cvar_set("vr_weapon_grip_mode", ftos(vr_rvt_grip));
+    localcmd("vr_mock_button main secondary 0\n");
+    if(!vr_rvt_notarget) vr_rvt_player.flags = vr_rvt_player.flags - (vr_rvt_player.flags & FL_NOTARGET);
+    vr_rvr_step = 0;
+    VR_Test_Verdict();
+};
+
+void() VR_RVR_Next = { vr_rvr_step++; vr_rvr_frames = 0; };
+
+// L S L S - L: chambers 0..5 (VR_Revolver_Chamber's digits: 1 live, 2 spent).
+float VR_RVR_LSLS_L = 1 + 4 * 2 + 16 * 1 + 64 * 2 + 256 * 0 + 1024 * 1;
+
+void() VR_RVR_Frame =
+{
+    entity p = vr_rvt_player;
+    entity os = self;
+    self = p;
+    vr_rvr_frames++;
+    entity rec = VR_RVT_Rec();
+    entity h = VR_Revolver_Hand(p, cVR_MainHand);
+    float s = vr_rvr_step;
+    if(vr_rvr_frames > 72 * 10 || (s > 1 && !rec)) // (a safety net only: a stuck step, the revolver gone)
+    {
+        VR_Test_Check(FALSE, sprintf("step %g timed out or its revolver is gone (%s in the main hand)", s,
+            WeaponIdToWeaponName(VRGetEntWeapon(p, cVR_MainHand))));
+        VR_RVR_End();
+        self = os;
+        return;
+    }
+    if(s == 1)
+    {
+        if(time < p.vr_readytime) { vr_rvr_frames = 0; }
+        else if(vr_rvr_frames == 1) { localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n"); }
+        else if(vr_rvr_frames == 12)
+        {
+            cvar_set("vr_reload_mode_revolver", "3");
+            cvar_set("vr_revolver_spent_first", "1");
+            cvar_set("vr_revolver_shell_pairs", "1");
+            p.flags = p.flags | FL_GODMODE;
+            p.ammo_shells = 100;
+            VR_WeaponUtil_EntAddWeapon(p, WID_REVOLVER);
+            VRGiveEntWeapon(p, cVR_MainHand, WID_REVOLVER, 0, RV_CHAMBERS);
+            W_SetCurrentAmmoFor(cVR_MainHand);
+            if(VRGetEntWeapon(p, cVR_OffHand) != WID_FIST) { VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0); }
+        }
+        else if(vr_rvr_frames == 16)
+        {
+            VR_Test_Check(rec && VR_Reload_ManualInHand(p, cVR_MainHand), "a revolver in the main hand, loaded by hand");
+            if(rec) { VR_RVR_Set(rec, VR_RVR_LSLS_L); }
+            VR_RVR_Next();
+        }
+    }
+    else if(s == 2)
+    {
+        if(vr_rvr_frames == 30) { localcmd("vr_mock_button main secondary 1\n"); }
+        if(vr_rvr_frames == 33) { localcmd("vr_mock_button main secondary 0\n"); }
+        if(vr_rv_ej_spent + vr_rv_ej_live > 0 || vr_rvr_frames == 60)
+        {
+            VR_Test_Check(vr_rv_ej_spent == 2 && vr_rv_ej_live == 0 && VR_Revolver_Count(rec, 1) == 3 && VR_Revolver_Count(rec, 2) == 0 && VRGetWeaponClip(cVR_MainHand) == 3,
+                sprintf("B/Y, spent first: %g spent and %g live dropped (want 2, 0), chambers %s, clip %g (want 3)",
+                    vr_rv_ej_spent, vr_rv_ej_live, VR_Revolver_Desc(rec), VRGetWeaponClip(cVR_MainHand)));
+            VR_Test_Check(!VR_Revolver_EjectReady(h), "right after it the motions don't eject again (the rod still out)");
+            VR_RVR_Next();
+        }
+    }
+    else if(s == 3)
+    {
+        if(vr_rvr_frames == 30) { localcmd("vr_mock_button main secondary 1\n"); }
+        if(vr_rvr_frames == 33) { localcmd("vr_mock_button main secondary 0\n"); }
+        if(vr_rv_ej_live > 0 || vr_rvr_frames == 60)
+        {
+            VR_Test_Check(vr_rv_ej_spent == 2 && vr_rv_ej_live == 3 && VR_Revolver_Desc(rec) == "------" &&
+                VRGetWeaponClip(cVR_MainHand) == 0 && VR_RVT_BlueRounds() >= 3,
+                sprintf("B/Y again: the live ones too: %g spent, %g live in all (want 2, 3), chambers %s, clip %g, %g blue rounds lying",
+                    vr_rv_ej_spent, vr_rv_ej_live, VR_Revolver_Desc(rec), VRGetWeaponClip(cVR_MainHand), VR_RVT_BlueRounds()));
+            VR_RVR_ClearRounds();
+            VR_RVR_Next();
+        }
+    }
+    else if(s == 4 && vr_rvr_frames == 2)
+    {
+        VR_RVR_Set(rec, 1 + 4 * 1 + 64 * 1); // L L - L - -
+        VR_Revolver_Eject(cVR_MainHand, rec, "test: none spent", '0 0 0');
+        VR_Test_Check(vr_rv_ej_spent == 0 && vr_rv_ej_live == 3 && VR_Revolver_Desc(rec) == "------" && VRGetWeaponClip(cVR_MainHand) == 0,
+            sprintf("none spent: all at once: %g spent, %g live (want 0, 3), chambers %s", vr_rv_ej_spent, vr_rv_ej_live,
+                VR_Revolver_Desc(rec)));
+        cvar_set("vr_revolver_spent_first", "0");
+        VR_RVR_Set(rec, VR_RVR_LSLS_L);
+        VR_Revolver_Eject(cVR_MainHand, rec, "test: the option off", '0 0 0');
+        VR_Test_Check(vr_rv_ej_spent == 2 && vr_rv_ej_live == 3 && VR_Revolver_Desc(rec) == "------" && VRGetWeaponClip(cVR_MainHand) == 0,
+            sprintf("spent first off: all at once, as before: %g spent, %g live (want 2, 3), chambers %s", vr_rv_ej_spent,
+                vr_rv_ej_live, VR_Revolver_Desc(rec)));
+        float offReady = VR_Revolver_EjectReady(h);
+        cvar_set("vr_revolver_spent_first", "1");
+        float onReady = VR_Revolver_EjectReady(h);
+        h.rvh_rod = time - 0.01;
+        VR_Test_Check(offReady && !onReady && VR_Revolver_EjectReady(h),
+            sprintf("the motions' guard: off %g (want 1), on with the rod out %g (want 0), on after %g (want 1)", offReady,
+                onReady, VR_Revolver_EjectReady(h)));
+        VR_RVR_ClearRounds();
+        VR_RVR_Next();
+    }
+    else if(s == 5 && vr_rvr_frames == 2)
+    {
+        // The pair between chambers 3 and 4.
+        VR_RVR_Set(rec, 0);
+        float before = p.ammo_shells;
+        VR_Reload_Take(cVR_OffHand);
+        entity sh = VR_Carry_Held(p, cVR_OffHand);
+        VR_Test_Check(sh && sh.vr_ammo_count == 2 && sh.skin == 1 && sh.model == VR_RELOAD_PAIR && p.ammo_shells == before - 2,
+            sprintf("the pouch with the revolver: %g slugs (want a pair), skin %g (want 1), %s, shells %g -> %g",
+                sh ? sh.vr_ammo_count : -1, sh ? sh.skin : -1, sh ? sh.model : "nothing", before, p.ammo_shells));
+        float used = FALSE;
+        float snd0 = VR_RVR_CountClass("vr_reload_shell2");
+        if(sh)
+        {
+            setorigin(sh, (VR_RVT_ChamberPoint(3) + VR_RVT_ChamberPoint(4)) * 0.5);
+            used = VR_Revolver_LoadInto(cVR_MainHand, sh, TRUE);
+        }
+        float lo = min(vr_rv_lastch, vr_rv_lastch2);
+        float hi = max(vr_rv_lastch, vr_rv_lastch2);
+        VR_Test_Check(used && vr_rv_loaded == 2 && lo == 3 && hi == 4 && VRGetWeaponClip(cVR_MainHand) == 2 &&
+            VR_Carry_Held(p, cVR_OffHand) == world && VR_RVR_CountClass("vr_reload_shell2") == snd0 + 1,
+            sprintf("the pair at chambers 3-4: used %g, %g in (want 2) into %g and %g, clip %g, chambers %s, the second shell's sound %g",
+                used, vr_rv_loaded, vr_rv_lastch, vr_rv_lastch2, VRGetWeaponClip(cVR_MainHand), VR_Revolver_Desc(rec),
+                VR_RVR_CountClass("vr_reload_shell2") - snd0));
+        // One place left (five live): a single slug.
+        VR_RVR_Set(rec, 1 + 4 + 16 + 64 + 256);
+        VR_Reload_Take(cVR_OffHand);
+        sh = VR_Carry_Held(p, cVR_OffHand);
+        float single = sh ? sh.vr_ammo_count : -1;
+        if(sh)
+        {
+            setorigin(sh, VR_RVT_ChamberPoint(5));
+            VR_Revolver_LoadInto(cVR_MainHand, sh, TRUE);
+        }
+        VR_Test_Check(single == 1 && vr_rv_loaded == 1 && VRGetWeaponClip(cVR_MainHand) == 6,
+            sprintf("one place left: the pouch gives %g (want 1), loaded %g, clip %g (want 6)", single, vr_rv_loaded,
+                VRGetWeaponClip(cVR_MainHand)));
+        // L L L L S -: two places (a spent one not yet out), one empty chamber: one in, the other kept in the hand.
+        VR_RVR_Set(rec, 1 + 4 + 16 + 64 + 256 * 2);
+        VR_Reload_Take(cVR_OffHand);
+        sh = VR_Carry_Held(p, cVR_OffHand);
+        float took = sh ? sh.vr_ammo_count : -1;
+        used = FALSE;
+        if(sh)
+        {
+            setorigin(sh, VR_RVT_ChamberPoint(5));
+            used = VR_Revolver_LoadInto(cVR_MainHand, sh, TRUE);
+        }
+        entity kept = VR_Carry_Held(p, cVR_OffHand);
+        VR_Test_Check(took == 2 && !used && vr_rv_loaded == 1 && vr_rv_lastch == 5 && vr_rv_lastch2 < 0 && kept &&
+            kept.vr_ammo_count == 1 && kept.model == VR_RELOAD_SHELL && VRGetWeaponClip(cVR_MainHand) == 5,
+            sprintf("a pair with one empty chamber: took %g, %g in (chamber %g), %g kept in the hand, clip %g (want 2, 1, 5, 1, 5)",
+                took, vr_rv_loaded, vr_rv_lastch, kept ? kept.vr_ammo_count : 0, VRGetWeaponClip(cVR_MainHand)));
+        if(kept)
+        {
+            VR_Hand_Release(p, cVR_OffHand, "test");
+            kept.carry_player = world;
+            remove(kept);
+        }
+        // The option off: a single slug from the pouch; a loose pair loads one shell at a time.
+        cvar_set("vr_revolver_shell_pairs", "0");
+        VR_RVR_Set(rec, 0);
+        VR_Reload_Take(cVR_OffHand);
+        sh = VR_Carry_Held(p, cVR_OffHand);
+        single = sh ? sh.vr_ammo_count : -1;
+        if(sh)
+        {
+            setorigin(sh, VR_RVT_ChamberPoint(2));
+            VR_Revolver_LoadInto(cVR_MainHand, sh, TRUE);
+        }
+        entity loose = VR_Reload_MakeRound(0, AID_SHELLS, 2, VR_RVT_ChamberPoint(0), '0 0 0');
+        used = VR_Revolver_LoadInto(cVR_MainHand, loose, FALSE);
+        VR_Test_Check(single == 1 && !used && loose.vr_ammo_count == 1 && vr_rv_loaded == 2 && VRGetWeaponClip(cVR_MainHand) == 2,
+            sprintf("pairs off: the pouch gives %g (want 1); a loose pair: %g left of it (want 1), %g in all, clip %g (want 2)",
+                single, loose.vr_ammo_count, vr_rv_loaded, VRGetWeaponClip(cVR_MainHand)));
+        remove(loose);
+        cvar_set("vr_revolver_shell_pairs", "1");
+        VR_RVR_End();
+    }
+    self = os;
+};
+
 void() VR_Revolver_TestFrame =
 {
     float req = cvar_hget(cvarh_vr_rv_test);
@@ -577,6 +818,25 @@ void() VR_Revolver_TestFrame =
             VR_RVP_Start(0);
             return;
         }
+        vr_rvr_mode = cvar_hget(cvarh_vr_reload_mode_revolver);
+        vr_rvr_spent0 = cvar_hget(cvarh_vr_revolver_spent_first);
+        vr_rvr_pairs0 = cvar_hget(cvarh_vr_revolver_shell_pairs);
+        vr_rvt_notarget = (vr_rvt_player.flags & FL_NOTARGET) != 0;
+        if(req == 7)
+        {
+            VR_Test_Begin("rvreload");
+            vr_rvt_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
+            cvar_set("vr_weapon_grip_mode", "1"); // (as rvtest: the gun stays in the hand without the grip held)
+            vr_rvt_player.flags = vr_rvt_player.flags | FL_NOTARGET;
+            VR_NPT_Freeze(TRUE);
+            vr_rvr_step = 1;
+            vr_rvr_frames = 0;
+            return;
+        }
+        // (The steps below are the revolver as it was before his reload options of 2026-11-27: both off meanwhile,
+        // rvreload tests them.)
+        cvar_set("vr_revolver_spent_first", "0");
+        cvar_set("vr_revolver_shell_pairs", "0");
         VR_Test_Begin("rvtest");
         vr_rvt_mode = cvar_hget(cvarh_vr_reload_mode_revolver);
         vr_rvt_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
@@ -600,6 +860,11 @@ void() VR_Revolver_TestFrame =
     if(vr_rvp_on)
     {
         VR_RVP_Frame();
+        return;
+    }
+    if(vr_rvr_step)
+    {
+        VR_RVR_Frame();
         return;
     }
     if(!vr_rvt_step) return;

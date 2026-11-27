@@ -552,6 +552,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_snd_burst: five rocket explosions at once 2.5 m ahead of you (as explosive boxes blowing up together): "
                   "with the limiter on (Sound, Advanced: Mix Limiter) a loud bang, off a crackle; Record the Mix and "
                   "Spatial Audio Info tell how far over full scale it went."),
+        command("Your Shotgun's Report", "vr_snd_play_own weapons/guncock.wav")
+            .help("vr_snd_play_own <sample> [channel] [volume]: the shotgun's shot on your gun's channel, as firing plays it "
+                  "(from the main hand's muzzle in VR, with its gunfire layers), without a shot. Against Sound > Walls and Rooms: "
+                  "Your Sounds' Reverb; with Record the Mix (ROUND26.md, \"muffled\")."),
         command("A Sound 45 Degrees Right", "vr_snd_play_dir misc/r_tele1.wav 45")
             .help("vr_snd_play_dir <sample> <azimuth> [elevation] [metres]: a sound from that direction of your head, 2 m "
                   "away (here the teleport's, 45 degrees right). With Record the Mix: its left/right balance (ROUND21.md, "
@@ -1405,6 +1409,10 @@ za::Vector<Item> pageDebugTests()
                   "B/Y out and its shells dropped, single shells into the chambers, a spin, the flicks home and out, chamber "
                   "tracking, the muzzle up dropping spent and live shells, the flicks' thresholds, a grunt to one headshot "
                   "(popped) or two body shots, an ogre to 4-5, an armed grunt firing one (\"rvtest: N passed, M failed\")."),
+        command("Reload Options Self-Test", "vr_rv_test 7")
+            .help("Headless checks of Spent Shells First (the spent ones out first, then the live ones) and Slug Pairs (two "
+                  "chambers at once, one kept in the hand if only one is empty), and both off as before (\"rvreload: N "
+                  "passed, M failed\")."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

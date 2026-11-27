@@ -148,7 +148,7 @@ public sealed partial class MainViewModel
         using var http = Downloader.CreateClient();
         try
         {
-            _questApk ??= _options.Apk ?? QuestTarget.LocalApk(Environment.ProcessPath) ?? await DownloadApkAsync(http, ct);
+            _questApk ??= _options.Apk ?? await CheckedLocalApkAsync(ct) ?? await DownloadApkAsync(http, ct);
             _questAdb ??= AdbLocator.Find(_options.Adb, DownloadsDir) ?? (_options.Offline
                 ? throw new InstallException("adb was not found, and nothing is downloaded in offline mode: install Google's platform-tools, or pass --adb.")
                 : await AdbLocator.FetchAsync(http, DownloadsDir, progress, ct, verifier: new AuthenticodeVerifier()));
@@ -189,6 +189,23 @@ public sealed partial class MainViewModel
             Installing = false;
             CommandManager.InvalidateRequerySuggested();
         }
+    }
+
+    /// <summary>QuakeVR.apk beside Setup, when it is the release's own (QuestTarget.LocalApkMatches against the release
+    /// list read at start); null when there is none, or it is another build (the release's is downloaded instead).</summary>
+    async Task<string?> CheckedLocalApkAsync(CancellationToken ct)
+    {
+        if (QuestTarget.LocalApk(Environment.ProcessPath) is not { } apk)
+        {
+            return null;
+        }
+        var expected = _feed?.Components.GetValueOrDefault(QuestTarget.FeedComponent);
+        if (await Task.Run(() => QuestTarget.LocalApkMatches(apk, expected), ct) == false)
+        {
+            AddLog(LogLevel.Warning, $"Quest: {QuestTarget.ApkFileName} beside Setup is not the release's ({ReleaseVersion.Parse(_feed!.Version).Short}): not used, downloading the release's instead.");
+            return null;
+        }
+        return apk;
     }
 
     /// <summary>The release list's quest component (make_release.py --apk).</summary>

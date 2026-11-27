@@ -570,6 +570,8 @@ extern "C" void VR_OnProgsLoaded()
         b.arenaWaveAt = globalFloat("ar_wave_at");
         b.arenaPresetWaves = globalFloat("ar_preset_n");
         b.agrHold = globalFloat("vr_agr_hold");
+        b.arHoldRoll = globalFloat("vr_ar_hold_roll");
+        b.arBeastRolls = globalFloat("vr_ar_beast_rolls");
         const auto globalVector = [](const char* name) -> float* {
             ddef_t* def = findGlobalDef(name);
             return def && (def->type & ~DEF_SAVEGLOBAL) == ev_vector ? &qcvm->globals[def->ofs] : nullptr;
