@@ -2345,6 +2345,26 @@ His flat notes 2026-11-26, items 1 and 6.
   dagger's swing at a wall leaves no melee mark (no landing to compare): left out. Not run: the full flat suite.
 - Code shared, not copied: the swing and the thrust are the pose's own functions; the throw's speed, launch velocities and
   gravity are the release's own helpers.
+- **xhairmiss (2026-11-27, branch agent/xhairmiss): its two known misses.**
+  - flip24 (the flipped spear 24 units off, 7.3 apart with his promoted vr_flat_revgrip_pole_off_along 9): not a turn of
+    the pole. Measured per frame, the rehearsal was the pose to 0.01 unit, but flatsight's pinToGrip then pulled the
+    holding hand in up to 8 units late in the thrust (the free hand's grip, 9 along the pole and thrust out, went past
+    gripKeep of the free arm's reach). The rehearsal now replays that pull on each point: `flatsight::gripPull` (the grip
+    as last placed in the hand's frame, notePlaced, turned with the hand and slid with flatplay::thrustOffSlide; the same
+    `reachPull` pinToGrip now uses). 3.8 apart; flipfar's tip's end comes in with it (y 752).
+  - The thrown axe "10 over": its origin is its handle, which circles the centre of mass as it spins; where the axe
+    actually sticks (QC now prints `flat throw: stuck at`, its edge's point in the wall) was 2.3 from the crosshair, by two
+    misses cancelling. Both now modelled: (1) the release leaves from the hand vr_flat_throw_release_time into the
+    follow-through, ~7 units on from the wound-up hand (and a sword's way from there tilts 1 degree up): the aim now goes
+    from there, `flatgrenade::releaseShift` (apply's own places at the release's shares) through the builtin
+    `flatthrowfrom`; (2) a thrown weapon's body flies its centre of mass's arc, 6 units up the weapon from the hand: the
+    aim's arc starts there, builtin `weaponmasscentre` (box3d::weaponMassCentre: the centroid of the hull of the model's
+    drawn corners, the thrown body's own shape), turned as the release turns it. The test now measures a stuck blade at its
+    stick point (else the old arc on to the wall): axe 1.0 units apart (was 2.3 by its stick point), sword 4.1 (was 9.6;
+    its release velocity still differs by 1 degree up: the throw assist, not chased), the quick grenades 0.3-0.5 (were
+    1.8-2.6: the release shift alone).
+  - `flatxhair_melee_test.sh` 25/0 (tolerances unchanged). Not run: flatthrow_test (the release itself is unchanged; only
+    the aim and a debug line).
 
 
 ## Map-made armed humanoids hold their guns right: Quoth's kellbase1 enforcers (branch agent/quothpose, 2026-11-26)
@@ -2434,6 +2454,25 @@ His flat notes 2026-11-26, items 3, 4 and 8.
   not parrying: the free hand at or below the holding hand; the flipped spear's other hand moved 4.9 u / turned 43.9
   degrees by _off_up 4 / _off_pitch 0. Open: the judicator's flipped one-handed guard lets go of the blade at its end with
   the free hand turning 81 degrees in a frame (the upright guard's let-go, not this change's).
+- **judicator (branch agent/judicator, 2026-11-27): both open points fixed, generally.**
+  (1) The flipped judicator let go of its handle: vr_twohand.cpp applySword's angle limit (cosine 0.34 against 0.40 as the
+  grip flipped; the stance is not asked for in a flipped grip, so its waiver went). Flat play, a sword-kind weapon's grip
+  held while the drawn flip is > 0 keeps hold whatever the line (the flipped hold's pose puts both hands on the handle, as
+  the stance's does); a headset's hands still answer to the limit. Its grip below the hand (chooseGrip,
+  vr_flat_melee_grip_below) is now measured from the holding hand itself, not the weapon's hold: flipped, the palm's pivot
+  put the hold 4.5 u up the handle, and the free hand sat 2 u off the holding one (fists in each other). Now -4.0 u held,
+  flipped, in the reverse guard and after.
+  (2) Any let-go eases (vr_view_hands.cpp `easeLetGo`, beside promofails' easeGripSwitch, flat only): the grip's blend-out
+  (vr_twohand's 0.2 s) had mixed the free hand's own pose with a grip pose still worked out from a hold that had ended; the
+  guard's blade grip picks its thumb's way by the free hand's own turn, which flipped as that hand went back (81 degrees in a
+  frame; the flipped judicator's handle let-go 108). Now the hand eases from where it was last drawn holding on, kept
+  against the holding hand, to its own pose, by the blend's share left since the let-go; a take during the blend-out eases
+  from the pose drawn then, as a switch. A long gun's look (no real grip) is unchanged.
+  Tests: `flatparry2_test.sh` 64/0 (new: the judicator held in two hands then flipped keeps its handle at -4.0 u through the
+  flip, the reverse guard and after; the flip's most turn a frame 18.7 (the main hand's own), out of the guard 9.0; `letgo`:
+  one-handed guards (vr_flat_melee_2h 0) end letting go of the blade, the free hand's most turn a frame 12.7 (knight's
+  sword upright) and 8.9 (judicator flipped), was 81). flatbash 20/0, flatfg2h 11/0, flatlance 30/0, flatparry 43/0,
+  flatmelee2h 16/0.
 ## floataxe: a thrown axe whose blow takes off the head it hit falls, never left floating (branch agent/floataxe, 2026-11-26)
 
 - **His report (flat):** an axe thrown at a zombie's head popped it, and the axe stayed floating in mid air after the zombie
