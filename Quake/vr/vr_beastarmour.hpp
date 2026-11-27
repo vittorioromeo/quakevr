@@ -37,11 +37,47 @@ namespace qvr::beastarmour
 void plateWhere(struct edict_s* ent, int slot, int what, float* out);
 
 // The client (agarmor::relink): begin a frame's entities, then each beast entity `e` (number `num`) wearing `type` on
-// `pieces` (wear bits as agarmor's: 0-9 at two thirds, 10-19 at a third) gets its pieces' entities.
+// `pieces` (wear bits as agarmor's: 0-9 at two thirds, 10-19 at a third) gets its pieces' entities (a piece armour.txt
+// shapes drawn as "<piece model>#tweak") and one for its leather junctions ("<model>#bridge", its bones the pieces').
 void beginRelink();
-void relinkEntity(const struct entity_s* e, int num, int type, int pieces, int wear);
-// How many pieces' entities were drawn this frame (the tests).
+void relinkEntity(struct entity_s* e, int num, int type, int pieces, int wear);
+// How many pieces' entities were drawn this frame, and junctions' entities (the tests).
 [[nodiscard]] int drawnCount();
+[[nodiscard]] int leatherDrawn();
+// A junctions' entity's bones (VR_AliasBonePoses through agarmor::bonePoses; 0 not one), and the models made here
+// ("#tweak", "#bridge"; through agarmor::makeModel).
+[[nodiscard]] int bonePoses(const struct entity_s* e, const float** matrices);
+[[nodiscard]] bool makeModel(struct qmodel_s* mod);
+
+// ---- armour.txt's tweaks (vr_armourdata.hpp: a beast by its model's path, its pieces by slot as armourdata::beastPart;
+// each piece's sleeve its leather junction to the piece it joins) and the Armour Studio (vr_armourstudio.cpp) ----
+// The kinds (beastarmour.txt's order), each one's model, its slots worn (bits), the slot a piece's junction joins (-1
+// none), whether it is made (its leather on, edges to join), its bone, the model its piece is drawn with.
+[[nodiscard]] int kindCount();
+[[nodiscard]] const char* kindModel(int kind);
+[[nodiscard]] int kindIndex(const char* model);
+[[nodiscard]] int kindSlots(int kind);
+[[nodiscard]] int joins(int kind, int slot);
+[[nodiscard]] bool junctionMade(int kind, int slot);
+[[nodiscard]] const char* boneOf(int kind, int slot);
+[[nodiscard]] const char* drawnModel(int kind, int slot);
+// A piece's box in its own space (its shape tweaks on it).
+bool pieceExtent(int kind, int slot, float* lo, float* hi);
+// The studio's subject (0 none): its body drawn `bodyAlpha` see-through, the plates and leather whole; the piece(s) picked
+// (or their junctions: `sleeve`) outlined (agarmor::debugDraw).
+void studioView(int ent, float bodyAlpha);
+void outline(struct edict_s* ent, int pieces, bool sleeve);
+// The tests: piece `slot`'s junction on `ent` wearing `pieces` as posed now: its end rings' furthest from where their
+// pieces' places carry them, its longest edge along it, its middle ring's middle.
+struct JunctionCheck
+{
+    bool found{false};
+    int verts{0};
+    float endError{0.f};
+    float longestEdge{0.f};
+    float middle[3]{};
+};
+[[nodiscard]] JunctionCheck checkJunction(struct edict_s* ent, int slot, int pieces);
 
 void init(); // vr_beastarmour_info
 

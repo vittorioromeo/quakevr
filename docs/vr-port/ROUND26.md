@@ -3148,6 +3148,51 @@ His OK in chat ("Please uninstall the debug build"), once. His Quest 3 now has t
   exports) could not go back into a non-debuggable app: in the backup only. Dev/debug-key APKs no longer install on his
   headset (agents' Quest jobs: `QVR_ANDROID_SIGN=debug` doesn't help either; build release-signed test APKs, or uninstall
   again with his OK). brief_questhead.md's "install only debug-key APKs" is now wrong for his headset.
+## beaststudio: beasts and AD's knights in the Armour Studio, the beasts' leather junctions (branch agent/beaststudio, 2026-11-27)
+
+His words: "could both of them [rottweilers and fiends] be added to the armourstudio for manual tweaking? ... leather junctions
+between armour plates like other humanoids, customizable and toggleable on per-piece basis"; and (via the coordinator) AD's death
+guard and crossbow knight in the studio, one set of tweaks for both when their rigs match.
+- **Subjects** (`vr_armourstudio_kind`): 0-4 as before (grunt .. player), 5 Death Guard, 6 Crossbow Knight, 7+ the beasts in
+  beastarmour.txt's order (7 Rottweiler, 8 Ogre, 9 Scrag, 10 Fiend; a new kind there is the next number, labelled by its
+  model). `armourstudio::subjectCount/subjectLabel/subjectEntry/partValid/fieldShown` (the ImGui window's Kind and Part combos
+  list only what the subject has; the menu page's cycles are static and its status line says "none on this kind").
+  A beast is spawned by QC `VR_ArmourStudio_SpawnBeast(model, ahead)` (vr_armourstudio.qc: its roll held, FL_MONSTER, no AI:
+  `VR_AS_BeastHold` keeps it standing; the engine gives the tier and plays its animations as for the humanoids).
+- **AD's knights**: `armourdata::KindAdKnight` ("ad_knight" in armour.txt) is both models' kind while `adShared()` (both
+  authored rigs read, `rig2::rigNamed`, the same bone names, parents and joints); else each model's own path entry. The
+  status line says "shared with the Crossbow Knight: the same rig". Pose data untouched (adrigshare's).
+- **Data (armour.txt, additive)**: a beast is `kind "progs/dog.mdl"`; its slots map to parts (`armourdata::beastPart`): 0 cuirass,
+  1 helmet, 2-7 pauldron/bracer/thigh `_l`/`_r` (both sides mirrored as the humanoids'), 8 and 9 the new `plate8`/`plate9`;
+  each piece's `<part>_sleeve` is its leather junction (new parts `cuirass_sleeve`, `helmet_sleeve`, `plate8_sleeve`,
+  `plate9_sleeve`); new field `sag`. beastarmour.txt unchanged. A piece: offset, rotate (laid on in the rest pose, carried by
+  the rigid fit: no model made again), scale, standoff (pushed out from its middle), taper_start/_end (along its bone):
+  these three draw it as `<piece>.mdl#tweak` (made once per change, its .mdl's skins; the hit tests take the same shape).
+  Debris of a broken piece keeps the untweaked model.
+- **Junctions** (`vr_beastarmour.cpp` buildJunctions): each piece joins the first piece of its own bone (a lower slot) or the
+  nearest piece on the first bone up its rig (ties within 1 unit to the lower slot; a right limb's mirrors the left's): the
+  rottweiler collar->barding, chanfron->collar, shoulders->barding, barding->croup, haunches->croup; the fiend breast->back,
+  back->haunch, head and pauldrons->back, bracers->pauldrons, thighs->haunch (`vr_beastarmour_info` lists them). The edge on
+  each piece: per column round the line between the pieces (12), its outermost vertex within 30% of its end facing the other,
+  tucked 0.35 in and 0.6 under; only columns both pieces have (open strips where plates meet at the flanks). Rings
+  2 x folds + 1 (5-9) straight between, width (`taper_start`/`_end`), thickness (`standoff`), folds on every other ring, `sag`
+  down, all eased in over 35% from each end. Drawn as `<beast>.mdl#bridge` (two-sided as the humanoids'), one entity a body,
+  two bones a junction: each end's piece's place (its rest-to-now motion, so a moved or turned piece takes its leather with
+  it), the middle blended (smoothstep): the leather bends as the rig bends, in animation and ragdoll. A piece not worn: its
+  end shrunk onto the skin (to 0.25 off it; at least 40%); neither: not drawn. `vr_beastarmour_leather` 0 hides them all.
+  Default: every junction on (his review decides which to turn off; `leather "0"` per piece).
+- **Code**: `tweakTurn` shared with the humanoids' tweakVerts (vr_agarmor.cpp); armourdata `layerOver`/`hashOver` shared by the
+  humanoid and beast resolves; the studio's outline draws a beast's picked piece or its junction (agarmor::debugDraw ->
+  beastarmour::outline); the body ghost by `beastarmour::studioView`.
+- **Tests**: new `vr_beaststudio_test` (`beaststudio: 20 passed, 0 failed`): the rottweiler picked with 8 pieces and its leather,
+  its parts, mirrored joins, a junction's ends on its pieces, the cuirass moved 2 (1.995) with its junction following, the
+  shoulders scaled 1.25 both sides (drawn `#tweak`), the left shoulder's junction off (the right's kept), a sag of 2 dropping the
+  middle 1.98, saved/cleared/read back, the haunch's junction through two run frames and on his ragdoll (ends on their pieces,
+  no stretched edge), AD's shared tweak on both. `vr_agarmor_test 15` 49/0, `vr_armour_test` 23/0, `vr_agarmor_test 1` 38/0,
+  `vr_armourstudio_clone_test` 8/0, `vr_armourstudio_window test` 1/0 (mock headset: it refuses), armourstudio_close 14/0.
+  Scene `beaststudio`. Renders: `scratch/beaststudio_junctions.png` (rottweiler then fiend: leather off, on, three-quarter).
+- **Open**: the junction defaults are all on (not judged in a headset); the menu page's Kind/Part cycles list fixed names
+  (the window's are the subject's own); the remote MP client still draws no beast pieces (nor their leather).
 
 ## adrigshare: AD's death guard and crossbow knight share one set of Rig Studio poses (branch agent/adrigshare, 2026-11-27)
 

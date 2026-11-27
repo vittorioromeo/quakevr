@@ -135,6 +135,10 @@ Pose Studio on the spear holders: a frozen armed enforcer, knight and death knig
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
 AD's death guard and crossbow knight are armed humanoids in their own look: walk round each (frozen) and check no hand is off its weapon, no weapon goes through the body and no elbow or shoulder is twisted, with their own weapons and with the shotguns behind them. {test:ad_knights_armed}
 In an Arcane Dimensions map with death guards and crossbow knights, fight a few: they keep AD's look, swing the sword or shoot the crossbow, can be disarmed, pick up other weapons and drop theirs when they die; Armed Humanoid Replacements' AD Death Guards and AD Crossbow Knights turn this off. {test:ad_knights_armed}
+In the Armour Studio, pick the Rottweiler, Ogre, Scrag or Fiend as the Kind: it stands ahead in its armour; move, turn, scale and taper each piece, Save, and check a newly spawned beast of that kind wears the tweaked pieces. {test:beaststudio}
+The beasts' armour now has leather between its pieces (the rottweiler's barding and croup, collar and chanfron, shoulders; the fiend's back and breast plates, pauldrons and bracers): check it fills the gaps without poking through the body, and bends with the legs as it runs and when it dies. {test:beaststudio}
+In the Armour Studio, pick a beast's part's leather junction (the status line names the two pieces it joins): turn it off, change its width at each end, thickness, folds and sag; Save and Reload keep them. {test:beaststudio}
+In the Armour Studio, pick the Death Guard and then the Crossbow Knight (AD mounted): the status line says their tweaks are shared, and a tweak on one shows on the other. {test:beaststudio}
 
 [7. Quoth]
 ## Setup and maps

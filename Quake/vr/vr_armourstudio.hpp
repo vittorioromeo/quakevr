@@ -15,6 +15,16 @@ void frame(); // the sliders against the table, the subject kept, the test's ste
 
 // The page's status line: what is edited, how many parts are set, whether saved.
 [[nodiscard]] const char* status();
+// The subjects (vr_armourstudio_kind): 0-4 the humanoids' kinds (grunt .. the player), 5 and 6 AD's death guard and crossbow
+// knight (one set of tweaks while their rigs' bones match: armourdata::adShared), then the beasts (vr_beastarmour.hpp);
+// each one's label, the table's entry the current one edits, whether a part is on a subject (a beast: its slots, a junction
+// made), and whether a value row applies to a part.
+[[nodiscard]] int subjectCount();
+[[nodiscard]] const char* subjectLabel(int subject);
+[[nodiscard]] const char* subjectEntry();
+[[nodiscard]] bool partValid(int subject, int part);
+[[nodiscard]] bool fieldShown(int subject, int part, int field);
+
 // Whether the studio runs (Start given, not closed): its subject kept ahead of you.
 [[nodiscard]] bool running();
 // Its window closed by the player (its X, Escape, its close command): the studio closed too with vr_armourstudio_autoclose
