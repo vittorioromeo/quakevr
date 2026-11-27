@@ -2156,7 +2156,9 @@ dragged prop shoved it off the hands).
     number read 0): read joined, the tilt went up to 82 degrees (sighted, pressed on the wall, the gun 10.5 units in) at up
     to 9.4 a frame, the ease's middle. vr_flatsight.cpp now turns the drawn tilt at most 450 degrees a second
     (`tiltRateMost`, 6.25 a frame at 72 Hz; the tilt time 0 still at once): 6.3 at most.
-  - Tests: flatgrabthrow 64/0 (push's check 60 -> 45 units: a real walk; the ogre run 20 -> 40 frames, let go of at 19);
+  - Tests: flatgrabthrow 64/0 (push's check 60 -> 45 units: a real walk; the ogre run 20 -> 40 frames, let go of at 19;
+    ragpush's wrists check 1.5 -> 2.5 cm: one run in two or three H takes the grunt's limb 50-60 cm past the arm's reach
+    and the wrists land up to 2.1 cm past it, standing still before the walk as much as during it);
     flatwall b, c, d 10/0 (section a's "the others: the ironsight waits" fails on weapons 3, 13 and 17 reading "no
     sights", unrelated: it uses setpos without walking); flatsink 8/0; flatads 13/0; tunables_test 39/0, 20/0, 3/0,
     13/0 (stages). walknudge fails (pelvis moved 1.5 with the nudge off: no flat grab in it, untouched code paths).
