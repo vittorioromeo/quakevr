@@ -2,12 +2,12 @@
 # attach_test.sh <agent> -- attach2: weapon attachments, the bayonet on the shotgun and the super shotgun (QC vr_attach.qc,
 # QC/vr_attach_test.qc; docs/vr-port/ATTACHMENTS.md). Map vrtesthall, headless, fast mode:
 #   vr_embed_test 79 (VR, mock headset): snap-on, the drawn tip where the server's is, pull-off (bayonet2: the grip at the mount
-#     alone leaves it on, the grip and B/Y pull it off; 5 shots in a row while stuck keep the hand on it), holster, drop and pick-up, thrown and
+#     alone leaves it on, the grip and B/Y pull it off; a stuck gun's shot barely shoves its grunt, the hand kept with a firing margin), holster, drop and pick-up, thrown and
 #     stuck by its point, stabbed and fired stuck (both guns), fired in the hand (`attach: N passed, M failed`);
 #   vr_embed_test 80 (flat-screen): J on/off/on, V's thrust, fired and reloaded stuck, the super shotgun broken open and shut
 #     stuck (`attachflat: N passed, M failed`);
 #   both: the HUD shows the stuck gun's ammo (the server's readouts in the QC test; the client's vr_flathud_report after its
-#     marker), the bayonet taken off is drawn in the off hand, blade up (vr_held_report after its marker; flat: on the
+#     marker), the bayonet taken off is drawn in the off hand (vr_held_report after its marker; flat: on the
 #     screen): Misc/quakevr/attach_probe_check.py reads them (bayonetfix);
 #   vr_embed_test 81/82 across a level change and across a save and its load (`attachpersist: N passed, M failed`);
 #   menu_vr attachtest: Weapon Offsets > Attachments edits the shotgun's bayonet mount (`attachmenu_test: N passed, M failed`).
