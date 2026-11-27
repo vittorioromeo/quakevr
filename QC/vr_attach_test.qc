@@ -1052,6 +1052,34 @@ void() VR_AT_PersistCheck =
     self = oldself;
 };
 
+// ---- vr_embed_test 88 (holsterattach): the holstered guns' attachments as drawn (the client's vr_attach_report gap=,
+// attach_test.sh): the shotgun with a bayonet in the right hip holster, the super shotgun with one broken open in the
+// left hip holster (its barrels drawn down: the bayonet carried with them), the hands empty; `attachholster: set`.
+void(float xHs, float xWid, float xFlags) VR_AT_HolsterOne =
+{
+    entity p = self;
+    setHolsterWeapon(xHs, xWid);
+    setHolsterWeaponModel(xHs, WeaponIdToModel(xWid, 0));
+    setHolsterWeaponFlags(xHs, xFlags);
+    entity r = WeaponInst_New(0);
+    r.wi_attach = VR_ATT_BAYONET;
+    VRSetEntHolsterWeaponInst(p, xHs, r);
+};
+
+void() VR_AT_HolsterSet =
+{
+    entity p = VR_Player();
+    entity oldself = self;
+    self = p; // (setHolsterWeapon reads self)
+    VRSetHandEmpty(p, cVR_MainHand);
+    VRSetHandEmpty(p, cVR_OffHand);
+    p.items = p.items | IT_SHOTGUN | IT_SUPER_SHOTGUN;
+    VR_AT_HolsterOne(QVR_HS_RIGHT_HIP_HOLSTER, WID_SHOTGUN, 0);
+    VR_AT_HolsterOne(QVR_HS_LEFT_HIP_HOLSTER, WID_SUPER_SHOTGUN, QVR_WPNFLAG_SSG_OPEN);
+    bprint("attachholster: set\n");
+    self = oldself;
+};
+
 // attach5 (mp_test.py attach): the server's side of the multiplayer test, one-shot asks (the cvar set back to 0 after):
 //   vr_dm_test 25: a bayonet spawned into the empty off hand of the player whose entity number is vr_dm_test_who
 //     (coop's test impulses are off for clients, deathmatch has none); `attachmp: bayonet in player N's off hand`.

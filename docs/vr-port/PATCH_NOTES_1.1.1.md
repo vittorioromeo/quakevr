@@ -564,3 +564,7 @@ aren't Map Library packages aren't sent to joining players.
   the app again.
 - **Setup builds collision at install time** for Quake's and the mission packs' maps (the Quest gets them too), and
   **the Quest copy never loses a file** (staged pushes, a fallback through /data/local/tmp).
+- **Linux: a plain tarball beside the Flatpak.** `QuakeVR-linux-x86_64.tar.gz` is the same game without the sandbox:
+  unpack it and run `./quakevr.sh`, which finds your Steam or GOG Quake and uses your system's OpenXR runtime (Monado,
+  WiVRn, SteamVR), for runtimes the Flatpak can't load (a newer glibc, distribution packages). Needs glibc 2.38 or newer
+  (Ubuntu 24.04, Debian 13, Fedora 39). Both launchers take `--flat` for flat-screen play.

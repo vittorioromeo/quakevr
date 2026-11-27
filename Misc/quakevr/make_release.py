@@ -11,7 +11,10 @@ into --out (default dist/release/<tag>):
                     --no-textures leaves the component out
   QuakeVR-Setup.exe the installer, when --setup is given (a release asset, not in the feed)
   other assets      --asset <file> (ericw-tools' GPL source is hosted on the support-files release; --asset
-                    ericw-tools-2.0.0-alpha11-src.zip attaches a copy to this release too)
+                    ericw-tools-2.0.0-alpha11-src.zip attaches a copy to this release too; --asset
+                    QuakeVR-linux-x86_64.tar.gz attaches the Linux tarball from the Flatpak CI run's artifact,
+                    docs/vr-port/LINUX.md "Linux tarball": a release asset, not in the feed, which is the Windows
+                    installer's)
   latest.json       the release feed in the exact format the installer reads (Installer/src/QuakeVR.Installer.Core/
                     Packaging/ReleaseFeed.cs: schema 1, version, package, components; each file's name, size, SHA-256
                     and download addresses, GitHub first)

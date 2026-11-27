@@ -8,7 +8,7 @@
 // What a new game starts with (SetNewParms's loadout, changed at its end: VR_Run_NewParms). The gun (the hip holster):
 // 0 the shotgun (Quake's), 1 the nail pistol (the mod's, with 50 nails and its magazine full), 2 the heavy revolver
 // (loaded from the 25 shells as the shotgun is), 3 nothing. The melee weapon (the other holster): 0 the axe, 1 the
-// dagger (the mod's), 2 nothing. Nothing and nothing: bare fists (punching and grabbing as ever). Melee Only
+// dagger (the mod's), 2 nothing, 3 the spear (a pole weapon). Nothing and nothing: bare fists (punching and grabbing as ever). Melee Only
 // (vr_run_meleeonly) holds the gun at nothing (the melee weapon stays the player's choice).
 
 float RUN_SG_SHOTGUN    = 0;
@@ -19,6 +19,7 @@ float RUN_SG_NOTHING    = 3;
 float RUN_SM_AXE     = 0;
 float RUN_SM_DAGGER  = 1;
 float RUN_SM_NOTHING = 2;
+float RUN_SM_SPEAR   = 3; // (last: saved picks keep their numbers)
 
 float() VR_RunStartGun_Choice =
 {
@@ -74,6 +75,12 @@ void() VR_RunStartWeapon_NewParms =
     {
         parm13 = WID_SWORD;
         parm27 = VR_ADMelee_Flags(VR_SWORDKIND_DAGGER);
+        parm17 = parm17 | HIP_IT_SWORD;
+    }
+    else if(m == RUN_SM_SPEAR)
+    {
+        parm13 = WID_SWORD;
+        parm27 = VR_ADMelee_Flags(VR_SWORDKIND_SPEAR);
         parm17 = parm17 | HIP_IT_SWORD;
     }
     else
