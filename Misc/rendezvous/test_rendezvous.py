@@ -106,6 +106,18 @@ def unit():
           "%d rooms, %d granted, %d refused" % (len(svc.rooms), granted, refused))
     per = sum(1 for p in range(6) if register(svc, ("192.0.2.200", 27000 + p), t + 300)[0][0][5] == rv.REGISTERED)
     check("one address's rooms bounded (3)", per == 3, per)
+    # (review A6) REGISTERs at a cap scan the room table at most once a second
+    scans = [0]
+    real_expire = svc.expire
+    def counted(now):
+        scans[0] += 1
+        real_expire(now)
+    svc.expire = counted
+    for p in range(50):
+        register(svc, ("192.0.2.200", 28000 + p), t + 301 + p * 0.01)
+    svc.expire = real_expire
+    check("REGISTERs at a cap: the room table scanned at most once a second (50 in 0.5 s: 1 scan)", scans[0] == 1,
+          scans[0])
     # Expiry: 120 s after the last registration; then its code is free again for its host
     late = t + 300 + 121
     svc.expire(late)

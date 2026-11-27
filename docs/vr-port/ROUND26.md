@@ -4444,6 +4444,53 @@ static sentence" (65/65), and the `--screenshots` harness check (no switches, se
 
 Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.
 
+## mplows: the MP review's remaining lows (branch agent/mplows, 2026-11-27)
+
+The last lows of the 2026-11-20 review (MP_PLAN.md "Review fixes"; the notes `mprev_A.md`/`mprev_C.md` were recovered
+from the reviewers' transcripts). No wire change (QVR_NET_VERSION untouched).
+
+- A6 (room service): a REGISTER at a cap (the table's or the IP's) runs `expire()` (O(rooms)) at most once a second
+  (`Service.cap_expired`); serve()'s 1 s timer does the rest. rendezvous_test: "REGISTERs at a cap: the room table
+  scanned at most once a second".
+- A7 (server rules): a remote server's rule value goes through `checkedValue` (vr_serverrules.cpp): not finite (NaN,
+  inf, past a float) or not a number where the rule's default is one: refused (the cvar keeps its value); a number past
+  the rule's range clamped to it, with a console warning either way. The range (`gatherRanges`, once with the rule list)
+  is the union of the rule's menu rows (`menu::forEachSettingRange`, new: Search's index carries each slider's
+  min..max, its extent and negative step, each cycle's choices), widened by its default and every gameplay preset
+  value, so nothing a host picks from a menu or a preset is cut. A rule on no menu row: any finite number. A host who
+  types a value past the menu by console sees it clamped on his guests (the warning says so).
+  `vr_serverrules_selftest` (Debug > Server Rules: Self-Test).
+- A8: `connect host:port` (and `test`/`test2`) uses the port for that address only (`Strip_Port` returns it,
+  `GetAddrWithPort` sets it on the resolved address); net_hostport is no longer changed for the session.
+- A10: the server-info, player-info, rule-info and reject replies (the only replies bigger than their requests) are
+  sent within a byte budget per source IP address (any port): 8 KB, refilled 4 KB/s; 127.0.0.1 is exempt (tests,
+  `test`). 1024 slots by a keyed hash (ConnectCookie's SipHash key: no one can aim two addresses at one slot; a slot
+  taken by another address starts full). Padding was not used: it would break other clients and query tools.
+  `vr_net_ctlbudget [selftest]` (Debug > Network: Control Reply Budget).
+- A11: leaver records carry `bot`; a bot's are found only by bots (by name), a client's only with his game key: a
+  connect request without a key (every client of this network version sends one) neither leaves a record nor finds
+  one, nor takes a loaded coop save's slot by name. (A save keeps no keys: a keyed player naming himself after a saved
+  one still takes that slot, as designed for saves moved between machines.)
+- A13: a move's ping is clamped to 0..10 s when stored (the client sends the time it is measured from). S3: Host_Ping_f
+  prints `VR_ClientPingMs` (one mean; rounded, was truncated).
+- S1: NET_Ban_f's guest branch removed (a guest's `ban` is refused in cmd.c, B28). S2: `serverrules::shown` removed
+  (the menu reads the cvar).
+- O1: a shared client reads his own queue first; the listening socket is read only when his queue is empty, and not
+  again within 1 ms of reading it empty (16 players: one empty read a frame, not 16). O2: queued datagrams use nodes of
+  NET_DATAGRAMSIZE from a free list (at most 512 kept, ~0.7 MB). `net_stats`: "server socket reads", "server queue
+  nodes".
+- C7: box3d's hand weapon model and slot are looked up per edict and hand when the name changes (`handModelOf`: valid
+  while the precache entry it was found at is the same string), not by a precache scan per hand per frame.
+- C8: the Voice Chat page lights a row by `voicechat::talkingNow` (listed players), not "talking" in the row's text.
+
+Tests: rendezvous_test 45/0 (the A6 check included); vr_serverrules_selftest 10/0; vr_net_ctlbudget selftest 5/0;
+magcollide 11/0; MP (Release): mp_netsafe 14/0, mp_coop 12/0, mp_version 12/0, mp_rejoin 19/0, mp_rejoin_keep 11/0,
+mp_rules 16/0, mp_loss 16/0, mp_voice 27/0, mp_browser 11/0, mp_spoof 27/0, mp_lookup 9/0 (before the merge of
+origin/next at version 49); after it: mp_overflow 14/0, mp_dedicated 11/0, mp_held 15/0, mp_coopbots 13/0, mp_nat
+18/0, mp_roomnonce 7/0, mp_fuzz 17/0 (one earlier take 16/1: "B joins again after the hostile command up clc 10", seed
+384669280; B's 14th `connect` printed nothing after a garbled-signon Host_Error, the 13 before it joined; passed on
+the rerun). menu_paths.txt regenerated (`vr_menu_path_check`: current, 10712 rows). Note: a run.sh game started in the
+tree while the MP suite runs gets its script read by the suite's games too (they quit at once): run them apart.
 ## wheelui: weapon wheel and holster menu polish, flat bindings panel (branch agent/wheelui, 2026-11-28)
 
 His words (2026-11-28), six items for the weapon wheel (VR and flat) and the MMB holster menu (flat). One renderer serves
