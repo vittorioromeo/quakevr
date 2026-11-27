@@ -27,6 +27,10 @@ Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, a
 The shotgun and double shotgun bayonet mounts (Daggers as Bayonets) sit at your new pitch and height: attach a dagger and check the blade lines up with the barrels. {test:attach_dagger}
 Shoot the armoured scrag's tail until it cracks: all four tail segments fall as debris while his belt's front and back halves stay on; then break the back half alone, then the front half alone. {test:armour_beasts}
 Watch an ogre walk, run and swing his chainsaw up close: his limbs and belly should ripple much less from frame to frame than before, his shape the same; Debug > Reports > Rebuild Joints From Two Bones Off shows the old look to compare. {test:ogre_hall}
+Look at an armoured ogre's head: the helmet should read like the grunts', enforcers' and knights' helmets (a flat-topped bucket with a chamfered top, a brow band and cheek guards down the sides, his face open), not a hat. {test:armour_beasts}
+Look at an armoured ogre's back plate (Plate 8): its two outer columns each side should bend round his sides at a shallow angle, not steeply. {test:armour_beasts}
+Watch an armoured ogre run: his bracers should sit on the upper forearm near the elbow and stay off his wrists and hands. {test:armour_beasts}
+Look at an armoured ogre's breastplate from the front: its top edge should dip in a shallow V at the neck, leaving room for his chin as he moves. {test:armour_beasts}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
