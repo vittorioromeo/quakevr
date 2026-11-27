@@ -518,8 +518,8 @@ weapon 1
     // where the bayonet's is, its guard's top just under the barrel; real size: 1 / 0.44, its own Scale on it
     att2_ok "1"
     att2_x "26.56"
-    att2_z "-4.6"
-    att2_pitch "-76.46"
+    att2_z "-2.5"
+    att2_pitch "-70"
     att2_roll "180"
     att2_scale "2.2727"
     muzzle_av "33.0657 -0.6615 3.013"
@@ -663,8 +663,8 @@ weapon 2
     // where the bayonet's is, its guard's top just under the barrel; real size: 1 / 0.48, its own Scale on it
     att2_ok "1"
     att2_x "20.19"
-    att2_z "-3.22"
-    att2_pitch "-76.46"
+    att2_z "0.95"
+    att2_pitch "-68.5"
     att2_roll "180"
     att2_scale "2.0833"
     muzzle_av "27.5908 -0.6335 7.7225"
