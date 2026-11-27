@@ -1,0 +1,10 @@
+# hknight_ledge: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A hell knight at the test hall platform's lip, its back to the drop
+map vrtesthall
+start 430 430 216 180
+god
+notarget
+spawn monster_hell_knight 140 0
+cvar vr_ragdoll_active_pullup 1
+cvar vr_knockdown_push 0.15
+hint Knock the hell knight off the lip (vr_knockdown_test 0, or shove it): it grabs the lip and pulls itself up onto the top

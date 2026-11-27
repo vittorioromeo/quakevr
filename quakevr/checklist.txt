@@ -14,6 +14,7 @@ Flat-screen: J with a bayonet on the shotgun and the other hand empty: the bayon
 Pull the bayonet off the shotgun with your empty hand (or pick up a lying one): it sits in your fist with the blade out above your index finger, not hanging below. {test:attach_bayonet}
 Flat-screen: kill a grunt, hold its body with H and walk into it: it is pushed ahead at the distance you took it at, both hands staying on it and on your wrists; walk backwards and it is dragged along; turn sharply away and the hands let go. {test:flat_grab_pull}
 Flat-screen: hold a dead ogre with H and run into it: it is too heavy for that pace and the hands let go; Push Held Props Off (Tunables > Flatscreen > Grab / Pull) gives the old pull of the body in to your hands. {test:flat_grab_pull}
+Ragdoll climbs: a hell knight knocked off a ledge grabs the lip and pulls itself all the way up onto the top (no longer stuck at the lip with its chest under it); grunts, knights and ogres still climb up smoothly. {test:hknight_ledge}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -49,6 +50,8 @@ Flat-screen or VR: Load a map whose collision is not cached yet: the loading pan
 Right after a map loads whose collision was built from scratch, crouch and lie down at once and crawl under something low: a short loading panel the first time is fine, but never pass through a wall or floor or freeze, and monsters near walls must not get stuck. {test:load_collision_cold}
 Flat-screen or VR: the hub's open grass and the cliff faces round the lake are simplified for cheaper collision: walk and look round the island's open ground and along the cliffs; the grass and cliffs should look as before, with no new spots where you snag on flat or gently sloped ground. {test:vrstart}
 Flat-screen or VR: On the hub, lie down and crawl around the south-west near the shore (around x -550, y 1000-1200): no invisible wall where there's nothing to bump into. {test:hub_start}
+Flat-screen or VR: start ironwail.exe from Quake VR's folder by double-clicking it (or a shortcut of your own with no -game): the hub and Quake VR's hands and weapons are there as with Setup's shortcut, and the console's first lines say "Quake VR's game folder added". {test:hub_start}
+Flat-screen or VR: Debug > Diagnostics > Preview: Game Data Missing Notice shows the broken-install warning in red in the menus' top-right box (then vr_gamedata_notice 0 to end it). {test:hub_start}
 
 [2. Flat screen]
 ## Grab, hold and push

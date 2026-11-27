@@ -197,7 +197,8 @@ it tells the game where Quake is. The steps below are for the zip.
 1. Copy everything here into your Quake folder (the one containing id1). Scourge of Armagon
    (hipnotic) and Dissolution of Eternity (rogue) are used automatically if installed.
 2. Start your OpenXR runtime (SteamVR, Oculus, Virtual Desktop...) and put the headset on.
-3. Run QuakeVR.bat.
+3. Run QuakeVR.bat (or ironwail.exe: a shortcut of your own to it works too; mods go after it
+   as -game <mod>).
 
 If the game crashes, it writes a crash report in quakevr\crash (a .txt and a .dmp; its message
 names them): please attach both to the bug report, with the build named at the bottom of VR Settings

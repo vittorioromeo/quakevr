@@ -1462,7 +1462,28 @@ runs: a run alone, drawn, plays out differently from the batched headless one, s
   (their get-up spots within 12 units; 3 or more needed); the mean (0.1 s) still over all six.
 
 Left: hell knight seed 8 ("stuck at the lip": a weak pull, its chest stayed 13 under the top; it failed before box3dup3 as
-"slid back off the lip", not this cause).
+"slid back off the lip", not this cause). Fixed by hkclimb, below.
+
+**hkclimb (branch agent/hkclimb, 2026-11-27): the hell knight's pull at the lip.** Not its mass (every pull, lift and
+cap is in body weights) nor its arms' reach or the holds' height: its pin held the wrong point. The climb's way is its
+pelvis's middle, but the pin's motor joint held the pelvis's body origin, the anchor set off the way by the middle's offset
+turned as the way turned it (pitched 0.6 rad over the lip). The pin's turn is weak (turnShare 0.06), so the pelvis barely
+turned and its middle hung wherever that left it: a hell knight's pelvis has its middle 10 units off its origin (arm 24,
+torso 6), so over the lip its middle stayed 16-19 units under its way while its origin sat 4 units off the anchor and the pin
+pulled 0.4-1.2 of its 3 body weights. Fix (`vr_ragactive.cpp` drivePin): a climb's pin joint holds the pelvis's middle
+(`localFrameB` at its local centre) and its anchor is the way's point itself. The pin then tracked within 2 units, which
+showed a second, smaller case (hknight seed 10): its pelvis 14 over the top but its short torso's chest 4 units out from
+the lip (3 in from its pelvis), so Over never let go. Fix (`vr_ragactive_hold.cpp` climbFrame): the let-go also takes its
+chest leaning in from its pelvis (0.05 of an arm) as "not tipped back". Every class now goes "in on the top" in 2.6-3.0 s.
+Debug: the `ragclimb` trace line adds the pin's cap and the lift (body weights) and `org` is the pelvis's middle from the
+anchor; the "pulls itself up" line gives its arm, torso and pelvis-middle offset.
+
+| check | before | hkclimb |
+|---|---|---|
+| climb_test pull, all classes, seeds 7-10 (24) | 23/24 (hknight 8) | 24/24 |
+| climb_test drop, hit, off (18) | 18/18 | 18/18 |
+| env_test, active_test (default cases; active without cost) | | no fails |
+| scenario hknight_ledge (new: validate, runall) | | OK |
 
 | check | box3dup3 (origin/next) | now |
 |---|---|---|
@@ -2593,3 +2614,35 @@ The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subh
   drawn, so the hand landed about 4 units short of the dragged zone and the release threw the gun. Fix: the draw waits
   25 frames (0.35 s) before the hand moves; a verdict line "holstersetup_test: N passed, M failed". 13/0.
 - Also run: flatswap_test.sh weapons 22/0, things 26/0, melee 96/0, holster 0 faults, AD 48/0.
+## nogamedir: Quake VR's game folder mounted on every start, without "-game quakevr" too (branch agent/nogamedir, 2026-11-27)
+
+- The "tinyworld" player's real cause (his console logs): v1.1.0 from the zip, started from his own shortcut
+  (`ironwail.exe -heapsize .. -winmem .. -conwidth 800 .. -flatscreenmode`, no `-game quakevr`, no -basedir). Quake was
+  found as Ironwail finds it (the re-release's id1), the exe's folder added as a base dir, but only id1 mounted: no
+  game code of Quake VR, every data/*.txt value 0, its models and sounds missing. Reproduced (nogamedir_test `missing`).
+- Fix (common.c `COM_AddVRGameArg`, before `VR_InitCampaignDirectories`): with no `-game quakevr` on the command line and
+  a base dir whose quakevr has the game code (progs.dat or pak0.pak), "-game quakevr" is inserted where the shipped
+  launches put it: after the campaign folders given (`-game hipnotic`, `-game ad`...: `VR_IsCampaignDirectory`, as the
+  kit's `-game hipnotic -game rogue -game quakevr` and the Quest's `-game ad -game quakevr`), before the first other
+  mod (`-game quakevr -game <mod>`, QuakeVR.bat's). Console: `VR: no "-game quakevr" on the command line: Quake VR's
+  game folder added (...)`. Launches that pass it (Setup, QuakeVR.bat, Steam, Quest, tests) are untouched.
+- No base dir with Quake VR's game code (a broken install): nothing added; a console warning listing the folders looked
+  in, red lines in the menus' status box ("Quake VR's game data wasn't found / looked for quakevr in <folder> /
+  reinstall with QuakeVR-Setup / or start from its shortcut"; shown with vr_menu_status 0 too) and a centre print at the
+  first map's spawn. The folder named: the last -basedir, else the exe's. `vr_gamedata_notice [0|1]` reports / previews
+  it (Debug > Diagnostics > Preview: Game Data Missing Notice). vr_gamedir.cpp, vr_menuui.cpp, vr_progs.cpp.
+- Also: vr_glsafe.cpp made `<com_gamedir>/crash` with Sys_mkdir alone: `-basedir <Quake> -basedir <Quake VR> -game <mod>`
+  with the mod only in Quake's folder stopped the start ("Unable to create directory"); now COM_CreatePath.
+- His old flags: -heapsize/-winmem/-conwidth 800 harmless (the test runs with them).
+- "Tiny" monsters: no data-dependent size found. monsters.txt has no size key; with Quake VR's data missing or present
+  the flat view is the same (`flatscreen view: fov 90 .. 106 x 74 degrees .. body 1.55 m, vr_world_scale 1.2`), and the
+  eye too (view_ofs 22, e1m1's start). With the data missing he had no hands, weapons as 0-valued props and id's game
+  code: the fix gives him Quake VR's.
+- Docs: INSTALL.md (zip: ironwail.exe or an own shortcut works too), the zip's README-QuakeVR.txt (package-quakevr.ps1).
+- Tests: `python Misc/quakevr/nogamedir_test.py <agent>` (the exe started directly, the player's flags, an install-like
+  layout in scratch: id1 paks copied from the kit's qbase): missing / nogame / testmod / testmod_explicit 4/0. run.sh
+  `-Games "-game ad"` (game dirs ..;ad;quakevr) and `-Games "-game hipnotic"` (active campaign hipnotic) by hand;
+  tutorial_start_test 8/0.
+- Open (not this branch's): `-game quakevr -game <mod>` with an empty mod folder fails e1m1 on next too
+  ("Host_Error: Mod_LoadModel: progs/vrgrunt.mdl#plate0 not found", vr_agarmor.cpp derivedFile). The runtime `game <mod>`
+  command and the Mods menu still switch to id1;<mod> without quakevr (unchanged).
