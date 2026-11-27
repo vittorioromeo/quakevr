@@ -3555,3 +3555,35 @@ no new yaw cvar), down = `vr_armourstudio_subject_pitch`, 0.5 deg a pixel; not o
 resets Turn. RMB chosen: neither button had a use in the studio (ImGui holds the mouse, game keys held back, the gizmo is LMB
 only). The gizmo and the part frame read the subject entity each frame, so they follow. `imgui::feedMouse` got an optional
 right-button argument for the mock; `vr_armourstudio_gizmo_test` has step 11 (drag across 80, down 40: -40 / +20 deg).
+
+
+## muffled: your own gun's shot crisp over the room's reverb (branch agent/muffled, 2026-11-27)
+
+A player (Quest 3 over Virtual Desktop) found his weapons "very muffled" in VR, Punchier Gunfire or not. Measured
+(`vr_snd_capture` of `vr_snd_play_own weapons/guncock.wav` in e1m1, VR mix against `vr_snd_spatial 0`, and the offline
+`vr_snd_test own`), stage by stage:
+
+- Not the cause: the HRTF and the near field (the shot from an aimed, a hip or a lowered muzzle is as bright as the sound
+  itself, +0.4..+1.1 dB in 2-5 kHz against 150-1000 Hz), occlusion (eq 1.00 on the player's gun), air absorption, the
+  resampling (the voices read the band-limited copy; the 11 kHz sounds have nothing above 5.5 kHz in flat either).
+- The cause: Steam Audio's room reverb. Its level is the room's for a source at the head, and a voice's direct sound has
+  Quake's falloff (flat within a few metres), not 1/r: so a gun at 0.5 m sends as much into the reverb, against its own
+  direct sound, as a monster several metres away. In e1m1 (quiet, no limiter) the shot's first 25 ms against 25-400 ms
+  was 9.6 dB under flat's (-19.4 against -9.8 dB) and its sub-bass +3.6 dB; offline in a 4 x 3 x 3 m stone room, 4.7 dB
+  duller and 4.7 dB less attack than the sound (the shot's thump and room tail layers, from the hand too, ring in it
+  as well).
+- Also: the VR mix is hotter (HRTF Volume 2, the near ear's level difference): the shot peaks +11.7 dB over the effects'
+  full scale at volume 0.7 (flat +3.4), and the bus limiter takes ~3 dB of its crest (13.7 quiet, 10.8 loud). Left as it
+  is (his HRTF Volume); a lower Volume avoids it.
+
+The fix: `vr_snd_reverb_own` (Sound > Walls and Rooms > Your Sounds' Reverb, 0.25): the player's own voices (the hands'
+and guns' channels, `VoiceInput::attached`) send that share of their sound to the reverb (`Mixer::reverbConvolve`,
+`Features::reverbOwn`); monsters' and the world's sounds as before. In e1m1 the attack is now -11.2 dB (flat -9.8, no
+reverb at all -10.8), brightness -10.2 (no reverb -9.9); offline the small room -1.6 dB attack, 0.0 brightness. His
+other first-person sounds (pickups, pain, jumps: Quake's channels, in the middle of the head) never took the reverb.
+
+Tools: `vr_snd_play_own <sample> [channel] [volume]` (Debug > tests, "Your Shotgun's Report"): a sound on the player's
+channel as QC starts one (channel 1: the gun's, from the muzzle, with its gunfire layers). `vr_snd_test own`
+(vr_audiotest_own.cpp): guncock.wav from the game's files through the settings' features, its level, brightness and
+attack per stage against the sound; PASS dry and with the reverb within 3 dB (it fails with `vr_snd_reverb_own 1`:
+-4.7 dB). `testkit::loadRaw` loads raw samples as S_LoadSound does (loadAt uses it).
