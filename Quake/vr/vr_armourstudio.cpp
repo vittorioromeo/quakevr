@@ -11,6 +11,7 @@
 #include "vr_files.hpp"
 #include "vr_menu.hpp"
 #include "vr_progs.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_testkit.hpp"
 #include "vr_view.hpp"
 
@@ -23,6 +24,7 @@
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "vr_api.h"
 
 #include <glm/glm.hpp>
@@ -463,7 +465,7 @@ void keepSubject()
         spawnSubject();
     }
     bool sleeve = false;
-    const int pieces = piecesOf(st.selPart, st.selSide, sleeve);
+    const int pieces = partValid(subjectNow(), st.selPart) ? piecesOf(st.selPart, st.selSide, sleeve) : 0; // (a part not on it: none outlined)
     const int tier = za::clamp(static_cast<int>(vr_armourstudio_tier.value), 1, 3);
     const int worn = vr_armourstudio_alone.value ? piecesOf(st.selPart, SideBoth, sleeve) : agarmor::allPieces;
     if(st.subject && (tier != st.subjectTier || worn != st.subjectWorn))
@@ -914,8 +916,339 @@ void cloneTest_f()
     c.step = 1;
 }
 
+// ---- vr_beaststudio_test: a beast in the studio (the rottweiler): picked, its pieces and junctions drawn, a piece moved
+// and scaled, a junction turned off and sagged, saved and read back, its junctions following the bent rig through an
+// animation and his ragdoll; AD's knights' shared tweaks. Its steps one a frame, each on its own condition. ----
+constexpr const char* beastTestName = "beaststudio";
+constexpr const char* beastTestFile = "data/armour_beasttest.txt";
+constexpr const char* beastTestModel = "progs/dog.mdl";
+constexpr int beastTestDog = subjectBeasts;    // (the rottweiler: beastarmour.txt's first kind)
+constexpr int beastStepFrames = 72 * 6;        // frames a step may wait (a safety net: FAIL "timed out")
+constexpr float beastNear = 0.1f;              // units: a junction's end ring on its piece's place (as posed)
+
+struct BeastTest
+{
+    int step{0};
+    int frames{0};
+    testkit::Tally tally;
+    char fileWas[64]{};
+    float origin0[3]{};
+    float lo[3]{}, hi[3]{}, loR[3]{}, hiR[3]{};
+    float middle[3]{};
+    int animFrame{0};
+};
+BeastTest bt;
+
+[[nodiscard]] edict_t* beastSubject()
+{
+    return st.subject && sv.active ? progs::edictAt(st.subject) : nullptr;
+}
+
+void beastVerdict()
+{
+    bt.step = 0;
+    Cvar_Set(vr_armour_file.name, bt.fileWas);
+    (void)load();
+    Cbuf_AddText("vr_armourstudio_close\n");
+    bt.tally.verdict(beastTestName);
+}
+
+// The step's settle: true once its condition holds; a FAIL "timed out" after beastStepFrames.
+[[nodiscard]] bool beastWait(bool ready, const char* what)
+{
+    if(ready)
+    {
+        bt.frames = 0;
+        return true;
+    }
+    if(++bt.frames > beastStepFrames)
+    {
+        bt.tally.check(false, beastTestName, what);
+        beastVerdict();
+    }
+    return false;
+}
+
+void beastTestFrame()
+{
+    if(bt.step <= 0)
+    {
+        return;
+    }
+    auto& t = bt.tally;
+    const progs::ServerVm vm;
+    edict_t* e = beastSubject();
+    const int dog = beastTestDog - subjectBeasts;
+    if(!e)
+    {
+        if(bt.step > 1)
+        {
+            t.check(false, beastTestName, "the subject gone");
+            beastVerdict();
+            return;
+        }
+        (void)beastWait(false, "timed out: no subject");
+        return;
+    }
+    switch(bt.step)
+    {
+    case 1: // the rottweiler ahead, wearing all eight pieces, its junctions drawn
+    {
+        if(!beastWait(e && beastarmour::drawnCount() >= 8 && beastarmour::leatherDrawn() >= 1, "timed out: no rottweiler with its pieces and leather"))
+        {
+            return;
+        }
+        t.check(!ZA_STRCMP(subjectLabel(beastTestDog), "Rottweiler") && !ZA_STRCMP(subjectEntry(), beastTestModel), beastTestName,
+            "the subject is not the rottweiler's entry");
+        t.check(partValid(beastTestDog, PartCuirass) && partValid(beastTestDog, PartPlate8) && partValid(beastTestDog, PartPlate9) &&
+                !partValid(beastTestDog, PartBracer) && !partValid(beastTestDog, PartShin) && partValid(beastTestDog, PartCuirassSleeve) &&
+                !partValid(beastTestDog, PartPlate8Sleeve),
+            beastTestName, "the rottweiler's parts (cuirass, plates 8 and 9, no bracers or shins, the croup the root)");
+        t.check(beastarmour::joins(dog, agarmor::PauldronL) == beastarmour::joins(dog, agarmor::PauldronR) &&
+                beastarmour::joins(dog, agarmor::ThighL) == beastarmour::joins(dog, agarmor::ThighR),
+            beastTestName, "the left and right shoulders' (haunches') junctions join different pieces");
+        const beastarmour::JunctionCheck j = beastarmour::checkJunction(e, agarmor::Cuirass, agarmor::allPieces);
+        Con_Printf("%s: cuirass's junction: %d vertices, its ends %.4f from its pieces, longest edge %.2f\n", beastTestName, j.verts,
+            static_cast<double>(j.endError), static_cast<double>(j.longestEdge));
+        t.check(j.found && j.verts > 0 && j.endError < beastNear, beastTestName, "the cuirass's junction's ends not on its pieces");
+        beastarmour::plateWhere(e, agarmor::Cuirass, 0, bt.origin0);
+        for(int c = 0; c < 3; c++)
+        {
+            bt.middle[c] = j.middle[c];
+        }
+        Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartCuirass));
+        bt.step = 2;
+        return;
+    }
+    case 2: // the cuirass picked: moved forward 2
+        if(!beastWait(st.selPart == PartCuirass, "timed out: the cuirass not picked"))
+        {
+            return;
+        }
+        Cvar_SetValueQuick(&vr_armourstudio_offset_x, 2.f);
+        bt.step = 3;
+        return;
+    case 3:
+    {
+        const Override* o = entry(beastTestModel, PartCuirass, SideBoth, false);
+        if(!beastWait(o && (o->has & (1u << OffsetX)) != 0u, "timed out: the cuirass's offset not in the table"))
+        {
+            return;
+        }
+        float now[3];
+        beastarmour::plateWhere(e, agarmor::Cuirass, 0, now);
+        const float moved = za::sqrt((now[0] - bt.origin0[0]) * (now[0] - bt.origin0[0]) + (now[1] - bt.origin0[1]) * (now[1] - bt.origin0[1]) +
+            (now[2] - bt.origin0[2]) * (now[2] - bt.origin0[2]));
+        Con_Printf("%s: the cuirass moved %.3f units\n", beastTestName, static_cast<double>(moved));
+        t.check(za::abs(moved - 2.f) < 0.25f, beastTestName, "the cuirass did not move 2 units");
+        const beastarmour::JunctionCheck j = beastarmour::checkJunction(e, agarmor::Cuirass, agarmor::allPieces);
+        t.check(j.found && j.endError < beastNear, beastTestName, "the cuirass's junction did not follow it");
+        (void)beastarmour::pieceExtent(dog, agarmor::PauldronL, bt.lo, bt.hi);
+        (void)beastarmour::pieceExtent(dog, agarmor::PauldronR, bt.loR, bt.hiR);
+        Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartPauldron));
+        Cvar_SetValueQuick(&vr_armourstudio_side, static_cast<float>(SideBoth));
+        bt.step = 4;
+        return;
+    }
+    case 4: // the shoulders scaled 1.25 (both)
+        if(!beastWait(st.selPart == PartPauldron, "timed out: the shoulders not picked"))
+        {
+            return;
+        }
+        Cvar_SetValueQuick(&vr_armourstudio_scale, 1.25f);
+        bt.step = 5;
+        return;
+    case 5:
+    {
+        const Override* o = entry(beastTestModel, PartPauldron, SideBoth, false);
+        if(!beastWait(o && (o->has & (1u << Scale)) != 0u && beastarmour::drawnCount() >= 8, "timed out: the shoulders' scale not in the table"))
+        {
+            return;
+        }
+        float lo[3], hi[3], lo3[3], hi3[3];
+        (void)beastarmour::pieceExtent(dog, agarmor::PauldronL, lo, hi);
+        (void)beastarmour::pieceExtent(dog, agarmor::PauldronR, lo3, hi3);
+        const float grew = (hi[0] - lo[0]) / za::max(bt.hi[0] - bt.lo[0], 1e-3f);
+        Con_Printf("%s: the left shoulder %.3fx, drawn as %s\n", beastTestName, static_cast<double>(grew), beastarmour::drawnModel(dog, agarmor::PauldronR));
+        t.check(za::abs(grew - 1.25f) < 0.01f, beastTestName, "the left shoulder not 1.25x");
+        const float grewR = (hi3[0] - lo3[0]) / za::max(bt.hiR[0] - bt.loR[0], 1e-3f);
+        t.check(za::abs(grewR - 1.25f) < 0.01f, beastTestName, "the right shoulder not scaled as the left");
+        t.check(strstr(beastarmour::drawnModel(dog, agarmor::PauldronR), "#tweak") != nullptr, beastTestName, "the shoulder not drawn shaped");
+        Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartPauldronSleeve));
+        Cvar_SetValueQuick(&vr_armourstudio_side, static_cast<float>(SideLeft));
+        bt.step = 6;
+        return;
+    }
+    case 6: // the left shoulder's junction off
+        if(!beastWait(st.selPart == PartPauldronSleeve && st.selSide == SideLeft, "timed out: the left shoulder's junction not picked"))
+        {
+            return;
+        }
+        Cvar_SetValueQuick(&vr_armourstudio_leather, 0.f);
+        bt.step = 7;
+        return;
+    case 7:
+        if(!beastWait(!beastarmour::junctionMade(dog, agarmor::PauldronL), "timed out: the left shoulder's junction still made"))
+        {
+            return;
+        }
+        t.check(beastarmour::junctionMade(dog, agarmor::PauldronR), beastTestName, "the right shoulder's junction went too");
+        Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartCuirassSleeve));
+        bt.step = 8;
+        return;
+    case 8: // the cuirass's junction sagged 2
+        if(!beastWait(st.selPart == PartCuirassSleeve, "timed out: the cuirass's junction not picked"))
+        {
+            return;
+        }
+        Cvar_SetValueQuick(&vr_armourstudio_sag, 2.f);
+        bt.step = 9;
+        return;
+    case 9:
+    {
+        const Override* o = entry(beastTestModel, PartCuirassSleeve, SideBoth, false);
+        if(!beastWait(o && (o->has & (1u << Sag)) != 0u, "timed out: the sag not in the table"))
+        {
+            return;
+        }
+        const beastarmour::JunctionCheck j = beastarmour::checkJunction(e, agarmor::Cuirass, agarmor::allPieces);
+        // (its middle ring dropped 2 at rest, carried by the pieces; the cuirass moved 2 forward meanwhile: the height alone)
+        const float drop = bt.middle[2] - j.middle[2];
+        Con_Printf("%s: the cuirass's junction's middle dropped %.3f\n", beastTestName, static_cast<double>(drop));
+        t.check(drop > 1.f && drop < 3.f, beastTestName, "the junction's middle did not drop about 2");
+        // Saved, the table cleared, read back.
+        t.check(save(), beastTestName, "not saved");
+        clear(beastTestModel, -1, -1);
+        changed();
+        t.check(!entry(beastTestModel, PartCuirass, SideBoth, false) || !entry(beastTestModel, PartCuirass, SideBoth, false)->has, beastTestName,
+            "not cleared");
+        (void)load();
+        const Override* a = entry(beastTestModel, PartCuirass, SideBoth, false);
+        const Override* b = entry(beastTestModel, PartPauldron, SideBoth, false);
+        const Override* c = entry(beastTestModel, PartPauldronSleeve, SideLeft, false);
+        const Override* d = entry(beastTestModel, PartCuirassSleeve, SideBoth, false);
+        t.check(a && za::abs(a->v[OffsetX] - 2.f) < 1e-4f && b && za::abs(b->v[Scale] - 1.25f) < 1e-4f && c && (c->has & (1u << Leather)) &&
+                c->v[Leather] < 0.5f && d && za::abs(d->v[Sag] - 2.f) < 1e-4f,
+            beastTestName, "the saved tweaks not read back (offset, scale, leather off, sag)");
+        // The junctions through an animation: its run's first frame and a later one.
+        Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartThigh));
+        int run = 0;
+        for(int i = 0; i < animCount(); i++)
+        {
+            run = !ZA_STRCMP(animName(i), "run") ? i : run;
+        }
+        Cvar_SetValueQuick(&vr_armourstudio_anim_group, static_cast<float>(run));
+        Cvar_SetValueQuick(&vr_armourstudio_anim_play, 0.f);
+        Cvar_SetValueQuick(&vr_armourstudio_anim_frame, 0.f);
+        Cvar_SetValueQuick(&vr_armourstudio_anim, 1.f);
+        bt.animFrame = 0;
+        bt.step = 10;
+        return;
+    }
+    case 10:
+    case 11:
+    {
+        // (a frame drawn twice: the pose settled)
+        const int want = bt.step == 10 ? 0 : 4;
+        if(!beastWait(static_cast<int>(vr_armourstudio_anim_frame.value) == want && bt.frames >= 0 && ++bt.animFrame > 3, "timed out: the frame"))
+        {
+            return;
+        }
+        const beastarmour::JunctionCheck j = beastarmour::checkJunction(e, agarmor::ThighL, agarmor::allPieces);
+        Con_Printf("%s: frame %d: the left haunch's junction's ends %.4f from its pieces, longest edge %.2f, middle %.2f %.2f %.2f\n", beastTestName,
+            static_cast<int>(e->v.frame), static_cast<double>(j.endError), static_cast<double>(j.longestEdge), static_cast<double>(j.middle[0]),
+            static_cast<double>(j.middle[1]), static_cast<double>(j.middle[2]));
+        t.check(j.found && j.endError < beastNear && j.longestEdge < 12.f, beastTestName, "the haunch's junction off its pieces in the run");
+        if(bt.step == 10)
+        {
+            for(int c = 0; c < 3; c++)
+            {
+                bt.middle[c] = j.middle[c];
+            }
+            Cvar_SetValueQuick(&vr_armourstudio_anim_frame, 4.f);
+            bt.animFrame = 0;
+            bt.step = 11;
+            return;
+        }
+        const float moved = za::sqrt((j.middle[0] - bt.middle[0]) * (j.middle[0] - bt.middle[0]) + (j.middle[1] - bt.middle[1]) * (j.middle[1] - bt.middle[1]) +
+            (j.middle[2] - bt.middle[2]) * (j.middle[2] - bt.middle[2]));
+        t.check(moved > 0.2f, beastTestName, "the haunch's junction did not move with the run");
+        // His ragdoll: killed where he stands.
+        Cvar_SetValueQuick(&vr_armourstudio_anim, 0.f);
+        const func_t fn = progs::findFunction("Killed");
+        edict_t* player = progs::playerEdict();
+        if(fn && player)
+        {
+            e->v.takedamage = DAMAGE_AIM;
+            e->v.health = -10.f; // (not gibbed: below -35)
+            pr_global_struct->time = qcvm->time;
+            pr_global_struct->self = EDICT_TO_PROG(player);
+            G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+            G_INT(OFS_PARM1) = EDICT_TO_PROG(player);
+            PR_ExecuteProgram(fn);
+        }
+        bt.animFrame = 0;
+        bt.step = 12;
+        return;
+    }
+    case 12:
+    {
+        if(!beastWait(ragdoll::published(st.subject) && ++bt.animFrame > 72, "timed out: no ragdoll"))
+        {
+            return;
+        }
+        const beastarmour::JunctionCheck j = beastarmour::checkJunction(e, agarmor::ThighL, agarmor::allPieces);
+        const beastarmour::JunctionCheck c = beastarmour::checkJunction(e, agarmor::Cuirass, agarmor::allPieces);
+        Con_Printf("%s: ragdoll: the left haunch's junction's ends %.4f, longest edge %.2f; the cuirass's %.4f, %.2f\n", beastTestName,
+            static_cast<double>(j.endError), static_cast<double>(j.longestEdge), static_cast<double>(c.endError), static_cast<double>(c.longestEdge));
+        t.check(j.found && c.found && j.endError < beastNear && c.endError < beastNear && j.longestEdge < 12.f && c.longestEdge < 12.f, beastTestName,
+            "a junction off its pieces on the ragdoll");
+        // AD's two knights: one set of tweaks when their rigs match.
+        const bool shared = adShared();
+        Con_Printf("%s: AD's knights' rigs %s\n", beastTestName, shared ? "match: one set of tweaks" : "differ (or not there): each its own");
+        Override* o = entry(shared ? kindNames[KindAdKnight] : "progs/vrdguard.mdl", PartBracer, SideBoth, true);
+        o->v[OffsetX] = 1.5f;
+        o->has |= 1u << OffsetX;
+        changed();
+        Override guard, crossbow;
+        (void)resolve("progs/vrdguard.mdl", agarmor::BracerL, false, guard);
+        (void)resolve("progs/vrdcrossbow.mdl", agarmor::BracerL, false, crossbow);
+        t.check(za::abs(guard.v[OffsetX] - 1.5f) < 1e-4f && (shared ? za::abs(crossbow.v[OffsetX] - 1.5f) < 1e-4f : crossbow.v[OffsetX] == 0.f),
+            beastTestName, shared ? "the death guard's tweak not the crossbow knight's too" : "the death guard's tweak on the crossbow knight");
+        t.check(!shared || (kindOf("progs/vrdcrossbow.mdl") == KindAdKnight && kindOf("progs/vrdguard.mdl") == KindAdKnight), beastTestName,
+            "AD's knights not the ad_knight kind");
+        beastVerdict();
+        return;
+    }
+    default:
+        beastVerdict();
+        return;
+    }
+}
+
+void beastTest_f()
+{
+    if(!sv.active || !progs::localPlayer())
+    {
+        Con_Printf("%s: FAIL a map with you in it needed\n%s: 0 passed, 1 failed\n", beastTestName, beastTestName);
+        return;
+    }
+    bt = BeastTest{};
+    q_strlcpy(bt.fileWas, vr_armour_file.string, sizeof(bt.fileWas));
+    Cvar_Set(vr_armour_file.name, beastTestFile);
+    (void)save(); // (empty: no file left from an earlier run)
+    (void)load();
+    Cvar_SetValueQuick(&vr_armourstudio_alone, 0.f);
+    Cvar_SetValueQuick(&vr_armourstudio_anim, 0.f);
+    Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(PartCuirass));
+    Cvar_SetValueQuick(&vr_armourstudio_kind, static_cast<float>(beastTestDog));
+    Cbuf_AddText("vr_armourstudio\n");
+    bt.step = 1;
+}
+
 void testFrame()
 {
+    beastTestFrame();
     cloneTestFrame();
     if(test.step == 2)
     {
@@ -939,6 +1272,7 @@ void init()
     Cmd_AddCommand("vr_armourstudio_reset_kind", resetKind_f);
     Cmd_AddCommand("vr_armour_test", test_f);
     Cmd_AddCommand("vr_armourstudio_clone_test", cloneTest_f);
+    Cmd_AddCommand("vr_beaststudio_test", beastTest_f);
     Cmd_AddCommand("vr_armourstudio_anim_info", [] {
         Con_Printf("armourstudio: %s\n", animStatus());
         for(int i = 0; i < animCount(); i++)

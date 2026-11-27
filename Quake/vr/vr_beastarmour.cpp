@@ -52,6 +52,7 @@ constexpr float rimTuckBack = 0.6f;  // ... and this far back under them
 constexpr float junctionEnvelope = 0.35f; // its width, thickness and folds at full this far in from each end (of its length)
 constexpr float skinFitGap = 0.25f;  // units off the skin: a junction's end where its piece isn't worn (broken off)
 constexpr float skinFitLeast = 0.4f; // ... its end ring shrunk to at least this share of its size for it
+constexpr float joinsTie = 1.f;      // units: a piece joins the lower slot of two this near alike
 constexpr int maxJunctions = numSlots;
 constexpr int maxLeatherBones = 2 * maxJunctions; // (a bone each end: the piece's place, or its skin fit)
 constexpr int maxLeather = 64;       // the junctions' entities drawn a frame at most (one a beast)
@@ -343,14 +344,20 @@ void joinsOf(Kind& k, const ragdoll::Rig& rig)
             for(int j = 0; j < numSlots; j++)
             {
                 const Slot& o = k.slot[j];
-                if(o.on && o.boneIndex == b)
-                {
-                    const float d = apart(s, o);
-                    s.joins = d < best ? j : s.joins;
-                    best = za::min(best, d);
-                }
+                // (the lower slot when about as near: the cuirass before the rottweiler's collar)
+                const float d = o.on && o.boneIndex == b ? apart(s, o) : 1e9f;
+                s.joins = d < best - joinsTie ? j : s.joins;
+                best = d < best - joinsTie ? d : best;
             }
         }
+    }
+    // (a right limb's piece as the left's, mirrored: the same middle piece, or its own side's limb piece)
+    for(int i = agarmor::PauldronR; i <= agarmor::ThighR; i += 2)
+    {
+        const int left = k.slot[i - 1].joins;
+        const bool limb = left >= agarmor::PauldronL && left <= agarmor::ThighR;
+        const int mirrored = limb ? left + 1 : left;
+        k.slot[i].joins = k.slot[i].on && k.slot[i - 1].on && mirrored >= 0 && k.slot[mirrored].on ? mirrored : k.slot[i].joins;
     }
 }
 
