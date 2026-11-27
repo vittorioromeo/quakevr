@@ -158,6 +158,10 @@ float(float w, float g, float m) VR_Run_TestCheck =
     {
         if(!noAxe || meleeHolster != WID_SWORD || VR_ADMelee_Kind(p.holsterweaponflags2) != VR_SWORDKIND_DAGGER) load = FALSE;
     }
+    else if(sm == RUN_SM_SPEAR)
+    {
+        if(!noAxe || meleeHolster != WID_SWORD || VR_ADMelee_Kind(p.holsterweaponflags2) != VR_SWORDKIND_SPEAR) load = FALSE;
+    }
     else
     {
         if(!noAxe || meleeHolster != WID_FIST) load = FALSE;
