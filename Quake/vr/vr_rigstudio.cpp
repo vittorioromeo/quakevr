@@ -412,6 +412,7 @@ void takeModel(const qmodel_t* model)
     st.rig = model ? ragdoll::rigFor(const_cast<qmodel_t*>(model)) : nullptr;
     st.numBones = st.rig ? st.rig->numBones : 0;
     st.doc = rigdata::ModelData{};
+    st.sharers.clear();
     if(st.rig)
     {
         if(const rigdata::ModelData* m = rigdata::of(model))
@@ -421,9 +422,36 @@ void takeModel(const qmodel_t* model)
         else
         {
             char base[64];
-            rigdata::baseName(model->name, base, sizeof(base));
+            if(st.rig->authored)
+            {
+                rigdata::filesBase(model->name, base, sizeof(base), &st.doc.sharedFrom); // (shared poses: poses_from)
+            }
+            else
+            {
+                rigdata::baseName(model->name, base, sizeof(base));
+            }
             st.doc.model = model->name;
             st.doc.base = base;
+        }
+        if(st.rig->authored)
+        {
+            if(st.doc.sharedFrom.empty())
+            {
+                rigdata::poseSharers(model->name, st.sharers);
+            }
+            else
+            {
+                st.sharers.pushBack(st.doc.sharedFrom); // (and any other on the same files)
+                za::Vector<za::String> more;
+                rigdata::poseSharers(st.doc.sharedFrom.cStr(), more);
+                for(const za::String& s : more)
+                {
+                    if(ZA_STRCMP(s.cStr(), model->name))
+                    {
+                        st.sharers.pushBack(s);
+                    }
+                }
+            }
         }
         st.doc.authored = st.rig->authored; // (the authored rig's bones and its own files)
         for(int b = 0; b < st.numBones; b++)
@@ -2969,10 +2997,11 @@ void revert()
     pushUndo("revert");
     rigdata::reload(st.model);
     const rigdata::ModelData* m = rigdata::of(st.model);
-    const za::String model = st.doc.model, base = st.doc.base;
+    const za::String model = st.doc.model, base = st.doc.base, sharedFrom = st.doc.sharedFrom;
     st.doc = m ? *m : rigdata::ModelData{};
     st.doc.model = model;
     st.doc.base = base;
+    st.doc.sharedFrom = sharedFrom;
     st.doc.authored = st.rig && st.rig->authored;
     for(int b = 0; b < st.numBones; b++)
     {

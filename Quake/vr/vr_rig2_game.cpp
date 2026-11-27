@@ -1064,7 +1064,7 @@ void animFixture(const char* kind, const char* modelName)
     if(!had)
     {
         char base[64];
-        rigdata::baseName(model->name, base, sizeof(base));
+        rigdata::filesBase(model->name, base, sizeof(base), &m.sharedFrom); // (an authored rig's: shared poses)
         m.model = model->name;
         m.base = base;
         m.authored = rig->authored;
