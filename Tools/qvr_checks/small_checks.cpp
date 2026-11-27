@@ -399,4 +399,135 @@ int checkClientPrefs(const Ctx& ctx, const Args&, Out& out)
     return 0;
 }
 
+// setpos_walk: no test walks in noclip by accident. Quake's setpos turns noclip on ("noclip ON", host_cmd.c), so a test that
+// puts the player somewhere with setpos and then walks (+forward, +back, +moveleft, +moveright) flies along the view: with
+// the view pitched down, through the floor (flatsink, ROUND26: z 25 -> -24 over 28 frames at pitch 40), level, through
+// walls and over drops. A `noclip 0` after the setpos turns it off (or the toggle, a bare `noclip`). Each line of the
+// test scripts (Misc/quakevr/*.sh and *.py, backslash-continued lines joined) is read as its `;`-separated commands. A line
+// that means to walk in noclip says `setpos-noclip-walk` (in a comment on its first line).
+namespace
+{
+
+bool wordChar(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+// `word` in `cmd` as a whole word (not inside vr_setpos or +forwardx); `at` set past it.
+bool hasWord(za::StringView cmd, za::StringView word, za::SizeT& at)
+{
+    for(za::SizeT f = cmd.find(word); f != npos; f = cmd.find(word, f + 1))
+    {
+        const za::SizeT e = f + word.size();
+        if((f == 0 || !wordChar(cmd[f - 1])) && (e == cmd.size() || !wordChar(cmd[e])))
+        {
+            at = e;
+            return true;
+        }
+    }
+    return false;
+}
+
+// A setpos with its coordinates (not a bare "setpos", which only prints them).
+bool isSetpos(za::StringView cmd)
+{
+    za::SizeT at = 0;
+    if(!hasWord(cmd, "setpos", at) || at >= cmd.size() || (cmd[at] != ' ' && cmd[at] != '\t'))
+    {
+        return false;
+    }
+    const za::StringView rest = trim(cmd.substrByPosLen(at, cmd.size() - at));
+    return !rest.empty() && rest[0] != '"' && rest[0] != '\'';
+}
+
+// The command turns noclip off after a setpos: `noclip 0` (or the toggle, a bare `noclip`; quotes, brackets and spaces
+// round it allowed).
+bool isNoclip(za::StringView cmd)
+{
+    const za::StringView edge = " \t\"'$(){}";
+    za::SizeT b = 0, e = cmd.size();
+    while(b < e && edge.find(cmd[b]) != npos)
+    {
+        ++b;
+    }
+    while(e > b && edge.find(cmd[e - 1]) != npos)
+    {
+        --e;
+    }
+    const za::StringView c = cmd.substrByPosLen(b, e - b);
+    return c == "noclip" || c == "noclip 0";
+}
+
+bool isWalk(za::StringView cmd)
+{
+    za::SizeT at = 0;
+    for(const za::StringView k : {za::StringView{"+forward"}, za::StringView{"+back"}, za::StringView{"+moveleft"},
+            za::StringView{"+moveright"}})
+    {
+        if(hasWord(cmd, k, at))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+int checkSetposWalk(const Ctx& ctx, const Args&, Out& out)
+{
+    int files = 0, bad = 0;
+    for(const fs::path& p : listFiles(ctx.tree / "Misc/quakevr", {".sh", ".py"}, false))
+    {
+        ++files;
+        const za::String text = readText(p);
+        const za::Vector<za::StringView> lines = splitLines(text);
+        for(za::SizeT i = 0; i < lines.size(); ++i)
+        {
+            const za::SizeT first = i;
+            za::String joined{lines[i]};
+            while(i + 1 < lines.size() && endsWith(trim(lines[i]), "\\"))
+            {
+                joined += ' ';
+                joined += lines[++i];
+            }
+            const za::StringView line(joined);
+            if(line.find("setpos") == npos || line.find("setpos-noclip-walk") != npos)
+            {
+                continue;
+            }
+            bool inNoclip = false;
+            for(za::SizeT at = 0; at <= line.size();)
+            {
+                const za::SizeT semi = line.find(';', at);
+                const za::SizeT end = semi == npos ? line.size() : semi;
+                const za::StringView cmd = line.substrByPosLen(at, end - at);
+                at = end + 1;
+                if(isSetpos(cmd))
+                {
+                    inNoclip = true;
+                }
+                else if(isNoclip(cmd))
+                {
+                    inNoclip = false;
+                }
+                else if(inNoclip && isWalk(cmd))
+                {
+                    out.line("check_setpos_walk: {}:{}: walks after a setpos with noclip still on (setpos turns noclip on: "
+                             "add `noclip 0` after it, or say setpos-noclip-walk on the line)",
+                        relPosix(p, ctx.tree), first + 1);
+                    ++bad;
+                    break;
+                }
+            }
+        }
+    }
+    if(bad)
+    {
+        return 1;
+    }
+    out.line("check_setpos_walk: {} test scripts, none walks in setpos's noclip", files);
+    return 0;
+}
+
 } // namespace qvrc
