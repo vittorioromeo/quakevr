@@ -136,6 +136,11 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
      the takes tool), so the last shot is real flat play.
   New work, small: the desk map generator, the scene QC (actor walk + camera), optionally the hands-to-face fade and a
   sit pose. Everything else exists.
+- **VR weapon wheel reminder panel (controller image + labeled buttons)** (2026-11-28, his words): in VR the weapon
+  wheel shows the same reminder panel as the menu's, but as the current controllers' picture with its buttons labelled
+  by their bindings (the Controller Bindings screen's data and pictures: vr_bindsetup.cpp, ROUND26 "ctrlbind").
+- **Splitscreen: per-seat controller bindings in the rebinding screen** (2026-11-28, todo): the Controller Bindings
+  screen edits the one bind table; with true seats (agent/split) each seat's controller gets its own page and binds.
 
 ## 4. Monsters' movement: the navmesh (NAVMESH.md)
 

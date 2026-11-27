@@ -16,6 +16,8 @@ Flat-screen or VR: put the bayonet (or a dagger as one) on a gun and holster it:
 Flat-screen: open the holster menu (middle mouse): the stick figure is now your own posed body seen from behind, each holster slot's line pointing at that holster on it; say if you want it textured, turning, or with armour and holstered guns on it. {test:weapon_wheel}
 Flat-screen: the holster menu and the weapon wheel have a bindings panel above them (fire, reload, wheel, grab, throw...: the keys you bound, two where set), centred together with the holster menu; vr_flat_bind_panel 0 hides it. {test:weapon_wheel}
 Flat-screen: the main menu shows the same bindings panel under the corner buttons, left of the rows, with Setup Bindings under it, which opens Options > Controls at the flat keys (the controller screen once it lands). {test:hub_start}
+Flat-screen or VR: Options > Controller Bindings shows your controller (the name says "detected") with each button labelled by its binding; drag a label onto another and the two bindings swap, click one and pick an action from the list (typing searches it), then Reset to Defaults puts the shipped ones back. {test:hub_start}
+Flat-screen or VR: step through the controller pictures with the arrows beside the name (Quest 3, Quest 2, Quest Pro, Rift, Index, Vive, WMR, Steam Frame, Xbox, PlayStation, Switch Pro, generic pad) and say which pictures, labels or glyphs need work. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

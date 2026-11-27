@@ -4011,6 +4011,7 @@ void qvr::menuui::openMenu(int state)
             Cmd_TokenizeString("menu_autosaves"); // it looks at its command's arguments
             M_Menu_Autosaves_f();
             break;
+        case m_bindsetup: VR_BindSetup_Open(); break;
         default: M_Menu_Main_f(); break;
     }
 }
