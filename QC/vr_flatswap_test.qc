@@ -884,6 +884,7 @@ void() VR_FlatSwapTest_Frame =
     if(ask == 2) { VR_FSW_Things(p); }
     if(ask == 3) { VR_FSW_Melee(p, 0); }
     if(ask == 4) { VR_FSW_Melee(p, 6); } // (AD's only)
+    if(ask >= 406 && ask <= 411) { VR_FSW_Melee(p, ask - 400); } // (AD's from case 6..11 on: 411 the mace alone)
     if(ask == 5) { VR_FSW_Clip(p); }
     if(ask == 6) { VR_FSW_NumKeys(p); } // (the holsters' number keys)
     if(ask >= 11 && ask <= 17) { VR_FSW_Strip(p, ask); }

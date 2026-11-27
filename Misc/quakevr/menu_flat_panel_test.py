@@ -57,7 +57,8 @@ flat = ";".join([
     "echo STEP shots", "wait3", "screenshot", "wait2", "vr_menu_flat_scale 0.55", "vr_menu_flat_x 0.36", "vr_menu_flat_y 0.4",
     "wait3", "screenshot", "wait2", "vr_menu_flat_scale 1", "vr_menu_flat_x 0.5", "vr_menu_flat_y 0.5", "wait3", "screenshot",
     "wait2", "vr_menu_zoom reset flat",
-    "echo STEP classic", "vr_menu_flat_vr_style 0", "menu_main", "wait3", "menu_vr pos", "vr_mock_mouse zoomout click",
+    # (scr_menuscale 4: past what the canvas fits, whatever the base's config holds: the first - steps from the fit)
+    "echo STEP classic", "vr_menu_flat_vr_style 0", "scr_menuscale 4", "menu_main", "wait3", "menu_vr pos", "vr_mock_mouse zoomout click",
     "wait3", "vr_menu_zoom", "vr_menu_zoom reset classic",
     "echo MENUFLAT done", "toggleconsole", "quit"])
 
@@ -221,10 +222,12 @@ for i, what in enumerate(("Quit's message", "a confirmation (M_Confirm)")):
               f"flat: {what} centred on the panel at its scale: box {bx} {by} ({bu} px/unit), panel {ax} {ay} ({au})")
     else:
         check(False, f"flat: {what}: dialog box printed")
-check(len(menus) >= 2 and menus[0].startswith("menu_vr pos: menu 21") and menus[1].startswith("menu_vr pos: menu 1 "),
+# (Quake/menu.h's m_state_e: m_quit 20, m_confirm 27 since the IPX / TCP/IP page went, 2026-11)
+M_QUIT, M_CONFIRM = 20, 27
+check(len(menus) >= 2 and menus[0].startswith(f"menu_vr pos: menu {M_QUIT} ") and menus[1].startswith("menu_vr pos: menu 1 "),
       f"flat: Escape on Quit's message back to the main menu: {[m[13:30] for m in menus[:2]]}")
 vd = after(vl, "vrdialogs")
-check(any(l.startswith("menu_vr pos: menu 28") for l in vd) and any("dialog area: the headset's canvas" in l for l in vd),
+check(any(l.startswith(f"menu_vr pos: menu {M_CONFIRM} ") for l in vd) and any("dialog area: the headset's canvas" in l for l in vd),
       "vr: Quit asks in the headset's dialog (M_Confirm), as before")
 # 6
 keys =[l for l in after(fl, "keys") if l.startswith("menu_vr pos: menu")]

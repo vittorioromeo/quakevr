@@ -207,7 +207,8 @@ void OpenXrBackend::stop()
         endFrame(false);
     }
 
-    for(Swapchain* sc : {&swapchains[0], &swapchains[1], &panel})
+    for(Swapchain* sc : {&swapchains[0], &swapchains[1], &panel, &spaceWarpMotion[0], &spaceWarpMotion[1], &spaceWarpDepth[0],
+             &spaceWarpDepth[1]})
     {
         if(sc->handle != XR_NULL_HANDLE)
         {
@@ -219,6 +220,8 @@ void OpenXrBackend::stop()
     destroyRetired(true); // (before the session they belong to)
     panelPending = panelShown = false;
     haveLastViews = holding = false;
+    spaceWarpFailed = false;
+    spaceWarpAcquired[0] = spaceWarpAcquired[1] = spaceWarpReleased[0] = spaceWarpReleased[1] = false;
     timing = Timing{};
     for(int eye = 0; eye < 2; eye++)
     {
@@ -723,6 +726,7 @@ bool OpenXrBackend::createSystem()
             system.systemName, system.vendorId, system.graphicsProperties.maxLayerCount,
             system.graphicsProperties.maxSwapchainImageWidth, system.graphicsProperties.maxSwapchainImageHeight));
     }
+    quest.spaceWarpProperties(instance, systemId); // (vr_xr_spacewarp: the motion vectors' size, the console's line)
 
     // The headset taken off (vr_xr_user_presence): the extension enabled, and the system's sensor.
     if(userPresenceExtension)

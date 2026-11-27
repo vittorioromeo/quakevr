@@ -557,6 +557,11 @@ float QVR_ARMOR_SHOT = -1005;
 // player: vrbody.mdl's plates), "<model>#plate<piece>h<half>s<axis>", a name the engine keeps; "" none (the helmet).
 // limbpiece(e, piece, 16 / 17) that half's model's origin now, as drawn (its angles the whole plate's, 11).
 float QVR_ARMOR_HALF = -2000;
+// The beasts' armour (vr_beastarmour.cpp; vr_agarmor.qc VR_BeastArmour_*): ragdollbone(e, [what, 0, 0], QVR_ARMOR_BEAST)
+// 0 e's kind's slots (bits; 0 not a beast), 1 its cuirass group, 2 the pieces' entities drawn this frame (the tests);
+// limbmodel(e, QVR_ARMOR_BEAST_MODEL - slot) that piece's model ("" none), a name the engine keeps.
+float QVR_ARMOR_BEAST = -1006;
+float QVR_ARMOR_BEAST_MODEL = -2100;
 float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none
 // The worn backpack (vr_wornpack.qc; the engine's vr_box3d_wornpack.cpp): ragdollbone(e, [what, player's number, hand],
 // QVR_WORNPACK) 0 whether e's ragdoll wears it (1; 0 not, -1 no ragdoll), 1 torn off its ragdoll, 2 the pull (N) of that
@@ -834,6 +839,12 @@ void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
 // The flat throw key's aim (flatxhair2; vr_flatgrenade.qc VR_FlatThrow_Aim, each frame): `xPlayer`'s hand `xHand` winds up
 // a throw that would land at `xAt` let go now (-1: none); the local player's only, for the visor crosshair (flatxhair).
 void(entity xPlayer, float xHand, vector xAt) flatthrowaim = #0;
+// (xhairmiss) While `xPlayer`'s hand `xHand` winds up a flat throw, how far that hand will have moved when the thing leaves
+// it (the follow-through's vr_flat_throw_release_time, as the view poses it); the local player's only, else '0 0 0'.
+vector(entity xPlayer, float xHand) flatthrowfrom = #0;
+// (xhairmiss) Where a weapon of model `xModel` (precached) thrown has its centre of mass (its Box3D body's hull's centroid),
+// in its entity's axes off its origin (x forward, y left, z up); '0 0 0' unknown.
+vector(string xModel) weaponmasscentre = #0;
 // Show Melee Arcs (vr_enemy_melee_arc_show): an armed humanoid's swinging weapon `xWeapon` this frame, drawn as a hand's
 // sweep is (meleeshow's `xWhat` 0, 1, 6; vr_meleerules.qc VR_MeleeArc_ShowSwings); world records nothing. Returns the
 // frames the view drew any armed humanoid's swing (the tests).

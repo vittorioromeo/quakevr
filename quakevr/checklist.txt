@@ -12,6 +12,15 @@ Flat-screen: take a quick grenade (G), press the attack button to arm it, then h
 Flat-screen or VR: Stab a grunt with the bayonet shotgun so it sticks and keep your hand on it: the HUD (status bar, visor or wrist) still shows the shotgun's shells and its clip; the same with the super shotgun and the stuck Crystal Lance. {test:attach_bayonet}
 Flat-screen: J with a bayonet on the shotgun and the other hand empty: the bayonet comes off into that hand and is drawn there, blade up out of the fist. {test:attach_bayonet}
 Pull the bayonet off the shotgun with your empty hand (or pick up a lying one): it sits in your fist with the blade out above your index finger, not hanging below. {test:attach_bayonet}
+Flat-screen: kill a grunt, hold its body with H and walk into it: it is pushed ahead at the distance you took it at, both hands staying on it and on your wrists; walk backwards and it is dragged along; turn sharply away and the hands let go. {test:flat_grab_pull}
+Flat-screen: hold a dead ogre with H and run into it: it is too heavy for that pace and the hands let go; Push Held Props Off (Tunables > Flatscreen > Grab / Pull) gives the old pull of the body in to your hands. {test:flat_grab_pull}
+Ragdoll climbs: a hell knight knocked off a ledge grabs the lip and pulls itself all the way up onto the top (no longer stuck at the lip with its chest under it); grunts, knights and ogres still climb up smoothly. {test:hknight_ledge}
+On the Quest, VR Settings > Scaling: turn SpaceWarp on and play the hub, then a fight: motion should look as smooth as at 72 Hz; look for wobbling edges on your hands, the gun and moving monsters, and whether the status panel or any head-fixed text judders. {test:quest_gibfight}
+On the Quest with SpaceWarp on: walk, smooth-turn and snap-turn, and open and close the menu: no stutter at the turn or the menu (the menu shows at the full rate), no smearing of the world while walking. {test:hub_start}
+Rottweilers, ogres, scrags and fiends can wear armour now: walk round the four in the scene and check each piece sits on the body (barding and spiked collar on the dog, a three-part cuirass, helmet, pauldrons, bracers and tassets on the ogre, mask and plates on the scrag, back and shoulder plates on the fiend) and looks like Quake armour. {test:armour_beasts}
+Shoot one beast's pieces with the shotgun: each piece sparks, cracks off on its own and falls as debris you can pick up, and the beast then bleeds where it was bare. {test:armour_beasts}
+Kill an armoured ogre or rottweiler with small hits: as it dies and goes limp the pieces stay on the body and follow it as it falls. {test:armour_beasts}
+Flat-screen or VR: open Mods in the main menu and pick any mod (or type "game <mod>" in the console); the console's "game" changed line shows quakevr before the mod, and the hands, weapons and armed grunts still work in its maps. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -47,6 +56,8 @@ Flat-screen or VR: Load a map whose collision is not cached yet: the loading pan
 Right after a map loads whose collision was built from scratch, crouch and lie down at once and crawl under something low: a short loading panel the first time is fine, but never pass through a wall or floor or freeze, and monsters near walls must not get stuck. {test:load_collision_cold}
 Flat-screen or VR: the hub's open grass and the cliff faces round the lake are simplified for cheaper collision: walk and look round the island's open ground and along the cliffs; the grass and cliffs should look as before, with no new spots where you snag on flat or gently sloped ground. {test:vrstart}
 Flat-screen or VR: On the hub, lie down and crawl around the south-west near the shore (around x -550, y 1000-1200): no invisible wall where there's nothing to bump into. {test:hub_start}
+Flat-screen or VR: start ironwail.exe from Quake VR's folder by double-clicking it (or a shortcut of your own with no -game): the hub and Quake VR's hands and weapons are there as with Setup's shortcut, and the console's first lines say "Quake VR's game folder added". {test:hub_start}
+Flat-screen or VR: Debug > Diagnostics > Preview: Game Data Missing Notice shows the broken-install warning in red in the menus' top-right box (then vr_gamedata_notice 0 to end it). {test:hub_start}
 
 [2. Flat screen]
 ## Grab, hold and push

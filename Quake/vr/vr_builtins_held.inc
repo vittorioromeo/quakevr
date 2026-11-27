@@ -1037,6 +1037,42 @@ void PF_flatthrowaim()
     }
 }
 
+// (xhairmiss) vector(entity player, float hand) flatthrowfrom: while that hand winds up a flat throw, how far it will have
+// moved when the thing leaves it (flatgrenade::releaseShift: the follow-through's release time); this listen server's
+// own player only ('0 0 0' otherwise: the aim from the hand where it is, as before).
+void PF_flatthrowfrom()
+{
+    edict_t* p = G_EDICT(OFS_PARM0);
+    glm::vec3 shift{0.f};
+    if(sv.active && cls.state == ca_connected && NUM_FOR_EDICT(p) == cl.viewentity)
+    {
+        shift = flatgrenade::releaseShift(static_cast<int>(G_FLOAT(OFS_PARM1)));
+    }
+    geom::store(shift, G_VECTOR(OFS_RETURN));
+}
+
+// (xhairmiss) vector(string model) weaponmasscentre: where a weapon with that (precached) model thrown has its centre of
+// mass, in its entity's axes off its origin (box3d::weaponMassCentre); '0 0 0' unknown.
+void PF_weaponmasscentre()
+{
+    const char* name = G_STRING(OFS_PARM0);
+    int index = 0;
+    for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
+    {
+        if(name && ZA_STRCMP(sv.model_precache[i], name) == 0)
+        {
+            index = i;
+            break;
+        }
+    }
+    glm::vec3 c{0.f};
+    if(index <= 0 || !sv.models[index] || !box3d::weaponMassCentre(sv.models[index], c))
+    {
+        c = glm::vec3{0.f};
+    }
+    geom::store(c, G_VECTOR(OFS_RETURN));
+}
+
 // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the player asked
 // since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound weapon home at
 // once: vr_magholster_return; another player's as his client sent them: heldpose::magPoll, B3f). vector(entity player,
