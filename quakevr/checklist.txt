@@ -86,6 +86,7 @@ Flat-screen: flip the spear's grip (B) and raise the guard: the spear stays flip
 ## Guard and parry
 ## Crosshair
 ## Throwing and catching
+Flat-screen: grab a crate with H and walk back, forward, sideways and turn with it, best on a high refresh rate monitor: the hands and arms should stay steady on the crate with no shaking. {test:flat_grab_pull}
 
 [3. Tutorial and VR interface]
 ## Menus and settings
