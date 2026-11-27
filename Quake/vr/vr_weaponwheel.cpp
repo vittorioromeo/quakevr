@@ -776,7 +776,7 @@ void flatTestStep()
 
 // ---------------------------------------------------------------------------------------------------------------------
 // vr_weaponwheel_test grenade | flatgrenade (wheelgrenade; weaponwheel_test.sh grenade / flatgrenade): the back pouch's
-// grenade entry. The pouch emptied (the server's rockets and multi-rockets set), the first hand's wheel (flat: the right
+// grenade entry. The pouch emptied (give r 0, give m 0), the first hand's wheel (flat: the right
 // hand, holding the shotgun; headset: the left, empty, its grip not held) shows one greyed grenade; 5 rockets: a whole
 // usable GRENADE, 5 left on it; 3 multi-rockets too: split, GRENADE on top and CLUSTER below, one place; the cursor on
 // each half lights it; let go on CLUSTER: that hand holds a multi-grenade (its gun holstered), 2 multi-rockets left; still
@@ -797,17 +797,11 @@ void flatTestStep()
     return static_cast<int>(progs::qcFloat(progs::findFunction("VR_Wheel_TestHeld"), static_cast<float>(hand)));
 }
 
-// The pouch's ammo on the server: the player's rockets and multi-rockets.
+// The pouch's ammo: the player's rockets and multi-rockets, by "give r" and "give m" (the scene's way; Host_Give_f's m
+// outside the mission pack too: wheelgrenade).
 void setPouch(int rockets, int multi)
 {
-    const progs::ServerVm vm;
-    edict_t* p = progs::playerEdict();
-    if(!p)
-    {
-        return;
-    }
-    p->v.ammo_rockets = static_cast<float>(rockets);
-    progs::setFieldFloat(p, progs::fields().ammo_multi_rockets, static_cast<float>(multi));
+    Cbuf_AddText(va("give r %d; give m %d\n", rockets, multi));
 }
 
 void wheelKey(int hand, bool down)

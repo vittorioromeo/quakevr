@@ -4497,3 +4497,41 @@ fade and invisibility, copied into the body's mirror).
   bayonet broken open in the left hip); `Misc/quakevr/attach_holster_test.sh` (flat, its fly camera beside the hip, VR;
   `attach_holster_check.py`: each holstered gun's bayonet drawn, gap <= 0.05), also run at the end of attach_test.sh.
 - Armed humanoids carry no holstered guns; bots and dead players' bodies draw through drawHolsteredParts (the same path).
+
+## wheelgrenade: the weapon wheel's BACK POUCH entry: a grenade from the back pouch in that hand (branch agent/wheelgrenade, 2026-11-28)
+
+His words (2026-11-28): a weapon-wheel button, VR and flat, that grabs a grenade from the back pouch in that hand; with both
+normal and cluster grenades, the button split in two horizontal halves to pick.
+- **Entry** (`vr_weaponwheel.cpp` listGrenades, in the holsters' provider after UNLOAD; shown while the pouch is on,
+  `vr_handgrenade`): a slot titled BACK POUCH with the pouch grenade's thumbnail (`progs/grenade.mdl`, the multi-grenade's
+  `progs/mervup.mdl`) and the count left as the ammo line (STAT_ROCKETS, STAT_QVR_AMMOMULTI). Rockets only: one whole
+  "grenade"; multi-rockets only: one whole "cluster"; both: the slot split into two stacked halves ("horizontal halves" read
+  as one above the other), GRENADE on top and CLUSTER below, each a compact half (`HolsterMenuSlot::compact`: thumbnail left,
+  name and count beside it); neither: one greyed "grenade" (kept, not hidden: the wheel's places never move with ammo).
+  `Choice::half` (1 top, 2 bottom; one place on the ring), keys `keyGrenade` -5 / `keyMultiGrenade` -6.
+- **Layout**: eleven places (EMPTY HAND, three right holsters, DROP, FLIP GRIP, UNLOAD, BACK POUCH, three left holsters).
+  Ten fit the old 280 x 282 circle; eleven need an oval (119 across, 134 up/down) on a 308 x 318 image (a search over radii,
+  sizes and which places are actions: the bottom pair must be actions; 1.5 px between neighbours at least, 2 px inside the
+  edges and the footer). The pixel size is kept: `vr_weaponwheel_size` / `vr_flat_wheel_size` are now the size of the first
+  280 x 282 pixels, so the wheel is 10 % wider and 13 % taller than before and its text the same size. The hit test runs on
+  the oval (angle of the hand's offset scaled by the radii; off the wheel past the oval 46 px out); a split place's half by
+  the cursor above or below its middle.
+- **Pick** (QC `VR_Wheel_Pick` -5 / -6 -> `VR_Wheel_Grenade`, vr_flatgrenade.qc): the pouch on, that kind in it, the hand
+  carrying nothing; its weapon put away first by the wheel's EMPTY HAND (`VR_Wheel_Pick -1`: too big, or no holster free,
+  and nothing happens). Flat: the quick grenade's own trip to the pouch with that hand (VR_FLATGREN_FETCH: armed, wound up,
+  thrown, and put back with G as ever). Headset: `VR_HandGrenade_Take` at once; the hand's grip is not held (the wheel is a
+  face button), so the grenade is held as a wheel's weapon is: `VR_Carry_HoldGiven` / `VR_Carry_GivenHeld` (vr_carry.qc)
+  keep it until the grip is pressed, then the grip holds it (the trigger arms it, letting go throws it). The kind:
+  `.vr_hgren_want` (vr_grenade.qc), read and cleared by the next `VR_HandGrenade_Take` (a grenade, or the proximity grenade
+  when the proximity launcher is in the other hand, as the pouch gives; the multi-grenade), cleared by G and the quick
+  grenade's end. The server accepts `vr_wheel_pick` slots -6 .. 5.
+- `give m <n>` (Host_Give_f) now gives multi-rockets outside the mission pack too (Quake VR's progs always carry them).
+- **Tests**: `weaponwheel_test.sh <agent> grenade` 10/0 (headset: the left hand's CLUSTER held without its grip, armed by
+  the trigger, thrown by the grip's press and release 2 frames after; the right hand's GRENADE holsters its nailgun) and
+  `flatgrenade` 11/0 (the right hand's shotgun holstered, LMB arms and throws, the left hand's GRENADE, G puts it back);
+  the existing modes vr 25/0 (step 23 aims the hand once: `vr_mock_hand_to` moves from the hand's last place, so sent every
+  frame it swung about the eleven-place DROP) and flat 21/0. pouchgren_test 15/0, flatitems_test 14/0. Scene
+  `wheel_grenade` (rockets 10, multi-rockets 5). `mp_test.py suite --only mp_weaponwheel` 6/3: B's step 1 "the shotgun
+  holstered" times out with both hands empty (the nailgun of impulse 156 never arrives at a coop client); not this branch's
+  (nothing here touches the give), passed 9/0 in round 25: to look at.
+- Screenshot for his review: `scratch/weaponwheel/wheel_grenade_split.png` (flat, the split entry, GRENADE lit).
