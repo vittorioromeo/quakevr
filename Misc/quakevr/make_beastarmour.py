@@ -159,11 +159,11 @@ KINDS = [
         fpiece(8, "pelvis", SH_WIZ, [
             # (round the line down from his waist to his tail's root: his body bends back into it)
             band((-0.02, 0.14), (10,), step=0.2, lap=0.3, tiles=("panel",), line=WIZ_BELLY),
-            band((0.14, 1.0), (6, 6, 5), line=WIZ_BELLY)], mid=True, face="front"),
+            band((0.14, 1.0), (8, 8, 7), line=WIZ_BELLY)], mid=True, face="front"),
         fpiece(8, "tail1", SH_WIZ, [band((0.0, 1.0), (6, 6))], face="up"),
         fpiece(8, "tail2", SH_WIZ, [band((0.0, 1.0), (6, 6))], face="up"),
         fpiece(8, "tail3", SH_WIZ, [band((0.0, 1.0), (6, 5))], face="up"),
-        fpiece(8, "tail4", SH_WIZ, [band((0.0, 0.9), (5, 5), spike=(2.0, 0, 5.0, 0.9, "axis"))], face="up"),
+        fpiece(8, "tail4", SH_WIZ, [band((0.0, 0.9), (5, 5), lift=0.2, spike=(2.25, 0, 5.0, 0.9, "axis"))], face="up"),
         fpiece(1, "head", SH_WIZ, [dome(0.5, 80, (1, 6, 8), (1.0, 0.0, 0.6), heights=(0.6, 1, 1))], mid=True, face="up"),
         fpiece(2, "arm_l", SH_WIZ, [dome(0.35, 65, (1, 5, 6), (0.0, 0.5, 1.0), heights=(0.6, 1, 1),
                                     spike=(0.8, 0, 5.5, 1.3, (0.0, 1.0, -0.3)))],

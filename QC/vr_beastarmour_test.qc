@@ -9,7 +9,8 @@
 // at a chance of 1), and two killed (the corpses keeping their pieces, on the body as it lies, at their size). Ends on
 // "beastarmour test: N passed, M failed".
 // `vr_agarmor_test 16`: the scene (scenario armour_beasts): the four in full sets (green, yellow, red, yellow), calm (the
-// player notarget). `17`-`20`: one of them close ahead in full yellow, three quarters on (the renders).
+// player notarget). `17`-`20`: one of them close ahead in full yellow (temp1 1-3: that tier), three
+// quarters on (the renders).
 
 entity vr_bat_e0, vr_bat_e1, vr_bat_e2, vr_bat_e3;
 float vr_bat_busy;   // the test running
@@ -145,8 +146,9 @@ void(float req) VR_BAT_Frame =
         {
             remove(vr_bat_render); // (the one before: one at a time, for a row of renders)
         }
-        vr_bat_render = VR_BAT_Spawn(p, req - 17, 0, req == 19 ? 90 : req == 18 ? 110 : 130, 35);
-        VR_AgArmor_Give(vr_bat_render, 2, 1023);
+        vr_bat_render = VR_BAT_Spawn(p, req - 17, 0, req == 19 ? 100 : req == 18 ? 150 : 130, 35);
+        float tier = cvar_hget(cvarh_temp1); // (temp1 1-3: that tier, else yellow)
+        VR_AgArmor_Give(vr_bat_render, (tier >= 1 && tier <= 3) ? tier : 2, 1023);
         return;
     }
     if(req == 15)
@@ -249,10 +251,9 @@ void(float req) VR_BAT_Frame =
         float drawn = ragdollbone(world, '2 0 0', QVR_ARMOR_BEAST);
         VR_Test_Check(drawn == want, sprintf("every piece drawn: %g of %g", drawn, want));
         // (and the slots' parts on other bones: the ogre's shins with his thighs' pieces, the scrag's tail with his belt's)
-        float parts = ((vr_bat_e1.vr_ar_mask & VR_AgArmor_Bit(6)) != 0) + ((vr_bat_e1.vr_ar_mask & VR_AgArmor_Bit(7)) != 0) +
-            4 * ((vr_bat_e2.vr_ar_mask & VR_AgArmor_Bit(8)) != 0);
+        float parts = VR_AgArmor_On(vr_bat_e1, 6) + VR_AgArmor_On(vr_bat_e1, 7) + 4 * VR_AgArmor_On(vr_bat_e2, 8);
         float ents = ragdollbone(world, '2 1 0', QVR_ARMOR_BEAST);
-        VR_Test_Check(ents == want + parts && parts == 6, sprintf("every part drawn: %g entities, %g pieces and %g parts", ents, want,
+        VR_Test_Check((ents == want + parts) && (parts == 6), sprintf("every part drawn: %g entities, %g pieces and %g parts", ents, want,
             parts));
         vr_bat_state = 3;
         vr_bat_wait = time + 0.4;

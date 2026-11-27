@@ -27,11 +27,11 @@ piece progs/ogre.mdl 7 shin_r progs/vrbarmor_ogre_7_shin_r.mdl -9.81 -9.29 -17.5
 kind progs/wizard.mdl 769
 piece progs/wizard.mdl 0 chest progs/vrbarmor_wizard_0.mdl 9.31 0.00 15.99
 piece progs/wizard.mdl 9 chest progs/vrbarmor_wizard_9.mdl -2.44 1.01 22.10
-piece progs/wizard.mdl 8 pelvis progs/vrbarmor_wizard_8.mdl 0.20 0.42 0.51
+piece progs/wizard.mdl 8 pelvis progs/vrbarmor_wizard_8.mdl 0.99 0.79 0.51
 piece progs/wizard.mdl 8 tail1 progs/vrbarmor_wizard_8_tail1.mdl -6.39 -0.80 -15.93
 piece progs/wizard.mdl 8 tail2 progs/vrbarmor_wizard_8_tail2.mdl -17.22 0.91 -20.02
 piece progs/wizard.mdl 8 tail3 progs/vrbarmor_wizard_8_tail3.mdl -29.30 0.54 -18.71
-piece progs/wizard.mdl 8 tail4 progs/vrbarmor_wizard_8_tail4.mdl -42.28 -2.07 -15.14
+piece progs/wizard.mdl 8 tail4 progs/vrbarmor_wizard_8_tail4.mdl -43.12 -2.48 -14.82
 piece progs/wizard.mdl 1 head progs/vrbarmor_wizard_1.mdl 11.07 -1.19 30.68
 piece progs/wizard.mdl 2 arm_l progs/vrbarmor_wizard_2.mdl 1.67 9.59 23.57
 piece progs/wizard.mdl 3 arm_r progs/vrbarmor_wizard_3.mdl 0.16 -9.05 25.93

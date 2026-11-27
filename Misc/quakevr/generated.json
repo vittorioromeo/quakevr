@@ -1,6 +1,6 @@
 {
  "quakevr/data/beastarmour.txt": {
-  "sha256": "dd15dd77a54dc931fc6b7fd5c8ce823e52f5840ea0e88cf464f18f5e4d3cee48",
+  "sha256": "cab521d5254d19d5bc890f558cbad241d566c444b02a435f63fb6be12e0992d4",
   "by": "make_beastarmour.py"
  },
  "quakevr/gfx/vr/grade_cold.png": {
@@ -1544,7 +1544,7 @@
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_8.mdl": {
-  "sha256": "6bb413ae0235e34cbd11c7573c6a7d001ad6565ee2cd73346a29c5d127d6c14d",
+  "sha256": "a9f194e70f1e407179b20ee20a0243fd87f38b3bcb7201c99d7b1ebb9d3eb401",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_8_tail1.mdl": {
@@ -1560,7 +1560,7 @@
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_8_tail4.mdl": {
-  "sha256": "ef46783f2d418e58ad695c016d0ce8590fbd899db1596cee201d87e4228fca9a",
+  "sha256": "2ff64741300b0334e5271309417749db17b19eb845fdd43a4190f9ee243fd0be",
   "by": "make_beastarmour.py"
  },
  "quakevr/progs/vrbarmor_wizard_9.mdl": {
