@@ -1150,6 +1150,8 @@ so each seat's frame or pass overwrote or undid the other's.
   drawn every frame within 32 units of its own hand, seat 2's never animating (it changed 21 times before the fix);
   then seat 2's in its off hand (impulse 48, the pad's Y): the same checks (never drawn before the fix, 115 units off
   at seat 1's player); then seat 2's flashlight on (seat 1's still off), then seat 1's too, each lens at its own player.
+- **Results** (after merging next): seat_render_test.sh 364/0 (2, 3, 4 seats, torches, anim 52/0, guns 57/0),
+  split_join_test.sh 113/0, seat_play_test.sh 63/0.
 - **Left**: the rig's live lerps and published bones (vr_rig2_game.cpp `lerps`, vr_rig2.cpp `drawn`) stay by entity
   number, posed again in each seat's relink (the same messages give the same poses; a cost, not a fault). The
   monsters' stealth (server side) sees only seat 1's torch beam (`flashlight::beamNow` reads the current seat's).
