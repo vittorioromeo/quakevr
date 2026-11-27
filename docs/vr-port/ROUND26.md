@@ -4444,6 +4444,36 @@ static sentence" (65/65), and the `--screenshots` harness check (no switches, se
 
 Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.
 
+## questperf2: the Quest's LRZ bisected to your leg holsters' batches; a still models' set-up cache measured (branch agent/questperf2, 2026-11-28)
+
+Brief: find what ends LRZ in the opaque entity pass (qlrz2: not found), and cache the alias set-up across frames.
+- **Tools** (Debug > Profiling, all off by default; r_alias.c, gl_rmain.c, vr_render.cpp): the opaque pass's alias batches
+  are numbered per eye; `vr_debug_alias_first` / `vr_debug_alias_count` draw only some (their set-up still runs);
+  `vr_debug_lrz_probe` 6 (after your own models drawn first), 7 (after the world and brush models), 8 (after batch
+  `vr_debug_alias_probe_at`); `vr_debug_alias_lrz` bits on the opaque batches: 2 no clip distance, 4 shaded by the
+  depth-only program, 8 no extra buffers/textures bound, 16 no depth pre-pass, 32 no motion draw buffers;
+  `vr_gl_alias_lazy_blend` 1: a batch sets the blended state (GL_BLEND on) only for skins with blended texels (0, the
+  default: every batch, as Ironwail).
+- **Traces** (Quest 3, this branch's release APK, the frozen e1m1 gib fight, 0.65 fixed, `vr_gl_opaque_noblend 1`,
+  ovrgpuprofiler -t, LRZ Pixels Killed per eye; 3 launches 00:20-00:58): no alias batch drawn (set-up kept) **alive**
+  1.79M / 1.83M; after batch 0 (the axe) alive 1.47M / 1.41M; after batch 2 (the first leg holster) left eye alive 1.52M,
+  right dead; after batch 3 (the second holster) and later dead; points 6, 7 and 3 dead. No one state keeps it (each
+  dead: bits 2, 4, 8, 16, 32 alone, 58, 4 + lazy blend, depth clamp off `vr_nearclip_held 0` alone or with 4 / lazy, lazy
+  alone, 16 + lazy); **all of them together** (62 + lazy) keep it at point 3: 1.16M / 0.37M. So not a framebuffer
+  switch, compute or a set-up side effect (the PC's `vr_gl_passes`: one bind for the eye's whole opaque pass), but the
+  holsters' draws in a state made of several of those parts. Next: bisect the 62 + lazy combination (pairs, then
+  triples) with `vr_debug_alias_probe_at 3`; scripts in the tree's scratch (qp2_trace.sh, qp2_mkcfg.py, qp2_lrz.py).
+  No GPU timing A/B: nothing that keeps LRZ is shippable yet (bit 4 draws the models unshaded).
+- **Still models' set-up across frames** (`vr_alias_frame_cache`, default 0; 2 the check, `vr_alias_frame_cache_stats`):
+  an entity's VR_AliasInstance kept while its model, frame, skin, alpha, effects, colormap and transform are the same bit
+  for bit and the dynamic lights too. The check (PC, `-glescompat`, Standalone), the lights' key ignored: the gib fight
+  live 10,524 of 15,556 differ, frozen 684 of 8,030 (the wounds' timer, float 43, every frame; the light direction with
+  the dynamic lights); with the key 0 kept: e1m1's and the hub's flickering lights change every frame. So the instance
+  data cannot be kept as made; a cache would need its light and wound parts made per frame (where its cost is). Not
+  measured on the headset; default off.
+- No default changed; the PC unchanged (every new path off). Tests: permdecal_test PASS; the probe, batch and cache cvars
+  smoke-run on the PC mock (`-glescompat`).
+- Headset: beta6 (1.2.0-beta6, progs 45a721f8) and his 31 autosaves and 3 saves put back after (checksums match).
 ## mplows: the MP review's remaining lows (branch agent/mplows, 2026-11-27)
 
 The last lows of the 2026-11-20 review (MP_PLAN.md "Review fixes"; the notes `mprev_A.md`/`mprev_C.md` were recovered

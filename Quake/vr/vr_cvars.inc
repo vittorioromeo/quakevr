@@ -741,6 +741,11 @@ QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
 QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
+// Debug > Profiling > Still Models' Set-up Check (questperf2): 1 a model's instance data (VR_AliasInstance)
+// kept from the frame before while nothing it is made from changed (r_alias.c R_AliasFrameInstance: the same model,
+// frame, skin, transform, light styles and dynamic lights; not your own models, glows or morphs); 0 made every frame;
+// 2 made again and compared (vr_alias_frame_cache_stats).
+QVR_CVAR(vr_alias_frame_cache, "0", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts: 1 the last plan of the crates and of the rocks and
 // bricks kept for the session and taken again while its key is the same (vr_debris.hpp PlanKey: the map's name, files
 // and geometry, every vr_crate*, vr_debris*, vr_place_* setting, the entities' boxes at the plan): a restart of the map
@@ -824,6 +829,20 @@ QVR_CVAR(vr_gl_sample_shading, "1", CVAR_NONE)
 // Killed"). n < 0: at point -n one quad far behind the scene (hidden: the picture kept): killed where the scene's own
 // draws wrote LRZ. 0 off.
 QVR_CVAR(vr_debug_lrz_probe, "0", CVAR_NONE)
+// questperf2: bisecting what ends the Quest's LRZ in the opaque entity pass. The opaque pass's alias batches (not the
+// shadow maps', the translucent ones or the outlines) are numbered from 0 in each eye's scene: only those from
+// vr_debug_alias_first, vr_debug_alias_count of them (-1: all) are drawn (their set-up still runs);
+// vr_debug_lrz_probe 8 draws the probe's quad pair right after batch vr_debug_alias_probe_at. 6 and 7 are the points
+// after your own models drawn first and after the world and brush models. vr_debug_alias_lrz (bits) changes the opaque
+// batches' state: 2 no clip distance, 4 shaded by the depth-only program, 8 none of the extra buffers and textures
+// bound, 16 no depth pre-pass, 32 no motion-vector draw buffers.
+QVR_CVAR(vr_debug_alias_first, "0", CVAR_NONE)
+QVR_CVAR(vr_debug_alias_count, "-1", CVAR_NONE)
+QVR_CVAR(vr_debug_alias_probe_at, "0", CVAR_NONE)
+QVR_CVAR(vr_debug_alias_lrz, "0", CVAR_NONE)
+// questperf2: an opaque alias batch sets the blended state (GL_BLEND on) only when one of its skins has blended texels
+// (R_FlushAliasInstances); 0 every batch sets it after its opaque draws, as Ironwail. The same pixels.
+QVR_CVAR(vr_gl_alias_lazy_blend, "0", CVAR_NONE)
 QVR_CVAR(vr_debug_hide_models, "", CVAR_NONE)   // alias models whose name holds any of these comma-separated parts are not drawn in the eyes (vr_render.cpp VR_AliasDebugHidden; questperf)
 QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
 QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
