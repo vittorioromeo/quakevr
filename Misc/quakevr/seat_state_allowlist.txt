@@ -1770,16 +1770,10 @@ Quake/vr/vr_flamewobble.cpp|roomKnown
 Quake/vr/vr_flamewobble.cpp|springs
 Quake/vr/vr_flashlight.cpp|armorGearSample
 Quake/vr/vr_flashlight.cpp|armorGearTally
-Quake/vr/vr_flashlight.cpp|beam
-Quake/vr/vr_flashlight.cpp|beamNowState
-Quake/vr/vr_flashlight.cpp|beamTraces
-Quake/vr/vr_flashlight.cpp|cord
-Quake/vr/vr_flashlight.cpp|cordDraw
 Quake/vr/vr_flashlight.cpp|gunSpots
 Quake/vr/vr_flashlight.cpp|headModeWas
 Quake/vr/vr_flashlight.cpp|scratch
 Quake/vr/vr_flashlight.cpp|shape_
-Quake/vr/vr_flashlight.cpp|st
 Quake/vr/vr_flick.cpp|clientStateReset
 Quake/vr/vr_flick.cpp|current
 Quake/vr/vr_flick.cpp|flickedAt

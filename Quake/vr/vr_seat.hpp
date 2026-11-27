@@ -107,6 +107,8 @@ enum class Part
     // split17: next's new per-player state (2026-11-27 merge).
     AttachKnown,   // vr_attach.cpp: which weapon has which attachment, as this seat's client was told
     AttachDrawn,   // vr_view.cpp: the hands' attachments as this seat drew them last (view::drawnAttachment)
+    // split18: fixes from his splitscreen test.
+    Flashlight,    // vr_flashlight.cpp: the seat's torch (state, visible beam, cord), switched by its own key
     Count
 };
 
