@@ -14,6 +14,9 @@
 //   nearfield  a noise at the right ear (0.2 m) and 2 m to the right: the level difference between the ears
 //   distance   (in a map) how loud by the distance, in sight of the head: Quake's panning against the spatial mix
 //   hands      (in a map, in VR) the player's weapon channels' origins and panning: the hands'
+//   own        the player's shotgun from a held gun's muzzle (aimed, hip, down), stage by stage (panning, HRTF, near
+//              field, a room's reverb): its brightness (2-5 kHz against 150-1000 Hz) against the sound's own
+//              (vr_audiotest_own.cpp)
 //   golden     fixed renders of the whole mix path (24 moving voices, every feature; slowed; the band-limited copies)
 //              against a reference copy (sound_tests/golden_<case>_ref.f32): bit-identical, or the SNR
 //   bench      32 voices, every feature on, then off; and Quake's own mixing of 32 channels: ms per 90 Hz frame
@@ -387,6 +390,10 @@ void test_f()
     if(all || !ZA_STRCMP(which, "hands"))
     {
         testHands(res);
+    }
+    if(all || !ZA_STRCMP(which, "own"))
+    {
+        testOwn(res);
     }
     if(all || !ZA_STRCMP(which, "golden"))
     {

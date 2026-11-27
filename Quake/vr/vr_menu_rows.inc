@@ -1565,6 +1565,10 @@ QVR_SLIDER(vr_snd_falloff, "Distance Falloff", 0.f, 2.f, 0.05f, "%.2fx", noExt,
 QVR_SLIDER(vr_snd_reverb, "Room Reverb", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 2.f),
     "The reverb of the space around your head, simulated from the map (a small room rings short, a big hall "
     "long): how loud. 0 off.")
+QVR_SLIDER(vr_snd_reverb_own, "Your Sounds' Reverb", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
+    "How much of your own gun's and hands' sounds (from your hand, a step from your ears) goes into the room's "
+    "reverb, against any other sound's: 1 the same; 0.25 (the default) your shot's crack stays over the room's "
+    "wash instead of muffled under it.")
 QVR_CYCLE(vr_snd_reverb_quality, "Reverb Quality",
     "Low: a reverb driven by the simulated decay times (cheapest, no echoes). Medium: the simulated response "
     "itself (2 s). High: 3 s from twice the rays.",
