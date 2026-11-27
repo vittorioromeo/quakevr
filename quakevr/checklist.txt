@@ -40,6 +40,7 @@ Flat-screen: the same with the dagger in the free hand (Daggers as Bayonets): J 
 Shoot an armoured ogre's shin plate: it cracks and falls alone while the thigh plate above it stays on; then the same on the other leg. {test:armour_beasts}
 Shoot the armoured scrag's tail until it cracks: all four tail segments fall as debris while his belt's front and back halves stay on; then break the back half alone, then the front half alone. {test:armour_beasts}
 The armoured beasts in the scene now die in a normal number of shotgun shots (they had 1000 health before): roughly ogre 10-14, fiend about 10, scrag about 7, rottweiler 1-2. {test:armour_beasts}
+Watch an ogre walk, run and swing his chainsaw up close: his limbs and belly should ripple much less from frame to frame than before, his shape the same; Debug > Reports > Rebuild Joints From Two Bones Off shows the old look to compare. {test:ogre_hall}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
