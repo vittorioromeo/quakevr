@@ -20,6 +20,13 @@
 //   hero     "0"       its hero plates off, every plate its own (1 or unset: the breastplate, the pauldrons' top row,
 //                      the elbows' and knees' cops each one plate over several columns; vr_agarmor_hero 0: off everywhere)
 // (start, end, rows and the tapers: the cuirass and the limbs' plates; not the helmet or the sleeves; leather: the sleeves)
+// ad_knight: AD's death guard and crossbow knight, one set for both (their rigs' bones the same; else each by its path).
+// A beast by its model's path ("progs/dog.mdl"; Quake/vr/vr_beastarmour.cpp): its pieces cuirass, helmet, pauldron,
+// bracer, thigh (_l / _r as above), plate8 and plate9 (slots 8 and 9: the rottweiler's croup and collar, the ogre's back
+// plate and faulds...): offset, rotate, scale, standoff (pushed out from its middle), taper_start / taper_end (along its
+// bone). Each piece's <part>_sleeve is its leather junction to the piece it joins: leather "0" off, taper_start /
+// taper_end its width at this piece's end and the other's, standoff its thickness, folds, fold_depth, and
+//   sag      "u"       the junction's middle dropped this far (below 0 raised)
 
 kind "grunt"
 {
@@ -311,5 +318,51 @@ kind "progs/vrbody_brawny.mdl"
     cuirass
     {
         rows "7"
+    }
+}
+
+kind "progs/dog.mdl"
+{
+    cuirass
+    {
+        offset "0 1.5 2"
+        rotate "-5 0 0"
+        standoff "-0.5"
+    }
+    helmet
+    {
+        rotate "0 0 0"
+        taper_end "0.65"
+    }
+    pauldron
+    {
+        offset "1.7 2 -4"
+        rotate "-6 0 -15"
+        taper_end "0.5"
+    }
+    pauldron_l
+    {
+        offset "-2.38 2.28 -6"
+        rotate "11.1 0 -20.6"
+    }
+    pauldron_r
+    {
+        offset "1.7 -0.7 -4"
+        rotate "-6 0 8"
+    }
+    thigh
+    {
+        offset "0 -0.98 -6"
+        rotate "0 0 -15"
+        scale "1"
+        taper_end "0.5"
+    }
+    plate8
+    {
+        offset "-2.5 0 0.25"
+        scale "1"
+        standoff "1"
+        taper_start "0.9"
+        taper_end "1.1"
     }
 }
