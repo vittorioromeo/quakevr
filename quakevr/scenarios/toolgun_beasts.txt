@@ -1,0 +1,11 @@
+# toolgun_beasts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The toolgun's Monsters page's
+# armour for the beasts (ROUND26.md, "toolbeast"): its Armour and Pieces row under the tiles, set to Red and Full here, the
+# toolgun in the main hand in the test hall.
+title Toolgun: armoured beasts from the Monsters page (Armour and Pieces under the tiles)
+map vrtesthall
+god
+notarget
+give "Toolgun" main
+cvar vr_toolgun_beast_armor 3
+cvar vr_toolgun_beast_pieces 1
+hint Toolgun, Spawn > Monsters: pick a Rottweiler, an Ogre, a Scrag or a Fiend; the Armour and Pieces row under the tiles lights up (dimmed for the other monsters). Spawn one: Red, Full puts every piece on it. Try None (bare), Green with Core (the cuirass and helmet), Random with Random, and By Skill (its own roll, as on a map).

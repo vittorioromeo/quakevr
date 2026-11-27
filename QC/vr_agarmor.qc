@@ -219,9 +219,13 @@ void(entity e) VR_AgArmor_Spawn =
     }
 };
 
-// The toolgun's Armed Humanoid page (vr_toolgun.cpp; vr_toolgun_armed_armor, _pieces) on what it spawned: `armour` 0
-// none (not even the skill's roll), 1 green, 2 yellow, 3 red, 4 one of them at random; `pieces` 0 the cuirass and the
-// helmet, 1 all ten, 2 random (the cuirass, the helmet and 0..8 of the limb plates).
+float(entity e) VR_BeastArmour_Precache;
+
+// The toolgun's armour on what it spawned: the Armed Humanoid page's (vr_toolgun.cpp; vr_toolgun_armed_armor, _pieces)
+// and the Monsters page's on a beast (vr_toolgun_beast_armor, _pieces; ROUND26.md, "toolbeast"): `armour` 0 none (not
+// even the skill's roll), 1 green, 2 yellow, 3 red, 4 one of them at random; `pieces` 0 the cuirass and the helmet, 1 all
+// ten, 2 random (the cuirass, the helmet and 0..8 of the limb plates). A beast keeps its kind's slots of them, its
+// cuirass its whole cuirass group (VR_AgArmor_Give).
 void(entity e, float armour, float pieces) VR_AgArmor_Toolgun =
 {
     float type = armour >= 4 ? 1 + floor(random() * 2.999) : max(0, min(3, floor(armour)));
@@ -237,6 +241,10 @@ void(entity e, float armour, float pieces) VR_AgArmor_Toolgun =
         {
             if(random() < 0.5) mask = mask | VR_AgArmor_Bit(i);
         }
+    }
+    if(type > 0)
+    {
+        VR_BeastArmour_Precache(e); // (a beast's pieces ahead of their first break: its roll, which precaches them, held)
     }
     VR_AgArmor_Give(e, type, type > 0 ? mask : 0);
     dprint(sprintf("agarmor: toolgun: %s (kind %g) wears type %g, pieces %g\n", e.classname, e.vr_ag_kind, e.vr_ar_type, e.vr_ar_mask));

@@ -4629,7 +4629,9 @@ QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's (
 QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
 QVR_CVAR(vr_toolgun_armed_infected, "0", CVAR_ARCHIVE)  // ... what it is infected with: a row of QC's VR_INFECT_ROWS (0 none; killed, it bursts and rises as that monster)
 QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
-QVR_CVAR(vr_toolgun_armed_tiles,"0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
+QVR_CVAR(vr_toolgun_beast_armor, "5", CVAR_ARCHIVE)     // the spawn panel's Monsters page: a beast's armour (the rottweiler, ogre, scrag, fiend: VR_AgArmor_Toolgun's 0-4 as vr_toolgun_armed_armor; 5 as the skill rolls, the skill's roll held otherwise)
+QVR_CVAR(vr_toolgun_beast_pieces, "1", CVAR_ARCHIVE)    // ... its pieces: 0 the core (its cuirass group and its helmet), 1 all its pieces, 2 random (the core and some of the rest)
+QVR_CVAR(vr_toolgun_armed_tiles,"0", CVAR_ARCHIVE)    // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
 QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)
 
 // Runtime brushes (vr_brushes.cpp; docs/vr-port/BRUSH_TOOL.md): boxes made in the game, the map's kind of geometry.
