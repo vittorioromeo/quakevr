@@ -4299,3 +4299,27 @@ own `vr_enemy_melee_arc_show` is on draws it too, whatever the host's option say
   drawing: B drew 278 frames, 2094 segments; B's option off stops it (remote wanted 0). `vr_agrunt_test 216` 2/0 (its
   "off" case allows sending when a remote client draws them), 212 6/0; mp_version, mp_coop, mp_bandwidth,
   changelevel_signon pass.
+## menupaths (agent/menupaths): menu_paths.txt regenerates complete, and a stale file is caught
+
+- **Finding.** The Held Weapon pages were already kept by a full regeneration (`vr_menu_dump_paths` pins weapon slot 17,
+  commit 78a255187); regenerating at the title and in e1m1 gives the identical 10,697 rows (66 on Held Weapon pages). No
+  page was found that depends on mounted mods or the held weapon. Against today's file the regeneration only adds 2 rows
+  (code newer than the file): the Beast Armour On The Drawn Body row on Tunables and its Debug - Tests "Cost (Ten Ogres)"
+  button; none lost. The Tunables rows exist only in a non-QVR_RELEASE build (the kit's build.sh is one): regenerate with it.
+- **Check.** `vr_menu_path_check <path>/menu_paths.txt` regenerates the rows in the game and compares: prints
+  `menu_paths.txt: current (N rows)`, or `MENU PATHS FILE LACKS/HAS (gone)` (first 5 each) and `MENU PATHS FILE STALE: N rows
+  missing, M gone`. Tested on the new file (current) and the old one (stale, 2 missing).
+- **Docs.** menu_paths.py docstring and ARCHITECTURE.md say: regenerate, never edit by hand. The BACKLOG item is gone.
+## Installer: the AI statement is one static sentence (branch agent/aistatement, 2026-11-27)
+
+The Statement page's two YES/NO claims are gone. Under the five paragraphs a card (same frame, rune and font as the old
+claims, a check mark rune, not interactive) says: "By continuing, I recognize that AI-assisted development does *not*
+imply a low-quality result nor a lack of care, passion, or expertise." (the *not* in italics). Continue is enabled at
+once; footer hint "Nothing to answer: press Continue to go on.". Nothing is recorded (no answers, no settings key).
+`qvr-setup install` prints the text and goes on with no prompt (no exit 3); `--accept-statement` is accepted and ignored so
+the release scripts keep working. Code: `Core/AiStatement.cs` (`Pledge` replaces `Claims`, the answer state is removed),
+`StatementPage.xaml`, `MainViewModel.cs` (`StatementChoice` removed), Cli `Program.cs`. Tests: SelfTest "statement: one
+static sentence" (65/65), and the `--screenshots` harness check (no switches, sentence present, Continue enabled).
+## blclean: BACKLOG.md cleanup (branch agent/blclean, 2026-11-27)
+
+Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.

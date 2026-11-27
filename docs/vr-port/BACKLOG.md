@@ -1,7 +1,7 @@
 # Backlog: agreed work for the next rounds
 
 Work the author approved or asked about, not yet done, one or two lines each, with the doc that holds the detail.
-Remove an item when it ships (git history keeps it); keep new ones as short. Last cleanup 2026-11-24 (ROUND25.md).
+Remove an item when it ships (git history keeps it); keep new ones as short. Last cleanup 2026-11-27 (ROUND26.md "blclean").
 Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk pack, TAA/DLSS.
 Checked, by design (2026-11-19, tester "Joyeuse"'s two hand-off reports, closed): the old hand "keeps aiming"
 after a hand-to-hand swap is the designed two-handed hand-off (vr_2h_handoff 1: the gun hangs from its foregrip until
@@ -10,12 +10,7 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 
 ## 1. Open bugs and failing tests
 
-Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md sections until then):
-- **vrtesthall pose scenes place monsters in a wall under the release suite** (blocks 1.2.0-beta6; ROUND26 "beta6"):
-  make_release's beta profile (parallel lanes, 7 other workers' game tests running) failed scenario_check twice the same
-  way: pd_jolts, pose_enforcers_guns/_melee, pose_grunts_guns/_melee "placed in a wall" (fwd 200-242, left 120-147;
-  same numbers both runs), while scenario_check alone on the same tree passed before and after. Suspects: another lane
-  sharing the tree's game folder (collision cache or config written while this lane reads), not load timing.
+Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older ones):
 - **Lance pull-out flake**: the test's chance checks moved to flatthrust 59 (ROUND26 "lancepull"); one real loss in 10 flat runs (2026-11-26: the hand empty after a shaft hit on a touching ogre, cause unknown). Lean aim is not wired for Copper, rogue eel/lavaman or AD's own checkattack. Was: `flatlance_test` section 5 fails ~1 run in 6 ("Lance gone after a pull-out"; the H case found
   no Lance stuck). ROUND25.md "lance4", "flatembed".
 - **VR embed test 24 and test 33 case 46 still fail** (ROUND25.md "embedregress"): 24's mock axe swing is aimed by the old
@@ -27,14 +22,14 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
 - **Rope slide**: one elbow snap ~10 frames in (elbow IK). ROUND25.md "flatfb1124b".
 - **Dog wedged against a wall**: it can stay standing wedged with the wiggle off. ROUND25.md "wallglue".
 - **Flat: no low or sideways swing, so no flat leg sweeps** (his call 2026-11-24: not now).
-- **Splitscreen**: agent/split (a4e1262d5) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next.
+- **Splitscreen**: agent/split (6e6f2af6e, split19, SPLITSCREEN.md) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next if it still shows.
 - **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache is open; LRZ still dead in the opaque entity pass (some alias batch; next: bisect by batch); CPU-bound big fights
   (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
-- **Baseline failures, 2026-11-26 list**: `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14; agrunt 203 case 12 (knight swords "undrawn"; full run only); agrunt 74 (78 vs 80%); the recoil test has 4 slots off the old defaults; `ragdoll_grab` 18/1 once.
-- **Spear/Lance numbers differ between trees** (quest vs mp, same commit): find what differs in quest's game folder before trusting quest's spear/flatthrust results. The relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` now points to `qvr-kit/relit`); the numbers need one recheck.
-- **menu_paths.txt**: a full regeneration loses the Held Weapon pages (workers add rows by hand).
+- **Baseline failures, 2026-11-26 list, what is left** (agrunt 203 fixed: ROUND26 "basefix2"; `ragdoll_grab` and teleporters: "basefix1"/"basefix2"): `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14; agrunt 74 (78 vs 80%); the recoil test has 4 slots off the old defaults; agrunt 16 (the drawn grip 2.72 off, limit 2.5) and agrunt 65 (flaky) as in basefix2.
+- **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` points to `qvr-kit/relit`); no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
 - **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
 
+- **Flaky/stale lists below, from 11-12 to 11-21 (to recheck: overnight flaky sweep queued 2026-11-27)**.
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
   (one earlier run of two failed with faulty-frame counts on the blades' stance cases while it timed out under the
   default 240 s: a one-off, not reproduced; watch it), visor_test 37/0 with AD's two custom keys counted, `vr_agrunt_test
@@ -108,7 +103,7 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
   mp_debugviz_listen's bot case (rare: the bot's AI swinging while held, the server's line and the drawn one a frame
   apart; ROUND25.md "mpopen"). (mpopen fixed: the suite's order effect and fixed 27500 base port, mp_loss's margin.)
 
-## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
+## 2. 1.2 release prep (only on his word; the 1.1 list was RELEASE_TODO.md)
 
 - Review the installer's settings page (`Misc/installer/settings_page.txt`): rows, order, labels, help; whether "VR or
   flat screen" belongs there (2026-11-06).
@@ -127,14 +122,6 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
 - **Left-handed mode** (2026-11-05): the mouse buttons' routing by hand (`flatplay::routeFire`) mirrored.
 - **Flat-screen two-handed melee pose adjustment** (2026-11-15): he ticked the checklist item for now; the 2H melee pose in
   flat play needs adjusting later; low priority.
-- **Flat keys in Options > Controls, not a separate menu** (2026-11-16, his call): today the flat-screen mode's own keys
-  (`vr_flat_key_*`: leans, swap, grab, shove, punch, reload, ammo, drop, grenade, bullet time, flashlight, holster menu,
-  flycam, toolgun) live in VR Settings > Locomotion > Desktop Screen Play > Flat Keys, apart from the game's bindings in
-  Options > Controls, so players can't find them (GitHub #83: a player wanted the mouse side buttons back; mouse 4 is
-  Force Grab, mouse 5 Shove). Integrate them into Options > Controls' key binding list (a "Quake VR (flat screen)"
-  group, same rebind/clear UI as the binds, conflicts with binds shown both ways), drop the separate page (or keep only
-  a link to Controls), and make the keys play nicely with the bind system (a key bound to both a bind and a flat key:
-  pick one rule and show it). Keep `vr_flat_key_*` working for configs.
 - **The window's graphics** (round 20): float scene, tone mapping, grades and bloom on the window; check each feature
   with VR off.
 - **Flat-screen trailer: "taking the headset off"** (2026-11-19, his idea; once flat play is fully polished). It opens
@@ -200,9 +187,6 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
   on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
   until this is done. 2026-11-22 (disarmfix, ROUND25): PvE now by jolts (no dice, a warning before the drop, fists and
   heavy blows count); left: his try in VR, then his OK to turn `vr_player_disarm` on.
-- **AD's crossbow knight as a proper armed humanoid, then re-enable its replacement**: done 2026-11-27 (ROUND26.md
-  "adknights": the crossbow knight and the death guard armed in their own looks, `vr_agrunt_repl_crossbow` and
-  `vr_agrunt_repl_dguard` on). Left: his VR look at their holds (scene `ad_knights_armed`).
 - **Blinding with the flashlight** (2026-11-27): pointing the flashlight straight at an armed humanoid's face dazzles
   it: it raises one hand in front of its face (the other keeps the gun; a pose key/override, IK on the shared rig
   paths) and shoots with worse accuracy while the beam stays on its eyes (and a moment after). Needs: the beam's cone
@@ -213,9 +197,7 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
 ## 7. Combat and feel
 
 - **Crossed-sword parry** (2026-10-18): two blades crossed in front of the body count as a parry. After the AD melee work.
-- **Blades embedded in props** (2026-11-05): done 2026-11-12 (ROUND25.md "propblade": a joint at the handle, shared with
-  the ragdolls' handle hold). Left: his VR check; a test of a re-grip off the handle; the crate carried by the other hand
-  while its blade is held (the hand lets go at arm's reach, as before).
+- **Shots and broken-plate debris on the drawn body** (2026-11-27; armourrebuild's open item 2, ROUND26 "armourrebuild"): hits and debris should use the body as drawn.
 - **From Quake Combat+ v5.7** (2026-10-16; ideas only, nothing of theirs reusable): hit-confirm audio layering;
   wounded monsters bleeding a trail, big ones split and crawling.
 - **Flies on corpses and gibs** (2026-10-02): flies and their particles on every body after a few seconds; Armagon's
@@ -242,31 +224,24 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
   nailgun and multi rocket launcher (ROUND21.md; ask whether they still show); body skins' wrist texel density (needs
   his repaint at a higher resolution).
 
-## 9. Refactors, right after 1.1
+## 9. Refactors (1.1 is out: now due)
 
 1. Formatting: clang-format (Zancle configs) on first-party code, `// clang-format off/on` round hand-aligned tables,
-   then clang-tidy fixes; one commit in `.git-blame-ignore-revs`. Never Ironwail's code.
+   then clang-tidy fixes; one commit in `.git-blame-ignore-revs`. Never Ironwail's code. Hold until agent/split is merged (a mass reformat conflicts with it).
 2. Ironwail extraction: about 1,600 lines of VR code out of Ironwail files into `Quake/vr/` (pure moves), the VR main
    menu out of `menu.c`, the VR heap macro remap; `IRONWAIL_DIFF.md` refreshed.
 3. One player walk (mpreview B4): `vr_pmove.cpp` copies sv_user.c / sv_phys.c's walk, air, swim, gravity and flyMove
    line for line; a flat-screen player, `vr_pmove_own 0` and remote flat clients still walk the sv_phys.c copy. Route
    them through `pmove::playerMove` with an EdictBody and drop the QVR-modified SV_WalkMove/SV_AirMove paths (or at
    least a qvr_checks rule tying each copy to its original), proven by the B11b frame-identical traces.
-4. Done (onecopy, 2026-11-22: `pmove::grappleReel`, QC's builtin `grapplereel`). One grapple reel (mpreview D7): QC's `VR_Grapple_ReelSpeed` / `VR_Grapple_Wind` (monsters, props) and
-   vr_pmove.cpp's grappleStep (players) are two copies of one rule: QC's paths call the engine's (a builtin), or both
-   read one shared formula.
-5. Done (onecopy, 2026-11-22: ROUND25 "onecopy"). Multiplayer leftovers of the agent/mp review (MP_PLAN.md, "Review fixes"): B6 the room-scale budget only on the
-   server (send `walkLeft` in QVR_SVC_PREDICT and run moveguard's budget on a copy in the replay; today a burst past
-   2 m costs a correction, a cheater's case); B7 the snapshot encode's per-client work (keep the first pass's encoded
-   bytes for the write pass; the cosmetic flag once per entity per frame, not per client).
 Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 
 ## 10. Big features (each needs its own decision)
 
 - **Dynamic spawns: pick ideas** (2026-11-09): go through DYNAMIC_SPAWNS.md with him (its idea list and "Systems ideas
   from the 2026-11-09 audit"); the prerequisites are built.
-- **Multiplayer update** (after 1.1): co-op rules, NAT traversal, voice chat, our VR systems synchronised, from
-  Quakespasm-VR (GPL): MP_DESIGN.md, "Open items moved from BACKLOG.md".
+- **Multiplayer: what is left** (co-op, joins, voice chat, NAT punch shipped: ROUND25/26, MULTIPLAYER.md): our VR systems synchronised, from
+  Quakespasm-VR (GPL): MP_DESIGN.md, "Open items moved from BACKLOG.md"; the relay and the review lows are in sections 1 and 11.
 - **Discord Rich Presence** (2026-11-18, his request): built 2026-11-20 (DISCORD.md; branch agent/discord): the RPC over
   Discord's local IPC pipe, no SDK; Menu Settings > Discord Status (`vr_discord`, off by default). Left: he creates the
   Discord application and gives its id (`vr_discord_appid`, then the shipped default) and, if wanted, a logo asset
@@ -289,8 +264,7 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 - **Rendering:** TAA tuning for the headset, then DLSS/DLAA and FSR 3.1 (TEMPORAL.md, section 12's questions);
   `.rtlights` support; distance-field AO only if capsule/box AO leaves gaps; a foveation check and a GL-call audit before
   any Vulkan decision (VULKAN_MIGRATION.md); QuakeRay (github.com/f1ames0ff/QuakeRay) unreviewed.
-- **Platforms:** Linux (WSL build in progress), Steam Frame (with kblood), standalone Quest (OpenXR on Android,
-  GLES/Vulkan, mobile budget), bHaptics (2026-10-11).
+- **Platforms:** Linux (WSL build in progress), Steam Frame (with kblood), bHaptics (2026-10-11); the standalone Quest build shipped (ANDROID*.md; its open points in section 1).
 - **Emscripten/WebGL port** (2026-11-15): the game in a browser (flat first; WebXR later?). Builds on the Quest work's
   GLES 3 profile (`-glescompat`, agent/quest) and the no-child-process mode; open: threads (SharedArrayBuffer), the
   file system for paks, audio, download size.
