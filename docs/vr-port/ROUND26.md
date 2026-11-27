@@ -2530,3 +2530,7 @@ The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subh
     `cvar` line, put back after the scene.
   - Check: scenario_check rerun with the scene fix: only the 3 package scenes failed, no leak; its verdict logic replayed
     on that log: PASS (and on the release run's log: FAIL, the leak's 4th failure).
+  - Full scenario_check rerun on c534df741 (both fixes): **PASS** (210 run, 3 failed = the 3 package scenes, 2 skipped).
+- **Waiting for the coordinator's go** (brief: any non-flaky failure stops before publishing). Not merged with
+  origin/next (judicator landed since): the release is cut from the next it started on. Then: the same make_release
+  command on agent/beta6's HEAD, the online checks, the Quest install (cert = installed app's) and data sync.
