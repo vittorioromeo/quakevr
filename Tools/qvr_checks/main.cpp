@@ -47,6 +47,7 @@ constexpr Check checks[] = {
     {"progs_format", checkProgsFormat, "progs.dat is the 32-bit format [progs.dat]"},
     {"std_uses", checkStdUses, "Zancle, not std:: (docs/vr-port/ZANCLE.md): no std:: use or std header past the allowlist [--list]"},
     {"client_prefs", checkClientPrefs, "every QVR_PREF setting in vr_cvars.inc is in vr_clientprefs.cpp's prefNames, and the reverse"},
+    {"setpos_walk", checkSetposWalk, "no test script walks after a setpos with its noclip still on"},
 };
 
 // How `all` reports a failure: how many of the check's last lines, the line after them, and whether it fails the build.
@@ -70,6 +71,7 @@ constexpr AllEntry allEntries[] = {
     {"progs_format", 12, "PROGS FORMAT CHECK FAILED (see Tools/fteqcc/README.md)", true},
     {"std_uses", 12, "STD USES CHECK FAILED (see docs/vr-port/ZANCLE.md)", true},
     {"client_prefs", 12, "CLIENT PREFS CHECK FAILED (see Quake/vr/vr_cvars.hpp, QVR_PREF)", true},
+    {"setpos_walk", 12, "SETPOS WALK CHECK FAILED (setpos turns noclip on: see docs/vr-port/TESTING.md, 'setpos')", true},
 };
 
 const Check* findCheck(za::StringView name)

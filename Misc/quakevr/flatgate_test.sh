@@ -40,7 +40,7 @@ run fg_plain "$P; vr_portals_walk 0; vr_flatgate_test 2" "flatgate: [0-9]+ passe
 grep -a "^flatgate:" "$S/fg_plain.log" | cut -c1-150
 expect_verdict "$(cat "$S/fg_plain.log")" "flatgate" "a plain teleporter stays Quake's"
 
-run fg_level "$P; setpos -256 576 24 25 90 0; wait20; +forward; wait40; -forward; changelevel e1m1; wait60; developer 1; vr_flatgate_test 3" "flatgate: [0-9]+ passed"
+run fg_level "$P; setpos -256 576 24 25 90 0; noclip 0; wait20; +forward; wait40; -forward; changelevel e1m1; wait60; developer 1; vr_flatgate_test 3" "flatgate: [0-9]+ passed"
 grep -a "^flatgate:" "$S/fg_level.log" | cut -c1-150
 expect_verdict "$(cat "$S/fg_level.log")" "flatgate" "a level change is the level's start"
 

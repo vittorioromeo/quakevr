@@ -49,7 +49,7 @@ check $(grep -aq "^flatflick: done" "$S/flickssg.log" && echo 1 || echo 0) "flic
 check $([ "$(grep -aEc "^flick reload|^ssg: (pried|the barrels)|broken open" "$S/flickssg.log")" = 0 ] && [ "$(blows flickssg)" = 0 ] && echo 1 || echo 0) "flickssg: no flick reload, no pry, no blow"
 
 # The wall tilt: vrtesthall's wall at y 640 (flatwall_test.sh), walked into from 80 units off and back (1 s each way).
-run wall "$FLAT" "map vrtesthall; god; notarget; developer 1; vr_flatplay_debug 1; impulse 152; wait10; setpos 0 560 25 0 90 0; wait20; +forward; wait72; -forward; +back; wait72; -back; wait10; echo flatinput: wall done" "^flatinput: wall done"
+run wall "$FLAT" "map vrtesthall; god; notarget; developer 1; vr_flatplay_debug 1; impulse 152; wait10; setpos 0 560 25 0 90 0; noclip 0; wait20; +forward; wait72; -forward; +back; wait72; -back; wait10; echo flatinput: wall done" "^flatinput: wall done"
 check $(grep -aq "^flatinput: wall done" "$S/wall.log" && [ "$(blows wall)" = 0 ] && echo 1 || echo 0) "wall: the axe walked into the wall's tilt and out: no blow ($(blows wall))"
 
 # V's punch: the punch takes 0.6 s (vr_flatplay.cpp punchTotal), 50 frames; 60 counted.
