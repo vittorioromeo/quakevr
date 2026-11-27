@@ -452,6 +452,10 @@ void takeModel(const qmodel_t* model)
                     }
                 }
             }
+            for(const za::String& s : st.sharers)
+            {
+                Con_Printf("rigstudio: %s: poses shared with %s (files: %s)\n", model->name, s.cStr(), st.doc.base.cStr());
+            }
         }
         st.doc.authored = st.rig->authored; // (the authored rig's bones and its own files)
         for(int b = 0; b < st.numBones; b++)
