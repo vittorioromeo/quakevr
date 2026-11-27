@@ -2463,3 +2463,6 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 - Tests: `flatxhair_melee_test.sh` 24/1 (new: grenb, grenatk, grenoff from 294 units: the crosshair 6.5, 7.9 and 7.8 units
   from where the grenade first meets the wall, under the axe's 12; the one fail is the known `flip24`), `flatthrow_test.sh`
   54/0. Checklist: scenario flat_quick_grenade.
+## cltidy9: checklist sub-headings (2026-11-27)
+
+The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.

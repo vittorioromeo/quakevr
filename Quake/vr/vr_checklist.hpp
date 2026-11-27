@@ -57,6 +57,8 @@ void toggle(int item); // press(item, Passed): a tick, or an untick
 // An item's test scenario: its line's trailing "{test:<id>}" tag (not part of its text, its key or what is drawn), the
 // id of quakevr/scenarios/<id>.txt (vr_scenario.hpp); "" none.
 [[nodiscard]] const char* scenario(int item);
+// The item's sub-heading: the last "## Name" line above it in its section ("" none), a header in the menu.
+[[nodiscard]] const char* subheading(int item);
 // The item's text as in the file, its tag left out ("" : no such item).
 [[nodiscard]] const char* text(int item);
 
