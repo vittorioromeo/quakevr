@@ -3231,8 +3231,31 @@ void qvr::agarms::resetModels()
     state = State{};
 }
 
+extern "C" byte* VR_AdArmedModelFile(const char* name, unsigned int* path_id); // (vr_monstermods.cpp)
+
 void qvr::agarms::registerCommands()
 {
+    // vr_adarmed_dump <progs/vrdguard.mdl|progs/vrdcrossbow.mdl> <file>: the armed death guard's or crossbow knight's model as
+    // made from AD's (vr_monstermods.cpp) written to a file, for make_rig2.py --mesh (never shipped: AD's mesh)
+    Cmd_AddCommand("vr_adarmed_dump", [] {
+        if(Cmd_Argc() < 3)
+        {
+            Con_Printf("usage: vr_adarmed_dump <model> <file>\n");
+            return;
+        }
+        byte* data = VR_AdArmedModelFile(Cmd_Argv(1), nullptr);
+        if(!data)
+        {
+            Con_Printf("adarmed dump: %s: not made (AD's data missing?)\n", Cmd_Argv(1));
+            return;
+        }
+        const int n = com_filesize;
+        FILE* f = fopen(Cmd_Argv(2), "wb");
+        const bool ok = f && fwrite(data, 1, static_cast<size_t>(n), f) == static_cast<size_t>(n);
+        if(f) { fclose(f); }
+        VR_HeapFree(data);
+        Con_Printf("adarmed dump: %s: %d bytes to %s: %s\n", Cmd_Argv(1), n, Cmd_Argv(2), ok ? "ok" : "FAIL");
+    });
     Cmd_AddCommand("vr_agarms_cost", cost_f);
     Cmd_AddCommand("vr_agarms_info", info_f);
     Cmd_AddCommand("vr_agarms_dump", dump_f);
