@@ -319,9 +319,22 @@
 "	if (k > 0.0)\n" \
 "	{\n" \
 "		vec4 c = vec4(q.xyz, 1.0);\n" \
-"		vec3 n = SmoothRest[v + 2u].xyz;\n" \
-"		pos = mix(pos, vec3(dot(SmoothSwing[i + 3u], c), dot(SmoothSwing[i + 4u], c), dot(SmoothSwing[i + 5u], c)), k);\n" \
-"		nor = mix(nor, vec3(dot(SmoothSwing[i + 6u].xyz, n), dot(SmoothSwing[i + 7u].xyz, n), dot(SmoothSwing[i + 8u].xyz, n)), k);\n" \
+"		vec4 nr = SmoothRest[v + 2u];\n" \
+"		vec3 n = nr.xyz;\n" \
+"		vec3 bp = vec3(dot(SmoothSwing[i + 3u], c), dot(SmoothSwing[i + 4u], c), dot(SmoothSwing[i + 5u], c));\n" \
+"		vec3 bn = vec3(dot(SmoothSwing[i + 6u].xyz, n), dot(SmoothSwing[i + 7u].xyz, n), dot(SmoothSwing[i + 8u].xyz, n));\n" \
+"		// a joint's vertex (vr_anim_smooth_rebuild_blend): row 2's w its second bone + half that bone's weight\n" \
+"		if (nr.w > 0.0)\n" \
+"		{\n" \
+"			float b2 = floor(nr.w);\n" \
+"			uint j = base + uint(b2) * 9u;\n" \
+"			float w2 = (nr.w - b2) * 2.0;\n" \
+"			k *= SmoothSwing[j + 6u].w;\n" \
+"			bp = mix(bp, vec3(dot(SmoothSwing[j + 3u], c), dot(SmoothSwing[j + 4u], c), dot(SmoothSwing[j + 5u], c)), w2);\n" \
+"			bn = mix(bn, vec3(dot(SmoothSwing[j + 6u].xyz, n), dot(SmoothSwing[j + 7u].xyz, n), dot(SmoothSwing[j + 8u].xyz, n)), w2);\n" \
+"		}\n" \
+"		pos = mix(pos, bp, k);\n" \
+"		nor = mix(nor, bn, k);\n" \
 "	}\n" \
 "	return pos;\n" \
 "}\n" \
