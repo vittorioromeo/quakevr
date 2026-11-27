@@ -1540,11 +1540,13 @@ void chooseGrip(const WeaponFrame& wf)
         // on its longer handle. Flat play, a weapon held as a sword (twohand::swordHeld: the helping hand below the holding
         // one) whose grip lies above the holding hand or less than vr_flat_melee_grip_below under it: taken that far below it,
         // along the line from the hand to the tip; the blade is the guard's alone, flatplay::bladeAsked.)
+        // (judicator: measured from the holding hand itself, not the weapon's hold: held flipped, the palm's pivot puts the hold
+        // 4.5 u up the handle from the hand, and the free hand was drawn 2 u off the holding one, the fists in each other.)
         if(const float below = za::clamp(vr_flat_melee_grip_below.value, 0.f, 20.f);
-            lowest >= 0 && below > 0.f && twohand::swordHeld(hand) && glm::distance(s.muzzle[hand], held.pos) > 1.f)
+            lowest >= 0 && below > 0.f && twohand::swordHeld(hand) && glm::distance(s.muzzle[hand], s.pos[hand]) > 1.f)
         {
-            const glm::vec3 way = glm::normalize(s.muzzle[hand] - held.pos);
-            const float along = glm::dot(s.grip2H[hand] - held.pos, way);
+            const glm::vec3 way = glm::normalize(s.muzzle[hand] - s.pos[hand]);
+            const float along = glm::dot(s.grip2H[hand] - s.pos[hand], way);
             if(along > -below)
             {
                 s.grip2H[hand] -= way * (along + below);
