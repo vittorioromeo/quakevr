@@ -5,6 +5,7 @@ model progs/vrdcrossbow.mdl
 #   ball: neutral <xyz> fwd <xyz> side <xyz> swingx <min max> swingy <min max> twist <min max>
 #   hinge: axis <xyz> range <min max> (its bend from straight; the rest pose's own bend measured)
 # w <vertex> <bone> <weight> ... (up to 4, summing to 1)
+poses_from progs/vrdguard.mdl
 bone pelvis - root pivot 1.600 0.700 -2.000 end 1.400 1.200 3.000
 bone spine pelvis ball pivot 1.400 1.200 3.000 end 1.200 1.700 9.400 neutral -0.031 0.078 0.996 fwd 1.000 0.002 0.031 side 0.000 0.997 -0.078 swingx -35 45 swingy -25 25 twist -35 36
 bone chest spine ball pivot 1.200 1.700 9.400 end 4.500 2.400 18.800 neutral 0.330 0.070 0.941 fwd 0.944 -0.025 -0.330 side 0.000 0.997 -0.074 swingx -20 36 swingy -20 20 twist -40 40

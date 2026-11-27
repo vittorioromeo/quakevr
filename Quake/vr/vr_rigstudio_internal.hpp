@@ -209,6 +209,7 @@ struct Studio
     const ragdoll::Rig* rig{nullptr};
     int numBones{0};
     rigdata::ModelData doc; // the working copy (published to the game on each edit)
+    za::Vector<za::String> sharers; // the other models on its files (shared poses: rigdata::filesBase), by name
     bool dirtyRig{false};
     za::Vector<uint8_t> dirtySeq;  // per sequence
     za::Vector<Snapshot> undo, redo;

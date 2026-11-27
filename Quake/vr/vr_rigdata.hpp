@@ -152,6 +152,9 @@ struct ModelData
     // override tracks, no bone overrides or weights: the authored rig's file has those; anims/<model>/<name>.anim2.txt),
     // their keys written in each bone's own frame (rig2::keyAxes), held within its joint's limits.
     bool authored{false};
+    // Shared poses (filesBase): the model whose files these are ("progs/vrdguard.mdl"), when the rig's `poses_from`
+    // names one with the same bones; `base` is then its. Empty: the model's own files.
+    za::String sharedFrom;
     // Read from the files' bone names before a rig is known: kept by name, put to indices on apply.
     za::Vector<za::String> pendingNames; // (internal)
 };
@@ -165,6 +168,15 @@ void rootDir(char* out, int size);
 void rigPath(const char* base, char* out, int size, bool authored = false);
 void animDir(const char* base, char* out, int size);
 void animPath(const char* base, const char* name, char* out, int size, bool authored = false);
+
+// The base name its Rig Studio files go by (poses, override tracks, sequences): its own, or, when its authored rig says
+// `poses_from <model>` (rig2.txt) and both rigs have the same bones (rig2::sameBones), that model's ("vrdcrossbow" ->
+// "vrdguard"; `sharedFrom` that model's name, else empty). Bones that differ: its own, said on the console. One level
+// (the named model's own `poses_from` is not followed). The keys are in each bone's own frame, so they carry as they are.
+void filesBase(const char* model, char* out, int size, za::String* sharedFrom = nullptr);
+// The other models whose files are `model`'s base (each authored rig in rigs/ whose `poses_from` comes to it), by name
+// ("progs/vrdcrossbow.mdl"); the Rig Studio says them on the subject ("poses shared with ...").
+void poseSharers(const char* model, za::Vector<za::String>& out);
 
 // Text form (the files): the whole file's text. Bones by `rig`'s names.
 void writeRig(const ModelData& m, const ragdoll::Rig& rig, za::String& out);

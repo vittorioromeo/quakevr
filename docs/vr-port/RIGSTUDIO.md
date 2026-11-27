@@ -551,6 +551,34 @@ rigstudio_test`), then `vr_agrunt_test 82` (`vrtesthall`; those keys measured on
 load's frames 3 and 7: each keyed bone drawn against its key, `vr_rig2anim_check`; ends on `rig2anim check: N passed, M
 failed`). `vr_agrunt_test 81` checks the taunt's shout event (0.6 s) and end (1.6 s).
 
+### Shared poses (`poses_from`; agent/adrigshare, 2026-11-27)
+
+Two authored rigs with the same bones can share one set of the studio's data: named poses, override tracks and
+sequences. A `poses_from <model>` line in a rig's `rig2.txt` (after the header comments; `make_rig2.py`'s config key
+`poses_from` writes it) makes that model's files its own: `rigdata::filesBase` gives the named model's base for every
+read and write (`rigs/<that>.rig2anim.txt`, `anims/<that>/`). It is used only while both rigs have the same bones (count,
+names, parents, joint types: `rig2::sameBones`; their pivots, limits and weights may differ); otherwise the console says
+`poses_from ...: not the same bones ...: its own poses` and the model keeps its own files. One level: the named model's
+own `poses_from` is not followed. The keys are written in each bone's own frame (a ball's Swing X / Swing Y / Twist, a
+hinge's bend), so the same numbers turn the same joints on either rig, each about its own pivots and axes.
+
+- **Today**: AD's crossbow knight (`vrdcrossbow.rig2.txt`) says `poses_from progs/vrdguard.mdl`: the death guard is the
+  master (both had no poses yet; the crossbow knight's rig was made from the death guard's). Edit either: the files
+  are `vrdguard`'s.
+- **In the studio** the menu bar says `poses shared with <the others> (files: <base>)` beside the subject (on the death
+  guard: "vrdcrossbow"; on the crossbow knight: "vrdguard"). Save on either writes the shared files (their `model`
+  line the master's). An edit is published to the other models on those files at once (`rigdata::publish`: written on
+  the subject's rig, read on theirs), unsaved too; a model first drawn later takes the data a sharer has; Revert reads
+  the files again for all of them.
+- The armed humanoids' pose keys and grips (the Pose Studio Data window) are another matter: per kind, and both these
+  rows take the knight's kind already (`poseKind` 2, ROUND26 adknights).
+- Test: `vr_rigdata_share_test [keep]` (needs AD mounted: `vr_campaign_native ad;map e1m1;vr_rigdata_share_test`; ends
+  on `rigdata share: N passed, M failed`; its own folder `rigstudio_test_share`, put back after): which files each uses
+  and who shares them, the bones' guard (a joint changed: not shared), an edit on the crossbow knight on the death guard
+  at once, saved to the death guard's file and read again by both, an edit on the death guard on the crossbow knight.
+  `keep` then leaves a pose on both (each animation of the death guard's: the head turned 40, the chest bent 20)
+  for a look; `vr_rigdata_reload` clears it.
+
 ## Limits and rough edges
 
 - In the game a vertex is drawn by one bone (its heaviest), except an armed humanoid's arm skin, whose blend is its

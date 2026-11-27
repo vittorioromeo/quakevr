@@ -3148,6 +3148,38 @@ His OK in chat ("Please uninstall the debug build"), once. His Quest 3 now has t
   exports) could not go back into a non-debuggable app: in the backup only. Dev/debug-key APKs no longer install on his
   headset (agents' Quest jobs: `QVR_ANDROID_SIGN=debug` doesn't help either; build release-signed test APKs, or uninstall
   again with his OK). brief_questhead.md's "install only debug-key APKs" is now wrong for his headset.
+
+## adrigshare: AD's death guard and crossbow knight share one set of Rig Studio poses (branch agent/adrigshare, 2026-11-27)
+
+His words (2026-11-27): do the new AD rigs have the same bones and joints? If so, make them share the same poses in the
+Rig Studio so he edits only one.
+- **Same bones**: yes. `vrdguard.rig2.txt` and `vrdcrossbow.rig2.txt` have the same 20 bones (names, parents, joint
+  types); their pivots, limits and weights differ (585 vs 1120 vertices). The studio's data are per model
+  (`rigs/<model>.rig2anim.txt`: named poses, override tracks; `anims/<model>/*.anim2.txt`: sequences) and no models
+  shared any before, so a general mechanism: **`poses_from <model>`** in a rig's `rig2.txt` (`rig2::Rig::posesFrom`,
+  read and written back by Range of Motion's save; `make_rig2.py`'s config key `poses_from`). `rigdata::filesBase`
+  gives the named model's base for every read and write (loadEntry, the studio's subject, the rig2anim fixture), only
+  while `rig2::sameBones` (count, names, parents, joints; looked at with the new `rig2::peek`, which keeps nothing, so
+  latch's generations are untouched); otherwise the console says so and the model keeps its own files. Keys are in
+  each bone's own frame (Swing X / Swing Y / Twist, a hinge's bend), so they carry as they are, each rig turning about
+  its own pivots and axes.
+- **Master: the death guard** (`vrdcrossbow.rig2.txt`: `poses_from progs/vrdguard.mdl`). Neither had any poses,
+  overrides or sequences yet (no rig2anim or anims files for either: nothing to park); the crossbow knight's rig was
+  made from the death guard's. The armed holds (the Pose Studio's keys and grips) were already shared: both rows take
+  the knight's kind (`poseKind` 2, adknights).
+- **Live**: `rigdata::publish` hands an edit to the other models on the same files at once (written on the subject's
+  rig, read on theirs: `shareTo`), unsaved too; a model first drawn later takes a sharer's data; Revert (`reload`) reads
+  the files for the subject and then gives the others its data. A shared file's `model` line is the master's.
+- **Studio**: the menu bar says `poses shared with vrdcrossbow (files: vrdguard)` beside the subject (and the console
+  `rigstudio: <model>: poses shared with ...` when it is taken); Save writes the shared files. RIGSTUDIO.md, "Shared poses".
+- **Tests**: new `vr_rigdata_share_test [keep]` (needs AD: `vr_campaign_native ad;map e1m1;vr_rigdata_share_test`, own
+  folder `rigstudio_test_share`): which files, the sharers, the bones' guard (a joint changed: not shared), an edit on
+  the crossbow knight on the death guard at once, saved and read again by both (the same keys), an edit on the death
+  guard on the crossbow knight: 10/0. `vr_rigstudio_test_rig2anim` (flat) 10/0; `vr_agrunt_test` 80, 81, 82 PASS (80 took 250 s:
+  not looked into); humrepl (`vr_ad_test 219`) 65/0; scene ad_knights_armed 4 of 4 placed;
+  adlimbs (ad_azad) 3/0; ad_tears and e1m1 with AD load; the studio opened flat on both AD subjects: each says it shares.
+  Render: `scratch/adrigshare_pose.png` in the tree (low-res: his game was up): the scene's four in the `keep` pose
+  (the death guard's one animation group: head turned 40, chest bent 20), the crossbow knights through the shared files.
 ## beastlook: the ogre's and the scrag's armour redesigned; beast plates keep their size (branch agent/beastlook, 2026-11-27)
 
 His words: "The scrag and ogre armours ... look very asymetrical, messy, and not well placed" and "the armour plates on
