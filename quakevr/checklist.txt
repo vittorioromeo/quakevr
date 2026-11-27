@@ -25,6 +25,9 @@ Grab a lying bayonet: it sits in the palm, the fingers round it, no odd hand pos
 With the bayonet on the shotgun, grip at the mount: nothing comes off and the two-handed grip works; grip and press B/Y there: it comes off into that hand. {test:attach_bayonet}
 Stab a grunt with the bayonet: it goes a bit deeper than before (Combat > Embedded Blades > Stab > Bayonet Depth tunes it). {test:attach_bayonet}
 Stab an enemy with the bayonet, keep holding and fire a few shots (shotgun, then super shotgun): the gun stays in your hand and the body barely moves. {test:attach_bayonet}
+On the Quest, set Quest Foveation to High (Top) in a map: the top of the view (sky, ceilings) gets blurrier than at High while the lower middle stays sharp, it runs at least as smoothly as High, and Show Foveation's pattern sits lower. {test:quest_foveation}
+On the Quest, try Quest Foveation: Shift (advanced) at -15 and +15 with High: the sharp middle moves down and up, no crash when changing it. {test:quest_foveation}
+On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution of Eternity: each plays its own soundtrack, not Quake's. {test:campaign_music}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
