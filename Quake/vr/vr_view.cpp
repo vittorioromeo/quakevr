@@ -3873,7 +3873,7 @@ bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHa
     }
     // Its axes as the gun's model is drawn (its place, turn, Scale, mirroring; a lying gun's networked scale).
     const ModelSpace space{gun};
-    const glm::mat3 r = anglesBasis(m.angles);
+    const glm::mat3 r = m.basis; // (its model's axes in the gun's: its frame turned by the mount's angles)
     glm::vec3 o = space.point(m.pos);
     const glm::vec3 ax = space.point(m.pos + r[0]) - o;
     glm::vec3 ay = space.point(m.pos + r[1]) - o;
