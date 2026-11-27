@@ -3994,3 +3994,48 @@ plates"; "in the test scenarios for the new armoured enemies, it seems like they
   4096 with the humanoids' wear packing; otherwise their paths unchanged).
 - **Open**: a cut taking a several-piece part (the scrag's tail) drops its first piece only; the per-kind pools are not
   in the menu (cvars only); no headset check.
+## ogreplates: the ogre's helmet a real helmet, plate 8 shallower, bracers on the elbow end, a V-neck cuirass (branch agent/ogreplates, 2026-11-27)
+His words (2026-11-27): the ogre's helmet "looks more like a hat than a helmet" (wants the grunt/enforcer/knight's shape);
+plate 8's two outer columns "an angle too steep, please make it much more shallow"; the right bracer wiggles and overlaps
+the wrist/hand in the run, "attached a bit closer to the elbow"; the cuirass slightly V-shaped at the top for the chin.
+- **Helmet** (`make_beastarmour.py` new shape `helm()`, the ogre's slot 1): helmetOf's proportions (vr_agarmor.cpp: the
+  humanoids' helmets are built in the engine; make_agarmor.py only paints their atlas) as faceted plates: an octagon of
+  flat faces round his cranium (front, its chamfers, the sides, the back's chamfers, the back), each face's plane the
+  head skin's support that way (sampled over the head's own triangles, a point counting when 60% of it is on the head:
+  the neck's long triangles to the shoulders are not) plus the stand-off, so every flat plate clears it; mirrored, centred
+  side to side on the cranium. A flat cap, a chamfer row (1.2 in from the wall), the wall flaring a little to lap over a
+  brow band (rim tiles) standing proud at its lower edge, the band's lower edge per face (front just above the eyes, the
+  sides a little lower, the back raised over his neck's hump), and cheek guards in two shingled lames down each side
+  (vent tiles, 1.3x the side face wide, flaring out), the face open in front. 29 plates. Untweaked (vr_beastfit's
+  measure, scratch/bf_eval.py): cranium covered 1.00, gap 1.81, size 1.22, face covered 0.08 (limit 0.25).
+- **Plate 8** (`band(..., flat_outer=0.55)`, new): each outer column's outer edge laid 55% of the way onto the line of
+  the plate inside it. As made: the outer columns' bend from the inner plates 61.5 -> 28.1 degrees (rows' mean; each side
+  alike), their turn from the back 64.1/64.6 -> 35.5/37.1 (`scratch/op_angles.py`). Its middle moved (-0.29 -1.99 24.02 ->
+  -3.61 1.60 25.38: the box's middle of the wider plate).
+- **Bracers**: the ogre's forearm skin is labelled up to 0.55 of the bone; 0.6-0.8 is long triangles to the hand's
+  vertices (from 0.8), and the bracer (0.1-0.92) lay over them and met his hand as the wrist bent. Now the band 0.0-0.64
+  and new data `anchors <t0> <t1>` (beastarmour.txt, the line after a piece; `fpiece(..., anchors=)`; `Slot::anchorLo/Hi`
+  in vr_beastarmour.cpp resolve: the piece fitted to its bone's vertices that far along the bone alone; old engines ignore
+  the line): both bracers -0.05..0.65 (the right's anchors were already there; the left's reached its wrist, 1.22).
+  Run frames, his tweaks on (`scratch/op_bracer.py`): right bracer's far edge past the wrist +1.91 mean / +2.12 max ->
+  -1.32 / -1.05, his hand's vertices inside it 4.9 mean, 6 max (of 25) -> 0.1, 1; left 1.1, 3 -> 0.2, 1.
+- **V-neck** (`band(..., vneck=(2.5, 60))`, new): the breastplate's first row's top edge 2.5 units lower on the middle
+  line, less out to 60 degrees each side (the two broad pec panels' top edges slope into a V). The chin (the head's lowest
+  35%, front 45%) to the cuirass, every played frame, his tweaks on (`scratch/op_chin.py --chin`): median 2.80 -> 4.38,
+  min 0.63 -> 0.85; untweaked 0.79 -> 0.80 (as made the chin's nearest point is the plate's face 6-7 units below its top,
+  not the edge).
+- **His tweaks** (armour.txt) all kept as they were. Where they now land differently: the helmet's (scale_y 0.717,
+  scale_x 0.887, pitch 15) were made for the hat: on the bucket, covered face 0.31 with them (0.08 without) and gap 2.6;
+  `bracer_r` (offset 4.09 2.29 -2.45, pitch -32.5) moves the shorter bracer off the forearm (covered 0.43 with it, 0.95
+  without); plate8's scale_y 0.83 narrows the wider plate. A reset of those in the Armour Studio shows the new shapes as
+  made.
+- **Also**: `make_beastarmour.py` now makes the scrag's tail4 4 units shorter than the committed model (its table's spike
+  1.1 since beastfit; the committed .mdl predates it): kept as shipped here (`scratch/op_keep_tail4.py` after a run), not
+  this task's.
+- **Tests**: vr_beastfit_test 101/0, vr_beastarmour_lookcheck 78/0, vr_beaststudio_test 28/0, vr_agarmor_test 15 63/0,
+  21 14/0; 22 10/2 then 11/1: the scrag's armoured/bare ratio over the limit on Normal/Hard, varying run to run (3.03-3.27
+  against the humanoids' 2.11-2.59); the scrag's armour and data are unchanged here. Renders (his tweaks on, and
+  untweaked): `scratch/ogreplates_tweaked.png`, `scratch/ogreplates_untweaked.png` (front 3/4, his right side, 3/4 back,
+  run4 close on the bracers).
+- **Open**: his headset look; the helmet tweak reset (his call); the cheek guards' width (`guard_wide`) and the back
+  plate's flatness (`flat_outer`) are one number each in the table.
