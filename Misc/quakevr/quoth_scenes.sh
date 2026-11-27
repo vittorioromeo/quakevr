@@ -4,8 +4,9 @@
 # metmon, lpqsp1 and ne_marb are Map Library packages (each scene's `package` line), not in Quoth's folder:
 #   present (default): the test base has them installed (qvr_addons/<sha16>/ and cache/maps_installed.txt, as
 #                      quoth_setup.py or the Map Library leaves them): every quoth_ scene SCNOK and SCNRUN OK.
-#   absent:            none of them installed: those three scenes SCNERR with "is not installed: install it from the Map
-#                      Library" (never "no map maps/..."), not started; the kellbase1 ones (Quoth's own pak) still run.
+#   absent:            none of them installed: those three scenes SCNSKIP with "is not installed: install it from the Map
+#                      Library" (never "no map maps/..."), SCNRUN SKIP (not failed; ROUND26 "basefix1"); the kellbase1
+#                      ones (Quoth's own pak) still run.
 # Quoth itself must be in the base (the kit's links.ps1 mirrors it). Ends on runall's SCNRUNSUM line (the game quits
 # itself); prints "quoth_scenes: N passed, M failed" and exits 1 on a failure.
 AGENT=${1:?worktree name}
@@ -28,8 +29,9 @@ done
 for id in $PKG; do
     check $(hasnt "^SCNERR|$id|.*no map maps/") "$id: no 'no map' error"
     if [ "$MODE" = absent ]; then
-        check $(has "^SCNERR|$id|.*is not installed: install it from the Map Library") "$id says which package to install"
-        check $(has "vr_scenario: $id not started: .*Map Library package") "$id not started, naming its package"
+        check $(has "^SCNSKIP|$id|.*is not installed: install it from the Map Library") "$id says which package to install"
+        check $(has "^SCNRUN|$id|SKIP|.*Map Library package") "$id skipped (not failed), naming its package"
+        check $(hasnt "^SCNERR|$id|") "$id: no error"
     else
         check $(has "^SCNOK|$id|") "$id read"
         check $(has "^SCNRUN|$id|.*OK") "$id ran"

@@ -335,8 +335,9 @@ def moving_trial(tag, start, frames, press, move, flip, hold=20):
 def moving(agent):
     """Grabbing on the move: the player moved by the thumbsticks (MOVES), the off hand (a) already at the lamp, still
     in the play space, the grip pressed; (b) reaching it from 33 cm out at 0.8 and 1.5 m/s, the grip pressed 6 frames
-    before, at and 6 frames after the arrival. All must take it. Control: a punch out of the guard and back, the grip
-    pressed 2 frames in, must not."""
+    before, at and 6 frames after the arrival. All within the grab zone at the press must take it (6 frames early at
+    1.5 m/s is 12.5 cm out: a closed arrival, must not). Control: a punch out of the lamp and back, the grip pressed 5
+    frames in (past the zone), must not."""
     cen = centres(agent)
     cmds = setup("vrfiringrange") + ["vr_snap_turn 0", "vr_movement_mode 1"]  # (the stick moves relative to the head)
     samples = []  # (tag, move, should take)
@@ -355,13 +356,18 @@ def moving(agent):
                 frames = path(start, c, speed)
                 for k in (-6, 0, 6):
                     tag = f"v{name}_{i}_{speed}_{k}"
-                    samples.append((tag, name, True))
+                    # As timing(): pressed further out than ~9 cm (1.5 m/s, 6 frames early: 12.5 cm) is a hand arriving
+                    # closed, no grab since noclosedgrab (his call 2026-11-26).
+                    samples.append((tag, name, -k * speed / FPS <= 0.09))
                     cmds += moving_trial(tag, start, frames, len(frames) - 1 + k, move, flip)
                     flip = not flip
+            # Control: a punch out of the lamp and back, the grip pressed 5 frames in (21 cm out, past the grab zone):
+            # the hand comes back closed, takes nothing. (Pressed 2 frames in, 8 cm out, it was in the zone: since the
+            # belt torch is a holster slot that takes it, as timing()'s punch, so it was no control any more.)
             out = (cx + 0.02, cy + 0.08, cz - 0.35)
             tag = f"v{name}_{i}_punch"
             samples.append((tag, name, False))
-            cmds += moving_trial(tag, c, path(c, out, 3.0) + path(out, c, 3.0), 2, move, flip)
+            cmds += moving_trial(tag, c, path(c, out, 3.0) + path(out, c, 3.0), 5, move, flip)
             flip = not flip
     got = parse(run(agent, "fg_moving", cmds))
     ok = True

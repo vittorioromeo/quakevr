@@ -3,6 +3,7 @@
 # keeping off it (the engine's SV_movestep, vr_hull.cpp VR_MonsterAvoidsField); vr_ad_test 223, quothfield_test.sh.
 # Needs Quoth 2.2 installed and its campaign selected (Official Campaigns, or vr_campaign_native quoth).
 title Quoth's kellbase1: the energy field drawn, enforcers keep off it
+campaign quoth
 map kellbase1
 start -90 262 216 -157
 god
