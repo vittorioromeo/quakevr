@@ -118,6 +118,7 @@ struct QuestExtensions
     float cpuApplied{-1.f};
     float gpuApplied{-1.f};
     float foveationApplied{-1.f};
+    float offsetApplied{0.f}; // vr_xr_foveation_offset's, with the level
     XrSwapchain foveated[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     // C4p: vr_xr_foveation changed while the eye swapchains are in use: the runtime crashed in xrEndFrame after the
     // update (QUEST_PLAN.md 6v), so the backend makes new swapchains first and the level goes on them before their use.

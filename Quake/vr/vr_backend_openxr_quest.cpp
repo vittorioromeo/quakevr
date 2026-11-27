@@ -25,6 +25,11 @@ constexpr uint8_t foveationConfigurationBit = 2;
 constexpr uint8_t swapchainUpdateStateBit = 4;
 constexpr uint8_t foveationAll = foveationBit | foveationConfigurationBit | swapchainUpdateStateBit;
 
+// vr_xr_foveation 4, High (Top): Meta's level past XR_FOVEATION_LEVEL_HIGH_FB (questfovmusic); where the runtime refuses
+// it, High with the pattern this many degrees lower (verticalOffset: positive up), the top reduced more.
+constexpr int highTopLevel = 4;
+constexpr float highTopFallbackOffset = -10.f;
+
 template <typename F>
 bool lookUp(XrInstance instance, const char* name, F& f)
 {
@@ -201,8 +206,11 @@ void QuestExtensions::apply(XrSession session, const XrSwapchain (&eyes)[2])
     // (XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB); kept with the level as one value (+10).
     const bool dynamic = vr_xr_foveation_dynamic.value != 0.f && level > 0.f;
     const float wanted = level + (dynamic ? 10.f : 0.f);
+    // questfovmusic: the pattern's vertical shift in degrees (XrFoveationLevelProfileCreateInfoFB::verticalOffset)
+    const float offset = level > 0.f ? CLAMP(-30.f, vr_xr_foveation_offset.value, 30.f) : 0.f;
     const bool newEyes = eyes[0] != foveated[0] || eyes[1] != foveated[1];
-    if(foveation && eyes[0] != XR_NULL_HANDLE && eyes[1] != XR_NULL_HANDLE && (wanted != foveationApplied || newEyes))
+    const bool differs = wanted != foveationApplied || offset != offsetApplied;
+    if(foveation && eyes[0] != XR_NULL_HANDLE && eyes[1] != XR_NULL_HANDLE && (differs || newEyes))
     {
         // questcrash: a level over 0 needs capable images, Off plain ones: across 0, new swapchains (made for the level)
         if((level > 0.f) != eyesCapable || (!newEyes && foveationApplied >= 0.f))
@@ -210,8 +218,9 @@ void QuestExtensions::apply(XrSession session, const XrSwapchain (&eyes)[2])
             wantNewEyes = true; // a change on swapchains in use: on new ones (C4p; the backend calls again with them)
             return;
         }
-        const bool changed = wanted != foveationApplied;
+        const bool changed = differs;
         foveationApplied = wanted;
+        offsetApplied = offset;
         foveated[0] = eyes[0];
         foveated[1] = eyes[1];
         if(!eyesCapable)
@@ -222,14 +231,26 @@ void QuestExtensions::apply(XrSession session, const XrSwapchain (&eyes)[2])
             }
             return;
         }
+        // questfovmusic: 4 High (Top), Meta's fifth level (OVRPlugin's and VrApi's HighTop, 4: High with more of the top
+        // reduced, past Khronos' enum); a runtime that refuses it gets High with the pattern shifted down instead.
+        const int wantedLevel = CLAMP(0, static_cast<int>(level), highTopLevel);
         XrFoveationLevelProfileCreateInfoFB levelInfo{XR_TYPE_FOVEATION_LEVEL_PROFILE_CREATE_INFO_FB};
-        levelInfo.level = static_cast<XrFoveationLevelFB>(CLAMP(0, static_cast<int>(level), 3));
-        levelInfo.verticalOffset = 0.f;
+        levelInfo.level = static_cast<XrFoveationLevelFB>(wantedLevel);
+        levelInfo.verticalOffset = offset;
         levelInfo.dynamic = dynamic ? XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB : XR_FOVEATION_DYNAMIC_DISABLED_FB;
         XrFoveationProfileCreateInfoFB profileInfo{XR_TYPE_FOVEATION_PROFILE_CREATE_INFO_FB};
         profileInfo.next = &levelInfo;
         XrFoveationProfileFB profile = XR_NULL_HANDLE;
         XrResult result = createFoveationProfile(session, &profileInfo, &profile);
+        if(XR_FAILED(result) && wantedLevel == highTopLevel)
+        {
+            xrruntime::note("OpenXR: fixed foveation High (Top) refused (%d): High shifted down %g degrees instead\n",
+                static_cast<int>(result), static_cast<double>(-highTopFallbackOffset));
+            levelInfo.level = XR_FOVEATION_LEVEL_HIGH_FB;
+            levelInfo.verticalOffset = offset + highTopFallbackOffset;
+            profile = XR_NULL_HANDLE;
+            result = createFoveationProfile(session, &profileInfo, &profile);
+        }
         for(int eye = 0; eye < 2 && XR_SUCCEEDED(result); eye++)
         {
             XrSwapchainStateFoveationFB state{XR_TYPE_SWAPCHAIN_STATE_FOVEATION_FB};
@@ -240,8 +261,9 @@ void QuestExtensions::apply(XrSession session, const XrSwapchain (&eyes)[2])
         {
             destroyFoveationProfile(profile); // (the swapchains keep its state)
         }
-        xrruntime::note("OpenXR: fixed foveation level %d%s (vr_xr_foveation): %s\n", static_cast<int>(levelInfo.level),
-            dynamic ? ", dynamic" : "", XR_SUCCEEDED(result) ? "set" : va("failed (%d)", static_cast<int>(result)));
+        xrruntime::note("OpenXR: fixed foveation level %d%s, vertical offset %g (vr_xr_foveation): %s\n",
+            static_cast<int>(levelInfo.level), dynamic ? ", dynamic" : "", static_cast<double>(levelInfo.verticalOffset),
+            XR_SUCCEEDED(result) ? "set" : va("failed (%d)", static_cast<int>(result)));
     }
 }
 

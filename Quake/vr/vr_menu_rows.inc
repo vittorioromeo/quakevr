@@ -4826,8 +4826,12 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
 QVR_CYCLE(vr_xr_foveation, "Quest Foveation",
     "Quest standalone: the headset draws the edges of each eye's view, which the lenses blur anyway, at a lower "
     "resolution (fixed foveated rendering): faster, near-invisible through the lenses. Higher levels blur more of "
-    "the edges.",
-    {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"})
+    "the edges. High (Top) is the most aggressive: High with more of the top of the view (sky, ceilings) blurred "
+    "and the lower middle, where you mostly look, kept sharp.",
+    {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "High (Top)"})
+QVR_SLIDER(vr_xr_foveation_offset, "Quest Foveation: Shift", -30.f, 30.f, 5.f, "%+.0f deg", noExt,
+    "Moves the sharp middle of Quest Foveation up (positive) or down (negative), in degrees. Down blurs more of the "
+    "top of the view, which is faster; 0: centred.")
 QVR_TOGGLE(vr_xr_foveation_dynamic, "Quest Foveation: Dynamic",
     "On: the headset uses less foveation than Quest Foveation's level while the graphics have room to spare, and "
     "up to that level when they are busy.")
