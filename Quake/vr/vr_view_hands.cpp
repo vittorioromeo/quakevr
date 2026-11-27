@@ -2803,6 +2803,7 @@ bool holdsBody(int hand)
     out.pos = rot * h.at + pos;
     out.turn = glm::normalize(rot * h.turn);
     out.tug = h.tug;
+    out.kept = h.kept;
     out.toWorld = glm::translate(glm::mat4{1.f}, pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4{1.f}, glm::vec3{scale});
     const int id = -2 - h.part; // (grasp::keptShape's ids: negative)
     out.shape = grasp::keptShape(rig->model, id);
@@ -3681,8 +3682,9 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     }
     // A big prop dragged (flat-screen Grab / Pull): the hand goes to it wherever it is, down to the floor (it lies too heavy to
     // hoist to where the hold pose has the hand), as far as the hold keeps it (vr_flat_grab_drag_letgo; pushed, kept as far
-    // ahead as it was taken, up to the reach further: vr_flat_grab_push).
-    if(on && h.drag)
+    // ahead as it was taken, up to the reach further: vr_flat_grab_push). A ragdoll's limb held by Grab / Pull and kept so
+    // too: as far. (keepOnArm keeps the hand on the wrist either way: flathold3.)
+    if(on && (h.drag || h.kept))
     {
         const float kept = vr_flat_grab_push.value != 0.f ? za::fmax(vr_flat_grab_reach.value, 0.f) : 0.f;
         stick = za::fmax(stick, (za::fmax(vr_flat_grab_drag_letgo.value, 0.1f) + kept) * units::metresToUnits());
