@@ -3,10 +3,9 @@ using System.Text;
 namespace QuakeVR.Installer.Core;
 
 /// <summary>
-/// Vittorio's statement on AI usage (the wizard's "Statement" page, after Welcome; <c>qvr-setup install</c> prints it and
-/// needs <c>--accept-statement</c>). Two claims, each answered YES or NO; each starts unanswered and, once answered,
-/// can only be switched between YES and NO, never back to unanswered. Going on needs YES to both. The answers live
-/// only in this object for the session: never saved, never sent.
+/// Vittorio's statement on AI usage (the wizard's "Statement" page, after Welcome; <c>qvr-setup install</c> and
+/// <c>qvr-setup statement</c> print it). Static text: one sentence (<see cref="Pledge"/>) in the claims' card, nothing to
+/// answer, nothing recorded; Next is enabled at once.
 /// </summary>
 public sealed class AiStatement
 {
@@ -26,34 +25,8 @@ public sealed class AiStatement
         "As a \"Quake VR: UNLEASHED\" player, your values and views regarding AI usage should be fair and respectful of the hard work put into this project.",
     ];
 
-    public static readonly IReadOnlyList<string> Claims =
-    [
-        "I recognize that AI-assisted development does *not* mean a low-quality result.",
-        "I recognize that AI-assisted development does *not* mean a lack of care, passion, or expertise.",
-    ];
-
-    readonly bool?[] _answers = new bool?[Claims.Count];
-
-    /// <summary>Raised when an answer changes.</summary>
-    public event Action? Changed;
-
-    /// <summary>The answer to claim <paramref name="index"/>: null (unanswered), true (YES) or false (NO).</summary>
-    public bool? this[int index] => _answers[index];
-
-    /// <summary>Answers a claim YES or NO. There is no way back to unanswered.</summary>
-    public void Answer(int index, bool yes)
-    {
-        if (_answers[index] != yes)
-        {
-            _answers[index] = yes;
-            Changed?.Invoke();
-        }
-    }
-
-    /// <summary>Whether every claim is answered YES: the only state that lets the player go on.</summary>
-    public bool AllYes => _answers.All(a => a == true);
-
-    public int Unanswered => _answers.Count(a => a is null);
+    /// <summary>The one sentence under the paragraphs; the <c>*not*</c> is set in italics by the wizard.</summary>
+    public const string Pledge = "By continuing, I recognize that AI-assisted development does *not* imply a low-quality result nor a lack of care, passion, or expertise.";
 
     /// <summary>
     /// Splits a claim around its one emphasized span, written <c>*like this*</c>: the wizard sets the middle part in
@@ -70,14 +43,14 @@ public sealed class AiStatement
         return (text[..open], text[(open + 1)..close], text[(close + 1)..]);
     }
 
-    /// <summary>A claim without its emphasis marks (screen readers get this).</summary>
+    /// <summary>The pledge without its emphasis marks (screen readers get this).</summary>
     public static string Plain(string text)
     {
         var (before, emphasis, after) = SplitEmphasis(text);
         return before + emphasis + after;
     }
 
-    /// <summary>The statement as plain text (the console prints it; the claims keep their <c>*emphasis*</c> marks).</summary>
+    /// <summary>The statement as plain text (the console prints it; the pledge keeps its <c>*emphasis*</c> marks).</summary>
     public static string Format()
     {
         var sb = new StringBuilder();
@@ -86,10 +59,7 @@ public sealed class AiStatement
         {
             sb.AppendLine(p).AppendLine();
         }
-        for (var i = 0; i < Claims.Count; ++i)
-        {
-            sb.AppendLine($"  {i + 1}. {Claims[i]}");
-        }
+        sb.AppendLine($"  {Pledge}");
         return sb.ToString();
     }
 }

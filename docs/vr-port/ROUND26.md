@@ -4273,6 +4273,16 @@ His words (2026-11-27): "make the scrag tail armor pieces individually destroyab
   aim at the body's middle).
 - **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).
 
+## Installer: the AI statement is one static sentence (branch agent/aistatement, 2026-11-27)
+
+The Statement page's two YES/NO claims are gone. Under the five paragraphs a card (same frame, rune and font as the old
+claims, a check mark rune, not interactive) says: "By continuing, I recognize that AI-assisted development does *not*
+imply a low-quality result nor a lack of care, passion, or expertise." (the *not* in italics). Continue is enabled at
+once; footer hint "Nothing to answer: press Continue to go on.". Nothing is recorded (no answers, no settings key).
+`qvr-setup install` prints the text and goes on with no prompt (no exit 3); `--accept-statement` is accepted and ignored so
+the release scripts keep working. Code: `Core/AiStatement.cs` (`Pledge` replaces `Claims`, the answer state is removed),
+`StatementPage.xaml`, `MainViewModel.cs` (`StatementChoice` removed), Cli `Program.cs`. Tests: SelfTest "statement: one
+static sentence" (65/65), and the `--screenshots` harness check (no switches, sentence present, Continue enabled).
 ## blclean: BACKLOG.md cleanup (branch agent/blclean, 2026-11-27)
 
 Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.
