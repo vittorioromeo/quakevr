@@ -3313,3 +3313,41 @@ no effect on the AD knights; copy existing poses from the closest rig (knight or
 - **Open**: the AD rigs' remaining vr_rig2_check faults (shoulders at full raise 2.5-3.3x in the offline poses, knees),
   never tuned; whether he wants the knight's full shipped grips on them instead of their own rest hold (one line in
   `gripRigidOf`).
+
+## doglerp: a leaping or shoved rottweiler drawn smoothly, the beasts' armour on the drawn body (branch agent/doglerp, 2026-11-27)
+
+- **His note:** in slow motion the rottweiler's leap (and, his extra case, its roll over after a shove or a hit) looked
+  quantized while its armour moved smoothly.
+- **Cause (logged frame by frame, `vr_drawnlerp_log 1`):** a stepping monster in the air (a leap, a shove's hop, a fall)
+  was sent its move's time as one server frame in the U_LERPFINISH byte (`VR_StepLerpInterval`, ROUND21 "A dog's leap
+  drawn smoothly"). That byte is also its frames' lerp time (R_FrameLerpFinish): each new animation frame was drawn in one
+  or two frames (blend 0.47 a frame at 0.25x), then held for the rest of the think: the mesh moved in steps, plainest in
+  slow motion. The armour was placed from the hit model, which lerps the frames over the think's time: smooth, and up to
+  17 units off the drawn body in the shoved roll (painb: the shove's hop keeps the dog in the air through its first
+  frames). Two smaller ones: a frame lerp begun with no lerpfinish was stretched by a later one (a dog landing: its think
+  restarted out of turn), drawn back along itself (blend 0.83 -> 0.52 in a frame); and the hit model's lerp time was the
+  whole think interval (nextthink - oldthinktime) where the client's is the time left (a think begun out of turn: a
+  pain, a forced frame), so the two parted on such starts.
+- **Fix:** U_QVR_MOVEFRAME (the protocol's spare bit 22, no data; vr_protocol.hpp) says "moved every server frame"
+  (`VR_StepMovesEveryFrame`, vr_server.cpp: MOVETYPE_STEP, not on the ground, not a flyer or swimmer, with
+  `vr_monster_lerp_continue` 1). The client's LERP_MOVEFRAME draws that move over the time between messages
+  (R_SetupEntityTransform); U_LERPFINISH is Quake's again (the think's time), so the frames lerp over the think. A frame
+  lerp begun without a lerpfinish keeps its length (R_FrameLerpFinish). The beasts' armour (pieces and leather) is placed
+  from the client's drawn lerp (`hitmodel::clientLerp` / `drawnVertexPoints(ent, lerp, ...)`: VR_AliasLerpNow and
+  render::drawnPlace, the renderer's own reading): one source for the drawn pose. The hit model (shots) follows the same
+  rules (vr_hitmodel.cpp serverFrame: steps continued from where drawn, over the frame in the air, frames to the time
+  left to the next think). Old servers/clients: an old client ignores bit 22 (Quake's lerp to the think); an old server's
+  1-frame byte still steps on a new client.
+- **Test:** `vr_agarmor_test 21` (vr_beastarmour_test.qc; Debug > Tests "Beasts Drawn Smoothly (Slow Motion)"), map
+  vrtesthall: one armoured beast at a time (rottweiler leap, run, shoved roll via VR_Push + painb, scrag flying, ogre
+  running; no attacks: a muzzle flash's frames are unlerped on purpose) at 0.25x then 1x, each watched by
+  `vr_drawnlerp_watch <classname>` / `0 <label>` (vr_hitmodel_diag.cpp; per drawn frame from R_AliasTransform,
+  VR_DrawnLerpSample): no stall (drawn still while the hit model moves), no jump (a step over 3x both neighbours' +
+  0.25), the armour's lerp on the drawn body (< 0.05 units), the hit model's gap spread under 2.5 units. Ends on
+  "doglerp test: N passed, M failed". Before: 4/10 (stalls 14-28 a case, the roll's drift 17 units); after: 14/0 (leap
+  steps max/median 1.3x at 0.25x, armour 0.000, hit model drift 0.02-1.46).
+- Also run: vr_agarmor_test 15 54/0; stealth_tests.sh dogs (0 jumps both lerp rules); mp_test suite --only
+  mp_version,mp_coop,mp_bandwidth,mp_lagcomp passed (lagcomp 17/0).
+- Open: the client's clock runs a fraction of a frame behind the server's (cl.time vs sv.time 0.0035 s), so the hit model
+  (shots) still differs from the drawn body by up to ~1.5 units at a lerp begun out of turn; the drawn armour no longer
+  depends on it.
