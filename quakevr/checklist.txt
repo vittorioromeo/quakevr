@@ -20,6 +20,7 @@ On the Quest with SpaceWarp on: walk, smooth-turn and snap-turn, and open and cl
 Rottweilers, ogres, scrags and fiends can wear armour now: walk round the four in the scene and check each piece sits on the body (barding and spiked collar on the dog, a three-part cuirass, helmet, pauldrons, bracers and tassets on the ogre, mask and plates on the scrag, back and shoulder plates on the fiend) and looks like Quake armour. {test:armour_beasts}
 Shoot one beast's pieces with the shotgun: each piece sparks, cracks off on its own and falls as debris you can pick up, and the beast then bleeds where it was bare. {test:armour_beasts}
 Kill an armoured ogre or rottweiler with small hits: as it dies and goes limp the pieces stay on the body and follow it as it falls. {test:armour_beasts}
+Flat-screen or VR: open Mods in the main menu and pick any mod (or type "game <mod>" in the console); the console's "game" changed line shows quakevr before the mod, and the hands, weapons and armed grunts still work in its maps. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
