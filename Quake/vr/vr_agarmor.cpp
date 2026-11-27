@@ -3225,40 +3225,41 @@ namespace
     return nullptr;
 }
 
-// An entity's armour in a word (the server's, the client's): its type (bits 30-31), its worn pieces' wear (bits 20-29
-// at a third of their pool or under, 10-19 at two thirds or under; P2's damage marks), its pieces (0-9).
-[[nodiscard]] uint32_t packState(int type, int pieces, int wear)
+// An entity's armour in a word (the server's, the client's): its type (bits 36-37), its worn pieces' wear (bits 24-35
+// at a third of their pool or under, 12-23 at two thirds or under; P2's damage marks), its pieces (0-11: the ten slots
+// and a beast's own parts, NumMaskBits).
+[[nodiscard]] uint64_t packState(int type, int pieces, int wear)
 {
-    pieces &= allPieces;
-    wear &= pieces | pieces << NumPieces;
-    return type > 0 && pieces ? static_cast<uint32_t>(type) << 30u | static_cast<uint32_t>(wear) << 10u | static_cast<uint32_t>(pieces) : 0u;
+    pieces &= allMaskBits;
+    wear &= pieces | pieces << NumMaskBits;
+    return type > 0 && pieces ? static_cast<uint64_t>(type) << 36u | static_cast<uint64_t>(static_cast<uint32_t>(wear)) << 12u | static_cast<uint64_t>(pieces) : 0u;
 }
-[[nodiscard]] int stateType(uint32_t s)
+[[nodiscard]] int stateType(uint64_t s)
 {
-    return static_cast<int>(s >> 30u);
+    return static_cast<int>(s >> 36u);
 }
-[[nodiscard]] int statePieces(uint32_t s)
+[[nodiscard]] int statePieces(uint64_t s)
 {
-    return static_cast<int>(s & static_cast<uint32_t>(allPieces));
+    return static_cast<int>(s & static_cast<uint64_t>(allMaskBits));
 }
-[[nodiscard]] int stateWear(uint32_t s)
+[[nodiscard]] int stateWear(uint64_t s)
 {
-    return static_cast<int>((s >> 10u) & 0xfffffu);
+    return static_cast<int>((s >> 12u) & 0xffffffu);
 }
 
 // The server's word on each entity (QVR_SVC_ARMOR: packState); and how many are armoured.
-za::Vector<uint32_t> served;
+za::Vector<uint64_t> served;
 int numServed = 0;
 
 // Who wears what: vr_agarmor_set's entities, else vr_agarmor (debug: everyone, forced), else the server's word; `wear`
-// its pieces' wear (packState's bits 10-29, shifted down: the server's word only, or vr_agarmor_wear's debug look).
+// its pieces' wear (packState's bits 12-35, shifted down: the server's word only, or vr_agarmor_wear's debug look).
 void wornBy(int num, int& type, int& pieces, int& wear)
 {
     type = za::clamp(static_cast<int>(vr_agarmor.value), 0, 4);
     type = type == 4 ? 1 + num % 3 : type;
     pieces = static_cast<int>(vr_agarmor_pieces.value) & allPieces;
     const int forced = za::clamp(static_cast<int>(vr_agarmor_wear.value), 0, 2);
-    wear = forced == 0 ? 0 : forced == 1 ? allPieces : allPieces << NumPieces | allPieces;
+    wear = forced == 0 ? 0 : forced == 1 ? allPieces : allPieces << NumMaskBits | allPieces;
     if(type == 0 && num >= 0 && num < count(served))
     {
         type = stateType(at(served, num));
@@ -3804,7 +3805,7 @@ void relink()
         // 3 x wear: make_agarmor.py's nine), an entity each (the pieces of the others collapsed). An old vragarmor.mdl
         // of three skins: all whole.
         const int numSkins = armor->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(armor))->numskins : 0;
-        const int w66 = wear & allPieces, w33 = (wear >> NumPieces) & allPieces;
+        const int w66 = wear & allPieces, w33 = (wear >> NumMaskBits) & allPieces;
         const int byWear[3] = {numSkins >= 9 ? pieces & ~w66 & ~w33 : pieces, numSkins >= 9 ? pieces & w66 & ~w33 : 0,
             numSkins >= 9 ? pieces & w33 : 0};
         for(int level = 0; level < 3 && numWorn < maxWorn && cl_numvisedicts < MAX_VISEDICTS; level++)
@@ -3935,9 +3936,9 @@ const entity_t* sourceOf(const entity_t* e)
 // ---- P1: the server's armour (QC's .vr_ar_type, .vr_ar_mask) sent to the clients ----
 namespace
 {
-za::Vector<uint32_t> sent; // per entity: what the clients were last told (packState)
+za::Vector<uint64_t> sent; // per entity: what the clients were last told (packState)
 
-[[nodiscard]] uint32_t stateOf(edict_t* e, bool player)
+[[nodiscard]] uint64_t stateOf(edict_t* e, bool player)
 {
     const progs::FieldOffsets& f = progs::fields();
     if(e->free || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
@@ -3953,20 +3954,20 @@ za::Vector<uint32_t> sent; // per entity: what the clients were last told (packS
             packState(za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_pp_type)), 0, 3), static_cast<int>(progs::fieldFloat(e, f.vr_pp_mask)) & allPieces, 0);
     }
     const int type = za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)), 0, 3);
-    const int mask = static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) & allPieces;
+    const int mask = static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) & allMaskBits;
     const int wear = f.vr_ar_wear >= 0 ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_wear)) : 0;
     return packState(type, mask, wear);
 }
 
-void writeState(sizebuf_t* msg, int num, uint32_t state)
+void writeState(sizebuf_t* msg, int num, uint64_t state)
 {
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_ARMOR);
     MSG_WriteShort(msg, num);
     MSG_WriteByte(msg, stateType(state));
     MSG_WriteShort(msg, statePieces(state));
-    MSG_WriteShort(msg, stateWear(state) & allPieces);
-    MSG_WriteShort(msg, stateWear(state) >> NumPieces);
+    MSG_WriteShort(msg, stateWear(state) & allMaskBits);
+    MSG_WriteShort(msg, stateWear(state) >> NumMaskBits);
 }
 
 // ---- A piece as a model of its own (the broken plate's debris) ----
@@ -4155,7 +4156,7 @@ void serverFrame()
     }
     for(int i = 1; i < count(sent); i++)
     {
-        const uint32_t now = i < n ? stateOf(EDICT_NUM(i), i <= svs.maxclients) : 0u;
+        const uint64_t now = i < n ? stateOf(EDICT_NUM(i), i <= svs.maxclients) : 0u;
         if(now != at(sent, i) && sv.reliable_datagram.cursize + 16 < sv.reliable_datagram.maxsize)
         {
             writeState(&sv.reliable_datagram, i, now);
@@ -4187,9 +4188,9 @@ void parseEvent()
 {
     const int num = MSG_ReadShort();
     const int type = MSG_ReadByte();
-    const int pieces = MSG_ReadShort() & allPieces;
-    const int w66 = MSG_ReadShort() & allPieces;
-    const int w33 = MSG_ReadShort() & allPieces;
+    const int pieces = MSG_ReadShort() & allMaskBits;
+    const int w66 = MSG_ReadShort() & allMaskBits;
+    const int w33 = MSG_ReadShort() & allMaskBits;
     if(num < 0)
     {
         served.clear();
@@ -4201,7 +4202,7 @@ void parseEvent()
     {
         served.resize(static_cast<za::SizeT>(num + 1), 0u);
     }
-    const uint32_t now = packState(za::clamp(type, 0, 3), pieces, w66 | w33 << NumPieces);
+    const uint64_t now = packState(za::clamp(type, 0, 3), pieces, w66 | w33 << NumMaskBits);
     numServed += (now != 0u ? 1 : 0) - (at(served, num) != 0u ? 1 : 0);
     at(served, num) = now;
 }
@@ -4259,7 +4260,7 @@ int clientState(int num, int what)
     {
         return -1;
     }
-    const uint32_t s = at(served, num);
+    const uint64_t s = at(served, num);
     return what == 0 ? stateType(s) : what == 1 ? statePieces(s) : stateWear(s);
 }
 
@@ -4390,7 +4391,7 @@ void posePlates(edict_t* ent, const Shell& s, int mask, PlatePoses& out)
     {
         return 0;
     }
-    return static_cast<int>(progs::fieldFloat(ent, f.vr_ar_mask)) & allPieces;
+    return static_cast<int>(progs::fieldFloat(ent, f.vr_ar_mask)) & allMaskBits;
 }
 
 int entityPieces(int num)

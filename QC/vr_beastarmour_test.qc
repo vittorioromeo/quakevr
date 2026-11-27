@@ -8,9 +8,12 @@
 // the bare body takes, a helmet broken (its bit off, its debris made), the skill's roll dressing a spawned beast (Nightmare
 // at a chance of 1), and two killed (the corpses keeping their pieces, on the body as it lies, at their size). Ends on
 // "beastarmour test: N passed, M failed".
+// armourhits (ROUND26.md): the parts that break on their own (the ogre's shins by side, the scrag's back half and tail):
+// worn with their slots, each its own pool (its slot's share split), a shot at it meeting it, broken alone (its slot and
+// the others kept), its debris its own pieces (the tail's four).
 // `vr_agarmor_test 16`: the scene (scenario armour_beasts): the four in full sets (green, yellow, red, yellow), calm (the
-// player notarget). `17`-`20`: one of them close ahead in full yellow (temp1 1-3: that tier), three
-// quarters on (the renders).
+// player notarget), at their own health (armourhits: the test's 1000 made them take forever). `17`-`20`: one of them
+// close ahead in full yellow (temp1 1-3: that tier), three quarters on (the renders).
 
 entity vr_bat_e0, vr_bat_e1, vr_bat_e2, vr_bat_e3;
 float vr_bat_busy;   // the test running
@@ -26,6 +29,7 @@ float vr_bat_sweep;     // the frame swept (state 5: every frame of every kind)
 float vr_bat_size0[40]; // each beast's (4) pieces' (10) size as drawn at the sweep's first frame (limbpiece 18: the box's diagonal)
 float vr_bat_spread[4]; // the most any of its pieces' sizes strayed from that, as a share
 float vr_bat_spreadd;   // the same for the corpses through their fall and ragdoll (state 4's wait)
+float vr_bat_spawn_health; // VR_BAT_Spawn's beast's own health (before the test's 1000)
 
 entity(float i) VR_BAT_Ent =
 {
@@ -50,7 +54,16 @@ entity(entity p, float kind, float side, float ahead, float turn) VR_BAT_Spawn =
     else { self.classname = "monster_demon1"; monster_demon1(); }
     entity g = self;
     self = oself;
+    vr_bat_spawn_health = g.health;
     g.health = 1000;
+    return g;
+};
+
+// The scene's and the renders': at its own health.
+entity(entity p, float kind, float side, float ahead, float turn) VR_BAT_SpawnOwn =
+{
+    entity g = VR_BAT_Spawn(p, kind, side, ahead, turn);
+    g.health = vr_bat_spawn_health;
     return g;
 };
 
@@ -63,9 +76,11 @@ float(entity g, vector at, float d) VR_BAT_Hit =
     return h0 - g.health;
 };
 
-// The slots each kind's data gives (Misc/quakevr/make_beastarmour.py) and its cuirass group.
-float(float kind) VR_BAT_Slots = { return kind == 0 ? 975 : kind == 2 ? 831 : 1023; };
+// The slots each kind's data gives (Misc/quakevr/make_beastarmour.py), with its parts breaking on their own (1024, 2048:
+// the ogre's shins, the scrag's back half and tail), and its cuirass group (the scrag's with his back half and tail).
+float(float kind) VR_BAT_Slots = { return kind == 0 ? 975 : kind == 1 ? 4095 : kind == 2 ? 3903 : 1023; };
 float(float kind) VR_BAT_Group = { return kind == 0 ? 257 : 769; };
+float(float kind) VR_BAT_CuirassWorn = { return kind == 2 ? 3841 : VR_BAT_Group(kind); };
 // Two of its pieces on one bone (the chest), and a limb's piece.
 float(float kind) VR_BAT_PairB = { return kind == 1 ? 8 : 9; };
 // Each kind's frames (the sweep's: every one, deaths included).
@@ -125,6 +140,46 @@ void(float i, entity e, float kind) VR_BAT_RecordA =
     else { vr_bat_was3 = at; vr_bat_gap3 = gap; }
 };
 
+// armourhits: beast `e` (kind 1 the ogre, 2 the scrag) in a fresh full yellow set: each part that breaks on its own (bits
+// 10, 11) its own pool (its slot's share split with it), a shot at it meeting it, a hit there breaking it alone (its slot
+// and the other part kept) and dropping its own pieces as debris (the tail's four).
+void(entity e, float kind) VR_BAT_PartsAlone =
+{
+    float b;
+    for(b = VR_AR_PIECES; b < VR_AR_SLOTS; b++)
+    {
+        VR_AgArmor_Give(e, 2, 1023);
+        float owner = ragdollbone(e, [4, b, 0], QVR_ARMOR_BEAST);
+        float pieces = ragdollbone(e, [3, b, 0], QVR_ARMOR_BEAST);
+        float split = VR_AgArmor_FullOf(e, owner) + VR_AgArmor_FullOf(e, 10) * (owner == 8 ? 2 : 1);
+        float whole = rint(VR_AgArmor_Full(2, owner) * VR_AgArmor_PoolScale(e));
+        VR_Test_Check(owner >= 0 && VR_AgArmor_On(e, b) && e.vr_ar_hp[b] == VR_AgArmor_FullOf(e, b) && fabs(split - whole) <= 2,
+            sprintf("%s: part %g (with slot %g, %g pieces) worn, its pool %g; its slot split %g of %g", e.classname, b, owner,
+            pieces, e.vr_ar_hp[b], split, whole));
+        // (a shot from outside its piece: out from the body's middle, else from either side)
+        vector at = limbpiece(e, b, 10);
+        vector out = normalize(at - (e.absmin + e.absmax) * 0.5);
+        makevectors('0 1 0' * e.angles_y);
+        float met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
+        float k;
+        for(k = 0; k < 4 && met != b; k++)
+        {
+            out = k == 0 ? v_right : k == 1 ? -v_right : k == 2 ? -v_forward : '0 0 -1';
+            met = ragdollbone(e, at, QVR_ARMOR_SHOT, -out);
+        }
+        float mask0 = e.vr_ar_mask;
+        float made = vr_ar_debris_made;
+        VR_AgArmor_Shot(e, at, -out);
+        float d = VR_BAT_Hit(e, at, 400);
+        float others = mask0 - VR_AgArmor_Bit(b);
+        VR_Test_Check(met == b && e.vr_ar_mask == others && d == 0 && vr_ar_debris_made - made == pieces,
+            sprintf("%s: part %g alone broke (a shot met %g; pieces left %g, took %g, debris %g of %g)", e.classname, b, met,
+            e.vr_ar_mask, d, vr_ar_debris_made - made, pieces));
+        e.health = 1000;
+    }
+    VR_AgArmor_Give(e, 2, 1023);
+};
+
 void(float req) VR_BAT_Frame =
 {
     entity p = VR_Player();
@@ -136,17 +191,17 @@ void(float req) VR_BAT_Frame =
         p.flags = p.flags | FL_NOTARGET;
         if(req == 16)
         {
-            VR_AgArmor_Give(VR_BAT_Spawn(p, 0, -84, 150, 0), 1, 1023);
-            VR_AgArmor_Give(VR_BAT_Spawn(p, 1, -28, 170, 0), 2, 1023);
-            VR_AgArmor_Give(VR_BAT_Spawn(p, 2, 28, 150, 0), 3, 1023);
-            VR_AgArmor_Give(VR_BAT_Spawn(p, 3, 84, 170, 0), 2, 1023);
+            VR_AgArmor_Give(VR_BAT_SpawnOwn(p, 0, -84, 150, 0), 1, 1023);
+            VR_AgArmor_Give(VR_BAT_SpawnOwn(p, 1, -28, 170, 0), 2, 1023);
+            VR_AgArmor_Give(VR_BAT_SpawnOwn(p, 2, 28, 150, 0), 3, 1023);
+            VR_AgArmor_Give(VR_BAT_SpawnOwn(p, 3, 84, 170, 0), 2, 1023);
             return;
         }
         if(vr_bat_render)
         {
             remove(vr_bat_render); // (the one before: one at a time, for a row of renders)
         }
-        vr_bat_render = VR_BAT_Spawn(p, req - 17, 0, req == 19 ? 100 : req == 18 ? 150 : 130, 35);
+        vr_bat_render = VR_BAT_SpawnOwn(p, req - 17, 0, req == 19 ? 100 : req == 18 ? 150 : 130, 35);
         float tier = cvar_hget(cvarh_temp1); // (temp1 1-3: that tier, else yellow)
         VR_AgArmor_Give(vr_bat_render, (tier >= 1 && tier <= 3) ? tier : 2, 1023);
         return;
@@ -194,9 +249,9 @@ void(float req) VR_BAT_Frame =
             VR_Test_Check(sl == VR_BAT_Slots(i) && gr == VR_BAT_Group(i), sprintf("%s: slots %g (%g), cuirass group %g (%g)",
                 e.classname, sl, VR_BAT_Slots(i), gr, VR_BAT_Group(i)));
             VR_AgArmor_Give(e, 2, 1);
-            VR_Test_Check(e.vr_ar_mask == VR_BAT_Group(i), sprintf("%s: the cuirass alone gives its group (%g)", e.classname, e.vr_ar_mask));
+            VR_Test_Check(e.vr_ar_mask == VR_BAT_CuirassWorn(i), sprintf("%s: the cuirass alone gives its group (%g)", e.classname, e.vr_ar_mask));
             VR_AgArmor_Give(e, 2, 1023);
-            VR_Test_Check(e.vr_ar_mask == VR_BAT_Slots(i) && e.vr_ar_hp[0] == VR_AgArmor_Full(2, 0),
+            VR_Test_Check(e.vr_ar_mask == VR_BAT_Slots(i) && e.vr_ar_hp[0] == VR_AgArmor_FullOf(e, 0),
                 sprintf("%s: a full set is its own pieces (%g), the cuirass's pool %g", e.classname, e.vr_ar_mask, e.vr_ar_hp[0]));
             string m = VR_AgArmor_Model(e, 0);
             VR_Test_Check(m != "" && (VR_AgArmor_Model(e, 4) == "") == (i == 0), sprintf("%s: its cuirass's model %s", e.classname, m));
@@ -252,7 +307,7 @@ void(float req) VR_BAT_Frame =
         VR_Test_Check(drawn == want, sprintf("every piece drawn: %g of %g", drawn, want));
         // (and the slots' parts: the ogre's shins with his thighs' pieces, the scrag's tail and his plate 8's back half with his
         // belt's front half: ROUND26.md, "scragsplit")
-        float parts = VR_AgArmor_On(vr_bat_e1, 6) + VR_AgArmor_On(vr_bat_e1, 7) + 5 * VR_AgArmor_On(vr_bat_e2, 8);
+        float parts = VR_AgArmor_On(vr_bat_e1, 10) + VR_AgArmor_On(vr_bat_e1, 11) + VR_AgArmor_On(vr_bat_e2, 10) + 4 * VR_AgArmor_On(vr_bat_e2, 11);
         float ents = ragdollbone(world, '2 1 0', QVR_ARMOR_BEAST);
         VR_Test_Check((ents == want + parts) && (parts == 7), sprintf("every part drawn: %g entities, %g pieces and %g parts", ents, want,
             parts));
@@ -318,6 +373,10 @@ void(float req) VR_BAT_Frame =
             VR_Test_Check(!VR_AgArmor_On(e, 1) && vr_ar_debris_made > made && d == 0,
                 sprintf("%s: the helmet broke (pieces %g, debris %g, took %g)", e.classname, e.vr_ar_mask, vr_ar_debris_made - made, d));
             e.health = 1000;
+            if(i == 1 || i == 2)
+            {
+                VR_BAT_PartsAlone(e, i);
+            }
         }
         cvar_set("vr_agarmor_rule", ftos(vr_bat_rule));
         // The skill's roll on a spawned beast: Nightmare, a chance of 1, the full set.
@@ -326,7 +385,7 @@ void(float req) VR_BAT_Frame =
         cvar_set("vr_agarmor_skill3_pieces", "10");
         cvar_set("skill", "3");
         e = VR_BAT_Spawn(p, 1, 0, 300, 0);
-        VR_Test_Check(e.vr_ar_type > 0 && e.vr_ar_mask == 1023, sprintf("the skill's roll dresses a spawned ogre (type %g, pieces %g)",
+        VR_Test_Check(e.vr_ar_type > 0 && e.vr_ar_mask == 4095, sprintf("the skill's roll dresses a spawned ogre (type %g, pieces %g)",
             e.vr_ar_type, e.vr_ar_mask));
         remove(e);
         cvar_set("vr_agarmor_skill3", ftos(s0));
@@ -542,5 +601,277 @@ void(float req) VR_DLT_Frame =
         vr_dlt_state = 0;
         VR_Test_Verdict();
     }
+};
+// `vr_agarmor_test 22` (armourhits; ROUND26.md): time to kill. Each of a rottweiler, an ogre, a scrag, a fiend, an armed
+// grunt and an armed knight stands still ahead (its own health), bare, then in each skill's armour (Normal, Hard,
+// Nightmare: the skill's best type and its count of pieces, the cuirass, the helmet, then the limb plates in order), and
+// is shot from 128 units until it has taken its own health (one body a target, kept alive past it): the shotgun (6
+// pellets, a shot each 0.5 s), the super shotgun (14, 0.7 s), the nailgun (a nail each 0.1 s), aimed over the middle of
+// its body (the same points each run), Plate Blocks All as set (the default).
+// Each run twice; the shots and seconds printed, and each beast's armoured / bare ratio checked against the humanoids'
+// (the mean of the grunt's and the knight's) for the same weapon and skill: within VR_TTK_LO..VR_TTK_HI of it, the three
+// weapons together. Ends on "armour ttk test: N passed, M failed".
+float vr_ttk_busy;
+float vr_ttk_run;     // target x 12 + state x 3 + weapon
+float vr_ttk_trial;
+float vr_ttk_step;    // 1 spawned (its start awaited), 2 shooting
+float vr_ttk_shots;
+float vr_ttk_aim;     // the aim's sequence (each run from 0)
+float vr_ttk_until;   // give up on the run
+float vr_ttk_nail_until;
+float vr_ttk_frame0;
+float vr_ttk_own;     // its own health
+float vr_ttk_god;
+vector vr_ttk_org, vr_ttk_ang;
+entity vr_ttk_e, vr_ttk_nail;
+float vr_ttk_res[72];  // shots to kill, summed over the trials
+float VR_TTK_TARGETS = 6;
+float VR_TTK_TRIALS = 2;
+float VR_TTK_MAXSHOTS = 400;
+float VR_TTK_LO = 0.15; // a beast's armoured / bare ratio over the humanoids', at least (its armour does something) ...
+float VR_TTK_HI = 1.1;  // ... and at most (never relatively tougher than they are; the three weapons' summed shots)
+
+string(float t) VR_TTK_Name =
+{
+    return t == 0 ? "rottweiler" : t == 1 ? "ogre" : t == 2 ? "scrag" : t == 3 ? "fiend" : t == 4 ? "grunt" : "knight";
+};
+string(float w) VR_TTK_Weapon = { return w == 0 ? "shotgun" : w == 1 ? "super shotgun" : "nailgun"; };
+float(float w) VR_TTK_Refire = { return w == 0 ? 0.5 : w == 1 ? 0.7 : 0.1; };
+string(float s) VR_TTK_State = { return s == 0 ? "bare" : s == 1 ? "Normal" : s == 2 ? "Hard" : "Nightmare"; };
+
+// Skill state `s`'s armour: its best type, its pieces (the cuirass, the helmet, then the limb plates 2.. in order).
+float(float s) VR_TTK_Type = { return s <= 0 ? 0 : max(1, min(3, floor(VR_AgArmor_SkillValue(s, 1)))); };
+float(float s) VR_TTK_Mask =
+{
+    float n = max(1, min(VR_AR_PIECES, floor(VR_AgArmor_SkillValue(s, 2))));
+    return VR_AgArmor_Bit(n) - 1;
+};
+
+entity(entity p, float t) VR_TTK_Spawn =
+{
+    entity g;
+    if(t < 4)
+    {
+        g = VR_BAT_SpawnOwn(p, t, 0, 128, 0);
+    }
+    else
+    {
+        makevectors('0 1 0' * p.angles_y);
+        entity oself = self;
+        self = spawn();
+        setorigin(self, p.origin + v_forward * 128);
+        self.angles_y = vectoyaw(p.origin - self.origin);
+        self.weapon = -1; // (its fists)
+        VR_AM_Spawn(t == 4 ? 0 : 2);
+        g = self;
+        self = oself;
+    }
+    VR_AgArmor_Give(g, 0, 0); // (its own roll's off)
+    return g;
+};
+
+// Still where it stood (its pain and its hunt undone each frame: the same body every shot).
+void(entity e) VR_TTK_Hold =
+{
+    e.think = SUB_Null;
+    e.nextthink = time + 60;
+    e.enemy = world;
+    e.velocity = '0 0 0';
+    e.avelocity = '0 0 0';
+    e.angles = vr_ttk_ang;
+    e.frame = vr_ttk_frame0;
+    setorigin(e, vr_ttk_org);
+};
+
+void(entity p) VR_TTK_Fire =
+{
+    entity e = vr_ttk_e;
+    float w = vr_ttk_run - floor(vr_ttk_run / 3) * 3;
+    vector mid = (e.absmin + e.absmax) * 0.5;
+    vector to = p.origin - mid;
+    to_z = 0;
+    to = normalize(to);
+    vector src = mid + to * 128;
+    float a1 = 0.5 + vr_ttk_aim * 0.7548776662;
+    float a2 = 0.5 + vr_ttk_aim * 0.5698402910;
+    a1 = a1 - floor(a1);
+    a2 = a2 - floor(a2);
+    vr_ttk_aim = vr_ttk_aim + 1;
+    makevectors(vectoangles(-to));
+    vector aim = mid + v_right * (a1 - 0.5) * 0.6 * e.size_x + '0 0 1' * (a2 - 0.5) * 0.6 * e.size_z;
+    vector dir = normalize(aim - src);
+    entity oself = self;
+    self = p;
+    if(w == 2)
+    {
+        vr_ttk_nail = launch_spike(aim - dir * 48, dir); // (on the same line, near: a frame or two in flight)
+        vr_ttk_nail_until = time + 0.5;
+    }
+    else
+    {
+        VR_Hit_Begin(QVR_HITKIND_SHOT, 0, '0 0 0', dir);
+        vr_pellet_damage = cvar_hget(w == 0 ? cvarh_vr_dmg_shotgun : cvarh_vr_dmg_super_shotgun);
+        FireBulletsImpl(w == 0 ? 6 : 14, dir, w == 0 ? '0.01 0.01 0' : '0.035 0.025 0', src, 2048, FALSE);
+        vr_pellet_damage = 0;
+        VR_Hit_End();
+    }
+    self = oself;
+    vr_ttk_shots = vr_ttk_shots + 1;
+};
+
+// The table and the checks.
+void() VR_TTK_Report =
+{
+    float t, s, w;
+    for(t = 0; t < VR_TTK_TARGETS; t++)
+    {
+        for(w = 0; w < 3; w++)
+        {
+            float b = vr_ttk_res[t * 12 + w] / VR_TTK_TRIALS;
+            string line = sprintf("ttk: %s, %s: bare %g shots (%g s)", VR_TTK_Name(t), VR_TTK_Weapon(w), b, b * VR_TTK_Refire(w));
+            for(s = 1; s < 4; s++)
+            {
+                float a = vr_ttk_res[t * 12 + s * 3 + w] / VR_TTK_TRIALS;
+                line = strcat(line, sprintf("; %s %g (%g s, %gx)", VR_TTK_State(s), a, a * VR_TTK_Refire(w), b > 0 ? rint(a / b * 100) / 100 : 0));
+            }
+            VR_Test_Print(strcat(line, "\n"));
+        }
+    }
+    // Each beast and skill: the three weapons' shots armoured over bare, against the humanoids' mean.
+    for(s = 1; s < 4; s++)
+    {
+        float hr = 0;
+        for(t = 4; t < 6; t++)
+        {
+            float hb = 0, ha = 0;
+            for(w = 0; w < 3; w++)
+            {
+                hb = hb + vr_ttk_res[t * 12 + w];
+                ha = ha + vr_ttk_res[t * 12 + s * 3 + w];
+            }
+            hr = hr + ha / max(1, hb) / 2;
+        }
+        for(t = 0; t < 4; t++)
+        {
+            float bb = 0, ba = 0;
+            for(w = 0; w < 3; w++)
+            {
+                bb = bb + vr_ttk_res[t * 12 + w];
+                ba = ba + vr_ttk_res[t * 12 + s * 3 + w];
+            }
+            float br = ba / max(1, bb);
+            VR_Test_Check(br >= hr * VR_TTK_LO && br <= hr * VR_TTK_HI, sprintf("%s on %s: armoured / bare %g, the humanoids' %g (%g of it)",
+                VR_TTK_Name(t), VR_TTK_State(s), rint(br * 100) / 100, rint(hr * 100) / 100, rint(br / max(0.01, hr) * 100) / 100));
+        }
+    }
+};
+
+void(float req) VR_TTK_Frame =
+{
+    entity p = VR_Player();
+    if(req == 22)
+    {
+        VR_Test_BeginFlags("armour ttk test", VR_TEST_LOUD);
+        vr_ttk_busy = TRUE;
+        vr_ttk_god = p.flags & (FL_GODMODE | FL_NOTARGET);
+        p.flags = p.flags | FL_GODMODE | FL_NOTARGET;
+        float i;
+        for(i = 0; i < 72; i++)
+        {
+            vr_ttk_res[i] = 0;
+        }
+        vr_ttk_run = 0;
+        vr_ttk_trial = 0;
+        vr_ttk_step = 0;
+        vr_ttk_until = time + 1; // (the level settled: the player standing where he spawned)
+        return;
+    }
+    if(vr_ttk_step == 0)
+    {
+        if(time < vr_ttk_until)
+        {
+            return;
+        }
+        vr_ttk_e = VR_TTK_Spawn(p, floor(vr_ttk_run / 12));
+        vr_ttk_step = 1;
+        vr_ttk_nail_until = time + 0.6; // (its start_go: up to half a second's spread)
+        vr_ttk_until = time + 2;
+        return;
+    }
+    if(vr_ttk_step == 1)
+    {
+        if((vr_ttk_e.takedamage == DAMAGE_NO || time < vr_ttk_nail_until) && time < vr_ttk_until)
+        {
+            return; // (walkmonster_start_go not run yet)
+        }
+        vr_ttk_own = vr_ttk_e.health;
+        vr_ttk_org = vr_ttk_e.origin;
+        vr_ttk_ang = vr_ttk_e.angles;
+        vr_ttk_frame0 = floor(vr_ttk_run / 12) == 0 ? 69 : 0; // (VR_BAT_FrameA: standing)
+        vr_ttk_step = 3;
+    }
+    entity e = vr_ttk_e;
+    if(vr_ttk_step == 3)
+    {
+        // A run on the same body: dressed for its state, a health far past its own (it never dies: no corpse, no new
+        // spawn), its own health's worth of damage taken counted as the kill.
+        float st = floor(vr_ttk_run / 3) - floor(vr_ttk_run / 12) * 4;
+        VR_AgArmor_Give(e, VR_TTK_Type(st), st > 0 ? VR_TTK_Mask(st) : 0);
+        e.health = vr_ttk_own + 100000;
+        VR_TTK_Hold(e);
+        vr_ttk_shots = 0;
+        vr_ttk_aim = 0;
+        vr_ttk_nail = world;
+        vr_ttk_step = 2;
+        vr_ttk_until = time + 120;
+        return;
+    }
+    // vr_ttk_step 2: a shot a frame (a nail: once it is gone), until its own health's worth is taken.
+    VR_TTK_Hold(e); // (every frame: a hit's flinch never carries it out of the next nail's way)
+    if(vr_ttk_nail != world && vr_ttk_nail.modelindex != 0 && vr_ttk_nail.classname == "spike" && time < vr_ttk_nail_until)
+    {
+        return;
+    }
+    vr_ttk_nail = world;
+    float dead = vr_ttk_own + 100000 - e.health >= vr_ttk_own || e.modelindex == 0;
+    if(!dead && vr_ttk_shots < VR_TTK_MAXSHOTS && time < vr_ttk_until)
+    {
+        VR_TTK_Fire(p);
+        return;
+    }
+    if(!dead)
+    {
+        VR_Test_Check(FALSE, sprintf("%s, %s, %s: not killed after %g shots (took %g of %g; timed out)", VR_TTK_Name(floor(vr_ttk_run / 12)),
+            VR_TTK_State(floor(vr_ttk_run / 3) - floor(vr_ttk_run / 12) * 4), VR_TTK_Weapon(vr_ttk_run - floor(vr_ttk_run / 3) * 3),
+            vr_ttk_shots, vr_ttk_own + 100000 - e.health, vr_ttk_own));
+    }
+    vr_ttk_res[vr_ttk_run] = vr_ttk_res[vr_ttk_run] + vr_ttk_shots;
+    vr_ttk_run = vr_ttk_run + 1;
+    vr_ttk_step = 3;
+    if(vr_ttk_run - floor(vr_ttk_run / 12) * 12 != 0)
+    {
+        return; // (this body's next run)
+    }
+    vr_ttk_trial = vr_ttk_trial + 1;
+    if(vr_ttk_trial < VR_TTK_TRIALS)
+    {
+        vr_ttk_run = vr_ttk_run - 12; // (its runs again)
+        return;
+    }
+    vr_ttk_trial = 0;
+    if(e.modelindex != 0)
+    {
+        remove(e);
+    }
+    vr_ttk_e = world;
+    vr_ttk_step = 0;
+    if(vr_ttk_run < VR_TTK_TARGETS * 12)
+    {
+        return;
+    }
+    VR_TTK_Report();
+    p.flags = p.flags - (p.flags & (FL_GODMODE | FL_NOTARGET)) + vr_ttk_god;
+    vr_ttk_busy = FALSE;
+    VR_Test_Verdict();
 };
 #endif

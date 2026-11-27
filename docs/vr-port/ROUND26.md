@@ -3944,3 +3944,53 @@ attaching/detaching the dagger (and bayonet too), at the moment it happens abrup
 - **Open**: not tested with the gun in the off hand and the attachment in the main hand (the code is symmetric: the hands
   come from the foresee); the held dagger's blade may sit a little off the barrel's line as it arrives (the hand is turned
   the gun's way, not the blade's); his eye on the motion and the times.
+
+## armourhits: beasts' armour parts break on their own; armoured beasts' time to kill (branch agent/armourhits, 2026-11-27)
+
+His words (2026-11-27): "make ogre shin/thigh plates destroyable separately, same with the scrag tail and lower halves
+plates"; "in the test scenarios for the new armoured enemies, it seems like they take forever to kill. Is that intended?"
+- **Parts that break alone**: a beast's part with its own armour.txt part (beastarmour.txt's last word: the ogre's `shin`
+  by side, the scrag's `plate8_back` and `tail`) gets a worn-mask bit of its own past the ten slots (1024, 2048;
+  `vr_beastarmour.cpp assignBits`: the ogre's left shin 10, right 11; the scrag's back half 10, his tail1-4 11 together).
+  Data, the studio, armour.txt tweaks, the junctions and the drawn shape are unchanged (the part still belongs to its slot
+  there); only the pool, the hits, the drawing's on/off, the wear skins and the break go by the bit. Each is worn with its
+  slot (`VR_AgArmor_Give`, exact gives too: the studio's Wear the Part Alone still filters the drawing), has its own pool,
+  is met by the shots on it (`shotPiece`/`pieceAt` return the bit), cracks alone and drops its own pieces as debris (the
+  tail's four segments, each its worn shape and size: `pieceModel`/`plateWhere` take a code, bit + 16 x n).
+- **Pools**: the old slot's share split evenly between it and its parts (design, not area: the ogre's thigh 8 -> thigh
+  4 + shin 4; the scrag's plate 8's 6 -> front 2, back 2, tail 2; `VR_AgArmor_ShareOf`), so a kind's total is as before.
+- **Wire**: QVR_SVC_ARMOR's bytes are unchanged (its pieces and wear words are shorts: 12 bits fit), so no
+  QVR_NET_VERSION bump; the server's/client's word went to 64 bits (`packState`: pieces 0-11, wear 12-35, type 36-37).
+  QC: `VR_AR_SLOTS` 12 (`.vr_ar_hp[12]`, the per-piece arrays), `VR_AR_PIECES` stays 10 (the humanoids' loops),
+  `.vr_ar_wear`'s second level moved to bit x 4096, `VR_AR_EXACT` 4096 (engine `NumMaskBits`, `allMaskBits`,
+  `exactPieces`). Builtins: `ragdollbone(e, [3, bit], QVR_ARMOR_BEAST)` a bit's piece count, `[4, bit]` its slot.
+- **Why "forever"**: the scene (`armour_beasts`, `vr_agarmor_test 16`) and the renders spawned the beasts through the
+  test's spawner, which gives them 1000 health. Now at their own (dog 25, ogre 200, scrag 80, fiend 300). Measured in
+  play terms (`vr_agarmor_test 22`), armoured beasts are relatively *easier* than the armed humanoids, not harder: the
+  pools are the humanoids' (by slot share of Quake's 100/150/200) and the beasts have far more health.
+- **TTK** (`vr_agarmor_test 22`, Plate Blocks All; shots to take its own health from 128 units, the aim spread over the
+  middle of the body, two trials; seconds = shots x 0.5 / 0.7 / 0.1; ratio = armoured / bare, the three weapons summed;
+  Normal green 4 pieces, Hard yellow 6, Nightmare red 10):
+
+| target (health) | shotgun bare / N / H / NM | super shotgun | nailgun | ratio N / H / NM |
+|---|---|---|---|---|
+| rottweiler (25) | 1 / 1.5 / 2 / 2 | 1 / 1 / 1 / 1.5 | 2.5 / 3.5 / 4 / 3 | 1.33 / 1.56 / 1.44 |
+| ogre (200) | 7 / 10 / 10.5 / 13.5 | 4 / 6 / 6 / 7 | 19.5 / 36 / 31.5 / 55 | 1.70 / 1.57 / 2.48 |
+| scrag (80) | 4 / 6.5 / 7 / 7.5 | 2 / 4.5 / 4.5 / 4 | 9 / 19 / 18 / 18.5 | 2.00 / 1.97 / 2.00 |
+| fiend (300) | 8 / 9.5 / 10 / 10 | 3.5 / 5.5 / 5 / 5 | 21.5 / 26.5 / 28.5 / 28 | 1.26 / 1.32 / 1.30 |
+| grunt (30) | 1.5 / 4 / 4 / 8 | 1 / 2.5 / 2.5 / 4 | 4 / 11 / 12 / 19 | humanoids' mean |
+| knight (75) | 5 / 7 / 7 / 8.5 | 2 / 3 / 3.5 / 4 | 10 / 18.5 / 20.5 / 35.5 | 2.18 / 2.33 / 3.80 |
+
+  The humanoids' mean is noisy (the grunt dies to 1-1.5 shotgun shots bare: 1.7-2.3 / 1.8-3.2 / 2.7-3.9 over four runs).
+  The scene's 1000 health was 5x the ogre's, 12.5x the scrag's, 40x the rottweiler's: those runs took that much longer.
+- **Tunables** (new, archived rules): `vr_agarmor_pool_dog`, `_ogre`, `_scrag`, `_fiend` (each kind's pools times this;
+  `VR_AgArmor_PoolScale`), **default 1** (decision: his report was "too long", so the defaults are not raised; to match the
+  humanoids' ratio, a run with dog 3, ogre 3, scrag 2.5, fiend 4 gave ogre 1.83 / 2.07 / 3.12 (shotgun NM 22 shots, 11 s),
+  scrag 2.17 / 2.14 / 2.41, fiend 1.49 / 1.59 / 1.71, the rottweiler unchanged (one blast kills it whatever it wears)).
+- **Tests**: `vr_agarmor_test 15` 63/0 (slots 4095 / 3903 with the parts, the scrag's cuirass gives 3841; new: each part's
+  pool and split, a shot meeting it, broken alone with its slot and the other part kept, debris 1 / 1 / 1 / 4); new
+  `vr_agarmor_test 22` 12/0 (each beast's ratio within 0.15-1.1 of the humanoids', ~3 min; one body a target kept alive
+  past its health, so no spawn waits); `vr_beaststudio_test` 28/0; `vr_agarmor_test 1` 38/0 (its wear literals moved to
+  4096 with the humanoids' wear packing; otherwise their paths unchanged).
+- **Open**: a cut taking a several-piece part (the scrag's tail) drops its first piece only; the per-kind pools are not
+  in the menu (cvars only); no headset check.

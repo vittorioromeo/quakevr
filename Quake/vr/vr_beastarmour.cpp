@@ -73,6 +73,10 @@ struct Slot
     bool on{false};
     int owner{-1};
     int tweakPart{-1}; // a part with its own armour.txt part (beastarmour.txt's last word: the scrag's tail, the ogre's shins); -1 its slot's
+    // Its bit of the worn mask (QC .vr_ar_mask: its pool, its hits, its break): its slot's, or a part with its own armour.txt
+    // part a bit of its own past the ten slots (assignBits: the ogre's shins by side, the scrag's back half, his tail's four
+    // segments one), worn with its slot (QC VR_AgArmor_Give) and broken alone (ROUND26.md, "armourhits").
+    int bit{-1};
     char bone[16]{};
     char model[MAX_QPATH]{};
     glm::vec3 centre{0.f};
@@ -193,6 +197,50 @@ int studioAloneSel = -1; // (... worn alone: its subject draws that part's piece
     return part == p || part == ps;
 }
 
+// Each piece's and part's worn-mask bit: its slot's; a part with its own armour.txt part (tweakPart) the next bit past the
+// ten slots, shared by the parts of one slot with that part (the scrag's tail1-4); none left: its slot's.
+void assignBits(Kind& k)
+{
+    int next = agarmor::NumPieces;
+    for(int i = 0; i < k.numParts; i++)
+    {
+        Slot& s = k.slot[i];
+        s.bit = s.owner;
+        if(i < numSlots || s.tweakPart < 0)
+        {
+            continue;
+        }
+        for(int j = numSlots; j < i; j++)
+        {
+            s.bit = k.slot[j].owner == s.owner && k.slot[j].tweakPart == s.tweakPart && k.slot[j].bit >= agarmor::NumPieces ? k.slot[j].bit : s.bit;
+        }
+        if(s.bit == s.owner && next < agarmor::NumMaskBits)
+        {
+            s.bit = next++;
+        }
+        k.mask |= 1 << s.bit;
+    }
+}
+
+// The worn-mask bit of piece or part `s`.
+[[nodiscard]] int bitOf(const Slot& s)
+{
+    return s.bit >= 0 ? s.bit : s.owner;
+}
+
+// The `n`th piece or part of `k` on worn-mask bit `bit` (QC's piece codes: bit + entryStride x n); nullptr none.
+[[nodiscard]] const Slot* entryOf(const Kind& k, int bit, int n)
+{
+    for(int i = 0; i < k.numParts; i++)
+    {
+        if(k.slot[i].on && bitOf(k.slot[i]) == bit && n-- == 0)
+        {
+            return &k.slot[i];
+        }
+    }
+    return nullptr;
+}
+
 void load()
 {
     loaded = true;
@@ -251,8 +299,9 @@ void load()
     }
     free(text);
     kinds.reserve(fresh.size());
-    for(const Kind& k : fresh)
+    for(Kind& k : fresh)
     {
+        assignBits(k);
         kinds.pushBack(k);
     }
 }
@@ -697,7 +746,7 @@ bool resolve(Kind& k)
         {
             Con_Printf("beastarmour: %s: no bone \"%s\"\n", k.model, s.bone);
             s.on = false;
-            k.mask &= &s - k.slot < numSlots ? ~(1 << s.owner) : ~0;
+            k.mask &= &s - k.slot < numSlots || s.bit != s.owner ? ~(1 << bitOf(s)) : ~0;
             continue;
         }
         s.along = geom::safeNormalize(rig->bones[s.boneIndex].end - rig->bones[s.boneIndex].pivot, glm::vec3{1.f, 0.f, 0.f}, 1e-4f);
@@ -864,7 +913,7 @@ int junctionBones(edict_t* ent, const Kind& k, int pieces, const glm::vec3& base
     for(int j = 0; j < k.numJunctions && vr_beastarmour_leather.value != 0.f; j++)
     {
         const Junction& jn = k.junction[j];
-        const bool worn[2] = {((pieces >> k.slot[jn.child].owner) & 1) != 0, ((pieces >> k.slot[jn.parent].owner) & 1) != 0};
+        const bool worn[2] = {((pieces >> bitOf(k.slot[jn.child])) & 1) != 0, ((pieces >> bitOf(k.slot[jn.parent])) & 1) != 0};
         Placed pl[2];
         if((!worn[0] && !worn[1]) || !place(ent, k.slot[jn.child], pl[0], lerp) || !place(ent, k.slot[jn.parent], pl[1], lerp))
         {
@@ -1194,22 +1243,41 @@ int cuirassGroup(edict_t* ent)
 
 namespace
 {
-const char* debrisModel(Kind& k, int slot);
+const char* debrisModel(Kind& k, int code);
 } // namespace
 
-const char* pieceModel(edict_t* ent, int slot)
+const char* pieceModel(edict_t* ent, int code)
 {
     // (the one it is drawn with: shaped by armour.txt, "<model>#tweak", made as it loads; the debris keeps the worn size and
     // shape: his note 2026-11-27, plates "bigger after they have been detached")
     Kind* k = kindOf(ent);
-    return k ? debrisModel(*k, slot) : "";
+    return k ? debrisModel(*k, code) : "";
+}
+
+int bitOwner(edict_t* ent, int bit)
+{
+    const Kind* k = kindOf(ent);
+    const Slot* s = k ? entryOf(*k, bit, 0) : nullptr;
+    return s ? s->owner : -1;
+}
+
+int bitEntries(edict_t* ent, int bit)
+{
+    const Kind* k = kindOf(ent);
+    int n = 0;
+    while(k && entryOf(*k, bit, n))
+    {
+        n++;
+    }
+    return n;
 }
 
 namespace
 {
-const char* debrisModel(Kind& k, int slot)
+// (code: a worn-mask bit + entryStride x n, the bit's nth piece: the scrag's tail's segments)
+const char* debrisModel(Kind& k, int code)
 {
-    if(slot < 0 || slot >= numSlots || !k.slot[slot].on)
+    if(code < 0 || !entryOf(k, code % entryStride, code / entryStride))
     {
         return "";
     }
@@ -1217,7 +1285,7 @@ const char* debrisModel(Kind& k, int slot)
     {
         refresh(k);
     }
-    const Slot& s = k.slot[slot];
+    const Slot& s = *entryOf(k, code % entryStride, code / entryStride);
     if(!s.shaped)
     {
         return s.model;
@@ -1234,7 +1302,7 @@ const char* debrisModel(Kind& k, int slot)
     }
     if(debrisNames.count >= maxDebrisNames)
     {
-        return s.model; // (never: four kinds' ten slots)
+        return s.model; // (never: four kinds' pieces and parts, at most 16 each)
     }
     q_strlcpy(debrisNames.name[debrisNames.count], want, MAX_QPATH);
     return debrisNames.name[debrisNames.count++];
@@ -1265,12 +1333,12 @@ int shotPiece(edict_t* ent, const float* at, const float* dir, int mask)
     for(int i = 0; i < k->numParts; i++)
     {
         Placed pl;
-        if(!k->slot[i].on || !(mask & (1 << k->slot[i].owner)) || !place(ent, k->slot[i], pl))
+        if(!k->slot[i].on || !(mask & (1 << bitOf(k->slot[i]))) || !place(ent, k->slot[i], pl))
         {
             continue;
         }
         const float t = crossing(k->slot[i], pl, a, end);
-        found = t <= 1.f && t < best ? k->slot[i].owner : found;
+        found = t <= 1.f && t < best ? bitOf(k->slot[i]) : found;
         best = t <= 1.f && t < best ? t : best;
     }
     return found;
@@ -1298,7 +1366,7 @@ int pieceAt(edict_t* ent, const float* at)
         const glm::vec3 lp = glm::transpose(pl.axes) * (p - pl.origin) / pl.scale;
         const glm::vec3 out = glm::max(glm::max(s.lo - lp, lp - s.hi), glm::vec3{0.f});
         const float dist = glm::length(out) * pl.scale;
-        found = dist <= pointReach && dist < best ? s.owner : found;
+        found = dist <= pointReach && dist < best ? bitOf(s) : found;
         best = dist <= pointReach && dist < best ? dist : best;
     }
     return found;
@@ -1308,20 +1376,22 @@ uint32_t pieceBones(edict_t* ent, int slot)
 {
     const Kind* k = ready(ent);
     uint32_t bones = 0u;
-    for(int i = 0; k && slot >= 0 && slot < numSlots && i < k->numParts; i++)
+    for(int i = 0; k && slot >= 0 && slot < agarmor::NumMaskBits && i < k->numParts; i++)
     {
         const Slot& s = k->slot[i];
-        bones |= s.on && s.owner == slot && s.boneIndex >= 0 && s.boneIndex < 32 ? 1u << static_cast<unsigned>(s.boneIndex) : 0u;
+        bones |= s.on && bitOf(s) == slot && s.boneIndex >= 0 && s.boneIndex < 32 ? 1u << static_cast<unsigned>(s.boneIndex) : 0u;
     }
     return bones;
 }
 
-void plateWhere(edict_t* ent, int slot, int what, float* out)
+void plateWhere(edict_t* ent, int code, int what, float* out)
 {
     out[0] = out[1] = out[2] = 0.f;
     const Kind* k = ready(ent);
+    // (code: a worn-mask bit, + entryStride x n its nth piece: the scrag's tail's segments; QC's debris)
+    const Slot* s = k && code >= 0 ? entryOf(*k, code % entryStride, code / entryStride) : nullptr;
     Placed pl;
-    if(!k || slot < 0 || slot >= numSlots || !place(ent, k->slot[slot], pl))
+    if(!s || !place(ent, *s, pl))
     {
         return;
     }
@@ -1334,7 +1404,7 @@ void plateWhere(edict_t* ent, int slot, int what, float* out)
     {
         // (its size as drawn: its scale, its box's diagonal; the same whatever the frame)
         out[0] = pl.scale;
-        out[1] = glm::length(k->slot[slot].hi - k->slot[slot].lo) * pl.scale;
+        out[1] = glm::length(s->hi - s->lo) * pl.scale;
         return;
     }
     glm::vec3 v = pl.origin;
@@ -1382,7 +1452,7 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
         // (the studio's part worn alone: its own pieces, not the rest of their slot: the scrag's back half without his front
         // half and tail; a junction's part: its slots' pieces, the leather between them)
         const bool notAlone = studio && studioAloneSel >= 0 && !armourdata::sleevePart(studioAloneSel) && !isPart(*k, i, studioAloneSel);
-        if(!s.on || !(pieces & (1 << s.owner)) || notAlone || !place(ent, s, pl, lerp))
+        if(!s.on || !(pieces & (1 << bitOf(s))) || notAlone || !place(ent, s, pl, lerp))
         {
             continue;
         }
@@ -1395,7 +1465,7 @@ void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
         // (a shaped piece's skins are its .mdl's: its own model's count)
         const qmodel_t* skinned = s.shaped ? Mod_ForName(s.model, false) : m;
         const int numSkins = skinned && skinned->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(skinned)))->numskins : 1;
-        const int level = (wear >> numSlots) & (1 << s.owner) ? 2 : (wear & (1 << s.owner)) ? 1 : 0;
+        const int level = (wear >> agarmor::NumMaskBits) & (1 << bitOf(s)) ? 2 : (wear & (1 << bitOf(s))) ? 1 : 0;
         numPiecesDrawn += i < numSlots ? 1 : 0;
         entity_t& a = ents[numEnts++];
         a = *e;
@@ -1706,7 +1776,7 @@ JunctionCheck checkJunction(edict_t* ent, int slot, int pieces)
             {
                 // (an end ring: where its piece's place carries its rest place, when worn)
                 const int e = r == 0 ? 0 : 1;
-                const bool worn = ((pieces >> k->slot[e == 0 ? jn.child : jn.parent].owner) & 1) != 0;
+                const bool worn = ((pieces >> bitOf(k->slot[e == 0 ? jn.child : jn.parent])) & 1) != 0;
                 const glm::vec3 want = pl[e].restRot * k->lp[static_cast<za::SizeT>(jn.first + v)] + pl[e].restT;
                 out.endError = worn ? za::max(out.endError, glm::distance(p, want)) : out.endError;
             }

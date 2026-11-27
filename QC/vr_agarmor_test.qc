@@ -306,7 +306,7 @@ void() VR_ART_Run =
     float w1 = a.vr_ar_wear;
     a.frame = f0;
     VR_ART_Hit(a, pc, 0, 10);
-    VR_ART_Check(w1 == 1 && a.vr_ar_wear == 1 + 1024 && a.vr_ar_hp[0] == 10,
+    VR_ART_Check(w1 == 1 && a.vr_ar_wear == 1 + 4096 && a.vr_ar_hp[0] == 10,
         sprintf("wear: the cuirass at 20 of 31 dented (wear %g), at 10 battered (%g)", w1, a.vr_ar_wear));
     cvar_set("vr_agarmor_rule", "0");
 };
@@ -406,7 +406,7 @@ void() VR_ART_RunEnforcer =
     VR_ART_Hit(c, ph, 0, 7); // (no headshot's multiplier: the piece is the point's)
     cvar_set("vr_agarmor_rule", "0");
     vr_art_cwear = c.vr_ar_wear;
-    VR_ART_Check(vr_art_cwear == 1 + 2 + 1024, sprintf("enforcer: wear on the server %g (1027: the cuirass battered, the helmet dented)", vr_art_cwear));
+    VR_ART_Check(vr_art_cwear == 1 + 2 + 4096, sprintf("enforcer: wear on the server %g (4099: the cuirass battered, the helmet dented)", vr_art_cwear));
 };
 
 // `vr_agarmor_test 7`: the knights' armour, `c` one of them (its model `mdl`, its name `who`), by vr_agarmor_rule 1 as
@@ -476,7 +476,7 @@ float(entity c, string mdl, string who) VR_ART_RunKnight =
     c.frame = f0;
     VR_ART_Hit(c, ph, 0, 7);
     cvar_set("vr_agarmor_rule", "0");
-    VR_ART_Check(c.vr_ar_wear == 1 + 2 + 1024, sprintf("%s: wear on the server %g (1027: the cuirass battered, the helmet dented)", who, c.vr_ar_wear));
+    VR_ART_Check(c.vr_ar_wear == 1 + 2 + 4096, sprintf("%s: wear on the server %g (4099: the cuirass battered, the helmet dented)", who, c.vr_ar_wear));
     return c.vr_ar_wear;
 };
 
@@ -576,6 +576,11 @@ void() VR_AgArmor_TestFrame =
         VR_DLT_Frame(0); // (21: the drawn body smooth, the armour in step; vr_beastarmour_test.qc)
         return;
     }
+    if(vr_ttk_busy)
+    {
+        VR_TTK_Frame(0); // (22: time to kill, armoured and bare; vr_beastarmour_test.qc)
+        return;
+    }
     if(vr_art_state == 0)
     {
         if(cvar_hget(cvarh_vr_agarmor_test) == 0)
@@ -607,6 +612,11 @@ void() VR_AgArmor_TestFrame =
         if(request == 21)
         {
             VR_DLT_Frame(request); // (doglerp: the drawn body smooth, the armour in step; vr_beastarmour_test.qc)
+            return;
+        }
+        if(request == 22)
+        {
+            VR_TTK_Frame(request); // (armourhits: time to kill, armoured and bare; vr_beastarmour_test.qc)
             return;
         }
         if(request == 2)

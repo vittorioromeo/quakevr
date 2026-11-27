@@ -24,20 +24,28 @@ namespace qvr::beastarmour
 // Whether `ent`'s model is a beast kind's (it may wear this armour), and `name`'s (a client entity's model).
 [[nodiscard]] bool wears(struct edict_s* ent);
 [[nodiscard]] bool kindNamed(const char* model);
-// Its kind's slots (bits; 0 not a kind) and its cuirass group (the slots the roll's cuirass gives).
+// Its kind's worn-mask bits (its slots and its parts that break on their own, past the ten: agarmor::NumMaskBits; 0 not a
+// kind) and its cuirass group (the slots the roll's cuirass gives).
 [[nodiscard]] int slots(struct edict_s* ent);
 [[nodiscard]] int cuirassGroup(struct edict_s* ent);
-// Piece `slot`'s model ("" none), a string kept for good.
-[[nodiscard]] const char* pieceModel(struct edict_s* ent, int slot);
+// QC's piece codes for the debris (pieceModel, plateWhere): a worn-mask bit + entryStride x n, its nth piece (a bit may
+// have several: the scrag's tail's four segments).
+inline constexpr int entryStride = 16;
+inline constexpr int maxEntryCodes = entryStride * 16;
+// Piece `code`'s model ("" none), a string kept for good; how many pieces bit `bit` has (the debris to drop).
+[[nodiscard]] const char* pieceModel(struct edict_s* ent, int code);
+[[nodiscard]] int bitEntries(struct edict_s* ent, int bit);
+// The slot worn-mask bit `bit` is worn with (its own for a slot; a part's that breaks on its own its slot's; -1 none).
+[[nodiscard]] int bitOwner(struct edict_s* ent, int bit);
 
 // agarmor's queries for a beast (agarmor::shotPiece, pieceAt, pieceBones, plateWhere).
 [[nodiscard]] int shotPiece(struct edict_s* ent, const float* at, const float* dir, int mask);
 [[nodiscard]] int pieceAt(struct edict_s* ent, const float* at);
 [[nodiscard]] uint32_t pieceBones(struct edict_s* ent, int slot);
-void plateWhere(struct edict_s* ent, int slot, int what, float* out);
+void plateWhere(struct edict_s* ent, int code, int what, float* out);
 
 // The client (agarmor::relink): begin a frame's entities, then each beast entity `e` (number `num`) wearing `type` on
-// `pieces` (wear bits as agarmor's: 0-9 at two thirds, 10-19 at a third) gets its pieces' entities (a piece armour.txt
+// `pieces` (wear bits as agarmor's: 0-11 at two thirds, 12-23 at a third) gets its pieces' entities (a piece armour.txt
 // shapes drawn as "<piece model>#tweak") and one for its leather junctions ("<model>#bridge", its bones the pieces').
 void beginRelink();
 void relinkEntity(struct entity_s* e, int num, int type, int pieces, int wear);

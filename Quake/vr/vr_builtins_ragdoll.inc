@@ -239,11 +239,11 @@ void PF_ragdollbone()
         return;
     }
     if(within == -1006.f) // QVR_ARMOR_BEAST: e's beast kind's armour (vr_beastarmour.cpp): p_x 0 its slots (bits; 0 not a
-    {                     // beast), 1 its cuirass group, 2 the pieces drawn this frame (p_y 1: their parts too; the tests)
-        edict_t* e = G_EDICT(OFS_PARM0);
-        const int what = static_cast<int>(p[0]);
-        G_FLOAT(OFS_RETURN) = static_cast<float>(what == 2 ? beastarmour::drawnCount(p[1] != 0.f) : what == 1 ? beastarmour::cuirassGroup(e) :
-            beastarmour::slots(e));
+    {                     // beast), 1 its cuirass group, 2 the pieces drawn this frame (p_y 1: their parts too; the tests),
+        edict_t* e = G_EDICT(OFS_PARM0); // 3 how many pieces worn-mask bit p_y has (its debris), 4 the slot bit p_y is worn
+        const int what = static_cast<int>(p[0]); // with (-1 none)
+        G_FLOAT(OFS_RETURN) = static_cast<float>(what == 4 ? beastarmour::bitOwner(e, static_cast<int>(p[1])) : what == 3 ? beastarmour::bitEntries(e, static_cast<int>(p[1])) : what == 2 ? beastarmour::drawnCount(p[1] != 0.f) :
+            what == 1 ? beastarmour::cuirassGroup(e) : beastarmour::slots(e));
         return;
     }
     if(within == -1002.f) // QVR_ARMOR_PIECE_BONES: the rig's bones piece p_x rides (bits, as ragdolllimbs')
@@ -454,9 +454,10 @@ void PF_limbmodel()
 {
     // (QVR_ARMOR_HALF - (2 * piece + half): a broken plate's half's model, vr_agarmor_split; the builtins' table is full)
     const int bone = static_cast<int>(G_FLOAT(OFS_PARM1));
-    if(bone <= armorBeastCode && bone > armorBeastCode - agarmor::NumPieces)
+    if(bone <= armorBeastCode && bone > armorBeastCode - beastarmour::maxEntryCodes)
     {
-        // (QVR_ARMOR_BEAST_MODEL - slot: a beast's armour piece's model, vr_beastarmour.cpp; "" none)
+        // (QVR_ARMOR_BEAST_MODEL - code: a beast's armour piece's model, vr_beastarmour.cpp (code: its bit + 16 x n, the
+        // bit's nth piece); "" none)
         G_INT(OFS_RETURN) = PR_SetEngineString(beastarmour::pieceModel(G_EDICT(OFS_PARM0), armorBeastCode - bone));
         return;
     }
