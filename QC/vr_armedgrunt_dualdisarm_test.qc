@@ -168,6 +168,10 @@ void() VR_AGDD_Frame =
             // Your empty main hand on its left weapon (test 68's way), closing: a tug; pulled hard: torn out, yours.
             cvar_set("vr_mock_hand_to_absolute", "1");
             VR_AGPT_EmptyHand(pl);
+            // (and its drawn weapon: VR_AGPT_EmptyHand keeps .weaponmodel, so the last case's tug's gun, still drawn in the
+            // "empty" hand, swept the knight's legs as the mock hand jumped to its sword (vr_legsweep: knocked down, the tug
+            // on a ragdoll, its sword undrawn as it lay: case 12's two fails; basefix2, ROUND26)
+            pl.weaponmodel = WeaponIdToModel(WID_FIST, 0);
             localcmd("-grabmain\n");
             cvar_set("vr_agrunt_disarm_yank", "0");
             pl.mainhand_lastgrabtime = time - 2;

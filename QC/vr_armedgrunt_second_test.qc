@@ -51,7 +51,12 @@ void() VR_AGSN_Frame =
         VR_AGT_Remove(src);
         vr_agsn_w = VR_AGT_LyingNear(at);
         makevectors(vr_agsn_g.angles);
-        setorigin(vr_agsn_w, vr_agsn_g.origin + v_right * VR_AGSN_Dist(c) + '0 0 6');
+        // (on the floor, as lying: set at the grunt's middle it fell 28 units and bounced, flying past
+        // VR_DROPCAP_FLYING for a frame, and a grunt already on its way gave it up and fired a burst before looking again:
+        // the 3.4 s case 3 after Box3D 042be58 changed the bounce; basefix2, ROUND26)
+        vector spot = vr_agsn_g.origin + v_right * VR_AGSN_Dist(c);
+        traceline(spot, spot - '0 0 64', TRUE, vr_agsn_w);
+        setorigin(vr_agsn_w, trace_endpos + '0 0 2');
         vr_agsn_w.velocity = '0 0 0';
         vr_agsn_home = vr_agsn_g.origin;
         vr_agsn_t0 = 0;
