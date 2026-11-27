@@ -377,20 +377,6 @@ kind "progs/wizard.mdl"
         standoff "0"
         taper_start "1.12"
     }
-    helmet
-    {
-        rotate "0 0 0"
-        scale "1"
-        standoff "1"
-    }
-    pauldron
-    {
-        offset "0 1.95 -1.82"
-        rotate "1 -10.3 0"
-        scale "0.35"
-        standoff "-0.18"
-        taper_start "1.005"
-    }
     bracer
     {
         offset "0 0 -2.61"
@@ -401,21 +387,6 @@ kind "progs/wizard.mdl"
     {
         offset "-1.3 -2.15 -1.18"
         rotate "0 12.7 0"
-    }
-    plate8
-    {
-        offset "-0.65 -0.98 0"
-        scale "0.853"
-        standoff "-1"
-        taper_start "0.885"
-        taper_end "1.005"
-    }
-    plate9
-    {
-        offset "-3.13 0 -6"
-        rotate "-12.7 0 0"
-        scale "0.886"
-        standoff "-1"
     }
 }
 
@@ -456,51 +427,5 @@ kind "progs/demon.mdl"
         scale "0.934"
         taper_start "0.734"
         taper_end "0.946"
-    }
-}
-
-kind "progs/ogre.mdl"
-{
-    cuirass
-    {
-        offset "-3.52 0 -0.39"
-        rotate "-10.7 -10.8 3"
-        scale "0.707"
-    }
-    helmet
-    {
-        offset "3.91 -2.81 -1.24"
-        rotate "16.1 0 15.2"
-        scale "0.614"
-        taper_start "0.679"
-        taper_end "0.908"
-    }
-    pauldron
-    {
-        offset "0 -1.89 3"
-        scale "0.641"
-    }
-    bracer
-    {
-        scale "0.522"
-    }
-    thigh
-    {
-        scale "0.63"
-        standoff "0.07"
-        taper_start "1.011"
-        taper_end "0.973"
-    }
-    plate8
-    {
-        offset "0.46 0.2 -3.72"
-        rotate "-9.3 10.3 5.4"
-        scale "0.755"
-    }
-    plate9
-    {
-        rotate "-5.4 -2.4 -6.8"
-        scale "0.886"
-        standoff "-1"
     }
 }

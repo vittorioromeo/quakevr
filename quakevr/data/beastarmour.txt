@@ -2,6 +2,7 @@
 // by Misc/quakevr/make_beastarmour.py with the pieces' models: edit the script's tables and run it again.
 //   kind <monster model> <cuirass group: the slots' bits the roll's cuirass gives>
 //   piece <monster model> <slot 0-9> <its derived rig's bone> <the piece's model> <its middle in the rest pose: x y z>
+//         [a slot's part: its own armour.txt part (tail, shin), else its slot's]
 kind progs/dog.mdl 257
 piece progs/dog.mdl 0 chest progs/vrbarmor_dog_0.mdl 9.27 -2.09 2.63
 piece progs/dog.mdl 8 pelvis progs/vrbarmor_dog_8.mdl -4.91 -0.43 2.16
@@ -12,39 +13,39 @@ piece progs/dog.mdl 3 upperleg_fr progs/vrbarmor_dog_3.mdl 12.19 -9.11 -7.58
 piece progs/dog.mdl 6 thigh_bl progs/vrbarmor_dog_6.mdl -7.79 10.02 -5.10
 piece progs/dog.mdl 7 thigh_br progs/vrbarmor_dog_7.mdl -11.08 -9.89 -4.77
 kind progs/ogre.mdl 769
-piece progs/ogre.mdl 0 chest progs/vrbarmor_ogre_0.mdl 7.78 -5.54 17.95
-piece progs/ogre.mdl 8 chest progs/vrbarmor_ogre_8.mdl -1.48 -1.15 25.21
-piece progs/ogre.mdl 9 pelvis progs/vrbarmor_ogre_9.mdl 1.06 -0.17 9.71
-piece progs/ogre.mdl 1 head progs/vrbarmor_ogre_1.mdl 6.64 -4.97 37.41
-piece progs/ogre.mdl 2 upperarm_l progs/vrbarmor_ogre_2.mdl 11.66 12.00 21.82
-piece progs/ogre.mdl 3 upperarm_r progs/vrbarmor_ogre_3.mdl -7.96 -16.79 22.24
-piece progs/ogre.mdl 4 forearm_l progs/vrbarmor_ogre_4.mdl 18.94 14.25 6.60
-piece progs/ogre.mdl 5 forearm_r progs/vrbarmor_ogre_5.mdl -21.34 -16.93 14.05
-piece progs/ogre.mdl 6 thigh_l progs/vrbarmor_ogre_6.mdl 10.29 3.52 -1.75
-piece progs/ogre.mdl 7 thigh_r progs/vrbarmor_ogre_7.mdl -5.00 -7.46 -4.08
-piece progs/ogre.mdl 6 shin_l progs/vrbarmor_ogre_6_shin_l.mdl 15.49 7.28 -14.36
-piece progs/ogre.mdl 7 shin_r progs/vrbarmor_ogre_7_shin_r.mdl -9.81 -9.29 -17.50
+piece progs/ogre.mdl 0 chest progs/vrbarmor_ogre_0.mdl 6.25 -4.40 18.29
+piece progs/ogre.mdl 8 chest progs/vrbarmor_ogre_8.mdl -0.29 -1.99 24.02
+piece progs/ogre.mdl 9 pelvis progs/vrbarmor_ogre_9.mdl 0.91 0.09 10.21
+piece progs/ogre.mdl 1 head progs/vrbarmor_ogre_1.mdl 7.67 -4.76 35.55
+piece progs/ogre.mdl 2 upperarm_l progs/vrbarmor_ogre_2.mdl 11.05 10.14 22.47
+piece progs/ogre.mdl 3 upperarm_r progs/vrbarmor_ogre_3.mdl -6.85 -13.82 23.04
+piece progs/ogre.mdl 4 forearm_l progs/vrbarmor_ogre_4.mdl 18.96 13.69 7.43
+piece progs/ogre.mdl 5 forearm_r progs/vrbarmor_ogre_5.mdl -20.20 -16.30 13.18
+piece progs/ogre.mdl 6 thigh_l progs/vrbarmor_ogre_6.mdl 10.31 4.00 -1.90
+piece progs/ogre.mdl 7 thigh_r progs/vrbarmor_ogre_7.mdl -4.47 -7.37 -4.53
+piece progs/ogre.mdl 6 shin_l progs/vrbarmor_ogre_6_shin_l.mdl 14.69 5.34 -10.84 shin
+piece progs/ogre.mdl 7 shin_r progs/vrbarmor_ogre_7_shin_r.mdl -7.67 -9.92 -14.41 shin
 kind progs/wizard.mdl 769
-piece progs/wizard.mdl 0 chest progs/vrbarmor_wizard_0.mdl 9.31 0.00 15.99
-piece progs/wizard.mdl 9 chest progs/vrbarmor_wizard_9.mdl -2.44 1.01 22.10
-piece progs/wizard.mdl 8 pelvis progs/vrbarmor_wizard_8.mdl 0.99 0.79 0.51
-piece progs/wizard.mdl 8 tail1 progs/vrbarmor_wizard_8_tail1.mdl -6.39 -0.80 -15.93
-piece progs/wizard.mdl 8 tail2 progs/vrbarmor_wizard_8_tail2.mdl -17.22 0.91 -20.02
-piece progs/wizard.mdl 8 tail3 progs/vrbarmor_wizard_8_tail3.mdl -29.30 0.54 -18.71
-piece progs/wizard.mdl 8 tail4 progs/vrbarmor_wizard_8_tail4.mdl -43.12 -2.48 -14.82
-piece progs/wizard.mdl 1 head progs/vrbarmor_wizard_1.mdl 11.07 -1.19 30.68
-piece progs/wizard.mdl 2 arm_l progs/vrbarmor_wizard_2.mdl 1.67 9.59 23.57
-piece progs/wizard.mdl 3 arm_r progs/vrbarmor_wizard_3.mdl 0.16 -9.05 25.93
-piece progs/wizard.mdl 4 hand_l progs/vrbarmor_wizard_4.mdl 0.26 15.42 19.67
-piece progs/wizard.mdl 5 hand_r progs/vrbarmor_wizard_5.mdl 1.12 -14.93 19.27
+piece progs/wizard.mdl 0 chest progs/vrbarmor_wizard_0.mdl 8.48 0.21 15.43
+piece progs/wizard.mdl 9 chest progs/vrbarmor_wizard_9.mdl -1.00 0.94 21.79
+piece progs/wizard.mdl 8 pelvis progs/vrbarmor_wizard_8.mdl 1.48 0.67 0.64
+piece progs/wizard.mdl 8 tail1 progs/vrbarmor_wizard_8_tail1.mdl -6.73 -0.34 -15.27 tail
+piece progs/wizard.mdl 8 tail2 progs/vrbarmor_wizard_8_tail2.mdl -17.20 0.80 -19.65 tail
+piece progs/wizard.mdl 8 tail3 progs/vrbarmor_wizard_8_tail3.mdl -29.23 0.77 -18.82 tail
+piece progs/wizard.mdl 8 tail4 progs/vrbarmor_wizard_8_tail4.mdl -43.53 -3.05 -14.21 tail
+piece progs/wizard.mdl 1 head progs/vrbarmor_wizard_1.mdl 5.76 -0.50 33.89
+piece progs/wizard.mdl 2 arm_l progs/vrbarmor_wizard_2.mdl 3.27 11.59 21.28
+piece progs/wizard.mdl 3 arm_r progs/vrbarmor_wizard_3.mdl 1.90 -10.97 23.63
+piece progs/wizard.mdl 4 hand_l progs/vrbarmor_wizard_4.mdl -1.21 15.59 20.26
+piece progs/wizard.mdl 5 hand_r progs/vrbarmor_wizard_5.mdl -0.40 -14.75 19.89
 kind progs/demon.mdl 769
 piece progs/demon.mdl 0 chest progs/vrbarmor_demon_0.mdl 11.28 0.15 5.36
 piece progs/demon.mdl 9 chest progs/vrbarmor_demon_9.mdl 9.10 -0.14 -7.32
 piece progs/demon.mdl 8 pelvis progs/vrbarmor_demon_8.mdl -5.35 -1.61 -1.32
 piece progs/demon.mdl 1 head progs/vrbarmor_demon_1.mdl 30.30 -0.17 -2.47
-piece progs/demon.mdl 2 upperarm_l progs/vrbarmor_demon_2.mdl 16.63 13.80 -1.51
+piece progs/demon.mdl 2 upperarm_l progs/vrbarmor_demon_2.mdl 17.42 14.34 -1.98
 piece progs/demon.mdl 3 upperarm_r progs/vrbarmor_demon_3.mdl 15.89 -14.20 -2.76
-piece progs/demon.mdl 4 forearm_l progs/vrbarmor_demon_4.mdl 13.33 12.01 -9.82
+piece progs/demon.mdl 4 forearm_l progs/vrbarmor_demon_4.mdl 13.28 14.04 -9.07
 piece progs/demon.mdl 5 forearm_r progs/vrbarmor_demon_5.mdl 14.60 -13.29 -13.93
-piece progs/demon.mdl 6 thigh_l progs/vrbarmor_demon_6.mdl -2.44 8.17 -6.82
+piece progs/demon.mdl 6 thigh_l progs/vrbarmor_demon_6.mdl -2.61 7.46 -7.70
 piece progs/demon.mdl 7 thigh_r progs/vrbarmor_demon_7.mdl -2.60 -11.61 -9.39

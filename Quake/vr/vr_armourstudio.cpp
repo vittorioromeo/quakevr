@@ -201,6 +201,11 @@ void showFields()
 [[nodiscard]] int piecesOf(int part, int side, bool& sleeve)
 {
     sleeve = sleevePart(part);
+    if(const int beast = beastOf(subjectNow()); beast >= 0)
+    {
+        // (a beast's: the slots whose pieces or parts are that part, the scrag's tail its belt's, the ogre's shins the thighs')
+        return beastarmour::partPieces(beast, part, side);
+    }
     if(part == PartCuirass || part == PartCuirassSleeve)
     {
         return 1 << agarmor::Cuirass;
@@ -488,6 +493,7 @@ void keepSubject()
             playAnim(e);
         }
     }
+    beastarmour::studioPart(beastOf(subjectNow()) >= 0 ? st.selPart : -1);
     agarmor::studioView(st.subject, za::clamp(vr_armourstudio_ghost.value, 0.f, 1.f), pieces, sleeve);
 }
 
@@ -1329,12 +1335,8 @@ bool partValid(int subject, int part)
     {
         return part < humanParts;
     }
-    if(part == PartShin || part == PartShinSleeve)
-    {
-        return false;
-    }
-    bool sleeve = false;
-    const int bits = piecesOf(part, SideBoth, sleeve) & beastarmour::kindSlots(beast);
+    const bool sleeve = sleevePart(part);
+    const int bits = beastarmour::partPieces(beast, part, SideBoth) & beastarmour::kindSlots(beast);
     bool any = false;
     for(int slot = 0; slot < agarmor::NumPieces; slot++)
     {

@@ -69,6 +69,7 @@ struct Slot
 {
     bool on{false};
     int owner{-1};
+    int tweakPart{-1}; // a part with its own armour.txt part (beastarmour.txt's last word: the scrag's tail, the ogre's shins); -1 its slot's
     char bone[16]{};
     char model[MAX_QPATH]{};
     glm::vec3 centre{0.f};
@@ -149,9 +150,25 @@ int numLeather = 0;
 int studioEnt = 0;
 float studioAlpha = 1.f;
 
+int studioPartSel = -1; // (the Armour Studio's part: outline draws its pieces alone; -1 every piece of the slots asked)
+
 [[nodiscard]] bool has(const Override& o, int field)
 {
     return ((o.has >> static_cast<unsigned>(field)) & 1u) != 0u;
+}
+
+// Whether piece or part `i` of `k` is armour.txt's `part` (or its junction the part's sleeve): its own part, else its slot's.
+[[nodiscard]] bool isPart(const Kind& k, int i, int part)
+{
+    const Slot& s = k.slot[i];
+    if(s.tweakPart >= 0)
+    {
+        return part == s.tweakPart || part == armourdata::beastSleeve(s.tweakPart);
+    }
+    int p = 0, side = 0, ps = 0;
+    armourdata::beastPart(s.owner, false, p, side);
+    armourdata::beastPart(s.owner, true, ps, side);
+    return part == p || part == ps;
 }
 
 void load()
@@ -176,7 +193,7 @@ void load()
         }
         line[n] = 0;
         p += *p == '\n' ? 1 : 0;
-        char word[16], model[MAX_QPATH], bone[16], piece[MAX_QPATH];
+        char word[16], model[MAX_QPATH], bone[16], piece[MAX_QPATH], part[24] = "";
         int a = 0;
         float x = 0.f, y = 0.f, z = 0.f;
         if(sscanf(line, "%15s", word) != 1 || word[0] == '/')
@@ -190,7 +207,7 @@ void load()
             k.group = a;
             fresh.pushBack(k);
         }
-        else if(!strcmp(word, "piece") && sscanf(line, "%*s %63s %d %15s %63s %f %f %f", model, &a, bone, piece, &x, &y, &z) == 7 &&
+        else if(!strcmp(word, "piece") && sscanf(line, "%*s %63s %d %15s %63s %f %f %f %23s", model, &a, bone, piece, &x, &y, &z, part) >= 7 &&
                 !fresh.empty() && !strcmp(fresh.back().model, model) && a >= 0 && a < numSlots &&
                 (!fresh.back().slot[a].on || fresh.back().numParts < maxParts))
         {
@@ -203,6 +220,10 @@ void load()
             q_strlcpy(s.model, piece, sizeof(s.model));
             q_strlcpy(s.drawn, piece, sizeof(s.drawn));
             s.centre = glm::vec3{x, y, z};
+            for(int p = 0; p < armourdata::NumParts && &s - f.slot >= numSlots; p++)
+            {
+                s.tweakPart = !strcmp(part, armourdata::partNames[p]) ? p : s.tweakPart;
+            }
             fresh.back().mask |= 1 << a;
         }
     }
@@ -588,11 +609,20 @@ void refresh(Kind& k)
     }
     for(int i = numSlots; i < k.numParts; i++)
     {
-        // (a part: its slot's tweaks, moved, turned and shaped as the piece is)
+        // (a part: its slot's tweaks, moved, turned and shaped as the piece is; or its own part's: the scrag's tail, the
+        // ogre's shins by side)
         Slot& s = k.slot[i];
         s.tw = k.slot[s.owner].tw;
         s.jt = k.slot[s.owner].jt;
         s.shaped = k.slot[s.owner].shaped;
+        if(s.tweakPart >= 0)
+        {
+            const int side = (s.owner - agarmor::PauldronL) % 2 == 0 ? armourdata::SideLeft : armourdata::SideRight;
+            (void)armourdata::resolveBeastPart(k.model, s.tweakPart, side, false, s.tw);
+            (void)armourdata::resolveBeastPart(k.model, s.tweakPart, side, true, s.jt);
+            s.shaped = has(s.tw, armourdata::Scale) || has(s.tw, armourdata::Standoff) || has(s.tw, armourdata::TaperStart) ||
+                has(s.tw, armourdata::TaperEnd);
+        }
         q_snprintf(s.drawn, sizeof(s.drawn), "%s%s", s.model, s.shaped ? tweakSuffix : "");
         shapeTris(s);
     }
@@ -1365,6 +1395,28 @@ void studioView(int ent, float bodyAlpha)
     studioAlpha = bodyAlpha;
 }
 
+void studioPart(int part)
+{
+    studioPartSel = part;
+}
+
+int partPieces(int i, int part, int side)
+{
+    if(i < 0 || i >= kindCount())
+    {
+        return 0;
+    }
+    Kind& k = kinds[static_cast<za::SizeT>(i)];
+    int bits = 0;
+    for(int s = 0; resolve(k) && s < k.numParts; s++)
+    {
+        const bool left = (k.slot[s].owner - agarmor::PauldronL) % 2 == 0;
+        const bool sideOk = !armourdata::limbPart(part) || side == armourdata::SideBoth || (side == armourdata::SideLeft) == left;
+        bits |= k.slot[s].on && sideOk && isPart(k, s, part) ? 1 << k.slot[s].owner : 0;
+    }
+    return bits;
+}
+
 void outline(edict_t* ent, int pieces, bool sleeve)
 {
     const Kind* k = ready(ent);
@@ -1376,7 +1428,8 @@ void outline(edict_t* ent, int pieces, bool sleeve)
     for(int i = 0; i < k->numParts && !sleeve; i++)
     {
         Placed pl;
-        if(!k->slot[i].on || !((pieces >> k->slot[i].owner) & 1) || !place(ent, k->slot[i], pl))
+        if(!k->slot[i].on || !((pieces >> k->slot[i].owner) & 1) || (studioPartSel >= 0 && !isPart(*k, i, studioPartSel)) ||
+           !place(ent, k->slot[i], pl))
         {
             continue;
         }
@@ -1401,7 +1454,7 @@ void outline(edict_t* ent, int pieces, bool sleeve)
     for(int j = 0; j < k->numJunctions; j++)
     {
         const Junction& jn = k->junction[j];
-        if(!((pieces >> k->slot[jn.child].owner) & 1))
+        if(!((pieces >> k->slot[jn.child].owner) & 1) || (studioPartSel >= 0 && !isPart(*k, jn.child, studioPartSel)))
         {
             continue;
         }
@@ -1556,9 +1609,356 @@ JunctionCheck checkJunction(edict_t* ent, int slot, int pieces)
     return out;
 }
 
+// --- vr_beastfit_test (ROUND26.md, "beastfit"): how the pieces fit their beasts, measured as the offline
+// scratch/bf_eval.py does: rays out along the skin's normals meeting the armour (each piece placed as drawn: its anchors'
+// rigid fit, armour.txt's tweaks), every played frame of the .mdl. Thresholds from the rottweiler (his reference) and the
+// beastfit numbers.
+namespace fit
+{
+constexpr float rayBack = 4.f;   // units: a ray from this far inside the skin ...
+constexpr float rayOut = 8.f;    // ... to this far outside it: a plate met there covers that skin
+constexpr float pokeDepth = 0.75f; // units: skin this far through its plate pokes through
+constexpr float browShare = 0.6f;  // the head's height below which its front is the face (a helmet keeps clear)
+constexpr float maxSize = 1.45f;   // a piece's distance from its skin's middle over the skin's (the old ogre's 1.6-1.9)
+constexpr float maxGap = 3.f;      // units: a piece's mean distance off the skin it covers (the old ogre's ~5)
+constexpr float maxFace = 0.25f;   // the face's share under a helmet
+constexpr float maxAsym = 0.03f;   // a left and right piece's spread (made, tweaked) apart
+constexpr float maxPoke = 0.4f;    // the covered skin's share through its plate over the played frames
+
+struct Target
+{
+    const char* model;
+    float cover; // the share of these bones' skin under armour, at least
+    const char* bones[12];
+};
+constexpr Target targets[] = {
+    {"progs/dog.mdl", 0.35f, {"chest", "pelvis"}},
+    {"progs/ogre.mdl", 0.6f, {"pelvis", "chest", "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r", "shin_l", "shin_r"}},
+    {"progs/wizard.mdl", 0.85f, {"pelvis", "chest", "arm_l", "arm_r", "tail1", "tail2", "tail3", "tail4"}},
+    {"progs/demon.mdl", 0.5f, {"pelvis", "chest", "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r"}},
+};
+
+// Pose `pose`'s vertices and outward normals (the triangles' summed, turned out from the middle).
+void poseOf(const aliashdr_t* hdr, int pose, za::Vector<glm::vec3>& p, za::Vector<glm::vec3>& n)
+{
+    const int nv = hdr->numverts;
+    p.resize(static_cast<za::SizeT>(nv));
+    n.resize(static_cast<za::SizeT>(nv));
+    glm::vec3 mid{0.f};
+    for(int v = 0; v < nv; v++)
+    {
+        p[static_cast<za::SizeT>(v)] = mdldequant::modelVertex(hdr, pose, pose, 0.f, v);
+        n[static_cast<za::SizeT>(v)] = glm::vec3{0.f};
+        mid += p[static_cast<za::SizeT>(v)] / static_cast<float>(nv);
+    }
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    for(int t = 0; t + 2 < hdr->numindexes; t += 3)
+    {
+        int c[3];
+        for(int i = 0; i < 3; i++)
+        {
+            c[i] = za::clamp(static_cast<int>(desc[za::clamp(static_cast<int>(idx[t + i]), 0, hdr->numverts_vbo - 1)].vertindex), 0, nv - 1);
+        }
+        const glm::vec3 fn = glm::cross(p[static_cast<za::SizeT>(c[1])] - p[static_cast<za::SizeT>(c[0])],
+            p[static_cast<za::SizeT>(c[2])] - p[static_cast<za::SizeT>(c[0])]);
+        for(const int i : c)
+        {
+            n[static_cast<za::SizeT>(i)] += fn;
+        }
+    }
+    float out = 0.f;
+    for(int v = 0; v < nv; v++)
+    {
+        out += glm::dot(n[static_cast<za::SizeT>(v)], p[static_cast<za::SizeT>(v)] - mid);
+    }
+    for(glm::vec3& x : n)
+    {
+        x = geom::safeNormalize(out < 0.f ? -x : x, glm::vec3{0.f, 0.f, 1.f}, 1e-9f);
+    }
+}
+
+// The armour's triangles placed on pose `p` (each piece by its anchors' rigid fit), the piece of each.
+void armourOn(const Kind& k, const za::Vector<glm::vec3>& p, za::Vector<glm::vec3>& tri, za::Vector<int>& owner)
+{
+    tri.clear();
+    owner.clear();
+    for(int i = 0; i < k.numParts; i++)
+    {
+        const Slot& s = k.slot[i];
+        if(!s.on || s.numAnchors < 3)
+        {
+            continue;
+        }
+        glm::vec3 posed[maxAnchors];
+        for(int a = 0; a < s.numAnchors; a++)
+        {
+            posed[a] = p[static_cast<za::SizeT>(s.anchor[a])];
+        }
+        const rigpose::Rigid r = rigpose::fitRigid(s.rest, posed, s.numAnchors);
+        for(za::SizeT t = 0; t < s.tris.size(); t++)
+        {
+            tri.pushBack(rigpose::apply(r, restOf(s, s.tris[t])));
+            owner.pushBack(i);
+        }
+    }
+}
+
+// The nearest plate along the ray from `o` along `d` (0..len): its distance (-1 none) and piece.
+float nearestPlate(const glm::vec3& o, const glm::vec3& d, float len, const za::Vector<glm::vec3>& tri, const za::Vector<int>& owner,
+    int& piece)
+{
+    float best = -1.f;
+    for(za::SizeT t = 0; t + 2 < tri.size(); t += 3)
+    {
+        const glm::vec3 e1 = tri[t + 1] - tri[t], e2 = tri[t + 2] - tri[t];
+        const glm::vec3 q = glm::cross(d, e2);
+        const float det = glm::dot(e1, q);
+        if(za::abs(det) < 1e-9f)
+        {
+            continue;
+        }
+        const float inv = 1.f / det;
+        const glm::vec3 tv = o - tri[t];
+        const float u = glm::dot(tv, q) * inv;
+        const glm::vec3 w = glm::cross(tv, e1);
+        const float v = glm::dot(d, w) * inv;
+        const float s = glm::dot(e2, w) * inv;
+        if(u >= 0.f && v >= 0.f && u + v <= 1.f && s >= 0.f && s <= len && (best < 0.f || s < best))
+        {
+            best = s;
+            piece = owner[t];
+        }
+    }
+    return best;
+}
+
+void test_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_beastfit_test: needs a map (map start)\n");
+        return;
+    }
+    if(!loaded)
+    {
+        load();
+    }
+    int passed = 0, failed = 0;
+    const auto check = [&](bool ok, const char* what, float value, float limit) {
+        (ok ? passed : failed)++;
+        Con_Printf("beastfit: %s %s: %.3f (limit %.3f)\n", ok ? "PASS" : "FAIL", what, value, limit);
+    };
+    for(Kind& k : kinds)
+    {
+        const Target* tg = nullptr;
+        for(const Target& t : targets)
+        {
+            tg = !strcmp(t.model, k.model) ? &t : tg;
+        }
+        qmodel_t* m = Mod_ForName(k.model, false);
+        const ragdoll::Rig* rig = m && m->type == mod_alias ? ragdoll::derivedRigFor(m) : nullptr;
+        if(!tg || !resolve(k) || !rig)
+        {
+            check(false, k.model, 0.f, 1.f);
+            continue;
+        }
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(m));
+        const bool mirrored = strcmp(k.model, "progs/dog.mdl") != 0; // (the rottweiler as he likes it: each side its own)
+        za::Vector<glm::vec3> p, n, tri;
+        za::Vector<int> owner;
+        const int nv = hdr->numverts;
+        // The rest pose: coverage, gap, size, the face.
+        poseOf(hdr, 0, p, n);
+        armourOn(k, p, tri, owner);
+        za::Vector<float> gap(static_cast<za::SizeT>(nv), -1e9f);
+        za::Vector<int> by(static_cast<za::SizeT>(nv), -1);
+        for(int v = 0; v < nv; v++)
+        {
+            int piece = -1;
+            const float s = nearestPlate(p[static_cast<za::SizeT>(v)] - n[static_cast<za::SizeT>(v)] * rayBack, n[static_cast<za::SizeT>(v)],
+                rayBack + rayOut, tri, owner, piece);
+            gap[static_cast<za::SizeT>(v)] = s >= 0.f ? s - rayBack : -1e9f;
+            by[static_cast<za::SizeT>(v)] = s >= 0.f ? piece : -1;
+        }
+        // (the face: the head's front below its brow)
+        int head = -1, sl = -1, sr = -1;
+        for(int b = 0; b < rig->numBones; b++)
+        {
+            const char* nm = rig->bones[b].name;
+            head = !strcmp(nm, "head") ? b : head;
+            sl = !strcmp(nm, "upperarm_l") || !strcmp(nm, "arm_l") || !strcmp(nm, "upperleg_fl") ? b : sl;
+            sr = !strcmp(nm, "upperarm_r") || !strcmp(nm, "arm_r") || !strcmp(nm, "upperleg_fr") ? b : sr;
+        }
+        za::Vector<uint8_t> face(static_cast<za::SizeT>(nv), uint8_t{0});
+        if(head >= 0 && sl >= 0 && sr >= 0)
+        {
+            glm::vec3 lat = rig->bones[sl].pivot - rig->bones[sr].pivot;
+            lat.z = 0.f;
+            const glm::vec3 fwd = geom::safeNormalize(glm::cross(geom::safeNormalize(lat, glm::vec3{0.f, 1.f, 0.f}, 1e-6f), glm::vec3{0.f, 0.f, 1.f}),
+                glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
+            float z0 = 1e9f, z1 = -1e9f, f0 = 1e9f, f1 = -1e9f, fm = 0.f;
+            int count = 0;
+            for(int v = 0; v < nv; v++)
+            {
+                if(rig->vertBone[static_cast<za::SizeT>(v)] == head)
+                {
+                    const glm::vec3& x = p[static_cast<za::SizeT>(v)];
+                    z0 = za::min(z0, x.z);
+                    z1 = za::max(z1, x.z);
+                    f0 = za::min(f0, glm::dot(x, fwd));
+                    f1 = za::max(f1, glm::dot(x, fwd));
+                    fm += glm::dot(x, fwd);
+                    count++;
+                }
+            }
+            fm /= static_cast<float>(za::max(count, 1));
+            for(int v = 0; v < nv; v++)
+            {
+                const glm::vec3& x = p[static_cast<za::SizeT>(v)];
+                face[static_cast<za::SizeT>(v)] = rig->vertBone[static_cast<za::SizeT>(v)] == head && x.z < z0 + browShare * (z1 - z0) &&
+                        glm::dot(x, fwd) > fm - 0.1f * (f1 - f0)
+                    ? 1
+                    : 0;
+            }
+        }
+        // (the target skin covered)
+        int want = 0, got = 0;
+        for(int v = 0; v < nv; v++)
+        {
+            bool in = false;
+            for(const char* b : tg->bones)
+            {
+                in = in || (b && !strcmp(rig->bones[rig->vertBone[static_cast<za::SizeT>(v)]].name, b));
+            }
+            want += in ? 1 : 0;
+            got += in && by[static_cast<za::SizeT>(v)] >= 0 ? 1 : 0;
+        }
+        char what[128];
+        const float cover = static_cast<float>(got) / static_cast<float>(za::max(want, 1));
+        q_snprintf(what, sizeof(what), "%s target skin covered (at least)", k.model);
+        check(cover >= tg->cover, what, cover, tg->cover);
+        // (each piece: its skin covered, its gap and size; a helmet's face)
+        for(int i = 0; i < k.numParts; i++)
+        {
+            const Slot& s = k.slot[i];
+            if(!s.on)
+            {
+                continue;
+            }
+            int region = 0, covered = 0, mine = 0, faces = 0, faceUnder = 0;
+            float gapSum = 0.f;
+            glm::vec3 mid{0.f};
+            for(int v = 0; v < nv; v++)
+            {
+                const za::SizeT x = static_cast<za::SizeT>(v);
+                faces += face[x];
+                faceUnder += face[x] && by[x] == i ? 1 : 0;
+                if(rig->vertBone[x] != s.boneIndex || (s.owner == agarmor::Helmet && face[x]))
+                {
+                    continue;
+                }
+                region++;
+                covered += by[x] >= 0 ? 1 : 0;
+                if(by[x] == i)
+                {
+                    mine++;
+                    gapSum += gap[x];
+                    mid += p[x];
+                }
+            }
+            mid /= static_cast<float>(za::max(mine, 1));
+            float dv = 0.f, dh = 0.f;
+            for(int v = 0; v < nv; v++)
+            {
+                const za::SizeT x = static_cast<za::SizeT>(v);
+                if(rig->vertBone[x] == s.boneIndex && by[x] == i && !(s.owner == agarmor::Helmet && face[x]))
+                {
+                    dv += glm::distance(p[x], mid);
+                    dh += glm::distance(p[x] + n[x] * gap[x], mid);
+                }
+            }
+            const float size = mine > 2 ? dh / za::max(dv, 1e-6f) : 1.f, meanGap = gapSum / static_cast<float>(za::max(mine, 1));
+            const float faceShare = static_cast<float>(faceUnder) / static_cast<float>(za::max(faces, 1));
+            Con_Printf("beastfit: %-16s %-11s slot %d: skin covered %.2f, gap %.2f, size %.2f%s\n", k.model, s.bone, s.owner,
+                static_cast<float>(covered) / static_cast<float>(za::max(region, 1)), meanGap, size,
+                s.owner == agarmor::Helmet ? va(", face under it %.2f", faceShare) : "");
+            if(mine > 2)
+            {
+                q_snprintf(what, sizeof(what), "%s %s size", k.model, s.bone);
+                check(size <= maxSize, what, size, maxSize);
+                q_snprintf(what, sizeof(what), "%s %s gap", k.model, s.bone);
+                check(meanGap <= maxGap, what, meanGap, maxGap);
+            }
+            if(s.owner == agarmor::Helmet && i < numSlots)
+            {
+                q_snprintf(what, sizeof(what), "%s helmet over the face", k.model);
+                check(faceShare <= maxFace, what, faceShare, maxFace);
+            }
+            // (a left piece and its right: one shape mirrored, the spread of its vertices about their middle the same)
+            const za::SizeT len = strlen(s.bone);
+            if(mirrored && len > 2 && !strcmp(s.bone + len - 2, "_l"))
+            {
+                for(int j = 0; j < k.numParts; j++)
+                {
+                    const Slot& o = k.slot[j];
+                    if(!o.on || strlen(o.bone) != len || strncmp(o.bone, s.bone, len - 2) != 0 || strcmp(o.bone + len - 2, "_r") != 0)
+                    {
+                        continue;
+                    }
+                    float spread[2] = {0.f, 0.f};
+                    const Slot* both[2] = {&s, &o};
+                    for(int b = 0; b < 2; b++)
+                    {
+                        glm::vec3 c{0.f};
+                        for(const glm::vec3& x : both[b]->tris)
+                        {
+                            c += x / static_cast<float>(za::max<za::SizeT>(both[b]->tris.size(), 1u));
+                        }
+                        for(const glm::vec3& x : both[b]->tris)
+                        {
+                            spread[b] += glm::distance(x, c) / static_cast<float>(za::max<za::SizeT>(both[b]->tris.size(), 1u));
+                        }
+                    }
+                    const float apartBy = za::abs(spread[0] - spread[1]) / za::max(spread[1], 1e-6f);
+                    q_snprintf(what, sizeof(what), "%s %s and %s one shape", k.model, s.bone, o.bone);
+                    check(apartBy <= maxAsym, what, apartBy, maxAsym);
+                }
+            }
+        }
+        // Every played frame: the covered skin through its plate.
+        int seen = 0, poked = 0;
+        for(int f = 0; f < hdr->numframes; f++)
+        {
+            const char* nm = hdr->frames[f].name;
+            if(!strncmp(nm, "death", 5) || !strncmp(nm, "bdeath", 6) || !strncmp(nm, "pull", 4) || !strncmp(nm, "base", 4) ||
+               !strncmp(nm, "frame", 5))
+            {
+                continue;
+            }
+            poseOf(hdr, hdr->frames[f].firstpose, p, n);
+            armourOn(k, p, tri, owner);
+            for(int v = 0; v < nv; v++)
+            {
+                int piece = -1;
+                const float s = nearestPlate(p[static_cast<za::SizeT>(v)] - n[static_cast<za::SizeT>(v)] * rayBack,
+                    n[static_cast<za::SizeT>(v)], rayBack + rayOut, tri, owner, piece);
+                seen += s >= 0.f ? 1 : 0;
+                poked += s >= 0.f && s - rayBack < -pokeDepth ? 1 : 0;
+            }
+        }
+        const float poke = static_cast<float>(poked) / static_cast<float>(za::max(seen, 1));
+        q_snprintf(what, sizeof(what), "%s skin through its plates over the played frames", k.model);
+        check(poke <= maxPoke, what, poke, maxPoke);
+    }
+    Con_Printf("beastfit: %d passed, %d failed\n", passed, failed);
+}
+} // namespace fit
+
 void init()
 {
     Cmd_AddCommand("vr_beastarmour_info", info_f);
+    Cmd_AddCommand("vr_beastfit_test", fit::test_f);
 }
 
 } // namespace qvr::beastarmour
