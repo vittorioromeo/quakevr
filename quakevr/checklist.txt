@@ -121,6 +121,8 @@ Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg
 Pose Studio on the spear holders: a frozen armed enforcer, knight and death knight, each with the spear, stand spaced apart in the hall's open middle and the Pose Studio is already open; tune each one's spear poses (Port Arms, Ready, Run, Pickup, Thrust, Shove) as for the spear grunt. {test:pose_spear_humanoids}
 ## Lifts
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
+AD's death guard and crossbow knight are armed humanoids in their own look: walk round each (frozen) and check no hand is off its weapon, no weapon goes through the body and no elbow or shoulder is twisted, with their own weapons and with the shotguns behind them. {test:ad_knights_armed}
+In an Arcane Dimensions map with death guards and crossbow knights, fight a few: they keep AD's look, swing the sword or shoot the crossbow, can be disarmed, pick up other weapons and drop theirs when they die; Armed Humanoid Replacements' AD Death Guards and AD Crossbow Knights turn this off. {test:ad_knights_armed}
 
 [7. Quoth]
 ## Setup and maps
