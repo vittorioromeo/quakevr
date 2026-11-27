@@ -2947,6 +2947,6 @@ QVR_TUNABLE(vr_agrunt_dazzle_fade, "1.5") // ... seconds a full dazzle takes to 
 QVR_TUNABLE(vr_agrunt_dazzle_threshold, "0.35") // ... the dazzle its hand starts coming up at (fully up at full dazzle)
 QVR_TUNABLE(vr_agrunt_dazzle_spread, "2") // ... its shots' aim error and spread times 1 + this at full dazzle (a two-handed gun held in one hand behind the hand also loses the two-hand spread reduction)
 QVR_TUNABLE(vr_agrunt_dazzle_pose, "1") // ... the shielding hand's share at full (0: no pose, the worse aim only)
-QVR_TUNABLE(vr_agrunt_dazzle_hand_fwd, "7") // ... where the shielding hand goes in the grunt's body (fitted to each kind's): units forward,
-QVR_TUNABLE(vr_agrunt_dazzle_hand_left, "3") // ... to its left,
-QVR_TUNABLE(vr_agrunt_dazzle_hand_up, "22") // ... and up from its origin
+QVR_TUNABLE(vr_agrunt_dazzle_hand_fwd, "11") // ... where the shielding hand goes in the grunt's body (fitted to each kind's): units forward,
+QVR_TUNABLE(vr_agrunt_dazzle_hand_left, "0.5") // ... to its left,
+QVR_TUNABLE(vr_agrunt_dazzle_hand_up, "21.5") // ... and up from its origin

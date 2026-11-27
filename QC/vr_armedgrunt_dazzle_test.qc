@@ -91,30 +91,35 @@ void() VR_AGDZ_Frame =
         vr_agdz_keepkind = cvar_hget(cvarh_vr_agrunt_test_kind);
         cvar_set("vr_agrunt_test_kind", "0");
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 120);
+        if(!VR_AGDZ_LampOn())
+        {
+            // (its lamp taken, clipped on his head and switched on, as the run scripts do: step 1 waits for it lit)
+            localcmd("vr_flashlight 1;wait20;vr_flashlight_clip_head right;wait10;vr_flashlight_toggle\n");
+        }
         VR_AGDZ_Step(1);
         return;
     }
     if(vr_agt_step == 1)
     {
-        // (its spawn finished, the lamp on: held off the beam a moment, its aim undazzled read)
-        if(!VR_AGDZ_Ready(g))
+        // (its spawn finished, the lamp on: held off the beam until undazzled (its spawn spot may be in the beam), its
+        // aim undazzled read)
+        if(g.takedamage)
+        {
+            VR_AGDZ_Hold(g, 60, 120, FALSE);
+        }
+        if(!VR_AGDZ_Ready(g) || g.vr_ag_dazzle > 0 || g.vr_ag_shieldw > 0)
         {
             if(time > vr_agdz_until)
             {
-                VR_AGT_Check(sprintf("dazzle: timed out (weapon drawn %g, lamp %g)", g.vr_ag_prop != world,
-                    VR_AGDZ_LampOn()), FALSE);
+                VR_AGT_Check(sprintf("dazzle: timed out (weapon drawn %g, lamp %g, dazzle %g)", g.vr_ag_prop != world,
+                    VR_AGDZ_LampOn(), g.vr_ag_dazzle), FALSE);
                 VR_AGDZ_Step(9);
             }
             return;
         }
-        VR_AGDZ_Hold(g, 60, 120, FALSE);
-        if(t < 0.3)
-        {
-            return;
-        }
         vr_agdz_base = VR_AGDZ_Acc(g);
-        VR_AGT_Check(sprintf("dazzle: undazzled off the beam (dazzle %g, two-handed gun %g, accuracy %g)", g.vr_ag_dazzle,
-            VR_AG_GunTwoHands(g, g.vr_ag_prop), vr_agdz_base), g.vr_ag_dazzle == 0 && g.vr_ag_shieldw == 0);
+        VR_AGT_Check(sprintf("dazzle: undazzled off the beam (two-handed gun %g, accuracy %g)",
+            VR_AG_GunTwoHands(g, g.vr_ag_prop), vr_agdz_base), vr_agdz_base > 0);
         VR_AGDZ_Step(2);
         return;
     }

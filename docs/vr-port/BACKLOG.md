@@ -204,12 +204,6 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
 - **AD's crossbow knight as a proper armed humanoid, then re-enable its replacement**: done 2026-11-27 (ROUND26.md
   "adknights": the crossbow knight and the death guard armed in their own looks, `vr_agrunt_repl_crossbow` and
   `vr_agrunt_repl_dguard` on). Left: his VR look at their holds (scene `ad_knights_armed`).
-- **Blinding with the flashlight** (2026-11-27): pointing the flashlight straight at an armed humanoid's face dazzles
-  it: it raises one hand in front of its face (the other keeps the gun; a pose key/override, IK on the shared rig
-  paths) and shoots with worse accuracy while the beam stays on its eyes (and a moment after). Needs: the beam's cone
-  vs the face (distance, angle, line of sight), a dazzle level that builds and fades, the shield pose blended in, the
-  aim spread scaled by it; one-handed guns fire from the free hand, two-handed ones fire one-handed and worse. Also the
-  flat-screen flashlight and bots' if they carry one.
 
 ## 7. Combat and feel
 

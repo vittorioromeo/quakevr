@@ -4272,3 +4272,37 @@ His words (2026-11-27): "make the scrag tail armor pieces individually destroyab
   splitting adds 2 points to the tail's total at green, 1 at yellow, none at red (the tail is rarely hit by the test's
   aim at the body's middle).
 - **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).
+
+## Armed humanoids blinded by the flashlight (branch agent/flashblind, 2026-11-28)
+
+His idea (2026-11-27): pointing the flashlight straight at an armed humanoid's face dazzles it; it raises a hand in
+front of its face and shoots worse.
+- **Dazzle** (`QC/vr_armedgrunt_dazzle.qc`): each server frame it is posed (`VR_AGP_Pose` -> `VR_AG_DazzleTick`), the
+  strongest lamp on its eyes over every player: on (`flashlightbeam`: the lamp as his client lit it, VR or flat-screen,
+  each coop player's; the server decides), within its reach and `vr_agrunt_dazzle_range` (640; full within
+  `_near` 192), within `_cone` (12 degrees; full within 0.4 of it) of the beam's axis, the lens ahead of its face (about
+  80 degrees), nothing in between (`VR_Stealth_Line`: through see-through walls as light goes), darker places counting
+  up to `_dark` (0.5) more (`stealthlight` at its eyes; none at 160 or more). The level eases to that (capped at 1) over
+  `_build` (0.5 s) and down over `_fade` (1.5 s). Its eyes: the grunt's `'3 0 22'` fitted to each kind (`VR_AM_Fit`).
+- **The shield** (`VR_AGP_Shield`, on the shared pose path: QC `VR_AGP_PoseQC` and the engine's agpose call the same QC
+  function before the run's sway, so `vr_agpose_native` 0/1/2 agree): from `_threshold` (0.35) up to full dazzle,
+  times `_pose` (1), eased at 4/s: the off hand (`VR_AGP_LEFT`, the arm IK's Point goal: the clients draw it as any
+  off-hand target, MP included) from where it was (its own target, a two-handed gun's second grip, hanging) to
+  `_hand_fwd/_left/_up` (11, 0.5, 21.5: the grunt's body, fitted per kind); a two-handed gun is blended into its
+  one-handed hold (`VR_AGP_ArmsGun` with `vr_agp_onehand`). Not with two weapons held, nor while that hand punches,
+  swings a two-handed weapon, casts or takes a weapon up. Kinds: grunt, enforcer, knight, death knight, AD's death
+  guard and crossbow knight (test 232 checks each one's hand before its eyes).
+- **Worse aim**: `VR_AGAI_Accuracy` divides by `VR_AG_DazzleAim` = 1 + dazzle x `_spread` (2), plus the two-hand spread
+  reduction lost (as yours: `vr_2h_spread_reduction`) for a two-handed gun held in one hand behind the shield. So every
+  shot path has it: the layer's guns (aim error and bullet spread), the replacements' own guns, the enforcer's laser.
+  Undazzled: exactly 1 (the tests' numbers unchanged).
+- **Tunables**: Tunables > Armed Humanoids > Flashlight Dazzle (`vr_agrunt_dazzle` on/off, on by default, and the rest).
+- **Bots** carry no flashlight (frikbot): nothing to do. **Flat-screen**: the same client beam (`flashlight::beamNow`).
+- **Test** `vr_agrunt_test 232` (`QC/vr_armedgrunt_dazzle_test.qc`; batched runner on vrtesthall: it takes the lamp,
+  clips it on the head and switches it on itself): a shotgun grunt 120 units down the real beam: dazzle, hand before
+  its eyes, aim x3.8+; lamp off: fading at 0.4 s, gone after the fade, accuracy exactly as before; 25 degrees off, behind
+  a box, its back to the lens: nothing; each kind's hand up. 14/0. `scratch1 232`: stops lit and takes a screenshot.
+  Also passed: agrunt 1, 42, 79, 84, 86, 87, 230. Checklist scene `agrunt_flashblind` (e1m1's armed grunts).
+- **Open**: the hand is a fist (the IK's Point goal), not an open palm; its place is one point per kind by the fit, not
+  a Pose Studio key (a Shield pose key per kind would let him place it by hand); dual wielders keep both guns up and
+  only aim worse; no MP or flat-screen run of its own (the beam and the pose message are the ones already tested).

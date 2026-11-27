@@ -14,14 +14,14 @@
 
 float VR_AG_DAZZLE_FACE_COS = 0.17; // the lens must be ahead of its face (within about 80 degrees of where it looks)
 
-// Its eyes (world): its view offset, else most of the way up its box.
+vector VR_AG_DAZZLE_EYE = '3 0 22'; // the grunt's eyes in its body (forward, left, up), fitted to each kind's (VR_AM_Fit)
+
+// Its eyes (world; makevectors: its yaw's).
 vector(entity g) VR_AG_DazzleEye =
 {
-    if(g.view_ofs != '0 0 0')
-    {
-        return g.origin + g.view_ofs;
-    }
-    return g.origin + '0 0 1' * (g.maxs_z * 0.7);
+    vector l = VR_AM_Fit(g, VR_AG_DAZZLE_EYE);
+    makevectors([0, g.angles_y, 0]);
+    return g.origin + v_forward * l_x - v_right * l_y + '0 0 1' * l_z;
 };
 
 // How strongly player `pl`'s lamp shines in `g`'s eyes now (0 none .. about 1.5: its dark share on top): on, within its
