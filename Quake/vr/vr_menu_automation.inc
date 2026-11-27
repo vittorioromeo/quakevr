@@ -267,6 +267,10 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Grunts: AD's Weapons", "vr_agrunt_test 12")
             .help("vr_agrunt_test 12 (with Arcane Dimensions' data): as Every Weapon, AD's soldiers' guns, the Shadow "
                   "Axe, Widowmaker and Plasma Gun, AD's swords, hammer and mace."),
+        command("AD Knights: Grips Follow the Knight's", "vr_adgrip_test; wait10; vr_adgrip_test check")
+            .help("vr_adgrip_test (with Arcane Dimensions' data and AD's armed knights in view: scene ad_knights_armed): "
+                  "the knight's main grip moved 3 units, each death guard's and crossbow knight's hand moves 3 along "
+                  "its weapon, then put back (adgrip: N passed, M failed)."),
         command("Armed Grunts: Launchers by Walls", "vr_agrunt_test 11")
             .help("vr_agrunt_test 11: 36 launcher grunts in turn (grenades, rockets, mines) on headings all round you, "
                   "often with their backs to a wall, 8 s each: how many killed themselves (vr_agrunt_blast_safe off "

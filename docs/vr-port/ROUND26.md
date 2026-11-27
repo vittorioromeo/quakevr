@@ -3270,3 +3270,46 @@ these enemies also dynamically change size (grow/shrink) as animations play".
   `bl_ingame_after.png` (tests 18, 19). Tool: `scratch/bl_beast.py <kind> <out.png|-> <frames> [--pen [--allpen]]`.
 - **Open:** pauldron/chest overlap at the shoulders in the ogre's big swings (a chest-riding pauldron would trade it for
   the arm's flesh); his review of the look (Armour Studio tweaks go on the tables).
+## adrigfix: AD's knights in the Rig Studio: no stretched tabard, the Grips tab drives them, the grunt's taunt copied (branch agent/adrigfix, 2026-11-27)
+
+His words (2026-11-27): the crossbow knight and the death guard have a stretched vertex as an arm moves; the Grips tab has
+no effect on the AD knights; copy existing poses from the closest rig (knight or grunt) as a starting point.
+- **Stretch (the rigs' labels)**: the death guard's right fist and the crossbow knight's left fist rest on the tabard in
+  the rest frame, so `make_rig2.py`'s nearest-visible-bone regions gave tabard vertices to the arm (the death guard: 8,
+  326..361, on `forearm_r`; the crossbow knight: the fist's underside on the pelvis and the tabard beside it on `hand_l` /
+  `forearm_l`). Raised, the arm dragged a sheet of the tabard up (edges to 29x their rest). Fixed at the source, so a
+  regen keeps it: new config keys `islands` (a bone's region in pieces keeps the piece nearest its bone, each other piece
+  of the same mesh piece goes whole to the region round it; AD's arm bones) and `regions_from` / `regions_keep` (the
+  crossbow knight's body, its first 544 vertices the death guard's vertex for vertex, labelled as the death guard's,
+  whose arms hang free; its own right arm's seams kept). Build `dguard` before `dcrossbow`. `vr_rig2_check` (all poses,
+  random 1000): death guard stretch max 29.2 -> 5.9, see-through 2095 -> 495, flipped 7618 -> 2803, 13 -> 18 checks
+  passed; crossbow knight stretch 19.8 -> 7.1, see-through 6236 -> 283, flipped 16888 -> 3095, 10 -> 13 passed (the
+  rest are the AD rigs' own, never tuned: armpits, knees). Offline sheet: `scratch/adrigfix_stretch_sheet.png` (rows:
+  death guard before/after, crossbow knight before/after; rest, right arm up, left arm up, both forward, side; red: an
+  edge over 1.8x). Tools: `scratch/adrigfix_stretch.py <mdl> <rig2>` (edge stretch in a few arm/leg poses),
+  `adrigfix_render.py`.
+- **Grips**: the skin read the grips by the AD rows' own index (4, 5), which have no grip rows, so the Pose Studio's
+  edits on the knight (their pose kind, which the Kind combo shows) never reached them; the ragdoll's weapon placing
+  read the knight's full grips instead (the two disagreed). Now one path, `hitreact_detail::gripRigidOf(row)`: a row
+  with its own kind as before; AD's rows the knight's changes from its shipped grips (`aggrip::shipped`, new) laid on
+  their own zero default: by default they hold their weapons exactly as before (as AD's rest frame holds them: the
+  knight's shipped grips turn the knight's own rest sword, up to 49 degrees, not theirs), and every Grips tab edit on the
+  knight (Every Weapon or This Weapon) moves the knight, the death guard and the crossbow knight together. The Pose
+  Studio Data window says so when the subject is one of them ("The subject (Death Guard, row 4) takes the Knight's ...");
+  the note carries the row (`posestudio::Note::row`). The menu Grip Editor's subject is the knight kind too.
+- **Poses**: the closest rig is the knight's (`scratch/adrigfix_rigcmp.py`: bone length ratio and rest angle, score 28;
+  the grunt 31; the enforcer 37), but no rig has much studio data to copy: no named poses anywhere, the knight nothing,
+  the grunt a `shoot` override (its head) and the `taunt` sequence. The taunt is copied to
+  `quakevr/anims/vrdguard/taunt.anim2.txt` (shared with the crossbow knight by `poses_from`): pelvis, spine, chest, neck
+  and head keys as they are (keys are in each bone's own frame; those bones' axes and limits are the same on both rigs,
+  so no compensation; the rest-pose lean differences are the knights' own stance). Not copied: the `shoot` override (the
+  made models have one animation group, `frame` (97), so an override would play on every frame of both). In the game
+  nothing plays it (QC's taunt is the grunts'); the studio lists it (`vr_rigdata_info`: 1 sequence on both). The Pose
+  Studio's keys were already the knight's (shared by kind) and now so are the grip edits.
+- **Tests**: new `vr_adgrip_test` then `vr_adgrip_test check` (Debug > Automation "AD Knights: Grips Follow the
+  Knight's"; needs AD, scene ad_knights_armed: `vr_campaign_native ad; vr_scenario ad_knights_armed`): the knight's main
+  grip moved 3 forward, each AD knight's hand moves 3.00-3.02 in its weapon's frame, then put back: `adgrip: 8 passed, 0
+  failed`. `vr_rigdata_share_test` 10/0; humrepl (`vr_ad_test 219`) 65/0; `vr_rig2_check` on both as above.
+- **Open**: the AD rigs' remaining vr_rig2_check faults (shoulders at full raise 2.5-3.3x in the offline poses, knees),
+  never tuned; whether he wants the knight's full shipped grips on them instead of their own rest hold (one line in
+  `gripRigidOf`).
