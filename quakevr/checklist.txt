@@ -39,6 +39,7 @@ Watch any armoured beast (rottweiler, ogre, scrag, fiend) run, attack and die: i
 Flat-screen: open Debug > Tools > Rig Studio on an AD death guard, then on a crossbow knight: beside the subject the menu bar says their poses are shared; key a pose or an override on one and the other moves the same way at once, and after Save both read it back. {test:ad_knights_armed}
 Armoured ogre and scrag: their plates are faceted trapezoids like the grunts' and knights' armour (bevels, rivets, dark gaps); the ogre has a ridged breastplate, layered pauldrons, banded arms and legs and knee cops, the scrag a collar, spiked shoulders and a segmented tail; say what looks off. {test:armour_beasts}
 Shoot an armoured ogre's shin or an armoured scrag's tail: the hit counts on the thigh piece or the belt piece and they break together; the leather at the ogre's knees and along the scrag's tail bends with them. {test:armour_beasts}
+Flat-screen or VR: shoot the armoured rottweiler so it comes at you, turn on slow motion (vr_slowmo) and watch its leap, its run and its roll over when you shove or hit it: the body moves smoothly frame to frame (no stepping) and its barding and collar stay glued to it; the ogre and the scrag move smoothly too. {test:armour_beasts}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
