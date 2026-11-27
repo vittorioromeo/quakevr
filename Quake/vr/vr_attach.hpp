@@ -42,6 +42,9 @@ struct Mount
     glm::vec3 pos{0.f};
     glm::vec3 angles{0.f}; // pitch up, yaw left, roll (the hands' order: view::anglesBasis)
     float scale{1.f};
+    // The attachment model's own Scale, as the renderer draws it (a weapon model's weapons.txt Scale: the dagger's 0.34;
+    // 1 the bayonet, which has no slot): its points are drawn that much nearer its origin (onGun counts it).
+    float own{1.f};
 };
 [[nodiscard]] Mount mount(int slot, int kind);
 // A point of the attachment (its own model space) in the gun model's own space, by the mount.

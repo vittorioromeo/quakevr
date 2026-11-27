@@ -1165,9 +1165,9 @@ za::Vector<Item> pageWofsAttachments()
         s("Dagger Pitch", Key::Att2Pitch, -180.f, 180.f, 0.5f, "%+.1f deg").help(dgTurnHelp),
         s("Dagger Yaw", Key::Att2Yaw, -180.f, 180.f, 0.5f, "%+.1f deg").help(dgTurnHelp),
         s("Dagger Roll", Key::Att2Roll, -180.f, 180.f, 0.5f, "%+.1f deg").help(dgTurnHelp),
-        s("Dagger Scale", Key::Att2Scale, 0.2f, 3.f, 0.01f, "%.3f").extend(0.05f, 20.f)
-            .help("How big the dagger is drawn, times the weapon's own size: 0.34 (its own Scale) / the weapon's Scale draws "
-                  "it at its real size (the shotgun's 0.773, the super shotgun's 0.708).")
+        s("Dagger Scale", Key::Att2Scale, 0.5f, 4.f, 0.01f, "%.3f").extend(0.05f, 20.f)
+            .help("How big the dagger is drawn, times the weapon's own size (its own Scale on top): 1 / the weapon's Scale "
+                  "draws it at the size it has in your hand (the shotgun's 2.27, the super shotgun's 2.08).")
     );
     return list;
 }

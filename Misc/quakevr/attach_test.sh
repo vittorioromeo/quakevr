@@ -10,7 +10,10 @@
 #     marker), the bayonet taken off is drawn in the off hand (vr_held_report after its marker; flat: on the
 #     screen): Misc/quakevr/attach_probe_check.py reads them (bayonetfix);
 #   vr_embed_test 81/82 across a level change and across a save and its load (`attachpersist: N passed, M failed`);
-#   menu_vr attachtest: Weapon Offsets > Attachments edits the shotgun's bayonet mount (`attachmenu_test: N passed, M failed`).
+#   menu_vr attachtest: Weapon Offsets > Attachments edits the shotgun's bayonet mount (`attachmenu_test: N passed, M failed`);
+#   daggerattach: vr_embed_test 84 / 85, 79 / 80 with the dagger as the bayonet (Daggers as Bayonets, vr_attach_daggers;
+#     85 first checks the option off puts nothing on: `attachdagger:` / `attachdaggerflat: N passed, M failed`); 81/82 also
+#     carry a shotgun with a dagger in the off hand and take the dagger off after.
 # Each run ends on its verdict line (-QuitOn); the script ends `attach_test: N passed, M failed`.
 AGENT=${1:?agent}
 source "$(dirname "$0")/qvrtest.sh"
@@ -27,6 +30,11 @@ echo "$lvl"
 sav=$(bash $KIT/run.sh $AGENT -Timeout 200 -Script "$START; vr_embed_test 81; wait2; save attach_test; wait2; map e1m1; wait5; load attach_test; wait10; vr_embed_test 82" \
     -QuitOn "^attachpersist: [0-9]+ passed" -Filter "^attachpersist|rror")
 echo "$sav"
+dvr=$(bash $KIT/run.sh $AGENT -Timeout 300 -Script "vr_debug_2h_grip 1; $START; vr_embed_test 84" -QuitOn "^attachdagger: [0-9]+ passed" -Filter "$FILTER")
+echo "$dvr"
+dflat=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Timeout 300 -Script "$START; vr_embed_test 85" \
+    -QuitOn "^attachdaggerflat: [0-9]+ passed" -Filter "$FILTER")
+echo "$dflat"
 menu=$(bash $KIT/run.sh $AGENT -Timeout 120 -Script "menu_vr attachtest; toggleconsole; quit" -QuitOn "^attachmenu_test: [0-9]+ passed" \
     -Filter "^attachmenu_test")
 echo "$menu"
@@ -34,6 +42,8 @@ expect_verdict "$vr" attach "the bayonet on the shotguns (VR)"
 expect_verdict "$flat" attachflat "the bayonet on the shotguns (flat)"
 expect_verdict "$lvl" attachpersist "the bayonets kept across a level change"
 expect_verdict "$sav" attachpersist "the bayonets kept across a save and its load"
+expect_verdict "$dvr" attachdagger "the dagger as the shotguns' bayonet (VR)"
+expect_verdict "$dflat" attachdaggerflat "the dagger as the shotguns' bayonet (flat; the option off first)"
 expect_verdict "$menu" attachmenu_test "Weapon Offsets > Attachments edits the mount"
 # bayonetfix: the HUD on a stuck gun, the bayonet taken off drawn in the hand (Misc/quakevr/attach_probe_check.py).
 while read -r ok what; do check "$ok" "$what"; done < <(python "$(dirname "$0")/attach_probe_check.py" vr - <<< "$vr")

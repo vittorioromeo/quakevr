@@ -426,7 +426,22 @@ void() VR_AT_Frame =
         vr_at_n = vr_at_n + 1;
         if(vr_at_n % 3 == 1)
         {
-            localcmd("vr_mock_hand_to main weaponpalm 0.5\n");
+            // (daggerattach: a gun with a dagger on lies on its side, propped by the guard, its palm point off the mock's
+            // reach: the hand onto the middle of the top of its box instead)
+            if(vr_at_kind == VR_ATT_DAGGER && vr_at_w != world)
+            {
+                if(vr_at_n == 1) // (it rolled further off: the player stepped up to it, the mock's arm being short)
+                {
+                    setorigin(p, [vr_at_w.origin_x, vr_at_w.origin_y - 30, p.origin_z]);
+                }
+                vector top = (vr_at_w.absmin + vr_at_w.absmax) * 0.5;
+                top_z = vr_at_w.absmax_z + 1;
+                localcmd(sprintf("vr_mock_hand_to main %v\n", top));
+            }
+            else
+            {
+                localcmd("vr_mock_hand_to main weaponpalm 0.5\n");
+            }
         }
         if(vr_at_n >= 12)
         {
@@ -442,6 +457,11 @@ void() VR_AT_Frame =
     }
     else if(vr_at_s == 11)
     {
+        if(vr_at_w != world && VRGetEntWeaponInst(p, h) != vr_at_rec)
+        {
+            dprint(sprintf("attach: pick-up missed: gun at %v angles %v box %v %v, hand %v (%.1f off)\n", vr_at_w.origin, vr_at_w.angles,
+                vr_at_w.absmin, vr_at_w.absmax, VRGetEntHandPos(p, h), vlen(VRGetEntHandPos(p, h) - vr_at_w.origin)));
+        }
         VR_Test_Check(VRGetEntWeaponInst(p, h) == vr_at_rec && vr_at_rec.wi_attach == vr_at_kind,
             sprintf("picked up by the hand: the same record, the bayonet on it (weapon %g)", VRGetEntWeapon(p, h)));
         localcmd("vr_test_handcontact 1 0\n");

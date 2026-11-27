@@ -115,12 +115,20 @@ Mount mount(int slot, int kind)
     {
         m.scale = 1.f;
     }
+    // (a weapon model as an attachment, the dagger: drawn with its own Scale, weapons::modelTransform's; its world size,
+    // modelScale, is the gun's: view::placeAttachment takes it out)
+    const int ownSlot = weapons::slotForName(info(kind)->model);
+    m.own = ownSlot >= 0 ? weapons::value(ownSlot, Key::Scale) : 1.f;
+    if(m.own <= 0.f)
+    {
+        m.own = 1.f;
+    }
     return m;
 }
 
 glm::vec3 onGun(const Mount& m, const glm::vec3& p)
 {
-    return m.pos + view::mountBasis(m.angles) * (p * m.scale);
+    return m.pos + view::mountBasis(m.angles) * (p * (m.scale * m.own));
 }
 
 bool fromMuzzle(qmodel_t* model, int kind, int what, glm::vec3& out)
