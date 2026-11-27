@@ -2693,4 +2693,18 @@ His words: "Performance is OK but still not smooth enough ... I think it's time 
   tutorial_start_test 8/0.
 - Open (not this branch's): `-game quakevr -game <mod>` with an empty mod folder fails e1m1 on next too
   ("Host_Error: Mod_LoadModel: progs/vrgrunt.mdl#plate0 not found", vr_agarmor.cpp derivedFile). The runtime `game <mod>`
-  command and the Mods menu still switch to id1;<mod> without quakevr (unchanged).
+  command and the Mods menu still switch to id1;<mod> without quakevr (unchanged). Both fixed by agent/gamecmd (below).
+- gamecmd (branch agent/gamecmd, 2026-11-27): the `game <mod>` command, the Mods menu (its `game "<mod>"`) and a KEX
+  save's game switch keep Quake VR's folder: common.c `COM_WithVRGame` in `COM_SwitchGameInternal` (not the campaign
+  reloads) puts quakevr where `COM_AddVRGameArg` does, both through one helper `COM_VRGameInsertAt` (after the leading
+  campaign folders, before the first other mod: `game testmod` -> id1;quakevr;testmod; `game id1` -> id1;quakevr). No
+  base dir with Quake VR's game data: unchanged. The switch also makes com_gamedir (`COM_CreatePath`): with the mod only
+  in Quake's folder it is the last base dir's, absent, and vr_motion.cpp's `Sys_mkdir("<com_gamedir>/motions")` ended
+  the game (Sys_Error) at the next map.
+- The empty mod's e1m1: the armed grunts' plates are made from the grunt's rig2 (vr_rig2.cpp `rigFor`), read from
+  `<com_gamedir>/rigs`: the mod's folder, which has none. The rigs' and animations' folder (vr_rigdata.cpp `rootDir`, the
+  Rig Studio's saves too) is now Quake VR's own (vr_gamedir.cpp `VR_QuakeVRGameDir`: `<its base>/quakevr` when mounted,
+  else com_gamedir): the same folder in every shipped launch, quakevr's under a mod.
+- Tests: nogamedir_test 5/0 (testmod and testmod_explicit now play e1m1 in the empty mod; new `gamecmd`: started
+  without -game, `game testmod` from the autoexec, the mod's autoexec then plays e1m1: game dirs quakevr;testmod);
+  tutorial_start_test 8/0; agrunt 1, 2, 80-82 (rigseq, vr_rigdata_dir) pass.
