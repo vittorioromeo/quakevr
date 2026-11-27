@@ -20,29 +20,11 @@ Stab an enemy with the bayonet, keep holding and fire a few shots (shotgun, then
 On the Quest, set Quest Foveation to High (Top) in a map: the top of the view (sky, ceilings) gets blurrier than at High while the lower middle stays sharp, it runs at least as smoothly as High, and Show Foveation's pattern sits lower. {test:quest_foveation}
 On the Quest, try Quest Foveation: Shift (advanced) at -15 and +15 with High: the sharp middle moves down and up, no crash when changing it. {test:quest_foveation}
 On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution of Eternity: each plays its own soundtrack, not Quake's. {test:campaign_music}
-Flat-screen: hold a crate with H and walk straight into it: it is pushed ahead of you at arm's length (you no longer stop dead against it), and backing away still drags it. {test:flat_grab_pull}
 Hold a dagger in your off hand and a shotgun in the other, lay the dagger along under the barrel with its tip just past the muzzle: it snaps on as a bayonet; grip its handle with the empty hand and press B/Y to get the same dagger back. Check how it looks on the shotgun and the super shotgun (the pump, the guard). {test:attach_dagger}
-With a dagger on a shotgun, stab a grunt: it sticks by the dagger's point, fires and reloads while stuck, and holsters, drops and throws with the dagger on. {test:attach_dagger}
-Flat-screen: with a dagger in the off hand and a shotgun in the main hand, J puts the dagger on as a bayonet, J again gives it back; V thrusts with it. With Daggers as Bayonets off (Weapon Offsets > Attachments), J does nothing. {test:attach_dagger}
 On the Quest, stand on the hub's terrace and in a gib fight for a minute each: frames stay smooth (no judder bursts); say where you still feel stutter, it decides which of the ranked GPU or CPU fixes comes next. {test:quest_gibfight}
 Flat-screen or VR: in AD, cut the arms and legs off a Death Guard and a Crossbow Knight: each limb comes off in their own look, and AD maps with them (ad_azad, ad_tears) load without an error. {test:ad_knights_armed}
-Look at the armoured ogre and scrag from the front, back and both sides while they idle, walk and attack: the left and right pieces should be mirror images, the breastplate centred on the chest, the helmet a dome and the shoulder plates domes, nothing floating off the body. {test:armour_beasts}
-Watch any armoured beast (rottweiler, ogre, scrag, fiend) run, attack and die: its plates should never grow or shrink as it moves or as it falls. {test:armour_beasts}
 Flat-screen: open Debug > Tools > Rig Studio on an AD death guard, then on a crossbow knight: beside the subject the menu bar says their poses are shared; key a pose or an override on one and the other moves the same way at once, and after Save both read it back. {test:ad_knights_armed}
-Armoured ogre and scrag: their plates are faceted trapezoids like the grunts' and knights' armour (bevels, rivets, dark gaps); the ogre has a ridged breastplate, layered pauldrons, banded arms and legs and knee cops, the scrag a collar, spiked shoulders and a segmented tail; say what looks off. {test:armour_beasts}
-Shoot an armoured ogre's shin or an armoured scrag's tail: the hit counts on the thigh piece or the belt piece and they break together; the leather at the ogre's knees and along the scrag's tail bends with them. {test:armour_beasts}
-Flat-screen or VR: shoot the armoured rottweiler so it comes at you, turn on slow motion (vr_slowmo) and watch its leap, its run and its roll over when you shove or hit it: the body moves smoothly frame to frame (no stepping) and its barding and collar stay glued to it; the ogre and the scrag move smoothly too. {test:armour_beasts}
-Flat-screen or VR: Armour Studio on the Scrag (or the Rottweiler), part Cuirass, tick Wear the Part Alone: only the cuirass piece is worn, no plate 8 or plate 9 with it. {test:beaststudio}
-Flat-screen or VR: Armour Studio, a beast's shoulder: set Scale to 1.3 then back to 1, and try Size Forward / Size Left / Size Up: each stretches the piece along that axis alone, and back at 1 the piece looks exactly as before (texture as sharp as the untouched pieces). {test:beaststudio}
-Flat-screen or VR: Armour Studio, Subject's Place and Tilt (window) or Subject Away/Left/Up/Pitch/Roll (menu page): the subject moves and tips so you can look at it from above, below and the sides; Put Back returns it. {test:beaststudio}
-Flat-screen: Armour Studio window: open the Animation section and hover the Animation combo and Play: no red "conflicting ID" error box. {test:beaststudio}
-Flat-screen: in the Armour Studio window, Start, press Look at the Part, then drag the handle on the part: W arrows move it, E rings turn it, R arms stretch it (the centre scales it); the rows follow, Undo takes a whole drag back, Ctrl snaps. {test:armourstudio_close}
 Flat-screen: in the Rig Studio, the bone, aim target and Pose Keys handles still look and drag as before (they share the Armour Studio's handle code now). {test:rigstudio_strike}
-Look at the armoured ogres: the plates now sit close on his chest, back, belly, shoulders, upper arms, forearms, thighs and shins (knee cops over the knees), the helmet on his cranium above the brow and his face clear; nothing gigantic or floating off. {test:armour_beasts}
-Look at the armoured scrags: the helmet sits on top of his head (his face uncovered), the shoulder plates are their real size, and the body and tail are covered. {test:armour_beasts}
-Look at the armoured fiends: the left pauldron and bracer are now the mirror image of the right ones (same size, not stretched). {test:armour_beasts}
-In the Armour Studio, pick the scrag: its tail is its own part ("Tail", and "Tail's Leather Junctions"), tweaked apart from its lower body (Plate 8); pick the ogre: his shins with their knee cops are the "Shins" part, by side. {test:beaststudio}
-Armour Studio (flat): drag with the right mouse button on the view; the subject turns (across: Turn, down: Pitch), the handle follows, Put Back resets {test:vr_armourstudio_gizmo_test}
 Flat-screen or VR: toolgun Spawn > Monsters: pick a Rottweiler, Ogre, Scrag or Fiend and set the new Armour and Pieces row under the tiles (it is dimmed for other monsters); each one spawned wears what you chose: None bare, Red Full every piece, Green Core the cuirass and helmet, Random a mix, By Skill its own roll as on a map. {test:toolgun_beasts}
 Flat-screen or VR: the Monsters tab's tiles are a little shorter now to make room for that row: check the pictures and two-line names (Death Knight, Armed Humanoid) still read cleanly. {test:toolgun_beasts}
 Fire the shotgun indoors in a small stone room and in a big hall: its crack is clear and sharp over the room's ring, not muffled under a boomy wash; Sound > Walls and Rooms > Your Sounds' Reverb at 1 brings the old wash back to compare (0.25 the default). {test:start_shotgun}
@@ -91,20 +73,11 @@ Flat-screen: Setup beside its own QuakeVR.zip (the release folder) installs from
 
 [2. Flat screen]
 ## Grab, hold and push
-Flat-screen: grab a crate with H and back away from it (or let a held ragdoll fall behind): the drawn hands stay on the wrists at full stretch until the hold lets go, never floating off the arms. {test:flat_grab_pull}
 ## Spear and Crystal Lance
 Flat-screen: flip the spear's grip (B) and raise the guard: the spear stays flipped across the view; tune the Flipped Spear Other Hand Up / Out / Pitch / Yaw / Roll rows (Tunables > Flatscreen) and see the other hand move on the flipped pole while held, guarding and thrusting. {test:flat_spear}
 ## Guard and parry
-Flat-screen: flip a sword or the dagger to the inverted grip (B), then hold the right mouse button: the blade turns quickly back to the normal grip for the guard, and flips back to inverted when you let go. {test:flat_parry}
-Flat-screen: hold the right mouse button with the ogre hammer, the ogre mace, the death fury's sword or the judicator's sword: your left hand takes the shaft or blade near the head/tip, not the handle. {test:flat_parry_ad}
-Flat-screen: hold the knight's sword in two hands, flip its grip (B) and hold the right mouse button: the sword stays flipped and eases into its own reverse-grip guard (fist at your side, blade across the view from under the fist), both hands still on the handle, with no snap in or out; Reverse-Grip Guard 0 (Tunables > Flatscreen > Parry Guard) gives the old turn-upright guard back. {test:flat_parry_ad}
-Flat-screen: hold the Judicator's sword alone (Debug menu: Arcane Dimensions: Judicator's Sword Alone in Hand) without parrying: both hands are on the handle, the free hand just below the holding one, not on the blade. {test:flat_parry_ad}
 ## Crosshair
-Flat-screen: hold a sword, a dagger, an axe or the crowbar, upright and flipped (B's flip grip), and look at a wall or a knight close by: the crosshair sits where the swing will land, and the blow lands on it. {test:flat_melee_grip}
-Flat-screen: hold the throw key with an axe, a sword, a carried box or the quick grenade: the crosshair moves to where the throw will land (it rises as the throw charges) and the thing lands there when you let go. {test:flat_throw_cancel}
 ## Throwing and catching
-Flat-screen: take the judicator's sword (Debug menu, "Judicator's Sword Alone in Hand"), held in two hands, and flip its grip: both hands stay on the handle, the free hand just below the holding fist, through the flip, the parry guard (right mouse) and after. {test:flat_parry_ad}
-Flat-screen: with the tunable "Two-Handed Melee Stance" at 0, raise and drop the parry guard with a sword upright and with the judicator flipped: the free hand slides off the blade smoothly as the guard ends, no sudden twist. {test:flat_parry_ad}
 
 [3. Tutorial and VR interface]
 ## Menus and settings
