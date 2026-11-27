@@ -2139,8 +2139,7 @@ Host_Ping_f
 */
 static void Host_Ping_f (void)
 {
-	int		i, j;
-	float		total;
+	int		i;
 	client_t	*client;
 
 	if (cmd_source == src_command)
@@ -2154,11 +2153,7 @@ static void Host_Ping_f (void)
 	{
 		if (!client->active)
 			continue;
-		total = 0;
-		for (j = 0; j < NUM_PING_TIMES; j++)
-			total+=client->ping_times[j];
-		total /= NUM_PING_TIMES;
-		SV_ClientPrintf ("%4i %s\n", (int)(total*1000), client->name);
+		SV_ClientPrintf ("%4i %s\n", VR_ClientPingMs (i), client->name); // QVR: (review S3) the one mean (vr_svstatus.cpp)
 	}
 }
 

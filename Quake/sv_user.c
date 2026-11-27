@@ -508,7 +508,13 @@ void SV_ReadClientMove (usercmd_t *move)
 // moves run through it too)
 void VR_ApplyClientMove (client_t *client, float time, const float *angle, int forward, int side, int up, int bits, int impulse)
 {
-	client->ping_times[client->num_pings%NUM_PING_TIMES] = qcvm->time - time;
+	// QVR: (review A13) the move's time is the client's: a NaN or huge one clamped to 0..10 s (the status line's int)
+	float	ping = qcvm->time - time;
+	if (!(ping >= 0.f))
+		ping = 0.f;
+	else if (ping > 10.f)
+		ping = 10.f;
+	client->ping_times[client->num_pings%NUM_PING_TIMES] = ping;
 	client->num_pings++;
 
 	VectorCopy (angle, client->edict->v.v_angle);
