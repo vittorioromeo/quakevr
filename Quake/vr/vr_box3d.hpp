@@ -512,6 +512,7 @@ struct RagdollHold
     bool tug{false}; // an armed monster's tug-of-war (ragdolltug): the hand holds its weapon, the hold its hand's limb
     float stretch{1.f};    // ... its held arm drawn up to this much longer towards `target` (ragdollTug what 9; 1 none)
     glm::vec3 target{0.f}; // ... where the hold pulls the limb's point `at` (your hand: world units, the server's step)
+    bool kept{false};      // a flat-screen Grab / Pull's, kept at the grab's arm length (vr_flat_grab_push: up to the reach ahead)
 };
 [[nodiscard]] bool ragdollHold(int player, int hand, RagdollHold& out);
 // Where on the ragdoll that hand's hold grips now (its anchor on the part, world units): the neck snap's head zone test

@@ -12,6 +12,8 @@ Flat-screen: take a quick grenade (G), press the attack button to arm it, then h
 Flat-screen or VR: Stab a grunt with the bayonet shotgun so it sticks and keep your hand on it: the HUD (status bar, visor or wrist) still shows the shotgun's shells and its clip; the same with the super shotgun and the stuck Crystal Lance. {test:attach_bayonet}
 Flat-screen: J with a bayonet on the shotgun and the other hand empty: the bayonet comes off into that hand and is drawn there, blade up out of the fist. {test:attach_bayonet}
 Pull the bayonet off the shotgun with your empty hand (or pick up a lying one): it sits in your fist with the blade out above your index finger, not hanging below. {test:attach_bayonet}
+Flat-screen: kill a grunt, hold its body with H and walk into it: it is pushed ahead at the distance you took it at, both hands staying on it and on your wrists; walk backwards and it is dragged along; turn sharply away and the hands let go. {test:flat_grab_pull}
+Flat-screen: hold a dead ogre with H and run into it: it is too heavy for that pace and the hands let go; Push Held Props Off (Tunables > Flatscreen > Grab / Pull) gives the old pull of the body in to your hands. {test:flat_grab_pull}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

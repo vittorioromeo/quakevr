@@ -2084,6 +2084,35 @@ dragged prop shoved it off the hands).
   run into lets go "too heavy for that pace"); tunables_test 13/0 (stages), 20/0, 3/0.
 - Open: ragdolls not changed (their own hold, `RagdollGrab`, eases the limb to the hand: a follow-up if wanted); the big
   explosive box can't be pushed even slowly (Push Strength up to ~10000 lets it at a slow walk).
+- **Ragdolls too** (ragpush, branch agent/ragpush, 2026-11-27): a ragdoll held with H (alive and staggering, or dead) is
+  pushed and dragged as a big prop is, with the same tunables (`vr_flat_grab_push`, `_push_force`, `_push_angle`; rows' help
+  now say "or body"). One set of rules for both (vr_box3d_ragparts.cpp, `World::PushKeep`: `keepBegin`, `keepTarget`,
+  `keepMeasure`, `keepStrain`, `keepLetGo`; `dragTarget` and `syncPropBlades` use them too). Each limb hold
+  (`grabRagdollReachImpl`, set up in `ragdollGrabReach`) keeps its point level where it was taken (its height still the
+  hand's; its anchor starts there, not at the hand). The body as a whole is carried like a dragged prop (`syncRagdollStrains`):
+  its mass centre kept as far ahead as it was when taken (`RagdollGrab::bodyArm`), by the drag's spring on the whole mass
+  (`vr_flat_grab_drag_hertz` 4 Hz, at most `vr_flat_grab_drag_force` per hand, level, each part its share), and its strain
+  is that spring's need (too heavy for that pace above Push Strength, as for props). Why not the limb's point alone: a limb
+  hold is a spring stiff only for the limb's own mass (a hand: 1 kg), so an 80 kg grunt walked into by its arm folded the arm
+  and lagged 0.35 m (its "need" 14-25k N, let go of at once), and two hands on two limbs pull against each other as it bends.
+  Too steep (60 deg) is the held point's, as for props. The player's capsule passes through a ragdoll he pushes
+  (`dragsProp`), and Quake's move doesn't shove it.
+- **Only while he moves** (props too): the strain builds only above 40 u/s level. Stopped, a body still sliding on from his
+  push doesn't wrench it off his hands (a grunt pushed at a walk slid on at 6 m/s as he stopped: 9-16k N). The limb hold's
+  own distance rule (`stuck`, 0.5 s) still lets go of what is left far behind.
+- **Hands**: a kept limb hold's hand is drawn up to the reach further, as a dragged prop's (`RagdollHold::kept`,
+  `LimbHold::kept`); `keepOnArm` keeps the wrists on the arms (flathold3).
+- Measured (vrtesthall, 2 hands): dead grunt 80 kg walked into at 200 u/s: 42 -> 43 units ahead, pushed 77 units, 460-940 N a
+  hand once moving (8k for a frame at the start); backed away: dragged 99 units. Dead ogre 200 kg: run into, 37-60k N, let go
+  of at once (at a walk too: 37k as he starts).
+- Tests: flatgrabthrow_test.sh 64/0 (new run `ragpush`: the grunt pushed 77-81 units, 40 -> 42 to 47 -> 52 units ahead
+  over three runs (where H takes it varies run to run), both hands on it, none let go; backing away drags it 99-103 back;
+  wrists past their arms under 1.5 cm over 170 frames; the ogre run into lets go "too heavy for that pace", no hand on it
+  after). `far`'s ragdoll check is now under 1.5 cm too: the limb kept past the arm's reach puts the hands at full stretch on
+  every frame, and the arm's eased solve lands up to 0.5-0.8 cm past keepOnArm's reach on a frame. tunables_test 20/0, 3/0,
+  13/0 (stages).
+- Open: the ogre can't be pushed even at a walk (Push Strength ~40000 would); in the headless flat mock a pitched view walks
+  the player down through the floor (z 25 -> -24 over 28 frames at pitch 40, vrtesthall), why the test levels it to walk.
 
 ## Flat view size report: "the world looks tiny" (branch agent/tinyworld, 2026-11-26)
 
