@@ -2937,3 +2937,16 @@ QVR_TUNABLE(vr_flat_xhair_melee_kick, "10") // a melee blow's feedback: the viso
 QVR_TUNABLE(vr_flat_xhair_melee_mass, "3") // the weapon weight (kg) the kick is for: a heavier one more, by the square root of its weight's share (0.5 .. 2 times)
 QVR_TUNABLE(vr_flat_xhair_melee_fist, "0.5") // a bare fist's (or a prop's) blow: this share of the kick
 QVR_TUNABLE(vr_flat_xhair_melee_decay, "0.15") // and back in over this (seconds: its time constant; 63% of the way back)
+QVR_TUNABLE(vr_agrunt_dazzle, "1") // armed humanoids blinded by a flashlight pointed straight at their face (VR, flat-screen, coop: each player's lamp as his client lit it; QC vr_armedgrunt_dazzle.qc): a dazzle that builds and fades, the off hand raised before the eyes, worse shots; 0 off
+QVR_TUNABLE(vr_agrunt_dazzle_cone, "12") // ... degrees off the beam's axis at its eyes it still counts (full within 0.4 of this, none past it)
+QVR_TUNABLE(vr_agrunt_dazzle_near, "192") // ... units: full strength this near the lens
+QVR_TUNABLE(vr_agrunt_dazzle_range, "640") // ... units: none this far (or past the lamp's own reach), falling off from vr_agrunt_dazzle_near
+QVR_TUNABLE(vr_agrunt_dazzle_dark, "0.5") // ... darker places count more: up to this much more in the dark (none where the light on its face is 160 or more)
+QVR_TUNABLE(vr_agrunt_dazzle_build, "0.5") // ... seconds a full beam on its eyes takes to dazzle it fully
+QVR_TUNABLE(vr_agrunt_dazzle_fade, "1.5") // ... seconds a full dazzle takes to fade once the beam is off its eyes
+QVR_TUNABLE(vr_agrunt_dazzle_threshold, "0.35") // ... the dazzle its hand starts coming up at (fully up at full dazzle)
+QVR_TUNABLE(vr_agrunt_dazzle_spread, "2") // ... its shots' aim error and spread times 1 + this at full dazzle (a two-handed gun held in one hand behind the hand also loses the two-hand spread reduction)
+QVR_TUNABLE(vr_agrunt_dazzle_pose, "1") // ... the shielding hand's share at full (0: no pose, the worse aim only)
+QVR_TUNABLE(vr_agrunt_dazzle_hand_fwd, "7") // ... where the shielding hand goes in the grunt's body (fitted to each kind's): units forward,
+QVR_TUNABLE(vr_agrunt_dazzle_hand_left, "3") // ... to its left,
+QVR_TUNABLE(vr_agrunt_dazzle_hand_up, "22") // ... and up from its origin

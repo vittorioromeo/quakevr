@@ -2270,6 +2270,7 @@ void(entity g, entity p) VR_AGP_PoseQC;
 void(entity g) VR_MeleeArc_ShowSwings; // (Show Melee Arcs: its swing drawn, vr_meleerules.qc)
 void(entity g, entity p) VR_AGP_Pose =
 {
+    VR_AG_DazzleTick(g); // (a flashlight in its eyes: vr_armedgrunt_dazzle.qc)
     if(!agpose(g, p))
     {
         VR_AGP_PoseQC(g, p);
@@ -2461,6 +2462,7 @@ void(entity g, entity p) VR_AGP_PoseQC =
             vr_agp_flags = keepFl | VR_AGP_LEFT | VR_AGP_LEFTWPN;
         }
     }
+    VR_AGP_Shield(g, p); // (dazzled by a flashlight: its off hand before its eyes; vr_armedgrunt_dazzle.qc)
     // (its run's sway on its hands; placed from its anchor)
     vector bob = VR_AGP_RunBob(g);
     vr_agp_v = vr_agp_v + bob;

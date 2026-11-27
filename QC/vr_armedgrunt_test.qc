@@ -1553,6 +1553,7 @@ void() VR_MRT_ParryFrame;
 void() VR_MRT_SwingFrame;
 void() VR_AGSP_Frame; // (vr_armedgrunt_spear_test.qc)
 void() VR_AGXT_Frame; // (vr_armedgrunt_extent_test.qc)
+void() VR_AGDZ_Frame; // (vr_armedgrunt_dazzle_test.qc)
 void() VR_AGCD_Frame; // (vr_armedgrunt_coopdisarm_test.qc)
 void() VR_OGFT_Frame; // (vr_ogre_friends_test.qc)
 
@@ -1652,6 +1653,7 @@ void() VR_AGTest_Frame =
     else if(t == 216) { VR_MRT_SwingFrame(); } // (Show Melee Arcs draws an armed humanoid's swing: vr_meleerules_test.qc)
     else if(t == 215) { VR_AGCD_Frame(); } // (a grunt disarmed by shots still dies, coop too: vr_armedgrunt_coopdisarm_test.qc)
     else if(t == 214) { VR_AGXT_Frame(); } // (a held weapon's drawn extent after a tune: vr_armedgrunt_extent_test.qc)
+    else if(t == 232) { VR_AGDZ_Frame(); } // (blinded by the flashlight: vr_armedgrunt_dazzle_test.qc)
     else if(t == 94) { VR_AGST_Frame(); } // (a deliberate strike or throw on its weapon or hand: vr_armedgrunt_strike_test.qc)
     else if(t == 96 || t == 98) { VR_AGPP_Frame(t); } // (its guard: the preventive and wind-up parries: vr_armedgrunt_preparry_test.qc)
     else if(t == 205) { VR_AGL_Frame(); } // (a held gun stays with its body as it walks: vr_armedgrunt_gunlag_test.qc)
