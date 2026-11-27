@@ -2765,6 +2765,20 @@ bool holdsBody(int hand)
     return sv.active && cls.state == ca_connected && box3d::ragdollHold(cl.viewentity, hand, h);
 }
 
+namespace
+{
+// flatdrag: entity `e`'s frame placed at `origin`, turned by `angles` (grasp::shapeToWorld's place and turn, before the model's
+// own scale and offsets: a brush model's pitch the other way).
+[[nodiscard]] glm::mat4 placeFrame(const entity_t& e, const glm::vec3& origin, const glm::vec3& angles)
+{
+    float m[16];
+    vec3_t o{origin.x, origin.y, origin.z};
+    vec3_t a{e.model && e.model->type == mod_brush ? -angles.x : angles.x, angles.y, angles.z};
+    R_EntityMatrix(m, o, a, ENTSCALE_DEFAULT);
+    return glm::make_mat4(m);
+}
+} // namespace
+
 // The limb the local player's `hand` holds (a listen server's ragdoll: box3d::ragdollHold), as drawn now; or the big prop it
 // drags by its surface (flat-screen Grab / Pull: box3d::propDragHold), drawn on it as on a limb. False: none.
 [[nodiscard]] bool limbHold(int hand, LimbHold& out)
@@ -2778,11 +2792,37 @@ bool holdsBody(int hand)
     {
         const entity_t& ent = cl_entities[d.num];
         out.num = d.num;
-        out.pos = d.at;
-        out.turn = d.turn;
         out.shape = grasp::shapeOf(ent, ent.frame);
         out.toWorld = grasp::shapeToWorld(ent, false);
         out.drag = true;
+        // flatdrag (his flat note 2026-11-27: "Hands/arms jitter/shake a lot when dragging a crate with H"): the hold's point is
+        // the Box3D body's now, on the server's tick, while the prop is drawn as the client has it (a tick behind, or lerped
+        // between ticks): a crate dragged and tipping moved up to 10 cm and 5 degrees a frame between the two, and the hands
+        // slid on it by up to 6 cm a frame. So the point and the hand's turn there are taken in the prop's frame as the server
+        // has it (its edict, which the step wrote: the same pose) and put in its frame as drawn, as a ragdoll's limb is
+        // (ragdoll::drawnPart, below).
+        glm::vec3 svOrigin{0.f}, svAngles{0.f};
+        bool sv = false;
+        {
+            progs::ServerVm vm;
+            if(d.num < qcvm->num_edicts && !EDICT_NUM(d.num)->free)
+            {
+                const edict_t* ed = EDICT_NUM(d.num);
+                svOrigin = glm::vec3{ed->v.origin[0], ed->v.origin[1], ed->v.origin[2]};
+                svAngles = glm::vec3{ed->v.angles[0], ed->v.angles[1], ed->v.angles[2]};
+                sv = true;
+            }
+        }
+        out.pos = d.at;
+        out.turn = d.turn;
+        if(sv)
+        {
+            const glm::mat4 serverToDrawn = placeFrame(ent, glm::vec3{ent.origin[0], ent.origin[1], ent.origin[2]},
+                                                glm::vec3{ent.angles[0], ent.angles[1], ent.angles[2]}) *
+                                            glm::inverse(placeFrame(ent, svOrigin, svAngles));
+            out.pos = glm::vec3{serverToDrawn * glm::vec4{d.at, 1.f}};
+            out.turn = glm::normalize(glm::quat_cast(glm::mat3{serverToDrawn}) * d.turn);
+        }
         return true;
     }
     box3d::RagdollHold h;
@@ -3775,7 +3815,7 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     angles = basisAngles(glm::mat3_cast(turn) * anglesBasis(angles));
 }
 // The hold-arm probe's frame (vr_hold_arm_probe): `hand` drawn on a held limb or dragged prop, pulled in `past` units to its arm.
-void noteHoldArm(int hand, float past)
+void noteHoldArm(int hand, float past, const glm::vec3& pos)
 {
     HoldArmTrack& t = holdArmTrack;
     if(!t.on || limbEase[hand].blend <= 0.f)
@@ -3784,11 +3824,66 @@ void noteHoldArm(int hand, float past)
     }
     t.frames++;
     t.gapHi = za::max(t.gapHi, avatar::embedArmGapCm(hand));
+    const float cm = 100.f / units::metresToUnits();
     if(past > 0.f)
     {
         t.pulled++;
-        t.pulledHi = za::max(t.pulledHi, past / units::metresToUnits() * 100.f);
+        t.pulledHi = za::max(t.pulledHi, past * cm);
     }
+    // flatdrag: how smoothly the hand is drawn, in the world and on the held thing as drawn.
+    LimbHold h;
+    if(!limbHold(hand, h) || host_framecount == t.lastFrame[hand])
+    {
+        return;
+    }
+    const glm::vec3 local{glm::inverse(h.toWorld) * glm::vec4{pos, 1.f}};
+    const bool next = host_framecount == t.lastFrame[hand] + 1;
+    t.seen[hand] = next ? t.seen[hand] + 1 : 1;
+    float jit = -1.f, slide = -1.f;
+    // (Slid: only while the hand reaches it, this frame and the last: one held back on its arm, short of it, isn't on it.)
+    if(t.seen[hand] >= 2 && past <= 0.f && t.lastOn[hand])
+    {
+        slide = glm::length(glm::mat3{h.toWorld} * (local - t.lastLocal[hand])) * cm; // (world units: toWorld may scale)
+        t.slideHi = za::max(t.slideHi, slide);
+        t.slideFrames++;
+    }
+    t.lastOn[hand] = past <= 0.f;
+    if(t.seen[hand] >= 3)
+    {
+        jit = glm::length(t.last[hand][0] - (pos + t.last[hand][1]) * 0.5f) * cm;
+        t.jitHi = za::max(t.jitHi, jit);
+        t.jitSum += jit;
+        t.jitFrames++;
+    }
+    if(t.log)
+    {
+        // (Short lines: the console wraps long ones. holdjit: the held thing as drawn (origin, angles); holdjit2: the hand and the
+        // eye; holdjit3: the server's (origin, angles, time); holdjit4: the hold's point, as the hand was drawn on it.)
+        const entity_t& ce = cl_entities[h.num];
+        Con_Printf("holdjit: %d %d %.4f %.2f %.2f %.2f %.2f %.2f %.2f\n", host_framecount, hand, cl.time, ce.origin[0], ce.origin[1],
+            ce.origin[2], ce.angles[0], ce.angles[1], ce.angles[2]);
+        Con_Printf("holdjit2: %d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\n", host_framecount, hand, pos.x, pos.y, pos.z,
+            r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2], jit, slide);
+        glm::vec3 server{0.f}, serverAngles{0.f};
+        double svTime = 0.0;
+        {
+            progs::ServerVm vm;
+            svTime = qcvm->time;
+            if(h.num < qcvm->num_edicts)
+            {
+                const edict_t* ed = EDICT_NUM(h.num);
+                server = glm::vec3{ed->v.origin[0], ed->v.origin[1], ed->v.origin[2]};
+                serverAngles = glm::vec3{ed->v.angles[0], ed->v.angles[1], ed->v.angles[2]};
+            }
+        }
+        Con_Printf("holdjit3: %d %d %.2f %.2f %.2f %.2f %.2f %.2f %.3f\n", host_framecount, hand, server.x, server.y, server.z,
+            serverAngles.x, serverAngles.y, serverAngles.z, svTime);
+        Con_Printf("holdjit4: %d %d %.2f %.2f %.2f\n", host_framecount, hand, h.pos.x, h.pos.y, h.pos.z);
+    }
+    t.last[hand][1] = t.last[hand][0];
+    t.last[hand][0] = pos;
+    t.lastLocal[hand] = local;
+    t.lastFrame[hand] = host_framecount;
 }
 
 // setupHand's phases: the controller drawn where the hand holds a prop, a limb, the other hand's weapon, a
@@ -3826,7 +3921,7 @@ void noteHoldArm(int hand, float past)
     // it as its arm reaches from the shoulder, its wrist on the arm (keepOnArm, flat play): past that it stays at full stretch
     // until the hold lets go.
     const float past = keepOnArm(hand, s.pos[hand], controllerPos, controllerRot);
-    noteHoldArm(hand, past);
+    noteHoldArm(hand, past, controllerPos);
     entities.hand[hand].lightShift = lightShift;
     return freeHelp;
 }

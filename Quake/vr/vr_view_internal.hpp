@@ -974,6 +974,21 @@ struct HoldArmTrack
     float gapHi{0.f};    // cm
     int pulled{0};       // frames the hand was pulled in
     float pulledHi{0.f}; // cm
+    // flatdrag (his flat note 2026-11-27: "Hands/arms jitter/shake a lot when dragging a crate with H"): per hand, the drawn
+    // hand's last places (world, and in the held thing's drawn frame) and frames; the most its place left a smooth path
+    // (half its second difference: the middle of three frames off the line through its neighbours, cm) and the most it slid
+    // on the held thing as drawn from one frame to the next (cm); `log` (vr_hold_arm_probe 2) prints each frame (holdjit:).
+    bool log{false};
+    int jitFrames{0};
+    float jitHi{0.f};   // cm
+    float jitSum{0.f};  // cm (the mean: jitSum / jitFrames)
+    float slideHi{0.f}; // cm (only frames the hand reaches it, and the one before: not held back on its arm, keepOnArm)
+    int slideFrames{0};
+    bool lastOn[2]{false, false};
+    glm::vec3 last[2][2]{};
+    glm::vec3 lastLocal[2]{};
+    int lastFrame[2]{-10, -10};
+    int seen[2]{0, 0}; // consecutive frames recorded (2 or more: a second difference)
 };
 inline HoldArmTrack holdArmTrack;
 // A hand holding a blade in a body (vr_view_hands.cpp): each frame before the weapons, whether it holds one and, just off it, the ease
