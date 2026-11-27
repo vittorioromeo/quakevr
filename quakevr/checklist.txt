@@ -134,6 +134,8 @@ Flat-screen or VR: put the bayonet on the shotgun and throw it point first at a 
 Stab a grunt with the bayonet shotgun so it sticks, keep your hand on it, and bring a shell from the pouch to its port with the other hand: the shell goes in and the gun stays stuck. {test:attach_bayonet}
 ## Thrown weapons and the hook
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
+Heavy revolver: fire a few shots, swing the cylinder out and press B/Y (or push it back): only the spent shells drop and the live ones stay; eject again and the live ones drop too (Spent Shells First, on by default). {test:revolver_reload}
+Heavy revolver: the pouch gives a taped pair of blue slugs that loads two chambers at once with the two-shell sound; with only one chamber empty one goes in and the other stays in your hand (Slug Pairs, on by default). {test:revolver_reload}
 
 [5. Ropes and chains]
 ## Climbing
