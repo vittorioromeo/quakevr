@@ -334,6 +334,13 @@ extern "C" int VR_DebugAliasLrz(void)
     return static_cast<int>(vr_debug_alias_lrz.value);
 }
 
+// questperf2: the models' instance data kept across frames (vr_alias_frame_cache: 1 on, 2 the check).
+extern "C" int VR_AliasFrameCacheMode(void)
+{
+    const int v = static_cast<int>(vr_alias_frame_cache.value);
+    return v == 1 || v == 2 ? v : 0;
+}
+
 // questperf2: an opaque alias batch sets the blended state only for skins with blended texels (vr_gl_alias_lazy_blend).
 extern "C" int VR_GLAliasLazyBlend(void)
 {

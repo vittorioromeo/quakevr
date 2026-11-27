@@ -346,6 +346,134 @@ static aliaseyeentry_t *R_AliasEyeSlot (entity_t *e, qboolean *found)
 	return NULL;
 }
 
+// QVR (questperf2): the alias draw-list cache across frames (vr_alias_frame_cache): an entity's Quake VR instance data
+// (VR_AliasInstance: its light's direction and ambient cube, surface, glows, wounds, retro, ...) kept from the frame
+// before when nothing it is made from changed: the same model, frame, skin, alpha, effects and colormap, the same
+// transform (bit for bit), the same light styles and dynamic lights, and it was set up in the frame before. Made anew:
+// your own models (view entities: hands, body, gear follow you), cl.viewent, the views through teleporters, the shadow
+// maps' casters, anything glowing (the force grab's and the weapons' glows pulse) or with a morph. Mode 2 (the check):
+// made anew and compared (vr_alias_frame_cache_stats).
+#define ALIASFRAME_CACHE_SIZE	2048	// a power of two
+#define ALIASFRAME_CACHE_PROBES	16
+typedef struct {
+	const entity_t	*ent;
+	const qmodel_t	*model;
+	int			frame;
+	int			skinnum;
+	int			alpha;
+	int			effects;
+	const byte	*colormap;
+	int			seen;		// host_framecount it was last made or used in (0: free)
+	unsigned	lightkey;	// aliasframelightkey when made
+	float		matrix[16];
+	vraliasinstance_t	vr;
+} aliasframeentry_t;
+static aliasframeentry_t	aliasframecache[ALIASFRAME_CACHE_SIZE];
+static unsigned			aliasframelightkey;		// the light styles' and dynamic lights' hash this frame
+static int				aliasframelightframe = -1;	// the host frame it was taken in
+enum { AFRAME_HIT, AFRAME_MADE, AFRAME_CHECKED, AFRAME_BAD, AFRAME_NUMSTATS };
+static int				aliasframestats[AFRAME_NUMSTATS];
+
+void R_AliasFrameCacheStats (int *out, int count)
+{
+	int i;
+	for (i = 0; i < count && i < AFRAME_NUMSTATS; i++)
+		out[i] = aliasframestats[i];
+	memset (aliasframestats, 0, sizeof (aliasframestats));
+}
+
+static unsigned R_AliasFrameLightKey (void)
+{
+	if (aliasframelightframe != host_framecount)
+	{
+		unsigned h = 2166136261u;
+		int i;
+		for (i = 0; i < r_framedata.numlights; i++) // the dynamic lights (not the map lights' shadow entries): place, reach, colour
+		{
+			const unsigned *l = (const unsigned *) &r_lightbuffer.lights[i];
+			int k;
+			if (r_lightbuffer.lights[i].shadow[3] != 0.f)
+				continue;
+			for (k = 0; k < 8; k++) // (pos, radius, color, minlight)
+				h = (h ^ l[k]) * 16777619u;
+		}
+		aliasframelightkey = h;
+		aliasframelightframe = host_framecount;
+	}
+	return aliasframelightkey;
+}
+
+// VR_AliasInstance for e, from the frame before when it can be (vr_alias_frame_cache): true when *out was filled
+static qboolean R_AliasFrameInstance (entity_t *e, const float model_matrix[16], aliashdr_t *hdr, vraliasinstance_t *out)
+{
+	const int mode = VR_AliasFrameCacheMode ();
+	aliasframeentry_t *s = NULL;
+	uint64_t h;
+	unsigned key;
+	int i;
+	if (!mode || e == &cl.viewent || VR_IsViewEntity (e) || VR_PortalDrawing () || VR_DebugDrawnOn ())
+		return false;
+	key = R_AliasFrameLightKey ();
+	h = ((uint64_t) (uintptr_t) e >> 4) * 0x9E3779B97F4A7C15ull;
+	h >>= 64 - 11;
+	for (i = 0; i < ALIASFRAME_CACHE_PROBES; i++)
+	{
+		aliasframeentry_t *c = &aliasframecache[(h + i) & (ALIASFRAME_CACHE_SIZE - 1)];
+		if (c->ent == e || (!s && (c->seen == 0 || c->seen < host_framecount - 1)))
+			s = c;
+		if (c->ent == e)
+			break;
+	}
+	if (!s)
+		return false;
+	if (s->ent == e && s->seen >= host_framecount - 1 && s->model == e->model && s->frame == e->frame
+		&& s->skinnum == e->skinnum && s->alpha == e->alpha && s->effects == e->effects && s->colormap == e->colormap
+		&& (s->lightkey == key || mode == 2) && !memcmp (s->matrix, model_matrix, sizeof (s->matrix)))
+	{
+		s->seen = host_framecount;
+		if (mode == 1)
+		{
+			*out = s->vr;
+			aliasframestats[AFRAME_HIT]++;
+			return true;
+		}
+		VR_AliasInstance (e, model_matrix, hdr, 1, out); // the check
+		aliasframestats[AFRAME_CHECKED]++;
+		if (memcmp (out, &s->vr, sizeof (*out)))
+		{
+			const float *f = (const float *) out, *k = (const float *) &s->vr;
+			int n;
+			for (n = 0; n < (int) (sizeof (*out) / sizeof (float)) && !memcmp (f + n, k + n, sizeof (float)); n++)
+				;
+			if (aliasframestats[AFRAME_BAD]++ < 8)
+				Con_Printf ("vr_alias_frame_cache check: %s's instance data differs from float %d (%g, kept %g)\n",
+					e->model->name, n, f[n], k[n]);
+		}
+		s->vr = *out;
+		return true;
+	}
+	VR_AliasInstance (e, model_matrix, hdr, 1, out);
+	aliasframestats[AFRAME_MADE]++;
+	if (out->glow[0] != 0.f || out->ambient[2][3] != 0.f) // glowing or morphing (VR_AliasMorph): made each frame
+	{
+		s->ent = NULL;
+		s->seen = 0;
+		return true;
+	}
+	s->ent = e;
+	s->model = e->model;
+	s->frame = e->frame;
+	s->skinnum = e->skinnum;
+	s->alpha = e->alpha;
+	s->effects = e->effects;
+	s->colormap = e->colormap;
+	s->seen = host_framecount;
+	s->lightkey = key;
+	memcpy (s->matrix, model_matrix, sizeof (s->matrix));
+	s->vr = *out;
+	return true;
+}
+
 // The check (mode 3): a part set up anew against the first eye's
 static void R_AliasEyeCompare (const void *a, const void *b, size_t size, int stat)
 {
@@ -2101,7 +2229,8 @@ cull:
 			cached->boxbones = NULL; // (a posed one's: kept at the cull)
 		cached->gen = aliasdepthgen;
 	}
-	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias vr instance", VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr)); // QVR
+	if (mode != ALIAS_STANDARD || !R_AliasFrameInstance (e, model_matrix, paliashdr, &instance->vr)) // QVR: kept from the frame before (vr_alias_frame_cache)
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias vr instance", VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr)); // QVR
 	if (mode == ALIAS_XRAY) // QVR: an outline through walls: its own glow (vr/vr_arenaxray.cpp)
 		instance->vr.glow[0] = VR_ArenaXrayGlow (e);
 	smoothbefore = ibuf.count == 1 ? 0 : VR_AnimSmoothRows (0); // (a batch's first instance starts its rows)

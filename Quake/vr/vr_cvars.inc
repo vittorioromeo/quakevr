@@ -741,6 +741,11 @@ QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
 QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
+// Debug > Profiling > Still Models' Set-up Check (questperf2): 1 a model's instance data (VR_AliasInstance)
+// kept from the frame before while nothing it is made from changed (r_alias.c R_AliasFrameInstance: the same model,
+// frame, skin, transform, light styles and dynamic lights; not your own models, glows or morphs); 0 made every frame;
+// 2 made again and compared (vr_alias_frame_cache_stats).
+QVR_CVAR(vr_alias_frame_cache, "0", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts: 1 the last plan of the crates and of the rocks and
 // bricks kept for the session and taken again while its key is the same (vr_debris.hpp PlanKey: the map's name, files
 // and geometry, every vr_crate*, vr_debris*, vr_place_* setting, the entities' boxes at the plan): a restart of the map

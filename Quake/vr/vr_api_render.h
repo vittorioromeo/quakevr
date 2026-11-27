@@ -148,6 +148,7 @@ void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// afte
 void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush entities: the networked scale and offset
 float VR_EntityScale (const struct entity_s *e);	// ENTSCALE_DECODE(e->scale) times a prop's Size (Held Object Offsets): its bounds as drawn
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
+int VR_AliasFrameCacheMode (void); // vr_alias_frame_cache: 0 off, 1 kept across frames, 2 checked (r_alias.c R_AliasFrameInstance)
 // Temporal anti-aliasing (vr_temporal.cpp, docs/vr-port/TEMPORAL.md)
 void VR_TemporalProjection (float proj[16], const float view[16]); // R_SetFrustum: the eye's jitter and motion block
 void VR_TemporalAliasMotion (const struct entity_s *e, int totalverts, int standard, int out[4]); // its vertex slots

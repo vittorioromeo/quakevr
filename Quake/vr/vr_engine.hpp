@@ -123,6 +123,7 @@ void R_AliasDepthShareStats (int *taken, int *checked, int *bad);
 void R_AliasEyeCacheBegin (int mode);
 void R_AliasEyeCacheEnd (void);
 void R_AliasEyeCacheStats (int *out, int count);
+void R_AliasFrameCacheStats (int *out, int count); // vr_alias_frame_cache_stats (questperf2)
 void R_AliasCullStats (void); // r_alias.c: vr_alias_cull_stats (the alias draws' culls since the last call, by model)
 void R_Clear (void); // gl_rmain.c: the bound scene's depth, stencil (and colour with gl_clear) cleared (vr_stereo_single.cpp)
 qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, int side); // r_alias.c: into its wound mask (vr_wounds.cpp); side -1 all, 0 or 1 that side's
