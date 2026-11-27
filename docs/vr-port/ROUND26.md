@@ -2215,7 +2215,7 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   - **Tests**: attach_test.sh: 79 VR 22/0, 80 flat 17/0 (new: the HUD check on each stuck gun, the held probe after the
     take-off), 81/82 2/0 both, menu 6/0, and `Misc/quakevr/attach_probe_check.py` (the client's `vr_flathud_report` after
     each stuck gun: weapon, shown, flat's big number the clip; `vr_held_report` after the take-off: carried = drawn, the
-    bayonet, blade up, flat on the screen) 10/0 total 15/0. Test 79's stabs now let go of the off hand's grip first (it
+    bayonet, blade up, flat on the screen) 10/0; the script 16/0. Test 79's stabs now let go of the off hand's grip first (it
     rested by the super shotgun and took its two-handed grip once the bayonet's new hold shifted the run: the blow read as
     no stab). embedfire_test 29/0 22/0 5/0, flathud_test 11/0.
   - Open: flat's first attach_test run showed both V thrusts failing (hurt 0) before any change here, then passing on every
