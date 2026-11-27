@@ -2505,3 +2505,28 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 ## cltidy9: checklist sub-headings (2026-11-27)
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.
+
+
+## beta6: 1.2.0-beta6 stopped before building: two release-test regressions fixed (branch agent/beta6, 2026-11-27)
+
+- **Notes:** RELEASE_NOTES_1.2.md "New in beta 6" (intro for beta 6; beta 5's section now "Beta 5 (2026-11-25)"): Quest
+  standalone (crash fixes, first hub load ~17 s, presets within the Quest's limits, relaunch, app name), loading (panel,
+  shipped cache), flat play, VR (pole grip, reverse-grip throws, belt flashlight, rungs), weapons (bayonet, Lance firing
+  embedded), physics and monsters (Box3D, lift shafts), AD/Quoth/Dwell, Setup, network version 48 (everyone updates).
+  PATCH_NOTES_1.1.1.md the same by area (Campaigns, Multiplayer beta, Weapons, Movement, Monsters, Performance, Quest,
+  Installer).
+- **APK:** `Android/release_apk.sh build` after "Version 1.2.0-beta6": release, version code 1020006; check_apk 29/0;
+  apksigner CN=Quake VR, SHA-256 504ff939...9119c0 = Android/release-cert.sha256.
+- **make_release** (beta4's command, -Version 1.2.0-beta6 -BumpVersion ... -Notes RELEASE_NOTES_1.2.md -Apk <apk>):
+  dry run clean; the beta profile **11 passed, 1 failed: scenario_check** (210 run, 4 failed), so nothing built, tagged
+  or published. Not flakes, two scene regressions of 11-26:
+  - `quoth_lpqsp1`, `quoth_metmon`, `quoth_ne_marb` (quothscenes): a scene whose Map Library package isn't installed
+    says so by design (SCNERR, "not started", SCNRUN FAIL) and scenario_check counted it a failure on any PC without
+    those packages. `scenario_check.sh` now leaves those scenes' lines out (matched by their line start "N|the Map
+    Library package ": run.sh wraps the long lines) and lets SCNSUM's "with errors" and SCNRUNSUM's "failed" hold exactly
+    that many; it prints "N Map Library package scene(s) not run". (Counted with `grep -c`: a `sort` in a nohup'd
+    run can be Windows' sort.exe.)
+  - `quest_foveation` (questrender): `cmd vr_foveated_debug 1` leaked the cvar (SCNLEAK counts as a failure); now a
+    `cvar` line, put back after the scene.
+  - Check: scenario_check rerun with the scene fix: only the 3 package scenes failed, no leak; its verdict logic replayed
+    on that log: PASS (and on the release run's log: FAIL, the leak's 4th failure).

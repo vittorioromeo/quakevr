@@ -3,4 +3,4 @@ title Show Foveation on, at e1m1's start
 map e1m1
 god
 notarget
-cmd vr_foveated_debug 1
+cvar vr_foveated_debug 1

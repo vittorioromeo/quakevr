@@ -20,10 +20,17 @@ LOG=C:/OHWorkspace/qvr-agents/$AGENT/scratch/scenario_check.log
 echo "$OUT" > $LOG # (every line: SCNPLACED, SCNKEPT, SCNHANDS per scene)
 echo "$OUT" | grep -v "^SCNOK|\|^SCNRUN|.*|OK|\|^SCNHANDS|.*|HELD|\|^SCNPLACED|\|^SCNKEPT|\|^SCNMP|\|^SCNBOT|\|loading\|put back\|^The crucial error\|^exit=0"
 fail=0
-if echo "$OUT" | grep -q "^SCNERR|\|not started\|^SCNRUN|.*|FAIL|\|^SCNHANDS|.*|LOST|\|ENGINE\|TIMEOUT"; then fail=1; fi
-if ! echo "$OUT" | grep -q "^SCNSUM|.*|0 with errors|.*|0 missing"; then fail=1; fi
+# A Map Library package scene (quoth_lpqsp1, quoth_metmon, quoth_ne_marb: `package` line) whose package isn't installed
+# here says so (SCNERR, not started, SCNRUN FAIL, by design: it never downloads) and is not a failure, as a missing add-on's
+# SKIP: its lines are left out and the validate/runall counts may hold exactly that many (beta6, 2026-11-27).
+PKG="[0-9]|the Map Library package " # (its line's start: run.sh wraps the long lines)
+NPKG=$(echo "$OUT" | grep -c "^SCNRUN|.*|FAIL|.*$PKG") # (one SCNRUN line per scene; no sort: Windows' sort.exe can come first on PATH)
+REST=$(echo "$OUT" | grep -v -- "$PKG")
+[ "$NPKG" -gt 0 ] && echo "scenario_check: $NPKG Map Library package scene(s) not run: package not installed (not a failure)"
+if echo "$REST" | grep -q "^SCNERR|\|not started\|^SCNRUN|.*|FAIL|\|^SCNHANDS|.*|LOST|\|ENGINE\|TIMEOUT"; then fail=1; fi
+if ! echo "$OUT" | grep -q "^SCNSUM|.*|$NPKG with errors|.*|0 missing"; then fail=1; fi
 if ! echo "$OUT" | grep -q "^SCNSEL|.*|0 not"; then fail=1; fi
-if ! echo "$OUT" | grep -q "^SCNRUNSUM|.*|0 failed"; then fail=1; fi
+if ! echo "$OUT" | grep -q "^SCNRUNSUM|.*|$NPKG failed"; then fail=1; fi
 echo "$OUT" | grep "^SCNSUM\|^SCNSEL\|^SCNRUNSUM"
 if [ $fail = 0 ]; then echo "scenario_check: PASS"; else echo "scenario_check: FAIL"; fi
 exit $fail
