@@ -62,6 +62,8 @@ Flat-screen: hold the Judicator's sword alone (Debug menu: Arcane Dimensions: Ju
 Flat-screen: hold a sword, a dagger, an axe or the crowbar, upright and flipped (B's flip grip), and look at a wall or a knight close by: the crosshair sits where the swing will land, and the blow lands on it. {test:flat_melee_grip}
 Flat-screen: hold the throw key with an axe, a sword, a carried box or the quick grenade: the crosshair moves to where the throw will land (it rises as the throw charges) and the thing lands there when you let go. {test:flat_throw_cancel}
 ## Throwing and catching
+Flat-screen: take the judicator's sword (Debug menu, "Judicator's Sword Alone in Hand"), held in two hands, and flip its grip: both hands stay on the handle, the free hand just below the holding fist, through the flip, the parry guard (right mouse) and after. {test:flat_parry_ad}
+Flat-screen: with the tunable "Two-Handed Melee Stance" at 0, raise and drop the parry guard with a sword upright and with the judicator flipped: the free hand slides off the blade smoothly as the guard ends, no sudden twist. {test:flat_parry_ad}
 
 [3. Tutorial and VR interface]
 ## Menus and settings
