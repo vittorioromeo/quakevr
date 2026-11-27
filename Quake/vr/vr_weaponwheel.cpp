@@ -10,6 +10,7 @@
 // the holster menu's and the number keys' own steps (VR_FlatHolster_DrawInto, _Put), the headset's weapon records,
 // sounds, refusals and messages, and every player sees the weapons' stats and models change as ever.
 
+#include "vr_client.hpp"
 #include "vr_weaponwheel.hpp"
 
 #include "vr_api.h"
@@ -163,8 +164,7 @@ void pickHolster(int hand, const Choice& c)
     {
         return;
     }
-    MSG_WriteByte(&cls.message, clc_stringcmd);
-    MSG_WriteString(&cls.message, va("vr_wheel_pick %d %d", hand, c.key));
+    qvr::client::forwardCommand(va("vr_wheel_pick %d %d", hand, c.key)); // (mpoverflow: held while full)
 }
 
 const Provider holsters{"holsters", listHolsters, pickHolster};

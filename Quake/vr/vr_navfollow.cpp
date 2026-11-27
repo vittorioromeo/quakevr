@@ -1,5 +1,6 @@
 // vr_navfollow.cpp -- the navmesh follower and vr_nav_follow (vr_navfollow.hpp; docs/vr-port/NAVMESH.md, section 22).
 
+#include "vr_client.hpp"
 #include "vr_navfollow.hpp"
 
 #include "vr_cvars.hpp"
@@ -339,8 +340,7 @@ void askBotPaths()
     {
         if(connected)
         {
-            MSG_WriteByte(&cls.message, clc_stringcmd);
-            MSG_WriteString(&cls.message, va("vr_nav_botpaths %d", want ? 1 : 0));
+            qvr::client::forwardCommand(va("vr_nav_botpaths %d", want ? 1 : 0)); // (mpoverflow: held while full)
         }
         botPathsAsked = want;
     }
@@ -368,8 +368,7 @@ void forward_f()
         Con_Printf("vr_nav_follow: not in a game\n");
         return;
     }
-    MSG_WriteByte(&cls.message, clc_stringcmd);
-    MSG_WriteString(&cls.message, va("vr_nav_follow_ask \"%s\"", Cmd_Argv(1)));
+    qvr::client::forwardCommand(va("vr_nav_follow_ask \"%s\"", Cmd_Argv(1))); // (mpoverflow: held while full)
 }
 
 void status_f()
