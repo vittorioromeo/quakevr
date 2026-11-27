@@ -4617,6 +4617,10 @@ void() VR_Embed_TestFrame =
         {
             VR_AT_PersistCheck(); // (... still on after it)
         }
+        if(ask == 88)
+        {
+            VR_AT_HolsterSet(); // (holsterattach: the holstered guns' bayonets as drawn: vr_attach_test.qc)
+        }
         if(ask == 42)
         {
             vr_rg_scene = FALSE;

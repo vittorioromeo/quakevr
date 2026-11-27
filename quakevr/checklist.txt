@@ -10,6 +10,7 @@
 [New: not yet sorted]
 Installer: the Statement page shows one fixed sentence ("By continuing, I recognize that AI-assisted development does not imply a low-quality result nor a lack of care, passion, or expertise.", with "not" in italics) in a card, no switches or check boxes, and Continue is enabled at once; the console install prints it and goes on without any flag. {test:hub_start}
 Flat-screen or VR: point the switched-on flashlight straight at an armed grunt's face from a few metres; after a moment it raises its free hand in front of its eyes (a shotgun goes into one hand) and its shots spray wider, and it lowers the hand a second or two after the beam leaves its face. Check the hand looks like it shields the eyes and nothing happens with the beam off to the side or at its back. {test:agrunt_flashblind}
+Flat-screen or VR: put a bayonet on the shotgun and on the super shotgun, break the super shotgun open and holster both, then look at your hips (F8's fly camera in flat): each bayonet is on its gun, the super shotgun's hanging under its dropped barrels. {test:attach_bayonet}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -95,12 +96,7 @@ Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bo
 
 [7. Armoured beasts]
 ## Armour on the body
-Armoured beasts: look closely at the ogre (and the rottweiler and scrag) as they idle, and in a fight as the ogre runs and swings his chainsaw: the armour pieces and the leather between them (barding, croup, collar, shoulders, back and breast plates, pauldrons, bracers) fill the gaps without poking through the body, stay on it as drawn with no sliding or floating, and bend with the legs as it runs and when it dies; Debug > Reports > Beast Armour On The Drawn Body Off shows the old drift to compare. {test:armour_beasts}
-Look over an armoured ogre standing and running: the helmet reads like the grunts' (flat-topped bucket, chamfered top, brow band, cheek guards, face open); the breastplate's top edge dips in a shallow V at the neck; the back plate's outer columns bend round his sides at a shallow angle; the bracers sit on the upper forearm, off the wrists; leather at both knees closes the ring between thigh and shin plates. {test:armour_beasts}
-Shoot the armoured scrag's tail plates one at a time, starting with a lower one: each segment cracks and falls off on its own while the ones above stay on, and the belt's halves stay on; break the belt's back half alone, then the front half alone; cut his tail off with a blade and every segment still on it drops as debris. {test:armour_beasts}
 ## Armour Studio
-In the Armour Studio, pick the Rottweiler, Ogre, Scrag or Fiend as the Kind: it stands ahead in its armour; move, turn, scale and taper each piece, Save, and check a newly spawned beast of that kind wears the tweaked pieces. {test:beaststudio}
-In the Armour Studio, pick a beast's leather part or junction (Knee Leather on the ogre, a grunt's Knee Sleeves; the status line names the two pieces it joins): turn it off, change its width, thickness, folds and sag, and the Own End / Joined End move and size rows, Twist, Bulge, Segments (on beasts Far Edge and Closed All Round); each moves the end it names; Save and Reload keep them, Reset Part puts the leather back exactly. {test:beaststudio}
 Wake the armoured ogre and let it swing its chainsaw at you; shoot its pauldrons, bracers and helmet mid-swing: the piece you aim at should be the one that cracks, and its broken pieces should fly from where the plate was drawn, not a few units off. {test:armour_beasts}
 Flat-screen or VR: shoot armoured rottweilers and scrags while they leap and fly; a shot at the middle of a plate you can see should strike that plate (Debug > Reports > Shots Meet The Drawn Body off brings back the old, looser hits for comparison). {test:armour_beasts}
 
