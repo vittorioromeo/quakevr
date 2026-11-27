@@ -42,6 +42,7 @@ enum Piece : int
     NumPieces = 10,
 };
 inline constexpr int allPieces = (1 << NumPieces) - 1;
+inline constexpr int exactPieces = 1 << NumPieces; // (give's pieces: these exactly, a beast's cuirass not grown to its cuirass group)
 
 // ---- The server's (P1: vr_agarmor.qc keeps each humanoid's type and pieces in .vr_ar_type and .vr_ar_mask) ----
 // VR_ServerFrameEnd: each entity's armour (its fields) sent to the clients when it changed (QVR_SVC_ARMOR, reliable).

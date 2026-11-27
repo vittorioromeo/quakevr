@@ -2406,7 +2406,8 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, bool 
     const auto has = [&](int field) { return ((o.has >> static_cast<unsigned>(field)) & 1u) != 0u; };
     const bool pushed = has(armourdata::Standoff) && push;
     const bool moved = has(armourdata::OffsetX) || has(armourdata::OffsetY) || has(armourdata::OffsetZ) || has(armourdata::Pitch) ||
-        has(armourdata::Yaw) || has(armourdata::Roll) || has(armourdata::Scale);
+        has(armourdata::Yaw) || has(armourdata::Roll) || has(armourdata::Scale) || has(armourdata::ScaleX) || has(armourdata::ScaleY) ||
+        has(armourdata::ScaleZ);
     if(from >= to || (!pushed && !moved))
     {
         return;
@@ -2427,7 +2428,9 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, bool 
         }
     }
     const glm::mat3 turn = tweakTurn(o.v[armourdata::Pitch], o.v[armourdata::Yaw], o.v[armourdata::Roll]);
-    const float scale = has(armourdata::Scale) ? za::clamp(o.v[armourdata::Scale], 0.2f, 3.f) : 1.f;
+    float axes[3];
+    (void)armourdata::scaleAxes(o, axes); // (scale, times scale_x / _y / _z along the model's axes)
+    const glm::vec3 scale{axes[0], axes[1], axes[2]};
     const glm::vec3 move{o.v[armourdata::OffsetX], o.v[armourdata::OffsetY], o.v[armourdata::OffsetZ]};
     for(int i = from; i < to; i++)
     {

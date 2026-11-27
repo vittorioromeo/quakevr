@@ -52,7 +52,8 @@ constexpr int subjectKinds = 4;        // (QC's VR_AM_GRUNT .. VR_AM_DKNIGHT; th
 cvar_t* const fieldCvars[NumFields] = {&vr_armourstudio_offset_x, &vr_armourstudio_offset_y, &vr_armourstudio_offset_z,
     &vr_armourstudio_pitch, &vr_armourstudio_yaw, &vr_armourstudio_roll, &vr_armourstudio_scale, &vr_armourstudio_standoff,
     &vr_armourstudio_start, &vr_armourstudio_end, &vr_armourstudio_rows, &vr_armourstudio_taper_start, &vr_armourstudio_taper_end,
-    &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth, &vr_armourstudio_hero, &vr_armourstudio_sag};
+    &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth, &vr_armourstudio_hero, &vr_armourstudio_sag,
+    &vr_armourstudio_scale_x, &vr_armourstudio_scale_y, &vr_armourstudio_scale_z};
 
 // The subject's model's animations: its frames grouped by name ("stand1".."stand8": stand).
 constexpr int maxAnims = 64;
@@ -79,6 +80,8 @@ struct State
     int subjectTier{-1};
     int subjectWorn{-1};  // (the pieces it was given)
     char subjectMap[64]{}; // (the map it was put in: a new map, it is gone)
+    float placed[3]{};     // where it was put, and the way from you to it (flat): vr_armourstudio_subject_* move it from there
+    float placedFwd[2]{1.f, 0.f};
     float freezeWas{0.f};  // vr_agrunt_freeze before the studio
     int selKind{-1}, selPart{-1}, selSide{-1}, selGen{-1};
     float shown[NumFields]{};  // the cvars' values as last written or read
@@ -350,6 +353,25 @@ void spawnSubject()
     }
     st.subject = num;
     q_strlcpy(st.subjectMap, sv.name, sizeof(st.subjectMap));
+    if(num)
+    {
+        const progs::ServerVm vm;
+        const edict_t* e = progs::edictAt(num);
+        const edict_t* player = progs::playerEdict();
+        if(e && player)
+        {
+            float dx = e->v.origin[0] - player->v.origin[0], dy = e->v.origin[1] - player->v.origin[1];
+            const float len = za::sqrt(dx * dx + dy * dy);
+            dx = len > 1e-3f ? dx / len : 1.f;
+            dy = len > 1e-3f ? dy / len : 0.f;
+            st.placedFwd[0] = dx;
+            st.placedFwd[1] = dy;
+            for(int c = 0; c < 3; c++)
+            {
+                st.placed[c] = e->v.origin[c];
+            }
+        }
+    }
     Con_Printf(num ? "armourstudio: a %s ahead (entity %d)\n" : "armourstudio: no %s made (a map with you in it needed)\n", subjectLabel(kind), num);
 }
 
@@ -467,7 +489,8 @@ void keepSubject()
     bool sleeve = false;
     const int pieces = partValid(subjectNow(), st.selPart) ? piecesOf(st.selPart, st.selSide, sleeve) : 0; // (a part not on it: none outlined)
     const int tier = za::clamp(static_cast<int>(vr_armourstudio_tier.value), 1, 3);
-    const int worn = vr_armourstudio_alone.value ? piecesOf(st.selPart, SideBoth, sleeve) : agarmor::allPieces;
+    // (alone: that part's pieces exactly, a beast's cuirass without the rest of its cuirass group: his note 2026-11-27)
+    const int worn = vr_armourstudio_alone.value ? piecesOf(st.selPart, SideBoth, sleeve) | agarmor::exactPieces : agarmor::allPieces;
     if(st.subject && (tier != st.subjectTier || worn != st.subjectWorn))
     {
         const bool given = agarmor::give(st.subject, tier, worn);
@@ -481,9 +504,23 @@ void keepSubject()
         const edict_t* player = progs::playerEdict();
         if(e && player)
         {
+            // Its place: where it was put, moved by the Subject's position rows (away from you, to your left, up; a better
+            // look from another angle, his note 2026-11-27); never written to armour.txt.
+            const float fx = st.placedFwd[0], fy = st.placedFwd[1];
+            const float ax = vr_armourstudio_subject_x.value, ay = vr_armourstudio_subject_y.value, az = vr_armourstudio_subject_z.value;
+            const float want[3] = {st.placed[0] + fx * ax - fy * ay, st.placed[1] + fy * ax + fx * ay, st.placed[2] + az};
+            if(want[0] != e->v.origin[0] || want[1] != e->v.origin[1] || want[2] != e->v.origin[2])
+            {
+                for(int c = 0; c < 3; c++)
+                {
+                    e->v.origin[c] = want[c];
+                }
+                SV_LinkEdict(e, false);
+            }
             const float dx = player->v.origin[0] - e->v.origin[0], dy = player->v.origin[1] - e->v.origin[1];
             e->v.angles[1] = za::atan2(dy, dx) * (180.f / 3.14159265f) + vr_armourstudio_turn.value;
-            e->v.angles[0] = e->v.angles[2] = 0.f;
+            e->v.angles[0] = vr_armourstudio_subject_pitch.value; // (tipped and rolled: its tops and undersides in view)
+            e->v.angles[2] = vr_armourstudio_subject_roll.value;
             e->v.takedamage = DAMAGE_NO; // (its start, a few frames after its spawn, makes it take damage)
             playAnim(e);
         }
@@ -1353,14 +1390,15 @@ bool fieldShown(int subject, int part, int field)
         // stand-off (thickness), folds, sag)
         return sleeve ? (field == Leather || field == TaperStart || field == TaperEnd || field == Standoff || field == Folds || field == FoldDepth ||
                             field == Sag)
-                      : (field <= Standoff || field == TaperStart || field == TaperEnd);
+                      : (field <= Standoff || field == TaperStart || field == TaperEnd || field >= ScaleX);
     }
     // (the plates' rows: not the helmet's or a sleeve's; the tapers: not the helmet's (a sleeve's leather tapers too); leather:
     // the sleeves' alone; hero plates: the parts that have them; sag: the beasts')
     const bool plates = part != PartHelmet && !sleeve;
     const bool heroPart = part == PartCuirass || part == PartPauldron || part == PartBracer || part == PartShin;
     return !(((field == Leather || field == Folds || field == FoldDepth) && !sleeve) || ((field == Start || field == End || field == Rows) && !plates) ||
-        ((field == TaperStart || field == TaperEnd) && part == PartHelmet) || (field == Hero && !heroPart) || field == Sag);
+        ((field == TaperStart || field == TaperEnd) && part == PartHelmet) || (field == Hero && !heroPart) || field == Sag ||
+        (field >= ScaleX && sleeve));
 }
 
 bool running()

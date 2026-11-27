@@ -258,9 +258,10 @@ Kind* kindOf(edict_t* ent)
         const float m = za::clamp(o.v[armourdata::TaperStart] + (o.v[armourdata::TaperEnd] - o.v[armourdata::TaperStart]) * t, 0.2f, 3.f);
         v = s.along * a + (v - s.along * a) * m;
     }
-    if(has(o, armourdata::Scale))
+    float axes[3];
+    if(armourdata::scaleAxes(o, axes))
     {
-        v *= za::clamp(o.v[armourdata::Scale], 0.2f, 3.f);
+        v *= glm::vec3{axes[0], axes[1], axes[2]}; // (scale, times scale_x / _y / _z along the model's axes)
     }
     return v;
 }
@@ -581,8 +582,11 @@ void refresh(Kind& k)
         Slot& s = k.slot[i];
         (void)armourdata::resolveBeast(k.model, i, false, s.tw);
         (void)armourdata::resolveBeast(k.model, i, true, s.jt);
-        s.shaped = has(s.tw, armourdata::Scale) || has(s.tw, armourdata::Standoff) || has(s.tw, armourdata::TaperStart) ||
-            has(s.tw, armourdata::TaperEnd);
+        // (shaped only while a value differs from as made: a slider put back draws the piece's own .mdl again, exactly)
+        float axes[3];
+        s.shaped = armourdata::scaleAxes(s.tw, axes) || (has(s.tw, armourdata::Standoff) && s.tw.v[armourdata::Standoff] != 0.f) ||
+            (has(s.tw, armourdata::TaperStart) && s.tw.v[armourdata::TaperStart] != 1.f) ||
+            (has(s.tw, armourdata::TaperEnd) && s.tw.v[armourdata::TaperEnd] != 1.f);
         q_snprintf(s.drawn, sizeof(s.drawn), "%s%s", s.model, s.shaped ? tweakSuffix : "");
         shapeTris(s);
     }
