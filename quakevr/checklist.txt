@@ -7,6 +7,9 @@
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); every line ends in one (at least a minimal scene: the map, where you stand, what is given). Multiplayer lines' scenes start a local game with bots (passive: stand still, never attack, take hits; or active), nothing opened on the network. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-25, sixth pass: 13 ticked lines retired, the [New] section sorted, near-duplicates merged; before that 2026-11-24, fifth pass: ticked lines retired, the [New] section sorted, near-duplicates merged, sections reordered; before that 2026-11-23, third pass: 51 more ticked lines retired, the [New] section sorted, near-duplicates merged, wordy lines cut; before that 2026-11-23: 51 ticked lines retired, the [New] section sorted; before that 2026-11-22: 12 ticked or superseded lines retired, the [New] section sorted into Ropes and chains, Arcane Dimensions and Tutorial and VR interface, empty sections dropped; before that 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every line has a tag, every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
+[New: not yet sorted]
+Installer: the Statement page shows one fixed sentence ("By continuing, I recognize that AI-assisted development does not imply a low-quality result nor a lack of care, passion, or expertise.", with "not" in italics) in a card, no switches or check boxes, and Continue is enabled at once; the console install prints it and goes on without any flag. {test:hub_start}
+
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -32,17 +35,6 @@ On a Steam Frame (or streaming to one), the controllers get their own buttons: A
 Flat-screen or VR: start once with -glsafe; the game starts, vr_glsafe_status lists "vertex-only depth programs (an empty fragment shader instead) off (safe mode)", and e1m1 looks the same as without it. {test:hub_start}
 Play Dwell's d1m1 and Quoth's kellbase1 up close: brick walls, door frames and pillar panels have depth (Setup's reliefs), no shimmering or wrong-way lighting; if in doubt turn Generated Companion Maps (VR Settings > Graphics) off and load the next map. {test:hub_start}
 ## Loading and collision cache
-After installing a release (PC or Quest), the first start into the hub goes straight in: no long "Preparing vrstart" collision wait, and Debug > Profiling and Memory > Cache Info shows the hulls and lightgrid lines read from the shipped cache. {test:hub_start}
-Debug > Profiling and Memory: turn "Read the Shipped Cache" off, then on; with it off a hub load with an empty cache builds its collision and light grid again (slower), with it on it reads them. {test:hub_start}
-Flat-screen or VR: start the game twice and enter the hub both times: the second time the hub should load in a few seconds (on the Quest about 2-3 s instead of about 12 s once its files exist); walking, crouching and lying down against walls, grates and gaps work as before. {test:hub_start}
-Flat-screen or VR: Load a map whose collision is not cached yet: the loading panel says what it is building (e.g. "Building collision for crouching (3 of 6)") and its bar keeps moving until the map starts. {test:load_collision_cold}
-Right after a map loads whose collision was built from scratch, crouch and lie down at once and crawl under something low: a short loading panel the first time is fine, but never pass through a wall or floor or freeze, and monsters near walls must not get stuck. {test:load_collision_cold}
-Flat-screen or VR: the hub's open grass and the cliff faces round the lake are simplified for cheaper collision: walk and look round the island's open ground and along the cliffs; the grass and cliffs should look as before, with no new spots where you snag on flat or gently sloped ground. {test:vrstart}
-Flat-screen or VR: On the hub, lie down and crawl around the south-west near the shore (around x -550, y 1000-1200): no invisible wall where there's nothing to bump into. {test:hub_start}
-Flat-screen or VR: start ironwail.exe from Quake VR's folder by double-clicking it (or a shortcut of your own with no -game): the hub and Quake VR's hands and weapons are there as with Setup's shortcut, and the console's first lines say "Quake VR's game folder added". {test:hub_start}
-Flat-screen or VR: Debug > Diagnostics > Preview: Game Data Missing Notice shows the broken-install warning in red in the menus' top-right box (then vr_gamedata_notice 0 to end it). {test:hub_start}
-Flat-screen: put an older QuakeVR.zip (e.g. 1.2.0-beta2) beside the new Setup and run it online: it downloads its own version, the details say the zip beside it is older and not used, and the Install page's title names the version being installed. With the network off, a Yes/No box names both versions: No installs nothing from it, Yes installs the older one and the details say so. {test:hub_start}
-Flat-screen: Setup beside its own QuakeVR.zip (the release folder) installs from it with no download, and the Options card says "Installing <version> from a local package". {test:hub_start}
 ## Quest performance and options
 On the Quest, VR Settings > Scaling: turn SpaceWarp on and play the hub, a gib fight and the terrace for a minute each: motion looks as smooth as at 72 Hz, no stutter at smooth or snap turns or when opening and closing the menu (it shows at the full rate), no smearing of the world while walking; look for wobbling edges on your hands, the gun and moving monsters, and judder on head-fixed text. Say where you still feel stutter (it decides which GPU or CPU fix comes next). {test:quest_gibfight}
 On the Quest, Quest Foveation: High (Top) blurs the top of the view (sky, ceilings) more than High while the lower middle stays sharp, at least as smooth as High, and Show Foveation's pattern sits lower; Shift (advanced) at -15 and +15 moves the sharp middle down and up, no crash when changing it. {test:quest_foveation}
@@ -50,9 +42,7 @@ On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution
 
 [2. Flat screen]
 ## Grab, hold and push
-Flat-screen: grab a crate with H and walk back, forward, sideways and turn with it, best on a high refresh rate monitor: the hands and arms should stay steady on the crate with no shaking. {test:flat_grab_pull}
 ## Spear and Crystal Lance
-Flat-screen: flip the spear's grip (B) and raise the guard: the spear stays flipped across the view; tune the Flipped Spear Other Hand Up / Out / Pitch / Yaw / Roll rows (Tunables > Flatscreen) and see the other hand move on the flipped pole while held, guarding and thrusting. {test:flat_spear}
 
 [3. Tutorial and VR interface]
 ## Tutorial
@@ -93,6 +83,7 @@ Flat-screen or VR: in multiplayer watch another player climb a rope, hang on it 
 
 [6. Armed humanoids, ragdolls and physics]
 ## Ragdolls and props
+Blades in props: stab a sword into a crate and pick it up by the handle: the crate hangs from the blade by a joint at the handle, the other hand can take the crate; a re-grip off the handle works and the blade stays in.
 Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg still on top) pulls itself up instead of falling. {test:ogre_hall}
 Watch an ogre walk, run and swing his chainsaw up close: his limbs and belly should ripple much less from frame to frame than before, his shape the same; Debug > Reports > Rebuild Joints From Two Bones Off shows the old look to compare. {test:ogre_hall}
 ## Armed humanoids
@@ -197,6 +188,7 @@ Flat-screen or VR: host a game on one device and, on the other, type vr_net_test
 Flat-screen or VR: join that row anyway: you're back at the browser with one plain reason under the list ("This server runs Quake VR ... update to ..."), and the console has it once, with no Host_Error or stack trace. After a failed join, quitting right away flashes no console text over the background. {test:hub_start}
 Host a deathmatch on the PC with a few bots and join it from the Quest standalone; mid-game take the headset off for 20-30 s (or sit in the Quest system menu), then put it back on: you are still in the game and catch up, and neither console says "overflow" (if one ever does, the line now says which buffer and its sizes: note it). {test:mp_dm_passive}
 Join a coop game from the Quest standalone and have the PC host change level: your slower map load no longer drops you; with voice chat and the weapon wheel in use over a weak Wi-Fi spot, no disconnect either. {test:mp_coop_passive}
+Flat-screen or VR: host a coop game on vrtesthall and join it from a second device with Show Melee Arcs on there (the host's own may be off); when an armed sword or axe grunt swings at either of you, the joined device draws its fading swing trail too (white winding up, yellow in the swing, red when it lands), as the host's view does. {test:agrunt_melee_arcs}
 
 [12. Recording and dev tools]
 ## Takes

@@ -79,6 +79,8 @@ void qvr::menu::forEachSettingPath(za::FunctionRef<void(const cvar_t& var, const
 // vr_menu_path_check [file or text]: every {menu:...} in the loaded map's entities (or in a text file of the game's, as
 // maps/vrcalibration.map; or in the text given, starting with "{"), each with its path; "menu paths: N found, M missing"
 // last.
+static void pathsFileCheck(const char* name);
+
 void qvr::menu::pathCheck_f()
 {
     const char* data = nullptr;
@@ -86,6 +88,11 @@ void qvr::menu::pathCheck_f()
     if(Cmd_Argc() > 1 && Cmd_Argv(1)[0] == '{')
     {
         data = Cmd_Args(); // the text itself: vr_menu_path_check "{menu:Locomotion>Lean}"
+    }
+    else if(Cmd_Argc() > 1 && za::StringView{Cmd_Argv(1)}.endsWith("menu_paths.txt"))
+    {
+        pathsFileCheck(Cmd_Argv(1));
+        return;
     }
     else if(Cmd_Argc() > 1)
     {
@@ -188,18 +195,106 @@ void qvr::menu::dump_f()
 // hand, so with none held they are only a "hold a weapon" line): the 17th slot, its cvars end _17.
 static constexpr int dumpPathsWeaponSlot = 16;
 
-void qvr::menu::dumpPaths_f()
+// Search's index as the dump's rows (without "MP|"), every Held Weapon page included whatever the hands hold.
+static za::Vector<za::String> pathRows()
 {
     pinSlotPages(dumpPathsWeaponSlot); // (so a full regeneration lists the Held Weapon pages whatever the hands hold)
     buildSearchIndex();
     pinSlotPages(-1); // (the pages built for the hands again)
+    za::Vector<za::String> rows;
     for(const SearchEntry& e : search.index)
     {
         const za::String full = e.path.empty() ? e.label : e.path + " > " + e.label;
-        Con_Printf("MP|%s%s|%d|%s|%s|%s\n", e.isPage ? "@" : "", e.isPage ? "page" : e.cvar ? e.cvar->name : "",
-            e.level, e.page >= 0 ? pages[e.page].title : "", e.isPage ? "" : e.label.cStr(), full.cStr());
+        rows.pushBack(za::String{va("%s%s|%d|%s|%s|%s", e.isPage ? "@" : "", e.isPage ? "page" : e.cvar ? e.cvar->name : "",
+            e.level, e.page >= 0 ? pages[e.page].title : "", e.isPage ? "" : e.label.cStr(), full.cStr())});
     }
-    Con_Printf("menu paths dumped: %d\n", static_cast<int>(search.index.size()));
+    return rows;
+}
+
+void qvr::menu::dumpPaths_f()
+{
+    const za::Vector<za::String> rows = pathRows();
+    for(const za::String& r : rows)
+    {
+        Con_Printf("MP|%s\n", r.cStr());
+    }
+    Con_Printf("menu paths dumped: %d\n", static_cast<int>(rows.size()));
+}
+
+// Whether `v` has `r`: searched from `hint` on (two lists in the same order find each row where the last was).
+static bool hasRow(const za::Vector<za::String>& v, const za::String& r, za::SizeT& hint)
+{
+    for(za::SizeT n = 0; n < v.size(); n++)
+    {
+        const za::SizeT i = (hint + n) % v.size();
+        if(v[i] == r)
+        {
+            hint = i + 1;
+            return true;
+        }
+    }
+    return false;
+}
+
+// vr_menu_path_check <...>/menu_paths.txt: the committed file against a regeneration (the rows it lacks, the rows it
+// has that the menus no longer do): "menu_paths.txt: current" or "MENU PATHS FILE STALE" (regenerate it: menu_paths.py).
+static void pathsFileCheck(const char* name)
+{
+    FILE* f = fopen(name, "rb");
+    if(!f)
+    {
+        Con_Printf("MENU PATHS FILE STALE: can't open %s\n", name);
+        return;
+    }
+    za::String text;
+    char buf[4096];
+    for(size_t n; (n = fread(buf, 1, sizeof buf, f)) > 0;)
+    {
+        text.append(za::StringView{buf, static_cast<za::SizeT>(n)});
+    }
+    fclose(f);
+    za::Vector<za::String> have;
+    for(za::SizeT at = 0; at < text.size();)
+    {
+        za::SizeT end = text.find('\n', at);
+        end = end == za::StringView::nPos ? text.size() : end;
+        za::SizeT len = end - at;
+        if(len > 0 && text[at + len - 1] == '\r')
+        {
+            len--;
+        }
+        if(len > 0 && text[at] != '#')
+        {
+            have.pushBack(za::String{za::StringView{text}.substrByPosLen(at, len)});
+        }
+        at = end + 1;
+    }
+    const za::Vector<za::String> now = pathRows();
+    int lacks = 0, extra = 0;
+    za::SizeT hint = 0;
+    for(const za::String& r : now)
+    {
+        if(!hasRow(have, r, hint) && lacks++ < 5)
+        {
+            Con_Printf("MENU PATHS FILE LACKS: %s\n", r.cStr());
+        }
+    }
+    hint = 0;
+    for(const za::String& r : have)
+    {
+        if(!hasRow(now, r, hint) && extra++ < 5)
+        {
+            Con_Printf("MENU PATHS FILE HAS (gone): %s\n", r.cStr());
+        }
+    }
+    if(lacks || extra)
+    {
+        Con_Printf("MENU PATHS FILE STALE: %d rows missing, %d gone (regenerate: Misc/quakevr/menu_paths.py)\n", lacks, extra);
+    }
+    else
+    {
+        Con_Printf("menu_paths.txt: current (%d rows)\n", static_cast<int>(now.size()));
+    }
 }
 
 namespace

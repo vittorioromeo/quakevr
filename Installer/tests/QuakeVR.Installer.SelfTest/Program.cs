@@ -51,58 +51,18 @@ T Throws<T>(Action a, string what) where T : Exception
 
 var tests = new List<(string Name, Action Body)>
 {
-    ("statement: two claims, unanswered at first, Continue only with YES to both", () =>
+    ("statement: one static sentence, nothing to answer", () =>
     {
-        Eq(2, AiStatement.Claims.Count, "claims");
+        Eq("By continuing, I recognize that AI-assisted development does *not* imply a low-quality result nor a lack of care, passion, or expertise.", AiStatement.Pledge, "the pledge, exactly");
         Eq(5, AiStatement.Paragraphs.Count, "paragraphs");
         True(AiStatement.Paragraphs[1].Contains("renaissance") && !AiStatement.Paragraphs[1].Contains("reinassance"), "spelling fixed");
-        var s = new AiStatement();
-        var changes = 0;
-        s.Changed += () => ++changes;
-        for (var i = 0; i < 2; ++i)
-        {
-            Eq<bool?>(null, s[i], $"claim {i + 1} starts unanswered");
-        }
-        Eq(2, s.Unanswered, "unanswered");
-        True(!s.AllYes, "nothing answered: no Continue");
-        s.Answer(0, true);
-        True(!s.AllYes, "one unanswered: no Continue");
-        s.Answer(1, false);
-        True(!s.AllYes, "one NO: no Continue");
-        Eq<bool?>(false, s[1], "NO kept");
-        s.Answer(1, true);
-        True(s.AllYes, "all YES: Continue");
-        Eq(0, s.Unanswered, "all answered");
-        s.Answer(1, false);
-        True(!s.AllYes, "YES switched back to NO: no Continue");
-        Eq<bool?>(false, s[1], "a set claim switches between YES and NO only");
-        s.Answer(1, false);
-        Eq(4, changes, "Changed fires on real changes only");
-        // Every mix of the 3^2 states: Continue exactly when both are YES.
-        for (var m = 0; m < 9; ++m)
-        {
-            var t = new AiStatement();
-            var allYes = true;
-            for (int i = 0, v = m; i < 2; ++i, v /= 3)
-            {
-                if (v % 3 != 0)
-                {
-                    t.Answer(i, v % 3 == 1);
-                }
-                allYes &= v % 3 == 1;
-            }
-            Eq(allYes, t.AllYes, $"mix {m}");
-        }
         var text = AiStatement.Format();
-        True(text.Contains(AiStatement.Subtitle) && AiStatement.Claims.All(text.Contains) && AiStatement.Paragraphs.All(text.Contains), "the console's text");
-        // The wizard sets each claim's *not* in italics: split around it, and no asterisk left on screen.
-        foreach (var claim in AiStatement.Claims)
-        {
-            var (before, emphasis, after) = AiStatement.SplitEmphasis(claim);
-            Eq("not", emphasis, $"emphasis of '{claim}'");
-            True(!(before + after).Contains('*') && !AiStatement.Plain(claim).Contains('*'), "no asterisk left");
-            Eq(claim.Replace("*", ""), AiStatement.Plain(claim), "plain text");
-        }
+        True(text.Contains(AiStatement.Subtitle) && text.Contains(AiStatement.Pledge) && AiStatement.Paragraphs.All(text.Contains), "the console's text");
+        // The wizard sets the *not* in italics: split around it, and no asterisk left on screen.
+        var (before, emphasis, after) = AiStatement.SplitEmphasis(AiStatement.Pledge);
+        Eq("not", emphasis, "emphasis");
+        True(!(before + after).Contains('*') && !AiStatement.Plain(AiStatement.Pledge).Contains('*'), "no asterisk left");
+        Eq(AiStatement.Pledge.Replace("*", ""), AiStatement.Plain(AiStatement.Pledge), "plain text");
         Eq(("no marks", "", ""), AiStatement.SplitEmphasis("no marks"), "a text without marks stays whole");
         Eq(("a *b", "", ""), AiStatement.SplitEmphasis("a *b"), "an unclosed mark stays whole");
     }),

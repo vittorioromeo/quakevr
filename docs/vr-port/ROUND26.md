@@ -4303,3 +4303,53 @@ options: LINUX.md, "The Flatpak and glibc" and "Linux tarball".
   `ldd` in the Flatpak runtime shows the player's error (`libm.so.6: version GLIBC_2.43 not found`).
 - **Open**: CI's step is untested on GitHub (the action's build dir `flatpak_app` assumed, as the manifest's skip list
   has it); no real headset; no older-glibc build (Ubuntu 22.04 would need the AppImage plan's job).
+## mparcs: Show Melee Arcs' armed swings drawn on remote MP clients (branch agent/mparcs, 2026-11-27)
+
+The armed humanoids' swing trail (Show Melee Arcs, ROUND25 "Show Melee Arcs") was drawn only by the host's view: QC
+hands each swing frame to the engine (`meleeshowfoe`), which kept it in the host's own memory. Now a remote client whose
+own `vr_enemy_melee_arc_show` is on draws it too, whatever the host's option says.
+- **How**: the client asks the server while its option is on (`vr_meleearcs_want 1|0`, as `vr_nav_botpaths`; a listen
+  host draws the server's own and never asks). QC sends the swings while the host's option is on *or* a remote client
+  wants them (vr_meleerules.qc `VR_MeleeArc_Shown`: one cvar read, a builtin call only with the host's off:
+  `meleeshowfoe(world, -2, ...)`). The engine keeps the frame's records (grip/tip with the swing-through flag, butt, blow
+  landed; 32 at most, emptied at `VR_ServerFrameBegin`) and writes them into each wanting remote client's datagram
+  (`VR_WriteMeleeArcs`, SV_SendClientDatagram after the scoped messages): `QVR_SVC_MELEEARC` 59, unreliable (a lost
+  datagram is a gap in the trail). The client keeps them as the host does (`keepFoe`) and draws them with the same
+  `drawHand`; its clock is the last message's server time (`cl.mtime[0]`). **QVR_NET_VERSION 48 -> 49.**
+- Not derived from the pose (QVR_SVC_ARMPOSE): the swing-through phase and the blow landing are server-side facts, and
+  the weapon line would have to be rebuilt from the drawn pose on every client.
+- Shared: the draw (`drawHand`), the slots and fade (`keepFoe`) for host and client. Not covered: Show Melee Blades (your
+  own hands' sweeps, `vr_debug_melee_blades`) and the floor fan (`meleeArcDraw`) stay host-only; bots' and players'
+  swings never used this path (they are Show Melee Blades' sweeps).
+- `vr_enemy_melee_arc_status`: "armed swings drawn N frames M segments" (segments: the swept surface between two frames)
+  and "remote wanted 0|1" (the server's view).
+- `NET_QvrReleaseOf` (net_main.c) not given 49: the table is frozen by design (servers from 1.2.0-beta7 on say their
+  release themselves; it names the releases of older servers only).
+- Tests: `mp_test.py meleearcs` (in the suite) 9/0: listen host A on vrtesthall runs `vr_agrunt_test 216` with B (remote)
+  drawing: B drew 278 frames, 2094 segments; B's option off stops it (remote wanted 0). `vr_agrunt_test 216` 2/0 (its
+  "off" case allows sending when a remote client draws them), 212 6/0; mp_version, mp_coop, mp_bandwidth,
+  changelevel_signon pass.
+## menupaths (agent/menupaths): menu_paths.txt regenerates complete, and a stale file is caught
+
+- **Finding.** The Held Weapon pages were already kept by a full regeneration (`vr_menu_dump_paths` pins weapon slot 17,
+  commit 78a255187); regenerating at the title and in e1m1 gives the identical 10,697 rows (66 on Held Weapon pages). No
+  page was found that depends on mounted mods or the held weapon. Against today's file the regeneration only adds 2 rows
+  (code newer than the file): the Beast Armour On The Drawn Body row on Tunables and its Debug - Tests "Cost (Ten Ogres)"
+  button; none lost. The Tunables rows exist only in a non-QVR_RELEASE build (the kit's build.sh is one): regenerate with it.
+- **Check.** `vr_menu_path_check <path>/menu_paths.txt` regenerates the rows in the game and compares: prints
+  `menu_paths.txt: current (N rows)`, or `MENU PATHS FILE LACKS/HAS (gone)` (first 5 each) and `MENU PATHS FILE STALE: N rows
+  missing, M gone`. Tested on the new file (current) and the old one (stale, 2 missing).
+- **Docs.** menu_paths.py docstring and ARCHITECTURE.md say: regenerate, never edit by hand. The BACKLOG item is gone.
+## Installer: the AI statement is one static sentence (branch agent/aistatement, 2026-11-27)
+
+The Statement page's two YES/NO claims are gone. Under the five paragraphs a card (same frame, rune and font as the old
+claims, a check mark rune, not interactive) says: "By continuing, I recognize that AI-assisted development does *not*
+imply a low-quality result nor a lack of care, passion, or expertise." (the *not* in italics). Continue is enabled at
+once; footer hint "Nothing to answer: press Continue to go on.". Nothing is recorded (no answers, no settings key).
+`qvr-setup install` prints the text and goes on with no prompt (no exit 3); `--accept-statement` is accepted and ignored so
+the release scripts keep working. Code: `Core/AiStatement.cs` (`Pledge` replaces `Claims`, the answer state is removed),
+`StatementPage.xaml`, `MainViewModel.cs` (`StatementChoice` removed), Cli `Program.cs`. Tests: SelfTest "statement: one
+static sentence" (65/65), and the `--screenshots` harness check (no switches, sentence present, Continue enabled).
+## blclean: BACKLOG.md cleanup (branch agent/blclean, 2026-11-27)
+
+Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.
