@@ -1500,6 +1500,9 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		// QVR: a player and the enemy his hand holds don't meet (vr_foegrab_step_in)
 		if (clip->bodymove && VR_BodyContactPasses (clip->passedict, touch, clip->mins, clip->maxs))
 			continue;
+		// QVR: a player's box passes a prop or body he drags with H (vr_flat_grab_push): his walk pushes it through his hands
+		if (clip->bodymove && clip->passedict && VR_DragPasses (clip->passedict, touch))
+			continue;
 		// QVR: a trigger linked as a solid (its solid changed after its link: game code's mistake, as the items a
 		// trigger brings were, ROUND22.md "The Matriarch of Decay") is passed through, not a fatal error; it is in
 		// the right list at its next link.

@@ -201,6 +201,27 @@ static class QuestTests
             Eq(hul, hulls[1].Source, "from the PC's cache");
             Eq(2, files.Count(f => f.DevicePath.StartsWith("cache/", StringComparison.Ordinal)), "nothing else of the list (paths outside hulls/<build>/ refused)");
         }),
+        ("quest: an expansion's own soundtrack goes with it (the rerelease's hipnotic/music, Ogg and WAV; not an unowned pack's)", () =>
+        {
+            // (questfovmusic: Scourge of Armagon played Quake's tracks on the Quest: its music, read in place on the PC from
+            // the rerelease, never went to the headset)
+            var s = MakeSetup(dir, "quest-campaign-music");
+            var rerelease = Path.Combine(s.Quake, "rerelease");
+            Fixtures.MakeRerelease(rerelease);
+            var hip = Directory.CreateDirectory(Path.Combine(rerelease, "hipnotic", "music")).FullName;
+            File.WriteAllText(Path.Combine(hip, "Track02.ogg"), "hip ogg");
+            File.WriteAllText(Path.Combine(hip, "track03.wav"), "hip wav");
+            File.WriteAllText(Path.Combine(hip, "track04.mp3"), "hip mp3");
+            var rogue = Directory.CreateDirectory(Path.Combine(rerelease, "rogue", "music")).FullName;
+            File.WriteAllText(Path.Combine(rogue, "track02.ogg"), "rogue ogg");
+            var files = QuestFiles.Plan(s.Install, s.Quake, []);
+            var paths = files.Select(f => f.DevicePath).ToHashSet(StringComparer.Ordinal);
+            True(paths.Contains("hipnotic/music/track02.ogg") && paths.Contains("hipnotic/music/track03.wav"), "Armagon's Ogg and WAV tracks, lower case");
+            Eq(Path.Combine(hip, "Track02.ogg"), files.Single(f => f.DevicePath == "hipnotic/music/track02.ogg").Source, "from the rerelease's folder");
+            True(!paths.Contains("hipnotic/music/track04.mp3"), "no MP3 (no codec on the Quest)");
+            True(!paths.Any(p => p.StartsWith("rogue/", StringComparison.Ordinal)), "Dissolution is not owned here: none of its music");
+            True(paths.Contains("id1/music/track02.ogg"), "Quake's own tracks still go");
+        }),
         ("quest: the files for the headset (game files from the install, id1 lower case, music it plays, relit maps, Armagon, HD textures; no PC programs)", () =>
         {
             var s = MakeSetup(dir, "quest-plan");

@@ -3391,10 +3391,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     if(r && !corpse && (targ.flags & FL_MONSTER) && (attacker.flags & FL_CLIENT))
     {
         vector from = inflictor == attacker ? attacker.origin : (inflictor.absmin + inflictor.absmax) * 0.5;
-        float hitPush = cvar_hget(cvarh_vr_hit_push);
+        // (A gun stuck in it, fired (vr_propfire.qc: vr_fire_prop): its shove and throw times vr_embed_fire_push, so the body
+        // stays on the hand holding the gun (bayonet2: a super shotgun's point-blank 56 shoved it 336 u/s away, off the hand).)
+        float stuckShot = (vr_fire_prop != world && vr_fire_prop.vr_stick_ent == targ) ? max(0, cvar_hget(cvarh_vr_embed_fire_push)) : 1;
+        float hitPush = cvar_hget(cvarh_vr_hit_push) * stuckShot;
         if(targ.health <= 0)
         {
-            float killPush = cvar_hget(cvarh_vr_kill_push) * VR_KillPush_Mult(inflictor);
+            float killPush = cvar_hget(cvarh_vr_kill_push) * VR_KillPush_Mult(inflictor) * stuckShot;
             if(cvar_hget(cvarh_vr_debug_shots))
             {
                 dprint(sprintf("kill push: %s by %s (%g damage): x%.2f\n", targ.classname, inflictor.classname, damage, killPush));

@@ -1,0 +1,6 @@
+# campaign_music: # see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". questfovmusic (ROUND26.md): Scourge of Armagon's first map, for its own soundtrack (on the Quest it played Quake's tracks; the console's "VR music: track N -> <path>" names the file).
+title Scourge of Armagon's first map, for its music
+campaign hipnotic
+map hip1m1
+god
+notarget

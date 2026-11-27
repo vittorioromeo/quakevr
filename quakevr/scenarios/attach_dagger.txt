@@ -1,0 +1,15 @@
+# attach_dagger: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". daggerattach (ROUND26.md attach1,
+# ATTACHMENTS.md): the dagger put on the shotgun and the super shotgun as a bayonet (Daggers as Bayonets).
+title Daggers as bayonets: put a dagger on the shotguns, stab, stick, fire stuck, take it back
+cvar vr_embed 1
+cvar vr_embed_fire 1
+cvar vr_attach_daggers 1
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+give "Dagger" off
+spawn "Super Shotgun" 40 30
+spawn "Ogre" 140 -60
+spawn "Ogre" 140 60
+hint Lay the dagger in your left hand along under the shotgun's barrel, its tip just past the muzzle: it snaps on as a bayonet. Stab an ogre: it sticks; keep your hand on the gun and pull the trigger: it fires there. Grip the dagger's handle with the empty hand and press B/Y: the same dagger is back in your hand. The same with the super shotgun. Flat-screen: J puts the dagger in the free hand on (or takes it off), V stabs with it. Daggers as Bayonets (Weapon Offsets > Attachments) off: it doesn't go on.

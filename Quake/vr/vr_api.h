@@ -539,6 +539,7 @@ int VR_PushSkips (struct edict_s *ent);		// SV_PushMove: nonzero for an entity i
 void VR_PlayerBumps (struct edict_s *ent, struct edict_s *other, const float *normal); // SV_FlyMove, a move stopped by a plane of `other`: a player walking into a solid prop's side shoves it (vr_box3d_player_shove)
 int VR_PropLetsOut (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
 	const float *end, int shaped); // SV_ClipToLinks, a move (his box mins, maxs; shaped: met by VR_PropClip) starting inside `touch`: nonzero if it doesn't block (a player in a solid prop: vr_box3d_player_unstick; vr_box3d_player_hold: not with his feet a little into its top, nor going deeper)
+int VR_DragPasses (struct edict_s *mover, struct edict_s *touch); // SV_ClipToLinks, a body's move: nonzero if `mover` is a player dragging `touch` (a prop or a body) with H at the grab's arm (vr_flat_grab_push): his box passes it, his walk pushes it through his hands
 int VR_OwnPropMeets (struct edict_s *mover, struct edict_s *touch); // SV_ClipToLinks, `touch` is `mover`'s (Quake's owner rule): nonzero if it still meets it (a player and a solid prop he threw: vr_box3d_player_hold)
 int VR_PropClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
 	const float *boxmins, const float *boxmaxs, const float *end, trace_t *trace); // SV_ClipToLinks: a player's own box (mins, maxs; boxmins, boxmaxs as it meets entities) against a solid prop's drawn box, turned (vr_box3d_player_shape): nonzero if traced
@@ -1021,6 +1022,7 @@ int VR_CanLoadSaveMap(const char *map, const char *text);	// Host_Loadgame_f: th
 
 // Official campaign context and read-only source roots.
 const char *VR_GameDirectoryRoot(const char *dir, int index);
+void VR_QuakeVRGameDir(char *out, size_t size);	// "<base>/quakevr": Quake VR's own folder (its rigs, anims), also under a mod (com_gamedir its)
 void VR_PrepareCampaignDirectories(const char *paths);
 void VR_InitCampaignDirectories(void);
 int VR_IsCampaignDirectory(const char *dir);	// id1, hipnotic, rogue or a campaign of the selector's (common.c COM_AddVRGameArg)

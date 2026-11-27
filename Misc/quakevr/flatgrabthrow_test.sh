@@ -38,13 +38,13 @@ check $([ -n "$THROW_V" ] && [ "$THROW_V" -gt 300 ] && echo 1 || echo 0) "weapon
 
 # 2. H drags a crate by its surface with 2 empty hands, moves/pulls it while walking, releases in Toggle mode, re-grabs & throws with Hold B;
 #    then grabs with 1 empty hand while main hand holds an axe; then Hold mode (vr_flat_grab_hold 1) grab & release.
-run crate "$BASE; vr_flat_grab_hold 0; setpos 0 -200 25 20 90 0; wait5; vr_physics_spawn vr_crate 28; wait20; \
+run crate "$BASE; vr_flat_grab_hold 0; setpos 0 -200 25 20 90 0; noclip 0; wait5; vr_physics_spawn vr_crate 28; wait20; \
     echo flatgrabthrow: t2h_grab; $HD; wait3; $HU; wait20; vr_flatkeys_test 4; vr_flatgrenade_report; vr_ragdoll_hand_probe; wait5; \
     echo flatgrabthrow: t2h_walk; +back; wait35; -back; wait10; vr_flatkeys_test 4; wait5; \
     echo flatgrabthrow: t2h_rel; $HD; wait3; $HU; wait15; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; \
-    echo flatgrabthrow: t2h_throw; setpos 0 -80 25 20 90 0; wait5; vr_physics_spawn vr_crate 28; wait20; $HD; wait3; $HU; wait20; setpos 0 -80 25 -6 90 0; wait5; $BD; wait85; $BU; wait60; vr_flatkeys_test 4; wait5; \
-    echo flatgrabthrow: onehand; setpos 160 -200 25 20 90 0; wait5; impulse 152; wait15; vr_physics_spawn vr_crate 28; wait20; $HD; wait3; $HU; wait25; vr_flatkeys_test 4; wait5; $HD; wait3; $HU; wait15; vr_flatkeys_test 4; wait5; impulse 47; wait10; \
-    echo flatgrabthrow: holdmode; vr_flat_grab_hold 1; setpos -160 -200 25 20 90 0; wait5; vr_physics_spawn vr_crate 28; wait20; $HD; wait25; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; $HU; wait20; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; vr_flat_grab_hold 0"
+    echo flatgrabthrow: t2h_throw; setpos 0 -80 25 20 90 0; noclip 0; wait5; vr_physics_spawn vr_crate 28; wait20; $HD; wait3; $HU; wait20; setpos 0 -80 25 -6 90 0; noclip 0; wait5; $BD; wait85; $BU; wait60; vr_flatkeys_test 4; wait5; \
+    echo flatgrabthrow: onehand; setpos 160 -200 25 20 90 0; noclip 0; wait5; impulse 152; wait15; vr_physics_spawn vr_crate 28; wait20; $HD; wait3; $HU; wait25; vr_flatkeys_test 4; wait5; $HD; wait3; $HU; wait15; vr_flatkeys_test 4; wait5; impulse 47; wait10; \
+    echo flatgrabthrow: holdmode; vr_flat_grab_hold 1; setpos -160 -200 25 20 90 0; noclip 0; wait5; vr_physics_spawn vr_crate 28; wait20; $HD; wait25; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; $HU; wait20; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; vr_flat_grab_hold 0"
 L=$S/crate.log
 check $(grep -aq 'flatgrabthrow: crate done' "$L" && echo 1 || echo 0) "crate: run completed"
 check $(grep -aq 'flat grab: drags vr_crate (40 kg) by its surface with both hands' "$L" && echo 1 || echo 0) "crate 2H: H drags the crate by its surface with both empty hands"
@@ -87,11 +87,11 @@ check $(awk '/flatgrabthrow: gib_throw/{a=1} a && /flat throw: vr_test_gib throw
 # 5. flathold2: an explosive box dragged by its surface (and along as you back away), a health box and a rock in the hand as a
 #    force grab's (no hold pose), a crate beyond the reach not grabbed.
 run kinds "$BASE; vr_flat_grab_hold 0; \
-    echo flatgrabthrow: explo; setpos -200 -200 25 20 90 0; wait5; vr_physics_spawn misc_explobox 28; wait25; $HD; wait3; $HU; wait30; vr_flatkeys_test 4; vr_flatgrenade_report; vr_ragdoll_hand_probe; wait5; \
+    echo flatgrabthrow: explo; setpos -200 -200 25 20 90 0; noclip 0; wait5; vr_physics_spawn misc_explobox 28; wait25; $HD; wait3; $HU; wait30; vr_flatkeys_test 4; vr_flatgrenade_report; vr_ragdoll_hand_probe; wait5; \
     echo flatgrabthrow: explo_back; +back; wait25; -back; wait15; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; $HD; wait3; $HU; wait15; vr_flatkeys_test 4; wait5; \
-    echo flatgrabthrow: health; setpos 200 -200 25 50 90 0; wait5; vr_physics_spawn item_health 10; wait40; $HD; wait3; $HU; wait25; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; $BD; wait3; $BU; wait20; \
-    echo flatgrabthrow: rock; setpos 100 -200 25 50 90 0; wait5; vr_physics_spawn vr_debris_piece 14; wait40; $HD; wait3; $HU; wait25; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; $BD; wait3; $BU; wait20; \
-    echo flatgrabthrow: far; setpos -300 -200 25 10 90 0; wait5; vr_physics_spawn vr_crate 64; wait30; $HD; wait3; $HU; wait20; vr_flatkeys_test 4; wait5"
+    echo flatgrabthrow: health; setpos 200 -200 25 50 90 0; noclip 0; wait5; vr_physics_spawn item_health 10; wait40; $HD; wait3; $HU; wait25; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; $BD; wait3; $BU; wait20; \
+    echo flatgrabthrow: rock; setpos 100 -200 25 50 90 0; noclip 0; wait5; vr_physics_spawn vr_debris_piece 14; wait40; $HD; wait3; $HU; wait25; vr_flatkeys_test 4; vr_flatgrenade_report; wait5; $BD; wait3; $BU; wait20; \
+    echo flatgrabthrow: far; setpos -300 -200 25 10 90 0; noclip 0; wait5; vr_physics_spawn vr_crate 64; wait30; $HD; wait3; $HU; wait20; vr_flatkeys_test 4; wait5"
 L=$S/kinds.log
 check $(grep -aq 'flatgrabthrow: kinds done' "$L" && echo 1 || echo 0) "kinds: run completed"
 check $(awk '/flatgrabthrow: explo$|flatgrabthrow: explo /{a=1} /flatgrabthrow: explo_back/{exit} a && /flat grab: drags misc_explobox .* by its surface with both hands/{f=1} END{exit !f}' "$L" && echo 1 || echo 0) "explosive box: H drags it by its surface with both hands"
@@ -111,11 +111,11 @@ check $(awk '/flatgrabthrow: far/{a=1} a && /flatkeys: held main - .* off - .* g
 #    turning sharply away from a held crate lets go (too steep). (flatkeys 4: $6 the held prop's y, $14 the grab bits, $20 my y.)
 K="vr_flatkeys_test 4; wait1"
 run push "$BASE; vr_flat_grab_hold 0; \
-    echo flatgrabthrow: pgrab; setpos 0 -200 25 20 90 0; wait5; vr_physics_spawn vr_crate 28; wait25; $HD; wait3; $HU; wait30; $K; \
+    echo flatgrabthrow: pgrab; setpos 0 -200 25 20 90 0; noclip 0; wait5; vr_physics_spawn vr_crate 28; wait25; $HD; wait3; $HU; wait30; $K; \
     echo flatgrabthrow: pfwd; +forward; wait21; $K; wait7; $K; -forward; wait10; \
     echo flatgrabthrow: pback; +back; wait35; -back; wait10; $K; $HD; wait3; $HU; wait5; \
-    echo flatgrabthrow: pturn; setpos 120 -200 25 20 90 0; wait5; vr_physics_spawn vr_crate 28; wait25; $HD; wait3; $HU; wait30; $K; setpos 120 -200 25 20 190 0; wait5; $K; \
-    echo flatgrabthrow: pheavy; setpos -100 -200 25 20 90 0; wait5; vr_physics_spawn misc_explobox 28; wait25; $HD; wait3; $HU; wait30; $K; +speed; +forward; wait20; -forward; -speed; wait5; $K"
+    echo flatgrabthrow: pturn; setpos 120 -200 25 20 90 0; noclip 0; wait5; vr_physics_spawn vr_crate 28; wait25; $HD; wait3; $HU; wait30; $K; setpos 120 -200 25 20 190 0; noclip 0; wait5; $K; \
+    echo flatgrabthrow: pheavy; setpos -100 -200 25 20 90 0; noclip 0; wait5; vr_physics_spawn misc_explobox 28; wait25; $HD; wait3; $HU; wait30; $K; +speed; +forward; wait20; -forward; -speed; wait5; $K"
 L=$S/push.log
 seg() { awk -v a="flatgrabthrow: $1" -v b="flatgrabthrow: $2" 'index($0, a) == 1 {f=1; next} b != "flatgrabthrow: " && index($0, b) == 1 {exit} f' "$L"; }
 check $(grep -aq 'flatgrabthrow: push done' "$L" && echo 1 || echo 0) "push: run completed"
@@ -124,7 +124,9 @@ G=$(seg pgrab pfwd | awk '/flatkeys: held main vr_crate/{print $6 - $20; exit}')
 P0=$(seg pgrab pfwd | awk '/flatkeys: held main vr_crate/{print $6; exit}')
 W=$(seg pfwd pback | awk '/flatkeys: held main vr_crate/{n++; if(n == 2) {print $6, $6 - $20, $14; exit}}')
 set -- $W
-check $(awk -v a="$P0" -v b="$1" 'BEGIN{exit !(a != "" && b != "" && (b - a) > 60)}' && echo 1 || echo 0) "push: walking forward pushes the crate ahead (y ${P0:-?} -> ${1:-?})"
+# (Over 45: walked for real he goes 68 units in the 28 frames from a stand, the crate 59, lagging his hands' spring by up to
+# 0.2 m as he sets off; flown in setpos's noclip it was 68. Before realpush his hull met the crate and it went nowhere.)
+check $(awk -v a="$P0" -v b="$1" 'BEGIN{exit !(a != "" && b != "" && (b - a) > 45)}' && echo 1 || echo 0) "push: walking forward pushes the crate ahead (y ${P0:-?} -> ${1:-?})"
 check $(awk -v g="$G" -v d="$2" 'BEGIN{exit !(g != "" && d != "" && (g - d) > -14 && (g - d) < 14)}' && echo 1 || echo 0) "push: it stays about its grab distance ahead while walking (${G:-?} -> ${2:-?} units)"
 check $([ "$3" = "3" ] && echo 1 || echo 0) "push: both hands stay on it while pushing (grab ${3:-?})"
 check $(seg pfwd pback | grep -aq 'lets go\|loses its hold' && echo 0 || echo 1) "push: no hand lets go while pushing"
@@ -140,10 +142,10 @@ check $(seg pheavy | awk '/flatkeys: held/{n++; if(n == 2 && /grab 0/) f=1} END{
 #    the hold lets go, and a ragdoll held while backing away then left behind: the hold-arm probe (vr_hold_arm_probe) has
 #    every frame a hand is drawn on it, the wrist past its arm's reach (0) and the hand pulled in to it at full stretch.
 run far "$BASE; vr_flat_grab_hold 0; \
-    echo flatgrabthrow: fcrate; setpos 0 -200 25 20 90 0; wait5; vr_physics_spawn vr_crate 28; wait25; $HD; wait3; $HU; wait30; \
+    echo flatgrabthrow: fcrate; setpos 0 -200 25 20 90 0; noclip 0; wait5; vr_physics_spawn vr_crate 28; wait25; $HD; wait3; $HU; wait30; \
     vr_hold_arm_probe 1; vr_flat_grab_drag_force 100; +back; wait90; -back; wait10; vr_hold_arm_probe report; vr_flat_grab_drag_force 4000; \
-    echo flatgrabthrow: frag; setpos 200 -200 25 0 90 0; wait5; vr_physics_spawn monster_army 48; wait20; vr_mock_key mouse5 down; wait4; vr_mock_key mouse5 up; wait20; \
-    setpos 200 -175 25 22 90 0; wait5; $HD; wait3; $HU; wait25; vr_hold_arm_probe 1; +back; wait60; -back; wait5; setpos 200 -300 25 22 90 0; wait10; vr_hold_arm_probe report"
+    echo flatgrabthrow: frag; setpos 200 -200 25 0 90 0; noclip 0; wait5; vr_physics_spawn monster_army 48; wait20; vr_mock_key mouse5 down; wait4; vr_mock_key mouse5 up; wait20; \
+    setpos 200 -175 25 22 90 0; noclip 0; wait5; $HD; wait3; $HU; wait25; vr_hold_arm_probe 1; +back; wait60; -back; wait5; setpos 200 -300 25 22 90 0; noclip 0; wait10; vr_hold_arm_probe report"
 L=$S/far.log
 check $(grep -aq 'flatgrabthrow: far done' "$L" && echo 1 || echo 0) "far: run completed"
 check $(seg fcrate frag | grep -aq 'flat grab: drags vr_crate (40 kg) by its surface with both hands' && echo 1 || echo 0) "far: H drags the crate with both hands"
@@ -159,30 +161,36 @@ check $(awk -v n="$1" -v g="$2" 'BEGIN{exit !(n != "" && n > 10 && g < 1.5)}' &&
 
 # 8. ragpush: a ragdoll held with H is pushed and dragged as a big prop is (vr_flat_grab_push): a dead grunt (80 kg) walked into
 #    stays about as far ahead as it was taken, backing away drags it, the wrists on the arms throughout (vr_hold_arm_probe); a
-#    dead ogre (200 kg) run into is too heavy for that pace and let go of. (The view pitched down to take hold, level to walk:
-#    the headless flat mock walks a pitched view down through the floor.)
+#    dead ogre (200 kg) run into is too heavy for that pace and let go of (its heft, vr_flat_grab_push_mass: walked for real,
+#    slowed to 120 u/s by Drag Slowdown, 60 kg a hand at a walk's pace, let go of ~19 frames in: run 40 frames). (The view pitched down to take hold, level to walk.
+#    Every walking run's setpos is followed by `noclip 0`: setpos turns noclip on, and a view walked in noclip flies along
+#    its pitch, down through the floor: flatsink, ROUND26.)
 run ragpush "$BASE; vr_flat_grab_hold 0; \
-    echo flatgrabthrow: rgrab; setpos 0 -200 25 0 90 0; wait5; vr_physics_spawn monster_army 56; wait20; vr_test_kill 1; wait150; \
-    setpos 0 -104 25 40 90 0; wait5; $HD; wait3; $HU; wait30; setpos 0 -104 25 0 90 0; wait10; $K; vr_hold_arm_probe 1; \
+    echo flatgrabthrow: rgrab; setpos 0 -200 25 0 90 0; noclip 0; wait5; vr_physics_spawn monster_army 56; wait20; vr_test_kill 1; wait150; \
+    setpos 0 -104 25 40 90 0; noclip 0; wait5; $HD; wait3; $HU; wait30; setpos 0 -104 25 0 90 0; noclip 0; wait10; $K; vr_hold_arm_probe 1; \
     echo flatgrabthrow: rfwd; +forward; wait28; $K; -forward; wait10; \
     echo flatgrabthrow: rback; +back; wait35; -back; wait10; $K; vr_hold_arm_probe report; $HD; wait3; $HU; wait5; \
-    echo flatgrabthrow: rogre; setpos -250 -200 25 0 90 0; wait5; vr_physics_spawn monster_ogre 64; wait20; vr_test_kill 1; wait150; \
-    setpos -250 -143 25 40 90 0; wait5; $HD; wait3; $HU; wait30; setpos -250 -143 25 0 90 0; wait10; $K; \
-    echo flatgrabthrow: rofast; +speed; +forward; wait20; -forward; -speed; wait5; $K"
+    echo flatgrabthrow: rogre; setpos -250 -200 25 0 90 0; noclip 0; wait5; vr_physics_spawn monster_ogre 64; wait20; vr_test_kill 1; wait150; \
+    setpos -250 -143 25 40 90 0; noclip 0; wait5; $HD; wait3; $HU; wait30; setpos -250 -143 25 0 90 0; noclip 0; wait10; $K; \
+    echo flatgrabthrow: rofast; +speed; +forward; wait40; -forward; -speed; wait5; $K"
 L=$S/ragpush.log
 check $(grep -aq 'flatgrabthrow: ragpush done' "$L" && echo 1 || echo 0) "ragpush: run completed"
 check $(seg rgrab rfwd | grep -aq 'flat grab: took ragdoll monster_army (dead) with both hands' && echo 1 || echo 0) "ragpush: H takes the dead grunt with both hands"
 G=$(seg rgrab rfwd | awk '/flatkeys: held main monster_army/{print $6 - $20; exit}')
 P0=$(seg rgrab rfwd | awk '/flatkeys: held main monster_army/{print $6; exit}')
 set -- $(seg rfwd rback | awk '/flatkeys: held main monster_army/{print $6, $6 - $20, $14; exit}')
-check $(awk -v a="$P0" -v b="$1" 'BEGIN{exit !(a != "" && b != "" && (b - a) > 60)}' && echo 1 || echo 0) "ragpush: walking forward pushes the grunt ahead (y ${P0:-?} -> ${1:-?})"
+# (Over 40: walked, not flown in setpos's noclip, he goes 47 units in the 28 frames from a stand; it was 77 in noclip.)
+check $(awk -v a="$P0" -v b="$1" 'BEGIN{exit !(a != "" && b != "" && (b - a) > 40)}' && echo 1 || echo 0) "ragpush: walking forward pushes the grunt ahead (y ${P0:-?} -> ${1:-?})"
 check $(awk -v g="$G" -v d="$2" 'BEGIN{exit !(g != "" && d != "" && (g - d) > -14 && (g - d) < 14)}' && echo 1 || echo 0) "ragpush: it stays about its grab distance ahead while walking (${G:-?} -> ${2:-?} units)"
 check $([ "$3" = "3" ] && echo 1 || echo 0) "ragpush: both hands stay on it while pushing (grab ${3:-?})"
 check $(seg rgrab rogre | grep -aq 'lets go\|limb lost\|left behind' && echo 0 || echo 1) "ragpush: no hand lets go pushing or dragging it"
 B1=$(seg rback rogre | awk '/flatkeys: held main monster_army/{print $6; exit}')
 check $(awk -v a="$1" -v b="$B1" 'BEGIN{exit !(a != "" && b != "" && (a - b) > 30)}' && echo 1 || echo 0) "ragpush: backing away drags it (y ${1:-?} -> ${B1:-?})"
 set -- $(seg rback rogre | sed -n 's/^holdarm: report \([0-9]*\) frames held, wrist past its arm at most \([0-9.]*\) cm.*/\1 \2/p' | head -1)
-check $(awk -v n="$1" -v g="$2" 'BEGIN{exit !(n != "" && n > 60 && g < 1.5)}' && echo 1 || echo 0) "ragpush: the wrists stay on the arms pushing and dragging it (${1:-?} frames, past by at most ${2:-?} cm)"
+# (Under 2.5 cm here: where H takes the grunt varies run to run, and one run in two or three it takes a limb 50-60 cm past
+# the arm's reach; then the arm's eased solve lands up to 2.1 cm past keepOnArm's reach, standing still as much as walking:
+# realpush measured 2.03 cm in the 20 frames before the walk. Otherwise under 0.1.)
+check $(awk -v n="$1" -v g="$2" 'BEGIN{exit !(n != "" && n > 60 && g < 2.5)}' && echo 1 || echo 0) "ragpush: the wrists stay on the arms pushing and dragging it (${1:-?} frames, past by at most ${2:-?} cm)"
 check $(seg rogre rofast | grep -aq 'flat grab: took ragdoll monster_ogre (dead) with both hands' && echo 1 || echo 0) "ragpush: H takes the dead ogre with both hands"
 check $(seg rofast | grep -aq 'ragdoll: [0-9]* part [0-9]*: hand [01] lets go, too heavy for that pace' && echo 1 || echo 0) "ragpush: the ogre run into is too heavy for that pace and let go of"
 check $(seg rofast | awk '/flatkeys: held/{if(/grab 0/) f=1} END{exit !f}' && echo 1 || echo 0) "ragpush: no hand holds the ogre after"

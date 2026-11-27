@@ -1514,7 +1514,7 @@ void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& rig
     return slot >= 0 && vr_flat_thrust.value != 0.f &&
            (twohand::poleWeapon(slot) ||
                (vr_flat_thrust_blades.value != 0.f && (static_cast<int>(weapons::value(slot, weapons::Key::Embed)) == 1 ||
-                                                          (h >= 0 && view::ownGunLook(h).attach == attach::Bayonet))));
+                                                          (h >= 0 && attach::strikes(view::ownGunLook(h).attach)))));
 }
 
 // Where a spear thrust (vr_flat_thrust) is at its clock: drawn back along the pole (a one-handed blade: along the blade)

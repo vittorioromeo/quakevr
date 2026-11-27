@@ -590,7 +590,7 @@ float(entity p, float xHand) VR_Melee_Thing =
     }
     // A gun with a bayonet on it (vr_attach.qc) strikes as a blade: a sword's blows, its line to the bayonet's tip
     // (VR_Melee_Line).
-    if(VR_Attach_Hand(p, xHand) == VR_ATT_BAYONET)
+    if(VR_Attach_Strikes(VR_Attach_Hand(p, xHand))) // (the bayonet, a dagger put on as one: daggerattach)
     {
         return VR_MTHING_SWORD;
     }
@@ -965,13 +965,15 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
             m = vr_mline_grip + VRForwardOf(VRGetEntHandRot(p, xHand)) * 8;
         }
     }
-    if(VR_Attach_Hand(p, xHand) == VR_ATT_BAYONET)
+    float attk = VR_Attach_Hand(p, xHand);
+    if(VR_Attach_Strikes(attk))
     {
         // A bayonet on the gun (vr_attach.qc): the line from the hand to its tip, its blade from where the bayonet's
-        // blade starts (the gun's own Line Start and Tip left out).
+        // blade starts (the gun's own Line Start and Tip left out). A dagger on it (daggerattach): from its blade's root
+        // (its origin is by its grip, behind the muzzle).
         vr_mline_grip = h;
         m = VR_Attach_TipOf(p, xHand);
-        vector bb = VR_Attach_HandPoint(p, xHand, VR_ATT_BAYONET, 1);
+        vector bb = VR_Attach_HandPoint(p, xHand, attk, attk == VR_ATT_DAGGER ? 3 : 1);
         float ll = vlen(m - h);
         vr_mline_from_x = ll > 1 ? min(0.95, max(0.05, ((bb - h) * (m - h)) / (ll * ll))) : -1;
         vr_mline_bend = 0;

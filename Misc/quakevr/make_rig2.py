@@ -297,6 +297,60 @@ HKNIGHT_SKELETON = [
     dict(name='weapon', parent='hand_r', joint='fixed', pivot=(5.0, -20.3, 9.2), end=(31.0, -34.0, 31.5)),
 ]
 
+# AD's death guard and crossbow knight as armed knights (QC vr_armedmon.qc rows 4 and 5): progs/vrdguard.mdl and
+# progs/vrdcrossbow.mdl, made by the engine as they load from AD's mon_dguard.mdl / mon_dcrossbow.mdl (vr_monstermods.cpp
+# VR_AdArmedModelFile: no weapon triangles, the knight's frame order, the living frames turned square: the crossbow knight's
+# rest 40 degrees). Never shipped (AD's mesh): dump it first (vr_campaign_native ad; map e1m1; vr_adarmed_dump
+# progs/vrdguard.mdl <file>) and pass --mesh <file>. Joints from AD's ragdoll seeds (vr_ad_rigs.inc, turned as the
+# made frame 0 is), the crossbow knight's shoulders the death guard's moved with its chest (one body, its arms posed
+# otherwise: vertex 51, the chest's front, 1 back, 1.6 left); joints, limits and blends
+# the knight's (his build: the death guard 51.4 tall, 25 wide; the knight 49.2, 24.4).
+DGUARD_SKELETON = [
+    {'name': 'pelvis', 'parent': None, 'joint': 'root', 'pivot': (2.1, -0.5, -2.2), 'end': (2.0, -0.4, 3.0)},
+    {'name': 'spine', 'parent': 'pelvis', 'joint': 'ball', 'pivot': (2.0, -0.4, 3.0), 'end': (1.6, -0.2, 9.5), 'blend': 3.0, 'radius': 12.0, 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-35, 45), 'sy': (-25, 25), 'tw': (-35, 36)},
+    {'name': 'chest', 'parent': 'spine', 'joint': 'ball', 'pivot': (1.6, -0.2, 9.5), 'end': (4.5, -0.1, 18.5), 'blend': 3.0, 'radius': 12.0, 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-20, 36), 'sy': (-20, 20), 'tw': (-40, 40)},
+    {'name': 'neck', 'parent': 'chest', 'joint': 'ball', 'pivot': (4.5, -0.1, 18.5), 'end': (5.5, -0.1, 21.0), 'blend': 1.2, 'radius': 6.0, 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-25, 35), 'sy': (-25, 25), 'tw': (-35, 35)},
+    {'name': 'head', 'parent': 'neck', 'joint': 'ball', 'pivot': (5.5, -0.1, 21.0), 'end': (7.5, -0.1, 27.0), 'blend': 1.0, 'radius': 6.0, 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-25, 15), 'sy': (-20, 20), 'tw': (-20, 20)},
+    {'name': 'clavicle_l', 'parent': 'chest', 'joint': 'ball', 'pivot': (3.5, 2.0, 17.0), 'end': (3.5, 8.5, 17.0), 'blend': 2.0, 'radius': 6.0, 'fwd': (1, 0, 0), 'side': (0, 0, 1), 'sx': (-15, 35), 'sy': (-15, 35), 'tw': (-65, 45)},
+    {'name': 'upperarm_l', 'parent': 'clavicle_l', 'joint': 'ball', 'pivot': (3.5, 8.5, 17.0), 'end': (1.6, 9.0, 10.8), 'blend': 3.5, 'radius': 7.5, 'neutral': (0, 0.17, -1), 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-60, 46), 'sy': (-15, 50), 'tw': (-40, 20)},
+    {'name': 'forearm_l', 'parent': 'upperarm_l', 'joint': 'hinge', 'pivot': (1.6, 9.0, 10.8), 'end': (6.0, 13.5, 1.5), 'refine': True, 'blend': 1.6, 'radius': 4.5, 'range': (0, 125)},
+    {'name': 'hand_l', 'parent': 'forearm_l', 'joint': 'ball', 'pivot': (6.0, 13.5, 1.5), 'end': (8.0, 15.5, -1.5), 'refine': True, 'blend': 0.6, 'radius': 3.5, 'fwd': (0, 0, 1), 'side': (0, -1, 0), 'sx': (-30, 30), 'sy': (-30, 30), 'tw': (-30, 30)},
+    {'name': 'clavicle_r', 'parent': 'chest', 'joint': 'ball', 'pivot': (3.5, -2.5, 17.0), 'end': (3.5, -9.0, 17.5), 'blend': 2.0, 'radius': 6.0, 'fwd': (1, 0, 0), 'side': (0, 0, 1), 'sx': (-15, 35), 'sy': (-15, 35), 'tw': (-65, 45)},
+    {'name': 'upperarm_r', 'parent': 'clavicle_r', 'joint': 'ball', 'pivot': (3.5, -9.0, 17.5), 'end': (1.9, -11.0, 11.5), 'blend': 3.5, 'radius': 7.5, 'neutral': (0, -0.17, -1), 'fwd': (1, 0, 0), 'side': (0, -1, 0), 'sx': (-35, 46), 'sy': (-15, 50), 'tw': (-20, 40)},
+    {'name': 'forearm_r', 'parent': 'upperarm_r', 'joint': 'hinge', 'pivot': (1.9, -11.0, 11.5), 'end': (8.3, -12.0, 2.5), 'refine': True, 'blend': 1.6, 'radius': 4.5, 'range': (0, 125)},
+    {'name': 'hand_r', 'parent': 'forearm_r', 'joint': 'ball', 'pivot': (8.3, -12.0, 2.5), 'end': (11.0, -13.0, -1.0), 'refine': True, 'blend': 0.6, 'radius': 3.5, 'fwd': (0, 0, 1), 'side': (0, 1, 0), 'sx': (-30, 30), 'sy': (-30, 30), 'tw': (-30, 30)},
+    {'name': 'thigh_l', 'parent': 'pelvis', 'joint': 'ball', 'pivot': (0.8, 4.5, -2.0), 'end': (-0.3, 5.9, -13.5), 'blend': 2.6, 'radius': 8.0, 'neutral': (0, 0.08, -1), 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-30, 65), 'sy': (-20, 45), 'tw': (-30, 30)},
+    {'name': 'shin_l', 'parent': 'thigh_l', 'joint': 'hinge', 'pivot': (-0.3, 5.9, -13.5), 'end': (1.2, 7.4, -21.0), 'refine': True, 'blend': 2.6, 'radius': 6.0, 'axis': (0, 1, 0), 'range': (0, 130)},
+    {'name': 'foot_l', 'parent': 'shin_l', 'joint': 'ball', 'pivot': (1.2, 7.4, -21.0), 'end': (6.5, 7.6, -23.5), 'refine': True, 'blend': 1.0, 'radius': 4.0, 'fwd': (0, 0, 1), 'side': (0, 1, 0), 'sx': (-25, 30), 'sy': (-10, 10), 'tw': (-12, 12)},
+    {'name': 'thigh_r', 'parent': 'pelvis', 'joint': 'ball', 'pivot': (2.5, -4.0, -2.0), 'end': (3.5, -7.5, -13.5), 'blend': 2.6, 'radius': 8.0, 'neutral': (0, -0.08, -1), 'fwd': (1, 0, 0), 'side': (0, -1, 0), 'sx': (-30, 65), 'sy': (-20, 45), 'tw': (-30, 30)},
+    {'name': 'shin_r', 'parent': 'thigh_r', 'joint': 'hinge', 'pivot': (3.5, -7.5, -13.5), 'end': (5.1, -8.5, -21.0), 'refine': True, 'blend': 2.6, 'radius': 6.0, 'axis': (0, 1, 0), 'range': (0, 130)},
+    {'name': 'foot_r', 'parent': 'shin_r', 'joint': 'ball', 'pivot': (5.1, -8.5, -21.0), 'end': (10.5, -8.7, -23.5), 'refine': True, 'blend': 1.0, 'radius': 4.0, 'fwd': (0, 0, 1), 'side': (0, -1, 0), 'sx': (-25, 30), 'sy': (-10, 10), 'tw': (-12, 12)},
+    {'name': 'weapon', 'parent': 'hand_r', 'joint': 'fixed', 'pivot': (9.5, -12.7, 0.0), 'end': (32.4, -19.9, 23.8)},
+]
+DCROSSBOW_SKELETON = [
+    {'name': 'pelvis', 'parent': None, 'joint': 'root', 'pivot': (1.6, 0.7, -2.0), 'end': (1.4, 1.2, 3.0)},
+    {'name': 'spine', 'parent': 'pelvis', 'joint': 'ball', 'pivot': (1.4, 1.2, 3.0), 'end': (1.2, 1.7, 9.4), 'blend': 3.0, 'radius': 12.0, 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-35, 45), 'sy': (-25, 25), 'tw': (-35, 36)},
+    {'name': 'chest', 'parent': 'spine', 'joint': 'ball', 'pivot': (1.2, 1.7, 9.4), 'end': (4.5, 2.4, 18.8), 'blend': 3.0, 'radius': 12.0, 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-20, 36), 'sy': (-20, 20), 'tw': (-40, 40)},
+    {'name': 'neck', 'parent': 'chest', 'joint': 'ball', 'pivot': (4.5, 2.4, 18.8), 'end': (5.4, 2.9, 21.0), 'blend': 1.2, 'radius': 6.0, 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-25, 35), 'sy': (-25, 25), 'tw': (-35, 35)},
+    {'name': 'head', 'parent': 'neck', 'joint': 'ball', 'pivot': (5.4, 2.9, 21.0), 'end': (6.9, 3.8, 26.0), 'blend': 1.0, 'radius': 6.0, 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-25, 15), 'sy': (-20, 20), 'tw': (-20, 20)},
+    {'name': 'clavicle_l', 'parent': 'chest', 'joint': 'ball', 'pivot': (2.5, 3.6, 16.7), 'end': (2.5, 10.1, 16.7), 'blend': 2.0, 'radius': 6.0, 'fwd': (1, 0, 0), 'side': (0, 0, 1), 'sx': (-15, 35), 'sy': (-15, 35), 'tw': (-65, 45)},
+    {'name': 'upperarm_l', 'parent': 'clavicle_l', 'joint': 'ball', 'pivot': (2.5, 10.1, 16.7), 'end': (5.8, 10.1, 9.0), 'blend': 3.5, 'radius': 7.5, 'neutral': (0, 0.17, -1), 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-60, 46), 'sy': (-15, 50), 'tw': (-40, 20)},
+    {'name': 'forearm_l', 'parent': 'upperarm_l', 'joint': 'hinge', 'pivot': (5.8, 10.1, 9.0), 'end': (11.1, 1.5, 3.0), 'refine': True, 'blend': 1.6, 'radius': 4.5, 'range': (0, 125)},
+    {'name': 'hand_l', 'parent': 'forearm_l', 'joint': 'ball', 'pivot': (11.1, 1.5, 3.0), 'end': (12.7, -1.1, 1.0), 'refine': True, 'blend': 0.6, 'radius': 3.5, 'fwd': (0, 0, 1), 'side': (0, -1, 0), 'sx': (-30, 30), 'sy': (-30, 30), 'tw': (-30, 30)},
+    {'name': 'clavicle_r', 'parent': 'chest', 'joint': 'ball', 'pivot': (2.5, -0.9, 16.7), 'end': (2.5, -7.4, 17.2), 'blend': 2.0, 'radius': 6.0, 'fwd': (1, 0, 0), 'side': (0, 0, 1), 'sx': (-15, 35), 'sy': (-15, 35), 'tw': (-65, 45)},
+    {'name': 'upperarm_r', 'parent': 'clavicle_r', 'joint': 'ball', 'pivot': (2.5, -7.4, 17.2), 'end': (5.0, -12.8, 9.0), 'blend': 3.5, 'radius': 7.5, 'neutral': (0, -0.17, -1), 'fwd': (1, 0, 0), 'side': (0, -1, 0), 'sx': (-35, 46), 'sy': (-15, 50), 'tw': (-20, 40)},
+    {'name': 'forearm_r', 'parent': 'upperarm_r', 'joint': 'hinge', 'pivot': (5.0, -12.8, 9.0), 'end': (6.6, -8.6, 7.0), 'refine': True, 'blend': 1.6, 'radius': 4.5, 'range': (0, 125)},
+    {'name': 'hand_r', 'parent': 'forearm_r', 'joint': 'ball', 'pivot': (6.6, -8.6, 7.0), 'end': (7.9, -7.1, 5.5), 'refine': True, 'blend': 0.6, 'radius': 3.5, 'fwd': (0, 0, 1), 'side': (0, 1, 0), 'sx': (-30, 30), 'sy': (-30, 30), 'tw': (-30, 30)},
+    {'name': 'thigh_l', 'parent': 'pelvis', 'joint': 'ball', 'pivot': (-0.9, 3.1, -2.0), 'end': (0.5, 5.0, -14.0), 'blend': 2.6, 'radius': 8.0, 'neutral': (0, 0.08, -1), 'fwd': (1, 0, 0), 'side': (0, 1, 0), 'sx': (-30, 65), 'sy': (-20, 45), 'tw': (-30, 30)},
+    {'name': 'shin_l', 'parent': 'thigh_l', 'joint': 'hinge', 'pivot': (0.5, 5.0, -14.0), 'end': (1.3, 7.3, -21.0), 'refine': True, 'blend': 2.6, 'radius': 6.0, 'axis': (0, 1, 0), 'range': (0, 130)},
+    {'name': 'foot_l', 'parent': 'shin_l', 'joint': 'ball', 'pivot': (1.3, 7.3, -21.0), 'end': (4.9, 10.5, -23.5), 'refine': True, 'blend': 1.0, 'radius': 4.0, 'fwd': (0, 0, 1), 'side': (0, 1, 0), 'sx': (-25, 30), 'sy': (-10, 10), 'tw': (-12, 12)},
+    {'name': 'thigh_r', 'parent': 'pelvis', 'joint': 'ball', 'pivot': (2.7, -2.3, -2.0), 'end': (4.2, -3.5, -14.0), 'blend': 2.6, 'radius': 8.0, 'neutral': (0, -0.08, -1), 'fwd': (1, 0, 0), 'side': (0, -1, 0), 'sx': (-30, 65), 'sy': (-20, 45), 'tw': (-30, 30)},
+    {'name': 'shin_r', 'parent': 'thigh_r', 'joint': 'hinge', 'pivot': (4.2, -3.5, -14.0), 'end': (5.7, -6.8, -21.0), 'refine': True, 'blend': 2.6, 'radius': 6.0, 'axis': (0, 1, 0), 'range': (0, 130)},
+    {'name': 'foot_r', 'parent': 'shin_r', 'joint': 'ball', 'pivot': (5.7, -6.8, -21.0), 'end': (9.6, -3.7, -23.5), 'refine': True, 'blend': 1.0, 'radius': 4.0, 'fwd': (0, 0, 1), 'side': (0, -1, 0), 'sx': (-25, 30), 'sy': (-10, 10), 'tw': (-12, 12)},
+    {'name': 'weapon', 'parent': 'hand_r', 'joint': 'fixed', 'pivot': (7.1, -7.8, 6.3), 'end': (20.7, 13.8, -10.7)},
+]
+
+
 RIGS = {
     'hknight': dict(build='vrhknight', models=['vrhknight'], skeleton=HKNIGHT_SKELETON,
                     gun=list(range(42, 59)) + list(range(332, 366)) + list(range(525, 533)),
@@ -340,6 +394,15 @@ RIGS = {
                             39: 'clavicle_r', 34: 'upperarm_r', 367: 'clavicle_l', 36: 'clavicle_l', 40: 'clavicle_l',
                             41: 'clavicle_l', 35: 'upperarm_l'},
                     max_hops=3, weld_gun=False),
+    'dguard': dict(build='vrdguard', models=['vrdguard'], skeleton=DGUARD_SKELETON, gun=list(range(544, 585)),
+                   thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
+                              forearm=2.8, hand=2.0, thigh=4.0, shin=3.0, foot=2.6),
+                   max_hops=3, weld_gun=False),
+    'dcrossbow': dict(build='vrdcrossbow', models=['vrdcrossbow'], skeleton=DCROSSBOW_SKELETON,
+                      gun=list(range(772, 1120)),
+                      thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
+                                 forearm=2.8, hand=2.0, thigh=4.0, shin=3.0, foot=2.6),
+                      max_hops=3, weld_gun=False),
     'knight': dict(build='vrknight', models=['vrknight'], skeleton=KNIGHT_SKELETON,
                    gun=[334, 335, 336, 363, 364, 365, 524] + list(range(535, 541)) + list(range(557, 649)),
                    thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
@@ -851,6 +914,8 @@ def main():
     quiet = '--quiet' in args
     prev = args[args.index('--preview') + 1] if '--preview' in args else None
     names = [a for a in args if a in RIGS or a == 'all']
+    if not names or 'all' in names:
+        names = [n for n in RIGS if n not in ('dguard', 'dcrossbow')]  # (those need --mesh: AD's mesh, dumped)
     names = list(RIGS) if not names or 'all' in names else names
     # --set <bone>.<field>=<python literal> (or <field>=... for the rig's own choices): a try without editing the tables,
     # e.g. --set shin_l.blend=1.5 --set smooth_iters=20 (then vr_rig2_check)
@@ -865,7 +930,9 @@ def main():
             else:
                 cfg[key] = ast.literal_eval(val)
         # Built on the armed model's mesh (no gun triangles: the gun's vertices are the weapon bone's), written for all
-        mesh = Mesh(os.path.join(ROOT, 'quakevr', 'progs', cfg['build'] + '.mdl'))
+        # (--mesh <file>: the armed model's file elsewhere: AD's armed death guard and crossbow knight, dumped by the engine)
+        meshArg = args[args.index('--mesh') + 1] if '--mesh' in args else None
+        mesh = Mesh(meshArg or os.path.join(ROOT, 'quakevr', 'progs', cfg['build'] + '.mdl'))
         if not quiet:
             print('%s: %d vertices, %d triangles' % (cfg['build'], mesh.nv, len(mesh.tris)))
         bones, region, weights = build(mesh, cfg, quiet)
