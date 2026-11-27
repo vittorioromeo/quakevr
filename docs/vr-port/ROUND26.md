@@ -4444,6 +4444,38 @@ static sentence" (65/65), and the `--screenshots` harness check (no switches, se
 
 Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.
 
+## bayomounts: the bayonet's mount drawn on every gun that takes one; bayonets on 9 more guns (branch agent/bayomounts, 2026-11-28)
+
+His words 2026-11-28: a small mounting rail/hinge where the bayonet attaches, always visible (held, holstered, dropped,
+...), tunable size/offset/rotation; bayonets on the nailgun, thunderbolt, rocket/grenade/proximity launchers, bloody
+shotguns, AD plasma gun, enforcer laser rifle, grunt burst rifle, heavy revolver.
+- **The mount model**: `progs/bayonet_mount.mdl` (make_bayonet.py `build_mount`: an iron rail behind the socket and a
+  ring round the socket's axis just behind it, the bayonet's skin; bayonet units, origin the bayonet's). Drawn by
+  `view::placeRail` (placeAttachment's placement split into `placeOnMount`, shared) at `attach::railMount`: the gun's att1
+  mount moved/turned by Weapon Offsets `mnt_x/y/z/pitch/yaw/roll` (bayonet units and frame), `mnt_size` (weapons.txt
+  defaults 0 and 1). Sites: your hands (`entities.rail`, under the SSG's opening barrels), holsters (`holsterRail`), another
+  player's held and holstered guns (GunParts::Rail), and `setupWorldRails` for every other gun in the draw list (lying,
+  monsters', map pickups: Quake VR draws pickups as view models; `pickupRails` covers the g_*.mdl ones): the nearest 32
+  within `vr_attach_mount_dist` 1500. `vr_attach_mount_show` 1 always (default: "always visible"; the socket covers the
+  rail, the ring sits behind it, no clipping seen in the sheet), 2 hidden under an attachment, 0 never. Menu: Weapon
+  Offsets > Attachments, "Bayonet Mount" (Show, Forward/Left/Up, Pitch/Yaw/Roll, Size); menu_paths.txt regenerated,
+  vrcalibration 0 missing. The wheel/holster previews of the other workers get it where they use the hands'/holsters'
+  entities; a preview with its own ViewEntity needs a `placeRail` call next to its `placeAttachment`.
+- **New mounts** (ATTACHMENTS.md table; weapons.txt att1_*/att2_*): measured from the engine's own frame 0
+  (`vr_attach_mdl_dump`, scratch bm_auto.py: underside on the barrel line at the front, the socket clear behind). The GL,
+  prox and Plasma Gun's fronts are lips shorter than the socket: mounted under the body's front instead. Inherited by the
+  lava nailgun, multi grenade/rocket and plasma-look lightning gun; copied to the burst rifle's 5 #adv slots. Dagger (att2):
+  the bayonet's mount + (-2.79, 0.339, -1.47) bayonet units (the shotguns' mean), level: untuned. Bloody shotguns: the
+  shotguns' slots (nothing to add). QC: attach points use the hand's record-aware model (`VR_Attach_HandModel` =
+  AD_WeaponModel), so the Plasma Gun uses its own mount, not the lightning gun's.
+- **Tests**: `vr_embed_test 96` (flat, attachguns 57/0 + 3 PENDING): per gun J on/off/on, V sticks, fired stuck (grenades/
+  mines: the shot counted, their delayed blast not required); `attach_guns_check.py`: the mount drawn in the hand (with
+  the bayonet), holstered, dropped, on the 5 map pickups: 32/32. menu attachtest 15/0 (the "not the nailgun" check moved
+  to the super nailgun; the new guns fit), flat 80 17/0, VR 79 26/1 (the known "picked up by the hand" failure).
+  attach_test.sh runs 96. Contact sheet (ortho renders, scratch bm_sheet.py): worktree `scratch/bayomounts_sheet.png`.
+- **Open**: flat V with a bayonet on the GL, prox or RL: flat play takes them two-handed once the off hand is free ("2h
+  click"), and V two-handed is no bayonet thrust (PENDING in 96); VR stabs are hand-driven (not tested per gun in VR).
+  The rail on the nailgun's pickup sits under one barrel (y -3). Dagger mounts on the new guns untuned.
 ## questperf2: the Quest's LRZ bisected to your leg holsters' batches; a still models' set-up cache measured (branch agent/questperf2, 2026-11-28)
 
 Brief: find what ends LRZ in the opaque entity pass (qlrz2: not found), and cache the alias set-up across frames.

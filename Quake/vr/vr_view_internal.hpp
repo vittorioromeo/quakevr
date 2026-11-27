@@ -167,6 +167,7 @@ enum Holster : int
 
 // Weapons lying in the world near the player that show their ammo screen and button (the nearest).
 constexpr int maxWorldWeapons = 48; // (vr_weapon_world_attach_max of them; their range vr_weapon_world_attach_range)
+constexpr int maxWorldRails = 32;   // (bayomounts: the bayonet's mounts on guns in the world, within vr_attach_mount_dist)
 constexpr int maxWorldSsgs = 4; // super shotguns lying about broken open, drawn open (setupWorldSsgs)
 
 // The guns' loading ports (immersive reloading; docs/vr-port/RELOAD.md): where a round held in the other hand goes
@@ -396,6 +397,11 @@ struct Entities
     view::ViewEntity attach[2]; // the hands' guns' attachments (vr_attach.hpp: the bayonet; setupAttachments)
     view::ViewEntity holsterAttach[HolsterCount]; // the holstered guns'
     view::ViewEntity worldAttach[maxWorldWeapons]; // the lying guns' (dropped, thrown, stuck in a body)
+    // (bayomounts) the bayonet's mount on each gun a bayonet fits (view::placeRail): the hands', the holsters', and every
+    // other gun drawn in the world (lying, carried by a monster, a map's pickup: the nearest maxWorldRails)
+    view::ViewEntity rail[2];
+    view::ViewEntity holsterRail[HolsterCount];
+    view::ViewEntity worldRail[maxWorldRails];
 
     // Every member, in the order forEachEntity visits them: the order they are added to cl_visedicts (keep it: draws at
     // the same depth). A zip visits its arrays per index (cap and lames, frame and barrels, ...). Every member listed:
@@ -445,7 +451,8 @@ decltype(auto) Entities::members(F&& f)
         flashlight, pouch, ammoPouch, ammoPouchItem, mag, magOut, holsterMag, worldMag, well, holsterWell, worldWell, pumpBody, pump,
         zip(ssgFrame, ssgBarrels), zip(holsterSsgFrame, holsterSsgBarrels), zip(worldSsgFrame, worldSsgBarrels),
         zip(rvFrame, rvCrane, rvCyl, rvShell), sawHandle, button, frontButton, holsterButton, worldButton,
-        holsterFrontButton, worldFrontButton, ghost, ghostHand, muzzleFlash, enemyFlash, adBolt, attach, holsterAttach, worldAttach);
+        holsterFrontButton, worldFrontButton, ghost, ghostHand, muzzleFlash, enemyFlash, adBolt, attach, holsterAttach, worldAttach,
+        rail, holsterRail, worldRail);
 }
 
 static_assert(decltype(za::declVal<Entities&>().members(CountEntityBytes{}))::value == sizeof(Entities),

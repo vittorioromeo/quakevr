@@ -61,6 +61,15 @@ void(entity p) VR_Attach_Ammo =
     self = oldSelf;
 };
 
+string(float xWid, float xFlags, entity xInst) AD_WeaponModel; // (vr_ad_bridge.qc)
+
+// The model the weapon in `xHand` of `p` is drawn with, as its record says (bayomounts: an AD upgrade's, the Plasma Gun's
+// own mount, not the lightning gun's): the mounts are per model.
+string(entity p, float xHand) VR_Attach_HandModel =
+{
+    return AD_WeaponModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand), VRGetEntWeaponInst(p, xHand));
+};
+
 // Whether attachment `xKind` can go on the weapon in `xHand` of `p` now: a weapon it fits (attN_ok), with a record, and
 // none on it yet.
 float(entity p, float xHand, float xKind) VR_Attach_CanTake =
@@ -71,7 +80,7 @@ float(entity p, float xHand, float xKind) VR_Attach_CanTake =
     {
         return FALSE;
     }
-    vector fits = attachinfo(WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand)), xKind, 0);
+    vector fits = attachinfo(VR_Attach_HandModel(p, xHand), xKind, 0);
     return fits_x > 0;
 };
 
@@ -79,7 +88,7 @@ float(entity p, float xHand, float xKind) VR_Attach_CanTake =
 // muzzle along the hand's axes (the engine's attachinfo; the off hand's model mirrored).
 vector(entity p, float xHand, float xKind, float xWhat) VR_Attach_HandPoint =
 {
-    vector d = attachinfo(WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand)), xKind, xWhat);
+    vector d = attachinfo(VR_Attach_HandModel(p, xHand), xKind, xWhat);
     vector m = VR_Attach_MuzzleOf(p, xHand);
     vector oldF = v_forward, oldR = v_right, oldU = v_up;
     makevectors(VRGetEntHandRot(p, xHand));
