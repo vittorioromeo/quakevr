@@ -1458,6 +1458,7 @@ struct NetStat
     double sumBytes{0.0};
 };
 NetStat netStats[MAX_SCOREBOARD];
+void reliableStatsLine(int slot, bool reset); // (mpoverflow: below, with the backlog)
 
 // vr_net_reliable_test <entity> <bytes>: a reliable message of about that many bytes to that player's client (nops, then
 // "mp_reliable: <bytes> bytes" printed there when it arrives): the reliable window's resends measured (mp_test.py
@@ -1496,9 +1497,14 @@ void netStats_f()
         {
             n = NetStat{};
         }
+        for(int i = 0; i < MAX_SCOREBOARD; i++)
+        {
+            reliableStatsLine(i, true);
+        }
         Con_Printf("vr_net_stats: reset\n");
         return;
     }
+    VR_ClientReliableStats(); // (mpoverflow: this game's own client's reliable stream, when connected)
     if(!sv.active)
     {
         Con_Printf("vr_net_stats: no server here\n");
@@ -1527,6 +1533,7 @@ void netStats_f()
                    "frames, %d full\n",
             i + 1, where, n.sent, n.insight, n.bytes, n.maxsize, n.peakBytes, n.peakSent,
             n.frames ? n.sumBytes / n.frames : 0.0, n.frames, n.overflowFrames);
+        reliableStatsLine(i, false);
     }
 }
 } // namespace
@@ -1553,6 +1560,195 @@ extern "C" void VR_NetStatsEntities(edict_t* clent, int sent, int insight, int b
 extern "C" void VR_ReliableSent()
 {
     broadcastRoom.peakReliable = q_max(broadcastRoom.peakReliable, sv.reliable_datagram.cursize);
+}
+
+// ----------------------------------------------------------------------------
+// (mpoverflow) A client's reliable backlog.
+//
+// A client's reliable messages (client->message: sv.reliable_datagram's copy each frame, his stats, QuakeC's MSG_ONE
+// writes, the replies to his commands) go out one message at a time, the next only when he has acknowledged the last.
+// While he acknowledges nothing (his game paused: a Quest's headset off, its system menu; a map loading, many seconds on
+// a Quest; a Wi-Fi stall) they pile up in its 64000 B, and a busy deathmatch filled it: "SZ_GetSpace: overflow", the
+// client dropped without a word to him (he saw his game freeze, then time out). Now, past half of it while it can't be
+// sent, his messages go on to this backlog, a frame's part at a time (each frame's end is a message boundary: the
+// engine and QuakeC write whole messages within one), and while it holds anything each frame's part follows them there
+// (the order kept). As he acknowledges, the longest run of whole parts that fits one message (MAX_MSGLEN) is sent.
+// Past backlogMost (minutes of a busy game's messages) he is dropped, the reason said and told to him.
+namespace
+{
+constexpr int backlogSpillAt = MAX_MSGLEN / 2;    // his unsent message's bytes past which it goes to the backlog
+constexpr int backlogMost = 4 * 1024 * 1024;      // a backlog past this: he is dropped
+static_assert(MAX_MSGLEN <= NET_MAXMESSAGE, "a backlog's part is sent as one reliable message");
+
+struct ReliableBacklog
+{
+    za::Vector<za::U8> data; // whole messages, oldest first
+    za::Vector<int> ends;    // the end of each frame's part in data, ascending (each a message boundary)
+    double since{0.0};       // when it began
+};
+ReliableBacklog backlogs[MAX_SCOREBOARD];
+
+// vr_net_stats: each client's reliable stream since the last reset
+struct ReliableStat
+{
+    int peak{0};              // the most waiting (his message and backlog)
+    int framePeak{0};         // the most added between two looks (a frame's)
+    double waitPeak{0.0};     // the longest anything waited without a send
+    int spills{0};            // times it went on to the backlog
+    int last{0};              // his message's bytes at the last look
+    double waitingSince{0.0}; // something waiting, unsendable, since (0: not)
+};
+ReliableStat reliableStats[MAX_SCOREBOARD];
+
+int backlogBytes(int slot)
+{
+    return slot >= 0 && slot < MAX_SCOREBOARD ? static_cast<int>(backlogs[slot].data.size()) : 0;
+}
+
+void noteReliable(int slot, int cursize, bool sendsNow)
+{
+    ReliableStat& s = reliableStats[slot];
+    const int added = cursize >= s.last ? cursize - s.last : cursize;
+    s.framePeak = za::max(s.framePeak, added);
+    s.last = cursize;
+    const int waiting = cursize + backlogBytes(slot);
+    s.peak = za::max(s.peak, waiting);
+    if(waiting > 0 && !sendsNow)
+    {
+        if(s.waitingSince <= 0.0)
+        {
+            s.waitingSince = realtime;
+        }
+        s.waitPeak = za::max(s.waitPeak, realtime - s.waitingSince);
+    }
+    else
+    {
+        s.waitingSince = 0.0;
+    }
+}
+
+void reliableStatsLine(int slot, bool reset)
+{
+    ReliableStat& s = reliableStats[slot];
+    if(reset)
+    {
+        s.peak = s.framePeak = s.spills = 0;
+        s.waitPeak = 0.0;
+        return;
+    }
+    // (a line of its own, "    reliable:", read by mp_test.py overflow)
+    Con_Printf("    reliable: peak %d B (buffer %d, backlog now %d B, at most %d), most a frame %d B, longest wait %.2f s, "
+               "backlogged %d times\n",
+        s.peak, MAX_MSGLEN, backlogBytes(slot), backlogMost, s.framePeak, s.waitPeak, s.spills);
+}
+} // namespace
+
+extern "C" int VR_ReliableBacklogBytes(int slot)
+{
+    return backlogBytes(slot);
+}
+
+extern "C" int VR_ReliableBacklog(client_t* client, int maysend)
+{
+    const int slot = static_cast<int>(client - svs.clients);
+    if(slot < 0 || slot >= MAX_SCOREBOARD || !client->netconnection)
+    {
+        return 0;
+    }
+    ReliableBacklog& b = backlogs[slot];
+    sizebuf_t& m = client->message;
+    const bool canSend = maysend && NET_CanSendMessage(client->netconnection);
+    noteReliable(slot, m.cursize, canSend && (m.cursize > 0 || !b.data.empty()));
+    if(b.data.empty())
+    {
+        if(m.cursize <= backlogSpillAt || canSend)
+        {
+            return 0; // (the engine's own send, or its wait)
+        }
+        b.since = realtime;
+        reliableStats[slot].spills++;
+        Con_DPrintf("%s's reliable messages backed up (%d B, %.1f s unacknowledged): held on his backlog\n", client->name,
+            m.cursize, reliableStats[slot].waitingSince > 0.0 ? realtime - reliableStats[slot].waitingSince : 0.0);
+    }
+    if(m.cursize > 0)
+    {
+        b.data.insert(b.data.data() + b.data.size(), m.data, m.data + m.cursize);
+        b.ends.pushBack(static_cast<int>(b.data.size()));
+        SZ_Clear(&m);
+        reliableStats[slot].last = 0;
+    }
+    if(static_cast<int>(b.data.size()) > backlogMost)
+    {
+        m.overflowed = true; // (VR_ReliableOverflowed says why; he is dropped)
+        return 0;
+    }
+    if(!canSend)
+    {
+        return 1;
+    }
+    // The longest run of whole parts that fits one message (a part is at most his message's maxsize, MAX_MSGLEN).
+    int n = 0;
+    int parts = 0;
+    while(parts < static_cast<int>(b.ends.size()) && b.ends[parts] <= MAX_MSGLEN)
+    {
+        n = b.ends[parts++];
+    }
+    if(parts == 0)
+    {
+        m.overflowed = true; // (can't be: a part larger than his message's buffer)
+        return 0;
+    }
+    sizebuf_t part{};
+    part.data = b.data.data();
+    part.cursize = n;
+    part.maxsize = n;
+    if(NET_SendMessage(client->netconnection, &part) == -1)
+    {
+        return -1;
+    }
+    b.data.erase(b.data.data(), b.data.data() + n);
+    b.ends.erase(b.ends.data(), b.ends.data() + parts);
+    for(int& e : b.ends)
+    {
+        e -= n;
+    }
+    if(!b.data.empty())
+    {
+        return 1;
+    }
+    Con_DPrintf("%s's reliable backlog sent, %.1f s after it began\n", client->name, realtime - b.since);
+    b = ReliableBacklog{}; // (its memory back)
+    return 2;
+}
+
+extern "C" void VR_ReliableOverflowed(client_t* client)
+{
+    const int slot = static_cast<int>(client - svs.clients);
+    if(slot < 0 || slot >= MAX_SCOREBOARD)
+    {
+        return;
+    }
+    const ReliableStat& s = reliableStats[slot];
+    const double wait = s.waitingSince > 0.0 ? realtime - s.waitingSince : 0.0;
+    const int held = backlogBytes(slot);
+    Con_Printf("\x02" "%s dropped: his reliable messages overflowed (%d B held, a backlog of at most %d B; %.1f s without "
+               "his acknowledgement; the most one frame added %d B)\n",
+        client->name, held + client->message.cursize, backlogMost, wait, s.framePeak);
+    // Told to him in a datagram (his reliable stream is what is stuck): a line, then the end of the game.
+    if(client->netconnection)
+    {
+        za::U8 buf[512];
+        sizebuf_t msg{};
+        msg.data = buf;
+        msg.maxsize = sizeof(buf);
+        MSG_WriteByte(&msg, svc_print);
+        MSG_WriteString(&msg, va("\x02" "The server dropped you: %.0f s without a reply from your game, %d KB of its "
+                                 "messages waiting for you\n",
+                                  wait, (held + client->message.cursize) / 1024));
+        MSG_WriteByte(&msg, svc_disconnect);
+        NET_SendUnreliableMessage(client->netconnection, &msg);
+    }
+    backlogs[slot] = ReliableBacklog{};
 }
 
 namespace
@@ -1654,6 +1850,11 @@ extern "C" void VR_ClientReset(client_t* client)
     if(clientNum >= 0 && clientNum < static_cast<int>(avatarsSent.size()))
     {
         avatarsSent[clientNum] = {};
+    }
+    if(clientNum >= 0 && clientNum < MAX_SCOREBOARD)
+    {
+        backlogs[clientNum] = ReliableBacklog{}; // (mpoverflow: his reliable backlog and its counts)
+        reliableStats[clientNum] = {};
     }
     netmove::serverReset(clientNum); // (his moves' sequence and bases: a new connection's start again)
     moveguard::serverReset(clientNum); // (his values held, his room-scale budget)

@@ -970,10 +970,105 @@ const EntityVr* entityVr(int num)
     return &entityData[num];
 }
 
+// (mpoverflow) Commands that did not fit on cls.message (it goes to the server only once the server has acknowledged the
+// last: a Wi-Fi stall holds it for a while), held in order for the next frames instead of overflowing it (a Host_Error:
+// "SZ_GetSpace: overflow without allowoverflow set", the game gone).
+namespace
+{
+constexpr int heldMost = 64 * 1024; // past this a command is dropped, said (minutes of typing or binds)
+
+struct HeldCommands
+{
+    za::Vector<char> text; // each command NUL-terminated, oldest first
+    int count{0};
+    // vr_net_stats
+    int peakOut{0};  // cls.message's most
+    int peakHeld{0}; // the most held
+    int held{0};     // commands held, ever
+    int dropped{0};
+};
+HeldCommands heldCommands;
+
+bool fitsNow(int n)
+{
+    return cls.message.cursize + n + 2 <= cls.message.maxsize; // (clc_stringcmd, the text, its NUL)
+}
+
+void writeCommand(const char* text)
+{
+    MSG_WriteByte(&cls.message, clc_stringcmd);
+    MSG_WriteString(&cls.message, text);
+    heldCommands.peakOut = za::max(heldCommands.peakOut, cls.message.cursize);
+}
+} // namespace
+
 bool roomForCommand(int n)
 {
     constexpr int typedReserve = 512; // (bytes kept for the typed commands)
-    return n > 0 && cls.message.cursize + n + 2 + typedReserve <= cls.message.maxsize;
+    return n > 0 && heldCommands.count == 0 && cls.message.cursize + n + 2 + typedReserve <= cls.message.maxsize;
+}
+
+void forwardCommand(const char* text)
+{
+    const int n = static_cast<int>(ZA_STRLEN(text));
+    if(heldCommands.count == 0 && fitsNow(n))
+    {
+        writeCommand(text);
+        return;
+    }
+    if(static_cast<int>(heldCommands.text.size()) + n + 1 > heldMost || n + 2 > cls.message.maxsize)
+    {
+        heldCommands.dropped++;
+        Con_Printf("\x02" "\"%.40s\" not sent: the messages to the server are held up (%d commands waiting)\n", text,
+            heldCommands.count);
+        return;
+    }
+    heldCommands.text.insert(heldCommands.text.data() + heldCommands.text.size(), text, text + n + 1);
+    heldCommands.count++;
+    heldCommands.held++;
+    heldCommands.peakHeld = za::max(heldCommands.peakHeld, static_cast<int>(heldCommands.text.size()));
+}
+
+void flushHeldCommands()
+{
+    if(cls.state != ca_connected || cls.demoplayback)
+    {
+        heldCommands.text.clear(); // (a new connection starts with none)
+        heldCommands.count = 0;
+        return;
+    }
+    int taken = 0;
+    int count = 0;
+    while(taken < static_cast<int>(heldCommands.text.size()))
+    {
+        const char* const text = heldCommands.text.data() + taken;
+        const int n = static_cast<int>(ZA_STRLEN(text));
+        if(!fitsNow(n))
+        {
+            break;
+        }
+        writeCommand(text);
+        taken += n + 1;
+        count++;
+    }
+    if(taken > 0)
+    {
+        heldCommands.text.erase(heldCommands.text.data(), heldCommands.text.data() + taken);
+        heldCommands.count -= count;
+    }
+    heldCommands.peakOut = za::max(heldCommands.peakOut, cls.message.cursize);
+}
+
+void reliableStats()
+{
+    if(cls.state != ca_connected)
+    {
+        return;
+    }
+    Con_Printf("vr_net_stats: client: reliable out peak %d B of %d, %d commands held now (%d B), at most %d B, %d held "
+               "ever, %d dropped; moves peak %d B (of %d)\n",
+        heldCommands.peakOut, cls.message.maxsize, heldCommands.count, static_cast<int>(heldCommands.text.size()),
+        heldCommands.peakHeld, heldCommands.held, heldCommands.dropped, netmove::clientPeakBytes(), QVR_MOVE_BUFFER);
 }
 
 int entityNumber(const entity_t* e, int limit)
@@ -1607,4 +1702,20 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
         }
     }
     return 1;
+}
+
+// (mpoverflow) the client's own reliable commands (qvr::client::forwardCommand)
+extern "C" void VR_ForwardToServer(const char* text)
+{
+    qvr::client::forwardCommand(text);
+}
+
+extern "C" void VR_FlushHeldCommands()
+{
+    qvr::client::flushHeldCommands();
+}
+
+extern "C" void VR_ClientReliableStats()
+{
+    qvr::client::reliableStats();
 }

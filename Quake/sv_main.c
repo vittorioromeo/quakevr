@@ -1569,6 +1569,10 @@ void SV_SendClientMessages (void)
 			{
 				if (realtime - host_client->last_message > 5)
 					SV_SendNop (host_client);
+				// QVR: (mpoverflow) what the game sends him while he loads the map (a Quest's load: many seconds of a
+				// busy deathmatch's reliable messages) held on his backlog instead of overflowing his buffer
+				if (!host_client->message.overflowed)
+					VR_ReliableBacklog (host_client, false);
 				continue;	// don't send out non-signon messages
 			}
 			if (host_client->sendsignon == PRESPAWN_SIGNONBUFS)
@@ -1604,8 +1608,29 @@ void SV_SendClientMessages (void)
 		// check for an overflowed message.  Should only happen
 		// on a very fucked up connection that backs up a lot, then
 		// changes level
+		// QVR: (mpoverflow) or a stream backed up (no acknowledgement from him: his game paused, his Wi-Fi stalled):
+		// past half the buffer it goes on to his backlog, sent on in whole parts (vr/vr_server.cpp)
+		if (!host_client->message.overflowed && !host_client->dropasap)
+		{
+			const int backlog = VR_ReliableBacklog (host_client, true);
+			if (backlog < 0)
+			{
+				SV_DropClient (true);	// the message couldn't send
+				continue;
+			}
+			if (backlog == 2) // its last part sent: as the engine's own send below
+			{
+				host_client->serverinfo_unsent = false;
+				host_client->last_message = realtime;
+				if (host_client->sendsignon == PRESPAWN_FLUSH)
+					host_client->sendsignon = PRESPAWN_DONE;
+			}
+			if (backlog)
+				continue;
+		}
 		if (host_client->message.overflowed)
 		{
+			VR_ReliableOverflowed (host_client); // QVR: why, said here and told to him
 			SV_DropClient (true);
 			host_client->message.overflowed = false;
 			continue;

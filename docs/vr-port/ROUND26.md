@@ -3994,3 +3994,53 @@ plates"; "in the test scenarios for the new armoured enemies, it seems like they
   4096 with the humanoids' wear packing; otherwise their paths unchanged).
 - **Open**: a cut taking a several-piece part (the scrag's tail) drops its first piece only; the per-kind pools are not
   in the menu (cvars only); no headset check.
+
+## mpoverflow: a Quest client no longer dropped with "overflow"; every overflow path names its buffer (branch agent/mpoverflow, 2026-11-27)
+
+A player (beta6, PC host, Quest 3 standalone client, LAN or join code, dm1) kept being disconnected on the Quest, the
+console saying "overflow" (full line not known). The Android build has no network limits of its own (no `__ANDROID__`
+in net/sv/cl code; MAX_MSGLEN, MAX_DATAGRAM, NET_MAXMESSAGE, cls.message 4096 the same everywhere). What is the
+Quest's own: Wi-Fi stalls and loss, the app paused (headset off, system menu: SDL blocks the loop, nothing acked), slow
+map loads, a VR player's moves. Every "overflow" a client could cause, and the fix:
+
+- **The client's move packet** (`CL_SendMove`, 1024 B; most likely, VR only): with no move acknowledged for `ring`
+  moves (0.9 s: any stall) each packet's first move goes whole, plus two repeats; a real VR player's whole move (447
+  values, up to 5 B each) with its repeats could pass 1024 B. Its `allowoverflow` was the stack's garbage: by chance a
+  Host_Error ("SZ_GetSpace: overflow without allowoverflow set") or "SZ_GetSpace: overflow" and the moves cleared half
+  written (the server then misreads the rest: dropped). Now `netmove::writeMoves` renders into scratch and cuts the
+  oldest repeats until it fits 960 B; the newest always goes (the buffer is `QVR_MOVE_BUFFER` 4096, vr_api.h; the voice
+  frames after it keep their old 1024 B room); the flags are set. `vr_netmove_selftest` checks the cut (no base, a room
+  for one: 1-2 moves; room: 3).
+- **The client's reliable commands** (`cls.message`, 4096 B, a Host_Error): `Cmd_ForwardToServer` (typed commands,
+  menus) and the weapon wheel's, voice chat's and nav follow's commands wrote with no check; while the server had not
+  acknowledged the last message they piled up. Now `qvr::client::forwardCommand` (vr_client.cpp): onto cls.message, or
+  held in order (up to 64 KB, then dropped with a line) and flushed as room comes (`CL_SendCmd`); `roomForCommand` is
+  false while any is held. A forwarded command over 4000 characters is refused with a line (it overflowed outright).
+- **The server's reliable stream to a client** (`client->message`, 64000 B; the host prints "SZ_GetSpace: overflow",
+  drops him without a word, his game freezes and times out): `sv.reliable_datagram` is copied in each frame with no
+  check, and while he acknowledges nothing (paused, loading: the unspawned wait path never sends) it piles up. Now
+  (vr_server.cpp `VR_ReliableBacklog`) past 32000 B unsendable it goes to a per-client backlog of whole frames' parts
+  (a frame's end is a message boundary), later frames' parts follow while it holds anything, and as he acknowledges
+  the longest run of parts within MAX_MSGLEN is sent; the bookkeeping of the engine's send (serverinfo_unsent,
+  PRESPAWN_FLUSH) runs when it empties. Past 4 MB he is dropped with `VR_ReliableOverflowed`: the host's line names
+  him, the bytes, the seconds without his acknowledgement and the most one frame added, and he is told in a datagram
+  ("The server dropped you: N s without a reply from your game, K KB ... waiting") before svc_disconnect.
+- **Names**: `SZ_GetSpace`'s lines say the bytes held, the write and the buffer's size (4096: the client's commands;
+  64000: a reliable stream; 1024/4096: the moves). `vr_net_stats` (Debug > Network: Entities Sent) gains, per client,
+  "    reliable: peak, backlog now, most a frame, longest wait, backlogged N times" and, on a connected client,
+  "vr_net_stats: client: reliable out peak, commands held, dropped; moves peak". `vr_net_bytes` adds
+  `mp_netbytes_rel:` (the reliable stream's six biggest kinds).
+- **Measured** (mock clients; the Quest's real hands and load times not available): dm1, a flat host, 2 bots, B (VR)
+  mid-game: B's reliable stream in play peaks ~100 B (svc_serverinfo 8.8 KB and baselines at the join are most of it);
+  coop e1m1 -> e1m3 with B's link up silent 8 s from the changelevel: the host held 16.6 KB for him (no backlog). So
+  the 64000 B stream needs a long silence (a paused Quest) or a big burst; the 4096 B and 1024 B client buffers were the
+  likelier "overflow". A mock move packet with no base: 639 B.
+- **Tests**: `mp_test.py overflow` (mp_overflow, in the suite) 14/0: a flat listen host on dm1 with 2 bots, B (VR, a
+  proxy) joins mid-game; his link silent both ways 8 s while the host writes him 6 x 30000 B and he forwards 300
+  commands: all arrive in order (backlog peak 150 KB, held commands 10 KB), his move packets <= 1 KB, nobody dropped,
+  no overflow; then his rejoin with his link up silent 6 s from his connect, 4 x 30000 B meanwhile, all his.
+  `mp_test.py overflow_coop` (diagnostic, not in the suite) 7/0. `vr_netmove_selftest` 6/0. Suite --only coop,
+  coop_lag, retransmit, moves, loss (one run 12816 B/s against 12288 at 10% loss, the rerun 11304: margin noise),
+  voice, weaponwheel, rejoin, lockstep, campaign, prefs, lagcomp: all pass. No protocol change (QVR_NET_VERSION kept).
+- **Open**: which buffer the player hit is not pinned (ask him for the whole line, Quest or PC console, and when: headset
+  off, a level change, Wi-Fi); no headset run (the Quest's real move sizes untested).

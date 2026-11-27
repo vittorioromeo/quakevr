@@ -66,4 +66,11 @@ void init(); // registers input commands
 // No room: the caller sends it on a later frame.
 [[nodiscard]] bool roomForCommand(int n);
 
+// (mpoverflow) A command (a typed one, a menu's or a gadget's one-off) onto cls.message, or held in order for a later
+// frame while it does not fit; the held ones go first as room comes (flushHeldCommands: CL_SendCmd). roomForCommand is
+// false while any is held (the order kept).
+void forwardCommand(const char* text);
+void flushHeldCommands();
+void reliableStats(); // vr_net_stats on a connected client
+
 } // namespace qvr::client
