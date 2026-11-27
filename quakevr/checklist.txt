@@ -139,6 +139,8 @@ In the Armour Studio, pick the Rottweiler, Ogre, Scrag or Fiend as the Kind: it 
 The beasts' armour now has leather between its pieces (the rottweiler's barding and croup, collar and chanfron, shoulders; the fiend's back and breast plates, pauldrons and bracers): check it fills the gaps without poking through the body, and bends with the legs as it runs and when it dies. {test:beaststudio}
 In the Armour Studio, pick a beast's part's leather junction (the status line names the two pieces it joins): turn it off, change its width at each end, thickness, folds and sag; Save and Reload keep them. {test:beaststudio}
 In the Armour Studio, pick the Death Guard and then the Crossbow Knight (AD mounted): the status line says their tweaks are shared, and a tweak on one shows on the other. {test:beaststudio}
+With Arcane Dimensions installed, open the Rig Studio on a death guard and a crossbow knight and raise each arm high and forward: the tabard stays on the hips, no sheet of it pulled up to the hand. {test:ad_knights_armed}
+With Arcane Dimensions installed, in the Rig Studio's Pose Studio Data window (subject a death guard or crossbow knight) change the Knight's main hand Place in the Grips tab: the AD knights' weapons move in their hands with the knight's, and Reset puts them back. {test:ad_knights_armed}
 
 [7. Quoth]
 ## Setup and maps
