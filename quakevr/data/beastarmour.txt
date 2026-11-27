@@ -3,6 +3,7 @@
 //   kind <monster model> <cuirass group: the slots' bits the roll's cuirass gives>
 //   piece <monster model> <slot 0-9> <its derived rig's bone> <the piece's model> <its middle in the rest pose: x y z>
 //         [a slot's part: its own armour.txt part (tail, shin, plate8_back), else its slot's]
+//   anchors <t0> <t1>: the piece above fitted to its bone's vertices this far along the bone alone (0 pivot, 1 end)
 kind progs/dog.mdl 257
 piece progs/dog.mdl 0 chest progs/vrbarmor_dog_0.mdl 9.27 -2.09 2.63
 piece progs/dog.mdl 8 pelvis progs/vrbarmor_dog_8.mdl -4.91 -0.43 2.16
@@ -14,13 +15,15 @@ piece progs/dog.mdl 6 thigh_bl progs/vrbarmor_dog_6.mdl -7.79 10.02 -5.10
 piece progs/dog.mdl 7 thigh_br progs/vrbarmor_dog_7.mdl -11.08 -9.89 -4.77
 kind progs/ogre.mdl 769
 piece progs/ogre.mdl 0 chest progs/vrbarmor_ogre_0.mdl 6.25 -4.40 18.29
-piece progs/ogre.mdl 8 chest progs/vrbarmor_ogre_8.mdl -0.29 -1.99 24.02
+piece progs/ogre.mdl 8 chest progs/vrbarmor_ogre_8.mdl -2.41 0.85 25.09
 piece progs/ogre.mdl 9 pelvis progs/vrbarmor_ogre_9.mdl 0.91 0.09 10.21
-piece progs/ogre.mdl 1 head progs/vrbarmor_ogre_1.mdl 7.67 -4.76 35.55
+piece progs/ogre.mdl 1 head progs/vrbarmor_ogre_1.mdl 7.51 -5.63 32.51
 piece progs/ogre.mdl 2 upperarm_l progs/vrbarmor_ogre_2.mdl 11.05 10.14 22.47
 piece progs/ogre.mdl 3 upperarm_r progs/vrbarmor_ogre_3.mdl -6.85 -13.82 23.04
-piece progs/ogre.mdl 4 forearm_l progs/vrbarmor_ogre_4.mdl 18.96 13.69 7.43
-piece progs/ogre.mdl 5 forearm_r progs/vrbarmor_ogre_5.mdl -20.20 -16.30 13.18
+piece progs/ogre.mdl 4 forearm_l progs/vrbarmor_ogre_4.mdl 17.39 13.72 9.36
+anchors -0.05 0.65
+piece progs/ogre.mdl 5 forearm_r progs/vrbarmor_ogre_5.mdl -18.21 -16.04 14.25
+anchors -0.05 0.65
 piece progs/ogre.mdl 6 thigh_l progs/vrbarmor_ogre_6.mdl 10.31 4.00 -1.90
 piece progs/ogre.mdl 7 thigh_r progs/vrbarmor_ogre_7.mdl -4.47 -7.37 -4.53
 piece progs/ogre.mdl 6 shin_l progs/vrbarmor_ogre_6_shin_l.mdl 14.69 5.34 -10.84 shin
