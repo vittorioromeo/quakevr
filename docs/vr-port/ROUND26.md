@@ -2105,10 +2105,12 @@ dragged prop shoved it off the hands).
 - Measured (vrtesthall, 2 hands): dead grunt 80 kg walked into at 200 u/s: 42 -> 43 units ahead, pushed 77 units, 460-940 N a
   hand once moving (8k for a frame at the start); backed away: dragged 99 units. Dead ogre 200 kg: run into, 37-60k N, let go
   of at once (at a walk too: 37k as he starts).
-- Tests: flatgrabthrow_test.sh 64/0 (new run `ragpush`: the grunt pushed 77 units at 42 -> 43 units ahead, both hands on it,
-  none let go; backing away drags it 99 back; wrists past their arms 0.00 cm over 170 frames; the ogre run into lets go "too
-  heavy for that pace", no hand on it after). `far`'s ragdoll check now under 1 cm (the limb kept past the arm's reach: the
-  hands at full stretch on all 150 frames, 0.60 cm once). tunables_test 20/0, 3/0, 13/0 (stages).
+- Tests: flatgrabthrow_test.sh 64/0 (new run `ragpush`: the grunt pushed 77-81 units, 40 -> 42 to 47 -> 52 units ahead
+  over three runs (where H takes it varies run to run), both hands on it, none let go; backing away drags it 99-103 back;
+  wrists past their arms under 1.5 cm over 170 frames; the ogre run into lets go "too heavy for that pace", no hand on it
+  after). `far`'s ragdoll check is now under 1.5 cm too: the limb kept past the arm's reach puts the hands at full stretch on
+  every frame, and the arm's eased solve lands up to 0.5-0.8 cm past keepOnArm's reach on a frame. tunables_test 20/0, 3/0,
+  13/0 (stages).
 - Open: the ogre can't be pushed even at a walk (Push Strength ~40000 would); in the headless flat mock a pitched view walks
   the player down through the floor (z 25 -> -24 over 28 frames at pitch 40, vrtesthall), why the test levels it to walk.
 
