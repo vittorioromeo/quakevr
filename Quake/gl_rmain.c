@@ -1071,6 +1071,7 @@ R_SetupView -- johnfitz -- this is the stuff that needs to be done once per fram
 */
 void R_SetupView (void)
 {
+	VR_ProfileBegin ("view frame data"); // QVR: profile (R_SetupView's parts)
 	R_AnimateLight ();
 
 	r_framecount++;
@@ -1107,6 +1108,8 @@ void R_SetupView (void)
 
 	Fog_SetupFrame (); //johnfitz
 	Sky_SetupFrame ();
+	VR_ProfileEnd (); // QVR
+	VR_ProfileBegin ("view leaf"); // QVR: profile
 
 // build the transformation matrix for the given view angles
 	VectorCopy (r_refdef.vieworg, r_origin);
@@ -1147,24 +1150,31 @@ void R_SetupView (void)
 	//johnfitz
 	VR_WaterView (r_viewleaf->contents, &water_warp); // QVR: liquids' settings, the underwater view (vr/vr_water.cpp)
 	VR_DetailView (); // QVR: detail textures (vr/vr_detail.cpp)
+	VR_ProfileEnd (); // QVR
 
 	R_SetFrustum ();
+	VR_ProfileBegin ("decals frame"); // QVR: profile
 	VR_DecalsFrame (r_framedata.decalclock); // QVR: the decals on the world (vr/vr_decals.cpp)
 	VR_DecalCarveFrame (r_framedata.decalcarve); // QVR: ... carved (vr/vr_decals.cpp)
 	VR_PermDecalsFrame (r_framedata.permdecals); // QVR: and those baked for good (vr/vr_permdecals.cpp)
+	VR_ProfileEnd (); // QVR
 
 	VR_ProfileBegin ("mark surfaces"); // QVR: profile
 	R_MarkSurfaces (); //johnfitz -- create texture chains from PVS
 	VR_ProfileEnd (); // QVR
 
+	VR_ProfileBegin ("sort entities"); // QVR: profile
 	R_SortEntities ();
+	VR_ProfileEnd (); // QVR
 
 	VR_RenderShadowMaps (); // QVR: vr/vr_lighting.cpp
 
 	VR_ProfileBeginGPU ("lights"); // QVR: profile (clustering)
 	R_PushDlights ();
 	VR_ProfileEnd (); // QVR
+	VR_ProfileBegin ("world lit cull"); // QVR: profile
 	R_MarkSurfacesLate (); // QVR: the ES profile's world cull, knowing the lights reaching the world (C4v)
+	VR_ProfileEnd (); // QVR
 
 	//johnfitz -- cheat-protect some draw modes
 	r_fullbright_cheatsafe = r_lightmap_cheatsafe = false;
@@ -2535,7 +2545,9 @@ void R_RenderView (void)
 	memcpy (r_view_visedicts, cl_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
 
 	VR_ProfileBeginGPU ("setup view"); // QVR: profile
+	VR_ProfileBegin ("portal view"); // QVR: profile
 	VR_PortalView (); // QVR: the view through a teleporter moved there (vr/vr_portals.cpp)
+	VR_ProfileEnd (); // QVR
 	R_SetupView (); //johnfitz -- this does everything that should be done once per frame
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("scene"); // QVR: profile

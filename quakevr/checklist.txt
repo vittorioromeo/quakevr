@@ -32,6 +32,7 @@ Flat-screen: hold a crate with H and walk straight into it: it is pushed ahead o
 Hold a dagger in your off hand and a shotgun in the other, lay the dagger along under the barrel with its tip just past the muzzle: it snaps on as a bayonet; grip its handle with the empty hand and press B/Y to get the same dagger back. Check how it looks on the shotgun and the super shotgun (the pump, the guard). {test:attach_dagger}
 With a dagger on a shotgun, stab a grunt: it sticks by the dagger's point, fires and reloads while stuck, and holsters, drops and throws with the dagger on. {test:attach_dagger}
 Flat-screen: with a dagger in the off hand and a shotgun in the main hand, J puts the dagger on as a bayonet, J again gives it back; V thrusts with it. With Daggers as Bayonets off (Weapon Offsets > Attachments), J does nothing. {test:attach_dagger}
+On the Quest, stand on the hub's terrace and in a gib fight for a minute each: frames stay smooth (no judder bursts); say where you still feel stutter, it decides which of the ranked GPU or CPU fixes comes next. {test:quest_gibfight}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
