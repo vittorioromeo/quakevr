@@ -45,6 +45,13 @@ struct Choice
     char name[40]{};   // what is there ("shotgun"; "" nothing: "- EMPTY -")
     char model[64]{};  // its model's file (the thumbnail; "" none)
     bool usable{true}; // a pick would do something now (else greyed, and a pick does nothing)
+    // Its gun's ammunition and attachment (wheelui: the line under its name, the thumbnail's attachment and the name's
+    // glyph; flatholster::HolsterSlot's): magazine and size (0 none), QC ammo type, reserve (-1 none), attach::Kind.
+    int clip{0};
+    int clipSize{0};
+    int ammoType{0};
+    int reserve{-1};
+    int attach{0};
     // An action (the holsters': EMPTY HAND, DROP, FLIP GRIP, UNLOAD; his words 2026-11-23): drawn smaller, as the holster menu's
     // buttons, this icon above its title (name and model unused). None (the default): a slot.
     gadget::MenuIcon icon{};
