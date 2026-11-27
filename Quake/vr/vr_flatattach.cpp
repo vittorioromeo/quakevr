@@ -21,6 +21,7 @@
 
 #include "vr_flatattach.hpp"
 
+#include "vr_api.h"
 #include "vr_attach.hpp"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
 #include "vr_client.hpp"
@@ -92,6 +93,7 @@ struct AttachState
 AttachState as;
 
 constexpr int foregripCarried = 2; // QC QVR_WPNFLAG_FOREGRIP_CARRIED
+constexpr float approachUnits = 3.f; // the reach's aim ahead of its place, early on: this many slides further along (apply)
 
 [[nodiscard]] float reachTime()
 {
@@ -386,6 +388,19 @@ void frame(bool on)
         {
             cancel("fired");
         }
+        else if(t.phase == Phase::Reach && t.action == Action::Attach && attach::kindOfUid(gunUid(t.gun)) == t.kind)
+        {
+            // (On already: the hand's own snap put it on on the way, QC VR_Attach_Frame. No impulse, which would take it off
+            // again: slid in from here.)
+            if(vr_flat_attach_debug.value)
+            {
+                Con_Printf("flatattach: on already (snapped on the way, %.2f s after J): no impulse\n", vr_gametime - t.startAt);
+            }
+            as.sendDelay = static_cast<float>(vr_gametime - t.startAt);
+            t.sent = true;
+            t.phase = Phase::Slide;
+            t.slide = 0.f;
+        }
         else if(t.phase == Phase::Reach && !stillDoes(t))
         {
             cancel(t.action == Action::Attach ? "the attachment let go" : "nothing to take off");
@@ -396,18 +411,8 @@ void frame(bool on)
         t.amount = za::min(1.f, t.amount + step / za::max(0.02f, reachTime()));
         if(t.amount >= 1.f)
         {
-            // (On: the hand's own snap may have put it on on its way, QC VR_Attach_Frame: no impulse then, which would take
-            // it off again.)
-            const bool snapped = t.action == Action::Attach && attach::kindOfUid(gunUid(t.gun)) == t.kind;
-            if(!snapped)
-            {
-                sendImpulse("the hand at the gun");
-                as.sent++;
-            }
-            else if(vr_flat_attach_debug.value)
-            {
-                Con_Printf("flatattach: already on (snapped on the way): no impulse\n");
-            }
+            sendImpulse("the hand at the gun");
+            as.sent++;
             as.sendDelay = static_cast<float>(vr_gametime - t.startAt);
             t.sent = true;
             t.phase = Phase::Slide;
@@ -416,6 +421,7 @@ void frame(bool on)
     }
     else if(t.phase == Phase::Slide)
     {
+        t.amount = za::min(1.f, t.amount + step / za::max(0.02f, reachTime())); // (all the way: a snap on the way came early)
         t.slide = za::min(1.f, t.slide + step / slideTime());
         t.at = glm::mix(arrival(t), slideEnd(t), geom::smooth01(t.slide));
         if(t.slide >= 1.f)
@@ -450,7 +456,15 @@ void apply(hands::State& s)
     }
     const float a = geom::smooth01(t.amount);
     const glm::mat3 gunAxes = held::axesFromAngles(&s.rot[t.gun][0], true);
-    const glm::vec3 to = s.pos[t.gun] + gunAxes * t.at;
+    glm::vec3 at = t.at;
+    if(t.phase == Phase::Reach && t.action == Action::Attach)
+    {
+        // Putting one on, the hand comes at its place from ahead of the gun (aimed further along the blade early in the
+        // reach): what it holds stays ahead of the mount, not brought across it on a straight way from behind, where the
+        // hand's own snap (QC VR_Attach_Frame) would take it early.
+        at += t.way * (approachUnits * slideUnits() * (1.f - a));
+    }
+    const glm::vec3 to = s.pos[t.gun] + gunAxes * at;
     s.pos[t.free] += (to - s.pos[t.free]) * a;
     s.rot[t.free] = flatplay::blendHandAngles(s.rot[t.free], s.rot[t.gun], a);
 }

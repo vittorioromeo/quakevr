@@ -876,7 +876,7 @@ void(float xNext) VR_AT_PressJ =
 // The impulse's arrival after J (`xWhat`): after the reach time, the hand at the gun.
 void(string xWhat) VR_AT_ArrivalCheck =
 {
-    float reach = cvar("vr_flat_attach_reach_time");
+    float reach = cvar_hget(cvarh_vr_flat_attach_reach_time);
     float delay = time - vr_at_press;
     float gap = VR_AT_MountGap(self);
     VR_Test_Check(delay >= reach - 0.02 && delay <= reach + 0.1 && gap < vr_at_gap0 && gap < 24,
@@ -888,8 +888,8 @@ void() VR_AT_AnimFrame =
 {
     entity p = self;
     float u = time - vr_at_t0;
-    float reach = cvar("vr_flat_attach_reach_time");
-    float trip = reach + cvar("vr_flat_attach_slide_time") + cvar("vr_flat_attach_return_time");
+    float reach = cvar_hget(cvarh_vr_flat_attach_reach_time);
+    float trip = reach + cvar_hget(cvarh_vr_flat_attach_slide_time) + cvar_hget(cvarh_vr_flat_attach_return_time);
     if(u > VR_ET_GIVEUP && vr_at_s != 99)
     {
         VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_at_s));
@@ -970,7 +970,9 @@ void() VR_AT_AnimFrame =
     }
     else if(vr_at_s == 12 && (vr_att_attached > vr_at_count || u > reach + 1))
     {
-        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind && VR_AT_OffEmpty(p), "J after the cancel: on the gun");
+        // (as it arrives, not snapped on by the hand's way there: the reach comes at it from ahead of the gun)
+        VR_AT_ArrivalCheck("J after the cancel: on");
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind && VR_AT_OffEmpty(p), "J after the cancel: on the gun, the off hand empty");
         VR_AT_To(13);
     }
     else if(vr_at_s == 13 && u > trip + 0.15)
