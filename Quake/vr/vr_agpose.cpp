@@ -786,7 +786,7 @@ constexpr ShippedRow shipped[] = {
     // AD knight, class 0, pose 10, phase 0 (the knight's retargeted: its reach brought in)
     {400100, {0.38f, 0.88f, -0.07f, 0.f, 0.f, 0.f, 3.49f, 5.46f, -1.70f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.95f, 0.73f, 0.12f, 20.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 0, pose 10, phase 1 (the knight's retargeted: its reach brought in)
-    {400101, {1.08f, 0.52f, -0.18f, 0.f, 0.f, 0.f, 7.27f, -1.98f, -0.02f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.02f, 1.f, -0.05f, -17.30f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {400101, {1.08f, 0.52f, -0.18f, 0.f, 0.f, 0.f, 6.65f, -1.68f, 0.02f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.02f, 1.f, -0.05f, -17.30f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 0, pose 10, phase 2 (the knight's retargeted: its reach brought in)
     {400102, {1.43f, 0.27f, -0.49f, 0.f, 0.f, 0.f, 5.54f, 0.32f, 2.28f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.06f, 0.93f, -0.37f, -21.40f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 0, pose 11, phase 0 (the knight's retargeted: its reach brought in)
@@ -798,9 +798,9 @@ constexpr ShippedRow shipped[] = {
     // AD knight, class 0, pose 12, phase 0 (the knight's retargeted: its reach brought in)
     {400120, {3.03f, -2.23f, -10.24f, 0.f, 0.f, 0.f, 0.40f, -0.62f, 0.26f, 0.f, 0.f, 0.f, -0.64f, 0.36f, -0.76f, 0.f, 0.f, 0.f, -6.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 0, pose 12, phase 1 (the knight's retargeted: its reach brought in)
-    {400121, {2.18f, 7.20f, -4.25f, 0.f, 0.f, 0.f, 1.14f, -0.46f, 0.43f, 0.f, 0.f, 0.f, 0.13f, -0.40f, -0.91f, 0.f, 0.f, 0.f, 11.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {400121, {1.63f, 6.80f, -4.13f, 0.f, 0.f, 0.f, 1.14f, -0.46f, 0.43f, 0.f, 0.f, 0.f, 0.13f, -0.40f, -0.91f, 0.f, 0.f, 0.f, 11.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 0, pose 12, phase 2 (the knight's retargeted: its reach brought in)
-    {400122, {-4.45f, 7.36f, -2.10f, 0.f, 0.f, 0.f, 2.93f, 0.39f, -0.73f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {400122, {-4.56f, 6.82f, -2.03f, 0.f, 0.f, 0.f, 2.93f, 0.39f, -0.73f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 0, pose 13, phase 0 (the knight's retargeted: its reach brought in)
     {400130, {-5.57f, -4.15f, -4.38f, 0.f, 0.f, 0.f, 0.99f, -1.f, 0.19f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 0, pose 13, phase 1 (the knight's retargeted: its reach brought in)
@@ -809,12 +809,14 @@ constexpr ShippedRow shipped[] = {
     {400132, {-11.47f, 3.90f, 9.25f, 0.f, 0.f, 0.f, 0.93f, -0.16f, 0.52f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 6.20f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 0, pose 20, phase 0 (the knight's retargeted: its reach brought in)
     {400200, {-0.78f, 0.49f, -1.90f, 0.f, 0.f, 0.f, -1.77f, -3.13f, -1.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 1, pose 20, phase 0 (the knight's retargeted: its reach brought in)
+    {401200, {-3.26f, -1.20f, -3.67f, -17.40f, -21.70f, 72.70f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.89f, -1.67f, 0.20f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, -4.39f, -2.31f, -0.15f, 0.50f, 1.20f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 1, pose 20, phase 1 (the knight's retargeted: its reach brought in)
-    {401201, {4.12f, -0.38f, -5.83f, -40.f, -88.90f, 64.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, -2.91f, 1.62f, -0.18f, 0.f, -0.30f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {401201, {3.56f, -0.43f, -5.77f, -40.f, -88.90f, 64.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, -2.91f, 1.62f, -0.18f, 0.f, -0.30f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 2, pose 14, phase 1 (the knight's retargeted: its reach brought in)
     {402141, {1.90f, -0.52f, -13.28f, 12.40f, 8.f, -4.10f, 2.78f, 0.f, 3.25f, 0.f, 0.f, 0.f, -0.17f, -0.94f, 0.29f, 0.09f, 0.14f, -0.02f, 0.f, 6.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 2, pose 14, phase 2 (the knight's retargeted: its reach brought in)
-    {402142, {-2.80f, -0.76f, -10.97f, 43.40f, -34.70f, -20.30f, 5.74f, 0.f, 5.54f, 0.f, 0.f, 0.f, -0.26f, -0.86f, -0.43f, 0.63f, 0.44f, -0.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {402142, {-2.94f, -0.98f, -10.79f, 43.40f, -34.70f, -20.30f, 5.74f, 0.f, 5.54f, 0.f, 0.f, 0.f, -0.26f, -0.86f, -0.43f, 0.63f, 0.44f, -0.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 2, pose 15, phase 2 (the knight's retargeted: its reach brought in)
     {402152, {-0.94f, -2.79f, -9.57f, -0.40f, -4.20f, -4.10f, 0.30f, -1.60f, -0.29f, 0.f, 0.f, 0.f, 0.81f, -0.50f, 0.31f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 2, pose 16, phase 1 (the knight's retargeted: its reach brought in)
@@ -823,6 +825,8 @@ constexpr ShippedRow shipped[] = {
     {402162, {2.32f, -1.62f, -13.43f, -32.60f, 127.10f, -10.f, -0.42f, 5.61f, -0.14f, 0.f, 0.f, 0.f, 0.55f, -0.83f, 0.09f, 0.f, 0.f, 0.f, 8.50f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 2, pose 17, phase 0 (the knight's retargeted: its reach brought in)
     {402170, {3.51f, -3.44f, -6.64f, 3.80f, 9.f, -17.50f, -9.79f, 3.49f, -4.63f, 0.f, 0.f, 0.f, 0.36f, -0.18f, -0.35f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 2, pose 20, phase 0 (the knight's retargeted: its reach brought in)
+    {402200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.80f, -3.08f, 12.02f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.53f, -0.06f, -0.34f, 8.f, -3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 4, pose 20, phase 1 (the knight's retargeted: its reach brought in)
     {404201, {8.31f, -0.13f, -0.33f, 0.f, 0.f, 85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 5, pose 0, phase 0 (the knight's retargeted: its reach brought in)
@@ -864,9 +868,13 @@ constexpr ShippedRow shipped[] = {
     // AD knight, class 6, pose 20, phase 1 (the knight's retargeted: its reach brought in)
     {406201, {1.67f, 0.43f, 4.53f, -68.40f, -65.40f, -62.70f, 0.55f, -1.29f, 5.91f, 53.60f, -60.20f, 56.60f, 0.10f, -0.22f, -0.97f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 7, pose 3, phase 0 (the knight's retargeted: its reach brought in)
-    {407030, {-4.74f, 2.63f, 13.95f, -7.40f, 23.20f, 25.80f, 7.83f, -7.42f, -5.44f, 0.f, 0.f, -0.30f, 0.83f, -0.26f, 0.49f, -0.80f, 0.35f, -0.48f, 9.f, -46.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {407030, {-4.91f, 2.43f, 14.83f, -7.40f, 23.20f, 25.80f, 7.83f, -7.42f, -5.44f, 0.f, 0.f, -0.30f, 0.83f, -0.26f, 0.49f, -0.80f, 0.35f, -0.48f, 9.f, -46.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 17, pose 0, phase 0 (the knight's retargeted: its reach brought in)
     {417000, {5.11f, 6.06f, -3.28f, 0.f, 25.50f, 0.f, 2.47f, -1.99f, -2.84f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.24f, 0.95f, -0.19f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 17, pose 20, phase 1 (the knight's retargeted: its reach brought in)
+    {417201, {-1.11f, -1.53f, -2.01f, 0.f, 0.f, 0.f, 14.67f, -12.76f, 13.86f, 88.50f, -104.70f, 52.f, 0.f, 0.f, 0.f, 0.f, 0.60f, -0.30f, -36.60f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 17, pose 20, phase 2 (the knight's retargeted: its reach brought in)
+    {417202, {0.74f, -0.34f, -3.01f, 0.f, 0.f, 0.f, 7.73f, -3.28f, 3.88f, 77.f, -124.70f, 25.70f, 0.f, 0.f, 0.f, 0.48f, 0.08f, -0.21f, -4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 18, pose 20, phase 0 (the knight's retargeted: its reach brought in)
     {418200, {-0.15f, 0.10f, -2.02f, 0.f, 0.f, 80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 2.99f, -3.f, 0.f, 0.f, 0.f, 0.70f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // AD knight, class 18, pose 20, phase 1 (the knight's retargeted: its reach brought in)

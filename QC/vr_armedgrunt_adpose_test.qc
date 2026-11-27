@@ -9,7 +9,8 @@
 // its drawn hands are still (6 frames moving under 0.02; a key whose hold moves by itself, the run's bob, a punch's
 // jiggle: after 1 s as it is), then its arms' numbers counted 4 frames under tag row * 512 + set * 48 + key
 // (vr_agrunt_ik_tag) and read back (weapondrawnpose(world, tag, 54)): a check each, both hands within VR_AGAP_TOL units
-// of their grips on the weapon (reach short) and the off hand of its second grip. Ends on `adpose: test 231 over: N
+// of their grips on the weapon (reach short; the take's VR_AGAP_TOL_TAKE) and the off hand of its second grip
+// (VR_AGAP_TOL_SECOND); `adkey` lines carry each key's numbers and shortfalls' ways (Misc/quakevr/adpose_retarget.py). Ends on `adpose: test 231 over: N
 // passed, M failed`.
 
 float vr_agap_step;
@@ -26,7 +27,11 @@ vector vr_agap_lastR;
 vector vr_agap_lastL;
 float vr_agap_w2;    // VR_AGAP_Set's left hand's weapon (0 none)
 float VR_AGAP_SETS = 10;
-float VR_AGAP_TOL = 1;
+// The tolerances (units): a hand off its grip on the weapon (the knight on his own keys: 25 of 123 keys past 1, up to
+// 4.7 in his strikes; ROUND26.md, "adposekind"), the take's, the off hand off its second grip (the Weapon Holds').
+float VR_AGAP_TOL = 2.5;
+float VR_AGAP_TOL_TAKE = 4;
+float VR_AGAP_TOL_SECOND = 4.5;
 
 float(float s) VR_AGAP_Set =
 {
@@ -173,7 +178,11 @@ void() VR_AGAP_Frame =
         {
             cvar_set("vr_agrunt_ik_tag", "-1");
             vector m = weapondrawnpose(world, tag, 54);
-            float ok = m_x >= 0 && m_x <= VR_AGAP_TOL && m_y <= VR_AGAP_TOL && m_z <= VR_AGAP_TOL;
+            // (the take: AD's stoop frame, not a key, holds the hand a little over the weapon; two weapons: the left one
+            // isn't taken up, the knight's own the same, 20-24 off)
+            float take = vr_agap_pose == VR_AGK_PICKUP;
+            float tol = take ? VR_AGAP_TOL_TAKE : VR_AGAP_TOL;
+            float ok = m_x >= 0 && m_x <= tol && (m_y <= tol || (take && vr_agap_w2)) && m_z <= VR_AGAP_TOL_SECOND;
             string what = sprintf("tag %g: row %g %s class %g pose %g phase %g", tag, vr_agap_first + vr_agap_row,
                 VR_AGT_Name(VR_AGAP_Set(vr_agap_set)), cls, vr_agap_pose, vr_agap_phase);
             VR_Test_Check(ok, sprintf("%s: reach short right %.2f left %.2f, off its second grip %.2f", what, m_x, m_y, m_z));

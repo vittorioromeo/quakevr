@@ -274,7 +274,7 @@ za::Vector<Item> pageDebugAutomation()
         command("AD Knights: Hands on the Weapon in Every Key", "vr_agrunt_test 231")
             .help("vr_agrunt_test 231 (with Arcane Dimensions' data, vrtesthall): the death guard, then the crossbow "
                   "knight, through ten weapon sets and every key of their AD Knight pose kind, held as the Pose Studio "
-                  "holds it: each key's hands within 1 unit of their grips (adpose: N passed, M failed)."),
+                  "holds it: each key's hands within 2.5 units of their grips (adpose: N passed, M failed)."),
         command("Armed Grunts: Launchers by Walls", "vr_agrunt_test 11")
             .help("vr_agrunt_test 11: 36 launcher grunts in turn (grenades, rockets, mines) on headings all round you, "
                   "often with their backs to a wall, 8 s each: how many killed themselves (vr_agrunt_blast_safe off "
