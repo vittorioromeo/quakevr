@@ -31,6 +31,10 @@ Fire the shotgun indoors in a small stone room and in a big hall: its crack is c
 In the Armour Studio, pick the scrag: his lower body is now two parts, "Plate 8 Front" and "Plate 8 Back" (seamed at his sides); move or scale one and the other stays put, and "Wear the Part Alone" on either shows just that half. {test:beaststudio}
 Look at the armoured scrags from the side: the lower body's front and back halves meet at his sides without a gap or overlap you notice, and the tail's leather joins the back half. {test:armour_beasts}
 With AD's data, open the toolgun's Spawn > Monsters > Armed Humanoid page and pick Kind Death Guard, then Crossbow Knight: each shows its own picture in the kind box (and on the Armed Humanoid tile), like the other kinds. {test:ad_knights_armed}
+Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, and the knight with a rifle carries it your way: look at the spear grunt in each pose. {test:pose_grunt_pole}
+The shotgun and double shotgun bayonet mounts (Daggers as Bayonets) sit at your new pitch and height: attach a dagger and check the blade lines up with the barrels. {test:attach_dagger}
+The bayonet in the palm is turned 10 degrees and 2.5 units up the handle (your Held Object Offsets values): grab one and check it sits in the hand. {test:attach_bayonet}
+Flat-screen: the third-person camera no longer widens the field of view (x1.00 instead of x1.10): toggle it and check the picture does not zoom out. {test:flat_parry}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
