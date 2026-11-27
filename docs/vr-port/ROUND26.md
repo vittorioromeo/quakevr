@@ -3587,3 +3587,9 @@ A player's PC flat <-> Quest joins "quit fast": the console had the refusal, the
   browses: joinable=1, joins. `mp_browser` 11/0, `mp_lookup` 9/0.
 - **Open**: the old-server rewording (`NET_ConnectRefusal` on a beta2-beta6 reason) is untested (no old server in the
   harness); the menu note's look is unreviewed (no screenshot taken).
+## studiodrag (agent/studiodrag)
+A right-button drag in the flat Armour Studio turns the subject: across = `vr_armourstudio_turn` (the existing yaw from facing you, so
+no new yaw cvar), down = `vr_armourstudio_subject_pitch`, 0.5 deg a pixel; not over ImGui, not during a gizmo drag; Put Back also
+resets Turn. RMB chosen: neither button had a use in the studio (ImGui holds the mouse, game keys held back, the gizmo is LMB
+only). The gizmo and the part frame read the subject entity each frame, so they follow. `imgui::feedMouse` got an optional
+right-button argument for the mock; `vr_armourstudio_gizmo_test` has step 11 (drag across 80, down 40: -40 / +20 deg).
