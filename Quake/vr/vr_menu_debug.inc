@@ -1876,6 +1876,15 @@ za::Vector<Item> pageDebugTools()
         open("Texture Studio", pageIndex(pageTextureStudio))
             .help("The armed humanoids' recolours by weapon: each row's colour, strength, lightness and tint, and which "
                   "texels they dye (palette rows, painted texels), live on a row lined up ahead; saved to quakevr/humlook.txt."),
+        header("Controller Bindings"),
+        command("Controller Bindings Screen", "menu_bindsetup")
+            .help("menu_bindsetup [model]: the Controller Bindings screen for the controller in use (or a model's: quest3, "
+                  "index, vive, xboxone, playstation...; its arrows step through every picture)."),
+        command("Print Controller Bindings", "vr_bindsetup_print")
+            .help("vr_bindsetup_print [model]: the controller detected, and each of its buttons' key and binding."),
+        command("Bindings Screen Tests", "vr_bindsetup_detect_test; vr_bindsetup_test")
+            .help("The detection table (profiles and gamepad types to pictures) and the screen's swap, pick and reset on "
+                  "the binds (put back after): their verdict lines in the console."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),
