@@ -167,6 +167,9 @@ struct Sight
     float offAsked{0.f};        // ... which the sight's place asks to be this (the bore under the sights, the travel's share)
     glm::vec3 muzzleLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each muzzle in its hand's frame (forward, right, up), as
     bool muzzleKnown[2]{false, false};                        // the view last placed it (notePlaced)
+    glm::vec3 gripLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // each weapon's two-handed grip in its hand's frame, as the
+    bool gripKnown[2]{false, false};                          // view last placed it, and the thrust's other-hand slide
+    float gripSlide[2]{0.f, 0.f};                             // then (notePlaced; gripPull)
     glm::vec3 drawnMuzzle[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the muzzle as last drawn, and the drawn gun's angles
     glm::vec3 drawnRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};    // (noteDrawn; drawnGun: vr_flat_xhair_probe's gun line)
     bool aimBlocked[2]{false, false};                         // something lies between the muzzle and what the crosshair is on (aimAtPoint)
@@ -1629,6 +1632,16 @@ void aim_f()
     }
 }
 
+// How far a weapon's holding hand comes in to where the free arm (hand `helping`'s) reaches its grip at `grip`, that
+// `share` of the way on it (pinToGrip's; gripPull's rehearsal of it): towards that arm's shoulder, by how far the grip
+// stands past gripKeep of its reach.
+[[nodiscard]] glm::vec3 reachPull(const hands::State& s, int helping, const glm::vec3& grip, float share)
+{
+    const glm::vec3 far = grip - flatplay::shoulderOf(s, helping);
+    const float past = glm::length(far) - flatplay::armReach() * gripKeep;
+    return past > 0.f ? -far * (past / glm::length(far) * share) : glm::vec3{0.f};
+}
+
 // The empty hand onto the held weapon's two-handed grip hotspot, eased from where flatplay put it. Only for a grip the
 // pose can actually bring a hand to (carryToGrip, in apply below).
 void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
@@ -1642,13 +1655,7 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
         return;
     }
     // A gun held in two hands comes in to where the other arm reaches its grip: across the chest, and nearer.
-    const glm::vec3 home = flatplay::shoulderOf(s, st.helping);
-    const glm::vec3 far = s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]) - home;
-    const float past = glm::length(far) - flatplay::armReach() * gripKeep;
-    if(past > 0.f)
-    {
-        s.pos[st.holding] -= far * (past / glm::length(far) * share);
-    }
+    s.pos[st.holding] += reachPull(s, st.helping, s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]), share);
     // The hotspot as the view placed it last frame, carried to this frame's pose with the holding hand.
     const glm::vec3 grip = s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]);
     const glm::vec3 out = st.helping == HAND_OFF ? reach * share : glm::vec3{0.f}; // E still reaches out with it
@@ -2223,6 +2230,15 @@ void notePlaced(const hands::State& s)
             const glm::vec3 d = s.muzzle[h] - s.pos[h];
             st.muzzleLocal[h] = {glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)};
         }
+        st.gripKnown[h] = s.grip2HValid[h];
+        if(s.grip2HValid[h])
+        {
+            glm::vec3 fwd, right, up;
+            hands::angleVectors(s.visualRot[h], fwd, right, up);
+            const glm::vec3 d = s.grip2H[h] - s.pos[h];
+            st.gripLocal[h] = {glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)};
+            st.gripSlide[h] = flatplay::thrustOffSlide(h);
+        }
     }
 }
 
@@ -2234,6 +2250,23 @@ bool muzzleInHand(int h, glm::vec3& out)
     }
     out = st.muzzleLocal[h];
     return true;
+}
+
+glm::vec3 gripPull(const hands::State& s, int h, float slide)
+{
+    if(h < 0 || h >= HAND_COUNT || !st.pinned || st.holding != h || st.helping < 0 || !st.gripKnown[h])
+    {
+        return glm::vec3{0.f};
+    }
+    glm::vec3 local = st.gripLocal[h];
+    // (A pole's grip slides along the pole with the thrust, vr_view_weapon.cpp chooseGrip: along the line to its tip.)
+    if(glm::vec3 tip{0.f}; twohand::poleWeapon(flatplay::heldIn(h)) && muzzleInHand(h, tip) && glm::distance(tip, local) > 1.f)
+    {
+        local += glm::normalize(tip - local) * (st.gripSlide[h] - slide);
+    }
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.rot[h], fwd, right, up);
+    return reachPull(s, st.helping, s.pos[h] + fwd * local.x + right * local.y + up * local.z, st.pinShare);
 }
 
 void noteDrawn(const hands::State& s)

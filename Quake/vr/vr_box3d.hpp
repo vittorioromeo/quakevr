@@ -84,6 +84,12 @@ bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin,
 // times its density: vr_box3d.cpp). 0 without Box3D's world (no local server) or a model. Also for a prop in a hand.
 [[nodiscard]] float propMass(edict_t* ent);
 
+// (xhairmiss: the flat throw's aim, QC VR_FlatThrow_Aim through the builtin weaponmasscentre) Where the body Box3D makes
+// for alias model `model` thrown as a weapon has its centre of mass: its hull's centroid (the hull of its drawn corners as
+// a held weapon is drawn, held::modelVertices; a thrown weapon's body is that hull: vr_box3d_props.cpp addPropShapes), in
+// its entity's axes off its origin (units). False without Box3D's world or a hull. The last model's kept.
+[[nodiscard]] bool weaponMassCentre(const qmodel_t* model, glm::vec3& out);
+
 // The map's mesh made on the game's thread pool while the server spawns the map (VR_OnSpawnServerBeforeLoad); the
 // world's first look at it waits for it, and so does finishLoads (the map's memory about to go, shutdown).
 void beforeLoad();

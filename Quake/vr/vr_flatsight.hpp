@@ -57,6 +57,13 @@ void notePlaced(const hands::State& s);
 // it (notePlaced); false while none is known.
 [[nodiscard]] bool muzzleInHand(int h, glm::vec3& out);
 
+// (xhairmiss: flatplay::noteStrikePath's rehearsed blow.) Where apply's pin of the free hand on the grip of hand `h`'s
+// weapon would pull hand `h` (pinToGrip: in towards the free arm, as far as the grip is out of its reach) with that hand
+// posed as in `s`: the grip as the view last placed it in the hand's frame (notePlaced), turned with the hand, slid along
+// the pole to the thrust's other-hand slide `slide` (flatplay::thrustOffSlide). Zero unless that hand's free hand was
+// pinned on its grip last time.
+[[nodiscard]] glm::vec3 gripPull(const hands::State& s, int h, float slide);
+
 // vr_view.cpp, the frame's weapons placed, the hands still as drawn: each weapon's sight line in its hand's frame, what the
 // ironsight is solved from. Nothing outside the mode.
 void noteDrawn(const hands::State& s);
