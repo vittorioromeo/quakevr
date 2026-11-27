@@ -226,6 +226,8 @@ Flat-screen or VR: Debug > Show Hit Zones in a deathmatch with a bot and another
 Flat-screen or VR: host a game on one device and, on the other, type vr_net_test_version 1 in the console, then open Multiplayer > Join Game > Server Browser: the host's row shows v48 instead of a ping and the line under the list says which Quake VR release it needs. {test:hub_start}
 Flat-screen or VR: join that row anyway: you're back at the browser with one plain reason under the list ("This server runs Quake VR ... update to ..."), and the console has it once, with no Host_Error or stack trace. {test:hub_start}
 Flat-screen: quit right after a failed join: no console text flashes over the background while the game closes. {test:hub_start}
+Host a deathmatch on the PC with a few bots and join it from the Quest standalone; mid-game take the headset off for 20-30 s (or sit in the Quest system menu), then put it back on: you are still in the game and catch up, and neither console says "overflow" (if one ever does, the line now says which buffer and its sizes: note it). {test:mp_dm_passive}
+Join a coop game from the Quest standalone and have the PC host change level: your slower map load no longer drops you; with voice chat and the weapon wheel in use over a weak Wi-Fi spot, no disconnect either. {test:mp_coop_passive}
 
 [11. Recording and dev tools]
 ## Takes
