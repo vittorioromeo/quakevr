@@ -2194,6 +2194,32 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   - MP: not done (out of budget). Aid for it: client command `vr_attach_report` (vr_view.cpp: every attachment drawn
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
+- **bayonetfix (2026-11-27)**: his flat test: the HUD lost the ammo count with the gun stuck; after J the bayonet was held
+  but the hand looked empty.
+  - **HUD on a weapon prop** (general: anything embedfire fires, the Crystal Lance too): QC `updateAmmoCounter` asks
+    `VR_PropFire_HudCounter` first (vr_propfire.qc): a hand empty on a prop it drives (`VR_PropFire_Held`) takes the prop's
+    weapon on for the counter, so `.ammocounter`, `.weaponclipsize` and the ammo-type mirror `.currentammo` are the prop's;
+    `VR_PropFire_HudFrame` (each PlayerPreThink, VR_Hand_Derive) keeps `.vr_pfire_hud` (the props' weapon ids, off + 256 x
+    main) and recounts when it changes. Engine: new stat `STAT_QVR_PROPHUD` (field `vr_pfire_hud`), and the hand's
+    `STAT_QVR_WEAPONCLIP` is the prop's record's clip meanwhile (vr_server.cpp). Client: `flathud::hudWeapon(hand)` (the
+    prop's weapon, else the hand's) for the flat status bars' counters and clip (`VR_FlatHudHand`, `VR_FlatHudClip`) and the
+    flat visor; the wrist gadget reads the counters already. The hand's own weapon stat stays the fist (drawing unchanged).
+  - **The bayonet in the hand**: Held Object Offsets' Along the Handle put a prop's "head" (out of the fist on the index
+    finger's side) at its weight's end before its melee tip's; the bayonet's weight is towards its socket (props.txt com_x
+    -1.2), so every hold of it (J, a VR pull-off, a grab) had the blade below the fist (in flat off the screen). Now the tip's
+    end first, then the weight's (vr_grip.cpp handlePlace; the torch's tip and weight agree: unchanged; no other Along the
+    Handle prop has a tip). J (`VR_Attach_TakeOff(p, hand, xByKey)`) also turns the bayonet along the taking hand before
+    the hold (a VR pull-off keeps it as the hand took it at the mount); it eases from the gun into the hand.
+  - **Probe**: `vr_held_report` (Debug menu "Drawn in the Hands"): each hand's carried entity (the server's stat), the one
+    drawn there, its model, its +x in the hand and its box corners on the screen.
+  - **Tests**: attach_test.sh: 79 VR 22/0, 80 flat 17/0 (new: the HUD check on each stuck gun, the held probe after the
+    take-off), 81/82 2/0 both, menu 6/0, and `Misc/quakevr/attach_probe_check.py` (the client's `vr_flathud_report` after
+    each stuck gun: weapon, shown, flat's big number the clip; `vr_held_report` after the take-off: carried = drawn, the
+    bayonet, blade up, flat on the screen) 10/0 total 15/0. Test 79's stabs now let go of the off hand's grip first (it
+    rested by the super shotgun and took its two-handed grip once the bayonet's new hold shifted the run: the blow read as
+    no stab). embedfire_test 29/0 22/0 5/0, flathud_test 11/0.
+  - Open: flat's first attach_test run showed both V thrusts failing (hurt 0) before any change here, then passing on every
+    run after: a flake to watch. The stuck gun's own ammo screen (on its model) not checked.
 
 ## flatthrow3: flat throw's release carries the thing on before it leaves; an ogre's grenade caught only with a timed H (branch agent/flatthrow3, 2026-11-26)
 
