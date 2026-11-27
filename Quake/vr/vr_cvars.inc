@@ -4608,6 +4608,7 @@ QVR_CVAR(vr_monster_lerp_continue, "1", CVAR_ARCHIVE | QVR_RULE) // a monster's 
 QVR_CVAR(vr_debug_drawn_moves, "", CVAR_NONE)       // a part of model names (progs/dog): those monsters drawn jumping between frames logged ("drawnmove:")
 QVR_CVAR(vr_drawnlerp_log, "0", CVAR_NONE)           // 1: vr_drawnlerp_watch prints every frame of its monster ("drawnlerp frame:": the drawn lerp against the hit model's)
 QVR_CVAR(vr_drawnlerp_result, "-1", CVAR_NONE)       // vr_drawnlerp_watch's last watch: 1 smooth and in step with the hit model (the armour), 0 not, -1 too few frames (read by vr_agarmor_test 21)
+QVR_CVAR(vr_drawnhits_result, "-1", CVAR_NONE)       // vr_drawnhits_check's last check: 1 the shots at the drawn pieces' middles struck those pieces (the server's hit model and shotPiece; at least 96.5%), 0 not, -1 no pieces drawn (read by vr_agarmor_test 21; ROUND26 "drawnhits")
 QVR_CVAR(vr_debug_lift, "0", CVAR_NONE)              // 1: the player and monsters riding a moving lift: how far their boxes, drawn models and the drawn eye sink into it, each ride's worst logged as it stops ("liftdebug:"; a local game)
 QVR_CVAR(vr_debug_lift_player, "-999", CVAR_NONE)    // (read-only, for tests) the last ride's worst sink of the player (box or drawn feet), -999 none measured
 QVR_CVAR(vr_debug_lift_eye, "-999", CVAR_NONE)       // ... and of his drawn eye (under its height over his feet standing still)

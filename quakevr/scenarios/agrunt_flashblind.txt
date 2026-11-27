@@ -1,0 +1,6 @@
+# agrunt_flashblind: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoids blinded by the flashlight: shine it in a grunt's face (god)
+map e1m1
+god
+cmd vr_flashlight 1
+hint Take the flashlight (or clip it on your head) and switch it on, then find e1m1's armed grunts past the first door and point the beam straight at a grunt's face from a few metres. After a moment it raises its free hand in front of its eyes (a shotgun or other long gun goes into one hand) and its shots spray wider; take the beam off its face and it lowers the hand over a second or two. Off to the side, behind a wall or at its back the beam does nothing. Tunables > Armed Humanoids > Flashlight Dazzle tunes it.
