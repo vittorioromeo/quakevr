@@ -1279,6 +1279,7 @@ struct BindPanelMenu
     static constexpr float most = 8.f;  // the letters' size at most (menu units), and the least drawn
     static constexpr float least = 4.f;
     static constexpr float gap = 8.f;   // from the corner's buttons above and the rows right of it
+    static constexpr float glyph = 1.5f; // a pad button's glyph (bindpanel2), in letters
     static constexpr const char* button = "Setup Bindings";
     float x0{0.f}, x1{-1.f}, y0{0.f}, y1{-1.f};
     int frame{-10}; // host_framecount it was drawn in
@@ -1320,9 +1321,10 @@ void drawBindPanel(const Painter& p, const ToolbarLayout& l)
     {
         labelChars = za::fmax(labelChars, static_cast<float>(ZA_STRLEN(rows[i].action)) + 1.f);
         float k = 0.f;
-        for(const char* key : rows[i].keys)
+        for(int s = 0; s < 2; s++)
         {
-            k += key[0] ? static_cast<float>(ZA_STRLEN(key)) + 1.f : 0.f;
+            const char* key = rows[i].keys[s];
+            k += rows[i].glyphs[s] ? BindPanelMenu::glyph + 0.5f : key[0] ? static_cast<float>(ZA_STRLEN(key)) + 1.f : 0.f;
         }
         keyChars = za::fmax(keyChars, k);
     }
@@ -1350,8 +1352,18 @@ void drawBindPanel(const Painter& p, const ToolbarLayout& l)
             Draw_CharacterEx(x0 + static_cast<float>(c - rows[i].action) * s, y, s, s, *c | 128);
         }
         float kx = x0 + labelChars * s;
-        for(const char* key : rows[i].keys)
+        for(int slot = 0; slot < 2; slot++)
         {
+            const char* key = rows[i].keys[slot];
+            if(const void* g = rows[i].glyphs[slot])
+            {
+                // A pad's button (bindpanel2): its glyph, square on the stretched canvas, centred on the row.
+                const float gw = BindPanelMenu::glyph * s, k = Draw_MenuStretch();
+                Draw_SubPic(kx, y + s * 0.5f - gw * 0.5f / k - gw * (1.f - 1.f / k) * 0.5f, gw, gw,
+                    static_cast<qpic_t*>(const_cast<void*>(g)), 0.f, 0.f, 1.f, 1.f, nullptr, 1.f);
+                kx += gw + s * 0.5f;
+                continue;
+            }
             if(!key[0])
             {
                 continue;

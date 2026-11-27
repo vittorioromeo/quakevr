@@ -1891,6 +1891,13 @@ za::Vector<Item> pageDebugTools()
         command("Bindings Screen Tests", "vr_bindsetup_detect_test; vr_bindsetup_test")
             .help("The detection table (profiles and gamepad types to pictures) and the screen's swap, pick and reset on "
                   "the binds (put back after): their verdict lines in the console."),
+        command("Reminder Panels: Next Controller", "vr_bindpanel_device next")
+            .help("vr_bindpanel_device next: the bindings reminder panels (above the weapon wheel, the main menu's) show the "
+                  "next controller's buttons and glyphs, as if it were connected (a pad's panel without a pad)."),
+        command("Reminder Panels: Detected Controller", "vr_bindpanel_device auto")
+            .help("vr_bindpanel_device auto: the reminder panels show the controller in use again."),
+        command("Reminder Panels Report", "vr_bindpanel_report")
+            .help("vr_bindpanel_report: the flat panel's rows (keys or a pad's glyphs) and the headset panel's callouts."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),
