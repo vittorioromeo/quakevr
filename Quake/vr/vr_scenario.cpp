@@ -970,6 +970,29 @@ void keepBots()
     }
 }
 
+// The yaw of the spawn spot the player was just put at (the nearest info_player_*: start, coop, deathmatch), else the
+// player's own (a map with none).
+[[nodiscard]] float spawnSpotYaw(const edict_t* p)
+{
+    float best = -1.f;
+    float yaw = p->v.angles[YAW];
+    for(int n = 1; n < qcvm->num_edicts; n++)
+    {
+        const edict_t* e = EDICT_NUM(n);
+        if(e->free || e == p || ZA_STRNCMP(PR_GetString(e->v.classname), "info_player_", 12) != 0)
+        {
+            continue;
+        }
+        const float d = glm::distance(geom::vec(e->v.origin), geom::vec(p->v.origin));
+        if(best < 0.f || d < best)
+        {
+            best = d;
+            yaw = e->v.angles[YAW];
+        }
+    }
+    return yaw;
+}
+
 // Everything placed: you, your hands, what stands around you, the commands; the hint shown.
 void place()
 {
@@ -1003,6 +1026,11 @@ void place()
     {
         return;
     }
+    // Facing: the `start` line's yaw, else the map's spawn spot's (the scene's spawns are laid out from it), never the
+    // player's own: the client keeps its turn across a map load with snap turning on, so a scene run after another
+    // (vr_scenario runall, or one Test after another) faced wherever the last left you (ROUND26 "lanescene": monsters
+    // placed in vrtesthall's walls).
+    const float yaw = s.hasStartYaw ? s.startYaw : spawnSpotYaw(p);
     if(s.hasStart)
     {
         for(int k = 0; k < 3; k++)
@@ -1012,7 +1040,6 @@ void place()
             p->v.velocity[k] = 0.f;
         }
     }
-    const float yaw = s.hasStartYaw ? s.startYaw : p->v.angles[YAW];
     p->v.angles[PITCH] = p->v.angles[ROLL] = 0.f;
     p->v.angles[YAW] = yaw;
     p->v.v_angle[PITCH] = p->v.v_angle[ROLL] = 0.f;
@@ -1154,9 +1181,9 @@ void place()
     {
         SCR_CenterPrintFor(state.hint.cStr(), vr_scenario_hint_time.value);
     }
-    Con_Printf("SCNPLACED|%s|%d of %d spawned|%d given|%d problems|hands: main %.0f, off %.0f\n", s.id.cStr(), made,
-        static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(state.notes.size()),
-        p->v.weapon, weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f);
+    Con_Printf("SCNPLACED|%s|%d of %d spawned|%d given|%d problems|hands: main %.0f, off %.0f|facing yaw %.0f\n", s.id.cStr(),
+        made, static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(state.notes.size()),
+        p->v.weapon, weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f, yaw);
     if(s.mp != Mp::None)
     {
         Con_Printf("SCNMP|%s|%s|%d slots|deathmatch %.0f coop %.0f|%d of %d bots %s\n", s.id.cStr(),
