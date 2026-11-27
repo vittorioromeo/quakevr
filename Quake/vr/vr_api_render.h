@@ -55,7 +55,11 @@ void VR_GLProbeBuffer (const char *what, unsigned buffer, size_t offset, size_t 
 void VR_GLProbeState (const char *where);				// vr_gl_probe: the GL state at a draw, its program validated
 void VR_GLProbeSceneEnd (unsigned vbo, unsigned ibo, int stride, int indices); // R_RenderScene, its last draws: vr_gl_probe 3's red where nothing drew, 4/5's world in green
 int VR_GLOpaqueNoBlend (void);						// GL_SetState: an opaque state disables GL_BLEND (vr_gl_opaque_noblend 1; -1: under OpenGL ES)
-int VR_GLSampleShading (void);						// GL_SampleShading: GL_SAMPLE_SHADING may be on (vr_gl_sample_shading)
+void VR_DebugAliasBatchesBegin (void);				// R_DrawEntitiesOnList's opaque pass: its alias batches numbered from 0 (questperf2)
+int VR_DebugAliasBatchDrawn (int *probe);			// R_FlushAliasInstances: this opaque batch is drawn (vr_debug_alias_first/_count); *probe: the LRZ probe after it
+int VR_DebugAliasLrz (void);						// R_FlushAliasInstances: vr_debug_alias_lrz's bits (questperf2)
+int VR_GLAliasLazyBlend (void);						// R_FlushAliasInstances: the blended state only for skins with blended texels (vr_gl_alias_lazy_blend)
+int VR_GLSampleShading (void);					// GL_SampleShading: GL_SAMPLE_SHADING may be on (vr_gl_sample_shading)
 void VR_LrzProbe (int point);						// R_RenderScene: vr_debug_lrz_probe's quads at this point of an eye's scene (Debug > Profiling)
 void VR_DrawHiddenArea (void);						// R_RenderScene, after R_Clear: the lenses' hidden area at the near plane (vr_visibility_mask)
 // Single-pass stereo (vr_stereo_single.cpp, docs/vr-port/STEREO.md).

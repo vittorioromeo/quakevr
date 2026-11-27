@@ -46,6 +46,7 @@ static float	entalpha; //johnfitz
 static qboolean	aliasdepth; // QVR: drawing the shadow maps' casters (R_DrawAliasModelsDepth)
 static qboolean	aliasxray; // QVR: drawing models' outlines through walls (R_DrawAliasModels_Xray)
 static int		aliasnear; // QVR: the batch's VR_AliasNearEye flags (1 depth clamp, 2 both sides)
+qboolean		r_alias_opaque_pass; // QVR: R_DrawEntitiesOnList's opaque pass is drawing (vr_debug_alias_first; questperf2)
 static int		aliasneeds; // QVR: the per-model features the batch's instances turn on (VR_AliasPlainNeeds: glprogs.alias_plain)
 // QVR: a shadow map's casters drawn once into all the light's faces they reach (R_DrawAliasModelsDepthLayered): the
 // faces of the entity being added (bit f: face f, its viewport f), NULL one face at a time (R_DrawAliasModelsDepth)
@@ -799,6 +800,8 @@ void R_FlushAliasInstances (qboolean showtris)
 	int			formid;		// QVR: the program's form for vr_gl_passes (1 full, 2 opaque, 3 plain, 4 gore, 5 skin, 6 body; ALIASVAR_* << 3)
 	int			draws0;		// QVR: the draw count before the batch (vr_gl_passes)
 	int			lrzflags;	// QVR: VR_LRZ_* states drawn with (vr_gl_passes; qlrz2)
+	int			dbglrz, probeafter; // QVR: vr_debug_alias_lrz's bits; the LRZ probe after this batch (questperf2)
+	qboolean	hasblended;	// QVR: a surface with blended texels drawn by the transparent state (questperf2)
 
 	if (!ibuf.count)
 		return;
@@ -825,6 +828,20 @@ void R_FlushAliasInstances (qboolean showtris)
 		}
 	}
 	anim = (int)(cl.time * 10) & 3;
+
+	dbglrz = 0; // QVR: questperf2's bisect of the opaque pass's batches (vr_debug_alias_first/_count/_probe_at, vr_debug_alias_lrz)
+	probeafter = 0;
+	if (r_alias_opaque_pass && !aliasdepth && !aliasxray && !showtris && ENTALPHA_OPAQUE (ibuf.ent->alpha))
+	{
+		if (!VR_DebugAliasBatchDrawn (&probeafter))
+		{
+			ibuf.count = 0;
+			if (probeafter)
+				VR_LrzProbe (8);
+			return;
+		}
+		dbglrz = VR_DebugAliasLrz ();
+	}
 
 	GL_BeginGroup (model->name);
 	poseverttype = mainhdr->poseverttype;
@@ -891,6 +908,8 @@ void R_FlushAliasInstances (qboolean showtris)
 			}
 		}
 	}
+	if (dbglrz & 4) // QVR (questperf2): shaded by the depth-only program
+		shadeprog = glprogs.alias_depth[poseverttype];
 	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
 	else
@@ -905,8 +924,11 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 7, facebuf, (GLintptr)faceofs, facesize);
 	}
 
+	if (!(dbglrz & 2)) // QVR (questperf2)
+	{
 	glEnable (GL_CLIP_DISTANCE1); // QVR: each instance keeps its half of the teleporter
 	VR_AliasShadowClip (); // QVR: clipped virtual-light shadow, or a disabled plane
+	}
 
 	if (poseverttype == PV_IQM)
 		state = GLS_CULL_BACK | GLS_ATTRIBS (5);
@@ -1010,10 +1032,13 @@ void R_FlushAliasInstances (qboolean showtris)
 	if (poseverttype == PV_QUAKE1) // QVR: the dequantised offsets (PoseFrac: vr/vr_mdldequant.cpp)
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 11, model->meshvbo, mainhdr->vbofracofs, sizeof (unsigned) * totalverts * mainhdr->numposes);
 	VR_AnimSmoothBind (ibuf.ent, 0); // QVR: r_lerpmodels 3's swings (the model's rig: its rest pose, the instances' bones)
+	if (!(dbglrz & 8)) // QVR (questperf2)
+	{
 	VR_DentBind (); // QVR: the flesh dents (Dents: vr/vr_dents.cpp)
 	VR_BarrelMaskBind (); // QVR: hot barrels' masks (BarrelMasks: vr/vr_barrelmask.cpp)
 	VR_HumlookBind (); // QVR: the armed humanoids' recolour masks (HumMasks: vr/vr_humlook.cpp)
-	if (!notex) // QVR: (the fragment shader's only)
+	}
+	if (!notex && !(dbglrz & 8)) // QVR: (the fragment shader's only)
 	{
 		GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
 		GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: the wound masks (WoundMasks)
@@ -1043,8 +1068,8 @@ void R_FlushAliasInstances (qboolean showtris)
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
 		glDepthFunc (gl_clipcontrol_able ? GL_LESS : GL_GREATER);
 	}
-	VR_TemporalMotionWrites (!translucent && !aliasdepth && !aliasxray); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
-	if (!translucent && !aliasdepth && !aliasxray && !alphatest && !showtris && !gl_multiview_draw && VR_AliasDepthPrepass (ibuf.ent))
+	VR_TemporalMotionWrites (!translucent && !aliasdepth && !aliasxray && !(dbglrz & 32)); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
+	if (!translucent && !aliasdepth && !aliasxray && !alphatest && !showtris && !gl_multiview_draw && !(dbglrz & 16) && VR_AliasDepthPrepass (ibuf.ent))
 	{ // QVR: your body's depth first (the world's models too): its opaque skins with no fragment shader, the same instances and
 	  // the same invariant gl_Position, so that the shading below runs once a pixel (it passes the depth equal, no writes)
 		VR_GPUZoneBegin ("body depth prepass");
@@ -1087,7 +1112,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_SetState ((state | GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE) & ~GLS_CULL_BACK);
 		VR_GPUZoneEnd ();
 	}
-	if (!notex)
+	if (!notex && !(dbglrz & 8))
 		VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
 	a2c = alphatest && !translucent && !aliasxray && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)
 	if (a2c)
@@ -1145,7 +1170,17 @@ void R_FlushAliasInstances (qboolean showtris)
 		glDisable (GL_SAMPLE_ALPHA_TO_ONE);
 	}
 
-	if (!translucent && !aliasxray) // QVR: (an outline through walls: the opaque skins' only)
+	hasblended = false; // QVR (questperf2): the transparent state set only for a skin with blended texels (vr_gl_alias_lazy_blend)
+	if (!translucent && !aliasxray && VR_GLAliasLazyBlend ())
+		for (hdr = VR_AliasSurfaceFirst (ibuf.ent, mainhdr); hdr && !hasblended; hdr = VR_AliasSurfaceNext (ibuf.ent, mainhdr, hdr))
+		{
+			skinnum = ibuf.ent->skinnum;
+			if ((skinnum >= hdr->numskins) || (skinnum < 0)) skinnum = 0;
+			hasblended = hdr->gltextures[skinnum][anim] && (hdr->gltextures[skinnum][anim]->flags & TEXPREF_ALPHAPIXELS);
+		}
+	else
+		hasblended = true;
+	if (!translucent && !aliasxray && hasblended) // QVR: (an outline through walls: the opaque skins' only)
 	{
 		GL_SetState (transparent_state);
 
@@ -1203,6 +1238,8 @@ void R_FlushAliasInstances (qboolean showtris)
 	}
 	ibuf.count = 0;
 	GL_EndGroup ();
+	if (probeafter) // QVR (questperf2)
+		VR_LrzProbe (8);
 }
 
 /*
