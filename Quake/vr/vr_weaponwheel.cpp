@@ -470,7 +470,8 @@ void press(int hand, bool down)
     }
     if(++test.waited > giveUp)
     {
-        result(false, va("timed out: %s (wheel hand %d; hands %d %d; holsters %d %d %d %d %d %d)", what, ws.hand,
+        result(false, va("timed out: %s (wheel hand %d, cursor %.0f %.0f, lit %d; hands %d %d; holsters %d %d %d %d %d %d)",
+                          what, ws.hand, ws.cursor.x, ws.cursor.y, ws.hovered,
                           handWeapon(HAND_OFF), handWeapon(HAND_MAIN), holsterStat(0), holsterStat(1), holsterStat(2),
                           holsterStat(3), holsterStat(4), holsterStat(5)));
         finish();
@@ -1281,8 +1282,9 @@ void testStep()
     case 23:
     {
         const int un = choiceOfKey(keyUnload), want = choiceOfKey(keyDrop);
-        aimAt(off, want);
-        if(waitFor(want >= 0 && ws.hovered == want, "the left hand onto DROP"))
+        // (aimed once: vr_mock_hand_to moves from the hand's place last frame, so sent every frame it overshoots and
+        // swings about the slot; at the eleven-place wheel's DROP it never settled on it)
+        if(pointed(want, "the left hand onto DROP"))
         {
             result(un >= 0 && !ws.choices[un].usable && cl.stats[protocol::STAT_QVR_WEAPONCLIP2] == 0,
                 "UNLOAD greyed: nothing in the left hand's nailgun");
