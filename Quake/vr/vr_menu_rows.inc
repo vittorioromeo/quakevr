@@ -826,6 +826,9 @@ QVR_TOGGLE(vr_agarmor_helmet_head, "Helmets Stop Headshots",
     "absorbs, as any plate.")
 QVR_TOGGLE(vr_agarmor_block_cuts, "Plates Stop Cuts",
     "No limb is cut or popped off under an unbroken plate: break it first.")
+QVR_TOGGLE(vr_agarmor_beasts, "Armoured Beasts",
+    "On: rottweilers, ogres, scrags and fiends may spawn armoured too, by the same chances per skill as the armed "
+    "humanoids: barding, helmets, pauldrons and more, each piece breaking off on its own.")
 QVR_SLIDER(vr_agarmor_impulse, "Push Through Plates", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A shot or blow a plate takes still pushes the body (a living one's flinch, a ragdoll's limb) this "
     "much of what the same hit on a bare limb would: 0 not at all, 1 fully.")

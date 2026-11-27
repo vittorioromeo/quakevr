@@ -143,10 +143,13 @@ void() walkmonster_start_go =
 };
 
 
+void(entity e) VR_BeastArmour_Spawn; // VR: a beast's armour roll (vr_agarmor.qc, compiled later)
+
 void() walkmonster_start =
 {
     if(MG_MonsterPrepare(walkmonster_start_go)) return;
     if(VR_SF_MonsterPrepare(walkmonster_start_go)) return; // AD's, Copper's delayed spawns and keys (vr_rules_monsters.qc)
+    VR_BeastArmour_Spawn(self); // VR: a beast's armour roll (rottweilers, ogres, fiends)
 // delay drop to floor to make sure all doors have been spawned
 // spread think times so they don't all happen at same time
     self.nextthink = self.nextthink + random()*0.5;
@@ -236,6 +239,7 @@ void() flymonster_start =
 {
     if(MG_MonsterPrepare(flymonster_start_go)) return;
     if(VR_SF_MonsterPrepare(flymonster_start_go)) return; // AD's, Copper's delayed spawns and keys (vr_rules_monsters.qc)
+    VR_BeastArmour_Spawn(self); // VR: a beast's armour roll (scrags)
     self.enemy = activator;
 
 // spread think times so they don't all happen at same time
