@@ -137,6 +137,7 @@ class Service:
         self.per_ip = collections.Counter()            # ip -> rooms
         self.buckets = collections.OrderedDict()       # ip -> [tokens, last time] (least recently seen first)
         self.stats = collections.Counter()
+        self.cap_expired = float("-inf")               # when a REGISTER at a cap last ran expire()
 
     # -- limits
     def allow(self, ip, now):
@@ -230,7 +231,10 @@ class Service:
             self.stats["moved"] += 1
             return [(reply(REGISTERED, wanted, nonce, src), src)]
         if len(self.rooms) >= self.limits.max_rooms or self.per_ip[src[0]] >= self.limits.max_rooms_per_ip:
-            self.expire(now)
+            # (expire() is O(rooms): at most once a second here, whoever hits a cap; serve()'s timer does the rest)
+            if now - self.cap_expired >= 1.0:
+                self.cap_expired = now
+                self.expire(now)
             if len(self.rooms) >= self.limits.max_rooms or self.per_ip[src[0]] >= self.limits.max_rooms_per_ip:
                 self.stats["refused"] += 1
                 return [(reply(REFUSED, wanted, nonce, extra=REFUSED_FULL), src)]
