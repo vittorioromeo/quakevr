@@ -9,6 +9,7 @@
 
 [New: not yet sorted]
 Installer: the Statement page shows one fixed sentence ("By continuing, I recognize that AI-assisted development does not imply a low-quality result nor a lack of care, passion, or expertise.", with "not" in italics) in a card, no switches or check boxes, and Continue is enabled at once; the console install prints it and goes on without any flag. {test:hub_start}
+Flat-screen or VR: point the switched-on flashlight straight at an armed grunt's face from a few metres; after a moment it raises its free hand in front of its eyes (a shotgun goes into one hand) and its shots spray wider, and it lowers the hand a second or two after the beam leaves its face. Check the hand looks like it shields the eyes and nothing happens with the beam off to the side or at its back. {test:agrunt_flashblind}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
