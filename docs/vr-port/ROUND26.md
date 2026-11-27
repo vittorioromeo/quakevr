@@ -4497,3 +4497,37 @@ fade and invisibility, copied into the body's mirror).
   bayonet broken open in the left hip); `Misc/quakevr/attach_holster_test.sh` (flat, its fly camera beside the hip, VR;
   `attach_holster_check.py`: each holstered gun's bayonet drawn, gap <= 0.05), also run at the end of attach_test.sh.
 - Armed humanoids carry no holstered guns; bots and dead players' bodies draw through drawHolsteredParts (the same path).
+
+## ctrlbind: the Controller Bindings screen (branch agent/ctrlbind, 2026-11-28)
+
+His words (2026-11-28): a visual controller-rebinding menu for VR and flat controllers, detecting the controller, its picture
+with each button labelled by its binding, drag to swap, click for a list of every action; reminder panels after.
+- **Where**: Options > Controller Bindings (a new row after Controller), VR Settings > Controls > Controller Bindings, the
+  main menu's bindings panel's Setup Bindings (wheelui's vr_bindpanel.cpp calls `bindsetup::open()`: false for keyboard and
+  mouse, the panel then opens the flat keys), `menu_bindsetup [model]`, Debug > Tools > Controller Bindings.
+- **One screen** for VR (the laser) and flat (mouse, pad, keys): a menu state of its own (`m_bindsetup`, menu.c's dispatch;
+  vr_bindsetup.cpp draws it in the menus' 2D pass across the canvas, clear of the corner's buttons, the status box and the
+  version label). Drag a label onto another: the two buttons' binds swap. Click (A, Enter): a list of every action Options >
+  Controls has (`M_Keys_EachAction`: Quake's and bindlist.lst's, either device; typing searches it). X / Space picks a label
+  up to swap by stick; Tab or the arrows beside the name step through every picture. Reset to Defaults: vr_bindings.cfg's
+  binds for the shown buttons (the others unbound). The VR menu button and a pad's Start are fixed ("Menu (fixed)").
+- **Binds**: the screen edits Quake's binds of the gamepad keys the controllers send (vr_input.cpp buttonKeys; Swap Face
+  Buttons honoured: A shows XBUTTON's), so configs and Options > Controls keep working. VR and a flat pad share those keys.
+- **Detection** (`bindsetup::detect`): VR: the right hand's OpenXR interaction profile (new `Backend::controllerProfile`)
+  and the headset's name (every runtime plays Quest controllers as oculus/touch_controller: Quest 3/3S/2/1/Pro, Rift S/CV1
+  by systemName); Index, Vive, WMR, Odyssey, Reverb G2, Pico, Cosmos/Focus 3, Steam Frame, khr/simple; VDXR's Index
+  emulation on a Quest is the Quest. Flat: SDL2's SDL_GameControllerGetType (`IN_GetGamepadSdlType`, in_sdl.c; SDL3 not
+  needed): Xbox 360, Xbox One/Series, PlayStation 3/4/5, Switch Pro/Joy-Cons, else a generic pad; no pad: the keyboard.
+- **Pictures** (`Misc/quakevr/make_controller_art.py`, our own vector-style drawings, no photos or logos): quest2, quest3,
+  questpro, riftcv1, pico, index, frame, vive, wmr, simplevr (each hand: the face from above, the side under it with the
+  trigger and grip), xbox360, xboxone, playstation, switchpro, genericpad; 512 and 256 (`_s`) wide in
+  quakevr/gfx/vr/controllers. The script also writes the anchors, names and glyphs table (Quake/vr/vr_bindsetup_art.inc).
+  Glyphs: Kenney's Input Prompts (CC0; OpenGameArt's copy of kenney.nl's pack, whose site turned the download away; its
+  License.txt beside them) for Quest, Index, Steam Frame, Xbox and Switch; drawn in their style for PlayStation, the generic
+  pad, Vive and WMR (quakevr/gfx/vr/glyphs).
+- **Tests**: `vr_bindsetup_detect_test` 57/0 (profiles, headset names, SDL types; every picture has buttons),
+  `vr_bindsetup_test` 12/0 (the trigger dragged onto A swaps, a click opens the list, search and pick bind, the menu is
+  fixed, reset restores vr_bindings.cfg's, Swap Face Buttons, a pad's swap and reset; the touched binds put back after).
+  The Android build compiles.
+- **Open**: phase 2 not done (the reminder panels: BACKLOG section 3 has the VR weapon wheel's; the menu's goes on wheelui's
+  vr_bindpanel.cpp); splitscreen per-seat bindings (TODO in vr_bindsetup.hpp, BACKLOG section 3).
