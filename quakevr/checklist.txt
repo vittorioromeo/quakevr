@@ -44,6 +44,8 @@ Flat-screen or VR: Armour Studio on the Scrag (or the Rottweiler), part Cuirass,
 Flat-screen or VR: Armour Studio, a beast's shoulder: set Scale to 1.3 then back to 1, and try Size Forward / Size Left / Size Up: each stretches the piece along that axis alone, and back at 1 the piece looks exactly as before (texture as sharp as the untouched pieces). {test:beaststudio}
 Flat-screen or VR: Armour Studio, Subject's Place and Tilt (window) or Subject Away/Left/Up/Pitch/Roll (menu page): the subject moves and tips so you can look at it from above, below and the sides; Put Back returns it. {test:beaststudio}
 Flat-screen: Armour Studio window: open the Animation section and hover the Animation combo and Play: no red "conflicting ID" error box. {test:beaststudio}
+Flat-screen: in the Armour Studio window, Start, press Look at the Part, then drag the handle on the part: W arrows move it, E rings turn it, R arms stretch it (the centre scales it); the rows follow, Undo takes a whole drag back, Ctrl snaps. {test:armourstudio_close}
+Flat-screen: in the Rig Studio, the bone, aim target and Pose Keys handles still look and drag as before (they share the Armour Studio's handle code now). {test:rigstudio_strike}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
