@@ -272,6 +272,7 @@ int VR_AliasCullPosedOn (const struct entity_s *e, int depth); // r_alias.c: cul
 int VR_AliasSolidGhost (const struct entity_s *e); // r_alias.c: e is a Ghost Hands hand: its depth drawn first, then only its nearest surface blended
 int VR_AliasBatchPosed (void); // r_alias.c: the world's posed models batched, their bones one buffer (vr_alias_batch_posed)
 int VR_AliasDepthPrepass (const struct entity_s *e); // r_alias.c: e drawn into the eye's depth before it is shaded (your body and its mirror image, the world's models)
+int VR_WorldLitReuse (void); // r_world.c: R_WorldLitTextures' answer reused while its inputs are the same (vr_gl_world_lit_reuse, questperf)
 int VR_WorldLitSkip (void); // r_world.c: the split by surface draws only the lit commands a reaching light can fill (vr_gl_world_lit_skip, C4w)
 int VR_WorldPrepass (void); // r_world.c: the opaque world and brush models' depth drawn before their shading (vr_world_prepass)
 int VR_GLOnePass (void); // r_world.c: OpenGL ES's brush models drawn without the gather's compute (vr_gl_one_pass, qfov3)
