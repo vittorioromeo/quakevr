@@ -431,7 +431,11 @@ bool quakeSkin(const qmodel_t* model, const void* aliashdr)
     {
         return false;
     }
-    return hdr->poseverttype == aliashdr_t::PV_QUAKE1 || skinnedCopy(model);
+    // (the armour's made models: a beast's shaped piece "#tweak" and the joints' leather "#bridge" have a .mdl's 8-bit skins
+    // too; taken for our own IQM's, retro textures drew them in blocks four Quake texels wide: his "much more blocky and
+    // less detailed" plate once scaled, ROUND26.md "armourlook")
+    return hdr->poseverttype == aliashdr_t::PV_QUAKE1 || skinnedCopy(model) || has(model, Trait::ArmourShaped) ||
+        has(model, Trait::ArmourLeather);
 }
 
 bool bodyParts(const qmodel_t* model, float out[4])

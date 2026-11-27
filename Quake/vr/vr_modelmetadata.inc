@@ -176,6 +176,8 @@ QVR_MODEL_TRAIT(Submodel, Prefix, "*")
 QVR_MODEL_TRAIT(Ragdoll, Suffix, "#rag")
 QVR_MODEL_TRAIT(AuthoredRig, Suffix, "#rig2") // the Rig Studio's subject on the authored rig (vr_rig2.cpp): a skinned copy of its .mdl, its skins
 QVR_MODEL_TRAIT(Limb, Contains, "#limb") // a monster's limb cut off (vr_limbmodel.cpp): a gib
+QVR_MODEL_TRAIT(ArmourShaped, Suffix, "#tweak") // a beast's armour piece shaped by armour.txt (vr_beastarmour.cpp): its .mdl's skins
+QVR_MODEL_TRAIT(ArmourLeather, Suffix, "#bridge") // the armour's joints' leather (vr_agarmor_bridge.cpp, vr_beastarmour.cpp): vragarmor.mdl's skins
 QVR_MODEL_TRAIT(AmmoBoxInsensitive, PrefixInsensitive, "maps/b_")
 QVR_MODEL_TRAIT(RigHandInsensitive, ExactInsensitive, "progs/hand_rig.mdl")
 QVR_MODEL_TRAIT(RigHandFInsensitive, ExactInsensitive, "progs/hand_rig_f.mdl")
