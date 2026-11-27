@@ -2544,3 +2544,40 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 ## cltidy9: checklist sub-headings (2026-11-27)
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.
+
+## beastarmour: armoured rottweilers, ogres, scrags and fiends (branch agent/beastarmour, 2026-11-27)
+
+- **What:** the four beasts may spawn armoured by the armed humanoids' rules (the skill's chance, best type and pieces,
+  Armored Foes; `vr_agarmor_beasts` 1, Combat > Armed Grunts > Armour > Armoured Beasts). Pieces: the rottweiler barding
+  over chest and croup (a cuirass of two), a chanfron, a spiked collar, shoulder and haunch plates; the ogre a cuirass of
+  three (breastplate, back plate, faulds), a helmet with a crown, pauldrons, bracers, tassets; the scrag a cuirass of three
+  (breast, back, belly), a mask-helmet, shoulder plates, bracers at the claws; the fiend plates over his hunched back, a
+  breastplate under it and a haunch plate (a cuirass of three), a helmet, pauldrons, bracers, thigh plates. Every piece
+  breaks on its own (the same pools by slot share, rules, cracks, debris props, wear skins, cut blocking).
+- **Feasibility per monster:** the humanoids' shells need an authored rig (rig2: skin weights, humanoid joints); none of
+  the four has one, and a rig2 for a quadruped or the legless scrag would change how they are drawn. Every monster has a
+  derived ragdoll rig (vr_ragdoll.cpp seed tables: dog 13 bones, scrag 11, ogre 13, fiend 16, shambler 13), so the
+  general path is **rigid pieces on derived-rig bones**: a piece rides its bone's vertices as drawn
+  (`hitmodel::drawnVertexPoints`: the animation's lerp and a ragdoll's parts alike) by a rigid fit (`rigpose::fitRigid`
+  over 10 spread vertices) plus the body's scale. The ogre (humanoid) and the fiend (hunched, humanoid limbs) fit
+  easily; the dog's pieces face up and out from a level spine; the scrag's sit on an upright legless body (bracers on
+  the claws' bones). The shambler is one more table in the script (his bones are named like the ogre's); not built.
+- **Multi-part, data:** the pieces use the humanoids' ten slots (0 cuirass .. 9), so the QC is shared; a kind's *cuirass
+  group* (the ogre's 0|8|9) is given whole when the roll's cuirass is (VR_AgArmor_Give), each part then its own pool and
+  break. Kinds and pieces are data: `quakevr/data/beastarmour.txt` (kind: model, cuirass group; piece: slot, bone,
+  model, its middle in the rest pose), written with the models by `Misc/quakevr/make_beastarmour.py` (a table per kind:
+  bone, span along it, facing, arc, rows, tile, crown, spikes). Each piece is a conformal shell: rows of bevelled
+  lames on a tube round its bone whose radius follows the body (measured from the .mdl's pose 0; only measurements are
+  taken, every vertex is ours), with make_agarmor.py's nine skins halved to 128x64 (36 models, 3.2 MB).
+- **Engine:** `Quake/vr/vr_beastarmour.cpp/.hpp`; agarmor's `shotPiece`, `pieceAt`, `pieceBones`, `plateWhere` and
+  `halfModel` (none: a beast's piece falls whole) hand a beast to it; the client's `agarmor::relink` draws each worn
+  piece as an entity of its own (the wear skins by its wear bits). QC: `VR_BeastArmour_Spawn` (walkmonster_start,
+  flymonster_start), `VR_BeastArmour_Precache`, `VR_AgArmor_Model` (QVR_ARMOR_BEAST_MODEL), `ragdollbone(e, [what],
+  QVR_ARMOR_BEAST)`. `vr_beastarmour_info` lists the kinds and pieces.
+- **Tests:** `vr_agarmor_test 15` 49/0 (slots and groups, the client told, all 36 pieces drawn, pieces following frame
+  A to B, two pieces on one bone staying rigid, shots meeting the cuirass and the helmet, Plate Blocks All, a helmet
+  broken into debris, the skill's roll, two corpses keeping their pieces); `vr_agarmor_test 1` 38/0, `10` 21/1 (the known
+  "clear line" 36 of 40, ROUND24). Scene `armour_beasts` (`vr_agarmor_test 16`); `17`-`20` one beast close (renders).
+- **Open:** a remote MP client draws no beast pieces yet (the client draws them from the listen server's bodies); the
+  delayed spawns (MG/VR_SF prepare) skip the roll; the look is a first pass for his review (the lames' banding, the
+  scrag's coverage).

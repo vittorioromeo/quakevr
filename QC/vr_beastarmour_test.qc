@@ -19,6 +19,7 @@ float vr_bat_rule;   // the setting put back after
 vector vr_bat_was0, vr_bat_was1, vr_bat_was2, vr_bat_was3; // a limb piece's place in frame A
 float vr_bat_gap0, vr_bat_gap1, vr_bat_gap2, vr_bat_gap3;  // two pieces on one bone: their distance in frame A
 vector vr_bat_dead0, vr_bat_dead1; // where the killed ones died
+entity vr_bat_render; // 17-20's beast
 
 entity(float i) VR_BAT_Ent =
 {
@@ -114,7 +115,12 @@ void(float req) VR_BAT_Frame =
             VR_AgArmor_Give(VR_BAT_Spawn(p, 3, 84, 170, 0), 2, 1023);
             return;
         }
-        VR_AgArmor_Give(VR_BAT_Spawn(p, req - 17, 0, req == 18 ? 110 : 80, 35), 2, 1023);
+        if(vr_bat_render)
+        {
+            remove(vr_bat_render); // (the one before: one at a time, for a row of renders)
+        }
+        vr_bat_render = VR_BAT_Spawn(p, req - 17, 0, req == 19 ? 90 : req == 18 ? 110 : 130, 35);
+        VR_AgArmor_Give(vr_bat_render, 2, 1023);
         return;
     }
     if(req == 15)

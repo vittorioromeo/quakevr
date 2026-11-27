@@ -58,7 +58,7 @@ KINDS = [
     # The rottweiler: barding over his chest and croup (the cuirass: two pieces), a chanfron down his face, a spiked collar,
     # plates over his shoulders and haunches.
     P(name="dog", model="progs/dog.mdl", seeds="dog", stand=0.5, thick=0.8, group=(0, 8), pieces=[
-        piece(0, "chest", (0.0, 1.0), "up", 220, rows=3, tile="panel"),
+        piece(0, "chest", (0.0, 1.0), "up", 200, rows=2, tile="panel"),
         piece(8, "pelvis", (-0.25, 1.0), "up", 220, rows=2, tile="rib"),
         piece(1, "head", (0.2, 0.95), "up", 130, rows=2, tile="plain"),
         piece(9, "chest", (0.82, 1.08), "up", 360, rows=1, tile="rim", spikes=10, stand=0.7),
@@ -70,10 +70,10 @@ KINDS = [
     # The ogre: a cuirass of three (breastplate, back plate, the faulds over his belly), a helmet, pauldrons, bracers and
     # tassets over his thighs.
     P(name="ogre", model="progs/ogre.mdl", seeds="ogre", stand=0.7, thick=1.1, group=(0, 8, 9), pieces=[
-        piece(0, "chest", (0.0, 1.05), (1.0, 0.0, 0.0), 170, rows=3, tile="panel"),
-        piece(8, "chest", (0.0, 1.05), (-1.0, 0.0, 0.0), 170, rows=3, tile="plain"),
+        piece(0, "chest", (0.0, 1.05), (1.0, 0.0, 0.0), 160, rows=2, tile="panel"),
+        piece(8, "chest", (0.0, 1.05), (-1.0, 0.0, 0.0), 160, rows=2, tile="plain"),
         piece(9, "pelvis", (-0.2, 1.0), (1.0, 0.0, 0.0), 180, rows=2, tile="rib"),
-        piece(1, "head", (0.25, 1.0), (-1.0, 0.0, 0.0), 250, rows=2, tile="plain", cap=True),
+        piece(1, "head", (0.25, 1.0), (-1.0, 0.0, 0.0), 250, rows=1, tile="plain", cap=True),
         piece(2, "upperarm_l", (-0.15, 0.55), "out", 200, rows=3, tile="emblem"),
         piece(3, "upperarm_r", (-0.15, 0.55), "out", 200, rows=3, tile="emblem"),
         piece(4, "forearm_l", (0.25, 0.9), "out", 360, rows=2, tile="vent"),
@@ -84,22 +84,22 @@ KINDS = [
     # The scrag: a breastplate and a back plate on his chest and a belly plate on his ribbed belly (the cuirass: three), a
     # mask over his face, plates on his shoulders, bracers at his claws' wrists.
     P(name="wizard", model="progs/wizard.mdl", seeds="wizard", stand=0.5, thick=0.8, group=(0, 8, 9), pieces=[
-        piece(0, "chest", (0.0, 1.0), (1.0, 0.0, 0.0), 170, rows=3, tile="panel"),
-        piece(9, "chest", (0.0, 1.0), (-1.0, 0.0, 0.0), 160, rows=2, tile="plain"),
-        piece(8, "pelvis", (-0.6, 1.0), (1.0, 0.0, 0.0), 170, rows=3, tile="rib"),
-        piece(1, "head", (0.15, 0.9), (1.0, 0.0, 0.0), 150, rows=2, tile="plain", cap=True),
-        piece(2, "arm_l", (-0.1, 0.8), (0.0, 0.0, 1.0), 200, rows=2, tile="emblem"),
-        piece(3, "arm_r", (-0.1, 0.8), (0.0, 0.0, 1.0), 200, rows=2, tile="emblem"),
+        piece(0, "chest", (0.0, 1.0), (1.0, 0.0, 0.0), 140, rows=2, tile="panel"),
+        piece(9, "chest", (0.05, 0.95), (-1.0, 0.0, 0.0), 120, rows=2, tile="plain"),
+        piece(8, "pelvis", (-0.5, 0.9), (1.0, 0.0, 0.0), 140, rows=2, tile="rib"),
+        piece(1, "head", (0.15, 0.9), (1.0, 0.0, 0.0), 150, rows=1, tile="plain", cap=True),
+        piece(2, "arm_l", (-0.1, 0.7), (0.0, 0.0, 1.0), 150, rows=2, tile="emblem"),
+        piece(3, "arm_r", (-0.1, 0.7), (0.0, 0.0, 1.0), 150, rows=2, tile="emblem"),
         piece(4, "hand_l", (-0.05, 0.4), (0.0, 0.0, 1.0), 360, rows=1, tile="vent"),
         piece(5, "hand_r", (-0.05, 0.4), (0.0, 0.0, 1.0), 360, rows=1, tile="vent"),
     ]),
     # The fiend: plates over his hunched back and shoulders and over his haunches, a breastplate under his chest (the cuirass:
     # three), a helmet, pauldrons, bracers, plates over his thighs.
     P(name="demon", model="progs/demon.mdl", seeds="demon", stand=0.7, thick=1.1, group=(0, 8, 9), pieces=[
-        piece(0, "chest", (0.0, 1.0), "up", 200, rows=3, tile="panel"),
+        piece(0, "chest", (0.0, 1.0), "up", 170, rows=2, tile="panel"),
         piece(9, "chest", (0.1, 0.9), "down", 120, rows=2, tile="rib"),
         piece(8, "pelvis", (-0.6, 1.0), "up", 200, rows=2, tile="plain"),
-        piece(1, "head", (0.1, 0.9), "up", 160, rows=2, tile="plain", cap=True),
+        piece(1, "head", (0.1, 0.9), "up", 160, rows=1, tile="plain", cap=True),
         piece(2, "upperarm_l", (-0.4, 0.8), "out", 180, rows=2, tile="emblem"),
         piece(3, "upperarm_r", (-0.4, 0.8), "out", 180, rows=2, tile="emblem"),
         piece(4, "forearm_l", (0.1, 0.9), "out", 360, rows=2, tile="vent"),
