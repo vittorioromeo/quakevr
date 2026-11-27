@@ -1104,3 +1104,52 @@ cause of most: client state that must be each seat's was shared, so each seat's 
   failures are gone), flatreload 54/0, flatmelee6 9/0. Two failures are next's own: flatxhair_melee_test 21/1 is its
   known `flip24`. flatthrow_test 51/3: flatxhair2 added ` at <origin>` to QC's "flat throw: landed: ... stuck" line,
   and flatthrow_check.py still wants the line to end at `stuck`.
+
+## 27. Split18 (2026-11-27): fixes from his splitscreen test
+
+His test: flat seats, a high refresh rate. Four bugs, all one cause: client state that must be each seat's was one set,
+so each seat's frame or pass overwrote or undid the other's.
+
+### How to try it (for him)
+
+1. As before (`qvr-kit/scratch/play_splitscreen.ps1`), Multiplayer > Splitscreen, A on the controller, Start.
+2. **Flashlights**: F in seat 1, d-pad right on seat 2's pad. Each switches its own seat's torch only, and each tile
+   shows both (the other player's torch on his head).
+3. **Monsters**: watch a grunt or enforcer walk, then kill it, in both tiles at your full refresh rate. Seat 2's tile
+   must not flicker between the walk (or the ragdoll) and the idle pose, and seat 1's must not jitter.
+4. **Same gun in both seats**: both take the nail pistol. Fire in one seat: the other seat's gun doesn't play the
+   shot. Then Y on the pad (swap hands) so seat 2 holds it in the left hand: both guns stay visible, each in its own
+   player's hand.
+
+### What changed
+
+- **Flashlight** (vr_flashlight.cpp): the torch's state, its visible beam and kept traces, the beam as last lit and the
+  cord are each seat's (`seat::Part::Flashlight`, `seatLamp()`; `st()`, `beam()`, `cord()`). `vr_flashlight_toggle`
+  already ran as the seat that queued it (cmd.c's `_seat` markers); it toggled the one shared state, which only seat 1's
+  view drew. A fresh start resets every seat's torch.
+- **Monsters' poses and ragdolls** (cl_main.c, vr_ragdoll.cpp, vr_rig2.cpp): a seat's client frame swaps its ragdolls'
+  and authored-rig grunts' models for skinned ones, and the swap must be put back before the next one. Only seat 1's
+  were put back (`CL_ReadFromServer` skipped seats 2-4 as "headless", and the after-draw restore is seat 1's). Seat 2's
+  next swap dropped its list without restoring, so on a client frame with no server update for the entity the skinned
+  model stayed on it, unlisted and drawn without bones: the rest pose. That happened every other frame at more frames a
+  second than the server's 72 ticks, which the fast tests never had. Its saved lerp was lost too. Seat 2 then published
+  wrong poses into the rig's per-entity data (by entity number, shared), which seat 1's pass drew: seat 1's jitter. Now
+  each seat puts back its own swaps as it reads the server, and each swap puts back the last one first
+  (`ragdoll::swapModels` and `rig2::swapModels` call `restoreModels()`).
+- **The same gun in both seats** (vr_nailslide.cpp, vr_drawblend.cpp): the nail pistol's drawn slide by hand is each
+  seat's (`Part::NailSlide`): seat 1's shot kicked seat 2's slide in the same hand. The weapon draw eases (a gun come
+  into a hand eased from its holster, the hands' and holsters' records, caught guns) are each seat's
+  (`Part::DrawBlend`). In the shared set, the seat with no gun in that hand restarted the other seat's ease every frame
+  from its own holster: seat 2's left-hand gun was drawn at seat 1's player, out of seat 2's view.
+- **seat_state**: 3,707 -> 3,697 allowlisted (the slide's and draw ease's hands, holsters, catches; the torch's six).
+- **Tests** (seat_render_test.sh, two new runs, both at 144 frames a second, which the test sets itself):
+  `vr_seat_render_test 2 anim` (split13's unfinished run, now working: the grunt is spawned the way with the most room;
+  seat 1's own 30 degrees put it in a wall at e1m1's start) has both passes draw the live grunt and its ragdoll alike
+  each frame, and no pose going back to the one two frames before in either seat. Before the fix: 8 of 16 frames alike,
+  live and dead. `vr_seat_render_test 2 guns`: a nail pistol in both main hands, seat 1 firing for 48 frames: each gun
+  drawn every frame within 32 units of its own hand, seat 2's never animating (it changed 21 times before the fix);
+  then seat 2's in its off hand (impulse 48, the pad's Y): the same checks (never drawn before the fix, 115 units off
+  at seat 1's player); then seat 2's flashlight on (seat 1's still off), then seat 1's too, each lens at its own player.
+- **Left**: the rig's live lerps and published bones (vr_rig2_game.cpp `lerps`, vr_rig2.cpp `drawn`) stay by entity
+  number, posed again in each seat's relink (the same messages give the same poses; a cost, not a fault). The
+  monsters' stealth (server side) sees only seat 1's torch beam (`flashlight::beamNow` reads the current seat's).

@@ -2526,3 +2526,12 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 ## cltidy9: checklist sub-headings (2026-11-27)
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.
+
+## split18: splitscreen fixes from his test: own flashlights, no monster pose flicker, the same gun in both seats (branch agent/split, 2026-11-27)
+
+Four bugs from his flat splitscreen test, all client state shared between seats: each seat's flashlight
+(`seat::Part::Flashlight`); seat 2's ragdolls and authored-rig grunts flickering to their rest pose every other frame at
+high refresh rates (each seat now restores its own model swaps; each swap restores the last one first); the nail
+pistol's slide by hand and the weapon draw eases (`Part::NailSlide`, `Part::DrawBlend`): one seat's shot animated the
+other's gun, and a gun in different hands was drawn at the other player. Tests: seat_render_test.sh gains the `anim`
+and `guns` runs at 144 frames a second. Details, how to try it and what's left: SPLITSCREEN.md section 27.
