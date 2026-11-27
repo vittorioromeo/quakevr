@@ -4,6 +4,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_agarmor_internal.hpp"
 #include "vr_armourdata.hpp"
+#include "vr_beastarmour.hpp"
 #include "vr_bodyclone.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -49,7 +50,7 @@ constexpr int subjectKinds = 4;        // (QC's VR_AM_GRUNT .. VR_AM_DKNIGHT; th
 cvar_t* const fieldCvars[NumFields] = {&vr_armourstudio_offset_x, &vr_armourstudio_offset_y, &vr_armourstudio_offset_z,
     &vr_armourstudio_pitch, &vr_armourstudio_yaw, &vr_armourstudio_roll, &vr_armourstudio_scale, &vr_armourstudio_standoff,
     &vr_armourstudio_start, &vr_armourstudio_end, &vr_armourstudio_rows, &vr_armourstudio_taper_start, &vr_armourstudio_taper_end,
-    &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth, &vr_armourstudio_hero};
+    &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth, &vr_armourstudio_hero, &vr_armourstudio_sag};
 
 // The subject's model's animations: its frames grouped by name ("stand1".."stand8": stand).
 constexpr int maxAnims = 64;
@@ -103,10 +104,44 @@ struct Test
 };
 Test test;
 
+// ---- The subjects (vr_armourstudio_kind): the humanoids' kinds (armourdata's 0-4: grunt .. player), AD's two knights (one
+// set of tweaks while their rigs match: armourdata::adShared), then the beasts (vr_beastarmour.hpp, beastarmour.txt's order) ----
+constexpr int subjectAdGuard = 5;
+constexpr int subjectAdCrossbow = 6;
+constexpr int subjectBeasts = 7;
+constexpr const char* adModels[2] = {"progs/vrdguard.mdl", "progs/vrdcrossbow.mdl"};
+constexpr const char* adLabels[2] = {"Death Guard", "Crossbow Knight"};
+constexpr int adQcKinds[2] = {4, 5}; // (QC's VR_AM_DGUARD, VR_AM_DCROSSBOW)
+constexpr const char* humanLabels[5] = {"Grunt", "Enforcer", "Knight", "Death Knight", "Player (Your Body)"};
+constexpr const char* beastLabels[][2] = {{"progs/dog.mdl", "Rottweiler"}, {"progs/ogre.mdl", "Ogre"}, {"progs/wizard.mdl", "Scrag"},
+    {"progs/demon.mdl", "Fiend"}, {"progs/shambler.mdl", "Shambler"}};
+
+[[nodiscard]] int subjectNow()
+{
+    return za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, subjectCount() - 1);
+}
+
+// The beast a subject is (beastarmour's kind; -1 none).
+[[nodiscard]] int beastOf(int subject)
+{
+    return subject >= subjectBeasts && subject - subjectBeasts < beastarmour::kindCount() ? subject - subjectBeasts : -1;
+}
+
+// The table's entry a subject edits: its kind's name, AD's shared "ad_knight" (else its model's own), a beast's model.
+[[nodiscard]] const char* entryOf(int subject)
+{
+    if(subject == subjectAdGuard || subject == subjectAdCrossbow)
+    {
+        return adShared() ? kindNames[KindAdKnight] : adModels[subject - subjectAdGuard];
+    }
+    const int beast = beastOf(subject);
+    return beast >= 0 ? beastarmour::kindModel(beast) : kindNames[za::clamp(subject, 0, static_cast<int>(KindPlayer))];
+}
+
 // The player's kind on show: the ImGui window open, or the menu's Armour Studio page, on Kind = Player (playerArmour).
 [[nodiscard]] bool playerShown()
 {
-    return za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, NumKinds - 1) == KindPlayer && (windowOpen() || menu::armourStudioPage());
+    return subjectNow() == KindPlayer && (windowOpen() || menu::armourStudioPage());
 }
 
 // As it first shows, the studio's tier is the armour you wear (none: the tier picked stays).
@@ -124,12 +159,12 @@ void notePlayerShown()
 [[nodiscard]] int selectedSide()
 {
     const int part = za::clamp(static_cast<int>(vr_armourstudio_part.value), 0, NumParts - 1);
-    return part < PartPauldron ? SideBoth : za::clamp(static_cast<int>(vr_armourstudio_side.value), 0, 2);
+    return !limbPart(part) ? SideBoth : za::clamp(static_cast<int>(vr_armourstudio_side.value), 0, 2);
 }
 
 [[nodiscard]] const char* kindName()
 {
-    return kindNames[za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, NumKinds - 1)];
+    return entryOf(subjectNow());
 }
 
 // The value shown for a field of the kind's part and side: its own, else (a side) the both-sides value (mirrored on the right).
@@ -163,14 +198,19 @@ void showFields()
 // The pieces (agarmor Piece bits) a part and side are drawn on, and whether a sleeve.
 [[nodiscard]] int piecesOf(int part, int side, bool& sleeve)
 {
-    sleeve = part >= PartPauldronSleeve;
-    if(part == PartCuirass)
+    sleeve = sleevePart(part);
+    if(part == PartCuirass || part == PartCuirassSleeve)
     {
         return 1 << agarmor::Cuirass;
     }
-    if(part == PartHelmet)
+    if(part == PartHelmet || part == PartHelmetSleeve)
     {
         return 1 << agarmor::Helmet;
+    }
+    if(part >= PartPlate8)
+    {
+        // (a beast's plates 8 and 9, their junctions)
+        return 1 << (part == PartPlate8 || part == PartPlate8Sleeve ? 8 : 9);
     }
     const int left = agarmor::PauldronL + 2 * ((sleeve ? part - PartPauldronSleeve : part - PartPauldron));
     return side == SideLeft ? 1 << left : side == SideRight ? 1 << (left + 1) : (1 << left) | (1 << (left + 1));
@@ -179,9 +219,10 @@ void showFields()
 // The sliders against the table: a new selection (or the table changed elsewhere) shows its values; a moved slider sets its value.
 void syncFields()
 {
-    const int kind = za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, NumKinds - 1);
+    const int kind = subjectNow();
     const int part = za::clamp(static_cast<int>(vr_armourstudio_part.value), 0, NumParts - 1);
     const int side = selectedSide();
+    const bool beast = beastOf(kind) >= 0;
     if(generation() != st.ownGen && generation() != st.selGen)
     {
         st.savedGen = generation(); // (read from the file: what is on disk)
@@ -196,7 +237,7 @@ void syncFields()
         return;
     }
     bool any = false;
-    for(int f = 0; f < NumFields; f++)
+    for(int f = 0; f < NumFields && partValid(kind, part); f++)
     {
         if(fieldCvars[f]->value == st.shown[f])
         {
@@ -227,15 +268,17 @@ void syncFields()
         o->has &= taper && za::abs(o->v[f] - 1.f) < 1e-4f ? ~(1u << static_cast<unsigned>(f)) : ~0u;
         // (leather 1, or on a part with no sleeve: as made; 0 hides a sleeve's)
         o->v[Leather] = f == Leather ? (o->v[Leather] < 0.5f ? 0.f : 1.f) : o->v[Leather];
-        o->has &= f == Leather && (o->v[Leather] > 0.5f || part < PartPauldronSleeve) ? ~(1u << static_cast<unsigned>(Leather)) : ~0u;
+        o->has &= f == Leather && (o->v[Leather] > 0.5f || !sleevePart(part)) ? ~(1u << static_cast<unsigned>(Leather)) : ~0u;
         // (hero plates 1, or on a part with none (the helmet, the thighs, the sleeves): as made; 0 every plate its own)
         o->v[Hero] = f == Hero ? (o->v[Hero] < 0.5f ? 0.f : 1.f) : o->v[Hero];
-        const bool heroPart = part == PartCuirass || part == PartPauldron || part == PartBracer || part == PartShin;
+        const bool heroPart = !beast && (part == PartCuirass || part == PartPauldron || part == PartBracer || part == PartShin);
         o->has &= f == Hero && (o->v[Hero] > 0.5f || !heroPart) ? ~(1u << static_cast<unsigned>(Hero)) : ~0u;
         // (the folds: whole, 0-4; as the global settings, or on a part with no leather: not written)
         o->v[Folds] = f == Folds ? za::clamp(static_cast<float>(static_cast<int>(o->v[Folds] + 0.5f)), 0.f, 4.f) : o->v[Folds];
         const float global = f == Folds ? vr_agarmor_folds.value : vr_agarmor_fold_depth.value;
-        o->has &= (f == Folds || f == FoldDepth) && (za::abs(o->v[f] - global) < 1e-4f || part < PartPauldronSleeve) ? ~(1u << static_cast<unsigned>(f)) : ~0u;
+        o->has &= (f == Folds || f == FoldDepth) && (za::abs(o->v[f] - global) < 1e-4f || !sleevePart(part)) ? ~(1u << static_cast<unsigned>(f)) : ~0u;
+        // (a beast junction's sag 0, or on a part with no junction: not written)
+        o->has &= f == Sag && (za::abs(o->v[Sag]) < 1e-4f || !sleevePart(part) || !beast) ? ~(1u << static_cast<unsigned>(Sag)) : ~0u;
     }
     if(any)
     {
@@ -268,25 +311,35 @@ void freeSubject()
 // The kind put ahead of you (its armour given), or none for the player's kind.
 void spawnSubject()
 {
-    const int kind = za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, NumKinds - 1);
+    const int kind = subjectNow();
     freeSubject();
     st.subjectKind = kind;
     st.subjectTier = -1;
     st.subjectWorn = -1;
-    if(kind >= subjectKinds || !sv.active)
+    const int beast = beastOf(kind);
+    const int qcKind = kind < subjectKinds ? kind : kind == subjectAdGuard || kind == subjectAdCrossbow ? adQcKinds[kind - subjectAdGuard] : -1;
+    if((qcKind < 0 && beast < 0) || !sv.active)
     {
         return;
     }
     int num = 0;
     {
         const progs::ServerVm vm;
-        const func_t fn = progs::findFunction("VR_ArmourStudio_Spawn");
+        // (a beast: by its model, VR_ArmourStudio_SpawnBeast; a humanoid: its row)
+        const func_t fn = progs::findFunction(beast >= 0 ? "VR_ArmourStudio_SpawnBeast" : "VR_ArmourStudio_Spawn");
         edict_t* player = progs::playerEdict();
         if(fn && player)
         {
             pr_global_struct->time = qcvm->time;
             pr_global_struct->self = EDICT_TO_PROG(player);
-            G_FLOAT(OFS_PARM0) = static_cast<float>(kind);
+            if(beast >= 0)
+            {
+                G_INT(OFS_PARM0) = PR_SetEngineString(beastarmour::kindModel(beast)); // (kept for good: vr_beastarmour.cpp)
+            }
+            else
+            {
+                G_FLOAT(OFS_PARM0) = static_cast<float>(qcKind);
+            }
             G_FLOAT(OFS_PARM1) = subjectAhead;
             PR_ExecuteProgram(fn);
             edict_t* made = PROG_TO_EDICT(G_INT(OFS_RETURN));
@@ -295,7 +348,7 @@ void spawnSubject()
     }
     st.subject = num;
     q_strlcpy(st.subjectMap, sv.name, sizeof(st.subjectMap));
-    Con_Printf(num ? "armourstudio: a %s ahead (entity %d)\n" : "armourstudio: no %s made (a map with you in it needed)\n", kindNames[kind], num);
+    Con_Printf(num ? "armourstudio: a %s ahead (entity %d)\n" : "armourstudio: no %s made (a map with you in it needed)\n", subjectLabel(kind), num);
 }
 
 // The model's animations read again (a new model).
@@ -405,7 +458,7 @@ void keepSubject()
     }
     // (a new kind put there once you are in the level: a script's `map x; vr_armourstudio` asks before)
     const bool ready = sv.active && cls.signon == SIGNONS && progs::localPlayer() != nullptr;
-    if(ready && za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, NumKinds - 1) != st.subjectKind)
+    if(ready && subjectNow() != st.subjectKind)
     {
         spawnSubject();
     }
@@ -903,6 +956,79 @@ void init()
     windowInit();
 }
 
+int subjectCount()
+{
+    return subjectBeasts + beastarmour::kindCount();
+}
+
+const char* subjectLabel(int subject)
+{
+    if(subject >= 0 && subject < subjectAdGuard)
+    {
+        return humanLabels[subject];
+    }
+    if(subject == subjectAdGuard || subject == subjectAdCrossbow)
+    {
+        return adLabels[subject - subjectAdGuard];
+    }
+    const char* model = beastarmour::kindModel(beastOf(subject));
+    for(const auto& b : beastLabels)
+    {
+        model = !ZA_STRCMP(b[0], model) ? b[1] : model;
+    }
+    return model;
+}
+
+const char* subjectEntry()
+{
+    return entryOf(subjectNow());
+}
+
+bool partValid(int subject, int part)
+{
+    const int beast = beastOf(subject);
+    if(part < 0 || part >= NumParts)
+    {
+        return false;
+    }
+    if(beast < 0)
+    {
+        return part < humanParts;
+    }
+    if(part == PartShin || part == PartShinSleeve)
+    {
+        return false;
+    }
+    bool sleeve = false;
+    const int bits = piecesOf(part, SideBoth, sleeve) & beastarmour::kindSlots(beast);
+    bool any = false;
+    for(int slot = 0; slot < agarmor::NumPieces; slot++)
+    {
+        any = any || (((bits >> slot) & 1) && (!sleeve || beastarmour::joins(beast, slot) >= 0));
+    }
+    return any;
+}
+
+bool fieldShown(int subject, int part, int field)
+{
+    const bool beast = beastOf(subject) >= 0;
+    const bool sleeve = sleevePart(part);
+    if(beast)
+    {
+        // (a beast's piece: moved, turned, scaled, stood off, tapered; its junction: leather, its tapers (width at each end),
+        // stand-off (thickness), folds, sag)
+        return sleeve ? (field == Leather || field == TaperStart || field == TaperEnd || field == Standoff || field == Folds || field == FoldDepth ||
+                            field == Sag)
+                      : (field <= Standoff || field == TaperStart || field == TaperEnd);
+    }
+    // (the plates' rows: not the helmet's or a sleeve's; the tapers: not the helmet's (a sleeve's leather tapers too); leather:
+    // the sleeves' alone; hero plates: the parts that have them; sag: the beasts')
+    const bool plates = part != PartHelmet && !sleeve;
+    const bool heroPart = part == PartCuirass || part == PartPauldron || part == PartBracer || part == PartShin;
+    return !(((field == Leather || field == Folds || field == FoldDepth) && !sleeve) || ((field == Start || field == End || field == Rows) && !plates) ||
+        ((field == TaperStart || field == TaperEnd) && part == PartHelmet) || (field == Hero && !heroPart) || field == Sag);
+}
+
 bool running()
 {
     return st.running;
@@ -928,8 +1054,43 @@ void frame()
 
 const char* status()
 {
-    q_snprintf(st.statusText, sizeof(st.statusText), "%s: %s%s, %d part%s set%s%s", kindName(),
-        partNames[za::clamp(st.selPart, 0, NumParts - 1)], st.selSide == SideLeft ? " (left)" : st.selSide == SideRight ? " (right)" : st.selPart >= PartPauldron ? " (both)" : "",
+    const int subject = subjectNow();
+    const int part = za::clamp(st.selPart, 0, NumParts - 1);
+    char what[128];
+    what[0] = 0;
+    const int beast = beastOf(subject);
+    if(!partValid(subject, part))
+    {
+        q_strlcpy(what, " (none on this kind: pick another part)", sizeof(what));
+    }
+    else if(beast >= 0)
+    {
+        // (a beast's piece: its bone; a junction: the piece it joins)
+        bool sleeve = false;
+        const int bits = piecesOf(part, st.selSide, sleeve) & beastarmour::kindSlots(beast);
+        int slot = 0;
+        while(slot < agarmor::NumPieces - 1 && !((bits >> slot) & 1))
+        {
+            slot++;
+        }
+        const int other = beastarmour::joins(beast, slot);
+        if(sleeve)
+        {
+            q_snprintf(what, sizeof(what), " = the leather from its %s to its %s%s", beastarmour::boneOf(beast, slot),
+                other >= 0 ? beastarmour::boneOf(beast, other) : "?", beastarmour::junctionMade(beast, slot) ? "" : " (off)");
+        }
+        else
+        {
+            q_snprintf(what, sizeof(what), " = slot %d on its %s", slot, beastarmour::boneOf(beast, slot));
+        }
+    }
+    else if(subject == subjectAdGuard || subject == subjectAdCrossbow)
+    {
+        q_snprintf(what, sizeof(what), adShared() ? " (shared with the %s: the same rig)" : " (its own: the rigs' bones differ)",
+            adLabels[subject == subjectAdGuard ? 1 : 0]);
+    }
+    q_snprintf(st.statusText, sizeof(st.statusText), "%s: %s%s%s, %d part%s set%s%s", subjectLabel(subject), partNames[part],
+        st.selSide == SideLeft ? " (left)" : st.selSide == SideRight ? " (right)" : limbPart(part) ? " (both)" : "", what,
         countSet(), countSet() == 1 ? "" : "s", generation() != st.savedGen ? ", not saved" : ", saved",
         st.running && !st.subject && st.subjectKind != KindPlayer ? "; no subject: Start" : "");
     return st.statusText;
@@ -970,7 +1131,7 @@ const char* animStatus()
 
 bool cloneWanted()
 {
-    return windowOpen() && za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, NumKinds - 1) == KindPlayer;
+    return windowOpen() && subjectNow() == KindPlayer;
 }
 
 bool playerArmour(int& type, int& pieces)

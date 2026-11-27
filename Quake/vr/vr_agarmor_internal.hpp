@@ -198,6 +198,10 @@ enum Joint : int
     KneeR,
     NumJoints
 };
+// armour.txt's rotate (degrees) as a turn: yaw about the model's up, pitch about its left, roll about its forward (tweakVerts;
+// the beasts' pieces, vr_beastarmour.cpp).
+[[nodiscard]] glm::mat3 tweakTurn(float pitchDeg, float yawDeg, float rollDeg);
+
 inline constexpr int bridgeCols = 6;      // a ring's corners: the limbs' grids' columns
 inline constexpr int bridgeMostFolds = 4; // (the rings within one entity's 256 bones: 4 joints x 9 rings x 7)
 inline constexpr int bridgeMostRings = 9;

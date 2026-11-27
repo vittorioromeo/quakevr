@@ -91,6 +91,7 @@ struct Pose
 
 // The rig of `model` (its file read on first use; nullptr: none). Kept for the session; reload() reads it again.
 [[nodiscard]] Rig* rigFor(const qmodel_t* model);
+[[nodiscard]] Rig* rigNamed(const char* model); // (by the model's path: "progs/vrgrunt.mdl")
 void reload();
 
 // A bone by name (-1 none).

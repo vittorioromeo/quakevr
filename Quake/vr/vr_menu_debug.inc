@@ -1606,9 +1606,11 @@ za::Vector<Item> pageArmourStudio()
             .help("vr_armourstudio: the kind below put ahead of you with its fists, held still and unhurt, in the tier below, "
                   "the part picked outlined in cyan. The player's kind is your own body (the menu's body clone, a mirror)."),
         cycle("Kind", vr_armourstudio_kind,
-            {{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Player (Your Body)"}})
+            {{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Player (Your Body)"}, {5.f, "Death Guard (AD)"},
+                {6.f, "Crossbow Knight (AD)"}, {7.f, "Rottweiler"}, {8.f, "Ogre"}, {9.f, "Scrag"}, {10.f, "Fiend"}})
             .help("vr_armourstudio_kind: whose armour is edited (quakevr/data/armour.txt's kind: grunt also the plain soldier, "
-                  "enforcer both enforcers, player every body build)."),
+                  "enforcer both enforcers, player every body build; AD's death guard and crossbow knight share one set while "
+                  "their rigs match; a beast by its model, its pieces rigid on its bones, each with a leather junction)."),
         cycle("Tier", vr_armourstudio_tier, {{1.f, "Green"}, {2.f, "Yellow"}, {3.f, "Red"}})
             .help("vr_armourstudio_tier: the subject's armour."),
         slider("Turn", vr_armourstudio_turn, -180.f, 180.f, 15.f, "%.0f deg")
@@ -1624,8 +1626,10 @@ za::Vector<Item> pageArmourStudio()
         cycle("Part", vr_armourstudio_part,
             {{0.f, "Cuirass"}, {1.f, "Helmet"}, {2.f, "Pauldrons (Upper Arms)"}, {3.f, "Bracers (Forearms)"}, {4.f, "Thighs"},
                 {5.f, "Shins"}, {6.f, "Elbow Sleeves (Upper Arm's)"}, {7.f, "Elbow Sleeves (Forearm's)"}, {8.f, "Knee Sleeves (Thigh's)"},
-                {9.f, "Knee Sleeves (Shin's)"}})
-            .help("vr_armourstudio_part: the piece edited, outlined on the subject."),
+                {9.f, "Knee Sleeves (Shin's)"}, {10.f, "Cuirass's Leather (Beasts)"}, {11.f, "Helmet's Leather (Beasts)"},
+                {12.f, "Plate 8 (Beasts)"}, {13.f, "Plate 9 (Beasts)"}, {14.f, "Plate 8's Leather (Beasts)"}, {15.f, "Plate 9's Leather (Beasts)"}})
+            .help("vr_armourstudio_part: the piece edited, outlined on the subject. A beast's sleeves are each piece's leather "
+                  "junction to the piece it joins (the line above names both); a part not on the kind says so."),
         cycle("Side", vr_armourstudio_side, {{0.f, "Both (Mirrored)"}, {1.f, "Left Only"}, {2.f, "Right Only"}})
             .help("vr_armourstudio_side: a limb's part edited on both sides (the left's values, the right the mirror image), or "
                   "one side's own values over them."),
@@ -1660,6 +1664,9 @@ za::Vector<Item> pageArmourStudio()
         toggle("Leather Sleeve Shown", vr_armourstudio_leather)
             .help("vr_armourstudio_leather: a sleeve part's leather (over the elbow or the knee) drawn, or not at all (saved as "
                   "leather \"0\"). Pick a sleeve part and a side to hide one strap alone."),
+        slider("Leather Sag (Beasts)", vr_armourstudio_sag, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_sag: a beast's leather junction's middle dropped this far (units; below 0 raised). Its width "
+                  "at each end is the tapers, its thickness the stand-off; Leather Sleeve Shown turns it off."),
         toggle("Hero Plates", vr_armourstudio_hero)
             .help("vr_armourstudio_hero: the part's hero plates, a row's plates drawn as one: the cuirass's breastplate, the "
                   "pauldrons' top row as two big plates, the bracers' elbow cop, the shins' knee cop. Off: every plate its own "

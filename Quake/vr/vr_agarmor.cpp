@@ -2426,13 +2426,7 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, bool 
             at(s.verts, i).p += geom::safeNormalize(d, glm::vec3{0.f}, 1e-6f) * o.v[armourdata::Standoff];
         }
     }
-    const float deg = pi / 180.f;
-    const float p = o.v[armourdata::Pitch] * deg, y = o.v[armourdata::Yaw] * deg, r = o.v[armourdata::Roll] * deg;
-    // (yaw about up, pitch about left, roll about forward: the model's z, y, x)
-    const glm::mat3 yawM{za::cos(y), za::sin(y), 0.f, -za::sin(y), za::cos(y), 0.f, 0.f, 0.f, 1.f};
-    const glm::mat3 pitchM{za::cos(p), 0.f, -za::sin(p), 0.f, 1.f, 0.f, za::sin(p), 0.f, za::cos(p)};
-    const glm::mat3 rollM{1.f, 0.f, 0.f, 0.f, za::cos(r), za::sin(r), 0.f, -za::sin(r), za::cos(r)};
-    const glm::mat3 turn = yawM * pitchM * rollM;
+    const glm::mat3 turn = tweakTurn(o.v[armourdata::Pitch], o.v[armourdata::Yaw], o.v[armourdata::Roll]);
     const float scale = has(armourdata::Scale) ? za::clamp(o.v[armourdata::Scale], 0.2f, 3.f) : 1.f;
     const glm::vec3 move{o.v[armourdata::OffsetX], o.v[armourdata::OffsetY], o.v[armourdata::OffsetZ]};
     for(int i = from; i < to; i++)
@@ -2687,6 +2681,18 @@ void bridgesOf(Shell& s, const rig2::Rig& rig, const PieceFrame* frames, const P
 
 namespace detail
 {
+
+glm::mat3 tweakTurn(float pitchDeg, float yawDeg, float rollDeg)
+{
+    const float deg = pi / 180.f;
+    const float p = pitchDeg * deg, y = yawDeg * deg, r = rollDeg * deg;
+    // (yaw about up, pitch about left, roll about forward: the model's z, y, x)
+    const glm::mat3 yawM{za::cos(y), za::sin(y), 0.f, -za::sin(y), za::cos(y), 0.f, 0.f, 0.f, 1.f};
+    const glm::mat3 pitchM{za::cos(p), 0.f, -za::sin(p), 0.f, 1.f, 0.f, za::sin(p), 0.f, za::cos(p)};
+    const glm::mat3 rollM{1.f, 0.f, 0.f, 0.f, za::cos(r), za::sin(r), 0.f, -za::sin(r), za::cos(r)};
+    return yawM * pitchM * rollM;
+}
+
 
 const rig2::Rig* rigOfShell(qmodel_t* src)
 {
@@ -3525,6 +3531,7 @@ void studioView(int ent, float bodyAlpha, int pieces, bool sleeve)
     studio.alpha = bodyAlpha;
     studio.pieces = pieces & allPieces;
     studio.sleeve = sleeve;
+    beastarmour::studioView(ent, bodyAlpha); // (a beast subject's body ghost: vr_beastarmour.cpp)
 }
 
 bool give(int num, int type, int pieces)
@@ -3574,6 +3581,10 @@ void setWorn(int num, int type, int pieces)
 
 bool makeModel(qmodel_t* mod)
 {
+    if(beastarmour::makeModel(mod))
+    {
+        return true; // a beast's piece shaped by armour.txt, its leather junctions (vr_beastarmour.cpp)
+    }
     // "<model>#bridge": the joints' leather (vr_agarmor_bridge.cpp)
     if(const za::SizeT len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(bridgeSuffix); len > suffix && !ZA_STRCMP(mod->name + len - suffix, bridgeSuffix))
     {
@@ -3849,6 +3860,10 @@ void relink()
 
 int bonePoses(const entity_t* e, const float** matrices)
 {
+    if(const int beast = beastarmour::bonePoses(e, matrices))
+    {
+        return beast; // a beast's leather junctions (vr_beastarmour.cpp)
+    }
     if(numBridges > 0 && e >= &bridgeEnts[0] && e < &bridgeEnts[numBridges])
     {
         // The joints' leather: made from its body's bones as drawn, once a frame (a vertex a bone: vr_agarmor_bridge.cpp)
@@ -4510,6 +4525,15 @@ void debugDraw()
         }
         edict_t* e = EDICT_NUM(i);
         const int mask = wornMask(e);
+        if(beastarmour::wears(e))
+        {
+            // (a beast: its rigid pieces, the studio's picked piece or junction alone)
+            if(picked && i == studio.ent)
+            {
+                beastarmour::outline(e, studio.pieces, studio.sleeve);
+            }
+            continue;
+        }
         const Shell* s = mask ? serverShell(baseOf(e)) : nullptr;
         if(!s)
         {

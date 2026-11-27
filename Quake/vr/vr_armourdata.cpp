@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_rig2.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -63,7 +64,14 @@ constexpr const char* fileHead =
     "//   leather  \"0\"       a sleeve's leather not drawn at all (1 or unset: drawn)\n"
     "//   hero     \"0\"       its hero plates off, every plate its own (1 or unset: the breastplate, the pauldrons' top row,\n"
     "//                      the elbows' and knees' cops each one plate over several columns; vr_agarmor_hero 0: off everywhere)\n"
-    "// (start, end, rows and the tapers: the cuirass and the limbs' plates; not the helmet or the sleeves; leather: the sleeves)\n";
+    "// (start, end, rows and the tapers: the cuirass and the limbs' plates; not the helmet or the sleeves; leather: the sleeves)\n"
+    "// ad_knight: AD's death guard and crossbow knight, one set for both (their rigs' bones the same; else each by its path).\n"
+    "// A beast by its model's path (\"progs/dog.mdl\"; Quake/vr/vr_beastarmour.cpp): its pieces cuirass, helmet, pauldron,\n"
+    "// bracer, thigh (_l / _r as above), plate8 and plate9 (slots 8 and 9: the rottweiler's croup and collar, the ogre's back\n"
+    "// plate and faulds...): offset, rotate, scale, standoff (pushed out from its middle), taper_start / taper_end (along its\n"
+    "// bone). Each piece's <part>_sleeve is its leather junction to the piece it joins: leather \"0\" off, taper_start /\n"
+    "// taper_end its width at this piece's end and the other's, standoff its thickness, folds, fold_depth, and\n"
+    "//   sag      \"u\"       the junction's middle dropped this far (below 0 raised)\n";
 
 [[nodiscard]] Entry* find(const char* name)
 {
@@ -75,11 +83,6 @@ constexpr const char* fileHead =
         }
     }
     return nullptr;
-}
-
-[[nodiscard]] bool limbPart(int part)
-{
-    return part >= PartPauldron;
 }
 
 // A part's name in the file (and its side): "bracer", "bracer_l", "thigh_sleeve_r". False: no such part.
@@ -218,7 +221,7 @@ void parse(const char* text, za::Vector<Entry>& into)
             }
             if(!known)
             {
-                Con_Printf("\x02%s: no kind \"%s\" (grunt, enforcer, knight, death_knight, player, or a model's path)\n", pathText, name.cStr());
+                Con_Printf("\x02%s: no kind \"%s\" (grunt, enforcer, knight, death_knight, player, ad_knight, or a model's path)\n", pathText, name.cStr());
                 problems++;
             }
         }
@@ -293,7 +296,7 @@ void parse(const char* text, za::Vector<Entry>& into)
                 if(field < 0)
                 {
                     Con_Printf("\x02%s: no key \"%s\" (offset, rotate, scale, standoff, start, end, rows, taper_start, taper_end, "
-                               "leather, folds, fold_depth, hero): ignored\n", pathText, key.cStr());
+                               "leather, folds, fold_depth, hero, sag): ignored\n", pathText, key.cStr());
                     problems++;
                     continue;
                 }
@@ -320,6 +323,49 @@ void print_f()
     Con_Printf("armour: %s, %d part%s set, generation %d\n", pathText, countSet(), countSet() == 1 ? "" : "s", gen);
 }
 
+// AD's two knights (KindAdKnight).
+constexpr const char* adModels[2] = {"progs/vrdguard.mdl", "progs/vrdcrossbow.mdl"};
+
+// Part `part`, side `side` laid over `out` from `first`, then `second` (either may be null): the most specific wins value by
+// value (each entry's side, then its both-sides value, mirrored on the right). Whether anything is set.
+bool layerOver(Override& out, int part, int side, const Entry* first, const Entry* second)
+{
+    const Entry* layers[2] = {first, second};
+    for(const Entry* e : layers)
+    {
+        for(int pass = 0; e && pass < (side == SideBoth ? 1 : 2); pass++)
+        {
+            const Override& o = e->parts[part][pass == 0 ? side : SideBoth];
+            const bool mirror = pass == 1 && side == SideRight;
+            for(int f = 0; f < NumFields; f++)
+            {
+                const uint32_t bit = 1u << static_cast<unsigned>(f);
+                if((o.has & bit) && !(out.has & bit))
+                {
+                    out.v[f] = mirror && (f == OffsetY || f == Yaw || f == Roll) ? -o.v[f] : o.v[f];
+                    out.has |= bit;
+                }
+            }
+        }
+    }
+    return out.has != 0;
+}
+
+// (FNV-1a over a piece's values)
+[[nodiscard]] uint32_t hashOver(uint32_t h, int key, const Override& o)
+{
+    h = h == 0 ? 2166136261u : h;
+    h = (h ^ static_cast<uint32_t>(key)) * 16777619u;
+    h = (h ^ o.has) * 16777619u;
+    for(const float x : o.v)
+    {
+        uint32_t u = 0;
+        ZA_MEMCPY(&u, &x, 4);
+        h = (h ^ u) * 16777619u;
+    }
+    return h;
+}
+
 } // namespace
 
 int kindOf(const char* model)
@@ -344,7 +390,76 @@ int kindOf(const char* model)
     {
         return KindDeathKnight;
     }
+    if((!ZA_STRCMP(model, adModels[0]) || !ZA_STRCMP(model, adModels[1])) && adShared())
+    {
+        return KindAdKnight;
+    }
     return !ZA_STRNCMP(model, "progs/vrbody", 12) ? KindPlayer : -1;
+}
+
+bool adShared()
+{
+    const rig2::Rig* a = rig2::rigNamed(adModels[0]);
+    const rig2::Rig* b = rig2::rigNamed(adModels[1]);
+    if(!a || !b || a->numBones != b->numBones || a->numBones <= 0)
+    {
+        return false;
+    }
+    for(int i = 0; i < a->numBones; i++)
+    {
+        const rig2::Bone& x = a->bones[i];
+        const rig2::Bone& y = b->bones[i];
+        if(ZA_STRCMP(x.name, y.name) != 0 || x.parent != y.parent || x.joint != y.joint)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+void beastPart(int slot, bool sleeve, int& part, int& side)
+{
+    side = slot >= agarmor::PauldronL && slot <= agarmor::ThighR ? ((slot - agarmor::PauldronL) % 2 == 0 ? SideLeft : SideRight) : SideBoth;
+    if(slot >= agarmor::PauldronL && slot <= agarmor::ThighR)
+    {
+        part = PartPauldron + (slot - agarmor::PauldronL) / 2 + (sleeve ? PartPauldronSleeve - PartPauldron : 0);
+        return;
+    }
+    part = slot == agarmor::Cuirass ? (sleeve ? PartCuirassSleeve : PartCuirass) : slot == agarmor::Helmet ? (sleeve ? PartHelmetSleeve : PartHelmet) :
+        slot == 8 ? (sleeve ? PartPlate8Sleeve : PartPlate8) : (sleeve ? PartPlate9Sleeve : PartPlate9);
+}
+
+bool resolveBeast(const char* model, int slot, bool sleeve, Override& out)
+{
+    out = Override{};
+    for(int f = 0; f < NumFields; f++)
+    {
+        out.v[f] = fieldDefault(f);
+    }
+    if(table.empty() || !model || slot < 0 || slot >= agarmor::NumPieces)
+    {
+        return false;
+    }
+    int part = 0, side = 0;
+    beastPart(slot, sleeve, part, side);
+    return layerOver(out, part, side, find(model), nullptr);
+}
+
+uint32_t beastSignature(const char* model)
+{
+    uint32_t h = 0;
+    for(int piece = 0; piece < agarmor::NumPieces; piece++)
+    {
+        for(const bool sleeve : {false, true})
+        {
+            Override o;
+            if(resolveBeast(model, piece, sleeve, o))
+            {
+                h = hashOver(h, piece * 2 + (sleeve ? 1 : 0), o);
+            }
+        }
+    }
+    return h;
 }
 
 bool resolve(const char* model, int piece, bool sleeve, Override& out)
@@ -362,25 +477,7 @@ bool resolve(const char* model, int piece, bool sleeve, Override& out)
         PartPauldron + (piece - agarmor::PauldronL) / 2 + (sleeve ? PartPauldronSleeve - PartPauldron : 0);
     const int side = piece < agarmor::PauldronL ? SideBoth : (piece - agarmor::PauldronL) % 2 == 0 ? SideLeft : SideRight;
     const int kind = kindOf(model);
-    const Entry* layers[2] = {model ? find(model) : nullptr, kind >= 0 ? find(kindNames[kind]) : nullptr};
-    for(const Entry* e : layers)
-    {
-        for(int pass = 0; e && pass < (side == SideBoth ? 1 : 2); pass++)
-        {
-            const Override& o = e->parts[part][pass == 0 ? side : SideBoth];
-            const bool mirror = pass == 1 && side == SideRight;
-            for(int f = 0; f < NumFields; f++)
-            {
-                const uint32_t bit = 1u << static_cast<unsigned>(f);
-                if((o.has & bit) && !(out.has & bit))
-                {
-                    out.v[f] = mirror && (f == OffsetY || f == Yaw || f == Roll) ? -o.v[f] : o.v[f];
-                    out.has |= bit;
-                }
-            }
-        }
-    }
-    return out.has != 0;
+    return layerOver(out, part, side, model ? find(model) : nullptr, kind >= 0 ? find(kindNames[kind]) : nullptr);
 }
 
 uint32_t signature(const char* model)
@@ -393,15 +490,7 @@ uint32_t signature(const char* model)
             Override o;
             if(resolve(model, piece, sleeve, o))
             {
-                h = h == 0 ? 2166136261u : h;
-                h = (h ^ static_cast<uint32_t>(piece * 2 + (sleeve ? 1 : 0))) * 16777619u;
-                h = (h ^ o.has) * 16777619u;
-                for(const float x : o.v)
-                {
-                    uint32_t u = 0;
-                    ZA_MEMCPY(&u, &x, 4);
-                    h = (h ^ u) * 16777619u;
-                }
+                h = hashOver(h, piece * 2 + (sleeve ? 1 : 0), o);
             }
         }
     }

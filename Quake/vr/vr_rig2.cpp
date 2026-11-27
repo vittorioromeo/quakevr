@@ -870,28 +870,33 @@ bool save(Rig& rig, za::String& pathOut)
 
 Rig* rigFor(const qmodel_t* model)
 {
-    if(!model)
+    return model ? rigNamed(model->name) : nullptr;
+}
+
+Rig* rigNamed(const char* name)
+{
+    if(!name || !name[0])
     {
         return nullptr;
     }
     for(Entry& e : rigs)
     {
-        if(!ZA_STRCMP(e.model.cStr(), model->name))
+        if(!ZA_STRCMP(e.model.cStr(), name))
         {
             return e.rig.get();
         }
     }
     Entry e;
-    e.model = model->name;
+    e.model = name;
     e.tried = true;
     char path[MAX_OSPATH];
-    filePath(model->name, path, sizeof(path));
+    filePath(name, path, sizeof(path));
     za::String text, err;
     if(!files::readText(path, text))
     {
         // (the tests' folder has none: the game folder's)
         char base[64], game[MAX_OSPATH];
-        rigdata::baseName(model->name, base, sizeof(base));
+        rigdata::baseName(name, base, sizeof(base));
         VR_QuakeVRGameDir(game, sizeof(game));
         q_snprintf(path, sizeof(path), "%s/rigs/%s.rig2.txt", game, base);
         if(!files::readText(path, text))
@@ -908,7 +913,7 @@ Rig* rigFor(const qmodel_t* model)
         return nullptr;
     }
     r->path = path;
-    r->model = model->name;
+    r->model = name;
     e.rig = ZA_MOVE(r);
     Rig* out = e.rig.get();
     rigs.pushBack(ZA_MOVE(e));
