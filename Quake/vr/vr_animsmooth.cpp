@@ -1439,6 +1439,9 @@ bool animsmooth::drawnPoints(const entity_s* e, int pose1, int pose2, float blen
     {
         return false;
     }
+    const double t0 = Sys_DoubleTime();
+    stats.pointCalls++;
+    stats.points += n;
     // The draw's own memo (its key the same this frame: the draw then reuses what is made here, or this what it made)
     const Memo* memo = instanceMemo(e, hdr, pose1, pose2, blend, 0);
     SmoothModel* m = memo && memo->swung ? &modelData(e->model, hdr) : nullptr;
@@ -1470,6 +1473,7 @@ bool animsmooth::drawnPoints(const entity_s* e, int pose1, int pose2, float blen
         }
         out[i] = p;
     }
+    stats.pointSeconds += Sys_DoubleTime() - t0;
     return true;
 }
 

@@ -168,6 +168,8 @@ struct Stats
     int rebuilt{0};          // ... instances drawn rebuilt (vr_anim_smooth_rebuild), worked out anew
     int calls{0};            // VR_AnimSmooth's calls, and their time (s)
     double seconds{0.0};
+    int pointCalls{0}, points{0}; // drawnPoints' calls (the armour's), the vertices they read, and their time (s)
+    double pointSeconds{0.0};
 };
 inline Stats stats;
 

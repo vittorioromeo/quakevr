@@ -618,6 +618,85 @@ void(float req) VR_DLT_Frame =
         VR_Test_Verdict();
     }
 };
+// `vr_agarmor_test 23` (armourrebuild; ROUND26.md): the cost of the beasts' armour on the drawn body. Ten ogres in full
+// armour ahead, running at the player (god mode, their attacks put off), settled 72 frames, then measured 288:
+// vr_anim_smooth_info at both ends (the first resets its counts) prints the drawn points' calls and time ("animsmooth:
+// drawn points ..."). Ends on "armourcost: N passed, M failed" (all ten alive through it).
+float vr_arc_busy;
+float vr_arc_state;  // 1 settling, 2 measured, 3 the info asked for: the verdict a few frames later
+float vr_arc_frames; // frames counted in the state
+float VR_ARC_SETTLE = 72;
+float VR_ARC_FRAMES = 288;
+
+float() VR_ARC_Alive =
+{
+    float n = 0;
+    entity e = find(world, classname, "monster_ogre");
+    while(e)
+    {
+        n = n + (e.health > 0 ? 1 : 0);
+        e = find(e, classname, "monster_ogre");
+    }
+    return n;
+};
+
+void(float req) VR_ARC_Frame =
+{
+    entity p = VR_Player();
+    if(req == 23)
+    {
+        VR_Test_BeginFlags("armourcost", VR_TEST_LOUD);
+        vr_arc_busy = TRUE;
+        p.flags = p.flags | FL_NOTARGET | FL_GODMODE;
+        float i = 0;
+        while(i < 10)
+        {
+            float row = floor(i / 5);
+            entity g = VR_BAT_Spawn(p, 1, (i - row * 5 - 2) * 72, 320 + row * 110, 0);
+            VR_AgArmor_Give(g, 2, VR_BAT_Slots(1));
+            entity oself = self;
+            self = g;
+            self.enemy = self.goalentity = p;
+            self.attack_finished = time + 100;
+            ogre_run1();
+            self = oself;
+            i = i + 1;
+        }
+        vr_arc_state = 1;
+        vr_arc_frames = 0;
+        return;
+    }
+    vr_arc_frames = vr_arc_frames + 1;
+    if(vr_arc_state == 1 && vr_arc_frames >= VR_ARC_SETTLE)
+    {
+        localcmd("vr_anim_smooth_info\n"); // (its counts reset)
+        vr_arc_state = 2;
+        vr_arc_frames = 0;
+        return;
+    }
+    if(vr_arc_state == 2 && vr_arc_frames >= VR_ARC_FRAMES)
+    {
+        localcmd("vr_anim_smooth_info\n");
+        VR_Test_Check(VR_ARC_Alive() == 10, sprintf("ten armoured ogres alive through %g frames (%g)", VR_ARC_FRAMES, VR_ARC_Alive()));
+        vr_arc_state = 3;
+        vr_arc_frames = 0;
+        return;
+    }
+    if(vr_arc_state == 3 && vr_arc_frames >= 3) // (the info runs at the next frame's commands)
+    {
+        entity e = find(world, classname, "monster_ogre");
+        while(e)
+        {
+            entity nx = find(e, classname, "monster_ogre");
+            remove(e);
+            e = nx;
+        }
+        p.flags = p.flags - (p.flags & (FL_NOTARGET | FL_GODMODE));
+        vr_arc_busy = FALSE;
+        vr_arc_state = 0;
+        VR_Test_Verdict();
+    }
+};
 // `vr_agarmor_test 22` (armourhits; ROUND26.md): time to kill. Each of a rottweiler, an ogre, a scrag, a fiend, an armed
 // grunt and an armed knight stands still ahead (its own health), bare, then in each skill's armour (Normal, Hard,
 // Nightmare: the skill's best type and its count of pieces, the cuirass, the helmet, then the limb plates in order), and
