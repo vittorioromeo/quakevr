@@ -28,6 +28,11 @@ struct KindInfo
     const char* model; // its model (precached by QC: vr_bayonet.qc)
     glm::vec3 tip;     // its striking point in its own model space (none: '0 0 0')
     glm::vec3 base;    // where its blade starts (its own model space)
+    // Its mount frame in its own model space (flatbayonet): `forward` along its blade towards the tip, `across` along its
+    // guard (the frame's left); up is forward x across. A mount's Pitch / Yaw / Roll turn this frame (Mount::basis), so all
+    // zero lays the blade along the barrel with the guard level, and each turns about the blade's own axes.
+    glm::vec3 forward;
+    glm::vec3 across;
 };
 
 // The kind's data (null: none or unknown).
@@ -40,7 +45,10 @@ struct Mount
 {
     bool fits{false};
     glm::vec3 pos{0.f};
-    glm::vec3 angles{0.f}; // pitch up, yaw left, roll (the hands' order: view::anglesBasis)
+    glm::vec3 angles{0.f}; // pitch up, yaw left, roll (the hands' order: view::anglesBasis) of the kind's mount frame
+    // Its model's axes in the gun's (view::anglesBasis(angles) x the kind's frame: KindInfo::forward / across): yaw about
+    // the gun's up, then pitch about the guard, then roll about the blade.
+    glm::mat3 basis{1.f};
     float scale{1.f};
     // The attachment model's own Scale, as the renderer draws it (a weapon model's weapons.txt Scale: the dagger's 0.34;
     // 1 the bayonet, which has no slot): its points are drawn that much nearer its origin (onGun counts it).
@@ -49,6 +57,10 @@ struct Mount
 [[nodiscard]] Mount mount(int slot, int kind);
 // A point of the attachment (its own model space) in the gun model's own space, by the mount.
 [[nodiscard]] glm::vec3 onGun(const Mount& m, const glm::vec3& p);
+// A mount of `kind` made before its frame (its angles turned its model's own axes) as the frame's angles and place: the
+// same blade, its guard rolled level, its tip kept (vr_wofs_version 80). `size`: the mount's scale times the
+// attachment's own (Mount::scale * Mount::own).
+void convertOldMount(int kind, glm::vec3& pos, glm::vec3& angles, float size);
 // The one place an attachment's points are measured from a gun (the server's: QC attachinfo; the drawn one is placed by
 // the same view::ModelSpace, view::placeAttachment): point `what` (1 its mount, 2 its tip, 3 its blade's start) of attachment `kind` on the gun
 // drawn with `model`, from the gun's drawn muzzle (view::weaponLocalGeometry), in the gun's axes as drawn (frame 0, unturned:

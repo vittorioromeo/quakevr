@@ -592,9 +592,22 @@ entity(string m, float type, float i, vector at, vector ang, vector vel) VR_AgAr
     return h;
 };
 
+// (`i`: a beast's piece code too, its bit + VR_AR_STRIDE x n: that bit's nth piece)
 entity(entity e, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisAt =
 {
-    return VR_AgArmor_DebrisOf(VR_AgArmor_Model(e, i), e.vr_ar_type, i, at, ang, vel);
+    entity h = VR_AgArmor_DebrisOf(VR_AgArmor_Model(e, i), e.vr_ar_type, i, at, ang, vel);
+    // A beast's piece as big as it was worn: its model the worn shape (armour.txt's tweaks: vr_beastarmour.cpp pieceModel),
+    // its size the body's drawn scale (limbpiece 18: ROUND26.md, "armourlook").
+    if(h != world && ragdollbone(e, '0 0 0', QVR_ARMOR_BEAST) > 0)
+    {
+        vector worn = limbpiece(e, i, 18);
+        if(worn_x > 0 && worn_x != 1)
+        {
+            h.scale = worn_x;
+            setsize(h, modelbounds(h, 0) * worn_x, modelbounds(h, 1) * worn_x);
+        }
+    }
+    return h;
 };
 
 // A plate shot off (its pool gone: VR_AgArmor_Break, the player's VR_PP_Shed): piece `i` of `e` (whole: model `whole`
@@ -656,8 +669,8 @@ float(entity e, float i) VR_AgArmor_Debris =
             vector pa = limbpiece(e, code, 10);
             vector po = pa - (e.absmin + e.absmax) * 0.5;
             po_z = 0;
-            made = made + (VR_AgArmor_DebrisOf(limbmodel(e, QVR_ARMOR_BEAST_MODEL - code), e.vr_ar_type, i, pa, limbpiece(e, code, 11),
-                e.velocity + normalize(po) * (60 + 40 * random()) + '0 0 120') != world);
+            made = made + (VR_AgArmor_DebrisAt(e, code, pa, limbpiece(e, code, 11), e.velocity + normalize(po) * (60 + 40 * random()) +
+                '0 0 120') != world); // (its code: its own model and worn size)
         }
         return made;
     }
@@ -697,8 +710,7 @@ void(entity e, float dm) VR_AgArmor_Shed =
             vector at = limbpiece(e, code, 10);
             vector out = normalize(at - (e.absmin + e.absmax) * 0.5);
             vector vel = VR_Gore_Fling(VelocityForDamage(dm)) * 0.6 + out * (80 + 60 * random()) + '0 0 80';
-            string pm = j > 0 ? limbmodel(e, QVR_ARMOR_BEAST_MODEL - code) : VR_AgArmor_Model(e, i);
-            n = n + (VR_AgArmor_DebrisOf(pm, e.vr_ar_type, i, at, limbpiece(e, code, 11), vel) != world);
+            n = n + (VR_AgArmor_DebrisAt(e, code, at, limbpiece(e, code, 11), vel) != world);
         }
     }
     if(e.vr_ar_type > 0)

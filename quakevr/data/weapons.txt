@@ -514,13 +514,14 @@ weapon 1
     att1_x "32.9"
     att1_z "2.84"
     att1_scale "2.2727"
-    // The dagger as a bayonet (daggerattach, vr_attach_daggers): its blade along under the barrel, edge down, its root
-    // where the bayonet's is, its guard's top just under the barrel; real size: 1 / 0.44, its own Scale on it
+    // The dagger as a bayonet (daggerattach, vr_attach_daggers): its blade along under the barrel; real size: 1 / 0.44,
+    // its own Scale on it. In its frame (flatbayonet: blade forward, guard across; Pitch / Yaw / Roll about its own
+    // axes): his values of 2026-11-27 converted (the same blade, its tip kept), the guard turned level.
     att2_ok "1"
-    att2_x "26.56"
-    att2_z "-4.6"
-    att2_pitch "-76.46"
-    att2_roll "180"
+    att2_x "26.55"
+    att2_y "0.77"
+    att2_z "-1.717"
+    att2_pitch "-0.74"
     att2_scale "2.2727"
     muzzle_av "33.0657 -0.6615 3.013"
     muzzle_x "0.01"
@@ -659,13 +660,14 @@ weapon 2
     att1_x "26.0"
     att1_z "3.62"
     att1_scale "2.0833"
-    // The dagger as a bayonet (daggerattach, vr_attach_daggers): its blade along under the barrel, edge down, its root
-    // where the bayonet's is, its guard's top just under the barrel; real size: 1 / 0.48, its own Scale on it
+    // The dagger as a bayonet (daggerattach, vr_attach_daggers): its blade along under the barrel; real size: 1 / 0.48,
+    // its own Scale on it. In its frame (flatbayonet: blade forward, guard across; Pitch / Yaw / Roll about its own
+    // axes): his values of 2026-11-27 converted (the same blade, its tip kept), the guard turned level.
     att2_ok "1"
-    att2_x "20.19"
-    att2_z "-3.22"
-    att2_pitch "-76.46"
-    att2_roll "180"
+    att2_x "20.199"
+    att2_y "0.706"
+    att2_z "1.668"
+    att2_pitch "0.76"
     att2_scale "2.0833"
     muzzle_av "27.5908 -0.6335 7.7225"
     muzzle_x "0.499997"

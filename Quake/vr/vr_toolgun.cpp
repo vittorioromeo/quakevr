@@ -27,6 +27,7 @@
 #include "vr_mem.hpp"
 #include "vr_testkit.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_toolgun_icons.hpp"
 #include "vr_climbrope.hpp"
 #include "vr_toolgun_brush.hpp"
 
@@ -2285,6 +2286,33 @@ void armedArmourTest_f()
     qvr::testkit::verdict("toolgun armour test", passed, failed);
 }
 
+// vr_toolgun_armed_icons_test: every kind the Armed Humanoid page lists has a preview (the kind's gunless model drawn as an
+// icon, the tile's and the page's picture), AD's death guard and crossbow knight too (their models are made as they load).
+// Ends on "toolgun armed icons test: N passed, M failed".
+void armedIconsTest_f()
+{
+    int passed = 0, failed = 0;
+    armedRefresh();
+    if(!sv.active || !armedCat.valid || armedCat.kindCount < 1)
+    {
+        Con_Printf("toolgun armed icons test: FAIL: a game with the armed monsters' table\n");
+        qvr::testkit::verdict("toolgun armed icons test", passed, 1);
+        return;
+    }
+    for(int k = 0; k < armedCat.kindCount; k++)
+    {
+        (void)toolgun::icons::get(armedCat.kinds[k].model, 0, false); // (asked for: made below)
+    }
+    toolgun::icons::makePending(armedMaxKinds * 2);
+    for(int k = 0; k < armedCat.kindCount; k++)
+    {
+        const bool ok = toolgun::icons::get(armedCat.kinds[k].model, 0, false) != nullptr;
+        Con_Printf("toolgun armed icons test: %s: %s (%s)\n", ok ? "PASS" : "FAIL", armedCat.kinds[k].name, armedCat.kinds[k].model);
+        (ok ? passed : failed)++;
+    }
+    qvr::testkit::verdict("toolgun armed icons test", passed, failed);
+}
+
 // vr_toolgun_armed_pair_test: the Armed Humanoid page's two hands (armedPairs: its Left Hand list) and what the spawn tool
 // makes of them (spawnChoice): a grunt with a gun and an axe or a dagger (the replacements' gun and axe: QC vr_ag_gunaxe),
 // two guns, two blades; never a blade then a gun, nor a big gun with a blade. Ends on "toolgun pair test: N passed, M failed".
@@ -2508,6 +2536,7 @@ void qvr::toolgun::registerCommands()
     Cmd_AddCommand("vr_toolgun_select_armed", selectArmed_f);
     Cmd_AddCommand("vr_toolgun_armed_list", armedList_f);
     Cmd_AddCommand("vr_toolgun_armed_pair_test", armedPairTest_f);
+    Cmd_AddCommand("vr_toolgun_armed_icons_test", armedIconsTest_f);
     Cmd_AddCommand("vr_toolgun_pick", pick_f);
     Cmd_AddCommand("vr_toolgun_reset", reset_f);
     Cmd_AddCommand("vr_toolgun_armed_reset", armedReset_f);

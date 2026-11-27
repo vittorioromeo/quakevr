@@ -1038,10 +1038,15 @@ za::Vector<Item> pageDebugReports()
         command("Held Hands on Arms: Start", "vr_hold_arm_probe 1")
             .help("vr_hold_arm_probe 1: from now, every frame a hand is drawn on a held limb or a prop dragged with Grab / Pull, "
                   "how far its wrist is past its arm's reach (it should stay 0: the hand stays on the arm at full stretch until "
-                  "the hold lets go). Hold something, walk away from it, then Held Hands on Arms: Report."),
+                  "the hold lets go), and how smoothly the hand is drawn. Hold something, walk away from it, then Held Hands on "
+                  "Arms: Report."),
+        command("Held Hands on Arms: Start, Each Frame Logged", "vr_hold_arm_probe 2")
+            .help("vr_hold_arm_probe 2: as Start, and every frame prints the held thing as drawn and as the server has it, the "
+                  "hold's point and the drawn hand (holdjit: lines in the console and qconsole.log), for a hand that shakes."),
         command("Held Hands on Arms: Report", "vr_hold_arm_probe report")
             .help("vr_hold_arm_probe report: the frames held since the start or the last report, the most the wrist was past its "
-                  "arm (cm), and how often the drawn hand was pulled in to its arm."),
+                  "arm (cm), how often the drawn hand was pulled in to its arm, and its shake: how far it left a smooth path "
+                  "(cm; it should stay well under 1 on a crate dragged with H) and slid on what it holds a frame."),
         command("Flatscreen Status Bar Report", "vr_flathud_report")
             .help("vr_flathud_report: each hand's ammo counter as the flatscreen status bar draws it (hudstyle 1, "
                   "vr_flat_hud), the ammo pools, the status bar's own ammo number, bullet time's bar and the canvas."),
@@ -1072,6 +1077,10 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Reload Report", "vr_flatreload_report")
             .help("vr_flatreload_report: each hand's reload trip as drawn (the server's bit, the share of the way to the hip, "
                   "which hip, the hand's distance from it, its pitch and hotspot) and R's presses."),
+        command("Flatscreen Attach Report", "vr_flatattach_report")
+            .help("vr_flatattach_report: the Attach key's (J) hand trip as drawn: its phase, putting on or taking off, the hands, "
+                  "the attachment, the hand's share of the way and the slide's, and the presses, trips, impulses sent at once and "
+                  "on arrival, cancels and the last one's reason."),
         command("Flatscreen Swim Report", "vr_flatswim_report")
             .help("vr_flatswim_report: the swimming strokes as drawn (swimming, the stroke's cycle, speed and mix of kinds), each "
                   "hand's share and take-over, and what vr_flatswim_probe measured since: each hand's path and palm."),
@@ -1085,6 +1094,7 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Force Grab: Press E", "vr_flat_fg_press")
             .help("vr_flat_fg_press: E's force grab, as the key presses it (the palm turns out first, then the grab)."),
         row(opt::vr_flat_reload_debug),
+        row(opt::vr_flat_attach_debug),
         command("Holster Menu Dump", "vr_flat_holster_menu_dump")
             .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "
                   "hand holds, and each button's place, whether it does something now and its impulse."),

@@ -4710,6 +4710,7 @@ QVR_CVAR(vr_flat_swap_seen, "-1", CVAR_NONE)            // test aid: how the las
 QVR_CVAR(vr_flat_swap_vis_faults, "-1", CVAR_NONE)      // test aid: the watch through the last swap key press (vr_flatswap.cpp, vr_flatswap_vis_report): its faulty frames (a hand or the weapon not drawn, the weapon off the screen, a hand dipping off it, not a number); -1 while watching; QC vr_flatswap_test 3
 QVR_CVAR(vr_flatswap_test, "0", CVAR_NONE)              // -flatscreenmode only: the swap key with every two-handed weapon and with carried things (vr_flatswap_test.qc; Debug > Tests > Flat Swap)
 QVR_CVAR(vr_flat_reload, "1", CVAR_ARCHIVE | QVR_RULE)             // flat-screen play reloads: every gun has its clip, filled from the ammo by the hip-holster reload (VR's Reloading: Hip Holsters), started by R or vr_flat_autoreload; 0: no clips, every shot from the ammo (as before 2026-11-08)
+QVR_CVAR(vr_flat_attach_debug, "0", CVAR_NONE)         // 1: the flat-screen Attach key's trip printed step by step (flatattach: ...; vr_flatattach.cpp)
 QVR_CVAR(vr_flat_reload_debug, "0", CVAR_NONE)         // 1: the flat-screen reload's drawn trip printed step by step (flatreload: ...; vr_flatreload.cpp)
 QVR_CVAR(vr_flat_reload_pose, "-1", CVAR_NONE)         // test aid: 0..1 holds the main hand that far on the way to its hip holster, muzzle down, with no reload (-1 off): a hand at the holster that must not reload
 QVR_CVAR(vr_flat_ssg_break, "1", CVAR_ARCHIVE)          // flat-screen play with clips (vr_flat_reload): the super shotgun fired empty breaks open by itself (vr_flat_ssg_break_delay later), its spent shells thrown out, and can't fire until a reload closes it (his words 2026-11-10); 0: as before (its shells out at the hip)
@@ -4784,7 +4785,7 @@ QVR_CVAR(vr_flat_tp, "0", CVAR_ARCHIVE)                 // flatscreen play: 1 an
 QVR_CVAR(vr_flat_tp_back, "56", CVAR_ARCHIVE)           // the third-person camera: units behind the eye, along the look (0..200)
 QVR_CVAR(vr_flat_tp_right, "16", CVAR_ARCHIVE)          // the third-person camera: units out to the shoulder's side (0..64; vr_flat_tp_side picks the shoulder)
 QVR_CVAR(vr_flat_tp_up, "6", CVAR_ARCHIVE)              // the third-person camera: units above the eye, in the look's frame (-64..64)
-QVR_CVAR(vr_flat_tp_fov, "1.1", CVAR_ARCHIVE)           // the third-person camera: the field of view times this while it is out (0.5..1.5; 1 the view's own)
+QVR_CVAR(vr_flat_tp_fov, "1", CVAR_ARCHIVE)           // the third-person camera: the field of view times this while it is out (0.5..1.5; 1 the view's own)
 QVR_CVAR(vr_flat_tp_probe, "8", CVAR_ARCHIVE)           // the third-person camera: its collision ball's radius, units (0..16): it stops this far short of a wall, past the near plane's corners
 QVR_CVAR(vr_flat_tp_ease_out, "0.35", CVAR_ARCHIVE)     // the third-person camera: seconds (time constant) it eases back out over after a wall pulled it in (0: at once); in is always at once
 QVR_CVAR(vr_flat_tp_side, "0", CVAR_ARCHIVE)            // the third-person camera: 0 over the right shoulder, 1 over the left

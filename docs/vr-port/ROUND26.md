@@ -3741,3 +3741,206 @@ as a single piece."
   (humanoid path, untouched; low-impact run).
 - **Render**: `scratch/scragsplit_wizard.png` (bf_eval: front three-quarter, then front, back, left, right, top, back
   three-quarter; the back half darker).
+
+## armourlook: shaped beast plates as detailed as untouched ones, debris keeps the worn shape, his tweaks kept (branch agent/armourlook, 2026-11-27)
+
+His words (2026-11-27): "after I resized them and tweaked them in the armour studio the plates still look very low res
+and undetailed"; "The dropped armour plates shot off the new enemies seem to not retain the scaling settings, they look
+bigger after they have been detached"; "Please try to maintain my armour tweaks."
+- **Cause of the low-res look**: a shaped piece is drawn as `<piece>.mdl#tweak`, an IQM-type model made from the .mdl (its
+  skins, normal map, triangles and texture places all the .mdl's: measured). But retro textures (on by default) size their
+  blocks by `modelmeta::quakeSkin`: true for a .mdl and a ragdoll's copy, false for every other IQM ("our own models,
+  painted at four times a Quake skin's density": a quarter of the texture's size). So the #tweak's 128x64 skin was taken
+  as 32x16 Quake texels: blocks four texels wide (the authored rig had the same bug once). `vr_beastarmour_lookcheck`
+  found it: every value the renderer hands the shader equal but `retro[1..2]` (the skin's Quake size). Fix: new model
+  traits `ArmourShaped` ("#tweak") and `ArmourLeather` ("#bridge": the joints' leather, humanoids' and beasts', on
+  vragarmor.mdl's 8-bit atlas, the same fault) count as Quake skins. Mock check and render (retro on in the tests): the
+  instance values now all equal (41 shaped pieces of his shipped tweaks); `scratch/armourlook_pair.png` (rottweiler close,
+  vr_agarmor_test 17: left no tweaks, right his: the blocks the same size).
+- **Debris**: QC's beast piece model (`limbmodel QVR_ARMOR_BEAST_MODEL`, `beastarmour::pieceModel`) is now the one it is
+  drawn with: `<piece>.mdl#tweak` when armour.txt shapes it (every shape key: scale, scale_x/y/z, standoff, tapers; a
+  name kept for good, not `s.drawn`, which the studio rewrites), and the made model's box is its shaped vertices' (was a
+  64-unit cube: QC `setsize` from `modelbounds`), its .mdl's flags. `VR_AgArmor_DebrisAt` gives a beast's debris the
+  body's drawn scale (`limbpiece 18`) when not 1. Humanoids' debris is cut from their shells (`derivedFile`), not this
+  path: unchanged. The separate pieces' break rules (armourhits) untouched.
+- **His tweaks**: the scrag's plate8 values scragsplit reset (offset -0.054 -2.330 0.065, scale 0.858, standoff 0.05,
+  tapers 0.674 / 1.201) back on **both** halves (`plate8` = Plate 8 Front, `plate8_back`): he tuned the belt as one, so
+  both halves carry it. beastfit's resets (ogre all, scrag helmet/pauldron/plate9): he has re-tuned all of them since
+  ("wip", "armor tweas": every ogre part, the scrag's helmet, pauldron, plate9 have newer values), so none of the old
+  values (made for the old oversized fit) were put back.
+- **vr_beastfit_test** now judges the generated fit with armour.txt's tweaks off (a copy of each kind, `Override{}`), then
+  prints one `beastfit: info <kind> with armour.txt's tweaks: ...` line (cover, mean gap, largest size, skin through,
+  checks over their limits, not judged). Two limits recalibrated to the generator as made: the rottweiler's cover 0.28
+  (its generator is the pre-beastfit one, bit for bit; 0.29 as made, 0.36 with his tweaks), the fiend's helmet over the
+  face 0.3 (0.27 as made; per kind `Target::face`, the rest 0.25).
+- **Tests**: `vr_beastarmour_lookcheck` (new, Debug > Tests "Beasts' Shaped Armour: Look and Debris Check") 78/0 (41
+  shaped pieces alike; every slot's debris box the worn piece's); `vr_beaststudio_test` 28/0 (new: the scaled shoulder's
+  look check; the back-half step's front check allows his shipped front offset); `vr_beastfit_test` 101/0;
+  `vr_agarmor_test 15` 55/0 (helmets broken off as #tweak debris), `21` 14/0.
+- **Open**: his headset look at a scaled plate with retro textures on; the normals of a shaped piece are its .mdl's
+  (scale_x/y/z do not bend them).
+## flatdrag: flat-screen hands steady on a crate dragged with H (branch agent/flatdrag, 2026-11-27)
+
+His flat note 2026-11-27: "Hands/arms jitter/shake a lot when dragging a crate with H."
+- **Cause.** A prop dragged by its surface (Grab / Pull, `box3d::propDragHold`) had the hands drawn on the hold's point as the
+  Box3D body has it now, on the server's tick, while the crate itself is drawn as the client has it (a tick behind; with the
+  client faster than the server, a 144 Hz monitor, lerped between ticks). So the hands stepped every other frame and sat a tick
+  ahead of the crate: a crate dragged and tipping moved up to 10 cm and 5 degrees a frame between the two. Measured at 144 fps
+  (walk back, forward, strafe, turn): the hand off a smooth path 2.1 cm on average, 4.85 at most; slid on the crate as drawn
+  by up to 4.8-5.8 cm a frame. Not the floor contact, the spring or the arm IK (the drawn crate's own path is smooth: 0.06 cm).
+- **Fix** (`Quake/vr/vr_view_hands.cpp`, `limbHold`): the hold's point and the hand's turn there are taken in the prop's frame
+  as the server has it (its edict, which the step wrote) and put in its frame as drawn (`placeFrame`: shapeToWorld's place and
+  turn, a brush model's pitch the other way), as a ragdoll's limb already is (`ragdoll::drawnPart`). After, at 144 fps: 0.07 cm
+  on average, 0.82 at most; slid 0.37 cm at most where the hands reach it. 90 fps: 0.15 / 1.33 / 0.57 (before 1.09 / 4.76 / 7.31).
+  VR's two-handed carry draws its hands from the client's own drawn prop (`held::drawnHand`), not this path: unchanged.
+- **Probe** (`vr_hold_arm_probe`, Debug > Held Hands on Arms): the report adds `holdarm: jitter N frames, off its path at most
+  X cm (mean Y), slid at most Z cm (F frames)` (slid: only frames the hand reaches the prop, not held back on its arm by
+  keepOnArm); `vr_hold_arm_probe 2` (new row "Start, Each Frame Logged") prints each frame `holdjit:` (the prop drawn: origin,
+  angles), `holdjit2:` (the drawn hand, the eye), `holdjit3:` (the server's origin, angles, time), `holdjit4:` (the hold's point).
+- **Seen, not changed:** with his default reach (0.65 m) the hands are held back on their arms (keepOnArm, flathold3) on most
+  frames while walking with a crate (it lags its spring up to ~0.5 m behind them); that is flathold3's full stretch, not a shake.
+- **Test:** `Misc/quakevr/flatdrag_test.sh` (14/0; with the fix disabled 8/6): a crate grabbed with both hands, walked back,
+  forward, strafed and turned with at 144 and 90 fps (`vr_fixed_frames_rate`): the hand off its path under 0.4 cm on average and
+  2 at most, slid under 1.5 cm a frame. `flatgrabthrow_test.sh` 64/0.
+## flatfists: flat empty hands' alternating jabs and crossed-arms guard; V melees with a lone weapon in either hand (branch agent/flatfists, 2026-11-27)
+
+His flat notes 2026-11-27, items 2 and 9. FLATPLAY.md, "Fists: jabs and the crossed-arms guard" (and the LMB, RMB, V rows).
+- **Jabs** (item 2): both hands empty (`fistsOnly`: no weapon, nothing held), the left button is the fire button's straight
+  punch thrown by each hand in turn, the right first (vr_flatplay.cpp `pollJab`); held, the next `vr_flat_jab_repeat` 0.4 s
+  after the last began (and never before it draws back). `vr_flat_jab_alternate` 1 (0: as before).
+- **Crossed-arms guard** (item 2): the right button held, both forearms crossed before the face (`stepFistGuard`,
+  `fistGuardPose`; `vr_flat_fist_guard_fwd` 13, `_up` 0, `_cross` 3, `_stagger` 1.5, `_pitch` 45, `_yaw` 45, `_roll` 0,
+  `_in_time` 0.1, `_out_time` 0.12). Up, both hands' guard bits go in the move (no new wire bit); QC `VR_FlatFistGuard`
+  (vr_util.qc) and `VR_Parry_FlatFists` (combat.qc, beside `VR_Parry_FlatGuard`): a melee blow from within
+  `vr_flat_fist_guard_cone` 120 is the headset's crossed-arms parry (sound, knock, counter window), the damage cut by
+  `vr_flat_fist_guard_reduction` 0.45 (the headset's `vr_parry_unarmed_reduction`) and the push on you times
+  `vr_flat_fist_guard_push` 1. Reused: the crossed-arms parry branch of `VR_Parry` (only its cut and push take the flat
+  tunables), the guard bits of the weapon guard; the routing (`routeButtons`) sends no off-hand fire then. `vr_flat_fist_guard`
+  0: the right button the left hand's punch. A jab drops the guard; a press while it eases out is thrown once it is down.
+  Group Tunables > Flatscreen > Fists: Jabs and Guard (15 rows; the two switches are tunables, no menu rows).
+- **V** (item 9): `vKeyHand`: one weapon in the off hand and the main hand empty (no prop) is the off hand's quick melee
+  (its overhead swing; before, the empty main hand's overhand). Both empty: the two-fisted blow; one in each: the main's;
+  a prop in the off fist with an empty main still the prop's (vr_flat_prop_v).
+- **Status**: `vr_flatplay_status` prints `fists:` and `fist guard:` (the main fist off the off fist: right -5.0, gap 5.4:
+  the headset's `VR_Parry_ArmsCrossed` also holds). Debug lines `flatfists: crossed-arms guard up|down`, QC's
+  `flatfists: parry N (class), damage A -> B`.
+- **Tests**: new `Misc/quakevr/flatfists_test.sh` 17/0 (presses main/off/main; held 4 jabs alternating; two jabs at a grunt
+  hit; the guard up/crossed/down; V: left shotgun = off hand's swing and a hit, right shotgun and dual = main; a knight in
+  front parried 2.98 -> 1.64, behind lands, no guard lands). `flatmelee6_test.sh` 9/0 (its case 3, an axe in the off hand,
+  now expects the off hand's swing), `flatparry_test.sh` 43/0, `tunables_test.sh` 13/0. Scenes `flat_fists`,
+  `flat_v_offhand`. Shot: kit scratch flatfists_guard2.png (the guard at the defaults; flatfists_guard.png the
+  first try, up -5 / fwd 12: too low on the screen).
+## toolad: AD humanoids' previews in the toolgun's Armed Humanoid tool (branch agent/toolad, 2026-11-27)
+
+His words: "AD humanoids are missing previews in the toolgun armed humanoids tool."
+- **Cause**: the icon maker (`vr_toolgun_icons.cpp make`) asked `VR_DerivedModelFile` only for names with a `#`; the armed
+  death guard's and crossbow knight's `progs/vrdguard.mdl` / `vrdcrossbow.mdl` are no files (made as they load), so their
+  tile and page pictures failed. Every model now goes through `VR_DerivedModelFile` first, then the file. Without AD the
+  rows are not listed (unchanged). Flat and VR panels share the code.
+- **Test**: `vr_toolgun_armed_icons_test` (Debug menu: Armed Humanoids: Preview Test): every listed kind has its icon; with
+  AD (`vr_campaign_native ad`) 6 passed, 0 failed. Screenshot: `scratch/toolad_page.png` (flat panel, Death Guard).
+
+
+## promote1127 (agent/promote1127)
+
+His words 2026-11-27: "I've tweaked a bunch of cvars/offsets, please promote them." Source: his `ironwail.cfg`, `tunables.cfg` and
+the newest `proposed_defaults/2026-11-27_20-00-25.cfg` (`vr_propose_defaults`: the live changes from the shipped defaults; his data
+files `weapons.txt` / `props.txt` / `armour.txt` equal origin/next's already).
+
+**Promoted** (7):
+- `vr_agrunt_poses`: 9 keys into `vr_agpose.cpp` `shipped[]` (pole weapon Ready 22010, Run 22020, Overhead 22140-22142, Shove
+  22200-22202: new; knight rifle Idle 201000: changed). `pose_defaults.py --write` was NOT used: it knows no kind 4 (AD knights)
+  and rewrote the AD knight rows away; its tables got the names (crossbow knight, pole weapon) and the rows were laid in by hand.
+- `vr_agrunt_ik_stretch`: grunt pole weapon `{0,22}` 1.23 -> 1.25; knight rifle `{2,1}` 1.35 -> 1.26.
+- `weapons.txt`: shotgun (slot 2) bayonet mount att2_pitch -76.46 -> -70, att2_z -4.6 -> -2.5; double shotgun (slot 3)
+  att2_pitch -76.46 -> -68.5, att2_z -3.22 -> 0.95 (his dagger-bayonet offsets: the flatbayonet worker converts them).
+- `props.txt`: bayonet (slot 72) grip_yaw 0 -> -10, grip_z 0 -> 2.5 (its grip 2 is shipped already; his live table numbered it 80).
+- `vr_flat_tp_fov` 1.1 -> 1 (third-person camera FOV: promoted once, his value changed back).
+- `tunables.cfg`: `vr_flat_parry_rev_roll` -60 already the default.
+Sparse configs: no configVersion bump (a config holding none of these takes the new values). Test fix: `agspear` (vr_agrunt_test
+230) assumed no shipped pole Ready key; it now sets a 1-up base key first and expects the 6-up key to move the spear by 5.
+
+**Skipped** (personal, studio/tool state, or not defaults): vr_handedness, vr_comfort_preset, vr_height_calibration, vr_bodycal_*,
+vr_xr_runtime, vr_enabled, vr_menu_* (flat scale, x, y, folded, level, positions), vr_motion_button, vr_spectator_fov/scale,
+vr_window_view, vr_notes, vr_debug_spawn_toolgun, vr_toolgun_*, vr_rope_spawn_*, vr_rigstudio_*, vr_armourstudio_*,
+vr_humstudio_*, vr_gore_dents 0 and vr_flat_taa 1 (graphics/gore preferences), volume, cl_alwaysrun, vr_autosave_list_all,
+vr_maps_skill, vr_runpick_*, vr_takes_keys, vr_show_controller_off_own, vr_mp_*, vr_flatplay (not archived), vr_blood_tally*,
+vr_bindings_version, vr_props_version, vr_wofs_version, vr_cfg_version, vr_pickup_scale and vr_gameplayfix_* (quakevr.cfg already),
+the flat/graphics block (fov, gamma, contrast, crosshair, hudstyle, scr_*, sensitivity, viewsize, host_maxfps...), the proposal's
+prop ids for slots 73-80 (the numbering of his older table), float-noise `vr_wofs_*` rows (equal to the default to 5 digits).
+Tests: agspear 3/0 (after the fix), flattp_test 1/0; `vr_agrunt_test 83` has one failure ("Pistol Aim key never set") that
+also fails on unchanged origin/next (not mine).
+
+## flatbayonet: the dagger bayonet's mount frame (guard level, turns about the blade); the invisible flat bayonet not reproduced (branch agent/flatbayonet, 2026-11-27)
+
+His flat notes 2026-11-27: (1) the bayonet invisible on the shotgun after J (F8 too), J off flies it upwards and the hand
+looks empty, B drops it from above his head; (8) an animated attach/detach; (10) the dagger bayonet's guard upright through
+the muzzle, its yaw/roll turning it in odd ways.
+- **Mount frame (10)**: `attach::KindInfo` has `forward` (along the blade to its tip) and `across` (along its guard); a
+  mount's Pitch / Yaw / Roll turn that frame (`Mount::basis` = `view::mountBasis(angles)` x the kind's frame), used by
+  `onGun` (server points, the stick's blade, the lying gun's hull) and `view::placeAttachment` (drawn). All zero lays the
+  blade along the barrel with the guard level; yaw turns about the gun's up, pitch about the guard, roll about the blade
+  (Quake's yaw-pitch-roll order). The bayonet's frame is its model's own axes (unchanged look). The dagger's: its
+  vertices' long axis (`0.354 0 0.935` in v_dagger.mdl; the muzzle_av-to-wpnbtn_av line runs 13 degrees off the handle,
+  so a roll about it swung the handle 7 units sideways) and the guard square to it in the model's x-z plane
+  (scratch `fb_frame.py`, `fb_axis.py`).
+- **His values converted**: weapons.txt slot 1 (shotgun) att2 `26.55 0.77 -1.717`, pitch -0.74 (was `26.56 0 -2.5`,
+  -70, roll 180); slot 2 (SSG) `20.199 0.706 1.668`, pitch 0.76 (was `20.19 0 0.95`, -68.5, roll 180): the same blade
+  line and tip, rolled a quarter turn about the long axis so the guard is level. With the guard level the dagger's top is
+  lower (shotgun 3.83 -> 0.48, SSG 6.62 -> 3.55 in the gun's model units): it no longer cuts into the muzzle; his Up raises
+  it if he wants it snug. `vr_wofs_version` 80 (`takeDaggerFrame80`, `attach::convertOldMount`): a config's own att2
+  place/turn (the rest at the old defaults) converted the same way.
+- **The invisible bayonet (1): not reproduced.** Flat (`-flatscreenmode`), vrtesthall, his whole `ironwail.cfg` exec'd, the
+  real keys (`vr_mock_key`: a toolgun bayonet grabbed by H, J on, F8 fly camera moved round the body, J off, B), in fast
+  mode, `-RealTime`, `-Base qrp`, and with the guns swapped (key 3): every time the bayonet is drawn on the gun (seen from
+  the fly camera), J off puts it in the free hand on screen (`vr_held_report`: drawn = carried, in view), B drops it from
+  that hand (`flat throw: flying from` the hand, 7 units ahead of the eye). His build (startup.log: b617e34) has bayonetfix
+  and bayonet2. Found on the way: his config's auto-assigned prop ids (`vr_prop_id_72`..`80`: v_axe ... bayonet at 80)
+  shadow the shipped bayonet slot (now promoted by the ship as props.txt slot 72), so his bayonet had only his slot-80 grip
+  lines (no mass, tip or handle); it still drew right in these runs. `vr_held_report` now also prints where the held thing
+  is drawn and networked from the eye and its +x in the view (`at_eye`, `net_at_eye`, `x_in_view`).
+- **Animated attach/detach (8): not done** (out of budget). Plan: flatplay holds J's impulse 52 back while the free hand
+  travels to the gun's drawn mount (the flat reload trip's way, vr_flatreload.cpp), sends it on arrival, the attachment
+  drawn sliding along its blade (placeAttachment offset by a fading slide), then the hand returns; `vr_flat_attach_*_time`
+  tunables; VR keeps its hand-driven attach.
+- **Tests**: `menu_vr attachtest` 14/0 (new: the dagger along the barrel and its guard level on both guns, each of pitch /
+  yaw / roll turning about the right axis, his old values converting to today's defaults with the tip and blade kept);
+  attach_test.sh 16/1: 80 flat 17/0, 81/82 4/0 both, 84 VR dagger 27/0, 85 flat dagger 18/0, menu 14/0; 79 VR 26/1 "picked up by the hand: the same record" (weapon 0): fails the same on origin/next without this change (built and run: not mine; the bayonet prop data promoted to props.txt by the ship is a candidate).
+
+## flatattachanim: the flat Attach key's hand trip, the bayonet or dagger slid on or off the barrel (branch agent/flatattachanim, 2026-11-27)
+
+His words 2026-11-27: attaching works flat, "however there needs to be an animated transition for the hand
+attaching/detaching the dagger (and bayonet too), at the moment it happens abruptly". flatbayonet's plan, done.
+- **What J does now** (`vr_flatattach.cpp`, FLATPLAY.md "Attachments"): the client foresees what impulse 52 will do
+  (a mirror of QC VR_Attach_Key's order on the client's stats: the carried bayonet prop by its model, the dagger by its
+  weapon flags, the gun's attachment by `attach::kindOfUid`, the gun's mount by `view::attachSpot`), measures the mount
+  and its blade's way in the gun hand's drawn frame and what the free hand holds in its own, and moves the free hand there
+  (turned the gun's way) over `vr_flat_attach_reach_time` 0.25 s; the impulse goes on arrival. On: the hand stops with
+  the held mount `vr_flat_attach_slide` (8) units ahead along the blade, then the attachment (on the gun now) is drawn
+  sliding back into its mount (`flatattach::slideAlong`, added in `vr_view.cpp` setupAttachments; `attachDrawn` keeps the
+  real mount) while the empty hand pushes it, over `vr_flat_attach_slide_time` 0.2 s. Off: the empty hand goes to the
+  mount, the impulse, then the hand slides it off along the blade. The hand returns over `vr_flat_attach_return_time` 0.25 s.
+  Tunables > Flatscreen > Attachments (Reach Time 0: the old instant key).
+- **Reuse**: the trip is the reload trip's shape (a share eased by `geom::smooth01`, applied after the reload in
+  `flatplay::poseHands`); the free hand lets go of a two-handed grip through the same lists as E's force grab
+  (`vr_twohand.cpp` flatLetsGo, `vr_flatsight.cpp` gripWanted / reaching). The attachment is drawn by the one
+  `view::placeAttachment` (`attachSpot` places a throwaway copy to measure). VR is untouched (J's path only).
+- **Cancels**: a shot from either hand (`client::attacking`), the gun's id changing in its hand (switched, dropped,
+  thrown, swapped), or the foreseen action changing on the way (the attachment let go): straight back, no impulse.
+  Nothing foreseen or the gun not drawn: the impulse at once, as before.
+- **The server's own snap** (QC VR_Attach_Frame) could take a held bayonet on early as the hand crossed the mount on a
+  straight way from behind (seen in the first run, the bayonet held turned after a key take-off): the reach now aims
+  further along the blade early on (3 slides ahead, fading), so the hand comes at the mount from ahead of the muzzle; a
+  snap on the way anyway is taken as the arrival (no impulse, which would take it off again). QC: a dagger taken off by
+  the key is "fresh" now like one pulled off (`vr_attach.qc` VR_Attach_TakeOff), so the hand at the mount doesn't snap it
+  back on; the bayonet prop already was. No wire change.
+- **Tests**: `vr_embed_test 86` (bayonet) / `87` (dagger), flat (`attachanim:` / `attachanimdagger:` 9/0 each): halfway
+  through the reach nothing is on; the impulse lands 0.278 s after J (reach 0.25 + the key's and the move's frames), the off
+  hand 8-11 units from the server's mount (20-37 before); the trip over, on the gun with the hand empty; J again takes it off
+  the same way (the hand 0.3-0.4 units from the mount) into the hand, not snapped back on; a shot mid-reach cancels (nothing
+  on, still in the hand); J after puts it on at the arrival time. attach_test.sh 18/1: every flat case passes (80 17/0, 85
+  18/0, 86/87 9/0), 79 VR 26/1 "picked up by the hand: the same record" is the known failure flatbayonet found on
+  origin/next too.
+- **Open**: not tested with the gun in the off hand and the attachment in the main hand (the code is symmetric: the hands
+  come from the foresee); the held dagger's blade may sit a little off the barrel's line as it arrives (the hand is turned
+  the gun's way, not the blade's); his eye on the motion and the times.

@@ -1960,6 +1960,10 @@ QVR_TUNABLE(vr_flat_pose_pitch, "65") // how far the hands follow the view up an
 QVR_TUNABLE(vr_flat_arm_hold, "1") // how far a drawn hand may sit from its arm's shoulder, times what the arm can hold it at (0..2; 0: no limit, the hands as placed)
 
 // Flatscreen > Reload
+QVR_TUNABLE(vr_flat_attach_reach_time, "0.25") // the flat-screen Attach key (vr_flatattach.cpp): seconds the free hand takes to the gun's mount (the impulse goes as it gets there); 0: at once, no trip
+QVR_TUNABLE(vr_flat_attach_slide_time, "0.2") // and seconds the blade slides along the barrel, into its mount (on) or out of it in the hand (off)
+QVR_TUNABLE(vr_flat_attach_return_time, "0.25") // and seconds the hand takes back to its pose
+QVR_TUNABLE(vr_flat_attach_slide, "8") // and units the blade slides along the barrel
 QVR_TUNABLE(vr_flat_reload_down, "0.3") // the flat-screen reload (vr_flatreload.cpp): seconds the gun's hand takes to the nearest hip holster (the rounds go in as it gets there)
 QVR_TUNABLE(vr_flat_reload_hold, "0.2") // seconds it stays there
 QVR_TUNABLE(vr_flat_reload_up, "0.3") // seconds it takes back to its pose (it fires again after it)
@@ -2305,6 +2309,24 @@ QVR_TUNABLE(vr_flat_parry_rev_out_time, "0.2") // seconds back to the flipped ho
 QVR_TUNABLE(vr_flat_parry_shaft_at, "0.8") // flatparry2: in the guard, a sword-mode melee weapon with no Blade hotspot of its own (the ogres' hammer and mace, the fury's sword; a Blade hotspot at share 0 counts as none) has the free hand on its shaft or blade this share of the way from the hand to the tip/head, as a Blade hotspot there would (then held within vr_flat_parry_shaft_reach); 0: none, the hand stays
 QVR_TUNABLE(vr_flat_parry_shaft_reach, "22") // flatparry2: vr_flat_parry_blade_reach for that shaft point: the free hand at most this far from the holding hand (units; longer than the blade's 14 so a hammer's or mace's hand sits near the head; 0 no limit)
 QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
+// Flatscreen > Fists: Jabs and Guard (flatfists, his words 2026-11-27: "When both hands are empty, LMB should alternate
+// between left and right jabs, RMB should parry (use the crossed arms pose, provide cvars/tunables to tweak it)"): both hands
+// empty (no weapon, nothing held); vr_flatplay.cpp pollKeys, fistGuardPose; QC VR_Parry_FlatFists.
+QVR_TUNABLE(vr_flat_jab_alternate, "1") // flatscreen, both hands empty: the left button's jab is thrown by each hand in turn, the right first (held: one after another, vr_flat_jab_repeat); 0 the left button the right hand's punch, the right button the left's (before 2026-11-27)
+QVR_TUNABLE(vr_flat_jab_repeat, "0.4") // the left button held: seconds from one jab's start to the next one's (at least until the last one draws back: one hand at a time, vr_flat_punch_both)
+QVR_TUNABLE(vr_flat_fist_guard, "1") // flatscreen, both hands empty: the right button held crosses the forearms before the face in a guard that parries melee blows from the front (QC VR_Parry_FlatFists); 0 the right button the left hand's punch (before 2026-11-27)
+QVR_TUNABLE(vr_flat_fist_guard_fwd, "13") // the guard: each fist this far ahead of the eye (units)
+QVR_TUNABLE(vr_flat_fist_guard_up, "0") // and this far above it (units; negative below)
+QVR_TUNABLE(vr_flat_fist_guard_cross, "3") // and this far past the middle onto the other side (units: the forearms crossed in an X; negative: each on its own side)
+QVR_TUNABLE(vr_flat_fist_guard_stagger, "1.5") // the right fist this much further ahead than the left (units: the forearms on one another, not in one another)
+QVR_TUNABLE(vr_flat_fist_guard_pitch, "45") // each fist turned up off the level look (degrees: the forearms rising to the fists)
+QVR_TUNABLE(vr_flat_fist_guard_yaw, "45") // and in, across the body (degrees; negative out)
+QVR_TUNABLE(vr_flat_fist_guard_roll, "0") // and rolled, its top out to its own side (degrees; negative in)
+QVR_TUNABLE(vr_flat_fist_guard_in_time, "0.1") // seconds into the guard (0: at once)
+QVR_TUNABLE(vr_flat_fist_guard_out_time, "0.12") // seconds back to the rest when the button is let go (0: at once)
+QVR_TUNABLE(vr_flat_fist_guard_cone, "120") // in the guard, a melee blow from within this many degrees of where you look (the whole cone, centred on the view) is parried by the crossed arms, whatever its way; 0: the headset's crossed arms only (QC VR_Parry_ArmsCrossed)
+QVR_TUNABLE(vr_flat_fist_guard_reduction, "0.45") // the share of a blow the guard takes off (0.45: the headset's crossed arms, vr_parry_unarmed_reduction; 1 all of it); less damage, less of its knockback
+QVR_TUNABLE(vr_flat_fist_guard_push, "1") // the parry's push back on you, times the crossed arms' own (vr_parry_push_player; 0 none)
 
 // Flatscreen > Guard Bash and Blade Grip (his notes 2026-11-23: the fire button in the guard bashes, as the headset's bash;
 // a sword's free hand takes its blade near the tip in the guard; vr_flatplay.cpp startBash, bashPose, bladePin; QC VR_FlatBash)
