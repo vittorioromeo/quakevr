@@ -4426,5 +4426,11 @@ from the reviewers' transcripts). No wire change (QVR_NET_VERSION untouched).
   while the precache entry it was found at is the same string), not by a precache scan per hand per frame.
 - C8: the Voice Chat page lights a row by `voicechat::talkingNow` (listed players), not "talking" in the row's text.
 
-Tests: rendezvous_test 45/0 (46 with the new check); vr_serverrules_selftest 10/0; vr_net_ctlbudget selftest 5/0;
-magcollide 11/0; MP suite groups: see the report.
+Tests: rendezvous_test 45/0 (the A6 check included); vr_serverrules_selftest 10/0; vr_net_ctlbudget selftest 5/0;
+magcollide 11/0; MP (Release): mp_netsafe 14/0, mp_coop 12/0, mp_version 12/0, mp_rejoin 19/0, mp_rejoin_keep 11/0,
+mp_rules 16/0, mp_loss 16/0, mp_voice 27/0, mp_browser 11/0, mp_spoof 27/0, mp_lookup 9/0 (before the merge of
+origin/next at version 49); after it: mp_overflow 14/0, mp_dedicated 11/0, mp_held 15/0, mp_coopbots 13/0, mp_nat
+18/0, mp_roomnonce 7/0, mp_fuzz 17/0 (one earlier take 16/1: "B joins again after the hostile command up clc 10", seed
+384669280; B's 14th `connect` printed nothing after a garbled-signon Host_Error, the 13 before it joined; passed on
+the rerun). menu_paths.txt regenerated (`vr_menu_path_check`: current, 10712 rows). Note: a run.sh game started in the
+tree while the MP suite runs gets its script read by the suite's games too (they quit at once): run them apart.
