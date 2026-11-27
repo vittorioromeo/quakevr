@@ -114,6 +114,33 @@ each tier, then the build switched 2 -> 1 -> 3 -> 2, then the kind another (noth
 | Fold Depth | `fold_depth` | how far they stand on the inside of a bend, in units (flat on its outside; else `vr_agarmor_fold_depth`, 0.3) |
 | Hero Plates | `hero` | `"0"`: the part's hero plates off, every plate its own (1 or unset: the cuirass's breastplate, the pauldrons' top row as two plates, the bracers' elbow cop, the shins' knee cop, each one plate over several columns; `vr_agarmor_hero 0` turns them off everywhere) |
 
+### A sleeve's ends (ROUND26.md, "ogresleeves")
+
+When a leather junction does not connect where you expect, these move its two ends and shape it. They are the sleeve parts'
+alone (a humanoid's elbow and knee sleeves, a beast's leather junctions), every one off by default (the leather exactly as
+before). "Own end" (`start_`) is the end on the sleeve's own piece, "joined end" (`end_`) the one on the piece it joins: a
+beast's junction is its child piece's sleeve (the shin's for the ogre's knee); a humanoid's joint has two sleeves, and each end
+takes its own piece's sleeve's `start_` value, else the other sleeve's `end_` value (the thigh's sleeve's start_offset moves the
+thigh's end of the knee; its end_offset the shin's end, unless the shin's sleeve sets its own start_offset).
+
+| Slider | File key | What it does |
+| --- | --- | --- |
+| Own End Fwd / Left / Up | `start_offset "x y z"` | that end's ring moved, units along the model's forward, left and up (rest pose); it still rides its piece |
+| Joined End Fwd / Left / Up | `end_offset "x y z"` | the other end's |
+| Own End Size, Joined End Size | `start_radius`, `end_radius` | that end's ring's size round its middle (1 as made) |
+| Own / Joined End Far Edge | `start_edge`, `end_edge` | `"1"`: a beast's end on its piece's far edge, not the one facing the other piece (a humanoid's end is always its row at the joint) |
+| Twist | `twist` | degrees: the joined end's ring turned round the line between the ends (the columns spiral); for a humanoid the joint's (the upper sleeve's, else the lower's), turning the lower end |
+| Bulge Fwd / Left / Up | `bulge "x y z"` | the middle pushed this far this way (the model's axes; eased to nothing at the ends; a humanoid's turned with the bones) |
+| Segments | `segments` | its rings less one, 1-8 (0: as made, from its folds) |
+| Closed All Round | `fill` | `"1"`: a beast's junction closed all round: the columns where a piece has no edge (open strips where plates meet at the flanks) laid round its end from its neighbours' reach. The ogre's knees ship with it on |
+
+How a beast's junction picks its ends (vr_beastarmour.cpp buildJunctions): 12 columns round the line between the two pieces'
+middles; in each, the outermost vertex within 30% of the piece's end facing the other, tucked 0.35 in and 0.6 under; only
+columns both pieces have are drawn. Where that goes wrong: plates that meet only at the front (few columns: an open strip,
+`fill`), ends that overlap along the line (`vr_beastarmour_info` prints "along" below 0: the leather inside the plates; move
+the ends), radii far apart (one end inside a plate: `start_radius` / `end_radius`). `vr_beastarmour_info` lists each
+junction's ends, length along the line, radii, columns (and each end's edges before `fill`).
+
 The bending leather (the only kind since 2026-11-11; ROUND24.md, "Leather bridge at elbows and knees"): a joint's
 leather is one tube made each frame from the upper part's last row to the lower part's first: a sleeve part's tapers size
 its half (eased to the rows at its ends), its stand-off and scale apply round the tube, its offset and rotate do not.
