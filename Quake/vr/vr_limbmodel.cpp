@@ -590,7 +590,7 @@ struct Built
         return false;
     }
     unsigned int pathId = 0;
-    byte* src = COM_LoadMallocFile(VR_ModelFile(base), &pathId);
+    byte* src = VR_LoadModelFile(base, &pathId); // (a made model's too: the armed death guard's)
     if(!src)
     {
         why = "its model's file not found";
@@ -835,6 +835,7 @@ namespace
 namespace
 {
 void startKind(edict_t* ent, int index); // (below)
+[[nodiscard]] bool precached(const char* name); // (below)
 } // namespace
 
 // (each kind of monster once: the first of its model's; a limb its first cut takes whole, as box3d::limbModel names it)
@@ -910,12 +911,27 @@ void prebuild()
     const double tLoad = Sys_DoubleTime();
     VR_TimeAdd("  their limbs' files built (waited for)", tLoad - tBuilt);
     // (the models' skins and normal maps: the main thread's, in the order the kinds and their bones come, as before)
+    // Only a limb built just now or precached already: one whose build came out empty is never precached (its load a
+    // Host_Error: the armed death guard's limbs, their base no file of the game's, stopped ad_azad and e1m1; limbfix).
+    int made = 0;
     for(const char* name : names)
     {
-        VR_LatePrecacheModel(name);
+        bool built = precached(name);
+        for(const LateLimb& l : late.ready)
+        {
+            built = built || !ZA_STRCMP(l.name, name);
+        }
+        if(built)
+        {
+            VR_LatePrecacheModel(name);
+            made++;
+        }
+        else
+        {
+            Con_DPrintf("limb models: %s not made: not precached\n", name);
+        }
     }
     VR_TimeAdd("  their limb models loaded (precached)", Sys_DoubleTime() - tLoad);
-    const int made = static_cast<int>(names.size());
     VR_TimeAdd("VR after spawn: limb models", Sys_DoubleTime() - t0);
     Con_DPrintf("limb models: %d made for %d kinds of monster (%d of them not yet appeared), %.1f ms\n", made,
         static_cast<int>(seen.size()), waiting, (Sys_DoubleTime() - t0) * 1000.0);
@@ -960,7 +976,7 @@ void startKind(edict_t* ent, int index)
         return;
     }
     VR_FileCacheDerived(1); // (in play: found from the map load's listings, no folder asked)
-    byte* src = COM_LoadMallocFile(VR_ModelFile(base), &kind.pathId);
+    byte* src = VR_LoadModelFile(base, &kind.pathId); // (a made model's too: the armed death guard's)
     VR_FileCacheDerived(0);
     if(!src)
     {

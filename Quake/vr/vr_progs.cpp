@@ -1476,10 +1476,19 @@ extern "C" int VR_LatePrecacheModel(const char* name)
             {
                 VR_FileCacheDerived(1);
             }
-            sv.models[i] = Mod_ForName(name, true);
+            // A model made from another's ("<model>#limb6", "#plate2", "#gun0") that couldn't be made: none, never a
+            // Host_Error (limbfix 2026-11-27: the armed death guard's limbs stopped ad_azad and e1m1 as they loaded).
+            const bool made = strchr(name, '#') != nullptr;
+            sv.models[i] = Mod_ForName(name, !made);
             if(derived)
             {
                 VR_FileCacheDerived(0);
+            }
+            if(!sv.models[i])
+            {
+                Con_DPrintf("late precache: %s couldn't be made: none\n", name);
+                sv.model_precache[i] = nullptr;
+                return 0;
             }
             if(sv.state == ss_active) // (not the map's own: vr_limbs_prebuild's, as it loads)
             {

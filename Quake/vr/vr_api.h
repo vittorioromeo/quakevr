@@ -676,6 +676,7 @@ void VR_Rig2Latch (void);								// SV_SpawnServer: vr_rig2 read for the map (th
 void VR_RelinkWornTanks (void);							// ... then their back tanks on their drawn backs (vr_adtank.cpp)
 void VR_RagdollRestore (void);							// CL_ReadFromServer, first: their own models back before the server's messages
 unsigned char *VR_DerivedModelFile (const char *name, unsigned int *path_id); // Mod_LoadModel: a model made from another's file (a taken torch's flame), or NULL
+unsigned char *VR_LoadModelFile (const char *name, unsigned int *path_id); // a model's file as Mod_LoadModel reads it: made (VR_DerivedModelFile), else the game's (relit maps); VR_HeapFree it; NULL: none
 const char *VR_ModelSkinName (const char *name);			// Mod_LoadAllSkins: the model name its external skins are found by
 void VR_TorchLights (void);								// CL_ReadFromServer, after the temp entities: torches and flames flicker a small light onto the room (vr_torch_lights)
 void VR_FlameLights (void);								// CL_ReadFromServer, after VR_TorchLights: the flamethrowers' streams light the room, a few smoothed lights from their flames (vr_flame_lights)

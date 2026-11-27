@@ -435,6 +435,17 @@ namespace
 
 } // namespace
 
+// A model's file read as Mod_LoadModel reads it: a model made as it loads (the armed death guard's progs/vrdguard.mdl is
+// no file: its limbs are built from this, limbfix 2026-11-27), else the game's file.
+extern "C" byte* VR_LoadModelFile(const char* name, unsigned int* path_id)
+{
+    if(byte* made = VR_DerivedModelFile(name, path_id))
+    {
+        return made;
+    }
+    return COM_LoadMallocFile(VR_ModelFile(name), path_id);
+}
+
 // Mod_LoadModel: the file of a model made from another's, or NULL. progs/vrtorch.mdl: ours with the wall torch's skin
 // (stickWithWallSkin). progs/vrtorch_fire.mdl: id's wall torch
 // (progs/flame.mdl) without its stick: the triangles whose corners all move in its animation (its flame; the stick
