@@ -3994,3 +3994,58 @@ plates"; "in the test scenarios for the new armoured enemies, it seems like they
   4096 with the humanoids' wear packing; otherwise their paths unchanged).
 - **Open**: a cut taking a several-piece part (the scrag's tail) drops its first piece only; the per-kind pools are not
   in the menu (cvars only); no headset check.
+
+
+## ogredequant: the ogre's vertex warping, measured and rebuilt from his skeleton (branch agent/ogredequant, 2026-11-27)
+
+His words: "the ogre animations seem to have an obscene amount of vertex warping ... Is the ogre a special case?"
+
+**Why the ogre was a special case.** He was never rebuilt from his skeleton (ROUND22 "Model vertex wobble 3"): the
+rebuild needs half a model's vertices within 0.5 units rms of their bone, and his frames bend his limbs by about a unit
+everywhere (271 of 651 fully: "too few: drawn as before"; the shambler too, 287 of 648). Worse, each bone was rebuilt
+only in the frames its *stored* fit fits within the swing's limit (1.5 units): his chest fits in 65 of 149 frames, his
+left thigh in 9. So he drew as his frames, dequantised only (the rounding gone, the artist's warping left).
+
+**Measure** (`vr_anim_warp_check [model ...]`, Debug > Reports > Skeleton Warp Check; verdict line `anim warp check: N
+passed, M failed`): each bone's vertices in a frame laid on the same vertices in the next frame of its animation (the
+dequantiser's runs) by their best rigid motion; what is left (rms, units) is how much a limb changes shape from frame to
+frame (0 for a rigid limb, whatever it does). Columns: the stored bytes, dequantised, drawn now at the frames (the
+rebuild's mix on the CPU), and how far the drawing departs from the dequantised frames. e1m1, all frames:
+
+| model | stored | dequantised | drawn, before (one bone) | drawn, now | off the frames now (rms / most) |
+|---|---|---|---|---|---|
+| ogre | 1.010 | 0.917 | 0.917 (100%: not rebuilt) | **0.678 (74%)** | 0.563 / 4.58 |
+| shambler | 1.033 | 0.996 | 0.996 (100%: not rebuilt) | 0.833 (84%) | 0.631 / 4.51 |
+| soldier | 0.352 | 0.330 | 0.268 (81%) | 0.245 (74%) | 0.278 / 3.61 |
+| knight | 0.413 | 0.386 | 0.278 (72%) | 0.265 (69%) | 0.316 / 1.67 |
+| demon | 0.619 | 0.556 | 0.430 (77%) | 0.352 (63%) | 0.408 / 3.03 |
+| dog | 0.471 | 0.459 | 0.372 (81%) | 0.347 (76%) | 0.287 / 1.76 |
+| wizard | 0.434 | 0.354 | 0.283 (80%) | 0.246 (70%) | 0.350 / 2.18 |
+| zombie | 0.394 | 0.358 | 0.260 (72%) | 0.228 (64%) | 0.402 / 3.74 |
+| enforcer | 0.622 | 0.589 | 0.565 (96%) | 0.546 (93%) | 0.281 / 1.90 |
+| hknight | 0.948 | 0.919 | 0.844 (92%) | 0.786 (86%) | 0.391 / 4.77 |
+
+The ogre's frames warp 2-3x the grunt's/knight's even as stored: the warping is in his animation, not the rounding.
+
+**Now** (`vr_anim_smooth_rebuild_blend`, default 1; Debug > Reports > Rebuild Joints From Two Bones; 0 = before):
+1. every bone refitted in every frame it isn't folded away in, and rebuilt in the frames its refit fits within twice
+   the swing's limit (the ogre's chest: 3 frames left out instead of 84);
+2. a vertex its bone fits badly tries its bone blended with its parent or a child (linear blend skinning, the weight
+   fitted to the frames: a 3x3 least squares per weight), kept if it fits in under 0.8x (rest row 2's w; RigRebuild);
+3. the vertices' limit is the model's own median fit when that is over `vr_anim_smooth_rebuild_error` (only the ogre
+   and shambler: every other monster's median is within 0.5); no more "under half: drawn as before" with the blend.
+Load: the blend's search runs once a model on the pool (only badly fitted vertices).
+
+**Measured and not kept:** a second bone from any bone (not only a neighbour) fits the ogre no better (83% either way);
+a much larger limit makes him more rigid (3 units: 47%) but moves his vertices up to 7.8 units off his frames (1.07 rms):
+his shape, not his warping. What is left needs per-frame offsets (time smoothing of each vertex on its bone), which the
+GPU rebuild's one place a vertex can't hold: a wider dequant offset (now +-0.5 step, snorm8) would carry it.
+
+**Not following:** the armour (vr_agarmor/vr_beastarmour) and the hit model read the frames' stored bytes on the CPU
+(hitmodel::Verts::at), not the drawn rebuild, so the ogre's armour still moves with his frames (as every rebuilt
+monster's did before). A CPU mirror of the rebuild for drawnVertexPoints is the next step.
+
+**Tests:** `vr_anim_warp_check` 10/0 (no model's drawing warps more than its frames, none departs over 1 unit rms, the
+ogre at most 0.8 of his frames'); animsmooth_test.sh 9 PASS 0 FAIL; vr_beastfit_test 101/0 (its CPU path untouched).
+**Render:** `scratch/ogredequant_strip.png` (worktree qfov): the ogre's run (25, 27, 29, 31) and chainsaw (36, 39, 42,
+45) frames pinned, two columns, top 8 the blend off, bottom 8 on (close and low in frame: the shape and seams, no tears).
