@@ -3840,11 +3840,14 @@ void noteHoldArm(int hand, float past, const glm::vec3& pos)
     const bool next = host_framecount == t.lastFrame[hand] + 1;
     t.seen[hand] = next ? t.seen[hand] + 1 : 1;
     float jit = -1.f, slide = -1.f;
-    if(t.seen[hand] >= 2)
+    // (Slid: only while the hand reaches it, this frame and the last: one held back on its arm, short of it, isn't on it.)
+    if(t.seen[hand] >= 2 && past <= 0.f && t.lastOn[hand])
     {
         slide = glm::length(glm::mat3{h.toWorld} * (local - t.lastLocal[hand])) * cm; // (world units: toWorld may scale)
         t.slideHi = za::max(t.slideHi, slide);
+        t.slideFrames++;
     }
+    t.lastOn[hand] = past <= 0.f;
     if(t.seen[hand] >= 3)
     {
         jit = glm::length(t.last[hand][0] - (pos + t.last[hand][1]) * 0.5f) * cm;

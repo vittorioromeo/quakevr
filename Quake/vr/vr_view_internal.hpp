@@ -982,7 +982,9 @@ struct HoldArmTrack
     int jitFrames{0};
     float jitHi{0.f};   // cm
     float jitSum{0.f};  // cm (the mean: jitSum / jitFrames)
-    float slideHi{0.f}; // cm
+    float slideHi{0.f}; // cm (only frames the hand reaches it, and the one before: not held back on its arm, keepOnArm)
+    int slideFrames{0};
+    bool lastOn[2]{false, false};
     glm::vec3 last[2][2]{};
     glm::vec3 lastLocal[2]{};
     int lastFrame[2]{-10, -10};

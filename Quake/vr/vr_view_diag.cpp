@@ -516,8 +516,8 @@ void holdArmProbe_f()
             t.frames, t.gapHi, t.pulled, t.pulledHi);
         // (flatdrag: the drawn hands' smoothness on what they hold.)
         // (Short: the console wraps long lines. Off its path: the hand off a smooth one; slid: on the held thing, a frame.)
-        Con_Printf("holdarm: jitter %d frames, off its path at most %.2f cm (mean %.3f), slid at most %.2f cm\n",
-            t.jitFrames, t.jitHi, t.jitFrames > 0 ? t.jitSum / static_cast<float>(t.jitFrames) : 0.f, t.slideHi);
+        Con_Printf("holdarm: jitter %d frames, off its path at most %.2f cm (mean %.3f), slid at most %.2f cm (%d frames)\n",
+            t.jitFrames, t.jitHi, t.jitFrames > 0 ? t.jitSum / static_cast<float>(t.jitFrames) : 0.f, t.slideHi, t.slideFrames);
         const bool on = t.on, log = t.log;
         t = HoldArmTrack{};
         t.on = on;

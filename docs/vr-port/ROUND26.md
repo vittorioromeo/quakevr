@@ -3741,3 +3741,27 @@ as a single piece."
   (humanoid path, untouched; low-impact run).
 - **Render**: `scratch/scragsplit_wizard.png` (bf_eval: front three-quarter, then front, back, left, right, top, back
   three-quarter; the back half darker).
+
+## flatdrag: flat-screen hands steady on a crate dragged with H (branch agent/flatdrag, 2026-11-27)
+
+His flat note 2026-11-27: "Hands/arms jitter/shake a lot when dragging a crate with H."
+- **Cause.** A prop dragged by its surface (Grab / Pull, `box3d::propDragHold`) had the hands drawn on the hold's point as the
+  Box3D body has it now, on the server's tick, while the crate itself is drawn as the client has it (a tick behind; with the
+  client faster than the server, a 144 Hz monitor, lerped between ticks). So the hands stepped every other frame and sat a tick
+  ahead of the crate: a crate dragged and tipping moved up to 10 cm and 5 degrees a frame between the two. Measured at 144 fps
+  (walk back, forward, strafe, turn): the hand off a smooth path 2.1 cm on average, 4.85 at most; slid on the crate as drawn
+  by up to 4.8-5.8 cm a frame. Not the floor contact, the spring or the arm IK (the drawn crate's own path is smooth: 0.06 cm).
+- **Fix** (`Quake/vr/vr_view_hands.cpp`, `limbHold`): the hold's point and the hand's turn there are taken in the prop's frame
+  as the server has it (its edict, which the step wrote) and put in its frame as drawn (`placeFrame`: shapeToWorld's place and
+  turn, a brush model's pitch the other way), as a ragdoll's limb already is (`ragdoll::drawnPart`). After, at 144 fps: 0.07 cm
+  on average, 0.82 at most; slid 0.37 cm at most where the hands reach it. 90 fps: 0.15 / 1.33 / 0.57 (before 1.09 / 4.76 / 7.31).
+  VR's two-handed carry draws its hands from the client's own drawn prop (`held::drawnHand`), not this path: unchanged.
+- **Probe** (`vr_hold_arm_probe`, Debug > Held Hands on Arms): the report adds `holdarm: jitter N frames, off its path at most
+  X cm (mean Y), slid at most Z cm (F frames)` (slid: only frames the hand reaches the prop, not held back on its arm by
+  keepOnArm); `vr_hold_arm_probe 2` (new row "Start, Each Frame Logged") prints each frame `holdjit:` (the prop drawn: origin,
+  angles), `holdjit2:` (the drawn hand, the eye), `holdjit3:` (the server's origin, angles, time), `holdjit4:` (the hold's point).
+- **Seen, not changed:** with his default reach (0.65 m) the hands are held back on their arms (keepOnArm, flathold3) on most
+  frames while walking with a crate (it lags its spring up to ~0.5 m behind them); that is flathold3's full stretch, not a shake.
+- **Test:** `Misc/quakevr/flatdrag_test.sh` (14/0; with the fix disabled 8/6): a crate grabbed with both hands, walked back,
+  forward, strafed and turned with at 144 and 90 fps (`vr_fixed_frames_rate`): the hand off its path under 0.4 cm on average and
+  2 at most, slid under 1.5 cm a frame. `flatgrabthrow_test.sh` 64/0.
