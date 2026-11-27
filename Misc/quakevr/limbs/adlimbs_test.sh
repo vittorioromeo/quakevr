@@ -6,12 +6,9 @@
 # the AD campaign: ad_azad loads (no Host_Error), and vr_limb_models builds each model's 13 limbs (none "-: <why>").
 # Needs AD in the base dir. Prints `adlimbs: N passed, M failed`; exits 1 on a failure.
 AGENT=${1:?worktree name}
-KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+source "$(dirname "$0")/../qvrtest.sh"
 S="vr_campaign_native ad;wait30;map ad_azad;wait30;echo ADLIMBS_LOADED;vr_limb_models progs/vrdguard.mdl;vr_limb_models progs/vrdcrossbow.mdl;echo ADLIMBS_END;toggleconsole;quit"
 OUT=$(bash "$KIT/run.sh" "$AGENT" -Script "$S" -Filter "Host_Error|ADLIMBS_|^vr_limb_models|^  *[0-9]+ [a-z_0-9]+ " -QuitOn "ADLIMBS_END|Host_Error" -Timeout 240 2>&1)
-pass=0
-fail=0
-check() { if [ "$1" = 1 ]; then pass=$((pass + 1)); echo "adlimbs: PASS $2"; else fail=$((fail + 1)); echo "adlimbs: FAIL $2"; fi; }
 echo "$OUT" | grep -q "^Host_Error" && ok=0 || ok=1
 check $ok "no Host_Error ($(echo "$OUT" | grep -m1 "^Host_Error"))"
 echo "$OUT" | grep -q "ADLIMBS_LOADED" && ok=1 || ok=0
@@ -20,5 +17,5 @@ built=$(echo "$OUT" | grep -cE "^  *[0-9]+ [a-z_0-9]+ +bones")
 unmade=$(echo "$OUT" | grep -cE "^  *[0-9]+ [a-z_0-9]+ +-:")
 [ "$built" = 26 ] && [ "$unmade" = 0 ] && ok=1 || ok=0
 check $ok "the two models' limbs built: $built of 26, $unmade not"
-echo "adlimbs: $pass passed, $fail failed"
-[ $fail = 0 ]
+verdict
+exit $fail
