@@ -53,4 +53,9 @@ void apply(hands::State& s);
 // slightly while reaching, closing once the grabbed object is in hand (vr_flatplay.cpp fistShare).
 [[nodiscard]] float grabOpenShare(int h);
 
+// (xhairmiss) While hand `h` winds up a throw (the throw key's, the quick grenade's), how far the hand will have moved
+// when the thing leaves it (world units): the follow-through's first vr_flat_throw_release_time, posed as apply poses it
+// (QC VR_FlatThrow_Aim aims from there, through the builtin flatthrowfrom). Zero otherwise.
+[[nodiscard]] glm::vec3 releaseShift(int h);
+
 } // namespace qvr::flatgrenade

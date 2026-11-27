@@ -928,6 +928,7 @@ struct LimbHold
     glm::mat4 toWorld{1.f};             // drawn there
     bool tug{false};                    // a tug-of-war's hold: the hand on the weapon in the limb's hand (box3d::RagdollHold)
     bool drag{false};                   // a big prop dragged by its surface (box3d::PropDragHold; num the prop, part -1)
+    bool kept{false};                   // a limb held by flat-screen Grab / Pull, kept at the grab's arm (box3d::RagdollHold)
 };
 [[nodiscard]] bool limbHold(int hand, LimbHold& out);
 

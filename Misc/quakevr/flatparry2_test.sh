@@ -18,6 +18,10 @@
 #             keeps the grip flipped (drawn flip 1.00) and takes the reverse-grip guard (share 1.00), parries the probe;
 #             the drawn hands' most turn a frame into it and out of it (vr_flat_melee_2h_report) at most 20 degrees (the
 #             unflip's printed beside it); the knight's sword's free hand stays on its handle through it and after.
+#             (judicator) the judicator's free hand keeps its handle through the flip, the guard and after (3-10 u
+#             below the holding hand); the flip's and the guard end's most turn a frame 20 at most.
+#   letgo     (judicator) a one-handed guard's end (vr_flat_melee_2h 0): the free hand lets go of the blade it took,
+#             its most turn a frame 20 at most (the knight's sword upright, the judicator flipped).
 #   polehand  the flipped spear's other hand: vr_flat_revgrip_pole_off_up 4 moves it 3 u or more, _off_pitch 0 turns it.
 # Prints "flatparry2: N passed, M failed".
 AGENT=${1:?agent}
@@ -89,6 +93,33 @@ done
 for p in rguard rafter; do
   st=$(stance rev "sword $p")
   check $(grep -aq "holds its grip" <<<"$st" && awk -v a="$(along rev "sword $p")" 'BEGIN{exit !(a != "" && a <= 0 && a >= -10)}' && echo 1 || echo 0) "sword $p: the free hand on the flipped sword's handle ($(along rev "sword $p") u along; ${st##*; })"
+done
+# (judicator) The judicator held in two hands then flipped: the free hand keeps its handle (it let go by the grip's angle
+# limit at the flip), at least 3 u below the holding hand (not in its fist), and nothing turns more than 20 degrees a frame
+# in the flip (the report after it) or out of the guard.
+for p in rflipped rguard rafter; do
+  st=$(stance rev "judge $p"); a=$(along rev "judge $p")
+  check $(grep -aq "holds its grip" <<<"$st" && awk -v a="$a" 'BEGIN{exit !(a != "" && a <= -3 && a >= -10)}' && echo 1 || echo 0) "judge $p: the free hand on the flipped judicator's handle (${a:-?} u along; ${st##*; })"
+done
+tf=$(turns rev "judge rflipped"); to=$(turns rev "judge rafter")
+check $([ -n "$tf" ] && awk -v a="${tf% *}" -v b="${tf#* }" 'BEGIN{exit !(a <= 20 && b <= 20)}' && echo 1 || echo 0) "judge: the flip in two hands, the drawn hands' most turn a frame (main off) ${tf:-?} degrees (20 at most)"
+check $([ -n "$to" ] && awk -v b="${to#* }" 'BEGIN{exit !(b <= 20)}' && echo 1 || echo 0) "judge: out of the reverse guard, the free hand's most turn a frame ${to#* } degrees (20 at most)"
+
+# 1d. (judicator) A one-handed guard's end: the free hand lets go of the blade it took (vr_flat_melee_2h 0: no stance, so
+# the empty free hand takes the blade in the guard), eased off it from where it was drawn (it turned 81 degrees in a frame
+# as the flipped judicator's guard ended): the knight's sword upright, the judicator flipped. The free hand's most turn a
+# frame out of the guard 20 at most.
+SC="$BASE;tune vr_flat_melee_2h 0"
+for w in "sword impulse 163" "judge vr_ad_test 172;wait60;impulse 43"; do
+  n=${w%% *}
+  SC="$SC;${w#* };wait60;echo fp2: $n 1hguard;+offhandattack;wait30;$ST;vr_flat_melee_2h_report;echo fp2: $n 1hafter;-offhandattack;wait40;vr_flat_melee_2h_report;$ST;wait2"
+done
+run letgo "$SC;tune_reset vr_flat_melee_2h;echo fp2 done;toggleconsole;quit"
+check $(grep -aq "^fp2 done" "$S/letgo.log" && echo 1 || echo 0) "letgo run reached its end"
+for n in sword judge; do
+  check $(block letgo "$n 1hguard" | grep -aq "blade grip: main hand.*held by its blade" && echo 1 || echo 0) "$n one-handed: the guard's free hand on the blade"
+  to=$(turns letgo "$n 1hafter")
+  check $([ -n "$to" ] && block letgo "$n 1hafter" | grep -aq "let go (the flat guard ended" && awk -v b="${to#* }" 'BEGIN{exit !(b <= 20)}' && echo 1 || echo 0) "$n one-handed: the guard's end lets go of the blade, the free hand's most turn a frame ${to#* } degrees (20 at most)"
 done
 
 # 1c. (flatparry3, item 4) The flipped spear's other hand: vr_flat_revgrip_pole_off_up / _off_pitch move and turn it.
