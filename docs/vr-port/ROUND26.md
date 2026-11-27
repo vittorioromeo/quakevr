@@ -2270,6 +2270,33 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
     no stab). embedfire_test 29/0 22/0 5/0, flathud_test 11/0.
   - Open: flat's first attach_test run showed both V thrusts failing (hurt 0) before any change here, then passing on every
     run after: a flake to watch. The stuck gun's own ammo screen (on its model) not checked.
+- **bayonet2 (2026-11-27)**: his VR test.
+  - **Grip**: props.txt slot 71 (the bayonet) Grip "In the palm" (2; was Along the Handle 3, "a weird hand pose"; Handle
+    From/To kept). A VR pull-off keeps it turned as the hand took it at the mount; J turns it along the taking hand.
+  - **Pull-off by B/Y**: `vr_attach_pull_button` (1): the empty hand gripping within `vr_attach_pull_radius` of the mount
+    and pressing its B/Y pulls it off (QC VR_Attach_Frame: `.vr_att_sec`, the B/Y edge with the grip held), as the head
+    torch comes off; a grip there alone is the gun's: vr_twohand.cpp no longer refuses the 2H grip at the mount (only
+    with 0, the old grip-alone pull). B/Y do nothing else by default (vr_weapon_cycle_mode 0; the wheel's tap pulses).
+  - **Depth**: tunable `vr_embed_bayonet_depth` (1.25, Combat > Embedded Blades > Stab, "Bayonet Depth"): vr_axestick.cpp
+    `pointLength` counts a gun's attachment blade (about 5 units base to tip) times it, so a stab goes 37-100% of it in by
+    speed (was a sword's 30-80%). Per kind: only the bayonet exists; a new kind adds its own tunable there.
+  - **Why the grip went when firing stuck**: two things move the body the gun is stuck in, and the hold lets go once the
+    drawn hand is 1 cm past the stretched arm (`vr_embed_arm_letgo`) or past the hand's reach: (1) Weapon Hits
+    (`vr_hit_push`, combat.qc T_Damage): a hit of 15+ shoves a monster min(350, 6 x damage) u/s plus a hop: the super
+    shotgun's point-blank 56 is 336 u/s (a shotgun's 24 is 144 when it lands as one hit), a killing shot throws it 700;
+    (2) the shot's pain frame (T_Damage's th_pain) moves the wound, the stuck gun with it, a few cm. No self-recoil reaches
+    a stuck prop (weaponfired on the prop is the drawn kick only). Mitigation: `vr_embed_fire_push` (0.1): a shot from a
+    gun stuck in its own host (`vr_fire_prop.vr_stick_ent == targ`) shoves and throws it 0.1x; `vr_embed_fire_letgo` (8 cm)
+    for `vr_embed_fire_hold_time` (1 s) after it fired (`.vr_pfire_shot`): more slack on the arm's let-go and the hand's
+    reach (vr_embedhold.qc VR_Embed_FireMargin). All tunables (Stab group).
+  - **Tests**: attach_test.sh: 79 VR 27/0 (new: the grip at the mount alone leaves it on, grip + B/Y pulls it off; each
+    stuck gun's shot shoves its grunt at most 60 u/s and leaves the hand on it with the margin), 80 flat 17/0, 81/82 2/0
+    both, menu 6/0; the probe check now asks the palm hold's take-off only to be drawn (flat: blade ahead or up, on screen).
+    The snap's mock nudge turns the hand by the turn taking the bayonet's way onto the mount's (in the palm it can lie
+    reversed). Not proven with the mock: 5 shots in a row keeping the grip: the mock controller rests past the stuck
+    handle (the stab's follow-through), so freed or not the hold drifts off on its own within a second (the slide pushes
+    the gun on, or the arm's gap grows to 100 cm with a big margin); the shove check also passed with push 1 (the frame
+    the test reads it in may miss it): VR is the real check. Open: a "drawn hand" point the tests can put the mock on.
 
 ## flatthrow3: flat throw's release carries the thing on before it leaves; an ogre's grenade caught only with a timed H (branch agent/flatthrow3, 2026-11-26)
 
