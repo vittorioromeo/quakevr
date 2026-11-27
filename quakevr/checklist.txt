@@ -12,6 +12,8 @@ Flat-screen: take a quick grenade (G), press the attack button to arm it, then h
 Flat-screen or VR: Stab a grunt with the bayonet shotgun so it sticks and keep your hand on it: the HUD (status bar, visor or wrist) still shows the shotgun's shells and its clip; the same with the super shotgun and the stuck Crystal Lance. {test:attach_bayonet}
 Flat-screen: J with a bayonet on the shotgun and the other hand empty: the bayonet comes off into that hand and is drawn there, blade up out of the fist. {test:attach_bayonet}
 Pull the bayonet off the shotgun with your empty hand (or pick up a lying one): it sits in your fist with the blade out above your index finger, not hanging below. {test:attach_bayonet}
+Flat-screen: kill a grunt, hold its body with H and walk into it: it is pushed ahead at the distance you took it at, both hands staying on it and on your wrists; walk backwards and it is dragged along; turn sharply away and the hands let go. {test:flat_grab_pull}
+Flat-screen: hold a dead ogre with H and run into it: it is too heavy for that pace and the hands let go; Push Held Props Off (Tunables > Flatscreen > Grab / Pull) gives the old pull of the body in to your hands. {test:flat_grab_pull}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -62,6 +64,8 @@ Flat-screen: hold the Judicator's sword alone (Debug menu: Arcane Dimensions: Ju
 Flat-screen: hold a sword, a dagger, an axe or the crowbar, upright and flipped (B's flip grip), and look at a wall or a knight close by: the crosshair sits where the swing will land, and the blow lands on it. {test:flat_melee_grip}
 Flat-screen: hold the throw key with an axe, a sword, a carried box or the quick grenade: the crosshair moves to where the throw will land (it rises as the throw charges) and the thing lands there when you let go. {test:flat_throw_cancel}
 ## Throwing and catching
+Flat-screen: take the judicator's sword (Debug menu, "Judicator's Sword Alone in Hand"), held in two hands, and flip its grip: both hands stay on the handle, the free hand just below the holding fist, through the flip, the parry guard (right mouse) and after. {test:flat_parry_ad}
+Flat-screen: with the tunable "Two-Handed Melee Stance" at 0, raise and drop the parry guard with a sword upright and with the judicator flipped: the free hand slides off the blade smoothly as the guard ends, no sudden twist. {test:flat_parry_ad}
 
 [3. Tutorial and VR interface]
 ## Menus and settings
