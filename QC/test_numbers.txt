@@ -362,6 +362,7 @@ vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its f
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)
 vr_rv_test       5        vr_revolver_test.qc              (VR_NPT_Grunt)
 vr_rv_test       6        vr_revolver_test.qc              heavy revolver head pops alike by hitscan and AD's projectile slugs (rvpop)
+vr_rv_test       7        vr_revolver_test.qc              heavy revolver reload options: spent shells out first, then live; taped slug pairs, one kept with one chamber free; both off as before (rvreload)
 
 # The other QC test cvars' dispatchers (2026-10-29). `loose`: the dispatcher's own branches may share a
 # number (a set-up branch, then the case's), so only the registry's claims and the coverage are checked.

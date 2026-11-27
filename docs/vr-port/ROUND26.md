@@ -3549,6 +3549,26 @@ His words 2026-11-27: an interactive 3D position/scale/rotation gizmo in the arm
   piece's frame (`beastarmour::partFrame`, its size k?) wants a look. In the kit's 960x540 runs the window covers the middle
   of the screen: Look at the Part turns the view so the part is a quarter across.
 
+## revreload: the heavy revolver's VR reload: spent shells out first, slugs two at a time (branch agent/revreload, 2026-11-27)
+
+His note 2026-11-27: two options, on by default (Advanced VR Options > Weapons > Reloading > Heavy Revolver):
+- **Spent Shells First** (`vr_revolver_spent_first` 1): with the cylinder out, an eject (B/Y, the hand's push back, the
+  ejector rod) drops only the spent shells while any are in it; the live ones stay in their chambers (the clip unchanged).
+  The next eject, none spent then, drops the live ones as rounds to take again, as before. QC `VR_Revolver_Eject` shares
+  the path flat-screen play's reload already used (`vr_rv_keep_live`, vr_flatreload.qc: unchanged). The two motions wait
+  for the rod's stroke (0.35 s, `VR_Revolver_EjectReady`) before ejecting again, so one push doesn't drop the spent ones
+  and then the live ones a frame later; the button has no wait. Off: all at once and no wait, exactly as before.
+- **Slug Pairs** (`vr_revolver_shell_pairs` 1): the pouch (`VR_Reload_Take`) gives the revolver a taped pair of its blue
+  slugs (`vr_shell_pair.mdl` skin 1) when two or more are left and it has two or more places (empty or spent chambers),
+  else a single one, as the shotgun's pairs. At the load point (`VR_Revolver_LoadInto`) the pair goes into the nearest
+  empty chamber and the next nearest one at once, with the two-shell sound (`VR_Reload_ShellsIn` n 2) and each slug drawn
+  sliding into its own hole (two collect fx); with one chamber empty (a spent one not yet out), one goes in and the other
+  stays in the hand as a single slug. Off: a shell at a time; a loose pair (a shotgun's) loads one at a time, as before.
+- **Tests**: new `vr_rv_test 7` (rvreload, vr_revolver_test.qc; `developer 1;map e1m1;wait10;vr_rv_test 7`, `-QuitOn
+  "rvreload: [0-9]+ passed"`) 12/0: spent first by B/Y then the live ones, none spent all at once, the option off all at
+  once, the motions' guard; the pouch's pair into chambers 3-4, one place left a single slug, a pair with one empty chamber
+  keeps one in the hand, pairs off. `vr_rv_test 1` (rvtest) now runs with both options off (its steps are the old
+  behaviour) and restores them. Debug > Tests > Heavy Revolver: Reload Options Self-Test. Checklist scene `revolver_reload`.
 ## netmismatch: a version mismatch is plain to see, in the browser and as a clean refusal; right trace symbols (branch agent/netmismatch, 2026-11-27)
 
 A player's PC flat <-> Quest joins "quit fast": the console had the refusal, then the server list, then

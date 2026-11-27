@@ -1475,7 +1475,12 @@ void(float xHand) VR_Reload_Take =
     }
     // (The super shotgun in the other hand: always a taped pair, its two chambers loaded at once.)
     float ssg = VR_Reload_SsgBreaks(self, VRGetOtherHand(xHand));
-    float n = ((cvar_hget(cvarh_vr_reload_shell_pairs) || ssg) && have >= 2) ? 2 : 1;
+    // (The heavy revolver: a taped pair of its slugs with vr_revolver_shell_pairs, else a shell at a time into its
+    // chambers, vr_revolver.qc; one place left, a single one, as for the shotgun below.)
+    float revolver = VRGetEntWeapon(self, VRGetOtherHand(xHand)) == WID_REVOLVER &&
+                     VR_Reload_ManualInHand(self, VRGetOtherHand(xHand));
+    float pairs = revolver ? cvar_hget(cvarh_vr_revolver_shell_pairs) : (cvar_hget(cvarh_vr_reload_shell_pairs) || ssg);
+    float n = (pairs && have >= 2) ? 2 : 1;
     if(AD_WidowmakerIn(self, VRGetOtherHand(xHand)) && VR_Reload_ManualInHand(self, VRGetOtherHand(xHand)))
     {
         // (AD support: the Widowmaker's tube: a handful, all into its port at once; no more than it has room for.)
@@ -1497,10 +1502,6 @@ void(float xHand) VR_Reload_Take =
             VR_ClipSizeIn(self, VRGetOtherHand(xHand)) - VRGetEntWeaponClip(self, VRGetOtherHand(xHand)) < 2)
     {
         n = 1; // (one place left in the gun's tube, or none: a single shell, not a pair)
-    }
-    if(VRGetEntWeapon(self, VRGetOtherHand(xHand)) == WID_REVOLVER && VR_Reload_ManualInHand(self, VRGetOtherHand(xHand)))
-    {
-        n = 1; // (the heavy revolver: a shell at a time into its chambers, vr_revolver.qc)
     }
     if(w)
     {
