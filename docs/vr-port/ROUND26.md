@@ -3741,3 +3741,13 @@ as a single piece."
   (humanoid path, untouched; low-impact run).
 - **Render**: `scratch/scragsplit_wizard.png` (bf_eval: front three-quarter, then front, back, left, right, top, back
   three-quarter; the back half darker).
+
+## toolad: AD humanoids' previews in the toolgun's Armed Humanoid tool (branch agent/toolad, 2026-11-27)
+
+His words: "AD humanoids are missing previews in the toolgun armed humanoids tool."
+- **Cause**: the icon maker (`vr_toolgun_icons.cpp make`) asked `VR_DerivedModelFile` only for names with a `#`; the armed
+  death guard's and crossbow knight's `progs/vrdguard.mdl` / `vrdcrossbow.mdl` are no files (made as they load), so their
+  tile and page pictures failed. Every model now goes through `VR_DerivedModelFile` first, then the file. Without AD the
+  rows are not listed (unchanged). Flat and VR panels share the code.
+- **Test**: `vr_toolgun_armed_icons_test` (Debug menu: Armed Humanoids: Preview Test): every listed kind has its icon; with
+  AD (`vr_campaign_native ad`) 6 passed, 0 failed. Screenshot: `scratch/toolad_page.png` (flat panel, Death Guard).
