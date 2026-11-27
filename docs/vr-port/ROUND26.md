@@ -3065,3 +3065,29 @@ His words: "Performance is OK but still not smooth enough. What options do we ha
   synced (the last install's stay).
 - Open: a worn session's hitch causes (`vr_perf_record`) for the sporadic misses; items 1-6 above are his decisions or
   later jobs.
+
+## basefix2: the 11-27 baseline's armed grunt and teleporter cases (branch agent/basefix2, 2026-11-27)
+
+The full baseline on next 326223ab3 (kit `scratch/refactor/runs/20261127-035126`). Each case run alone, seed 1; the two
+regressions bisected (first-parent, the 11-25 run's 9b2c48aaa and the 11-24 run's c93a53f2c as good). All test fixes:
+no game code changed.
+- **agrunt 211 case 3 (3.40 s trip, limit 2.8): the test's weapon fell.** First bad: the box3dup3 merge (Box3D 042be58).
+  The test set the nail gun at the grunt's middle (+6), 28 units over the floor: it fell and bounced (49.7 u/s for a
+  frame, past `VR_DROPCAP_FLYING` 40), `VR_AG_Seeking` dropped the trip it had just begun (a flying weapon), and the
+  hunting grunt fired a burst before it looked again (16.17 s against 13.87 s). The new solver's bounce was the only
+  change. Now the weapon is laid on the floor under that spot (trace down, +2). 5/0, case 3's trip 1.11 s.
+- **agrunt 203 case 12 (2 fails, "undrawn 40 / 58"): a leg sweep by the last case's gun.** `VR_AGPT_EmptyHand` sets the
+  player's `.weapon` to the fist but keeps `.weaponmodel`, so case 11's tug-won nail gun stayed drawn in the "empty" main
+  hand; as the mock hand jumped to the knight's sword (20.5 m/s through the world) it swept the knight's legs
+  (`vr_legsweep_debug 1`: SWEPT DOWN). The tug then ran on a ragdoll, the knight lay down through the rest of the case
+  and its sword wasn't drawn as it lay. The test's tug cases now set the fist's model too (`WeaponIdToModel(WID_FIST, 0)`).
+  81/0. The helper itself is unchanged (17 test files use it; the others were not checked).
+- **teleporters_chase (4/2): the dog at framed_sill16, chance.** First bad: the box3dup3 merge again, deterministic: every
+  good build passed on seed 2 (210 frames, the same spot), every bad one failed seeds 1-3. Seeds 1-6 fail on next, seed 7
+  passes in 45 frames: the dog over the 16-unit sill gets through on few seeds, and the Box3D update changed each seed's
+  run (no AI or movement change). The test gives that case 8 tries (`teleporters_test.sh`). Suite 5/1 (framed_sill32's
+  dog, failing since the 11-14 baseline, as before; `test_flaky.txt` lists the test).
+- **agrunt 65:** 6/0 here; the runs since 11-14 alternate 6/0 and 5/1 (the axe at the chest: "parried 0, disarmed 1").
+  Flaky, not this window's; the reference's 0/6 is an older baseline's.
+- **agrunt 16 (273/1, the hunt's drawn grip 2.72 off, limit 2.5): not new.** 2.72-2.81 in every run since 11-14
+  (BACKLOG section 1, "Baseline 2026-11-12": failing since about 11-10, ROUND25 agfails2). Not looked into further.
