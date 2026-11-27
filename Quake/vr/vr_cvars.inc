@@ -2331,6 +2331,11 @@ QVR_CVAR(vr_rig_lights_world, "1", CVAR_ARCHIVE) // (C4v, QUEST_PLAN.md 6zb; a c
 // (vr_gl_world_unlit 2) draws only the lit commands of textures with a surface a reaching light's sphere touches in the
 // view's PVS (r_world.c R_WorldLitTextures: a CPU walk of the leaves); 0 every texture's lit command, as C4v (the A/B).
 QVR_CVAR(vr_gl_world_lit_skip, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Fast Lit Textures' Walk (Quest): (questperf) 1: R_WorldLitTextures' answer kept and
+// given again while the view's PVS and the lights' spheres are the same (the second eye; lights that stay put), else
+// worked out from a grid of the leaves round each light (the same answer: the hub 0.87 -> 0.08 ms CPU on the PC);
+// 0 every leaf walked for each view, as C4w (the A/B); 2 the grid's and every leaf's both, compared (vr_gl_world_lit_stats).
+QVR_CVAR(vr_gl_world_lit_reuse, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Dynamic Lights in the Lightmap (Quest): (C5b, QUEST_PLAN.md 6zm) 1: under the ES
 // profile the dynamic lights are added into the lightmap's texels on the CPU once a frame (Quake's own way, the
 // lightmap's 16-unit grid) and the world is drawn without the lights' loop; 0 (default): the loop, per pixel. The

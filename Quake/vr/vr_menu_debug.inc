@@ -568,6 +568,7 @@ za::Vector<Item> pageDebugProfiling()
         command("Rig Lights on the Walls", "vr_rig_lights_world 1")
             .help("vr_rig_lights_world 1 (the default): the rig's small lights light the walls too."),
         row(opt::vr_gl_world_lit_skip),
+        row(opt::vr_gl_world_lit_reuse),
         row(opt::vr_gl_quake_dlights),
         row(opt::vr_gl_world_dlmap),
         row(opt::vr_gl_world_dlmap_batch),

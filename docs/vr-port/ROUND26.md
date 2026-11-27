@@ -2683,6 +2683,30 @@ but not with the attack button"), folded into flatxhair2's throw aim:
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.
 
+## lanescene: Test scenes face their map's spawn spot; suite lanes stay clean (branch agent/lanescene, 2026-11-27)
+
+The beta profile's scenario_check failed in a lane (5 vrtesthall scenes "placed in a wall", beta6). Cause, two layers:
+- **Lane pollution**: settings_page (a lane-0 test) stages `installer_settings.cfg` (and `sp_cfg1/2.cfg`) in the worktree's
+  quakevr folder for a few seconds; a lane started meanwhile copies the worktree's loose files into its own quakevr folder
+  (run.ps1, "when newer") and never removes one. The lane's game then ran that file at every start (its `vr_installer_applied`
+  stamp lives in ironwail.cfg, put back from the baseline each run): `vr_snap_turn 45`, `vr_handedness 2`...
+- **The scene runner's facing**: with no `start ... yaw`, `place()` laid the spawns out from the player's current yaw. With
+  snap turning the client keeps its turn across a map load, so after nav_tower (start yaw 225) every vrtesthall scene faced
+  -145 instead of 90 and its left-hand rows landed in the walls. A player with snap turning got the same when starting one
+  Test after another. Now the yaw is the `start` line's, else the nearest `info_player_*` spot's (`spawnSpotYaw`); SCNPLACED
+  ends with `|facing yaw N`.
+- Test isolation (Misc/quakevr/qvrtest.py): settings_page is also "alone" (before the lanes, nothing beside it);
+  `prepare_lanes` moves each lane's stray loose quakevr files (not in the worktree's, run.ps1's own excepted) into the lane's
+  `quakevr/scratch/lane_strays_<time>/` (`park_lane_strays`, printed), and copies the agent's `cache/maps_installed.txt`
+  into the lane (a lane has its own cache folder, so the Map Library's package scenes said "not installed" in a lane only).
+- quest_foveation set `vr_foveated_debug` with `cmd` (leaked: SCNLEAK, counted failed); now a `cvar` line.
+- runall: a scene whose map load was abandoned for another map (a Host_Error in the load falls back to vrstart) is now
+  `SCNRUN|<id>|FAIL|abandoned: ...` and runall goes on; it used to wait out run.sh's 900 s timeout.
+- Found after merging origin/next (adknights, not fixed here): ad_azad (scene ad_azad_grates) stops on
+  `Host_Error: Mod_LoadModel: progs/vrdcrossbow.mdl#limb6 not found` (limbmodel prebuild precaches a limb whose build
+  came out empty), so scenario_check fails on next until that is fixed.
+Proof: scenario_check in a polluted lane 2 (quest's lane-2 installer_settings.cfg): 20 "in a wall" before, 0 after; the beta
+profile twice (counts in the report). Open (not checked further): with snap turning, a map load's spawn facing looks ignored by the VR view (the old yaw stays).
 ## beastarmour: armoured rottweilers, ogres, scrags and fiends (branch agent/beastarmour, 2026-11-27)
 
 - **What:** the four beasts may spawn armoured by the armed humanoids' rules (the skill's chance, best type and pieces,
@@ -2946,3 +2970,49 @@ similar enemies' poses, any weapon, infection, dynamic armour; then replace them
   theirs. Test `Misc/quakevr/limbs/adlimbs_test.sh` (needs AD): ad_azad loads, 26 of 26 limbs: 3/0. scenario_check: 215
   run, every scene OK (ad_azad_grates, ad_tears_window, run_enemyrandom, ad_knights_armed); its 1 "failed" is
   quest_foveation's SCNLEAK of `vr_foveated_debug` (not this). humrepl 65/0; limbs_test models, corpse clean; e1m1 loads.
+## questperf: the Quest's remaining costs ranked; the lit textures' walk made fast (branch agent/questperf, 2026-11-27)
+
+His words: "Performance is OK but still not smooth enough. What options do we have to further optimize it?"
+- **Profile** (Quest 3, unworn, `-unattended -noconfigwrite`, Standalone at its defaults incl. dynres, 72 Hz; this
+  branch's APK; 3 s `vr_profile_report` windows, one launch, scratch `qp_measure.cfg` / `qp_parse.py`): the hub holds
+  13.88 ms with **GPU 11.2-11.7 ms** (83% of the period) and **CPU busy 8.9-9.1 ms**; 0-4 frames of 216 missed a
+  refresh in clean windows (up to 7 in the ones round the unworn pause). The live gib fight (quest_gibfight, dynres in
+  the fight floor): GPU 7.1-7.6, CPU busy 7.9-8.4, 0-3 missed. So neither side is over budget on average: what is left
+  is sporadic misses, mostly where the GPU's frame plus the compositor's preemptions (~0.5 ms, three a frame: questperf
+  2026-11-23) brush 13.9 ms, i.e. the hub.
+- Hub CPU (ms a frame): draw 4.9 (models 1.69, light setup 1.00, render other 0.54, world 0.27, particles 0.27),
+  client 2.2 (vr view setup 1.19), server 1.2 (QuakeC 0.6). Fight, left out between base parts (GPU / CPU busy, base
+  7.2-7.6 / 7.9-8.3): the world 2.32 / 7.31 (**the world ~5 ms GPU**), every entity 5.66 / 6.87 (~1.8 GPU, ~1.3 CPU),
+  gore, particles, dynamic lights: within the windows' noise (+-0.4).
+
+| # | Remaining cost (Quest 3, Standalone) | Size | Options | Estimate |
+|---|---|---|---|---|
+| 1 | The hub's GPU (fill: world, 0.55-0.65 scale) | 11.2-11.7 of 13.9 ms | SpaceWarp on (built, off by default: 36 fps with the made-up frames; his look call, worn check open); a hub-only dynres target a little lower (`vr_dynres` target ~85% of the period); the more aggressive foveation levels (questfovmusic) | SpaceWarp: no misses (0 of 153, spacewarp); dynres/foveation -0.5..-1.5 ms |
+| 2 | The world's GPU in fights | ~5 of 7.5 ms | LRZ: something in the opaque entity pass still ends the low-resolution depth (qlrz2: not found); the world feeds LRZ only through its pre-pass | -0.5..-1.5 ms if found; trace work, no timing yet |
+| 3 | Models: alias set-up CPU + their GPU | 1.4-1.7 ms CPU, ~1.8 ms GPU | a draw-list cache across frames for models whose pose and light did not change (the eye cache exists, per frame only); fewer draws for your rig (one batch for the body's parts) | -0.4..-0.8 ms CPU |
+| 4 | Light setup CPU in the hub (8 lights; the lightmap's dynamic lights on the CPU, `vr_gl_world_dlmap`) | 1.0 ms | re-add only the blocks of lights that moved or changed (torches flicker: their own rate) | -0.3..-0.6 ms CPU |
+| 5 | Your view's set-up (hands, body IK, gear) | 1.2 ms CPU | skip the IK's refinement steps when the tracked poses moved under a threshold; gear updates every other frame | -0.2..-0.4 ms CPU |
+| 6 | QuakeC (armed props' scans, monsters) | 0.6 hub, 1.2-1.3 fight | more natives as qcpu2's pose (VR_AGS_Projectiles, VR_AG_WeaponStruck) | -0.2..-0.4 ms CPU (big fights more) |
+| - | Particles, gore, dynamic lights, shadows, physics | within noise here | nothing to take at these scenes | - |
+
+  CPU isn't the limit now (busy 8-9 ms of 13.9 with the main thread paced by xrWaitFrame), so only GPU items (1, 2)
+  lower misses directly; the CPU items buy headroom for big fights (combat_48 was CPU-bound: qcpu).
+- **Done: the lit textures' walk** (`vr_gl_world_lit_reuse`, Debug > Profiling and Memory "Fast Lit Textures' Walk
+  (Quest)", default 1): new scopes in R_SetupView (view frame data, view leaf, decals frame, sort entities, world lit
+  cull, portal view) showed the ES profile's R_WorldLitTextures (C4w) as the hub's top CPU row on the PC mock: every
+  leaf walked against every light for each eye (30,555 leaves, 8 spheres: 0.43 ms an eye). Now the leaves sit in a
+  grid made at the map's load (at most 32 cells an axis; a leaf over more than 64 cells kept apart) and only those in
+  the cells round each sphere are tested, each once; the answer is given again while the PVS and the spheres are the
+  same (the second eye). Exact: mode 2 walks both ways and compares (`vr_gl_world_lit_stats`: 0 differed of 1,200 hub
+  views, 600 in e1m1's fight, 600 on e2m2). PC mock (`-glescompat +vr_standalone_preset 0`, two runs each): the hub's
+  walk **0.865 -> 0.080 ms a frame**. **On the Quest it saves nothing at the shipped settings**: the Standalone preset
+  puts the dynamic lights into the lightmap (`vr_gl_world_dlmap 1`, `vr_gl_quake_dlights 1`), so no split view walks
+  (the stats: 0 walks in the hub); A/B interleaved on the headset (reuse 0/1, 3 + 2 pairs): within noise, as expected.
+  It counts where the split is on (a Quest with dlmap off, the PC under `-glescompat`). r_world.c, gl_rmain.c.
+- Tests: the grid's check above; permdecal_test PASS; questcrash_preset_test 23/0.
+- **Installed**: this branch at 9c8e2b3b2 (origin/next a5b23c2e1 merged: questfovmusic's foveation and music included)
+  APK + progs.dat (45a721f8), launched once to the hub's first frame and force-stopped; rollback (questfovmusic's
+  install of 03:12): `qfov/scratch/qp_installed_before.apk` + `qp_progs_before.dat` (d8deb8ff). Other data files not
+  synced (the last install's stay).
+- Open: a worn session's hitch causes (`vr_perf_record`) for the sporadic misses; items 1-6 above are his decisions or
+  later jobs.

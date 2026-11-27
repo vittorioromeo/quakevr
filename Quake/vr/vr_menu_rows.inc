@@ -6405,6 +6405,11 @@ QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
     "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
     "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "
     "The same picture, fewer draws.")
+QVR_TOGGLE(vr_gl_world_lit_reuse, "Fast Lit Textures' Walk (Quest)",
+    "vr_gl_world_lit_reuse: with Skip Empty Lit Commands, the walk that finds the textures a reaching light touches "
+    "looks only at the leaves round each light (a grid made at the map's load) and its answer is given again while "
+    "the view's leaves and the lights stay the same (the second eye: On), or walks every leaf for each view (Off, the "
+    "A/B). The same picture, less CPU. vr_gl_world_lit_stats counts the walks (2: both walks, compared).")
 QVR_TOGGLE(vr_gl_quake_dlights, "Quake-Style Dynamic Lights (Quest)",
     "vr_gl_quake_dlights: under the ES profile (the Quest), the dynamic lights as Quake added them, once a frame: on "
     "the world summed into a texture at the lightmap's 16-unit grid, on your body added to its light as one colour "

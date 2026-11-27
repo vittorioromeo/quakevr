@@ -142,7 +142,9 @@ BATCHED_RE = re.compile(r"testbatch")
 EXCLUSIVE_RE = re.compile(r"--exclusive")
 # Scripts that change a file every game of the worktree reads while they run, in every lane: alone, before the lanes
 # (mapgun_pickup: the worktree's quakevr/maps/e1m3.ent).
-ALONE_SCRIPTS = {"loadedmapguns/pickup_test.ps1"}
+# settings_page: it stages installer_settings.cfg and two configs in the worktree's quakevr folder, and a lane's run
+# copies the worktree's loose files into its own folder (ROUND26 "lanescene": a lane kept the file and ran it every game).
+ALONE_SCRIPTS = {"loadedmapguns/pickup_test.ps1", "settings_page_test.py"}
 # Scripts that write one shared file of the worktree's (the teleporter tests build maps/vrteleporters.bsp) or play it
 # (stealth's gates and props): one at a time ("tele").
 TELE_SCRIPTS = {"teleporters/teleporters_test.sh", "teleporters/teleporter_edges_test.sh", "stealth_tests.sh"}
@@ -199,11 +201,51 @@ def lane_keys(script, root=HERE):
     return keys
 
 
+# A lane's own loose files in its quakevr folder: run.ps1 puts these back before every run (they are not strays).
+LANE_OWN_FILES = {"ironwail.cfg", "ironwail.cfg.baseline", "tips_seen.txt", "tunables.cfg", "startup.log"}
+
+
+def park_lane_strays(agent, k):
+    """Lane k's loose quakevr files the worktree's quakevr folder lacks, moved into the lane's scratch/lane_strays_<time>:
+    run.ps1 copies the worktree's loose files into a lane (when newer) but never removes one, so a file a test staged in
+    the worktree for a moment (settings_page's installer_settings.cfg, which the game runs at start) stayed in the lane
+    and changed every later game there (ROUND26 "lanescene"). The names moved."""
+    lane_q = os.path.join(game_dir(agent, k), "quakevr")
+    tree_q = os.path.join(tree(agent), "quakevr")
+    if not os.path.isdir(lane_q) or not os.path.isdir(tree_q):
+        return []
+    strays = sorted(f for f in os.listdir(lane_q) if f not in LANE_OWN_FILES and os.path.isfile(os.path.join(lane_q, f))
+                    and not os.path.islink(os.path.join(lane_q, f)) and not os.path.exists(os.path.join(tree_q, f)))
+    if not strays:
+        return []
+    park = os.path.join(lane_q, "scratch", "lane_strays_%s" % time.strftime("%Y%m%d-%H%M%S"))
+    os.makedirs(park, exist_ok=True)
+    moved = []
+    for f in strays:
+        try:
+            os.replace(os.path.join(lane_q, f), os.path.join(park, f))
+            moved.append(f)
+        except OSError:
+            pass
+    return moved
+
+
 def prepare_lanes(agent, lanes, log_dir, timeout=240):
     """Every lane's game folder made (or repaired) before a test uses it: a script may write into the lane's id1 or
     read its qconsole.log before its first game there. One quick game per lane, all at once; the lanes still without
-    an id1 folder after it."""
+    an id1 folder after it. First each lane's stray loose files are moved aside (park_lane_strays) and the agent's Map
+    Library record copied in."""
     import threading
+    for k in range(1, lanes):
+        for name in park_lane_strays(agent, k):
+            print("lane %d: moved aside quakevr/%s (not in the worktree's quakevr: a file a test staged there once)"
+                  % (k, name), flush=True)
+        # The Map Library's record (cache/maps_installed.txt): a lane links the agent's game folders (quoth...) but has
+        # its own cache folder, so without it the packages' scenes said "not installed" in a lane only.
+        own, mine = (os.path.join(game_dir(agent, j), "cache", "maps_installed.txt") for j in (0, k))
+        if os.path.isfile(own) and (not os.path.isfile(mine) or os.path.getmtime(mine) < os.path.getmtime(own)):
+            os.makedirs(os.path.dirname(mine), exist_ok=True)
+            shutil.copy2(own, mine)
     def one(k):
         run([BASH, KIT + "/run.sh", agent, "-Script", "toggleconsole;quit", "-Filter", "^$", "-Timeout", "120"],
             os.path.join(log_dir, "_lane%d_setup.log" % k), timeout, lane_env(k))
