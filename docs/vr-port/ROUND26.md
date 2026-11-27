@@ -3114,3 +3114,37 @@ From the full baseline on next 326223ab3 (three suites PASS -> FAIL or new failu
   (3 runs), while alone, unbatched, with B at 160 or 180 it reached; its result also flipped between identical batched
   runs. Likely shifted by Box3D's upstream update (box3dup3, 11-26; not bisected). grab_test.sh: a rag miss gets one more
   fall with B at 180; fails only when both miss. Full run: death 5/5, rag 5/5, off 5/5.
+
+## questrelease: his Quest moved from the debug-key build to the release-key build (branch agent/questrelease, 2026-11-27)
+
+His OK in chat ("Please uninstall the debug build"), once. His Quest 3 now has the **release APK** of origin/next 40242eafb
+(`Android/release_apk.sh build`: 1.2.0-beta6, version code 1020006, check_apk 29/0, not debuggable; apksigner CN=Quake VR,
+504ff939...9119c0 = Android/release-cert.sha256) with all of his external folder back, verified file by file.
+- **Surprise found:** what the game made itself (autosave/, saves and config in quakevr/, logs, caches, lp2c, qb6_caches,
+  quakevr/doom...) is the app's, 0660/0770 in the app's group: adb's shell can't read it and `run-as` can't enter the
+  external folder (ANDROID_RELEASE.md knew it). vr_android_export copies one folder flat, too little for a full backup.
+- **New: `vr_android_share [folder]`** (vr_android.cpp, Debug > Startup "Android: Open the Game's Files to adb"): walks
+  the base folder (or a folder in it) and chmods folders 2777, files 0666, group the base folder's (ext_data_rw): Setup's
+  modes; entries the shell owns fail quietly (counted). Works in any build. Installed this tree's debug-key development
+  APK over his (`install -r`, data kept), launched `-unattended -noconfigwrite +vr_android_share`, force-stopped at its
+  line (401 folders, 28136 files; a `+quit` rewrites quakevr/cache/quit_times.txt as the app's again). Headset asleep:
+  `input keyevent KEYCODE_WAKEUP` before `am start` (asleep, the app stops in onStop and never runs its commands).
+- **Backup** `F:/QVR-Parked/2026-11-27/quest_uninstall_backup/`: apk/installed_base.apk (his original dev build), pkg_info.txt,
+  ext/ (the whole /sdcard/Android/data/com.vittorioromeo.quakevr: 28152 files, 15,871,656,643 bytes, 415 folders),
+  internal/internal_data.tar (run-as: 387 files, 1.15 GB: perf/ CSVs, export/, export_old_c5h/; no shared_prefs),
+  prelaunch/ (qconsole.log, history.txt before any launch), headset_*.txt (the headset's own find/stat/du/sha256sum),
+  manifest.csv (path, size, sha256 for 807 .sav/.cfg/.txt/.json, 37 saves), manifest_summary.txt (per folder). Verified:
+  count and bytes equal, every hash equal.
+- **Swap and restore:** `adb uninstall`, `adb install` the release APK; the folder tree made by the shell (2777,
+  ext_data_rw), files pushed into the fresh empty folders (417 batches, 0 failed: nothing there to replace, so adbd's
+  delete-on-failure risk doesn't apply), files 0666. Restore check: 28152 files, same bytes, 807/807 hashes equal.
+  Scripts: the quest tree's `scratch/qrel_*` (adb.sh steps, verify.py backup/restore, restore.py mkdirs/push/modes).
+- **Loads:** release launch `-unattended -noconfigwrite`: vrstart's first frame (10.8 s), then `+map e1m1` first frame
+  (5.9 s); no errors. Saves and configs unchanged after (all hashes equal; nothing to put back). Changed by the launches:
+  only logs (the game's session-log rotation dropped the 03-47-57 and 09-55-09 folders: in the backup), startup.log,
+  prefetch.txt, qvr_openxr*.txt. Force-stopped, Home in front, lock released.
+- **For him:** the game says its data is beta5's: run Setup's Quest step once. Setup now updates this install in place
+  (`install -r`, same package, same release key; its "same APK installed" skip applies). The internal files (perf CSVs,
+  exports) could not go back into a non-debuggable app: in the backup only. Dev/debug-key APKs no longer install on his
+  headset (agents' Quest jobs: `QVR_ANDROID_SIGN=debug` doesn't help either; build release-signed test APKs, or uninstall
+  again with his OK). brief_questhead.md's "install only debug-key APKs" is now wrong for his headset.
