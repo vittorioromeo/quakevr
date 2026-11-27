@@ -1409,7 +1409,8 @@ void beastTestFrame()
         Override f;
         (void)resolveBeast(beastTestScrag, 8, false, f);
         Con_Printf("%s: the back half moved %.3f, the front half %.3f\n", beastTestName, static_cast<double>(moved), static_cast<double>(still));
-        t.check(za::abs(moved - 2.f) < 0.25f && still < 0.01f && !(f.has & (1u << OffsetZ)), beastTestName,
+        // (the front half's own offset, his shipped one if any, not the back half's new one)
+        t.check(za::abs(moved - 2.f) < 0.25f && still < 0.01f && (!(f.has & (1u << OffsetZ)) || za::abs(f.v[OffsetZ] - o->v[OffsetZ]) > 1e-3f), beastTestName,
             "the back half not tweaked apart from the front (moved 2, the front still)");
         Cvar_SetValueQuick(&vr_armourstudio_offset_z, 0.f);
         Cvar_SetValueQuick(&vr_armourstudio_alone, 1.f);
