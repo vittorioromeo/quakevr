@@ -2448,3 +2448,7 @@ His Quest 3 (bf4eecc2f, beta5-dev build 15431): flat lighting, the menu crashed,
   the menu, Quest Foveation High <-> Off.
 - Tests: questcrash_preset_test 23/0 (new: an old config repaired by `vr_quest_check`, look rows kept), haze_preset_test
   8/0, stereo_targets_test 12/0.
+
+## cltidy9: checklist sub-headings (2026-11-27)
+
+The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.

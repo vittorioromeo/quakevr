@@ -297,6 +297,7 @@ void checklistUndo()
     int run = -1;
     bool folded = false;
     int shown = 0;  // the items shown under this header
+    const char* lastSub = ""; // the sub-heading last drawn in this section
     int listed = 0; // and the rows, in all
     for(int i = 0; i < n && i < (1 << 20); i++)
     {
@@ -313,6 +314,7 @@ void checklistUndo()
                 f.markArg = checklistSectionMark;
                 items.pushBack(f);
                 shown = 0; // (no gap between the fold row and the first item)
+                lastSub = "";
                 listed++;
             }
         }
@@ -323,6 +325,12 @@ void checklistUndo()
         if(shown > 0)
         {
             items.pushBack(info(checklistBlank)); // vertical padding: long entries no longer run into a wall of text
+        }
+        const char* sub = checklist::subheading(i);
+        if(*sub && strcmp(sub, lastSub) != 0)
+        {
+            items.pushBack(header(sub)); // its category ("## Name"), once above the first of its items shown
+            lastSub = sub;
         }
         shown++;
         listed++;
