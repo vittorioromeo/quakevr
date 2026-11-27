@@ -208,7 +208,7 @@ void climbChest(const State& s, const Parts& p, const Context& c, int b, const g
 // reaching up again, grabbed 26 units off at 1.9 of its cap (ROUND26 "ledgegrab").
 constexpr float catchTime = 0.2f; // s: its fall stopped over this (its speed now)
 constexpr float catchMost = 2.5f; // body weights (with its weight: 1.5 g stopping it)
-constexpr float catchFast = 1.f;  // m/s: falling faster, its muscles take it,
+constexpr float catchFast = 1.5f; // m/s: falling faster, its muscles take it (its hanging struggle's dips are slower),
 constexpr float catchSlow = 0.5f; // till it falls slower than this
 constexpr float catchOff = 0.15f; // s: then its support eased off
 

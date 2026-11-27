@@ -4124,6 +4124,16 @@ void struck(State& s, const Parts& p, b3BodyId part)
         return;
     }
     s.struggle.struck = s.struggle.on; // (a struggle flinches: struggleFrame)
+    if(vr_debug_ragdoll.value)
+    {
+        for(int b = 0; b < p.count; b++)
+        {
+            if(B3_ID_EQUALS(p.body[b], part))
+            {
+                Con_Printf("ragenv: struck on its %s\n", p.rig->bones[b].name);
+            }
+        }
+    }
     for(int arm = 0; arm < 2; arm++)
     {
         if(s.env.hand[static_cast<za::SizeT>(arm)].mode == Grip::None)
