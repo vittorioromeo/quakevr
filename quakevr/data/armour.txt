@@ -413,14 +413,6 @@ kind "progs/wizard.mdl"
         rotate "0 12.7 0"
         scale "0.651"
     }
-    plate8
-    {
-        offset "-0.054454 -2.3302 0.064573"
-        scale "0.858"
-        standoff "0.05"
-        taper_start "0.674"
-        taper_end "1.201"
-    }
     plate9
     {
         offset "-5.82293 0.461923 -5.01548"
