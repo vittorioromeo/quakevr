@@ -296,30 +296,18 @@ bool place(edict_t* ent, const Slot& s, Placed& out)
     {
         return false;
     }
+    // The piece's size is the body's as drawn (its QC scale), never the frame's: the anchors' spread changes as the
+    // animation bends the bone's flesh, and a size taken from it made the plates grow and shrink (his note 2026-11-27).
+    const float k = za::clamp(hitmodel::drawnScale(ent), 0.05f, 20.f);
     glm::vec3 posed[maxAnchors];
     if(!hitmodel::drawnVertexPoints(ent, s.anchor, s.numAnchors, posed))
     {
         const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
         out.axes = axes;
-        out.origin = geom::vec(ent->v.origin) + axes * s.centre;
-        out.scale = 1.f;
+        out.origin = geom::vec(ent->v.origin) + axes * (s.centre * k);
+        out.scale = k;
         return true;
     }
-    glm::vec3 restMid{0.f}, posedMid{0.f};
-    for(int i = 0; i < s.numAnchors; i++)
-    {
-        restMid += s.rest[i];
-        posedMid += posed[i];
-    }
-    restMid /= static_cast<float>(s.numAnchors);
-    posedMid /= static_cast<float>(s.numAnchors);
-    float spreadRest = 0.f, spreadPosed = 0.f;
-    for(int i = 0; i < s.numAnchors; i++)
-    {
-        spreadRest += glm::dot(s.rest[i] - restMid, s.rest[i] - restMid);
-        spreadPosed += glm::dot(posed[i] - posedMid, posed[i] - posedMid);
-    }
-    const float k = spreadRest > 1e-4f ? za::clamp(za::sqrt(spreadPosed / spreadRest), 0.2f, 5.f) : 1.f;
     glm::vec3 scaled[maxAnchors];
     for(int i = 0; i < s.numAnchors; i++)
     {
@@ -385,9 +373,32 @@ void info_f()
     {
         load();
     }
+    const bool labels = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "labels");
     for(Kind& k : kinds)
     {
         resolve(k);
+        if(labels)
+        {
+            // (the derived rig's bone of every vertex, 40 a line: make_beastarmour.py's design checks fit as the engine)
+            qmodel_t* m = Mod_ForName(k.model, false);
+            const ragdoll::Rig* rig = m && m->type == mod_alias ? ragdoll::derivedRigFor(m) : nullptr;
+            Con_Printf("bab %s", k.model);
+            for(int b = 0; rig && b < rig->numBones; b++)
+            {
+                Con_Printf(" %s", rig->bones[b].name);
+            }
+            Con_Printf("\n");
+            for(int v = 0; rig && v < rig->numVerts; v += 40)
+            {
+                Con_Printf("bal %s %d", k.model, v);
+                for(int i = v; i < za::min(v + 40, rig->numVerts); i++)
+                {
+                    Con_Printf(" %d", static_cast<int>(rig->vertBone[static_cast<za::SizeT>(i)]));
+                }
+                Con_Printf("\n");
+            }
+            continue;
+        }
         int n = 0;
         for(const Slot& s : k.slot)
         {
@@ -518,6 +529,13 @@ void plateWhere(edict_t* ent, int slot, int what, float* out)
     if(what == 1)
     {
         held::anglesFromAxes(pl.axes, out, false);
+        return;
+    }
+    if(what == 8)
+    {
+        // (its size as drawn: its scale, its box's diagonal; the same whatever the frame)
+        out[0] = pl.scale;
+        out[1] = glm::length(k->slot[slot].hi - k->slot[slot].lo) * pl.scale;
         return;
     }
     glm::vec3 v = pl.origin;
