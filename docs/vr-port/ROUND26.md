@@ -4273,6 +4273,95 @@ His words (2026-11-27): "make the scrag tail armor pieces individually destroyab
   aim at the body's middle).
 - **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).
 
+## Armed humanoids blinded by the flashlight (branch agent/flashblind, 2026-11-28)
+
+His idea (2026-11-27): pointing the flashlight straight at an armed humanoid's face dazzles it; it raises a hand in
+front of its face and shoots worse.
+- **Dazzle** (`QC/vr_armedgrunt_dazzle.qc`): each server frame it is posed (`VR_AGP_Pose` -> `VR_AG_DazzleTick`), the
+  strongest lamp on its eyes over every player: on (`flashlightbeam`: the lamp as his client lit it, VR or flat-screen,
+  each coop player's; the server decides), within its reach and `vr_agrunt_dazzle_range` (640; full within
+  `_near` 192), within `_cone` (12 degrees; full within 0.4 of it) of the beam's axis, the lens ahead of its face (about
+  80 degrees), nothing in between (`VR_Stealth_Line`: through see-through walls as light goes), darker places counting
+  up to `_dark` (0.5) more (`stealthlight` at its eyes; none at 160 or more). The level eases to that (capped at 1) over
+  `_build` (0.5 s) and down over `_fade` (1.5 s). Its eyes: the grunt's `'3 0 22'` fitted to each kind (`VR_AM_Fit`).
+- **The shield** (`VR_AGP_Shield`, on the shared pose path: QC `VR_AGP_PoseQC` and the engine's agpose call the same QC
+  function before the run's sway, so `vr_agpose_native` 0/1/2 agree): from `_threshold` (0.35) up to full dazzle,
+  times `_pose` (1), eased at 4/s: the off hand (`VR_AGP_LEFT`, the arm IK's Point goal: the clients draw it as any
+  off-hand target, MP included) from where it was (its own target, a two-handed gun's second grip, hanging) to
+  `_hand_fwd/_left/_up` (11, 0.5, 21.5: the grunt's body, fitted per kind); a two-handed gun is blended into its
+  one-handed hold (`VR_AGP_ArmsGun` with `vr_agp_onehand`). Not with two weapons held, nor while that hand punches,
+  swings a two-handed weapon, casts or takes a weapon up. Kinds: grunt, enforcer, knight, death knight, AD's death
+  guard and crossbow knight (test 232 checks each one's hand before its eyes).
+- **Worse aim**: `VR_AGAI_Accuracy` divides by `VR_AG_DazzleAim` = 1 + dazzle x `_spread` (2), plus the two-hand spread
+  reduction lost (as yours: `vr_2h_spread_reduction`) for a two-handed gun held in one hand behind the shield. So every
+  shot path has it: the layer's guns (aim error and bullet spread), the replacements' own guns, the enforcer's laser.
+  Undazzled: exactly 1 (the tests' numbers unchanged).
+- **Tunables**: Tunables > Armed Humanoids > Flashlight Dazzle (`vr_agrunt_dazzle` on/off, on by default, and the rest).
+- **Bots** carry no flashlight (frikbot): nothing to do. **Flat-screen**: the same client beam (`flashlight::beamNow`).
+- **Test** `vr_agrunt_test 232` (`QC/vr_armedgrunt_dazzle_test.qc`; batched runner on vrtesthall: it takes the lamp,
+  clips it on the head and switches it on itself): a shotgun grunt 120 units down the real beam: dazzle, hand before
+  its eyes, aim x3.8+; lamp off: fading at 0.4 s, gone after the fade, accuracy exactly as before; 25 degrees off, behind
+  a box, its back to the lens: nothing; each kind's hand up. 14/0. `scratch1 232`: stops lit and takes a screenshot.
+  Also passed: agrunt 1, 42, 79, 84, 86, 87, 230. Checklist scene `agrunt_flashblind` (e1m1's armed grunts).
+- **Open**: the hand is a fist (the IK's Point goal), not an open palm; its place is one point per kind by the fit, not
+  a Pose Studio key (a Shield pose key per kind would let him place it by hand); dual wielders keep both guns up and
+  only aim worse; no MP or flat-screen run of its own (the beam and the pose message are the ones already tested).
+## linuxtar: a plain Linux tarball beside the Flatpak, one launcher for both (branch agent/linuxtar, 2026-11-27)
+
+An Arch player on Monado: the Flatpak's runtime (freedesktop 25.08, glibc 2.42) can't load his host-built
+`libopenxr_monado.so` ("GLIBC_2.43 not found"); the Flatpak's files run outside the sandbox worked. Details and the
+options: LINUX.md, "The Flatpak and glibc" and "Linux tarball".
+- **What**: `QuakeVR-linux-x86_64.tar.gz` (QuakeVR/: ironwail, ironwail.pak, libopenxr_loader.so.1, the codec libraries,
+  quakevr/, quakevr.sh, README.txt, VERSION), made in the Flatpak CI job from `flatpak_app/files` by
+  `Misc/linux/tarball/make_tarball.sh` (artifact `QuakeVR-<branch>-<hash>-linux-x86_64`). The same binary as the Flatpak.
+- **glibc floor 2.38** (GLIBCXX_3.4.32): `__isoc23_*` and libm's `fmod` (unavoidable on the 25.08 SDK). The one 2.42
+  symbol, `__inet_pton_chk` (clang doesn't fold glibc's fortify check), is gone: `host_cmd.c` calls `inet_pton` through
+  a volatile pointer on fortified glibc builds (Windows and Android untouched). make_tarball fails above `QVR_GLIBC_MAX`
+  (2.38) and on a linked library that is neither bundled nor on its system list.
+- **Bundled from the runtime**: mpg123, opusfile, opus, FLAC 14, vorbisfile, vorbis, ogg (the engine links them; Ubuntu
+  24.04 has FLAC 12). The system's: glibc, libstdc++, libX11, libGLX/libOpenGL, SDL2, libcurl.
+- **Launcher** (`Misc/linux/flatpak/quakevr.sh`, shared): tarball mode when `ironwail` is beside it
+  (`LD_LIBRARY_PATH=<dir>`, base dir its folder, remembered folder `<dir>/quake-dir`). New for both: Snap and Debian
+  Steam roots, `config/libraryfolders.vdf`, Lutris/GOG `~/Games/gog/quake`, `/usr/share/games/quake`, `--flat`
+  (`-flatscreenmode`; the Flatpak had none), `--dry-run`, `--help`; the not-found message lists where it looked and, in
+  the Flatpak, the `flatpak override` for each Steam library the sandbox can't see (BACKLOG "Flatpak needed Steam folder
+  access": hint added, cause not found).
+- **Flatpak runtime bump: not done** (decision): 26.08 can't be built here offline, and a newer runtime only helps until
+  the host's glibc moves again. Three lines to try with one CI run (LINUX.md).
+- **Tests** (WSL Arch, glibc 2.44): `quakevr_sh_test.sh` 22/0 (fake homes: every Steam layout, rerelease, GOG/Heroic,
+  overrides, remembered folder, stub engine's command line and LD_LIBRARY_PATH, --flat, a link, the Flatpak's override
+  hint). An offline `flatpak-builder` build (cached sources), the tarball made, unpacked clean, run with a fake Steam
+  library from `libraryfolders.vdf`: e1m1 on the mock headset and with `--flat`, exit 0; then against the kit's
+  host-built Monado (its library needs GLIBC_2.43, the player's case): session FOCUSED with the bundled loader, while
+  `ldd` in the Flatpak runtime shows the player's error (`libm.so.6: version GLIBC_2.43 not found`).
+- **Open**: CI's step is untested on GitHub (the action's build dir `flatpak_app` assumed, as the manifest's skip list
+  has it); no real headset; no older-glibc build (Ubuntu 22.04 would need the AppImage plan's job).
+## mparcs: Show Melee Arcs' armed swings drawn on remote MP clients (branch agent/mparcs, 2026-11-27)
+
+The armed humanoids' swing trail (Show Melee Arcs, ROUND25 "Show Melee Arcs") was drawn only by the host's view: QC
+hands each swing frame to the engine (`meleeshowfoe`), which kept it in the host's own memory. Now a remote client whose
+own `vr_enemy_melee_arc_show` is on draws it too, whatever the host's option says.
+- **How**: the client asks the server while its option is on (`vr_meleearcs_want 1|0`, as `vr_nav_botpaths`; a listen
+  host draws the server's own and never asks). QC sends the swings while the host's option is on *or* a remote client
+  wants them (vr_meleerules.qc `VR_MeleeArc_Shown`: one cvar read, a builtin call only with the host's off:
+  `meleeshowfoe(world, -2, ...)`). The engine keeps the frame's records (grip/tip with the swing-through flag, butt, blow
+  landed; 32 at most, emptied at `VR_ServerFrameBegin`) and writes them into each wanting remote client's datagram
+  (`VR_WriteMeleeArcs`, SV_SendClientDatagram after the scoped messages): `QVR_SVC_MELEEARC` 59, unreliable (a lost
+  datagram is a gap in the trail). The client keeps them as the host does (`keepFoe`) and draws them with the same
+  `drawHand`; its clock is the last message's server time (`cl.mtime[0]`). **QVR_NET_VERSION 48 -> 49.**
+- Not derived from the pose (QVR_SVC_ARMPOSE): the swing-through phase and the blow landing are server-side facts, and
+  the weapon line would have to be rebuilt from the drawn pose on every client.
+- Shared: the draw (`drawHand`), the slots and fade (`keepFoe`) for host and client. Not covered: Show Melee Blades (your
+  own hands' sweeps, `vr_debug_melee_blades`) and the floor fan (`meleeArcDraw`) stay host-only; bots' and players'
+  swings never used this path (they are Show Melee Blades' sweeps).
+- `vr_enemy_melee_arc_status`: "armed swings drawn N frames M segments" (segments: the swept surface between two frames)
+  and "remote wanted 0|1" (the server's view).
+- `NET_QvrReleaseOf` (net_main.c) not given 49: the table is frozen by design (servers from 1.2.0-beta7 on say their
+  release themselves; it names the releases of older servers only).
+- Tests: `mp_test.py meleearcs` (in the suite) 9/0: listen host A on vrtesthall runs `vr_agrunt_test 216` with B (remote)
+  drawing: B drew 278 frames, 2094 segments; B's option off stops it (remote wanted 0). `vr_agrunt_test 216` 2/0 (its
+  "off" case allows sending when a remote client draws them), 212 6/0; mp_version, mp_coop, mp_bandwidth,
+  changelevel_signon pass.
 ## menupaths (agent/menupaths): menu_paths.txt regenerates complete, and a stale file is caught
 
 - **Finding.** The Held Weapon pages were already kept by a full regeneration (`vr_menu_dump_paths` pins weapon slot 17,

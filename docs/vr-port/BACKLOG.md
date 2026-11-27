@@ -28,7 +28,6 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Baseline failures, 2026-11-26 list, what is left** (agrunt 203 fixed: ROUND26 "basefix2"; `ragdoll_grab` and teleporters: "basefix1"/"basefix2"): `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14; agrunt 74 (78 vs 80%); the recoil test has 4 slots off the old defaults; agrunt 16 (the drawn grip 2.72 off, limit 2.5) and agrunt 65 (flaky) as in basefix2.
 - **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` points to `qvr-kit/relit`); no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
 - **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
-- **Melee arcs**: armed humanoids' swing trail is drawn on the host view only, not on remote MP clients (ROUND25.md "Show Melee Arcs").
 
 - **Flaky/stale lists below, from 11-12 to 11-21 (to recheck: overnight flaky sweep queued 2026-11-27)**.
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
@@ -181,12 +180,6 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
   until this is done. 2026-11-22 (disarmfix, ROUND25): PvE now by jolts (no dice, a warning before the drop, fists and
   heavy blows count); left: his try in VR, then his OK to turn `vr_player_disarm` on.
-- **Blinding with the flashlight** (2026-11-27): pointing the flashlight straight at an armed humanoid's face dazzles
-  it: it raises one hand in front of its face (the other keeps the gun; a pose key/override, IK on the shared rig
-  paths) and shoots with worse accuracy while the beam stays on its eyes (and a moment after). Needs: the beam's cone
-  vs the face (distance, angle, line of sight), a dazzle level that builds and fades, the shield pose blended in, the
-  aim spread scaled by it; one-handed guns fire from the free hand, two-handed ones fire one-handed and worse. Also the
-  flat-screen flashlight and bots' if they carry one.
 
 ## 7. Combat and feel
 
@@ -306,6 +299,8 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
   `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,
   host vs sandbox paths) and make the launcher say exactly which override to run when it finds no Quake.
+  (2026-11-27, linuxtar: the launcher now prints the `flatpak override` for each Steam library from
+  libraryfolders.vdf the sandbox can't see, and the unsandboxed tarball avoids the question; the cause is not found.)
 
 - **Performance, only when a capture makes one the top cost:** decals (PERF_DECISIONS.md 15), parallax option B and
   depth write, hit-box traces, shadows in crowded light, teleporter views, model loading in parallel, kept level copies:

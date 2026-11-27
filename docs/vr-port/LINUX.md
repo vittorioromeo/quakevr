@@ -48,7 +48,8 @@ From the repository, with your Quake folder first and the repository (its `quake
 - **Steam's and GOG's Quake** as they are: the original release's paks are named in upper case (`id1/PAK0.PAK`), which
   the engine matches on Linux too (`Sys_MatchFileCase`: a `pakN.pak` not found by its own name is looked for ignoring
   case). The `rerelease` folder (`.../Quake/rerelease`) works as a base dir as well.
-- Flat or mock: `vr_backend mock` (or `-novr`, as on Windows). SDL picks X11 or Wayland.
+- Flat or mock: `-flatscreenmode` (the flat-screen mode, as the Windows installer's flat shortcut; the launcher's
+  `--flat`) or `vr_backend mock`. SDL picks X11 or Wayland.
 - VR: `vr_backend openxr`, with an OpenXR runtime: Monado, WiVRn, SteamVR for Linux (the loader finds the active one
   in `~/.config/openxr/1/active_runtime.json`, `/etc/xdg/openxr/1/`, `/etc/openxr/1/`, or `XR_RUNTIME_JSON`).
   `active_runtime.x86_64.json` wins over `active_runtime.json` in each folder (the loader's order), and manifests for
@@ -84,7 +85,7 @@ Arcane Dimensions' or the expansions' is in it: it reads the player's own Quake 
   the author's `fteqcc64.exe`, for the build only, in its own file `fteqcc.json`, which the CMake build reads its pin
   from too; the OpenXR loader; Quake VR), `build.sh` (in the sandbox: the CMake build, the engine and the QuakeC's
   release flavour with the module's fteqcc, then the install; the game folder is what git would track under `quakevr/`, less `.gitignore` and `motions/`, as
-  `Windows/package-quakevr.ps1` has it), `quakevr.sh` (the launcher), the desktop entry, the AppStream metadata and the
+  `Windows/package-quakevr.ps1` has it), `quakevr.sh` (the launcher, also the tarball's), the desktop entry, the AppStream metadata and the
   icon (the installer's logo). The build number: CI writes `.qvr-buildinfo` ("<commit count> <hash>"), which
   `qvr_buildinfo.cmake` reads when the copy has no `.git`; a local build says `build 0 (unknown)`.
 - **Building it locally** (flatpak-builder 1.4; it installs the runtime, the SDK and
@@ -125,7 +126,10 @@ Arcane Dimensions' or the expansions' is in it: it reads the player's own Quake 
     its folder and `xdg-run/wivrn` are shared). Not tried yet.
   - **Monado or WiVRn from distribution packages**: their manifests (`/usr/share/openxr/1`, `/etc/xdg/openxr/1`) name a
     library under the host's `/usr`, which the sandbox does not see (its `/usr` is the runtime's): no runtime found. Use
-    the native build.
+    the tarball ("Linux tarball" below).
+  - **A runtime built on the host** (Envision's Monado, one built by hand under home): visible through `home:ro`, but it
+    fails to load once the host's glibc is newer than the Flatpak runtime's ("The Flatpak and glibc" below). Use the
+    tarball.
   - **SteamVR**: its manifest and `vrclient` are in the Steam folder (shared read-only), the game asks SDL for
     X11/GLX, and the host's `/dev/shm` is shared (`--device=shm`, since 2026-11-17). Not working yet for the two players
     who tried (GitHub #82: `XR_ERROR_RUNTIME_UNAVAILABLE`): see "SteamVR" below.
@@ -134,6 +138,56 @@ Arcane Dimensions' or the expansions' is in it: it reads the player's own Quake 
 - **Not in it**: the relighting scripts (`quakevr/tools`, Python: in the repository), ericw-tools, the HD texture pack,
   debug symbols (the binary is stripped: a crash report's offsets need that CI build's unstripped binary, not kept). No
   real headset has run the Flatpak yet.
+
+### The Flatpak and glibc (2026-11-27)
+
+An Arch player on Monado: the Flatpak failed with "GLIBC_2.43 not found" on `libopenxr_monado.so`; the same files run
+outside the sandbox worked. Why: OpenXR runtimes are libraries loaded **into the game's process**. In the sandbox that
+process runs on the freedesktop runtime's `ld.so` and `libc.so.6` (25.08: glibc 2.42), and one process has one libc. A
+runtime built on the host (Envision's Monado, a self-built one under home: readable through `home:ro`) was linked
+against the host's glibc (Arch: 2.43, now 2.44) and asks for symbol versions the sandbox's libc doesn't have, so the
+dynamic linker refuses it. Nothing in the app can change that. The options:
+
+- **A newer Flatpak runtime** (26.08 when Flathub has it, with its `llvm22` extension): three lines (the manifest's
+  `runtime-version`, the CI container's tag, the extension if it changes), but it only works until the host's glibc
+  moves ahead again (a rolling distribution is always ahead), and a host runtime's other libraries (libusb, hidapi,
+  Vulkan loaders) must exist in the sandbox too. **Not done** (2026-11-27): it can't be built here without downloading
+  the new runtime, and a broken manifest would fail every push's CI. Try it with one CI run when convenient.
+- **Runtimes built for the Flatpak runtime** (WiVRn's Flatpak) keep working: same libc.
+- **The tarball** (below): no sandbox, the host's libc for both the game and the runtime. **Done**: the answer for host
+  runtimes (and distribution-packaged Monado/WiVRn, which the sandbox can't see at all).
+
+## Linux tarball (2026-11-27)
+
+`QuakeVR-linux-x86_64.tar.gz`: the Flatpak's own build (the same engine binary, `ironwail.pak`, the OpenXR loader
+1.1.65 and the `quakevr` game folder) as a plain folder, run unsandboxed. CI makes it in the Flatpak job from the build
+directory the action leaves (`flatpak_app/files`, the Flatpak's `/app`) and keeps it as the run's artifact
+`QuakeVR-<branch>-<hash>-linux-x86_64`; for a release attach it with `make_release.py --asset`.
+
+- **Made by** `Misc/linux/tarball/make_tarball.sh <prefix> [out dir] [runtime lib dir]`: the engine, its pak, the
+  loader (`libopenxr_loader.so.1`), the music codecs the engine links (mpg123, opusfile/opus, FLAC 14, vorbisfile/vorbis,
+  ogg: copied from the freedesktop runtime, since sonames differ between distributions: Ubuntu 24.04 has FLAC 12), the
+  game folder, `README.txt` (`Misc/linux/tarball/README.txt`, with the version and the glibc filled in) and the launcher.
+  It fails when a linked library is neither bundled nor on its system list (glibc, libstdc++, libX11, libGLX/libOpenGL,
+  SDL2, libcurl), or when the binaries need a glibc newer than `QVR_GLIBC_MAX` (2.38).
+- **glibc floor: 2.38** (Ubuntu 24.04, Debian 13, Fedora 39 or newer; libstdc++ GLIBCXX_3.4.32, gcc 13). It comes from
+  building on the 25.08 SDK: C23's `__isoc23_strtol` family (glibc 2.38 headers in C++) and libm's new `fmod`. The one
+  2.42 symbol, `__inet_pton_chk` (glibc's fortified `inet_pton`, which clang doesn't fold), is avoided in
+  `host_cmd.c` by calling `inet_pton` through a pointer. An older floor (Ubuntu 22.04's 2.35) needs a build on an older
+  system: the AppImage plan's `ubuntu-22.04` job below.
+- **The launcher** is the Flatpak's (`Misc/linux/flatpak/quakevr.sh`, one script): beside `ironwail` it runs as the
+  tarball's, `LD_LIBRARY_PATH=<its folder> ./ironwail -basedir <Quake> -basedir <its folder> -game quakevr "$@"`, with
+  the same Quake search (Steam libraries from `steamapps/` and `config/libraryfolders.vdf`, native, Debian's, Flatpak and
+  Snap Steam; GOG, Heroic, Lutris folders; `/usr/share/games/quake`; the rerelease folder), `--quake-dir` (remembered in
+  `<folder>/quake-dir`), `QUAKEVR_QUAKE_DIR`, `--flat` (`-flatscreenmode`, also in the Flatpak) and `--dry-run` (prints
+  the folder and the command). Without Quake it says what to run (and in the Flatpak, the `flatpak override` for each
+  Steam library the sandbox can't see).
+- **The OpenXR runtime** is always the system's: the loader's ordinary search, `XR_RUNTIME_JSON`; no `XDG_CONFIG_DIRS`
+  change. The game writes into the tarball's `quakevr/`.
+- **Tests**: `bash Misc/linux/tarball/quakevr_sh_test.sh [launcher] [work dir]` (the Quake search on fake homes, every
+  layout; a stub engine for the command line; prints `quakevr_sh_test: N passed, M failed`). The tarball was made from a
+  local offline `flatpak-builder` build in WSL, unpacked in a clean folder and run with a fake Steam library (2026-11-27,
+  ROUND26.md "linuxtar").
 
 ## SteamVR (GitHub #82, 2026-11-17)
 

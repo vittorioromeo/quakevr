@@ -685,9 +685,10 @@ ArcDrawn arcDrawn;
 
 void meleeArcStatus_f()
 {
-    Con_Printf("meleearcviz: drawn arc %d leap %d round %d shove %d (frames %d); armed swings drawn %d frames\n",
+    Con_Printf("meleearcviz: drawn arc %d leap %d round %d shove %d (frames %d); armed swings drawn %d frames %d segments\n",
         arcDrawn.byRule[0], arcDrawn.byRule[1], arcDrawn.byRule[2], arcDrawn.byRule[3], arcDrawn.frames,
-        meleeshow::foeDrawnFrames());
+        meleeshow::foeDrawnFrames(), meleeshow::foeDrawnSegments());
+    Con_Printf("meleearcviz: remote wanted %d\n", meleeshow::remoteWanted() ? 1 : 0); // (the server: a remote client draws them)
     for(int i = 0; i < arcShows.count; ++i)
     {
         const ArcShow& r = arcShows.rows[i];

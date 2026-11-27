@@ -670,6 +670,8 @@ nextmsg:
 					ret = 1; // QVR: the headset's weapon wheel's pick: a holster's weapon into a hand (vr_weaponwheel.cpp, QC VR_Wheel_Pick)
 				else if (q_strncasecmp(s, "vr_nav_botpaths ", 16) == 0)
 					ret = 1; // QVR: the bots' navmesh paths sent him for his vr_nav_debug (vr_navfollow.cpp)
+				else if (q_strncasecmp(s, "vr_meleearcs_want ", 18) == 0)
+					ret = 1; // QVR: Show Melee Arcs' armed swings sent him for his vr_enemy_melee_arc_show (vr_meleeshow.cpp)
 				else if (q_strncasecmp(s, "vr_avatarcal ", 13) == 0)
 					ret = 1; // QVR: the player's avatar calibration, kept and passed on (vr_mpavatar.cpp)
 				else if (q_strncasecmp(s, "vr_voicechat_listen ", 20) == 0)

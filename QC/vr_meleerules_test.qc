@@ -233,8 +233,10 @@ void() VR_MRT_SwingFrame =
         vr_agt_step = 0;
         return;
     }
-    VR_AGT_Check(sprintf("meleerules: Show Melee Arcs off: its swing neither sent nor drawn (struck %g; %g sent, %g drawn)",
-        struck, sent, drawn), struck && sent == 0 && drawn == 0);
+    // (a remote client drawing them, mp_meleearcs: still sent, to him; this view draws none)
+    float remote = meleeshowfoe(world, -2, '0 0 0', '0 0 0', 0);
+    VR_AGT_Check(sprintf("meleerules: Show Melee Arcs off: its swing neither sent nor drawn (struck %g; %g sent, %g drawn; "
+        "remote client drawing them %g)", struck, sent, drawn, remote), struck && (sent == 0 || remote) && drawn == 0);
     cvar_set("vr_enemy_melee_arc_show", ftos(vr_mrt_keep_show));
     vr_mrt_case = 0;
     cvar_set("vr_agrunt_test", "0");
