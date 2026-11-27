@@ -4828,6 +4828,10 @@ QVR_CYCLE(vr_xr_foveation, "Quest Foveation",
     "resolution (fixed foveated rendering): faster, near-invisible through the lenses. Higher levels blur more of "
     "the edges.",
     {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"})
+QVR_TOGGLE(vr_xr_spacewarp, "SpaceWarp",
+    "Quest standalone: the game draws every other frame and the headset makes up the ones between from the motion "
+    "of what it drew (Application SpaceWarp): twice the time for each frame, smoother in big fights. Moving things "
+    "can wobble at their edges. Off by default while it is new; the menus and the console show at the full rate.")
 QVR_TOGGLE(vr_xr_foveation_dynamic, "Quest Foveation: Dynamic",
     "On: the headset uses less foveation than Quest Foveation's level while the graphics have room to spare, and "
     "up to that level when they are busy.")

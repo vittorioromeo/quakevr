@@ -8,6 +8,7 @@
 #include "vr_dynres.hpp"
 #include "vr_warmup.hpp"
 #include "vr_tracy.h"
+#include "vr_spacewarp.hpp"
 #include "vr_temporal.hpp"
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
@@ -2346,6 +2347,7 @@ extern "C" void VR_Init()
     dirparryviz::registerCommands();
     blowline::registerCommands();
     temporal::registerCommands(); // vr_temporal_error (vr_temporal.cpp)
+    spacewarp::registerCommands(); // vr_spacewarp_check (vr_spacewarp.cpp)
     edictindex::registerCommands();
     findradius::registerCommands(); // vr_findradius_stats (vr_findradius.cpp)
     weapons::registerCvars();
