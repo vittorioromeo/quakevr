@@ -2544,3 +2544,6 @@ The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subh
   alone right after, same tree: PASS (3 failed = the package scenes). Not seen in the first make_release run either
   (also parallel lanes): intermittent, maybe the suite's parallel lanes (a lane writing vrtesthall's collision cache
   while this one reads it?) - not investigated. Raw log: scratch/beta6_scn_release2_raw.log.
+- **Third make_release (coordinator: treat as a load flake, once more) on 6b84600ef: the same 5 vrtesthall scenes failed
+  again, identical positions; stopped, nothing published. BACKLOG section 1 note added. Raw log:
+  scratch/beta6_scn_release3_raw.log.
