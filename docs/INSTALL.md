@@ -21,8 +21,8 @@ optional extras, and what to do when something goes wrong. Quake VR: UNLEASHED i
 
 ## Requirements
 
-- **Windows 10 or 11, 64-bit.** VR works only in the Windows x64 build. The Linux and macOS builds have no OpenXR
-  support yet.
+- **Windows 10 or 11, 64-bit.** VR works in the Windows x64 build and on Linux (the Flatpak, or
+  the plain tarball `QuakeVR-linux-x86_64.tar.gz`: [LINUX.md](vr-port/LINUX.md)). The macOS build has no OpenXR support.
 - **A graphics card with OpenGL 4.3**, as Ironwail needs. For VR, get the fastest card you can. The shipped
   settings are tuned on an RTX 4090. The [graphics presets](#performance) scale down a long way.
 - **A PC VR headset and an OpenXR runtime.** QVR:U is tested mostly on a Meta Quest 3 through Virtual Desktop.

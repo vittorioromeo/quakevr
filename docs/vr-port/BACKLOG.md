@@ -312,6 +312,8 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
   `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,
   host vs sandbox paths) and make the launcher say exactly which override to run when it finds no Quake.
+  (2026-11-27, linuxtar: the launcher now prints the `flatpak override` for each Steam library from
+  libraryfolders.vdf the sandbox can't see, and the unsandboxed tarball avoids the question; the cause is not found.)
 
 - **Performance, only when a capture makes one the top cost:** decals (PERF_DECISIONS.md 15), parallax option B and
   depth write, hit-box traces, shadows in crowded light, teleporter views, model loading in parallel, kept level copies:
