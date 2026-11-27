@@ -3,8 +3,14 @@
 #include "vr_flatholster.hpp"
 
 #include "vr_api.h"
+#include "vr_attach.hpp"
+#include "vr_avatar.hpp"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
+#include "vr_bindpanel.hpp"
 #include "vr_cvars.hpp"
+#include "vr_holsterzones.hpp"
+#include "vr_mem.hpp"
+#include "vr_toolgun_icons.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_gadget.hpp"
@@ -205,6 +211,135 @@ struct Contents
 [[nodiscard]] const char* holsterSlotName(const Contents& c, int i)
 {
     return c.holster[i] != WID_FIST ? notectx::weaponName(c.holster[i], c.holsterFlags[i], modelName(c.holsterModel[i])) : "";
+}
+
+// A weapon's ammo type by its id (QC vr_weaponutil.qc VR_WEAPONS' ammo, ammo2 with QVR_WPNFLAG_USE_SECONDARY_AMMO: the
+// mission pack's lava nails, multi-rockets, plasma): a holstered gun's, which no stat names (the hands' are
+// STAT_QVR_AMMOTYPE / STAT_QVR_AMMO2). AID_*: 0 none, 1 shells, 2 nails, 3 rockets, 4 cells, 5 lava, 6 multi, 7 plasma.
+constexpr unsigned char widAmmo[WID_LAST + 1][2] = {{0, 0}, {0, 0}, {0, 0}, {4, 4}, {1, 1}, {1, 1}, {2, 5}, {2, 5}, {3, 6},
+    {3, 3}, {3, 6}, {4, 7}, {4, 4}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {4, 4}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+    {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {2, 2}, {0, 0}, {1, 1}};
+static_assert(WID_REVOLVER == 31 && WID_LAST == 31, "widAmmo follows QC's VR_WEAPONS");
+
+[[nodiscard]] int ammoTypeOf(int wid, int flags)
+{
+    constexpr int secondaryAmmo = 1; // QC QVR_WPNFLAG_USE_SECONDARY_AMMO
+    return wid >= 0 && wid <= WID_LAST ? widAmmo[wid][(flags & secondaryAmmo) != 0 ? 1 : 0] : 0;
+}
+
+// The reserve of ammo type `aid` (-1 none).
+[[nodiscard]] int reserveOf(int aid)
+{
+    switch(aid)
+    {
+    case 1: return cl.stats[STAT_SHELLS];
+    case 2: return cl.stats[STAT_NAILS];
+    case 3: return cl.stats[STAT_ROCKETS];
+    case 4: return cl.stats[STAT_CELLS];
+    case 5: return cl.stats[protocol::STAT_QVR_AMMOLAVA];
+    case 6: return cl.stats[protocol::STAT_QVR_AMMOMULTI];
+    case 7: return cl.stats[protocol::STAT_QVR_AMMOPLASMA];
+    default: return -1;
+    }
+}
+
+// A gun's ammunition and attachment into `out`: its magazine where it has one (reloading on, or a gun whose magazine is
+// its only ammo: the AD guns, the grunt's), the reserve of its ammo type.
+void fillAmmo(HolsterSlot& out, int clip, int clipSize, int aid, int uid)
+{
+    const bool magazine = clipSize > 0 && (cl.stats[protocol::STAT_QVR_RELOADMODE] != 0 || aid == 0);
+    out.clip = magazine ? clip : 0;
+    out.clipSize = magazine ? clipSize : 0;
+    out.ammoType = aid;
+    out.reserve = reserveOf(aid);
+    out.attach = uid != 0 ? attach::kindOfUid(uid) : 0;
+}
+
+void handAmmo(HolsterSlot& out, int h)
+{
+    using namespace protocol;
+    const bool main = h != 0;
+    fillAmmo(out, cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2],
+        cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2], cl.stats[main ? STAT_QVR_AMMOTYPE : STAT_QVR_AMMO2],
+        cl.stats[main ? STAT_QVR_WEAPONUID : STAT_QVR_WEAPONUID2]);
+}
+
+// wheelui (his words 2026-11-28: "replace the stickman figure with an actual preview of the player"): the player's own
+// body as posed now (avatar::posedMesh, its head as seen from outside), drawn by the thumbnails' rasteriser, grey and lit,
+// seen from behind and a little above (his left on the image's left, as the slots), where the stick figure stood; each
+// slot's stroke to where its holster is drawn on it (zones::drawnAt). Made again each frame the menu is drawn.
+constexpr glm::vec4 bodyRect{84.f, 10.f, 88.f, 204.f}; // (x, y, w, h) on the image
+constexpr int bodyPicW = 132;                          // its picture's pixels (1.5 a menu pixel)
+constexpr int bodyPicH = 306;
+constexpr float bodyViewRise = 0.35f; // the view's rise behind the body (up over back)
+constexpr float bindPanelGap = 4.f;   // menu pixels between the bindings panel and the menu under it
+
+struct BodyScratch
+{
+    za::Vector<glm::vec3> verts;
+    za::Vector<unsigned> tris;
+    za::Vector<unsigned char> parts;
+    auto members() { return mem::list(verts, tris, parts); }
+};
+mem::Scratch<BodyScratch> bodyScratch{"holster menu body"};
+
+struct BodyPreview
+{
+    gfx::Picture picture;
+    toolgun::icons::Framing framing;
+    bool ok{false};
+    int frame{-1}; // host_framecount it was made in
+    int made{0};   // (vr_flatholster_dump)
+};
+BodyPreview bodyPreview;
+
+// The body drawn this frame (false: not posed, or nothing drawn: the stick figure instead).
+[[nodiscard]] bool posedBody()
+{
+    BodyPreview& b = bodyPreview;
+    if(b.frame == host_framecount)
+    {
+        return b.ok;
+    }
+    b.frame = host_framecount;
+    b.ok = false;
+    avatar::Skeleton sk;
+    if(!avatar::skeleton(sk) || !avatar::posedMesh(bodyScratch.verts, bodyScratch.tris, bodyScratch.parts, true))
+    {
+        return false;
+    }
+    const glm::vec3 fwd = sk.pelvisFrame.rot[2];
+    glm::vec3 level{fwd.x, fwd.y, 0.f};
+    level = glm::length(level) > 1e-3f ? glm::normalize(level) : glm::vec3{1.f, 0.f, 0.f};
+    b.ok = toolgun::icons::drawMesh(bodyScratch.verts, bodyScratch.tris, -level + glm::vec3{0.f, 0.f, bodyViewRise}, bodyPicW,
+        bodyPicH, b.picture, b.framing);
+    b.made += b.ok ? 1 : 0;
+    return b.ok;
+}
+
+// Holster `i`'s place on the body's picture (menu pixels): where it is drawn, else the stick figure's.
+[[nodiscard]] glm::vec2 bodyAnchor(int i)
+{
+    glm::vec3 at;
+    if(!zones::drawnAt(i, at))
+    {
+        return {places[i].anchorX, places[i].anchorY};
+    }
+    const glm::vec2 p = bodyPreview.framing.place(at);
+    return {bodyRect.x + p.x * bodyRect.z / static_cast<float>(bodyPicW), bodyRect.y + p.y * bodyRect.w / static_cast<float>(bodyPicH)};
+}
+
+// A slot's weapon into the menu's slot (the holster menu's and the weapon wheel's).
+void toMenuSlot(gadget::HolsterMenuSlot& s, const HolsterSlot& w)
+{
+    s.title = w.title;
+    s.name = w.name;
+    s.model = w.model;
+    s.clip = w.clip;
+    s.clipSize = w.clipSize;
+    s.ammoType = w.ammoType;
+    s.reserve = w.reserve;
+    s.attach = w.attach;
 }
 
 void layOut()
@@ -629,6 +764,12 @@ HolsterSlot holsterSlot(int i)
     out.title = places[i].title;
     out.name = holsterSlotName(c, i);
     out.model = c.holster[i] != WID_FIST ? modelName(c.holsterModel[i]) : "";
+    if(c.holster[i] != WID_FIST)
+    {
+        const int size = cl.stats[protocol::STAT_QVR_HOLSTERCLIPSIZE0 + i];
+        const int aid = ammoTypeOf(c.holster[i], c.holsterFlags[i]);
+        fillAmmo(out, cl.stats[protocol::STAT_QVR_HOLSTERWEAPONCLIP0 + i], size, aid, cl.stats[protocol::STAT_QVR_HOLSTERWEAPONUID0 + i]);
+    }
     return out;
 }
 
@@ -660,6 +801,7 @@ HolsterSlot handSlot(int hand)
     {
         out.model = modelName(c.handModel[h]);
         out.name = notectx::weaponName(c.hand[h], c.flags[h], out.model);
+        handAmmo(out, h);
     }
     return out;
 }
@@ -697,21 +839,21 @@ void draw()
     za::Array<gadget::HolsterMenuButton, buttonCount> buttons{};
     za::Array<glm::vec4, za::getArraySize(figure) + holsterCount + 1> lines{};
     int nl = 0;
-    for(const glm::vec4& l : figure)
+    // The player's own body as posed (wheelui), else the stick figure; each slot's stroke to its holster on it.
+    const bool body = posedBody();
+    for(int i = 0; !body && i < za::getArraySize(figure); i++)
     {
-        lines[nl++] = l;
+        lines[nl++] = figure[i];
     }
     for(int i = 0; i < holsterCount; i++)
     {
         const HolsterPlace& p = places[i];
         const bool left = p.x < 128.f;
-        lines[nl++] = {left ? p.x + slotW : p.x, p.y + slotH * 0.5f, p.anchorX, p.anchorY};
+        const glm::vec2 anchor = body ? bodyAnchor(i) : glm::vec2{p.anchorX, p.anchorY};
+        lines[nl++] = {left ? p.x + slotW : p.x, p.y + slotH * 0.5f, anchor.x, anchor.y};
         gadget::HolsterMenuSlot& s = slots[i];
-        const HolsterSlot held = holsterSlot(i); // (the weapon wheel's model too)
+        toMenuSlot(s, holsterSlot(i)); // (the weapon wheel's model too)
         s.rect = {p.x, p.y, slotW, slotH};
-        s.title = held.title;
-        s.name = held.name;
-        s.model = held.model;
         s.hovered = inside(s.rect, st.cursor);
     }
     lines[nl++] = {252.f, 20.f, 252.f, panelH - 16.f}; // (the holsters' half, the hands')
@@ -722,8 +864,7 @@ void draw()
         s.title = h == 0 ? "LEFT HAND" : "RIGHT HAND";
         if(c.hand[h] != WID_FIST)
         {
-            s.model = modelName(c.handModel[h]);
-            s.name = notectx::weaponName(c.hand[h], c.flags[h], s.model);
+            toMenuSlot(s, flatholster::handSlot(h));
         }
         else if(c.carry[h] > 0 && c.carry[h] < cl.num_entities)
         {
@@ -760,7 +901,11 @@ void draw()
     v.buttonCount = buttonCount;
     v.lines = lines.data();
     v.lineCount = nl;
-    v.header = "HOLSTERS";
+    if(body)
+    {
+        v.body = &bodyPreview.picture;
+        v.bodyRect = bodyRect;
+    }
     v.footer = toggleMode() ? "Click   Drag: move or swap   L/R: trade with that hand   DROP: to the ground"
                             : "Point, let go of the wheel   Drag: move or swap   DROP: to the ground";
     if(st.dragFrom >= 0 && st.dragFrom < slotCount)
@@ -781,9 +926,17 @@ void draw()
         return;
     }
 
-    // On the window: vr_flat_holster_menu_size of its height (narrowed to fit its width), in its middle.
+    // On the window: vr_flat_holster_menu_size of its height (narrowed to fit its width), in its middle; with the bindings
+    // panel over it (wheelui), the two together in the middle, the panel at the menu's scale (smaller if the window is
+    // too short for both).
     const float W = static_cast<float>(vid.width), H = static_cast<float>(vid.height);
+    const glm::vec2 keys = bindpanel::shown() ? bindpanel::size() : glm::vec2{0.f};
+    const float gapV = keys.y > 0.f ? bindPanelGap : 0.f;
     float h = za::clamp(vr_flat_holster_menu_size.value, 0.2f, 1.f) * H;
+    if(keys.y > 0.f)
+    {
+        h = za::min(h, H * 0.96f * panelH / (panelH + gapV + keys.y)); // (both inside the window's height)
+    }
     float w = h * panelW / panelH;
     if(w > W * 0.96f)
     {
@@ -791,8 +944,14 @@ void draw()
         h = w * panelH / panelW;
     }
     st.scale = h / panelH;
-    const float x0 = (W - w) * 0.5f, y0 = (H - h) * 0.5f;
+    const float above = (keys.y + gapV) * st.scale;
+    const float x0 = (W - w) * 0.5f, y0 = (H - h + above) * 0.5f;
     st.screen = {x0, y0, w, h};
+    if(keys.y > 0.f)
+    {
+        const float ks = za::min(st.scale, W * 0.96f / za::max(keys.x, 1.f));
+        bindpanel::drawOnWindow((W - keys.x * ks) * 0.5f, y0 - above, ks, st.fade);
+    }
     drawOnWindow(img.texture, {panelW, panelH}, st.screen, st.fade);
     if(st.open)
     {

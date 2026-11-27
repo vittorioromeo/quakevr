@@ -9,8 +9,10 @@
 #include "vr_toolgun_icons.hpp"
 
 #include "vr_alloccount.h"
+#include "vr_attach.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
+#include "vr_weapons.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -34,7 +36,6 @@ namespace
 
 constexpr int iconSize = 96;  // the picture's pixels across and down
 constexpr int superSample = 2; // drawn this many times larger each way, then averaged
-constexpr int rasterSize = iconSize * superSample;
 constexpr int maxIcons = 512;
 
 enum class IconState : int
@@ -49,6 +50,7 @@ struct Icon
     char model[64]{};
     int skin{0};
     bool side{false};
+    int attach{0}; // the attachment drawn on it (attach::Kind; 0 none)
     IconState state{IconState::Waiting};
     gfx::Picture picture;
 };
@@ -80,6 +82,7 @@ struct Texture
     const byte* pixels{nullptr}; // 8-bit, the palette's
     int width{0};
     int height{0};
+    bool plain{false}; // none: white, lit (a posed body: drawMesh)
 };
 
 // The rasteriser's buffers (one icon at a time; the 2D pass: the main thread).
@@ -87,9 +90,9 @@ struct IconScratch
 {
     za::Vector<Triangle> triangles;
     za::Vector<Texture> textures;
-    za::Vector<uint32_t> color; // rasterSize^2, RGBA
+    za::Vector<uint32_t> color; // the supersampled picture, RGBA
     za::Vector<float> depth;
-    za::Vector<uint32_t> out; // iconSize^2
+    za::Vector<uint32_t> out; // the picture
     auto members() { return mem::list(triangles, textures, color, depth, out); }
 };
 mem::Scratch<IconScratch> scratch{"toolgun icons"};
@@ -360,10 +363,12 @@ struct Reader
     return channel(0) | (channel(8) << 8) | (channel(16) << 16) | 0xff000000u;
 }
 
-// The triangles drawn into `out` (iconSize^2, RGBA, rows top first), framed to fit, seen from along `toViewer`.
+// The triangles drawn into `out` (width x height, RGBA, rows top first), framed to fit, seen from along `toViewer`; the
+// framing (the picture's axes, middle and scale) into `framing` when asked.
 void rasterize(const za::Vector<Triangle>& tris, const za::Vector<Texture>& textures, const glm::vec3& toViewer,
-    za::Vector<uint32_t>& out)
+    za::Vector<uint32_t>& out, int width = iconSize, int height = iconSize, toolgun::icons::Framing* framing = nullptr)
 {
+    const int rw = width * superSample, rh = height * superSample;
     const glm::vec3 f = -glm::normalize(toViewer); // the view's way
     const glm::vec3 right = glm::normalize(glm::cross(f, glm::vec3{0.f, 0.f, 1.f}));
     const glm::vec3 up = glm::cross(right, f);
@@ -380,19 +385,24 @@ void rasterize(const za::Vector<Triangle>& tris, const za::Vector<Texture>& text
         }
     }
     const glm::vec2 mid = (lo + hi) * 0.5f;
-    const float scale = rasterSize * 0.9f / za::max(za::max(hi.x - lo.x, hi.y - lo.y), 1e-3f);
+    const float scale = za::min(static_cast<float>(rw) * 0.9f / za::max(hi.x - lo.x, 1e-3f),
+        static_cast<float>(rh) * 0.9f / za::max(hi.y - lo.y, 1e-3f));
+    if(framing)
+    {
+        *framing = {right, up, mid, scale / static_cast<float>(superSample), glm::vec2{static_cast<float>(width), static_cast<float>(height)}};
+    }
 
     za::Vector<uint32_t>& color = scratch.color;
     za::Vector<float>& depth = scratch.depth;
     color.clear();
     depth.clear();
-    color.resize(rasterSize * rasterSize, 0u);
-    depth.resize(rasterSize * rasterSize, 1e30f);
+    color.resize(static_cast<za::SizeT>(rw * rh), 0u);
+    depth.resize(static_cast<za::SizeT>(rw * rh), 1e30f);
 
     for(const Triangle& t : tris)
     {
         const Texture& tex = textures[t.texture];
-        if(!tex.pixels)
+        if(!tex.pixels && !tex.plain)
         {
             continue;
         }
@@ -400,8 +410,8 @@ void rasterize(const za::Vector<Triangle>& tris, const za::Vector<Texture>& text
         for(int k = 0; k < 3; k++)
         {
             const glm::vec3& p = t.c[k].p;
-            s[k] = glm::vec3{(glm::dot(p, right) - mid.x) * scale + rasterSize * 0.5f,
-                rasterSize * 0.5f - (glm::dot(p, up) - mid.y) * scale, glm::dot(p, f)};
+            s[k] = glm::vec3{(glm::dot(p, right) - mid.x) * scale + static_cast<float>(rw) * 0.5f,
+                static_cast<float>(rh) * 0.5f - (glm::dot(p, up) - mid.y) * scale, glm::dot(p, f)};
         }
         const float area = (s[1].x - s[0].x) * (s[2].y - s[0].y) - (s[2].x - s[0].x) * (s[1].y - s[0].y);
         if(za::fabs(area) < 1e-6f)
@@ -412,9 +422,9 @@ void rasterize(const za::Vector<Triangle>& tris, const za::Vector<Texture>& text
         const float nl = glm::length(n);
         const float shade = 0.45f + 0.75f * (nl > 0.f ? za::fabs(glm::dot(n / nl, light)) : 0.5f);
         const int x0 = za::max(0, static_cast<int>(za::floor(za::min(s[0].x, s[1].x, s[2].x))));
-        const int x1 = za::min(rasterSize - 1, static_cast<int>(za::floor(za::max(s[0].x, s[1].x, s[2].x))));
+        const int x1 = za::min(rw - 1, static_cast<int>(za::floor(za::max(s[0].x, s[1].x, s[2].x))));
         const int y0 = za::max(0, static_cast<int>(za::floor(za::min(s[0].y, s[1].y, s[2].y))));
-        const int y1 = za::min(rasterSize - 1, static_cast<int>(za::floor(za::max(s[0].y, s[1].y, s[2].y))));
+        const int y1 = za::min(rh - 1, static_cast<int>(za::floor(za::max(s[0].y, s[1].y, s[2].y))));
         for(int y = y0; y <= y1; y++)
         {
             for(int x = x0; x <= x1; x++)
@@ -429,31 +439,37 @@ void rasterize(const za::Vector<Triangle>& tris, const za::Vector<Texture>& text
                     continue;
                 }
                 const float z = w0 * s[0].z + w1 * s[1].z + w2 * s[2].z;
-                float& d = depth[y * rasterSize + x];
+                float& d = depth[y * rw + x];
                 if(z >= d)
                 {
                     continue;
                 }
                 d = z;
                 const glm::vec2 st = t.c[0].st * w0 + t.c[1].st * w1 + t.c[2].st * w2;
-                color[y * rasterSize + x] = texel(tex, st, shade);
+                if(tex.plain)
+                {
+                    const uint32_t g = static_cast<uint32_t>(za::clamp(shade * 0.8f, 0.f, 1.f) * 255.f);
+                    color[y * rw + x] = g | (g << 8) | (g << 16) | 0xff000000u;
+                    continue;
+                }
+                color[y * rw + x] = texel(tex, st, shade);
             }
         }
     }
 
     // Averaged down: the colour of the covered samples, the alpha their share.
     out.clear();
-    out.resize(iconSize * iconSize, 0u);
-    for(int y = 0; y < iconSize; y++)
+    out.resize(static_cast<za::SizeT>(width * height), 0u);
+    for(int y = 0; y < height; y++)
     {
-        for(int x = 0; x < iconSize; x++)
+        for(int x = 0; x < width; x++)
         {
             uint32_t sum[3]{}, covered = 0;
             for(int j = 0; j < superSample; j++)
             {
                 for(int i = 0; i < superSample; i++)
                 {
-                    const uint32_t c = color[(y * superSample + j) * rasterSize + x * superSample + i];
+                    const uint32_t c = color[(y * superSample + j) * rw + x * superSample + i];
                     if(c >> 24)
                     {
                         covered++;
@@ -465,11 +481,48 @@ void rasterize(const za::Vector<Triangle>& tris, const za::Vector<Texture>& text
             }
             if(covered)
             {
-                out[y * iconSize + x] = (sum[0] / covered) | ((sum[1] / covered) << 8) | ((sum[2] / covered) << 16) |
+                out[y * width + x] = (sum[0] / covered) | ((sum[1] / covered) << 8) | ((sum[2] / covered) << 16) |
                                         ((covered * 255 / (superSample * superSample)) << 24);
             }
         }
     }
+}
+
+// The icon's attachment (wheelui: the holster menu's and the weapon wheel's thumbnails) added to the gun's triangles: its
+// model's first frame placed on the gun's model space by the gun's mount (attach::mount / onGun: the one placement the
+// drawn attachment and the server's points use). Returns the attachment's file (its skin's texels are read from it while
+// the icon is drawn: freed after), nullptr when it does not fit the gun or can't be read.
+[[nodiscard]] byte* addAttachment(const Icon& icon, za::Vector<Triangle>& tris, za::Vector<Texture>& textures)
+{
+    const attach::KindInfo* kind = attach::info(icon.attach);
+    const attach::Mount m = attach::mount(weapons::slotForName(icon.model), icon.attach);
+    if(!kind || !m.fits)
+    {
+        return nullptr;
+    }
+    byte* data = COM_LoadMallocFile(kind->model, nullptr);
+    if(!data)
+    {
+        return nullptr;
+    }
+    const za::SizeT first = tris.size();
+    const int texture = static_cast<int>(textures.size());
+    if(!readMdl(Reader{data, static_cast<int>(com_filesize)}, 0, tris, textures))
+    {
+        tris.resize(first);
+        textures.resize(static_cast<za::SizeT>(texture));
+        VR_HeapFree(data);
+        return nullptr;
+    }
+    for(za::SizeT i = first; i < tris.size(); i++)
+    {
+        tris[i].texture = texture;
+        for(Corner& c : tris[i].c)
+        {
+            c.p = attach::onGun(m, c.p);
+        }
+    }
+    return data;
 }
 
 void make(Icon& icon)
@@ -492,14 +545,23 @@ void make(Icon& icon)
         textures.clear();
         const za::SizeT n = ZA_STRLEN(icon.model);
         const bool bsp = n > 4 && !q_strcasecmp(icon.model + n - 4, ".bsp");
+        byte* attachData = nullptr;
         if(bsp ? readBsp(r, tris, textures) : readMdl(r, icon.skin, tris, textures))
         {
+            if(icon.attach > 0)
+            {
+                attachData = addAttachment(icon, tris, textures);
+            }
             const glm::vec3 toViewer = icon.side ? glm::vec3{0.15f, -1.f, 0.3f} : glm::vec3{1.f, -0.75f, 0.5f};
             rasterize(tris, textures, toViewer, scratch.out);
             gfx::ensurePicture(icon.picture, iconSize, iconSize, "toolgun icon");
             gfx::updatePicture(icon.picture, scratch.out.data());
             icon.state = IconState::Made;
             iconSet.made++;
+        }
+        if(attachData)
+        {
+            VR_HeapFree(attachData);
         }
         VR_HeapFree(data);
     }
@@ -515,7 +577,7 @@ void make(Icon& icon)
 namespace qvr::toolgun::icons
 {
 
-const gfx::Picture* get(const char* model, int skin, bool side)
+const gfx::Picture* get(const char* model, int skin, bool side, int attach)
 {
     if(!model || !model[0])
     {
@@ -523,7 +585,7 @@ const gfx::Picture* get(const char* model, int skin, bool side)
     }
     for(const Icon& icon : iconSet.icons)
     {
-        if(icon.skin == skin && icon.side == side && !ZA_STRCMP(icon.model, model))
+        if(icon.skin == skin && icon.side == side && icon.attach == attach && !ZA_STRCMP(icon.model, model))
         {
             return icon.state == IconState::Made ? &icon.picture : nullptr;
         }
@@ -536,7 +598,42 @@ const gfx::Picture* get(const char* model, int skin, bool side)
     q_strlcpy(icon.model, model, sizeof(icon.model));
     icon.skin = skin;
     icon.side = side;
+    icon.attach = attach;
     return nullptr;
+}
+
+bool drawMesh(const za::Vector<glm::vec3>& verts, const za::Vector<unsigned>& tris, const glm::vec3& toViewer, int width,
+    int height, gfx::Picture& picture, Framing& framing)
+{
+    if(verts.empty() || tris.size() < 3 || width <= 0 || height <= 0)
+    {
+        return false;
+    }
+    za::Vector<Triangle>& out = scratch.triangles;
+    za::Vector<Texture>& textures = scratch.textures;
+    out.clear();
+    textures.clear();
+    Texture plain;
+    plain.plain = true;
+    textures.pushBack(plain);
+    for(za::SizeT t = 0; t + 2 < tris.size(); t += 3)
+    {
+        Triangle tri;
+        for(int k = 0; k < 3; k++)
+        {
+            const unsigned v = tris[t + static_cast<za::SizeT>(k)];
+            if(v >= verts.size())
+            {
+                return false;
+            }
+            tri.c[k].p = verts[v];
+        }
+        out.pushBack(tri);
+    }
+    rasterize(out, textures, toViewer, scratch.out, width, height, &framing);
+    gfx::ensurePicture(picture, width, height, "body preview");
+    gfx::updatePicture(picture, scratch.out.data());
+    return true;
 }
 
 void makePending(int budget)
