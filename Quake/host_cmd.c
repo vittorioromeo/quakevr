@@ -62,6 +62,10 @@ void Host_Quit_f (void)
 		return;
 	}
 	VR_TimeQuitBegin (); // QVR: quit timing (vr_startup_times)
+	// QVR: (netmismatch) the lines printed from here on ("Client player removed"...) no longer redraw the screen: each
+	// showed the whole console over its background for a frame (the quit's menu sets key_dest to the console), the
+	// last errors in it flashing past ("red lines written quickly on a background")
+	scr_disabled_for_loading = true;
 	CL_Disconnect ();
 	VR_TimeQuitMark ("client disconnected"); // QVR
 	Host_ShutdownServer(false);

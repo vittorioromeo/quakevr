@@ -293,6 +293,18 @@ const char *shortSourcePath (const char *path)
 	return slash ? slash + 1 : path;
 }
 
+// (netmismatch) Whether the symbol DbgHelp named for an address of module `base` is that address's function, not a
+// guess. In this exe, code without debug info (SDL2main's main, between SDL_main and __scrt_common_main_seh) has no
+// function of its own: DbgHelp named the nearest one before it, of another library ("SDL_main < silk_NLSF_del_dec_quant
+// < __scrt_common_main_seh", "qvr::admelee::'anonymous namespace'::swordHand" in a release build). Trusted: one with
+// the address's line, or the address inside its size; another module's (the system's exports, sizeless) kept.
+bool symbolTrusted (const SYMBOL_INFO *sym, DWORD64 disp, BOOL lined, DWORD64 base)
+{
+	if (lined || (sym->Size && disp < sym->Size))
+		return true;
+	return !base || base != (DWORD64)(uintptr_t)GetModuleHandleA (NULL);
+}
+
 // One frame into frameText: "fn+0x12 (Quake\file.c:34) [ironwail.exe+0x1234]" (symbols: dbgHelpLock held). pc: the
 // frame's address; at: the address looked up (a return address less one: the call's own line, not the next one's);
 // inlined: a function the compiler put inside that frame's (ThinLTO inlines across files), its inline context.
@@ -325,6 +337,8 @@ void describeFrame (DWORD64 pc, DWORD64 at, bool inlined, DWORD inlineContext)
 		{
 			named = dbgHelp.symFromAddr (proc, at, &disp, sym);
 			lined = named && dbgHelp.symGetLine && dbgHelp.symGetLine (proc, at, &ldisp, &line);
+			if (named && !symbolTrusted (sym, disp, lined, base))
+				named = FALSE; // ("?" and its module's offset: no wrong name)
 		}
 	}
 	if (named)
@@ -1249,9 +1263,16 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
 		sym->MaxNameLen = 127;
 		ZA_MEMSET(&line, 0, sizeof (line));
 		line.SizeOfStruct = sizeof (line);
-		if (dbgHelp.symState == 1 && dbgHelp.symFromAddr (proc, addr, &disp, sym))
+		// (netmismatch) looked up at the return address less one (the call's own line, as the crash report's), a name
+		// only when it is the address's function (symbolTrusted), else the module and offset: "ironwail.exe+0x1a2b3c"
+		const DWORD64 at = addr ? addr - 1 : addr;
+		char mod[MAX_PATH];
+		const DWORD64 base = moduleOf (addr, mod, sizeof (mod));
+		const BOOL named = dbgHelp.symState == 1 && dbgHelp.symFromAddr (proc, at, &disp, sym);
+		const BOOL lined = named && dbgHelp.symGetLine && dbgHelp.symGetLine (proc, at, &ldisp, &line);
+		if (named && symbolTrusted (sym, disp, lined, base))
 		{
-			if (dbgHelp.symGetLine && dbgHelp.symGetLine (proc, addr, &ldisp, &line))
+			if (lined)
 			{
 				const char *file = strrchr (line.FileName, '\\');
 				snprintf (frame, sizeof (frame), "%s (%s:%lu)", sym->Name, file ? file + 1 : line.FileName, (unsigned long)line.LineNumber);
@@ -1259,6 +1280,8 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
 			else
 				snprintf (frame, sizeof (frame), "%s", sym->Name);
 		}
+		else if (base)
+			snprintf (frame, sizeof (frame), "%s+0x%llx", mod, (unsigned long long)(addr - base));
 		else
 			snprintf (frame, sizeof (frame), "%p", pcs[i]);
 		if (outSize > 0 && len < outSize - 1)
