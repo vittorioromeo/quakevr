@@ -88,6 +88,9 @@ Flat-screen or VR: the hub's open grass and the cliff faces round the lake are s
 Flat-screen or VR: On the hub, lie down and crawl around the south-west near the shore (around x -550, y 1000-1200): no invisible wall where there's nothing to bump into. {test:hub_start}
 Flat-screen or VR: start ironwail.exe from Quake VR's folder by double-clicking it (or a shortcut of your own with no -game): the hub and Quake VR's hands and weapons are there as with Setup's shortcut, and the console's first lines say "Quake VR's game folder added". {test:hub_start}
 Flat-screen or VR: Debug > Diagnostics > Preview: Game Data Missing Notice shows the broken-install warning in red in the menus' top-right box (then vr_gamedata_notice 0 to end it). {test:hub_start}
+Flat-screen: put an older QuakeVR.zip (e.g. 1.2.0-beta2) beside the new Setup and run it online: it downloads its own version, the details say the zip beside it is older and not used, and the Install page's title names the version being installed. {test:hub_start}
+Flat-screen: same older QuakeVR.zip beside Setup with the network off: a Yes/No box names both versions; No installs nothing from it, Yes installs the older one and the details say so. {test:hub_start}
+Flat-screen: Setup beside its own QuakeVR.zip (the release folder) installs from it with no download, and the Options card says "Installing <version> from a local package". {test:hub_start}
 
 [2. Flat screen]
 ## Grab, hold and push
