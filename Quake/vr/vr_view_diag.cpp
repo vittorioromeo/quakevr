@@ -501,9 +501,10 @@ void ragdollHandProbe_f()
     }
 }
 
-// vr_hold_arm_probe [1|0|report] (flathold3; Debug menu: Held Hands on Arms): while a hand is drawn on a held limb or a dragged
-// prop, every frame, how far its wrist was past its arm's reach and how far the drawn hand was pulled in to its arm; the report
-// prints the most since the last one (and begins anew).
+// vr_hold_arm_probe [1|2|0|report] (flathold3; Debug menu: Held Hands on Arms): while a hand is drawn on a held limb or a dragged
+// prop, every frame, how far its wrist was past its arm's reach and how far the drawn hand was pulled in to its arm, and (flatdrag)
+// how far it left a smooth path and slid on the held thing as drawn; 2 prints each frame too (holdjit:); the report prints the
+// most since the last one (and begins anew).
 void holdArmProbe_f()
 {
     const char* a = Cmd_Argc() > 1 ? Cmd_Argv(1) : "report";
@@ -513,14 +514,20 @@ void holdArmProbe_f()
         Con_Printf("holdarm: report %d frames held, wrist past its arm at most %.2f cm, pulled in to its arm on %d frames (at most "
                    "%.1f cm)\n",
             t.frames, t.gapHi, t.pulled, t.pulledHi);
-        const bool on = t.on;
+        // (flatdrag: the drawn hands' smoothness on what they hold.)
+        // (Short: the console wraps long lines. Off its path: the hand off a smooth one; slid: on the held thing, a frame.)
+        Con_Printf("holdarm: jitter %d frames, off its path at most %.2f cm (mean %.3f), slid at most %.2f cm\n",
+            t.jitFrames, t.jitHi, t.jitFrames > 0 ? t.jitSum / static_cast<float>(t.jitFrames) : 0.f, t.slideHi);
+        const bool on = t.on, log = t.log;
         t = HoldArmTrack{};
         t.on = on;
+        t.log = log;
         return;
     }
     t = HoldArmTrack{};
     t.on = Q_atoi(a) != 0;
-    Con_Printf("holdarm: %s\n", t.on ? "on" : "off");
+    t.log = Q_atoi(a) >= 2;
+    Con_Printf("holdarm: %s\n", t.on ? (t.log ? "on, each frame logged" : "on") : "off");
 }
 
 // vr_agrunt_weapon_probe: each armed monster's held weapon (QC vr_ag_weapon) as the client draws it (on its drawn hands:
