@@ -2448,3 +2448,18 @@ His Quest 3 (bf4eecc2f, beta5-dev build 15431): flat lighting, the menu crashed,
   the menu, Quest Foveation High <-> Off.
 - Tests: questcrash_preset_test 23/0 (new: an old config repaired by `vr_quest_check`, look rows kept), haze_preset_test
   8/0, stereo_targets_test 12/0.
+
+## grenaim: the quick grenade wound up by the attack button shows its landing too (branch agent/grenaim, 2026-11-27)
+
+His flat note 2026-11-27 item 3 ("Throwing a live grenade with the throw button shows the dynamic crosshair target position,
+but not with the attack button"), folded into flatxhair2's throw aim:
+- `VR_FlatThrow_Aim` (QC vr_flatgrenade.qc) now aims the quick grenade's wind-up whatever winds it up: B, the main or the
+  off hand's attack button held on it (`vr_flat_grenade_arm_mode` 1: a press arms, the next held winds up), a live grenade
+  taken another way (force grab, catch: VR_FlatGrenade_Adopt). It was gated on `vr_flatgren_bykey` (B's only). Every flat
+  throw input path now goes through the one aim: the throw key's VR_FLATTHROW_WIND (any hand, any kind) and the quick
+  grenade's VR_FLATGREN_WIND (B or fire, either hand); no other path winds up a throw.
+- The quick grenade's throw (VR_FlatGrenade_Throw) also sets `vr_flatthrow_last` / `_from` / `_watch` (developer 1): its
+  "flat throw: first hit at" / "landed: grenade" lines, as the throw key's things (the globals moved up the file).
+- Tests: `flatxhair_melee_test.sh` 24/1 (new: grenb, grenatk, grenoff from 294 units: the crosshair 6.5, 7.9 and 7.8 units
+  from where the grenade first meets the wall, under the axe's 12; the one fail is the known `flip24`), `flatthrow_test.sh`
+  54/0. Checklist: scenario flat_quick_grenade.
