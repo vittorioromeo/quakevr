@@ -2459,10 +2459,16 @@ but not with the attack button"), folded into flatxhair2's throw aim:
   throw input path now goes through the one aim: the throw key's VR_FLATTHROW_WIND (any hand, any kind) and the quick
   grenade's VR_FLATGREN_WIND (B or fire, either hand); no other path winds up a throw.
 - The quick grenade's throw (VR_FlatGrenade_Throw) also sets `vr_flatthrow_last` / `_from` / `_watch` (developer 1): its
-  "flat throw: first hit at" / "landed: grenade" lines, as the throw key's things (the globals moved up the file).
-- Tests: `flatxhair_melee_test.sh` 24/1 (new: grenb, grenatk, grenoff from 294 units: the crosshair 6.5, 7.9 and 7.8 units
-  from where the grenade first meets the wall, under the axe's 12; the one fail is the known `flip24`), `flatthrow_test.sh`
-  54/0. Checklist: scenario flat_quick_grenade.
+  "flat throw: first hit at" / "landed: grenade" lines, as the throw key's things (the globals moved up the file). Each
+  throw resets the watched one (`vr_flatthrow_hitwho`): a grenade gone off frees its slot, and the next throw reusing it
+  was taken for the one already printed (no "first hit" at all).
+- Tests: `flatxhair_melee_test.sh` 24/1 (new: grenb, grenatk, grenoff from 294 units: the crosshair 1.8, 2.6 and 2.6 units
+  from where the grenade first meets the wall, under the axe's 12; 6.5-7.9 before origin/next's release time 0.025; the
+  one fail is the known `flip24`). `flatthrow_test.sh` 54/0 before merging origin/next; after it 51/3 (move run, move
+  further, guide's catch), the checks of the throw speed and the H catch whose defaults that merge promoted
+  (vr_flat_throw_speed_min/max 8/16, vr_flat_grab_catch_window 0.1, _reach 0.3): most likely theirs (this branch touches
+  neither the box's flight nor the catch), not checked on origin/next alone. Checklist:
+  scenario flat_quick_grenade.
 ## cltidy9: checklist sub-headings (2026-11-27)
 
 The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subheading`, drawn as "> Name" headers by pageChecklist); every section is split into categories and [New] sorted. Details in CHECKLIST_REORG.md, ninth pass.

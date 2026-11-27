@@ -98,6 +98,7 @@ entity vr_flatgren_last;       // (the tests) the last grenade thrown
 entity vr_flatthrow_last;      // (the tests) the last thing the throw key or the quick grenade threw, where it left, and
 vector vr_flatthrow_from;      // until when it is watched for where it first meets something and "landed" (developer 1)
 float vr_flatthrow_watch;
+entity vr_flatthrow_hitwho;    // (VR_FlatThrow_WatchHit) the one it watches; world at each throw (a freed grenade's slot is reused)
 
 string(float xHand) VR_FlatGrenade_HandName =
 {
@@ -298,6 +299,7 @@ void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
     vr_flatthrow_last = g; // (developer 1: where it first meets something, VR_FlatThrow_WatchHit, as the throw key's)
     vr_flatthrow_from = start;
     vr_flatthrow_watch = time + 4;
+    vr_flatthrow_hitwho = world;
     vector launchAng = vectoangles(g.velocity);
     float launch = launchAng_x; // (up positive)
     if(launch > 180)
@@ -801,6 +803,7 @@ void() VR_FlatThrow_Drop =
         vr_flatthrow_last = dropped;
         vr_flatthrow_from = dropped.origin;
         vr_flatthrow_watch = time + 4;
+        vr_flatthrow_hitwho = world;
         dprint(sprintf("flat drop: %s dropped by the %s hand after %.2f s: the hand at %.1f m/s, it leaves at %.0f u/s\n",
             dropped.classname, VR_FlatGrenade_HandName(h), held, dropSpeed, vlen(dropped.velocity)));
     }
@@ -929,6 +932,7 @@ void(float xHeld) VR_FlatThrow_Throw =
     vr_flatthrow_last = thrown;
     vr_flatthrow_from = thrown.origin;
     vr_flatthrow_watch = time + 4;
+    vr_flatthrow_hitwho = world;
     float outSpeed = kind == 3 ? vlen(ragLaunchVel) : vlen(thrown.velocity);
     dprint(sprintf("flat throw: %s thrown by the %s hand%s after %.2f s: the hand at %.1f m/s (%.0f%% charged), ",
         thrown.classname, VR_FlatGrenade_HandName(h), self.vr_flatthrow_both ? (kind == 3 ? " (two-handed)" : " (one-handed: the other hand let go)") : "", xHeld, speed, k * 100));
@@ -1152,7 +1156,6 @@ void() VR_FlatThrow_Aim =
 // (developer 1) Where the last throw first met something: the first frame its velocity left its fall (stopped, bounced,
 // stuck), printed once ("flat throw: first hit at"), with where it was the frame before and its velocity then (its
 // middle's arc on to the wall from there: flatxhair_melee_test's throw against the crosshair's aim).
-entity vr_flatthrow_hitwho;
 vector vr_flatthrow_hitvel;
 vector vr_flatthrow_hitorg;
 void() VR_FlatThrow_WatchHit =
