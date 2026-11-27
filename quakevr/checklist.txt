@@ -20,6 +20,8 @@ Flat-screen or VR: Options > Controller Bindings shows your controller (the name
 Flat-screen or VR: step through the controller pictures with the arrows beside the name (Quest 3, Quest 2, Quest Pro, Rift, Index, Vive, WMR, Steam Frame, Xbox, PlayStation, Switch Pro, generic pad) and say which pictures, labels or glyphs need work. {test:hub_start}
 In Run Setup set Starting melee weapon to Spear and start a new game: you hold the spear in the melee holster (draw it and thrust), no axe; the row shows the spear icon and the default is still the axe. {test:hub_start}
 Quest, Debug > Profiling: turn on "Still Models' Set-up Check" in the gib fight, then off; nothing should look different and the game should not hitch. {test:quest_gibfight}
+Hold the weapon wheel's button: a panel above the wheel shows your controllers' picture (both hands) with each bound button's icon and action beside it, the right icons for your headset's controllers; check it is readable and not in the way (vr_wheel_bind_panel 0 hides it). {test:weapon_wheel}
+Flat-screen: with a gamepad as the last device used, the main menu's bindings panel and the one over the holster menu and the weapon wheel list the pad's buttons with that pad's icons (Xbox, PlayStation, Switch) and what each does; touch the keyboard or mouse and the keys come back. Setup Bindings then opens the controller screen for the pad. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
