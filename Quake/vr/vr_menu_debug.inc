@@ -999,6 +999,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Android: Export Eye Images", "vr_android_export eyeshots")
             .help("vr_android_export eyeshots: the eye images (vr_eyeshot) copied into the app's internal export/ "
                   "folder, which a debuggable APK's `adb shell run-as` reads (Android only)."),
+        command("Android: Open the Game's Files to adb", "vr_android_share")
+            .help("vr_android_share: everything the game made in its folder (saves, autosave, config, logs, caches) "
+                  "opened to adb (folders 2777, files 0666, as Setup's), so `adb pull` backs it all up before an "
+                  "uninstall (Android only)."),
         header("Diagnostics"),
         command("Game Code and Folders", "vr_gamecode")
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
