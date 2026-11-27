@@ -34,8 +34,11 @@ agent/attach1's (posebake); this file holds the attachments' models and their me
   (`thrustsWith`). The gun's own Box3D body does not include the bayonet yet.
 - **Putting it on / taking it off.** VR: hold the bayonet, bring its socket (its model origin) within
   `vr_attach_snap_radius` (5) of the gun's mount, pointing within `vr_attach_snap_angle` (50 deg) of the gun's way: it
-  snaps on (`VR_Attach_Frame`). The empty hand's grip pressed within `vr_attach_pull_radius` (6) of the mount pulls it
-  off into that hand. Flat play: the Attach key (`vr_flat_key_attach`, J; impulse 52, any mode) puts the bayonet the
+  snaps on (`VR_Attach_Frame`). The empty hand gripping within `vr_attach_pull_radius` (6) of the mount and pressing its
+  B/Y pulls it off into that hand, as the head torch comes off (`vr_attach_pull_button` 1; 0: the grip alone; a grip there
+  alone is the gun's two-handed grip). Stuck by it: `vr_embed_bayonet_depth` (1.25x a sword's depth share of its blade);
+  fired stuck, `vr_embed_fire_push`, `vr_embed_fire_letgo` and `vr_embed_fire_hold_time` keep the body on the hand
+  (ROUND26 attach1, bayonet2). Flat play: the Attach key (`vr_flat_key_attach`, J; impulse 52, any mode) puts the bayonet the
   other hand holds on, or takes it off into the empty other hand. Server-side points: `attachinfo(model, kind, what)`
   (the mount and the tip from the muzzle in the gun's axes) along the hand's axes from its muzzle.
 

@@ -589,6 +589,10 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_test_spawn_tilt),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Armour on Beasts", "vr_agarmor_test 15")
+            .help("vr_agarmor_test 15: a rottweiler, an ogre, a scrag and a fiend ahead: each kind's pieces, the client told, every "
+                  "piece drawn and following the body, shots meeting the cuirass and the helmet, a hit stopped, a helmet broken, "
+                  "the skill's roll, two killed (their corpses keep their pieces). Ends on \"beastarmour test: N passed, M failed\"."),
         command("Armour Studio: ImGui Window Test (Flat Screen)", "vr_armourstudio_window test").help("vr_armourstudio_window test: the Armour Studio's ImGui window opened, its Start, a value's + step, Save, Reset Part and Reload the File clicked with a mock mouse (the grunt's bracer), a change made the menu's way shown on the window, Stop, Escape closes it. In a headset: the window refuses to open. Ends on \"armourwin: N passed, M failed\". It writes quakevr/data/armour_wintest.txt."),
         command("Armour Studio: Your Clone's Armour Test", "vr_armourstudio_clone_test").help("vr_armourstudio_clone_test (a fresh game, no armour on you): Kind = Player shown (flat screen: the ImGui window; in a headset: the menu's page), your body and its mirror image wear the studio's armour, each tier, then the build switched while shown (2 to 1, 3 and 2 again); none again once the kind is another. Ends on \"armourclone: N passed, M failed\"."),
         command("Armour Tweaks: Data File Test", "vr_armour_test").help("vr_armour_test: armour.txt's tweaks on the grunt: a bracer override moves those plates alone (the right mirrored), a sleeve's stand-off, rows; saved and read back, edited on disk and read again by the watcher, kept over a map change (it reloads this map), then the shipped file again. Ends on \"armourtest: N passed, M failed\". It writes quakevr/data/armour_test.txt."),
@@ -642,6 +646,9 @@ za::Vector<Item> pageDebugTests()
         command("Your Armour Plates: Full", "vr_pp_test 5").help("Red armour at its most (vr_pp_test 5): every plate. See it in a mirror: a Body page's clone, or vr_mock_camera."),
         command("Your Armour Plates: Half", "vr_pp_test 6").help("Red armour at half (vr_pp_test 6): five pieces, restored in order or shed by a hit."),
         command("Your Armour Plates: Torso Only", "vr_pp_test 7").help("Red armour at 1 (vr_pp_test 7): the cuirass alone."),
+        command("Armoured Beasts There", "vr_agarmor_test 16")
+            .help("A rottweiler (green), an ogre (yellow), a scrag (red) and a fiend (yellow) ahead in full armour, calm (you are "
+                  "notarget; vr_agarmor_test 16). 17-20: one of them close, three quarters on."),
         command("Armoured Enforcers There", "vr_agarmor_test 3")
             .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),
         command("Armour Damage Marks There", "vr_agarmor_test 4")

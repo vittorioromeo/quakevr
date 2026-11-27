@@ -13,6 +13,10 @@
 // (the knight: vr_agknight; the death knight, vr_agdknight, lists the knight's row too: the rows are listed in order)
 float() VR_AM_UiCount =
 {
+    if(cvar_hget(cvarh_vr_agdknight) && cvar_hget(cvarh_vr_agknight) && cvar_hget(cvarh_vr_ad_mounted))
+    {
+        return VR_AM_ROWS; // (AD's armed death guard and crossbow knight too)
+    }
     return cvar_hget(cvarh_vr_agdknight) ? VR_AM_COUNT : cvar_hget(cvarh_vr_agknight) ? VR_AM_DKNIGHT : VR_AM_GUN_KINDS;
 };
 string(float k) VR_AM_UiKindName = { VR_AM_Row(k); return vr_am_name; };

@@ -15,6 +15,16 @@ Pull the bayonet off the shotgun with your empty hand (or pick up a lying one): 
 Flat-screen: kill a grunt, hold its body with H and walk into it: it is pushed ahead at the distance you took it at, both hands staying on it and on your wrists; walk backwards and it is dragged along; turn sharply away and the hands let go. {test:flat_grab_pull}
 Flat-screen: hold a dead ogre with H and run into it: it is too heavy for that pace and the hands let go; Push Held Props Off (Tunables > Flatscreen > Grab / Pull) gives the old pull of the body in to your hands. {test:flat_grab_pull}
 Ragdoll climbs: a hell knight knocked off a ledge grabs the lip and pulls itself all the way up onto the top (no longer stuck at the lip with its chest under it); grunts, knights and ogres still climb up smoothly. {test:hknight_ledge}
+On the Quest, VR Settings > Scaling: turn SpaceWarp on and play the hub, then a fight: motion should look as smooth as at 72 Hz; look for wobbling edges on your hands, the gun and moving monsters, and whether the status panel or any head-fixed text judders. {test:quest_gibfight}
+On the Quest with SpaceWarp on: walk, smooth-turn and snap-turn, and open and close the menu: no stutter at the turn or the menu (the menu shows at the full rate), no smearing of the world while walking. {test:hub_start}
+Rottweilers, ogres, scrags and fiends can wear armour now: walk round the four in the scene and check each piece sits on the body (barding and spiked collar on the dog, a three-part cuirass, helmet, pauldrons, bracers and tassets on the ogre, mask and plates on the scrag, back and shoulder plates on the fiend) and looks like Quake armour. {test:armour_beasts}
+Shoot one beast's pieces with the shotgun: each piece sparks, cracks off on its own and falls as debris you can pick up, and the beast then bleeds where it was bare. {test:armour_beasts}
+Kill an armoured ogre or rottweiler with small hits: as it dies and goes limp the pieces stay on the body and follow it as it falls. {test:armour_beasts}
+Flat-screen or VR: open Mods in the main menu and pick any mod (or type "game <mod>" in the console); the console's "game" changed line shows quakevr before the mod, and the hands, weapons and armed grunts still work in its maps. {test:hub_start}
+Grab a lying bayonet: it sits in the palm, the fingers round it, no odd hand pose. {test:attach_bayonet}
+With the bayonet on the shotgun, grip at the mount: nothing comes off and the two-handed grip works; grip and press B/Y there: it comes off into that hand. {test:attach_bayonet}
+Stab a grunt with the bayonet: it goes a bit deeper than before (Combat > Embedded Blades > Stab > Bayonet Depth tunes it). {test:attach_bayonet}
+Stab an enemy with the bayonet, keep holding and fire a few shots (shotgun, then super shotgun): the gun stays in your hand and the body barely moves. {test:attach_bayonet}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -111,6 +121,8 @@ Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg
 Pose Studio on the spear holders: a frozen armed enforcer, knight and death knight, each with the spear, stand spaced apart in the hall's open middle and the Pose Studio is already open; tune each one's spear poses (Port Arms, Ready, Run, Pickup, Thrust, Shove) as for the spear grunt. {test:pose_spear_humanoids}
 ## Lifts
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
+AD's death guard and crossbow knight are armed humanoids in their own look: walk round each (frozen) and check no hand is off its weapon, no weapon goes through the body and no elbow or shoulder is twisted, with their own weapons and with the shotguns behind them. {test:ad_knights_armed}
+In an Arcane Dimensions map with death guards and crossbow knights, fight a few: they keep AD's look, swing the sword or shoot the crossbow, can be disarmed, pick up other weapons and drop theirs when they die; Armed Humanoid Replacements' AD Death Guards and AD Crossbow Knights turn this off. {test:ad_knights_armed}
 
 [7. Quoth]
 ## Setup and maps

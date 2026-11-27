@@ -1,0 +1,9 @@
+# armour_beasts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The beasts' armour (ROUND26.md,
+# "beastarmour"; vr_beastarmour.cpp): a rottweiler (green), an ogre (yellow), a scrag (red) and a fiend (yellow) ahead in
+# full sets, calm (vr_agarmor_test 16 makes you notarget), in the test hall; a shotgun to break their pieces.
+title Armoured beasts: a rottweiler, an ogre, a scrag and a fiend in full armour
+map vrtesthall
+god
+give "Shotgun" main
+cmd vr_agarmor_test 16
+hint Walk round them: barding and a spiked collar on the dog, a three-piece cuirass, helmet, pauldrons, bracers and tassets on the ogre, a mask and plates on the scrag, back and shoulder plates on the fiend. Shoot a piece until it cracks off and falls.

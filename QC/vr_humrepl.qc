@@ -38,7 +38,8 @@ float vr_hum_made; // variants replaced so far (the tests)
 // The variant's armed row.
 float(float v) VR_HUM_Row =
 {
-    if(v == VR_HUM_V_CROSSBOW) { return VR_AM_KNIGHT; }
+    if(v == VR_HUM_V_CROSSBOW) { return VR_AM_DCROSSBOW; } // (adknights: in its own look; without AD's data the knight)
+    if(v == VR_HUM_V_DGUARD)   { return VR_AM_DGUARD; }
     return v >= VR_HUM_V_DEFENDER ? VR_AM_ENFORCER : VR_AM_GRUNT;
 };
 
@@ -52,6 +53,7 @@ float(float v) VR_HUM_Weapon =
     if(v == VR_HUM_V_ELIMINATOR) { return WID_ADCENTURION; }
     if(v == VR_HUM_V_PYRO)       { return WID_ADPYRO; }
     if(v == VR_HUM_V_FUMIGATOR)  { return WID_ADFUMIGATOR; }
+    if(v == VR_HUM_V_DGUARD)     { return WID_SWORD; } // (the Death Guard's Sword: VR_HUM_Replace's flags)
     return WID_ADCROSSBOW;
 };
 
@@ -64,6 +66,7 @@ float(float v) VR_HUM_Health =
     if(v == VR_HUM_V_PLASMA)     { return 75; }
     if(v == VR_HUM_V_ELIMINATOR) { return 120; }
     if(v == VR_HUM_V_CROSSBOW)   { return 75; }
+    if(v == VR_HUM_V_DGUARD)     { return 30; } // (ad_mon_dguard.qc)
     return 100; // (the defender, the pyro, the fumigator)
 };
 
@@ -76,11 +79,13 @@ string(float v) VR_HUM_ClassName =
     if(v == VR_HUM_V_ELIMINATOR) { return "monster_eliminator"; }
     if(v == VR_HUM_V_PYRO)       { return "monster_pyro"; }
     if(v == VR_HUM_V_FUMIGATOR)  { return "monster_fumigator"; }
+    if(v == VR_HUM_V_DGUARD)     { return "monster_dguard"; }
     return "monster_dcrossbow";
 };
 
 // The variants are replaced here now (vr_agrunt_repl_variants, vr_agrunt_repl, AD's scope; a knight's with vr_agknight;
-// the crossbow knight's only with vr_agrunt_repl_crossbow: his note 2026-11-26, off until it is a proper armed humanoid).
+// AD's crossbow knights and death guards each with their own setting, in their own looks: vr_agrunt_repl_crossbow,
+// vr_agrunt_repl_dguard; adknights 2026-11-27).
 float(float v) VR_HUM_On =
 {
     if(!cvar_hget(cvarh_vr_agrunt_repl_variants) || !cvar_hget(cvarh_vr_agrunt_repl) || !VR_AGR_InScope())
@@ -91,7 +96,11 @@ float(float v) VR_HUM_On =
     {
         return FALSE;
     }
-    return VR_HUM_Row(v) != VR_AM_KNIGHT || cvar_hget(cvarh_vr_agknight);
+    if(v == VR_HUM_V_DGUARD && !cvar_hget(cvarh_vr_agrunt_repl_dguard))
+    {
+        return FALSE;
+    }
+    return !VR_AKN_IsKnight(VR_HUM_Row(v)) || cvar_hget(cvarh_vr_agknight);
 };
 
 // AD's spawn function of variant `v` (self): its armed humanoid in its place. FALSE: not replaced (off, out of scope,
@@ -109,7 +118,7 @@ float(float v) VR_HUM_Replace =
     self.vr_agr = 1;                  // (a replacement: its map's trigger-spawn keys kept, VR_AM_Spawn)
     self.vr_hum_variant = v;
     self.weapon = VR_HUM_Weapon(v);
-    self.weaponflags = 0;
+    self.weaponflags = v == VR_HUM_V_DGUARD ? VR_ADMelee_Flags(VR_ADMELEE_DGUARD) : 0;
     self.weapon2 = 0;
     self.weaponflags2 = 0;
     entity me = self;
@@ -180,5 +189,5 @@ void(entity e) VR_HUM_Look =
     {
         c = c2;
     }
-    e.vr_hum_look = c > 0 ? e.vr_ag_kind * 16 + c : 0;
+    e.vr_hum_look = (c > 0 && e.vr_ag_kind < VR_AM_DGUARD) ? e.vr_ag_kind * 16 + c : 0; // (AD's armed knights: AD's skins as they are)
 };

@@ -97,6 +97,7 @@ struct ArmedRig
     float torsoSides; // vr_agarms: its torso proxy's sides and back fitted from this share of the chest from the waist
     float twistShare; // ... the hand's twist about the forearm the forearm takes
     float wristMore;  // ... degrees its wrist bends past vr_agarms_wrist_most
+    int poseKind{-1}; // the kind whose pose keys and grips it takes (-1: its own row's; AD's armed knights: the knight's)
 };
 // (the enforcer's: its torso's sides from its lower 0.6, under its shoulder pads; its wrist 20 degrees more, its guns
 // held turned further on its long forearms; its twist share as the grunt's, 0.75 left elbows stuck the wrong way:
@@ -115,7 +116,23 @@ inline constexpr ArmedRig armedRigs[] = {
     // over his living frames, 2.2-2.6 rms); the chest's front 74; his torso's sides under the pauldrons, as the enforcer's)
     {modelmeta::Id::VrHknight, 538, {79, 67, 75}, {{42, 58}, {332, 365}, {525, 532}}, 3, {55, 56}, {46, 45}, 351, 342,
         "upperarm_r", "forearm_r", "upperarm_l", "forearm_l", 74, 0.6f, 0.5f, 0.f},
+    // (AD's death guard and crossbow knight as armed knights, QC rows 4 and 5: AD's meshes made without their weapons in the
+    // knight's frames (vr_monstermods.cpp VR_AdArmedModelFile), on their authored rigs (quakevr/rigs/vrdguard.rig2.txt,
+    // vrdcrossbow.rig2.txt); the knight's pose keys and grips. The death guard's sword 544..584, its pommel 566/571, its tip
+    // 554/565, its guard's ends 575/578; his fist 511, 519, 521 (the stillest in the sword's space over his living frames,
+    // 0.3 rms). The crossbow 772..1119, its stock 1008/1068, its bow's front 917/817, its top and bottom 924/1007; his fist
+    // 494, 495, 502 (0.4 rms). One body, vertex for vertex: the chest's front 51)
+    {modelmeta::Id::VrDguard, 585, {511, 519, 521}, {{544, 584}}, 1, {566, 571}, {554, 565}, 575, 578, "upperarm_r",
+        "forearm_r", "upperarm_l", "forearm_l", 51, 1.f, 0.5f, 0.f, 2},
+    {modelmeta::Id::VrDcrossbow, 1120, {494, 495, 502}, {{772, 1119}}, 1, {1008, 1068}, {917, 817}, 924, 1007, "upperarm_r",
+        "forearm_r", "upperarm_l", "forearm_l", 51, 1.f, 0.5f, 0.f, 2},
 };
+
+// The kind whose pose keys and grips row `a` takes (agpose, aggrip).
+[[nodiscard]] inline int armedPoseKind(const ArmedRig* a)
+{
+    return a->poseKind >= 0 ? a->poseKind : static_cast<int>(a - armedRigs);
+}
 
 // `model`'s row (nullptr: not an armed monster's model).
 [[nodiscard]] inline const ArmedRig* armedRigOf(const qmodel_t* model)

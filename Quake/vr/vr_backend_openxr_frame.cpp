@@ -337,8 +337,17 @@ void OpenXrBackend::endFrame(bool rendered)
         return;
     }
     frameBegun = false;
+    for(int eye = 0; eye < 2; eye++) // (SpaceWarp's images still acquired: given back, not shown)
+    {
+        if(spaceWarpAcquired[eye])
+        {
+            releaseSpaceWarpImages(eye);
+            spaceWarpReleased[eye] = false;
+        }
+    }
 
     XrCompositionLayerProjectionView projViews[2]{};
+    XrCompositionLayerSpaceWarpInfoFB spaceWarpInfo[2]{};
     XrCompositionLayerProjection layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
 
     XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
@@ -371,9 +380,32 @@ void OpenXrBackend::endFrame(bool rendered)
             projViews[eye].subImage.imageRect.extent = rect.width > 0 && rect.height > 0
                 ? rect : XrExtent2Di{swapchains[eye].width, swapchains[eye].height};
             projViews[eye].subImage.imageRect.offset = rect.width > 0 && rect.height > 0 ? eyeRectOrigins[eye] : XrOffset2Di{0, 0};
-            lastViews[eye] = projViews[eye];
+            lastViews[eye] = projViews[eye]; // (no SpaceWarp chained: a held frame shows the colours alone)
         }
         haveLastViews = true;
+        // SpaceWarp (vr_spacewarp.cpp): both eyes' motion vectors and depth released this frame
+        if(!held && spaceWarpReleased[0] && spaceWarpReleased[1])
+        {
+            const Pose& d = spaceWarpFrame.appSpaceDelta;
+            for(int eye = 0; eye < 2; eye++)
+            {
+                XrCompositionLayerSpaceWarpInfoFB& info = spaceWarpInfo[eye];
+                info = XrCompositionLayerSpaceWarpInfoFB{XR_TYPE_COMPOSITION_LAYER_SPACE_WARP_INFO_FB};
+                info.layerFlags = spaceWarpFrame.skip ? XR_COMPOSITION_LAYER_SPACE_WARP_INFO_FRAME_SKIP_BIT_FB : 0;
+                info.motionVectorSubImage.swapchain = spaceWarpMotion[eye].handle;
+                info.motionVectorSubImage.imageRect = {{0, 0}, {spaceWarpMotion[eye].width, spaceWarpMotion[eye].height}};
+                info.appSpaceDeltaPose.orientation = {d.orientation.x, d.orientation.y, d.orientation.z, d.orientation.w};
+                info.appSpaceDeltaPose.position = {d.position.x, d.position.y, d.position.z};
+                info.depthSubImage.swapchain = spaceWarpDepth[eye].handle;
+                info.depthSubImage.imageRect = {{0, 0}, {spaceWarpDepth[eye].width, spaceWarpDepth[eye].height}};
+                info.minDepth = 0.f;
+                info.maxDepth = 1.f;
+                info.nearZ = spaceWarpFrame.nearZ;
+                info.farZ = spaceWarpFrame.farZ;
+                projViews[eye].next = &info;
+            }
+            timing.spaceWarped++;
+        }
 
         layer.space = worldSpace;
         layer.viewCount = 2;
@@ -429,6 +461,7 @@ void OpenXrBackend::endFrame(bool rendered)
         lostBy(ended, "xrEndFrame");
     }
     destroyRetired(false);
+    spaceWarpReleased[0] = spaceWarpReleased[1] = false; // (the next frame's own)
     if(traceFramesLeft > 0)
     {
         // The last traced frame says so: a later crash's "last OpenXR step" isn't this frame's.
@@ -585,10 +618,10 @@ void OpenXrBackend::noteWaited()
     }
     if(vr_xr_log_timing.value != 0.f)
     {
-        za::String line = va("%s xr %.1fs: %d frames (%d rendered, %d last again, %d panel, %d empty, %d ended by the next "
+        za::String line = va("%s xr %.1fs: %d frames (%d rendered, %d with SpaceWarp, %d last again, %d panel, %d empty, %d ended by the next "
                              "frame; shouldRender off %d), "
                              "%d display periods missed (%.2f ms), period %.2f/%.2f ms; ms avg/max:",
-            wallClock(), now - timing.since, timing.frames, timing.rendered, timing.held, timing.panels, timing.empty,
+            wallClock(), now - timing.since, timing.frames, timing.rendered, timing.spaceWarped, timing.held, timing.panels, timing.empty,
             timing.endedLate, timing.noRender, timing.missed, timing.periodNs * 1e-6,
             timing.period.count ? timing.period.sum / timing.period.count : 0.0, timing.period.max);
         static constexpr const char* names[CallCount] = {
@@ -668,13 +701,16 @@ void OpenXrBackend::fetchHiddenArea(int eye)
     }
 }
 
-bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what)
+bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what,
+    int64_t format)
 {
+    const int64_t fmt = format ? format : colorFormat;
     XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
     XrSwapchainCreateInfoFoveationFB foveationInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO_FOVEATION_FB};
-    info.next = &sc != &panel ? quest.swapchainNext(foveationInfo) : nullptr; // (the eyes: foveation-capable, Quest)
+    info.next = &sc == &swapchains[0] || &sc == &swapchains[1] ? quest.swapchainNext(foveationInfo)
+                                                              : nullptr; // (the eyes: foveation-capable, Quest)
     info.usageFlags = usage;
-    info.format = colorFormat;
+    info.format = fmt;
     info.sampleCount = 1;
     info.width = static_cast<uint32_t>(width);
     info.height = static_cast<uint32_t>(height);
@@ -684,20 +720,20 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
     bool offered = offeredFormats.empty(); // (none listed: the runtime's word is all there is)
     for(int64_t f : offeredFormats)
     {
-        offered = offered || f == colorFormat;
+        offered = offered || f == fmt;
     }
     const uint32_t maxW = maxImageWidth ? maxImageWidth : 16384u;
     const uint32_t maxH = maxImageHeight ? maxImageHeight : 16384u;
     if(!offered || width <= 0 || height <= 0 || info.width > maxW || info.height > maxH || runtimeFaulted)
     {
-        xrruntime::warn("OpenXR: %s not requested: %dx%d %s (%s)\n", what, width, height, glFormatName(colorFormat),
+        xrruntime::warn("OpenXR: %s not requested: %dx%d %s (%s)\n", what, width, height, glFormatName(fmt),
             runtimeFaulted ? "the runtime crashed before"
             : !offered     ? "a format the runtime doesn't offer"
                            : va("a size outside 1..%ux%u", maxW, maxH));
         return false;
     }
     step("%s: requesting %dx%d %s (0x%llx), usage 0x%llx, %u sample, %u face, array %u, %u mip", what, width, height,
-        glFormatName(colorFormat), static_cast<unsigned long long>(colorFormat), static_cast<unsigned long long>(usage),
+        glFormatName(fmt), static_cast<unsigned long long>(fmt), static_cast<unsigned long long>(usage),
         info.sampleCount, info.faceCount, info.arraySize, info.mipCount);
     if(vr_xr_test_drop_context.value != 0.f) // (the test of contextReady: no context current, once)
     {
@@ -775,8 +811,94 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
     }
     drainGlErrors();
     xrruntime::logLine(va("%s OpenXR: %s: %dx%d %s, %u images, %u sample, usage 0x%llx\n", wallClock(), what, width, height,
-        glFormatName(colorFormat), imageCount, info.sampleCount, static_cast<unsigned long long>(usage)));
+        glFormatName(fmt), imageCount, info.sampleCount, static_cast<unsigned long long>(usage)));
     return true;
+}
+
+bool OpenXrBackend::ensureSpaceWarpSwapchains()
+{
+    if(spaceWarpFailed || !quest.spaceWarp)
+    {
+        return false;
+    }
+    if(spaceWarpMotion[1].handle != XR_NULL_HANDLE && spaceWarpDepth[1].handle != XR_NULL_HANDLE)
+    {
+        return true;
+    }
+    // Meta's GLES sample's formats: RGBA16F motion, 24-bit depth (with stencil where offered: the Meta guide's)
+    constexpr int64_t motionFormat = 0x881A; // GL_RGBA16F
+    int64_t depthFormat = 0;
+    for(const int64_t want : {static_cast<int64_t>(0x88F0), static_cast<int64_t>(0x81A6), static_cast<int64_t>(0x8CAC)})
+    {
+        for(int64_t f : offeredFormats)
+        {
+            depthFormat = !depthFormat && f == want ? want : depthFormat;
+        }
+    }
+    const int w = quest.spaceWarpWidth, h = quest.spaceWarpHeight;
+    bool made = depthFormat != 0;
+    for(int eye = 0; eye < 2 && made; eye++)
+    {
+        made = createSwapchain(spaceWarpMotion[eye], w, h, XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT,
+                   eye ? "SpaceWarp motion (right eye)" : "SpaceWarp motion (left eye)", motionFormat) &&
+               createSwapchain(spaceWarpDepth[eye], w, h,
+                   XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                   eye ? "SpaceWarp depth (right eye)" : "SpaceWarp depth (left eye)", depthFormat);
+    }
+    if(!made)
+    {
+        spaceWarpFailed = true;
+        for(Swapchain* sc : {&spaceWarpMotion[0], &spaceWarpMotion[1], &spaceWarpDepth[0], &spaceWarpDepth[1]})
+        {
+            if(sc->handle != XR_NULL_HANDLE)
+            {
+                const XrSwapchain handle = sc->handle;
+                guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
+            }
+            *sc = Swapchain{};
+        }
+        Con_Warning("VR: SpaceWarp's motion and depth images could not be made (depth format %s): the game keeps the full rate\n",
+            depthFormat ? glFormatName(depthFormat) : "none offered");
+        return false;
+    }
+    Con_Printf("VR: SpaceWarp on: motion vectors and depth %dx%d an eye (depth %s)\n", w, h, glFormatName(depthFormat));
+    return true;
+}
+
+Backend::SpaceWarpImages OpenXrBackend::acquireSpaceWarpImages(int eye)
+{
+    SpaceWarpImages out;
+    if(!frameBegun || eye < 0 || eye > 1 || spaceWarpAcquired[eye] || !ensureSpaceWarpSwapchains())
+    {
+        return out;
+    }
+    out.motion = acquireImage(spaceWarpMotion[eye]);
+    if(!out.motion)
+    {
+        return SpaceWarpImages{};
+    }
+    out.depth = acquireImage(spaceWarpDepth[eye]);
+    if(!out.depth)
+    {
+        releaseImage(spaceWarpMotion[eye]);
+        return SpaceWarpImages{};
+    }
+    out.width = spaceWarpMotion[eye].width;
+    out.height = spaceWarpMotion[eye].height;
+    spaceWarpAcquired[eye] = true;
+    return out;
+}
+
+void OpenXrBackend::releaseSpaceWarpImages(int eye)
+{
+    if(eye < 0 || eye > 1 || !spaceWarpAcquired[eye])
+    {
+        return;
+    }
+    spaceWarpAcquired[eye] = false;
+    const bool motion = releaseImage(spaceWarpMotion[eye]);
+    const bool depth = releaseImage(spaceWarpDepth[eye]);
+    spaceWarpReleased[eye] = motion && depth;
 }
 
 const char* OpenXrBackend::glFormatName(int64_t format)
