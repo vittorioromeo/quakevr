@@ -2646,3 +2646,19 @@ The checklist file gained "## Name" sub-headings (parser: vr_checklist.cpp `subh
 - Open (not this branch's): `-game quakevr -game <mod>` with an empty mod folder fails e1m1 on next too
   ("Host_Error: Mod_LoadModel: progs/vrgrunt.mdl#plate0 not found", vr_agarmor.cpp derivedFile). The runtime `game <mod>`
   command and the Mods menu still switch to id1;<mod> without quakevr (unchanged).
+
+## flatsink: a pitched view walked through the floor only in setpos's noclip (branch agent/flatsink, 2026-11-27)
+
+- Not real play, not the mock: Quake's own `setpos` turns noclip on (host_cmd.c, "noclip ON"), and a noclip walk flies
+  along the view (z 25 -> -24 at pitch 40 in vrtesthall; level, it passes walls and props). Real flat play (`+lookdown` 41
+  deg, or `setpos ...; noclip 0`): z stays on the floor at pitches 0/40/80 on vrtesthall and e1m1.
+- Guard: qvr_checks `setpos_walk` (Tools/qvr_checks/small_checks.cpp) fails the build on a test script line (Misc/quakevr
+  *.sh/*.py, continued lines joined) that walks (+forward/+back/+moveleft/+moveright) after a setpos with no `noclip 0`
+  (or the toggle `noclip`) between; opt-out word `setpos-noclip-walk`. TESTING.md, "Writing a test", says it.
+- Fixed: flatgrabthrow (5 runs), flatinput wall, flatwall b, flatgate fg_level now walk with noclip off.
+- Tests: flatsink_test.sh 8/0 (new); flatinput 19/0; flatgate 5/0.
+- Open, real play now measured (those walks had been flown in noclip): flatgrabthrow push: walking into a held 40 kg crate
+  is blocked by it (Quake's hull hits the crate; dragsProp lets only the Box3D capsule through): y -172 -> -172. ragpush:
+  the ogre run into at the real pace (32 units in 20 frames) is not let go of "too heavy for that pace". flatwall b:
+  walking sighted into the wall, the tilt jumps 38.5 deg in one frame (limit 8). ragpush's grunt push check 60 -> 40
+  units (he walks 47 in its 28 frames from a stand; 77 flown).

@@ -176,7 +176,8 @@ check $(seg rgrab rfwd | grep -aq 'flat grab: took ragdoll monster_army (dead) w
 G=$(seg rgrab rfwd | awk '/flatkeys: held main monster_army/{print $6 - $20; exit}')
 P0=$(seg rgrab rfwd | awk '/flatkeys: held main monster_army/{print $6; exit}')
 set -- $(seg rfwd rback | awk '/flatkeys: held main monster_army/{print $6, $6 - $20, $14; exit}')
-check $(awk -v a="$P0" -v b="$1" 'BEGIN{exit !(a != "" && b != "" && (b - a) > 60)}' && echo 1 || echo 0) "ragpush: walking forward pushes the grunt ahead (y ${P0:-?} -> ${1:-?})"
+# (Over 40: walked, not flown in setpos's noclip, he goes 47 units in the 28 frames from a stand; it was 77 in noclip.)
+check $(awk -v a="$P0" -v b="$1" 'BEGIN{exit !(a != "" && b != "" && (b - a) > 40)}' && echo 1 || echo 0) "ragpush: walking forward pushes the grunt ahead (y ${P0:-?} -> ${1:-?})"
 check $(awk -v g="$G" -v d="$2" 'BEGIN{exit !(g != "" && d != "" && (g - d) > -14 && (g - d) < 14)}' && echo 1 || echo 0) "ragpush: it stays about its grab distance ahead while walking (${G:-?} -> ${2:-?} units)"
 check $([ "$3" = "3" ] && echo 1 || echo 0) "ragpush: both hands stay on it while pushing (grab ${3:-?})"
 check $(seg rgrab rogre | grep -aq 'lets go\|limb lost\|left behind' && echo 0 || echo 1) "ragpush: no hand lets go pushing or dragging it"
