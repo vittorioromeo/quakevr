@@ -77,7 +77,7 @@ fi
 # b. Walked in and back off, sighted.
 if [[ $ONLY == *b* ]]; then
 log=$HERE/scratch/flatwall_b.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt_sighted 1; vr_test_give_wid 4; impulse 149; wait25; setpos 0 590 25 0 90 0; vr_flat_aim 1; wait40; vr_flatplay_debug 2; +forward; wait50; -forward; wait30; +back; wait50; -back; wait40; vr_flatplay_debug 0; tune_reset; echo flatwallwalk done; toggleconsole; quit" -Filter "^flataim: main|^flatsight: |^flatwallwalk" -QuitOn "flatwallwalk done" -Timeout 120 > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt_sighted 1; vr_test_give_wid 4; impulse 149; wait25; setpos 0 590 25 0 90 0; noclip 0; vr_flat_aim 1; wait40; vr_flatplay_debug 2; +forward; wait50; -forward; wait30; +back; wait50; -back; wait40; vr_flatplay_debug 0; tune_reset; echo flatwallwalk done; toggleconsole; quit" -Filter "^flataim: main|^flatsight: |^flatwallwalk" -QuitOn "flatwallwalk done" -Timeout 120 > "$log" 2>&1
 tilts=$(grep -a -o "tilt [0-9.]* *$\|tilt [0-9.]* need" "$log" | awk '{ print $2 + 0 }')
 peak=$(awk '{ if ($1 > m) m = $1 } END { printf "%.1f", m + 0 }' <<<"$tilts")
 step=$(awk 'NR > 1 { d = $1 - p; if (d < 0) d = -d; if (d > m) m = d } { p = $1 } END { printf "%.2f", m + 0 }' <<<"$tilts")
