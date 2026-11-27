@@ -3741,3 +3741,32 @@ as a single piece."
   (humanoid path, untouched; low-impact run).
 - **Render**: `scratch/scragsplit_wizard.png` (bf_eval: front three-quarter, then front, back, left, right, top, back
   three-quarter; the back half darker).
+
+## flatfists: flat empty hands' alternating jabs and crossed-arms guard; V melees with a lone weapon in either hand (branch agent/flatfists, 2026-11-27)
+
+His flat notes 2026-11-27, items 2 and 9. FLATPLAY.md, "Fists: jabs and the crossed-arms guard" (and the LMB, RMB, V rows).
+- **Jabs** (item 2): both hands empty (`fistsOnly`: no weapon, nothing held), the left button is the fire button's straight
+  punch thrown by each hand in turn, the right first (vr_flatplay.cpp `pollJab`); held, the next `vr_flat_jab_repeat` 0.4 s
+  after the last began (and never before it draws back). `vr_flat_jab_alternate` 1 (0: as before).
+- **Crossed-arms guard** (item 2): the right button held, both forearms crossed before the face (`stepFistGuard`,
+  `fistGuardPose`; `vr_flat_fist_guard_fwd` 13, `_up` 0, `_cross` 3, `_stagger` 1.5, `_pitch` 45, `_yaw` 45, `_roll` 0,
+  `_in_time` 0.1, `_out_time` 0.12). Up, both hands' guard bits go in the move (no new wire bit); QC `VR_FlatFistGuard`
+  (vr_util.qc) and `VR_Parry_FlatFists` (combat.qc, beside `VR_Parry_FlatGuard`): a melee blow from within
+  `vr_flat_fist_guard_cone` 120 is the headset's crossed-arms parry (sound, knock, counter window), the damage cut by
+  `vr_flat_fist_guard_reduction` 0.45 (the headset's `vr_parry_unarmed_reduction`) and the push on you times
+  `vr_flat_fist_guard_push` 1. Reused: the crossed-arms parry branch of `VR_Parry` (only its cut and push take the flat
+  tunables), the guard bits of the weapon guard; the routing (`routeButtons`) sends no off-hand fire then. `vr_flat_fist_guard`
+  0: the right button the left hand's punch. A jab drops the guard; a press while it eases out is thrown once it is down.
+  Group Tunables > Flatscreen > Fists: Jabs and Guard (15 rows; the two switches are tunables, no menu rows).
+- **V** (item 9): `vKeyHand`: one weapon in the off hand and the main hand empty (no prop) is the off hand's quick melee
+  (its overhead swing; before, the empty main hand's overhand). Both empty: the two-fisted blow; one in each: the main's;
+  a prop in the off fist with an empty main still the prop's (vr_flat_prop_v).
+- **Status**: `vr_flatplay_status` prints `fists:` and `fist guard:` (the main fist off the off fist: right -5.0, gap 5.4:
+  the headset's `VR_Parry_ArmsCrossed` also holds). Debug lines `flatfists: crossed-arms guard up|down`, QC's
+  `flatfists: parry N (class), damage A -> B`.
+- **Tests**: new `Misc/quakevr/flatfists_test.sh` 17/0 (presses main/off/main; held 4 jabs alternating; two jabs at a grunt
+  hit; the guard up/crossed/down; V: left shotgun = off hand's swing and a hit, right shotgun and dual = main; a knight in
+  front parried 2.98 -> 1.64, behind lands, no guard lands). `flatmelee6_test.sh` 9/0 (its case 3, an axe in the off hand,
+  now expects the off hand's swing), `flatparry_test.sh` 43/0, `tunables_test.sh` 13/0. Scenes `flat_fists`,
+  `flat_v_offhand`. Shot: kit scratch flatfists_guard2.png (the guard at the defaults; flatfists_guard.png the
+  first try, up -5 / fwd 12: too low on the screen).

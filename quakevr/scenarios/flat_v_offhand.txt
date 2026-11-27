@@ -1,0 +1,12 @@
+# flat_v_offhand: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode):
+# V with one weapon held in the off (left) hand and the right hand empty is that weapon's quick melee by the left hand
+# (flatfists, his item 9 2026-11-27); flatfists_test.sh. The right hand empty (impulse 150), a shotgun in the left
+# (impulse 174), a grunt ahead.
+title Flat-screen: V melees with a left-hand weapon
+map vrtesthall
+god
+notarget
+cmd impulse 150
+cmd impulse 174
+cmd vr_physics_spawn monster_army 72 0
+hint Play with -flatscreenmode. The shotgun is in your left hand, the right hand empty: V swings the shotgun with the left hand (not a punch with the right). Swap it to the right hand (or give yourself one in each): V is the right hand's swing. Both hands empty: V is the two-fisted overhead blow.
