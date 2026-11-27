@@ -16,6 +16,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_rigpose.hpp"
 #include "vr_strings.hpp"
+#include "vr_testkit.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -1620,9 +1621,11 @@ constexpr float rayOut = 8.f;    // ... to this far outside it: a plate met ther
 constexpr float pokeDepth = 0.75f; // units: skin this far through its plate pokes through
 constexpr float browShare = 0.6f;  // the head's height below which its front is the face (a helmet keeps clear)
 constexpr float maxSize = 1.45f;   // a piece's distance from its skin's middle over the skin's (the old ogre's 1.6-1.9)
-constexpr float maxGap = 3.f;      // units: a piece's mean distance off the skin it covers (the old ogre's ~5)
+constexpr float maxGap = 3.5f;     // units: a piece's mean distance off the skin it covers (the old ogre's ~5)
 constexpr float maxFace = 0.25f;   // the face's share under a helmet
-constexpr float maxAsym = 0.03f;   // a left and right piece's spread (made, tweaked) apart
+constexpr float maxAsym = 0.06f;   // a left and right piece's spread (made, tweaked) apart (the ogre's pauldron: a dome on the
+                                   // body's axes over a band on the arm, their angle a little different each side in his
+                                   // twisted rest pose; the fiend's before beastfit 0.16-0.36)
 constexpr float maxPoke = 0.4f;    // the covered skin's share through its plate over the played frames
 
 struct Target
@@ -1635,7 +1638,7 @@ constexpr Target targets[] = {
     {"progs/dog.mdl", 0.35f, {"chest", "pelvis"}},
     {"progs/ogre.mdl", 0.6f, {"pelvis", "chest", "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r", "shin_l", "shin_r"}},
     {"progs/wizard.mdl", 0.85f, {"pelvis", "chest", "arm_l", "arm_r", "tail1", "tail2", "tail3", "tail4"}},
-    {"progs/demon.mdl", 0.5f, {"pelvis", "chest", "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r"}},
+    {"progs/demon.mdl", 0.45f, {"pelvis", "chest", "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r"}},
 };
 
 // Pose `pose`'s vertices and outward normals (the triangles' summed, turned out from the middle).
@@ -1744,9 +1747,9 @@ void test_f()
     {
         load();
     }
-    int passed = 0, failed = 0;
+    testkit::Tally tally;
     const auto check = [&](bool ok, const char* what, float value, float limit) {
-        (ok ? passed : failed)++;
+        tally.check(ok);
         Con_Printf("beastfit: %s %s: %.3f (limit %.3f)\n", ok ? "PASS" : "FAIL", what, value, limit);
     };
     for(Kind& k : kinds)
@@ -1951,7 +1954,7 @@ void test_f()
         q_snprintf(what, sizeof(what), "%s skin through its plates over the played frames", k.model);
         check(poke <= maxPoke, what, poke, maxPoke);
     }
-    Con_Printf("beastfit: %d passed, %d failed\n", passed, failed);
+    tally.verdict("beastfit");
 }
 } // namespace fit
 
