@@ -2514,6 +2514,50 @@ bool skinRingOf(const Body& b, const PieceFrame& f, const PlateGrid& g, int ring
     return true;
 }
 
+// armour.txt's sleeve ends on a joint's bridge (ROUND26.md, "ogresleeves"): each end's ring (the plates' row and the skin's
+// there) moved (start_offset on its own piece's sleeve, else end_offset on the other's) and sized round its middle
+// (start_radius / end_radius alike), in the rest pose (the ring rides its bones); the lower end's ring turned round its line
+// by the joint's twist (the upper sleeve's, else the lower's). Nothing set: nothing touched.
+void sleeveEnds(Bridge& br, const armourdata::Override& tu, const armourdata::Override& tl)
+{
+    using namespace armourdata;
+    const auto set = [](const Override& o, int field) { return (o.has & fieldBit(field)) != 0u; };
+    for(int e = 0; e < 2; e++)
+    {
+        const Override& own = e == 0 ? tu : tl;
+        const Override& other = e == 0 ? tl : tu;
+        // (each value: the end's own sleeve's start_, else the other sleeve's end_)
+        const auto value = [&](int start, int end, bool& any) {
+            any = any || set(own, start) || set(other, end);
+            return set(own, start) ? own.v[start] : set(other, end) ? other.v[end] : fieldDefault(start);
+        };
+        bool moved = false, sized = false;
+        const glm::vec3 offset{value(StartOffsetX, EndOffsetX, moved), value(StartOffsetY, EndOffsetY, moved), value(StartOffsetZ, EndOffsetZ, moved)};
+        const float radius = za::clamp(value(StartRadius, EndRadius, sized), 0.1f, 4.f);
+        const bool twisted = e == 1 && (set(tu, Twist) || set(tl, Twist));
+        const float twist = (set(tu, Twist) ? tu.v[Twist] : tl.v[Twist]) * pi / 180.f;
+        if(!moved && !sized && !twisted)
+        {
+            continue;
+        }
+        for(BridgeEnd* E : {&br.plates[e], &br.skin[e]})
+        {
+            glm::vec3 m{0.f};
+            for(const Skinned& c : E->ring)
+            {
+                m += c.p / static_cast<float>(bridgeCols);
+            }
+            const glm::vec3 ax = E->z;
+            for(Skinned& c : E->ring)
+            {
+                glm::vec3 d = (c.p - m) * (sized ? radius : 1.f);
+                d = twisted ? d * za::cos(twist) + glm::cross(ax, d) * za::sin(twist) + ax * glm::dot(ax, d) * (1.f - za::cos(twist)) : d;
+                c.p = m + d + (moved ? offset : glm::vec3{0.f});
+            }
+        }
+    }
+}
+
 // Each joint's bridge from its two parts' grids (the plates' end rings already captured in `rows`), the skin under it and
 // armour.txt's settings on its sleeve parts.
 void bridgesOf(Shell& s, const rig2::Rig& rig, const PieceFrame* frames, const PlateGrid* grids, const armourdata::Override* sleeveTweak,
@@ -2616,6 +2660,11 @@ void bridgesOf(Shell& s, const rig2::Rig& rig, const PieceFrame* frames, const P
         br.taper[1] = tweaked(tu, armourdata::TaperEnd) ? za::clamp(tu.v[armourdata::TaperEnd], 0.2f, 3.f) : 1.f;
         br.taper[2] = tweaked(tl, armourdata::TaperStart) ? za::clamp(tl.v[armourdata::TaperStart], 0.2f, 3.f) : 1.f;
         br.taper[3] = tweaked(tl, armourdata::TaperEnd) ? za::clamp(tl.v[armourdata::TaperEnd], 0.2f, 3.f) : 1.f;
+        sleeveEnds(br, tu, tl);
+        // (segments: its rings less one, else from the folds as above; bulge: its middle pushed, the model's axes at rest)
+        const float segments = pick(armourdata::Segments, 0.f);
+        br.rings = segments >= 0.5f ? za::clamp(static_cast<int>(segments + 0.5f) + 1, 2, bridgeMostRings) : br.rings;
+        br.bulge = glm::vec3{pick(armourdata::BulgeX, 0.f), pick(armourdata::BulgeY, 0.f), pick(armourdata::BulgeZ, 0.f)};
         // The skin between the two rows (on the limb's two bones, near their line): kept under the leather at any bend.
         glm::vec3 p0{0.f}, p1{0.f};
         float mean = 0.f;

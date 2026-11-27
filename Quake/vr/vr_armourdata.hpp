@@ -43,15 +43,60 @@ enum Field : int
     ScaleX,     // its size along the model's forward, left and up (its rest pose), round its middle, times Scale (1 as made):
     ScaleY,     // a piece made wider than it is deep, or longer (studioui, 2026-11-27)
     ScaleZ,
+    // A sleeve's (a leather junction's) two ends and its shape (ROUND26.md, "ogresleeves"; humanoids and beasts alike unless
+    // said). "start" is the end on the sleeve's own piece, "end" the one on the piece it joins (a humanoid joint: each end the
+    // value of its own piece's sleeve, else the other sleeve's for it).
+    StartOffsetX, // that end's ring moved (units along the model's forward, left and up, its rest pose; it rides its piece)
+    StartOffsetY,
+    StartOffsetZ,
+    EndOffsetX,
+    EndOffsetY,
+    EndOffsetZ,
+    StartRadius, // that end's ring's size round its middle (1 as made)
+    EndRadius,
+    StartEdge,   // which edge of the piece the end takes: 0 the one facing the other piece (as made), 1 its far edge (beasts')
+    EndEdge,
+    Twist,       // degrees: the joined piece's end ring turned round the line between the ends (the columns spiral)
+    BulgeX,      // units: the junction's middle pushed this way (the model's forward, left and up; eased to nothing at the ends)
+    BulgeY,
+    BulgeZ,
+    Segments,    // its rings less one (0: as made, from the folds)
+    Fill,        // 1: a beast's junction closed all round (the columns one piece has no edge in laid round its end from its
+                 // neighbours' reach; 0 as made: only the columns both pieces have)
     NumFields
 };
 inline constexpr const char* fieldNames[NumFields] = {"offset_x", "offset_y", "offset_z", "pitch", "yaw", "roll", "scale",
     "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather", "folds", "fold_depth", "hero", "sag",
-    "scale_x", "scale_y", "scale_z"};
+    "scale_x", "scale_y", "scale_z", "start_offset_x", "start_offset_y", "start_offset_z", "end_offset_x", "end_offset_y",
+    "end_offset_z", "start_radius", "end_radius", "start_edge", "end_edge", "twist", "bulge_x", "bulge_y", "bulge_z", "segments",
+    "fill"};
 // A field's value where nothing is set.
 [[nodiscard]] constexpr float fieldDefault(int field)
 {
-    return field == Scale || field == ScaleX || field == ScaleY || field == ScaleZ || field == TaperStart || field == TaperEnd || field == Leather || field == Hero ? 1.f : 0.f; // (Sag 0)
+    return field == Scale || field == ScaleX || field == ScaleY || field == ScaleZ || field == TaperStart || field == TaperEnd || field == Leather ||
+            field == Hero || field == StartRadius || field == EndRadius
+        ? 1.f
+        : 0.f; // (Sag 0)
+}
+// A field's bit in Override::has.
+[[nodiscard]] constexpr uint64_t fieldBit(int field)
+{
+    return uint64_t{1} << static_cast<unsigned>(field);
+}
+// The fields written as one "x y z" key (offset, rotate, start_offset, end_offset, bulge): the first of its three, else -1;
+// and the key's name.
+[[nodiscard]] constexpr int tripleFirst(int field)
+{
+    return field <= OffsetZ ? OffsetX : field <= Roll ? Pitch : field >= StartOffsetX && field <= StartOffsetZ ? StartOffsetX :
+        field >= EndOffsetX && field <= EndOffsetZ ? EndOffsetX : field >= BulgeX && field <= BulgeZ ? BulgeX : -1;
+}
+inline constexpr int tripleFields[5] = {OffsetX, Pitch, StartOffsetX, EndOffsetX, BulgeX};
+inline constexpr const char* tripleNames[5] = {"offset", "rotate", "start_offset", "end_offset", "bulge"};
+// Whether a field's value is negated on the right side's mirror image of a both-sides value (the left's): a move's left,
+// a turn's yaw and roll, the junction's twist.
+[[nodiscard]] constexpr bool mirrored(int field)
+{
+    return field == OffsetY || field == Yaw || field == Roll || field == StartOffsetY || field == EndOffsetY || field == BulgeY || field == Twist;
 }
 
 enum Part : int
@@ -124,7 +169,7 @@ inline constexpr const char* kindNames[NumKinds] = {"grunt", "enforcer", "knight
 struct Override
 {
     float v[NumFields]{};
-    uint32_t has{0}; // (1 << Field)
+    uint64_t has{0}; // (fieldBit: 1 << Field)
 };
 
 // A piece's size along the model's forward, left and up (its rest pose): scale times scale_x / _y / _z, each set one

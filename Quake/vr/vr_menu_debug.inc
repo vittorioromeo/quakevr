@@ -1698,6 +1698,45 @@ za::Vector<Item> pageArmourStudio()
         slider("Leather Sag (Beasts)", vr_armourstudio_sag, -4.f, 4.f, 0.1f, "%.1f")
             .help("vr_armourstudio_sag: a beast's leather junction's middle dropped this far (units; below 0 raised). Its width "
                   "at each end is the tapers, its thickness the stand-off; Leather Sleeve Shown turns it off."),
+        slider("Sleeve: Own End Forward", vr_armourstudio_start_offset_x, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_start_offset_x: a sleeve part's (leather junction's) end on its own piece moved along the body's "
+                  "forward (units; start_offset in armour.txt). It rides its piece. A humanoid's joint: the thigh's sleeve moves the "
+                  "thigh's end, the shin's the shin's. 0 as made."),
+        slider("Sleeve: Own End Left", vr_armourstudio_start_offset_y, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_start_offset_y: ... along the body's left (the right side's mirrored)."),
+        slider("Sleeve: Own End Up", vr_armourstudio_start_offset_z, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_start_offset_z: ... along the body's up."),
+        slider("Sleeve: Joined End Forward", vr_armourstudio_end_offset_x, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_end_offset_x: the sleeve's end on the piece it joins moved along the body's forward (units; "
+                  "end_offset). A humanoid's: used when that piece's own sleeve sets none."),
+        slider("Sleeve: Joined End Left", vr_armourstudio_end_offset_y, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_end_offset_y: ... along the body's left."),
+        slider("Sleeve: Joined End Up", vr_armourstudio_end_offset_z, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_end_offset_z: ... along the body's up."),
+        slider("Sleeve: Own End Size", vr_armourstudio_start_radius, 0.5f, 2.f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_start_radius: the end ring on the sleeve's own piece made larger or smaller round its middle "
+                  "(start_radius; 1 as made)."),
+        slider("Sleeve: Joined End Size", vr_armourstudio_end_radius, 0.5f, 2.f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_end_radius: ... the end ring on the piece it joins (end_radius)."),
+        toggle("Sleeve: Own End on Far Edge (Beasts)", vr_armourstudio_start_edge)
+            .help("vr_armourstudio_start_edge: a beast's junction's end on its own piece's far edge instead of the edge facing "
+                  "the other piece (start_edge 1)."),
+        toggle("Sleeve: Joined End on Far Edge (Beasts)", vr_armourstudio_end_edge)
+            .help("vr_armourstudio_end_edge: ... the joined piece's far edge (end_edge 1)."),
+        slider("Sleeve: Twist", vr_armourstudio_twist, -90.f, 90.f, 1.f, "%.0f deg")
+            .help("vr_armourstudio_twist: the joined end's ring turned round the line between the ends, so the leather's columns "
+                  "spiral (degrees; twist)."),
+        slider("Sleeve: Bulge Forward", vr_armourstudio_bulge_x, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_bulge_x: the sleeve's middle pushed along the body's forward, nothing at its ends (units; bulge)."),
+        slider("Sleeve: Bulge Left", vr_armourstudio_bulge_y, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_bulge_y: ... along its left."),
+        slider("Sleeve: Bulge Up", vr_armourstudio_bulge_z, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_bulge_z: ... along its up."),
+        slider("Sleeve: Segments", vr_armourstudio_segments, 0.f, 8.f, 1.f, "%.0f")
+            .help("vr_armourstudio_segments: the sleeve's rings less one (1-8; 0 as made, from its folds)."),
+        toggle("Sleeve: Closed All Round (Beasts)", vr_armourstudio_fill)
+            .help("vr_armourstudio_fill: a beast's junction closed all round: the columns where one piece has no edge (open "
+                  "strips where plates meet at the flanks) laid round its end at their neighbours' reach (fill 1)."),
         toggle("Hero Plates", vr_armourstudio_hero)
             .help("vr_armourstudio_hero: the part's hero plates, a row's plates drawn as one: the cuirass's breastplate, the "
                   "pauldrons' top row as two big plates, the bracers' elbow cop, the shins' knee cop. Off: every plate its own "

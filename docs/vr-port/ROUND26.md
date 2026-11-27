@@ -4143,3 +4143,42 @@ map loads, a VR player's moves. Every "overflow" a client could cause, and the f
   voice, weaponwheel, rejoin, lockstep, campaign, prefs, lagcomp: all pass. No protocol change (QVR_NET_VERSION kept).
 - **Open**: which buffer the player hit is not pinned (ask him for the whole line, Quest or PC console, and when: headset
   off, a level change, Wi-Fi); no headset run (the Quest's real move sizes untested).
+
+## ogresleeves: the ogre's knee leather; per-sleeve settings to make any leather junction connect where wanted (branch agent/ogresleeves, 2026-11-27)
+
+His words (2026-11-27): "Would be nice if the ogre had leather sleeves for the knees (between thighs and shins)"; "Sometimes
+leather sleeves fail to connect in the way that I expect, would it be possible to expose some per-sleeve tweakable settings".
+- **The ogre's knees**: each shin (a part of its thigh's slot, beastfit) already joined its own thigh (`joinsOf`), but the
+  junction was a strip of 5 (left) / 7 (right) of the 12 columns, the ends 0.8 / 2.8 units apart along the leg, under the knee
+  cops: next to invisible. armour.txt now ships `progs/ogre.mdl` `shin_sleeve { fill "1" }` (new key, his values untouched):
+  each knee a closed ring from the thigh plate's lower edge to the shin's top. Its studio part is the shin's sleeve, shown on
+  beasts as "Knee Leather (Shins' Junctions)" (both sides, mirrored; `_l` / `_r` one side). On by default.
+- **How a beast junction picks its ends** (buildJunctions): 12 columns round the line between the pieces' middles; per column
+  the outermost vertex within 30% of the piece's end facing the other (rimOf), tucked 0.35 in, 0.6 under; only columns both
+  pieces have. What goes wrong (`vr_beastarmour_info`, now per junction: ends, length along the line, radii, columns and each
+  end's edges): open strips where plates meet only at the front (the ogre's cuirass->faulds 4 columns, the scrag's pauldron->
+  plastron 2), ends overlapping along the line (the ogre's cuirass->faulds -0.46: the leather inside the plates), radii far
+  apart (the ogre's right pauldron 9.0 vs 3.8). A humanoid joint's ends are its two rows at the joint (bridgesOf).
+- **New sleeve keys** (armourdata Field, `Override::has` now 64-bit; humanoids and beasts, one set of keys, studio rows and
+  file path): `start_offset` / `end_offset "x y z"` (an end's ring moved, model axes, riding its piece), `start_radius` /
+  `end_radius` (its size round its middle), `start_edge` / `end_edge` "1" (a beast's end on its piece's far edge), `twist`
+  (degrees: the joined end's ring turned round the line), `bulge "x y z"` (the middle pushed, eased to the ends; a humanoid's
+  turned with the bones), `segments` (rings less one, 1-8), `fill` "1" (a beast's junction closed all round: missing columns
+  laid round from their neighbours' reach and place). "start" is the end on the sleeve's own piece; a humanoid joint's end
+  takes its own sleeve's `start_` value, else the other sleeve's `end_`; twist, bulge and segments: the upper's first.
+  Mirrored on the right: the y components and twist. Nothing set: nothing touched (every leather hash and humanoid shell
+  hash the same as before, his armour.txt on: compared build to build). Studio: 16 rows (window and the Debug menu page),
+  shown on sleeve parts only (edge and fill: beasts'); a value back to as made is not written. Files: vr_armourdata.hpp/.cpp,
+  vr_beastarmour.cpp (fillRim, sleeveEnds), vr_agarmor.cpp (sleeveEnds), vr_agarmor_bridge.cpp (bulge),
+  vr_armourstudio*.cpp, vr_menu_debug.inc; ARMOUR_STUDIO.md "A sleeve's ends"; armour.txt's header.
+- **Tests**: `vr_beaststudio_test` 41/0 (new: the ogre's two knees made, each joining its own thigh; each key alone on the left
+  knee moves the end it names (2.000 for the offsets, 1.500x / 0.500x sizes, twist turns the joined ring 30 degrees round a
+  still middle, far edge 10.9 down the shin, bulge 1.81 at the middle, segments 4 = 65 vertices, fill 12 columns), the right
+  knee untouched; all back to as made: the leather's hash as before; saved, read back, mirrored on the right);
+  `vr_agarmor_bridge_check` 123/0 (new: the grunt's thigh sleeve's start_offset moves the thigh's end 2.000 and its
+  end_radius sizes the shin's ring 1.500x; the shin's bulge and segments 4: 5 rings, middle moved 1.79).
+  Also `vr_armour_test` 23/0, `vr_agarmor_test 15` 63/0, `21` 14/0 (after merging origin/next with ogreplates' plates).
+- **Render** `scratch/ogresleeves_knees.png` (in the tree; low-res, his game was up): `vr_agarmor_test 18`'s ogre, leather on,
+  then `vr_beastarmour_leather 0`: dark leather bands at both knees between the thigh and shin plates; off, skin shows there.
+- **Open**: the gizmo is not on a sleeve's end (rows only); `start_edge` / `fill` are beasts' only (a humanoid's rings are
+  whole rows); the knee look not judged in a headset; `vr_menu_path_check` not rerun (rows added, none renamed or moved).
