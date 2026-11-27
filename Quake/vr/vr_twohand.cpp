@@ -1279,9 +1279,10 @@ void applyFixed(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     else if(grabStart[helping] == vr_gametime)
     {
-        // (A grip closed on the gun's attachment pulls it off (QC vr_attach.qc VR_Attach_Frame): never the gun's grip too.)
+        // (vr_attach_pull_button 0: a grip closed on the gun's attachment pulls it off (QC vr_attach.qc VR_Attach_Frame),
+        // never the gun's grip too. 1, the default: the pull is the grip and B/Y, so a grip there is the gun's as ever.)
         glm::vec3 mount, tip;
-        const bool onAttachment = view::drawnAttachment(holding, mount, tip) &&
+        const bool onAttachment = !vr_attach_pull_button.value && view::drawnAttachment(holding, mount, tip) &&
                                   glm::distance(s.pos[helping], mount) <= vr_attach_pull_radius.value;
         gripArmed[helping] = goodDistance && goodDot && !onAttachment;
     }

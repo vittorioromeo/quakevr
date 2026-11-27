@@ -6,8 +6,9 @@
 // Putting one on: VR, the hand holding it brings its mount (its model's origin) within vr_attach_snap_radius of the gun's
 // mount in the other hand, pointing along the gun (within vr_attach_snap_angle), and it snaps on as a magazine seats;
 // flat play, the Attach key (vr_flat_key_attach, J: impulse 52) with it in the other hand. Taking it off: VR, the other
-// hand, empty, grips it (within vr_attach_pull_radius of the mount) and pulls it off: it is in that hand; flat play, the
-// Attach key with that hand empty.
+// hand, empty, gripping within vr_attach_pull_radius of the mount, presses its B/Y (vr_attach_pull_button; as the head
+// torch comes off): it is in that hand; a grip there alone is the gun's (its two-handed grip); flat play, the Attach key
+// with that hand empty.
 //
 // What a bayonet does: the gun strikes as a blade (vr_melee_params.qc VR_Melee_Thing, VR_Melee_Line: a sword's blows, its
 // line to the bayonet's tip), sticks by its point (VR_Attach_Embed: weapons.txt embed 1 for this weapon; the engine's
@@ -17,6 +18,7 @@
 float vr_att_attached; // (the tests: attachments put on, taken off)
 float vr_att_detached;
 .float vr_att_grip;    // a player's hands' grips last frame (bit 1 the off hand, 2 the main), for a pull's press
+.float vr_att_sec;     // and their B/Y last frame (the same bits), for the pull's press (vr_attach_pull_button)
 .float vr_att_fresh;   // an attachment just pulled off a gun: it doesn't snap on again until taken away from the mount
 
 // The attachment kind the prop `e` is (0: not one).
@@ -123,7 +125,7 @@ void(entity p, float xHand, float xByKey) VR_Attach_TakeOff =
 };
 
 // Every frame, each player (PlayerPostThink): an attachment a hand holds brought to the other hand's gun snaps on; the
-// empty hand's grip pressed at the other gun's attachment pulls it off.
+// empty hand gripping at the other gun's attachment pulls it off by its B/Y (vr_attach_pull_button 0: by the grip's press).
 void(entity p) VR_Attach_Frame =
 {
     for(float h = 0; h < 2; h++)
@@ -162,7 +164,13 @@ void(entity p) VR_Attach_Frame =
         float grip = VR_HandGrabUtil_IsHandGrabbing(p, h);
         float was = p.vr_att_grip & bit;
         p.vr_att_grip = grip ? (p.vr_att_grip | bit) : (p.vr_att_grip - (p.vr_att_grip & bit));
-        if(grip && !was && VR_Attach_Hand(p, g) && VRIsHandEmpty(p, h) && VR_Carry_Held(p, h) == world &&
+        float sec = VRHasBit(p.vrbits0, h == cVR_MainHand ? QVR_VRBITS0_MAINHAND_SECONDARY : QVR_VRBITS0_OFFHAND_SECONDARY);
+        float secWas = p.vr_att_sec & bit;
+        p.vr_att_sec = sec ? (p.vr_att_sec | bit) : (p.vr_att_sec - (p.vr_att_sec & bit));
+        // (vr_attach_pull_button: the grip held and B/Y pressed, as the head torch comes off, so a two-handed grip at the
+        // mount never pulls it off; 0: the grip's press alone.)
+        float pull = cvar_hget(cvarh_vr_attach_pull_button) ? (grip && sec && !secWas) : (grip && !was);
+        if(pull && VR_Attach_Hand(p, g) && VRIsHandEmpty(p, h) && VR_Carry_Held(p, h) == world &&
            vlen(VRGetEntHandPos(p, h) - VR_Attach_HandPoint(p, g, VR_Attach_Hand(p, g), 1)) <= cvar_hget(cvarh_vr_attach_pull_radius))
         {
             VR_Attach_TakeOff(p, h, FALSE);

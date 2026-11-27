@@ -21,6 +21,10 @@ Rottweilers, ogres, scrags and fiends can wear armour now: walk round the four i
 Shoot one beast's pieces with the shotgun: each piece sparks, cracks off on its own and falls as debris you can pick up, and the beast then bleeds where it was bare. {test:armour_beasts}
 Kill an armoured ogre or rottweiler with small hits: as it dies and goes limp the pieces stay on the body and follow it as it falls. {test:armour_beasts}
 Flat-screen or VR: open Mods in the main menu and pick any mod (or type "game <mod>" in the console); the console's "game" changed line shows quakevr before the mod, and the hands, weapons and armed grunts still work in its maps. {test:hub_start}
+Grab a lying bayonet: it sits in the palm, the fingers round it, no odd hand pose. {test:attach_bayonet}
+With the bayonet on the shotgun, grip at the mount: nothing comes off and the two-handed grip works; grip and press B/Y there: it comes off into that hand. {test:attach_bayonet}
+Stab a grunt with the bayonet: it goes a bit deeper than before (Combat > Embedded Blades > Stab > Bayonet Depth tunes it). {test:attach_bayonet}
+Stab an enemy with the bayonet, keep holding and fire a few shots (shotgun, then super shotgun): the gun stays in your hand and the body barely moves. {test:attach_bayonet}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
