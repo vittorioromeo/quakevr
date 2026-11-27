@@ -1825,6 +1825,7 @@ QVR_TUNABLE(vr_image_cache_mb, "512") // decoded image files (a texture pack's w
 QVR_TUNABLE(vr_anim_smooth_rig_error, "1.5") // ... a bone whose fit to a frame is off by more than this (rms, units) isn't swung between it and its neighbours; a vertex off its bone by more swings less (none at twice it)
 QVR_TUNABLE(vr_anim_smooth_rebuild_error, "0.5") // ... a vertex off its bone's fits by more than this (rms over the frames, units) is rebuilt less (not at twice it); a model with too few vertices rebuilt draws as before
 QVR_TUNABLE(vr_anim_smooth_rebuild_blend, "1") // ... a vertex its own bone fits badly (round a joint, the ogre's skin) rebuilt from two bones blended (its own and its parent or a child, the weight fitted to the frames) when that fits it much better; 0: one bone each (ROUND26 "ogredequant")
+QVR_TUNABLE(vr_armour_on_drawn, "1") // the beasts' armour (pieces, leather) placed on the body as the shader draws it (the smooth spline, the limbs' swing, the skeleton rebuild: vr_animsmooth.cpp's drawnPoints, the renderer's own rows); 0: on the frames' stored bytes, Quake's blend (before ROUND26 "armourrebuild")
 
 // Gore > Blood Streams
 QVR_TUNABLE(vr_gore_streams_chance, "0.6") // the chance a shot or a nail (each pellet) opens one

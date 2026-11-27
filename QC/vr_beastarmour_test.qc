@@ -39,8 +39,9 @@ entity(float i) VR_BAT_Ent =
     return vr_bat_e3;
 };
 
-// Kind `kind` (0 rottweiler, 1 ogre, 2 scrag, 3 fiend) `ahead` units before player `p`, `side` to its right, turned
-// `turn` degrees from facing it.
+void() monster_shambler;
+// Kind `kind` (0 rottweiler, 1 ogre, 2 scrag, 3 fiend, 4 a shambler: no armour kind) `ahead` units before player `p`,
+// `side` to its right, turned `turn` degrees from facing it.
 entity(entity p, float kind, float side, float ahead, float turn) VR_BAT_Spawn =
 {
     makevectors('0 1 0' * p.angles_y);
@@ -51,6 +52,7 @@ entity(entity p, float kind, float side, float ahead, float turn) VR_BAT_Spawn =
     if(kind == 0) { self.classname = "monster_dog"; monster_dog(); }
     else if(kind == 1) { self.classname = "monster_ogre"; monster_ogre(); }
     else if(kind == 2) { self.classname = "monster_wizard"; monster_wizard(); }
+    else if(kind == 4) { self.classname = "monster_shambler"; monster_shambler(); } // (no armour: the drawn-shape check's)
     else { self.classname = "monster_demon1"; monster_demon1(); }
     entity g = self;
     self = oself;
@@ -442,12 +444,13 @@ void(float req) VR_BAT_Frame =
 
 // `vr_agarmor_test 21` (doglerp; ROUND26.md): the drawn body moves smoothly and the armour with it, in slow motion and at
 // full speed. One beast at a time, dressed in a full set, ahead of the player: a rottweiler's leap, its run, its roll over
-// (painb) after a shove, a scrag flying, an ogre running. Each is watched frame by frame (vr_drawnlerp_watch,
-// vr_hitmodel_diag.cpp): the drawn body against the hit model the armour is placed from: no frame drawn still while it
-// moves, no jump, the two in step. First at a quarter speed (vr_timescale 0.25), then at 1. Ends on
-// "doglerp test: N passed, M failed".
+// (painb) after a shove, a scrag flying, an ogre running, an ogre's chainsaw swing, a shambler running (bare: none worn).
+// Each is watched frame by frame (vr_drawnlerp_watch, vr_hitmodel_diag.cpp): the drawn body against the hit model the
+// armour is placed from: no frame drawn still while it moves, no jump, the two in step; and the armour's points against
+// the shape the shader drew (the spline, the rebuild: within 0.05 units every frame; ROUND26 "armourrebuild"). First at
+// a quarter speed (vr_timescale 0.25), then at 1. Ends on "doglerp test: N passed, M failed".
 float vr_dlt_busy;
-float vr_dlt_case;   // 0 leap, 1 run, 2 roll, 3 scrag, 4 ogre; + 5 at full speed
+float vr_dlt_case;   // 0 leap, 1 run, 2 roll, 3 scrag, 4 ogre, 5 ogre's chainsaw, 6 shambler; + 7 at full speed
 float vr_dlt_state;  // 1 spawned, 2 moving (watched), 3 the watch ended: its result next frame
 float vr_dlt_wait;   // the state's next step at this time (game time)
 float vr_dlt_until;  // give up on the case
@@ -455,26 +458,31 @@ float vr_dlt_flew;   // the leap and the roll: off the ground once
 float vr_dlt_ticks;  // frames since the watch ended (its result: the engine's, a frame later)
 float vr_dlt_scale0, vr_dlt_ramp0, vr_dlt_kd0;
 entity vr_dlt_e;
-float VR_DLT_CASES = 5;
+float VR_DLT_CASES = 7;
 void() dog_leap1;
 void() dog_run1;
 void() dog_painb1;
 void() wiz_run1;
 void() ogre_run1;
+void() ogre_swing1;
+void() sham_run1;
 
 string(float c) VR_DLT_Name =
 {
     c = c - floor(c / VR_DLT_CASES) * VR_DLT_CASES;
-    return c == 0 ? "rottweiler leap" : c == 1 ? "rottweiler run" : c == 2 ? "rottweiler roll (shoved)" : c == 3 ? "scrag flying" : "ogre running";
+    return c == 0 ? "rottweiler leap" : c == 1 ? "rottweiler run" : c == 2 ? "rottweiler roll (shoved)" : c == 3 ? "scrag flying" : c == 4 ? "ogre running" : c == 5 ? "ogre chainsaw" : "shambler running";
 };
 
 // Case `c`'s beast spawned (its armour on), left to settle; the next state starts its move.
 void(entity p, float c) VR_DLT_Spawn =
 {
     float k = c - floor(c / VR_DLT_CASES) * VR_DLT_CASES;
-    float kind = k <= 2 ? 0 : k == 3 ? 2 : 1;
-    vr_dlt_e = VR_BAT_Spawn(p, kind, 0, k == 1 ? 420 : k == 4 ? 360 : 220, 0);
-    VR_AgArmor_Give(vr_dlt_e, 2, 1023);
+    float kind = k <= 2 ? 0 : k == 3 ? 2 : k == 6 ? 4 : 1;
+    vr_dlt_e = VR_BAT_Spawn(p, kind, 0, k == 1 ? 420 : k >= 4 ? 360 : 220, 0);
+    if(kind != 4)
+    {
+        VR_AgArmor_Give(vr_dlt_e, 2, 1023);
+    }
     cvar_set("vr_timescale", c < VR_DLT_CASES ? "0.25" : "1");
     vr_dlt_flew = FALSE;
     vr_dlt_state = 1;
@@ -508,14 +516,22 @@ void(entity p, float c) VR_DLT_Move =
     {
         wiz_run1();
     }
-    else
+    else if(k == 4)
     {
         ogre_run1();
+    }
+    else if(k == 5)
+    {
+        ogre_swing1(); // (its chainsaw's frames: the player out of its reach)
+    }
+    else
+    {
+        sham_run1();
     }
     self = oself;
     localcmd(sprintf("vr_drawnlerp_watch %s\n", vr_dlt_e.classname));
     vr_dlt_state = 2;
-    vr_dlt_wait = time + (k == 2 ? 1.6 : 0.8); // (the run, the flight: 8 frames; the roll: its 16)
+    vr_dlt_wait = time + (k == 2 ? 1.6 : k == 5 ? 1.4 : 0.8); // (the run, the flight: 8 frames; the roll: its 16; the swing its 14)
 };
 
 void(float req) VR_DLT_Frame =
