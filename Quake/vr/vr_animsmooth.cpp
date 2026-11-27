@@ -153,6 +153,13 @@ struct SmoothMemos
     auto members() { return mem::list(entities); }
 };
 mem::Cache<SmoothMemos> memos{"anim smooth entities", mem::MapChange | mem::ModelReload};
+// serverPoints' rows (the server's drawn shape: no memo, the hit model keeps the points it makes)
+struct ServerRows
+{
+    za::Vector<glm::vec4> rows;
+    auto members() { return mem::list(rows); }
+};
+mem::Scratch<ServerRows> serverRows{"anim smooth server rows"};
 // The rig data's rebuild (rigData) on the pool: its places by vertex, its refits by pose (vr_jobs_sites).
 jobs::Site placesSite{"anim smooth rebuild places"};
 jobs::Site refitSite{"anim smooth rebuild refits"};
@@ -1475,6 +1482,98 @@ bool animsmooth::drawnPoints(const entity_s* e, int pose1, int pose2, float blen
         out[i] = p;
     }
     stats.pointSeconds += Sys_DoubleTime() - t0;
+    return true;
+}
+
+bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* out, int n)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || n != hdr->numverts || l.pose1 < 0 || l.pose2 < 0 ||
+        l.pose1 >= hdr->numposes || l.pose2 >= hdr->numposes)
+    {
+        return false;
+    }
+    // instanceMemo's choices, with the server's lerp in place of the client entity's
+    const bool splined = r_lerpmodels.value == 3.f && l.pose1 != l.pose2 && l.blend > 0.f && l.blend < 1.f;
+    const bool rebuildOn = vr_anim_smooth_rebuild.value != 0.f;
+    if(!splined && !rebuildOn)
+    {
+        return false;
+    }
+    SmoothModel& m = modelData(model, hdr);
+    const bool rebuild = rebuildOn && rigData(m, model, hdr) && m.rebuildOk;
+    if(!splined && !rebuild)
+    {
+        return false;
+    }
+    serverRows.rows.resize(static_cast<za::SizeT>(rebuildRowsPerBone * ragdoll::maxBones));
+    glm::vec4* rows = serverRows.rows.data();
+    int poses[4] = {l.pose1, l.pose1, l.pose2, l.pose2};
+    rigpose::Spline s;
+    bool swung = false;
+    if(!splined)
+    {
+        // Rebuilt on Quake's blend (instanceMemo's mode 2)
+        const float b = l.pose1 == l.pose2 ? 0.f : za::clamp(l.blend, 0.f, 1.f);
+        s.w[1] = 1.f - b;
+        s.w[2] = b;
+        s.rot[1] = b;
+        rebuildRows(m, poses, s, b, false, rows);
+        swung = true;
+    }
+    else
+    {
+        // keysOf's keys: the lerp before (R_AnimHistoryPush's rule, the server's track), the frame after by the names
+        const float d1 = l.span1 > 0.001f ? l.span1 : 0.1f;
+        float span[3] = {d1, d1, d1};
+        if(l.pose0 >= 0 && l.pose0 < hdr->numposes && l.span0 > 0.f)
+        {
+            poses[0] = l.pose0;
+            span[0] = za::clamp(l.span0, d1 * 0.5f, d1 * 2.f);
+        }
+        const int frame = m.frameOfPose[static_cast<za::SizeT>(l.pose2)];
+        int next = -1;
+        if(frame < 0)
+        {
+            next = nextPose(m, hdr, l.pose2); // (a framegroup's cycle: no learning in it)
+        }
+        else if(m.next[static_cast<za::SizeT>(frame)] >= 0)
+        {
+            next = hdr->frames[m.next[static_cast<za::SizeT>(frame)]].firstpose;
+        }
+        poses[3] = next >= 0 && next < hdr->numposes ? next : l.pose2;
+        s = rigpose::spline(l.blend, span, za::clamp(vr_anim_smooth_tension.value, 0.f, 1.f));
+        const bool rigged = vr_anim_smooth_rig.value != 0.f && rigData(m, model, hdr);
+        if(rebuild)
+        {
+            rebuildRows(m, poses, s, l.blend, rigged, rows);
+            swung = true;
+        }
+        else
+        {
+            swung = rigged && swings(m, poses, s, rows);
+        }
+    }
+    const za::Vector<int>& vbo = vboOfVert(m, hdr);
+    for(int v = 0; v < n; v++)
+    {
+        const int vi = vbo[static_cast<za::SizeT>(v)];
+        if(vi >= 0)
+        {
+            out[v] = drawnVertex(swung ? &m : nullptr, hdr, vi, poses, s.w, swung ? rows : nullptr, rebuild);
+            continue;
+        }
+        glm::vec3 p{0.f};
+        for(int k = 0; k < 4; k++)
+        {
+            p += s.w[k] == 0.f ? glm::vec3{0.f} : s.w[k] * mdldequant::poseVertex(hdr, poses[k], v);
+        }
+        out[v] = p;
+    }
     return true;
 }
 
