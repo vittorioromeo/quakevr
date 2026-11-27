@@ -81,54 +81,19 @@
                 </DockPanel>
             </Grid>
 
-            <ItemsControl ItemsSource="{Binding StatementChoices}" Margin="0,6,0,0" Focusable="False">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border x:Name="Row" Style="{StaticResource CardBorder}" Padding="12,8" Margin="0,0,0,7">
-                            <DockPanel>
-                                <!-- The switch: YES | NO in a sunken slot. -->
-                                <Border DockPanel.Dock="Right" VerticalAlignment="Center" Margin="14,0,0,0" Padding="2" CornerRadius="3"
-                                        Background="#FF0B0907" BorderBrush="{StaticResource SunkenEdge}" BorderThickness="1">
-                                    <StackPanel Orientation="Horizontal">
-                                        <RadioButton Content="YES" Style="{StaticResource SwitchHalf}" Tag="{StaticResource Ok}"
-                                                     IsChecked="{Binding IsYes, Mode=TwoWay}"
-                                                     AutomationProperties.Name="Yes" AutomationProperties.HelpText="{Binding Text}" />
-                                        <RadioButton Content="NO" Style="{StaticResource SwitchHalf}" Tag="{StaticResource Error}"
-                                                     IsChecked="{Binding IsNo, Mode=TwoWay}"
-                                                     AutomationProperties.Name="No" AutomationProperties.HelpText="{Binding Text}" />
-                                    </StackPanel>
-                                </Border>
-                                <!-- A rune: the claim's number while unanswered, a check for YES, a cross for NO. -->
-                                <Grid Width="26" Height="26" VerticalAlignment="Center" Margin="0,0,12,0">
-                                    <Rectangle x:Name="Rune" Width="18" Height="18" Fill="{StaticResource Card}" Stroke="#FF5C4A3B" StrokeThickness="1"
-                                               RadiusX="2" RadiusY="2">
-                                        <Rectangle.LayoutTransform><RotateTransform Angle="45" /></Rectangle.LayoutTransform>
-                                    </Rectangle>
-                                    <TextBlock x:Name="Mark" Text="{Binding Number}" FontFamily="{StaticResource CondensedFont}" FontSize="12.5"
-                                               FontWeight="Bold" Foreground="{StaticResource Faint}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Grid>
-                                <TextBlock Style="{StaticResource Body}" VerticalAlignment="Center"><Run Text="{Binding TextBefore, Mode=OneWay}" /><Run Text="{Binding TextEmphasis, Mode=OneWay}" FontStyle="Italic" /><Run Text="{Binding TextAfter, Mode=OneWay}" /></TextBlock>
-                            </DockPanel>
-                        </Border>
-                        <DataTemplate.Triggers>
-                            <DataTrigger Binding="{Binding IsYes}" Value="True">
-                                <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource Ok}" />
-                                <Setter TargetName="Rune" Property="Fill" Value="{StaticResource Ok}" />
-                                <Setter TargetName="Mark" Property="Text" Value="&#xE73E;" />
-                                <Setter TargetName="Mark" Property="FontFamily" Value="{StaticResource IconFont}" />
-                                <Setter TargetName="Mark" Property="Foreground" Value="{StaticResource DarkText}" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding IsNo}" Value="True">
-                                <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource Error}" />
-                                <Setter TargetName="Rune" Property="Fill" Value="{StaticResource Error}" />
-                                <Setter TargetName="Mark" Property="Text" Value="&#xE711;" />
-                                <Setter TargetName="Mark" Property="FontFamily" Value="{StaticResource IconFont}" />
-                                <Setter TargetName="Mark" Property="Foreground" Value="{StaticResource DarkText}" />
-                            </DataTrigger>
-                        </DataTemplate.Triggers>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <Border Style="{StaticResource CardBorder}" Padding="12,8" Margin="0,6,0,7" AutomationProperties.Name="{Binding StatementPledgePlain}">
+                <DockPanel>
+                    <!-- A rune with a check: nothing to answer. -->
+                    <Grid Width="26" Height="26" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <Rectangle Width="18" Height="18" Fill="{StaticResource Ok}" Stroke="#FF5C4A3B" StrokeThickness="1" RadiusX="2" RadiusY="2">
+                            <Rectangle.LayoutTransform><RotateTransform Angle="45" /></Rectangle.LayoutTransform>
+                        </Rectangle>
+                        <TextBlock Text="&#xE73E;" FontFamily="{StaticResource IconFont}" FontSize="12.5" FontWeight="Bold"
+                                   Foreground="{StaticResource DarkText}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock Style="{StaticResource Body}" VerticalAlignment="Center"><Run Text="{Binding StatementPledgeBefore, Mode=OneWay}" /><Run Text="{Binding StatementPledgeEmphasis, Mode=OneWay}" FontStyle="Italic" /><Run Text="{Binding StatementPledgeAfter, Mode=OneWay}" /></TextBlock>
+                </DockPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

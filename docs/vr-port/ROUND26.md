@@ -4272,3 +4272,14 @@ His words (2026-11-27): "make the scrag tail armor pieces individually destroyab
   splitting adds 2 points to the tail's total at green, 1 at yellow, none at red (the tail is rarely hit by the test's
   aim at the body's middle).
 - **Open**: no headset look; the per-segment pool is 1 at every type (vr_agarmor_pool_scrag scales it).
+
+## Installer: the AI statement is one static sentence (branch agent/aistatement, 2026-11-27)
+
+The Statement page's two YES/NO claims are gone. Under the five paragraphs a card (same frame, rune and font as the old
+claims, a check mark rune, not interactive) says: "By continuing, I recognize that AI-assisted development does *not*
+imply a low-quality result nor a lack of care, passion, or expertise." (the *not* in italics). Continue is enabled at
+once; footer hint "Nothing to answer: press Continue to go on.". Nothing is recorded (no answers, no settings key).
+`qvr-setup install` prints the text and goes on with no prompt (no exit 3); `--accept-statement` is accepted and ignored so
+the release scripts keep working. Code: `Core/AiStatement.cs` (`Pledge` replaces `Claims`, the answer state is removed),
+`StatementPage.xaml`, `MainViewModel.cs` (`StatementChoice` removed), Cli `Program.cs`. Tests: SelfTest "statement: one
+static sentence" (65/65), and the `--screenshots` harness check (no switches, sentence present, Continue enabled).
