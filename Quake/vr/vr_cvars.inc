@@ -196,6 +196,7 @@ QVR_CVAR(vr_embed, "1", CVAR_ARCHIVE | QVR_RULE)                // on (his decis
 QVR_CVAR(vr_attach_snap_radius, "5", CVAR_ARCHIVE | QVR_RULE)  // weapon attachments (QC vr_attach.qc): how near (units) an attachment's mount comes to a gun's mount in the other hand to snap on
 QVR_CVAR(vr_attach_snap_angle, "50", CVAR_ARCHIVE | QVR_RULE)  // and within how many degrees of the gun's way it must point
 QVR_CVAR(vr_attach_pull_radius, "6", CVAR_ARCHIVE | QVR_RULE)  // how near (units) the empty hand grips an attachment on the other hand's gun to pull it off
+QVR_CVAR(vr_attach_pull_button, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: pulled off by that hand's B/Y with its grip held (a grip there alone is the gun's two-handed grip); 0: by the grip alone
 QVR_CVAR(vr_attach_turn, "1", CVAR_NONE)                // 1: the server's attachment points (QC attachinfo) turned by the gun's Pitch/Yaw/Roll in the hand; 0: not (attach2's comparison)
 QVR_CVAR(vr_attach_probe, "0", CVAR_NONE)              // 1: the client writes the main hand's drawn attachment tip into vr_attach_probe_x/y/z every frame (the tests: QC vr_attach_test.qc)
 QVR_CVAR(vr_attach_probe_drawn, "0", CVAR_NONE)         // with vr_attach_probe 1: 1 while the main hand's gun has an attachment drawn
@@ -687,6 +688,13 @@ QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_preset_revert_fps, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
+// Application SpaceWarp (vr_spacewarp.cpp; the Quest's XR_FB_space_warp): 1 hands the runtime each eye's motion vectors
+// and depth, and it shows a made-up frame between the game's (the game at half the display's rate). The eyes go
+// through the post-process path then (the motion target needs the scene's own targets). Off by default (first beta).
+QVR_CVAR(vr_xr_spacewarp, "0", CVAR_ARCHIVE)
+// vr_spacewarp_test (tests, Debug > Profiling): 1 makes SpaceWarp's motion vectors and depth every frame into the
+// game's own images without a runtime that has it (the PC, the mock headset); vr_spacewarp_probe reads them.
+QVR_CVAR(vr_spacewarp_test, "0", CVAR_NONE)
 QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
 // qfov: the eye images drawn straight into (their scene with it) whenever vr_xr_foveation is on (vr_stereo.cpp); 1 lets
 // the runtime lower the level while the GPU has room (XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB), vr_xr_foveation the most.
@@ -3585,6 +3593,7 @@ QVR_CVAR(vr_worn_backpack_volume, "0.5", CVAR_ARCHIVE | QVR_RULE)  // worn backp
 QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log each pack's state, pulls and rips (developer 1)
 QVR_CVAR(vr_rag1108_test, "0", CVAR_NONE)             // the QC test of the 11-08 round's fixes (vr_rag1108_test.qc; Debug > Tests): 1 removal takes an armed one's pack, weapon and tank; 2 the back tanks beside the packs (a screenshot); 3 the gib rule; 4 shoves getting up; each ends on "rag1108<part>: N passed, M failed"
 QVR_CVAR(vr_wornpack_test, "0", CVAR_NONE)            // the QC test of worn backpacks (vr_wornpack_test.qc; Debug > Tests): 1 all, ends on "wornpack: N passed, M failed"; 2 the eyeshot's grunts (back on, side on, knocked down); 3 vr_worn_backpack_pull 1 (pulls lift), ends on "wornpull: N passed, M failed"
+QVR_CVAR(vr_agarmor_beasts, "1", CVAR_ARCHIVE | QVR_RULE)        // armour: the rottweilers, ogres, scrags and fiends roll for it too, by the same skill chances (vr_beastarmour.cpp; QC VR_BeastArmour_Spawn)
 QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE | QVR_RULE)        // armour: the chance an armed grunt spawns armoured on Easy
 QVR_CVAR(vr_agarmor_skill0_type, "1", CVAR_ARCHIVE | QVR_RULE)   // armour on Easy: its best type (1 green, 2 yellow, 3 red: rolled up to it)
 QVR_CVAR(vr_agarmor_skill0_pieces, "2", CVAR_ARCHIVE | QVR_RULE) // armour on Easy: how many pieces (1 the cuirass, 2 and the helmet, more: the rest picked at random; 10 all)

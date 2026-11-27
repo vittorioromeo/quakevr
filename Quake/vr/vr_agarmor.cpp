@@ -12,6 +12,7 @@
 #include "vr_avatar.hpp"
 #include "vr_view.hpp"
 #include "vr_backend.hpp"
+#include "vr_beastarmour.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_drawnpose.hpp"
@@ -3750,15 +3751,27 @@ void relink()
         return;
     }
     const int visible = cl_numvisedicts;
+    beastarmour::beginRelink();
     for(int i = 0; i < visible && numWorn < maxWorn && cl_numvisedicts < MAX_VISEDICTS; i++)
     {
         entity_t* e = cl_visedicts[i];
-        if(!e || !e->model || e < cl_entities || e >= cl_entities + cl_max_edicts || !strchr(e->model->name, '#'))
+        if(!e || !e->model || e < cl_entities || e >= cl_entities + cl_max_edicts)
         {
             continue;
         }
         const int num = static_cast<int>(e - cl_entities);
         int type = 0, pieces = 0, wear = 0;
+        if(beastarmour::kindNamed(e->model->name))
+        {
+            // (a beast's armour: rigid pieces on its derived rig's bones, vr_beastarmour.cpp)
+            wornBy(num, type, pieces, wear);
+            beastarmour::relinkEntity(e, num, type, pieces, wear);
+            continue;
+        }
+        if(!strchr(e->model->name, '#'))
+        {
+            continue;
+        }
         wornBy(num, type, pieces, wear);
         qmodel_t* armor = type > 0 && pieces ? armorFor(e->model) : nullptr;
         if(!armor)
@@ -4424,6 +4437,10 @@ int plateOnSegment(edict_t* ent, const Shell& s, const glm::vec3& a, const glm::
 
 int shotPiece(edict_t* ent, const float* p, const float* dir)
 {
+    if(beastarmour::wears(ent))
+    {
+        return beastarmour::shotPiece(ent, p, dir, wornMask(ent));
+    }
     const Shell* s = serverShell(baseOf(ent));
     const int mask = wornMask(ent);
     const glm::vec3 d = geom::safeNormalize(geom::vec(dir), glm::vec3{0.f}, 1e-6f);
@@ -4570,6 +4587,10 @@ void debugDraw()
 
 int pieceAt(edict_t* ent, const float* p)
 {
+    if(beastarmour::wears(ent))
+    {
+        return beastarmour::pieceAt(ent, p);
+    }
     int piece = pieceOfBone(ent, p);
     const char* plateBase = baseOf(ent);
     const Shell* ps = plateBase ? serverShell(plateBase) : nullptr;
@@ -4616,6 +4637,10 @@ int pieceAt(edict_t* ent, const float* p)
 
 uint32_t pieceBones(edict_t* ent, int piece)
 {
+    if(beastarmour::wears(ent))
+    {
+        return beastarmour::pieceBones(ent, piece);
+    }
     if(piece < 0 || piece >= NumPieces)
     {
         return 0u;
@@ -4896,7 +4921,7 @@ const char* halfModel(edict_t* ent, int piece, int half)
     const int num = ent ? NUM_FOR_EDICT(ent) : 0;
     // (the player's plates' debris: vrbody.mdl's, whatever build is drawn, as QC's VR_PP_Shed names them)
     const char* base = num >= 1 && num <= svs.maxclients ? "progs/vrbody.mdl" : baseOf(ent);
-    if(!base || piece < 0 || piece >= NumPieces || piece == Helmet || half < 0 || half > 1)
+    if(!base || piece < 0 || piece >= NumPieces || piece == Helmet || half < 0 || half > 1 || beastarmour::wears(ent))
     {
         return "";
     }
@@ -4963,6 +4988,11 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
                 geom::safeNormalize(glm::vec3{m[2], m[6], m[10]}, glm::vec3{0.f, 0.f, 1.f}, 1e-6f)};
             held::anglesFromAxes(rot * pf.rest, out, false);
         }
+        return;
+    }
+    if(beastarmour::wears(ent))
+    {
+        beastarmour::plateWhere(ent, piece, what, out);
         return;
     }
     const Shell* s = serverShell(baseOf(ent));
@@ -5837,6 +5867,7 @@ void splitCheck_f()
 
 void init()
 {
+    beastarmour::init(); // (the beasts' armour: vr_beastarmour_info)
     Cmd_AddCommand("vr_agarmor_split_check", splitCheck_f);
     Cmd_AddCommand("vr_agarmor_info", info_f);
     Cmd_AddCommand("vr_player_plates_info", view::platesInfo_f);

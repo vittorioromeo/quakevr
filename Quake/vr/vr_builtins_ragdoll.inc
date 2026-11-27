@@ -238,6 +238,14 @@ void PF_ragdollbone()
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::clientState(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(p[0])));
         return;
     }
+    if(within == -1006.f) // QVR_ARMOR_BEAST: e's beast kind's armour (vr_beastarmour.cpp): p_x 0 its slots (bits; 0 not a
+    {                     // beast), 1 its cuirass group, 2 the pieces' entities drawn this frame (the tests)
+        edict_t* e = G_EDICT(OFS_PARM0);
+        const int what = static_cast<int>(p[0]);
+        G_FLOAT(OFS_RETURN) = static_cast<float>(what == 2 ? beastarmour::drawnCount() : what == 1 ? beastarmour::cuirassGroup(e) :
+            beastarmour::slots(e));
+        return;
+    }
     if(within == -1002.f) // QVR_ARMOR_PIECE_BONES: the rig's bones piece p_x rides (bits, as ragdolllimbs')
     {
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::pieceBones(G_EDICT(OFS_PARM0), static_cast<int>(p[0])));
@@ -440,10 +448,17 @@ void PF_limbpiece()
 
 // string limbmodel(entity e, float bone): the model of e's limb at joint `bone` (vr_limbmodel.cpp), "" none.
 constexpr int armorHalfCode = -2000; // QC QVR_ARMOR_HALF
+constexpr int armorBeastCode = -2100; // QC QVR_ARMOR_BEAST_MODEL
 void PF_limbmodel()
 {
     // (QVR_ARMOR_HALF - (2 * piece + half): a broken plate's half's model, vr_agarmor_split; the builtins' table is full)
     const int bone = static_cast<int>(G_FLOAT(OFS_PARM1));
+    if(bone <= armorBeastCode && bone > armorBeastCode - agarmor::NumPieces)
+    {
+        // (QVR_ARMOR_BEAST_MODEL - slot: a beast's armour piece's model, vr_beastarmour.cpp; "" none)
+        G_INT(OFS_RETURN) = PR_SetEngineString(beastarmour::pieceModel(G_EDICT(OFS_PARM0), armorBeastCode - bone));
+        return;
+    }
     if(bone <= armorHalfCode && bone > armorHalfCode - 2 * agarmor::NumPieces)
     {
         const int code = armorHalfCode - bone;

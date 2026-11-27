@@ -566,6 +566,11 @@ void() VR_AgArmor_TestFrame =
         VR_ARS_Frame(0); // (10-12: vr_agarmor_shot_test.qc)
         return;
     }
+    if(vr_bat_busy)
+    {
+        VR_BAT_Frame(0); // (15: the beasts' armour, vr_beastarmour_test.qc)
+        return;
+    }
     if(vr_art_state == 0)
     {
         if(cvar_hget(cvarh_vr_agarmor_test) == 0)
@@ -587,6 +592,11 @@ void() VR_AgArmor_TestFrame =
         if(request >= 10 && request <= 12)
         {
             VR_ARS_Frame(request); // (real shots at every plate, an absorbed shot's push, a thrown plate)
+            return;
+        }
+        if(request >= 15 && request <= 20)
+        {
+            VR_BAT_Frame(request); // (the beasts' armour: the test, the scene, the renders; vr_beastarmour_test.qc)
             return;
         }
         if(request == 2)

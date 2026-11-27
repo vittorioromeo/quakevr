@@ -46,11 +46,14 @@ for i, line in enumerate(lines):
     if m:
         helds += 1
         r = after(i, r"held_report: off carried=(\d+) ent=(\d+) drawn=(\d) model=(\S+) x_in_hand=(\S+) (\S+) (\S+) inview=(\d)/8")
+        # (bayonet2: held In the Palm (props.txt slot 71), so a VR pull-off keeps it turned as the hand took it at the
+        # mount: drawn there, no way required; J turns it along the taking hand: its blade out ahead of the fist or up.)
         ok = (r is not None and m.group(1) == "vr_bayonet" and int(r.group(1)) > 0 and r.group(1) == r.group(2) and
-              r.group(3) == "1" and r.group(4) == "progs/bayonet.mdl" and float(r.group(7)) > 0.3)
+              r.group(3) == "1" and r.group(4) == "progs/bayonet.mdl")
         if mode == "flat":
-            ok = ok and int(r.group(8)) >= 4
-        out(ok, f"{mode}: the bayonet taken off is drawn in the off hand, blade up out of the fist" +
-            (", on the screen" if mode == "flat" else "") + ": " + (r.group(0) if r else "no held report"))
+            ok = ok and int(r.group(8)) >= 4 and (float(r.group(5)) > 0.3 or float(r.group(7)) > 0.3)
+        out(ok, f"{mode}: the bayonet taken off is drawn in the off hand" +
+            (", its blade out ahead of the fist, on the screen" if mode == "flat" else "") + ": " +
+            (r.group(0) if r else "no held report"))
 out(huds == 2, f"{mode}: two HUD probes (the shotgun's, the super shotgun's): {huds}")
 out(helds == 1, f"{mode}: one held probe: {helds}")

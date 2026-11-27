@@ -7121,6 +7121,7 @@ vr_chainsaw_model_handle|2|Chainsaw Engine|Model Handle in the Hand|Advanced VR 
 vr_agarmor_rule|1|Armour|Absorb|Advanced VR Options > Combat > Armed Grunts > Armour > Absorb
 vr_agarmor_helmet_head|1|Armour|Helmets Stop Headshots|Advanced VR Options > Combat > Armed Grunts > Armour > Helmets Stop Headshots
 vr_agarmor_block_cuts|1|Armour|Plates Stop Cuts|Advanced VR Options > Combat > Armed Grunts > Armour > Plates Stop Cuts
+vr_agarmor_beasts|1|Armour|Armoured Beasts|Advanced VR Options > Combat > Armed Grunts > Armour > Armoured Beasts
 vr_agarmor_impulse|1|Armour|Push Through Plates|Advanced VR Options > Combat > Armed Grunts > Armour > Push Through Plates
 vr_agarmor_debris_time|1|Armour|Broken Plates Last|Advanced VR Options > Combat > Armed Grunts > Armour > Broken Plates Last
 vr_agarmor_split|1|Armour|Broken Plates Split|Advanced VR Options > Combat > Armed Grunts > Armour > Broken Plates Split
