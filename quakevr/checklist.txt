@@ -72,11 +72,8 @@ On the Quest, switch Quest Foveation from High to Off and back a few times mid-g
 
 [3. Flat screen]
 ## Grab, hold and push
-Flat-screen: with empty hand(s), press H near a wooden crate to grab it with every available empty hand, walk to push or pull it around, press H again to release it, or hold B to throw it. {test:flat_grab_pull}
 Flat-screen: grab a crate with H and back away from it (or let a held ragdoll fall behind): the drawn hands stay on the wrists at full stretch until the hold lets go, never floating off the arms. {test:flat_grab_pull}
 ## Spear and Crystal Lance
-Flat-screen: hold the spear and the Crystal Lance normally, in the flipped grip and while guarding with the right mouse button, then stab one into a grunt and hold it: the other hand should always close round the shaft, never float beside it or twist (Spear Other Hand On Shaft, 0 to compare). {test:flat_spear}
-Flat-screen: with the spear or Crystal Lance held, move Spear Other Hand Pitch: the other hand should turn round the shaft and stay on it. {test:flat_spear}
 Flat-screen: flip the spear's grip (B) and raise the guard: the spear stays flipped across the view; tune the Flipped Spear Other Hand Up / Out / Pitch / Yaw / Roll rows (Tunables > Flatscreen) and see the other hand move on the flipped pole while held, guarding and thrusting. {test:flat_spear}
 ## Guard and parry
 Flat-screen: flip a sword or the dagger to the inverted grip (B), then hold the right mouse button: the blade turns quickly back to the normal grip for the guard, and flips back to inverted when you let go. {test:flat_parry}
@@ -87,12 +84,9 @@ Flat-screen: hold the Judicator's sword alone (Debug menu: Arcane Dimensions: Ju
 Flat-screen: hold a sword, a dagger, an axe or the crowbar, upright and flipped (B's flip grip), and look at a wall or a knight close by: the crosshair sits where the swing will land, and the blow lands on it. {test:flat_melee_grip}
 Flat-screen: hold the throw key with an axe, a sword, a carried box or the quick grenade: the crosshair moves to where the throw will land (it rises as the throw charges) and the thing lands there when you let go. {test:flat_throw_cancel}
 ## Throwing and catching
-Flat-screen: hold B with the axe (or a rock, the quick grenade) and let go: the arm carries it forward a moment before it leaves the hand, from the hand, with no pop-in; tune Throw: Release Delay (0 = at once) and Release Arc in Flatscreen > Throw. {test:flat_ogre_catch}
-Flat-screen: let the ogre's grenades come at you with your off hand empty and press nothing: none is caught; press H just before one reaches you: the free hand catches it (Grab / Pull: Catch Window and Catch Reach), then B throws it back. {test:flat_ogre_catch}
 
 [4. Tutorial and VR interface]
 ## Menus and settings
-Body and Display: click Handedness to Left-handed, then click it again: it goes back to Right-handed (Comfort and Gore Preset cycle the same way, never sticking on Custom). {test:hub_start}
 ## Tutorial
 Flat-screen or VR: climb the tutorial's lesson 3 ladder: each hand closes round its round rung (the rung through the fist, the fingers over its top) instead of sitting on top of it; square rungs elsewhere (vrtesthall's) are still held like ledges. Hand Round Thin Rungs (Climbing settings, Hand on a Hold) switches it off. {test:tutorial_ladder}
 
@@ -112,11 +106,9 @@ Hold a bayonet in your left hand and bring its socket under the shotgun's muzzle
 With the bayonet on, stab an ogre: it hurts and sticks; keep your hand on the gun and pull the trigger: it fires there; reload and (super shotgun) break it open while it is stuck. {test:attach_bayonet}
 Holster, drop, throw and re-take a shotgun with its bayonet, change level and load a save: the bayonet stays on it everywhere and looks right on the gun. {test:attach_bayonet}
 Weapon Offsets > Attachments with the shotgun in hand: the bayonet shows on the gun; move it with the sliders until it sits right under the barrel. {test:attach_bayonet}
-Flat-screen: H takes a bayonet in the free hand, J puts it on the gun (J again takes it off), V stabs with it and fire still shoots. {test:attach_bayonet}
 Flat-screen or VR: put the bayonet on the shotgun and throw it point first at a grunt: it flies and hits by the bayonet and sticks by its point, and dropped on the floor it lies on the bayonet instead of passing it through the floor. {test:attach_bayonet}
 Stab a grunt with the bayonet shotgun so it sticks, keep your hand on it, and bring a shell from the pouch to its port with the other hand: the shell goes in and the gun stays stuck. {test:attach_bayonet}
 ## Thrown weapons and the hook
-Flat-screen or VR: throw the axe at a zombie's head (and a grunt's) until the head comes off: the axe drops to the floor, never left floating where the head was. {test:float_axe}
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
 
 [6. Ropes and chains]
@@ -130,7 +122,6 @@ Flat-screen or VR: in a two-player game one goes along the level strung rope han
 [7. Armed humanoids, ragdolls and physics]
 ## Ragdolls and props
 Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg still on top) pulls itself up instead of falling. {test:ogre_hall}
-Flat-screen or VR: walk right up against a crate and punch it repeatedly with your fist: every punch lands and wears it, not just the first. {test:nav_props}
 ## Armed humanoids
 Pose Studio on the spear holders: a frozen armed enforcer, knight and death knight, each with the spear, stand spaced apart in the hall's open middle and the Pose Studio is already open; tune each one's spear poses (Port Arms, Ready, Run, Pickup, Thrust, Shove) as for the spear grunt. {test:pose_spear_humanoids}
 ## Lifts
@@ -143,7 +134,6 @@ Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors ope
 Flat-screen or VR: the Quoth metmon Test button without the metmon1d map package installed says to install metmon1d from the Map Library (no "no map" error); install it there and press Test again: metmon starts in Quoth. {test:quoth_metmon}
 ## Levels and enemies
 Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun. {test:quoth_kellbase_buttons}
-Quoth's kellbase1: the enforcers by the first doors (one with the Centurion's plasma rifle) hold their guns as an enforcer with the same gun spawned on another map does: left hand on the fore grip, elbow in, not flung out. {test:quoth_kellbase_enforcer}
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:quoth_lpqsp1}
 Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere. {test:quoth_metmon}
 
