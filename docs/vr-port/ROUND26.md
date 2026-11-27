@@ -3555,3 +3555,36 @@ no new yaw cvar), down = `vr_armourstudio_subject_pitch`, 0.5 deg a pixel; not o
 resets Turn. RMB chosen: neither button had a use in the studio (ImGui holds the mouse, game keys held back, the gizmo is LMB
 only). The gizmo and the part frame read the subject entity each frame, so they follow. `imgui::feedMouse` got an optional
 right-button argument for the mock; `vr_armourstudio_gizmo_test` has step 11 (drag across 80, down 40: -40 / +20 deg).
+
+## instzip: the installer never installs an older QuakeVR.zip lying beside it (branch agent/instzip, 2026-11-27)
+
+The report: a 1.2.0-beta5 installer in Downloads found an old 1.2.0-beta2 `QuakeVR.zip` beside it and repaired the
+beta2 install from it (the details said `Package: ...\QuakeVR.zip`, `Repairing ... 1.2.0-beta2`); the PC ran beta2
+(network version 44) and couldn't join the Quest's beta5 (46). `StartupOptions.Parse` took any package beside the exe.
+
+- **Beside package** (`LocalPackages.FindBeside(dir, ownVersion)` -> `BesidePackage`; `LocalPackages.Judge`): its manifest
+  version against `InstallerBuild.Version` by number and pre-release suffix alone (`ReleaseVersion.Short`; the installer
+  has no commit). Same: used as before, nothing said. Newer: used, the details say "newer than this installer's X: used".
+  Older or no readable version: not put in `Package`; the feed is asked as with no package (a prerelease installer's
+  own tag feed first, so it downloads its own version) and the Install details say "Found QuakeVR.zip 1.2.0-beta2 beside
+  the installer, older than this installer's 1.2.0-beta5: not used, downloading 1.2.0-beta5 instead" (`LogBeside`); the
+  Options page's package card adds "QuakeVR.zip beside the installer is 1.2.0-beta2, older than this installer: it is not
+  used". Offline (no feed: `SetFeedState(Unavailable)` -> `AskBesideWhenOffline`): one Yes/No box, once, naming both
+  versions and that players on the installer's version can't join it; Yes -> `UsePackage` (details: "used, as you
+  chose"), No -> nothing installed from it. An installer with no readable version (bare dev build) uses it as before. An
+  explicit `--package` or a picked package is never judged (the player's choice), but the card names its version and
+  "older than / newer than this installer's X". The screenshot harness still renders whatever is beside it.
+- **The version is always visible**: the Install page's title is "Updating / Repairing / Installing Quake VR: UNLEASHED
+  1.2.0-beta5" (`SetRunVersion`: the target's version at start, the package manifest's once read); the Options card's
+  title "Installing 1.2.0-beta5 from a local package" / "Downloading 1.2.0-beta5"; the Update screen's Repair line
+  "This is the latest version (X)".
+- **Other paths**: Repair and Update read the same `_options.Package` (covered). The Quest step's `QuakeVR.apk` beside
+  Setup had the same hole: now used only when it matches the release list's `quest` component (size, SHA-256:
+  `QuestTarget.LocalApkMatches`), else the release's APK is downloaded with a details line; unchecked (used) when no
+  list was read (offline, a same-version local package). The console `qvr-setup` never looks beside itself for a
+  package (only `--package`); its Quest command's APK fallback beside the exe is unchanged (a developer tool). The
+  game's own update check (vr_update.cpp) only shows a notice from latest.json against its VERSION: no package.
+- SelfTest "beside package: ..." (an older zip -> Download, then a mocked host's latest.json + zip downloaded and
+  installed: the record says beta5; offline -> Ask, yes -> Use, no -> Skip; same -> Use with no note; dev build's own;
+  newer -> Use with a note; a manifest with no version -> Unknown -> Download / Ask; the APK check). Full SelfTest 65/65;
+  the screenshot harness renders every page.

@@ -23,6 +23,24 @@ public static class QuestTarget
         return apk is not null && File.Exists(apk) ? apk : null;
     }
 
+    /// <summary>Whether a QuakeVR.apk beside Setup is the release's own: its size and SHA-256 against the release
+    /// list's quest component. Null when there is no component to check against (offline, a local package): it is
+    /// used then. An old QuakeVR.apk left in Downloads must not reach the headset (as the 2026-11-27 report's old
+    /// QuakeVR.zip reached the PC).</summary>
+    public static bool? LocalApkMatches(string apk, FeedFile? expected)
+    {
+        if (expected is null || expected.Sha256.Length == 0)
+        {
+            return null;
+        }
+        if (expected.Size > 0 && new FileInfo(apk).Length != expected.Size)
+        {
+            return false;
+        }
+        using var stream = File.OpenRead(apk);
+        return string.Equals(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream)), expected.Sha256, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Where to start the game in the headset (sideloaded apps are listed there, not with the store's).</summary>
     public const string StartNote = "Start it in the headset from Library > Unknown Sources (the app list's filter, top right).";
 
