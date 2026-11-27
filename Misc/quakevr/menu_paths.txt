@@ -4288,6 +4288,7 @@ vr_image_cache_mb|2|Tunables|Decoded Image Cache|Advanced VR Options > Debug > T
 vr_anim_smooth_rig_error|2|Tunables|Limb Fit Limit|Advanced VR Options > Debug > Tunables > Limb Fit Limit
 vr_anim_smooth_rebuild_error|2|Tunables|Rebuild Fit Limit|Advanced VR Options > Debug > Tunables > Rebuild Fit Limit
 vr_anim_smooth_rebuild_blend|2|Tunables|Rebuild Joints From Two Bones|Advanced VR Options > Debug > Tunables > Rebuild Joints From Two Bones
+vr_armour_on_drawn|2|Tunables|Beast Armour On The Drawn Body|Advanced VR Options > Debug > Tunables > Beast Armour On The Drawn Body
 vr_gore_streams_chance|2|Tunables|Stream Chance|Advanced VR Options > Debug > Tunables > Stream Chance
 vr_gore_streams_melee_blunt|2|Tunables|Melee Blunt Chance|Advanced VR Options > Debug > Tunables > Melee Blunt Chance
 vr_gore_streams_per_body|2|Tunables|Streams per Body|Advanced VR Options > Debug > Tunables > Streams per Body
@@ -6229,6 +6230,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Armour on Beasts|Advanced VR Options > Debug > Tests > Armour on Beasts
 |2|Debug - Tests|Beasts' Shaped Armour: Look and Debris Check|Advanced VR Options > Debug > Tests > Beasts' Shaped Armour: Look and Debris Check
 |2|Debug - Tests|Beasts Drawn Smoothly (Slow Motion)|Advanced VR Options > Debug > Tests > Beasts Drawn Smoothly (Slow Motion)
+|2|Debug - Tests|Beast Armour On The Drawn Body: Cost (Ten Ogres)|Advanced VR Options > Debug > Tests > Beast Armour On The Drawn Body: Cost (Ten Ogres)
 |2|Debug - Tests|Armour Studio: ImGui Window Test (Flat Screen)|Advanced VR Options > Debug > Tests > Armour Studio: ImGui Window Test (Flat Screen)
 |2|Debug - Tests|Armour Studio: Window Handle (Gizmo) Test (Flat Screen)|Advanced VR Options > Debug > Tests > Armour Studio: Window Handle (Gizmo) Test (Flat Screen)
 |2|Debug - Tests|Armour Studio: Your Clone's Armour Test|Advanced VR Options > Debug > Tests > Armour Studio: Your Clone's Armour Test

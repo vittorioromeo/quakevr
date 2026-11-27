@@ -163,6 +163,9 @@ Tests:
     botnavdebug (flakehunt, 2026-11-21, not in the suite) the bots' navmesh paths in vr_nav_debug on a client: a
              deathmatch server on e1m1, A (remote; botnavdebug_listen: the host) with vr_nav_debug 2 adds a bot; the
              server's vr_dm_test 19 has it chase A by the navmesh: A's client has its path and draws it; off drops it.
+    meleearcs  (mparcs, 2026-11-27) Show Melee Arcs on a remote client: a listen host A on vrtesthall, B turns the
+             option on; A's vr_agrunt_test 216 has an armed sword grunt swing at A: B's client draws its swing trail
+             (frames and segments, QVR_SVC_MELEEARC) whatever A's option says; B's option off: the server stops sending.
     roomnonce  (review 2026-11-18, finding 11) the room service's replies to a host checked (a stand-in service):
              REFUSED, BADVERSION and REGISTERED with another nonce change nothing; COOKIE (protocol version 2) with
              his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
@@ -4256,6 +4259,59 @@ def botnavdebug(s, listen=False):
             break
     s.check("vr_nav_debug 0: the bots' paths dropped (asked=0, paths=0)", st.get("asked") == 0 and st.get("paths") == 0,
             str(st))
+
+
+def meleearc_status(inst):
+    """`vr_enemy_melee_arc_status` on `inst` -> (armed swing frames drawn, their trail's segments drawn, remote wanted)."""
+    since = inst.mark()
+    inst.cmd("vr_enemy_melee_arc_status")
+    _, line = inst.wait(r"meleearcviz: remote wanted \d", 10, since, "%s's melee arcs status" % inst.name)
+    swings = inst.find(r"armed swings drawn \d+ frames \d+ segments", since)
+    m = re.search(r"armed swings drawn (\d+) frames (\d+) segments", swings[1]) if swings else None
+    return (int(m.group(1)) if m else -1, int(m.group(2)) if m else -1,
+            int(re.search(r"remote wanted (\d)", line).group(1)))
+
+
+def meleearcs(s):
+    """(mparcs) Show Melee Arcs' armed humanoids' swings on a remote client: a listen host A on vrtesthall, B (a remote
+    client) turns his own Show Melee Arcs on (the server learns he draws them: "vr_meleearcs_want 1"); A's QC test
+    vr_agrunt_test 216 has an armed sword grunt swing at A with A's option on (case 0) and off (case 1). B's client is sent
+    each frame's swing (QVR_SVC_MELEEARC) and draws its trail (frames and segments drawn > 0) whatever A's option says;
+    B's option off: the server stops (remote wanted 0)."""
+    srv, a, b, ea, eb = join(s, listen=True, level="vrtesthall", srv_first="developer 1",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90))
+    a.cmd("god")
+    b.cmd("god; notarget")
+    put_at(srv, b, eb, ARMED_B, 90)
+    f0, g0, _ = meleearc_status(b)
+    b.cmd("vr_enemy_melee_arc_show 1")
+    wanted = 0
+    for _ in range(40):
+        wanted = meleearc_status(srv)[2]
+        if wanted:
+            break
+    s.check("B's Show Melee Arcs on: the server sends him the swings (remote wanted 1)", wanted == 1, "remote wanted %d" % wanted)
+    since = srv.mark()
+    srv.cmd("vr_agrunt_test 216")
+    _, over = srv.wait(r"test 216 over", 120, since, "vr_agrunt_test 216's end")
+    verdict = [l for l in srv.lines[since:] if "meleerules: Show Melee Arcs" in l]
+    s.note("A's vr_agrunt_test 216: %s | %s" % (over.strip(), " | ".join(v.strip() for v in verdict)))
+    s.check("A's own test: its sword grunt swung and A drew it (case 0 PASS)",
+            any("PASS" in v and "Show Melee Arcs on" in v for v in verdict), str(verdict))
+    f1, g1, _ = (-1, -1, 0)
+    for _ in range(20):
+        f1, g1, _ = meleearc_status(b)
+        if f1 > f0 and g1 > g0:
+            break
+    s.metric("meleearcs_b", {"frames": f1 - f0, "segments": g1 - g0})
+    s.check("B (a remote client) drew the grunt's swing trail (frames and segments drawn)", f1 > f0 and g1 > g0,
+            "B drew %d frames, %d segments of armed swings" % (f1 - f0, g1 - g0))
+    b.cmd("vr_enemy_melee_arc_show 0")
+    for _ in range(40):
+        wanted = meleearc_status(srv)[2]
+        if not wanted:
+            break
+    s.check("B's option off: the server stops sending them (remote wanted 0)", wanted == 0, "remote wanted %d" % wanted)
 
 
 def coopbots(s):
@@ -11025,6 +11081,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             deathlook(s)
         elif test == "mp_botgrab":
             botgrab(s)
+        elif test == "mp_meleearcs":
+            meleearcs(s)
         elif test == "mp_debugviz":
             debugviz(s, False)
         elif test == "mp_debugviz_listen":
@@ -11124,6 +11182,7 @@ SUITE = [
     ("mp_variantowned", ()),
     ("mp_botrevolver", ()),
     ("mp_debugviz", ()),
+    ("mp_meleearcs", ()),
     ("mp_debugviz_listen", ()),
     ("mp_wristscore", ()),
     ("mp_lockstep", ()),
@@ -11154,7 +11213,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "overflow", "overflow_coop"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "meleearcs", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "overflow", "overflow_coop"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -11223,7 +11282,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "overflow", "overflow_coop"):
+                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "meleearcs", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "overflow", "overflow_coop"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

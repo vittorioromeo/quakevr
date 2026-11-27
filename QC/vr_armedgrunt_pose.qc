@@ -391,6 +391,7 @@ void(entity g, vector org, vector grip, float by) VR_AGP_CastVolley =
 };
 
 void(entity p) VR_MeleeArc_ShowLanded; // (vr_meleerules.qc)
+float() VR_MeleeArc_Shown;              // (... the swings sent: here or to a remote client, mparcs)
 
 // A blow from `from` along `dir` (world), with its weapon `p` (world: a punch): that weapon's own melee, `g` striking.
 void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
@@ -404,7 +405,7 @@ void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
             g.enemy.classname));
         return;
     }
-    if(p && cvar_hget(cvarh_vr_enemy_melee_arc_show))
+    if(p && VR_MeleeArc_Shown())
     {
         VR_MeleeArc_ShowLanded(p); // QVR: Show Melee Arcs: its swing red, a dot at its tip (vr_meleerules.qc)
     }
@@ -2270,11 +2271,12 @@ void(entity g, entity p) VR_AGP_PoseQC;
 void(entity g) VR_MeleeArc_ShowSwings; // (Show Melee Arcs: its swing drawn, vr_meleerules.qc)
 void(entity g, entity p) VR_AGP_Pose =
 {
+    VR_AG_DazzleTick(g); // (a flashlight in its eyes: vr_armedgrunt_dazzle.qc)
     if(!agpose(g, p))
     {
         VR_AGP_PoseQC(g, p);
     }
-    if(cvar_hget(cvarh_vr_enemy_melee_arc_show))
+    if(VR_MeleeArc_Shown())
     {
         VR_MeleeArc_ShowSwings(g);
     }
@@ -2461,6 +2463,7 @@ void(entity g, entity p) VR_AGP_PoseQC =
             vr_agp_flags = keepFl | VR_AGP_LEFT | VR_AGP_LEFTWPN;
         }
     }
+    VR_AGP_Shield(g, p); // (dazzled by a flashlight: its off hand before its eyes; vr_armedgrunt_dazzle.qc)
     // (its run's sway on its hands; placed from its anchor)
     vector bob = VR_AGP_RunBob(g);
     vr_agp_v = vr_agp_v + bob;
