@@ -2299,7 +2299,7 @@ QVR_TUNABLE(vr_flat_parry_rev_up, "1") // and this far above it (units; negative
 QVR_TUNABLE(vr_flat_parry_rev_out, "6") // and this far out at its own side (units; negative inwards)
 QVR_TUNABLE(vr_flat_parry_rev_pitch, "5") // the weapon's tip this far up off level (degrees; negative down)
 QVR_TUNABLE(vr_flat_parry_rev_yaw, "0") // and this far forward of straight across the view (degrees; negative back towards you)
-QVR_TUNABLE(vr_flat_parry_rev_roll, "0") // and the weapon rolled this far about its own line (degrees; mirrored for the left hand)
+QVR_TUNABLE(vr_flat_parry_rev_roll, "-60") // and the weapon rolled this far about its own line (degrees; mirrored for the left hand)
 QVR_TUNABLE(vr_flat_parry_rev_in_time, "0.2") // seconds into the reverse-grip guard from the raised flipped hold (longer than the upright guard's vr_flat_parry_in_time: a bigger turn; 0 at once)
 QVR_TUNABLE(vr_flat_parry_rev_out_time, "0.2") // seconds back to the flipped hold when the button is let go (0: at once)
 QVR_TUNABLE(vr_flat_parry_shaft_at, "0.8") // flatparry2: in the guard, a sword-mode melee weapon with no Blade hotspot of its own (the ogres' hammer and mace, the fury's sword; a Blade hotspot at share 0 counts as none) has the free hand on its shaft or blade this share of the way from the hand to the tip/head, as a Blade hotspot there would (then held within vr_flat_parry_shaft_reach); 0: none, the hand stays
