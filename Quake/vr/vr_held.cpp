@@ -3334,10 +3334,10 @@ void heldReport_f()
         const float depth = glm::dot(d, vf);
         return depth > 4.f && za::fabs(glm::dot(d, vr)) <= depth * tx && za::fabs(glm::dot(d, vu)) <= depth * ty;
     };
-    const hands::State& s = drawnFrom;
+    const hands::State& s = hs().drawnFrom;
     for(int h = 0; h < 2; h++)
     {
-        const Held& hd = holding[h];
+        const Held& hd = hs().holding[h];
         const int carriedEnt = cl.stats[h == 1 ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
         const bool drawn = hd.drawn && valid(hd.ent, nullptr);
         glm::vec3 blade{0.f};
