@@ -7,40 +7,10 @@
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); every line ends in one (at least a minimal scene: the map, where you stand, what is given). Multiplayer lines' scenes start a local game with bots (passive: stand still, never attack, take hits; or active), nothing opened on the network. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-25, sixth pass: 13 ticked lines retired, the [New] section sorted, near-duplicates merged; before that 2026-11-24, fifth pass: ticked lines retired, the [New] section sorted, near-duplicates merged, sections reordered; before that 2026-11-23, third pass: 51 more ticked lines retired, the [New] section sorted, near-duplicates merged, wordy lines cut; before that 2026-11-23: 51 ticked lines retired, the [New] section sorted; before that 2026-11-22: 12 ticked or superseded lines retired, the [New] section sorted into Ropes and chains, Arcane Dimensions and Tutorial and VR interface, empty sections dropped; before that 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every line has a tag, every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 
-[New: not yet sorted]
-On the Quest, VR Settings > Scaling: turn SpaceWarp on and play the hub, then a fight: motion should look as smooth as at 72 Hz; look for wobbling edges on your hands, the gun and moving monsters, and whether the status panel or any head-fixed text judders. {test:quest_gibfight}
-On the Quest with SpaceWarp on: walk, smooth-turn and snap-turn, and open and close the menu: no stutter at the turn or the menu (the menu shows at the full rate), no smearing of the world while walking. {test:hub_start}
-With the bayonet on the shotgun, grip at the mount: nothing comes off and the two-handed grip works; grip and press B/Y there: it comes off into that hand. {test:attach_bayonet}
-Stab a grunt with the bayonet: it goes a bit deeper than before (Combat > Embedded Blades > Stab > Bayonet Depth tunes it). {test:attach_bayonet}
-Stab an enemy with the bayonet, keep holding and fire a few shots (shotgun, then super shotgun): the gun stays in your hand and the body barely moves. {test:attach_bayonet}
-On the Quest, set Quest Foveation to High (Top) in a map: the top of the view (sky, ceilings) gets blurrier than at High while the lower middle stays sharp, it runs at least as smoothly as High, and Show Foveation's pattern sits lower. {test:quest_foveation}
-On the Quest, try Quest Foveation: Shift (advanced) at -15 and +15 with High: the sharp middle moves down and up, no crash when changing it. {test:quest_foveation}
-On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution of Eternity: each plays its own soundtrack, not Quake's. {test:campaign_music}
-Hold a dagger in your off hand and a shotgun in the other, lay the dagger along under the barrel with its tip just past the muzzle: it snaps on as a bayonet; grip its handle with the empty hand and press B/Y to get the same dagger back. Check how it looks on the shotgun and the super shotgun (the pump, the guard). {test:attach_dagger}
-On the Quest, stand on the hub's terrace and in a gib fight for a minute each: frames stay smooth (no judder bursts); say where you still feel stutter, it decides which of the ranked GPU or CPU fixes comes next. {test:quest_gibfight}
-Flat-screen or VR: in AD, cut the arms and legs off a Death Guard and a Crossbow Knight: each limb comes off in their own look, and AD maps with them (ad_azad, ad_tears) load without an error. {test:ad_knights_armed}
-Flat-screen: open Debug > Tools > Rig Studio on an AD death guard, then on a crossbow knight: beside the subject the menu bar says their poses are shared; key a pose or an override on one and the other moves the same way at once, and after Save both read it back. {test:ad_knights_armed}
-Flat-screen: in the Rig Studio, the bone, aim target and Pose Keys handles still look and drag as before (they share the Armour Studio's handle code now). {test:rigstudio_strike}
-Fire the shotgun indoors in a small stone room and in a big hall: its crack is clear and sharp over the room's ring, not muffled under a boomy wash; Sound > Walls and Rooms > Your Sounds' Reverb at 1 brings the old wash back to compare (0.25 the default). {test:start_shotgun}
-With AD's data, open the toolgun's Spawn > Monsters > Armed Humanoid page and pick Kind Death Guard, then Crossbow Knight: each shows its own picture in the kind box (and on the Armed Humanoid tile), like the other kinds. {test:ad_knights_armed}
-Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, and the knight with a rifle carries it your way: look at the spear grunt in each pose. {test:pose_grunt_pole}
-The shotgun and double shotgun bayonet mounts (Daggers as Bayonets) sit at your new pitch and height: attach a dagger and check the blade lines up with the barrels. {test:attach_dagger}
-Shoot the armoured scrag's tail until it cracks: all four tail segments fall as debris while his belt's front and back halves stay on; then break the back half alone, then the front half alone. {test:armour_beasts}
-Watch an ogre walk, run and swing his chainsaw up close: his limbs and belly should ripple much less from frame to frame than before, his shape the same; Debug > Reports > Rebuild Joints From Two Bones Off shows the old look to compare. {test:ogre_hall}
-Look at an armoured ogre's head: the helmet should read like the grunts', enforcers' and knights' helmets (a flat-topped bucket with a chamfered top, a brow band and cheek guards down the sides, his face open), not a hat. {test:armour_beasts}
-Look at an armoured ogre's back plate (Plate 8): its two outer columns each side should bend round his sides at a shallow angle, not steeply. {test:armour_beasts}
-Watch an armoured ogre run: his bracers should sit on the upper forearm near the elbow and stay off his wrists and hands. {test:armour_beasts}
-Look at an armoured ogre's breastplate from the front: its top edge should dip in a shallow V at the neck, leaving room for his chin as he moves. {test:armour_beasts}
-Flat-screen or VR: an armoured ogre has leather at both knees, a closed ring between each thigh plate and its shin plate (mostly under the knee cops; look behind and as the knees bend in his run). {test:armour_beasts}
-Flat-screen or VR: in the Armour Studio, pick a leather sleeve or junction (Knee Leather on the ogre, a grunt's Knee Sleeves): the new Own End / Joined End move and size rows, Twist, Bulge, Segments (and on beasts Far Edge and Closed All Round) move the end they name; Reset Part puts the leather back exactly. {test:beaststudio}
-Armoured beasts: look closely at the ogre (and the rottweiler and scrag) as they idle, and in a fight as the ogre runs and swings his chainsaw: the armour pieces and the leather between them stay on the body as drawn, no sliding or floating over the skin; Debug > Reports > Beast Armour On The Drawn Body Off shows the old drift to compare. {test:armour_beasts}
-Shoot the armoured scrag's tail plates one at a time, starting with a lower one: each segment should crack and fall off on its own while the ones above it stay on; then cut his tail off with a blade and every segment still on it should drop as debris. {test:armour_beasts}
-
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
-Setup on the PC with the Quest plugged in (developer mode, USB allowed): pick Install on Meta Quest (or both): the Done page's META QUEST card says how many files it copied; in the headset Library > Unknown Sources > Quake VR starts with your saves and settings. Run Setup again: the card says up to date, 0 files copied. {test:hub_start}
-Installer with the Quest 3 plugged in, over an install already on it: run Setup and tick the Quest; it says how many files it copied (if adb cannot write straight into the app's folder, the log says it copies through /data/local/tmp instead) and the game starts with your saves and settings as before. {test:hub_start}
+Setup on the PC with the Quest plugged in (developer mode, USB allowed): pick Install on Meta Quest (or both): the Done page's META QUEST card says how many files it copied; in the headset Library > Unknown Sources > Quake VR starts with your saves and settings. Run Setup again: the card says up to date, 0 files copied. Over an install already on it, your saves and settings stay (if adb cannot write straight into the app's folder, the log says it copies through /data/local/tmp instead). {test:hub_start}
 With Dwell or Quoth in your Quake folder (not installed by Setup), a Quest install puts them on the headset and they show in its mod list. {test:hub_start}
 Quest install after Doom was opened before its WADs were copied: Setup copies everything else and names the folder the game made itself (quakevr/doom) instead of failing. {test:hub_start}
 ## Setup options and updates
@@ -52,8 +22,7 @@ Setup with Dwell or Quoth installed: Options has "Make reliefs for Dwell and Quo
 Run Setup (install, update or repair): Options shows "Prepare collision for Quake's maps" (ticked by default), and after the relight the Install page's bar shows "Preparing collision for e1m1 (1 of 65)" and on through Quake's and the mission packs' maps, about a minute, then logs how many maps were prepared. {test:hub_start}
 After an install with that box ticked, the first visit to any Quake or mission-pack map (e1m1, hip1m1, r1m5) loads without the collision build, on the PC and, after Setup's Quest step, on the Quest too. {test:hub_start}
 After updating over an older install, the Start menu folder and the shortcuts (Start menu and desktop) are named "Quake VR UNLEASHED" (all caps), with no second old-named copy; the setup window, Apps & Features entry and the game window title say "Quake VR: UNLEASHED". {test:hub_start}
-Flat-screen or VR: The game's exe, taskbar and Setup show the new icon, and Setup's square and wide logos are the new ones. {test:hub_start}
-Flat-screen or VR: The main menu shows the updated vertical Quake VR logo. {test:hub_start}
+Flat-screen or VR: the game's exe, taskbar, Setup's square and wide logos and the main menu's vertical logo all show the new Quake VR art. {test:hub_start}
 ## Start-up and platforms
 Start the game and open the console: the start-up steps are listed as "[startup +Xs] ... begin / end (took X ms)" with the slowest at the end; quakevr/startup.log has the same; Debug > Startup > Startup Trace Summary repeats it. {test:hub_start}
 -window opens a normal draggable window, even with Borderless Window on; without -window it stays borderless. {test:hub_start}
@@ -72,21 +41,20 @@ Flat-screen or VR: the hub's open grass and the cliff faces round the lake are s
 Flat-screen or VR: On the hub, lie down and crawl around the south-west near the shore (around x -550, y 1000-1200): no invisible wall where there's nothing to bump into. {test:hub_start}
 Flat-screen or VR: start ironwail.exe from Quake VR's folder by double-clicking it (or a shortcut of your own with no -game): the hub and Quake VR's hands and weapons are there as with Setup's shortcut, and the console's first lines say "Quake VR's game folder added". {test:hub_start}
 Flat-screen or VR: Debug > Diagnostics > Preview: Game Data Missing Notice shows the broken-install warning in red in the menus' top-right box (then vr_gamedata_notice 0 to end it). {test:hub_start}
-Flat-screen: put an older QuakeVR.zip (e.g. 1.2.0-beta2) beside the new Setup and run it online: it downloads its own version, the details say the zip beside it is older and not used, and the Install page's title names the version being installed. {test:hub_start}
-Flat-screen: same older QuakeVR.zip beside Setup with the network off: a Yes/No box names both versions; No installs nothing from it, Yes installs the older one and the details say so. {test:hub_start}
+Flat-screen: put an older QuakeVR.zip (e.g. 1.2.0-beta2) beside the new Setup and run it online: it downloads its own version, the details say the zip beside it is older and not used, and the Install page's title names the version being installed. With the network off, a Yes/No box names both versions: No installs nothing from it, Yes installs the older one and the details say so. {test:hub_start}
 Flat-screen: Setup beside its own QuakeVR.zip (the release folder) installs from it with no download, and the Options card says "Installing <version> from a local package". {test:hub_start}
+## Quest performance and options
+On the Quest, VR Settings > Scaling: turn SpaceWarp on and play the hub, a gib fight and the terrace for a minute each: motion looks as smooth as at 72 Hz, no stutter at smooth or snap turns or when opening and closing the menu (it shows at the full rate), no smearing of the world while walking; look for wobbling edges on your hands, the gun and moving monsters, and judder on head-fixed text. Say where you still feel stutter (it decides which GPU or CPU fix comes next). {test:quest_gibfight}
+On the Quest, Quest Foveation: High (Top) blurs the top of the view (sky, ceilings) more than High while the lower middle stays sharp, at least as smooth as High, and Show Foveation's pattern sits lower; Shift (advanced) at -15 and +15 moves the sharp middle down and up, no crash when changing it. {test:quest_foveation}
+On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution of Eternity: each plays its own soundtrack, not Quake's. {test:campaign_music}
 
 [2. Flat screen]
 ## Grab, hold and push
+Flat-screen: grab a crate with H and walk back, forward, sideways and turn with it, best on a high refresh rate monitor: the hands and arms should stay steady on the crate with no shaking. {test:flat_grab_pull}
 ## Spear and Crystal Lance
 Flat-screen: flip the spear's grip (B) and raise the guard: the spear stays flipped across the view; tune the Flipped Spear Other Hand Up / Out / Pitch / Yaw / Roll rows (Tunables > Flatscreen) and see the other hand move on the flipped pole while held, guarding and thrusting. {test:flat_spear}
-## Guard and parry
-## Crosshair
-## Throwing and catching
-Flat-screen: grab a crate with H and walk back, forward, sideways and turn with it, best on a high refresh rate monitor: the hands and arms should stay steady on the crate with no shaking. {test:flat_grab_pull}
 
 [3. Tutorial and VR interface]
-## Menus and settings
 ## Tutorial
 Flat-screen or VR: climb the tutorial's lesson 3 ladder: each hand closes round its round rung (the rung through the fist, the fingers over its top) instead of sitting on top of it; square rungs elsewhere (vrtesthall's) are still held like ledges. Hand Round Thin Rungs (Climbing settings, Hand on a Hold) switches it off. {test:tutorial_ladder}
 
@@ -96,14 +64,17 @@ Reach for the belt flashlight quickly and grip as your hand passes it, without s
 Close your hand on the way to the belt flashlight and arrive with it already closed: it does not take the torch; open and press the grip at it and it comes at once, moving or not. {test:start_shotgun}
 Holster Setup: the belt flashlight shows as a box; grip it and drag it somewhere else, turn your hand to turn it, push the stick to grow its grab zone (the torch itself stays the same size); after Done, grabbing it works at the new place and the new size. {test:start_shotgun}
 Set Flashlight Side to Right after placing the torch in Holster Setup: it hangs at the mirrored place and turn on the right hip. {test:start_shotgun}
+## Gun sounds
+Fire the shotgun indoors in a small stone room and in a big hall: its crack is clear and sharp over the room's ring, not muffled under a boomy wash; Sound > Walls and Rooms > Your Sounds' Reverb at 1 brings the old wash back to compare (0.25 the default). {test:start_shotgun}
 ## Spear and Crystal Lance
 Take the spear and grab its shaft with your other hand a little off the shaft (above or beside it): the drawn hand snaps so the shaft lies in the palm with the fingers wrapped round it, at the point along the shaft where you grabbed. {test:spear}
 With the spear or the Crystal Lance held in both hands, move your other hand up and down the shaft while gripping: the drawn hand stays where it grabbed (Other Hand Fixed on Poles, on by default); turn the option off in Physics and Interaction and it slides again. {test:spear}
 Thrust the spear held in both hands into the grunt so it sticks: your other hand stays on the shaft where it was, round it, and does not let go or jump to another spot; the same with the Crystal Lance. {test:spear}
 Swing the spear (and the Crystal Lance) so its shaft, not the head, hits a grunt: a wooden knock and a dent, nothing stuck in it, less damage than the head; swing the shaft low and level across its shins and it is swept off its feet, while a sweep with the spear's head cuts instead; the head still stabs and sticks. {test:spear}
 ## Bayonet and attachments
-Hold a bayonet in your left hand and bring its socket under the shotgun's muzzle: it snaps on; grip it with the empty hand and pull it off; the same on the super shotgun. {test:attach_bayonet}
-With the bayonet on, stab an ogre: it hurts and sticks; keep your hand on the gun and pull the trigger: it fires there; reload and (super shotgun) break it open while it is stuck. {test:attach_bayonet}
+Hold a bayonet in your left hand and bring its socket under the shotgun's muzzle: it snaps on, nothing comes off by itself and the two-handed grip works; grip it with the empty hand and press B/Y there: it comes off into that hand. The same on the super shotgun. {test:attach_bayonet}
+With the bayonet on, stab a grunt or an ogre: it goes a bit deeper than before (Combat > Embedded Blades > Stab > Bayonet Depth tunes it), hurts and sticks; keep your hand on the gun and fire (shotgun, then super shotgun): it fires there, the gun stays in your hand and the body barely moves; reload and (super shotgun) break it open while it is stuck. {test:attach_bayonet}
+Hold a dagger in your off hand and a shotgun in the other, lay the dagger under the barrel with its tip just past the muzzle: it snaps on as a bayonet and the blade lines up with the barrels (check the shotgun's pump and the super shotgun's guard); grip its handle with the empty hand and press B/Y to get the same dagger back. {test:attach_dagger}
 Holster, drop, throw and re-take a shotgun with its bayonet, change level and load a save: the bayonet stays on it everywhere and looks right on the gun. {test:attach_bayonet}
 Weapon Offsets > Attachments with the shotgun in hand: the bayonet shows on the gun; move it with the sliders until it sits right under the barrel. {test:attach_bayonet}
 Flat-screen or VR: put the bayonet on the shotgun and throw it point first at a grunt: it flies and hits by the bayonet and sticks by its point, and dropped on the floor it lies on the bayonet instead of passing it through the floor. {test:attach_bayonet}
@@ -118,28 +89,28 @@ Heavy revolver: the pouch gives a taped pair of blue slugs that loads two chambe
 Climb a rope, a chain and a pole hand over hand: no grunt on any pull. {test:ropes}
 ## Two players
 Flat-screen or VR: in a two-player game in the ropes hall both climb the same upright pole (from opposite sides, and one after the other; also on vrropes): both get on, neither is pushed off or stuck, and each sees the other's hands on the pole and legs round it. {test:ropes}
-Flat-screen or VR: in multiplayer watch another player climb a rope, hang on it and swing it hard: his hands grip it and move up hand over hand, his body hangs close under his hands, his feet stay wrapped round it. {test:ropes}
-Flat-screen or VR: in a two-player game one goes along the level strung rope hand over hand while the other watches: the hands stay on the rope, the legs hang. {test:ropes}
+Flat-screen or VR: in multiplayer watch another player climb a rope, hang on it and swing it hard: his hands grip it and move up hand over hand, his body hangs close under his hands, his feet stay wrapped round it. On the level strung rope one goes hand over hand while the other watches: the hands stay on the rope, the legs hang. {test:ropes}
 
 [6. Armed humanoids, ragdolls and physics]
 ## Ragdolls and props
 Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg still on top) pulls itself up instead of falling. {test:ogre_hall}
+Watch an ogre walk, run and swing his chainsaw up close: his limbs and belly should ripple much less from frame to frame than before, his shape the same; Debug > Reports > Rebuild Joints From Two Bones Off shows the old look to compare. {test:ogre_hall}
 ## Armed humanoids
 Pose Studio on the spear holders: a frozen armed enforcer, knight and death knight, each with the spear, stand spaced apart in the hall's open middle and the Pose Studio is already open; tune each one's spear poses (Port Arms, Ready, Run, Pickup, Thrust, Shove) as for the spear grunt. {test:pose_spear_humanoids}
+Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, and the knight with a rifle carries it your way: look at the spear grunt in each pose. {test:pose_grunt_pole}
 ## Lifts
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
-AD's death guard and crossbow knight are armed humanoids in their own look: walk round each (frozen) and check no hand is off its weapon, no weapon goes through the body and no elbow or shoulder is twisted, with their own weapons and with the shotguns behind them. {test:ad_knights_armed}
-In an Arcane Dimensions map with death guards and crossbow knights, fight a few: they keep AD's look, swing the sword or shoot the crossbow, can be disarmed, pick up other weapons and drop theirs when they die; Armed Humanoid Replacements' AD Death Guards and AD Crossbow Knights turn this off. {test:ad_knights_armed}
-In the Armour Studio, pick the Rottweiler, Ogre, Scrag or Fiend as the Kind: it stands ahead in its armour; move, turn, scale and taper each piece, Save, and check a newly spawned beast of that kind wears the tweaked pieces. {test:beaststudio}
-The beasts' armour now has leather between its pieces (the rottweiler's barding and croup, collar and chanfron, shoulders; the fiend's back and breast plates, pauldrons and bracers): check it fills the gaps without poking through the body, and bends with the legs as it runs and when it dies. {test:beaststudio}
-In the Armour Studio, pick a beast's part's leather junction (the status line names the two pieces it joins): turn it off, change its width at each end, thickness, folds and sag; Save and Reload keep them. {test:beaststudio}
-In the Armour Studio, pick the Death Guard and then the Crossbow Knight (AD mounted): the status line says their tweaks are shared, and a tweak on one shows on the other. {test:beaststudio}
-With Arcane Dimensions installed, open the Rig Studio on a death guard and a crossbow knight and raise each arm high and forward: the tabard stays on the hips, no sheet of it pulled up to the hand. {test:ad_knights_armed}
-With Arcane Dimensions installed, in the Rig Studio's Pose Studio Data window (subject a death guard or crossbow knight) change the Knight's main hand Place in the Grips tab: the AD knights' weapons move in their hands with the knight's, and Reset puts them back. {test:ad_knights_armed}
-In the Pose Studio pick a death guard or a crossbow knight: the Data window says AD Knight, shared by Death Guard and Crossbow Knight; moving a key or a grip there moves both AD knights and leaves the regular knight at the back as he is. {test:ad_knights_armed}
-Look round AD's death guards and crossbow knights in a fight (they now take their own retargeted keys in game, before they took none): hands on their weapons when they aim, swing, shove and take a weapon up. {test:ad_knights_armed}
 
-[7. Quoth]
+[7. Armoured beasts]
+## Armour on the body
+Armoured beasts: look closely at the ogre (and the rottweiler and scrag) as they idle, and in a fight as the ogre runs and swings his chainsaw: the armour pieces and the leather between them (barding, croup, collar, shoulders, back and breast plates, pauldrons, bracers) fill the gaps without poking through the body, stay on it as drawn with no sliding or floating, and bend with the legs as it runs and when it dies; Debug > Reports > Beast Armour On The Drawn Body Off shows the old drift to compare. {test:armour_beasts}
+Look over an armoured ogre standing and running: the helmet reads like the grunts' (flat-topped bucket, chamfered top, brow band, cheek guards, face open); the breastplate's top edge dips in a shallow V at the neck; the back plate's outer columns bend round his sides at a shallow angle; the bracers sit on the upper forearm, off the wrists; leather at both knees closes the ring between thigh and shin plates. {test:armour_beasts}
+Shoot the armoured scrag's tail plates one at a time, starting with a lower one: each segment cracks and falls off on its own while the ones above stay on, and the belt's halves stay on; break the belt's back half alone, then the front half alone; cut his tail off with a blade and every segment still on it drops as debris. {test:armour_beasts}
+## Armour Studio
+In the Armour Studio, pick the Rottweiler, Ogre, Scrag or Fiend as the Kind: it stands ahead in its armour; move, turn, scale and taper each piece, Save, and check a newly spawned beast of that kind wears the tweaked pieces. {test:beaststudio}
+In the Armour Studio, pick a beast's leather part or junction (Knee Leather on the ogre, a grunt's Knee Sleeves; the status line names the two pieces it joins): turn it off, change its width, thickness, folds and sag, and the Own End / Joined End move and size rows, Twist, Bulge, Segments (on beasts Far Edge and Closed All Round); each moves the end it names; Save and Reload keep them, Reset Part puts the leather back exactly. {test:beaststudio}
+
+[8. Quoth]
 ## Setup and maps
 Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason. {test:hub_start}
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:quoth_ne_marb}
@@ -149,11 +120,19 @@ Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminat
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:quoth_lpqsp1}
 Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere. {test:quoth_metmon}
 
-[8. Arcane Dimensions]
+[9. Arcane Dimensions]
 ## Monsters
 In an Arcane Dimensions map with crossbow knights: they are AD's own crossbow knights, while the other AD soldier variants are still armed humanoids. {test:humrepl_variants}
+## Knights
+AD's death guard and crossbow knight are armed humanoids in their own look: walk round each (frozen) and check no hand is off its weapon, no weapon goes through the body and no elbow or shoulder is twisted, with their own weapons and with the shotguns behind them; in an AD map fight a few: they keep AD's look, swing the sword or shoot the crossbow, can be disarmed, pick up other weapons and drop theirs when they die; cut the arms and legs off each: every limb comes off in their own look, and ad_azad and ad_tears load without an error; Armed Humanoid Replacements' AD Death Guards and AD Crossbow Knights turn this off. {test:ad_knights_armed}
+Look round AD's death guards and crossbow knights in a fight (they now take their own retargeted keys in game, before they took none): hands on their weapons when they aim, swing, shove and take a weapon up. {test:ad_knights_armed}
+With Arcane Dimensions installed, open the Rig Studio on a death guard and a crossbow knight and raise each arm high and forward: the tabard stays on the hips, no sheet of it pulled up to the hand. {test:ad_knights_armed}
+With Arcane Dimensions installed, in the Rig Studio's Pose Studio Data window (subject a death guard or crossbow knight) change the Knight's main hand Place in the Grips tab: the AD knights' weapons move in their hands with the knight's, and Reset puts them back. {test:ad_knights_armed}
+In the Rig Studio or Pose Studio pick a death guard or a crossbow knight: the menu bar and Data window say AD Knight, shared by both; key a pose, an override or a grip on one and the other moves the same way at once, after Save both read it back; the regular knight at the back is left as he is. {test:ad_knights_armed}
+In the Armour Studio, pick the Death Guard and then the Crossbow Knight (AD mounted): the status line says their tweaks are shared, and a tweak on one shows on the other. {test:beaststudio}
+With AD's data, open the toolgun's Spawn > Monsters > Armed Humanoid page and pick Kind Death Guard, then Crossbow Knight: each shows its own picture in the kind box (and on the Armed Humanoid tile), like the other kinds. {test:ad_knights_armed}
 
-[9. Survival Arena (Select Campaign > Arena Mode)]
+[10. Survival Arena (Select Campaign > Arena Mode)]
 ## Waves and weapons
 Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}
 Survival Arena from wave 6 (Normal): grunts and enforcers bring the heavy revolver, burst rifle, laser rifle, the knights' swords, chainsaw, Mjolnir and the Super Axe, each first on one foe at its wave; their drops are yours to fire. {test:arena_newguns}
@@ -169,7 +148,7 @@ Survival Arena budget director (on by default: Combat > Survival Arena > Budget 
 ## Wave editor
 Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler, save it, assign it to Normal and play from wave 1: the panel is readable, laser, stick scrolling and panel keys work. {test:vrarena_calm}
 
-[10. Multiplayer and bots]
+[11. Multiplayer and bots]
 ## Hosting and joining
 Host and join a coop game over the room service and play a level together: voice, held weapons and melee look right on both sides. {test:mp_coop_bot}
 Host Game says whether your port 26000 is reachable (and shows the net HUD while hosting); forward UDP 26000 on your router and host again: it reads reachable. {test:mp_coop_bot}
@@ -215,12 +194,11 @@ Debug > Reports > Network: Drawn Near Me (vr_mp_near) in mp_local.ps1's client l
 Debug > Show Disarm Volumes in a deathmatch with a bot and another player (host, then join): orange outlines along each one's held weapon (the grab), magenta on it and cyan on the hand (shots), none on your own. {test:mp_dm_disarmviz}
 Flat-screen or VR: Debug > Show Hit Zones in a deathmatch with a bot and another player (host, then join): a red sphere on each head, green torso, yellow arms and blue legs, following and turning with them; none on you. {test:mp_dm_hitzones}
 Flat-screen or VR: host a game on one device and, on the other, type vr_net_test_version 1 in the console, then open Multiplayer > Join Game > Server Browser: the host's row shows v48 instead of a ping and the line under the list says which Quake VR release it needs. {test:hub_start}
-Flat-screen or VR: join that row anyway: you're back at the browser with one plain reason under the list ("This server runs Quake VR ... update to ..."), and the console has it once, with no Host_Error or stack trace. {test:hub_start}
-Flat-screen: quit right after a failed join: no console text flashes over the background while the game closes. {test:hub_start}
+Flat-screen or VR: join that row anyway: you're back at the browser with one plain reason under the list ("This server runs Quake VR ... update to ..."), and the console has it once, with no Host_Error or stack trace. After a failed join, quitting right away flashes no console text over the background. {test:hub_start}
 Host a deathmatch on the PC with a few bots and join it from the Quest standalone; mid-game take the headset off for 20-30 s (or sit in the Quest system menu), then put it back on: you are still in the game and catch up, and neither console says "overflow" (if one ever does, the line now says which buffer and its sizes: note it). {test:mp_dm_passive}
 Join a coop game from the Quest standalone and have the PC host change level: your slower map load no longer drops you; with voice chat and the weapon wheel in use over a weak Wi-Fi spot, no disconnect either. {test:mp_coop_passive}
 
-[11. Recording and dev tools]
+[12. Recording and dev tools]
 ## Takes
 Takes: with OBS running, press TAKE on the wrist gadget, act, press STOP: a small blinking red light in the headset only, then the rating prompt; KEEP renames OBS's file to <date>_<scene>_t01_keep, REJECT moves it to rejected/. Left grip + X then Y marks in and out (vr_take_list); SET UP, knock props about, RETAKE: the scene comes back and a new take starts. {test:takes}
 Takes, Clip That: in a take session press CLIP (or F8): OBS's folder gets a <date>_<scene>_tNN_clip file of the last seconds, rated like a take. Flat-screen: F7 starts and stops a take (a REC line top right), keypad 1 / 2 / 3 rate it, F8 clips, Home / PgUp mark in and out. {test:takes}
