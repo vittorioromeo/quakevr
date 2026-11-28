@@ -594,16 +594,17 @@ void info_f()
     }
     Con_Printf("humlook: %d rows from %s, %d skins' masks, %d looks known by the client, %d elites, vr_humlook %g\n",
         table.rows, tableName(), static_cast<int>(skins.size()), numLooks, elites, vr_humlook.value);
-    // The client's first elite as it is drawn: its instance's clothes row (the elite dye, pulsing), a remote client's too.
+    // The client's elites as they are drawn: each one's instance's clothes row (the elite dye, pulsing), a remote client's too.
     for(int i = 0; i < static_cast<int>(looks.size()) && cl_entities && i < cl_max_edicts; i++)
     {
-        if((looks[static_cast<za::SizeT>(i)] & eliteBit) && !(looks[static_cast<za::SizeT>(i)] & partPack) && cl_entities[i].model)
+        const int look = looks[static_cast<za::SizeT>(i)];
+        if((look & eliteBit) && !(look & partPack) && cl_entities[i].model)
         {
             float rows[4][4];
             instanceRows(&cl_entities[i], rows);
-            Con_Printf("  client elite %d: clothes %.2f %.2f %.2f strength %.2f light %.2f, mask %s\n", i, rows[0][0], rows[0][1],
-                rows[0][2], rows[0][3], rows[2][0], rows[3][0] > 0.f ? "yes" : "no");
-            break;
+            Con_Printf("  client elite %d (%s, look %d): clothes %.2f %.2f %.2f strength %.2f light %.2f, mask %s\n", i,
+                cl_entities[i].model->name, look, rows[0][0], rows[0][1], rows[0][2], rows[0][3], rows[2][0],
+                rows[3][0] > 0.f ? "yes" : "no");
         }
     }
     for(const Skin& s : skins)
@@ -1098,10 +1099,17 @@ void instanceRows(const entity_t* e, float rows[4][4])
         rows[2][1] = clothes->tint;
         if(elite && vr_elite_pulse.value > 0.f)
         {
-            // (the elite's pulse: its lightness up and down, each one on its own phase by its number)
+            // (the elite's pulse: its dark gold row glows towards bright gold and back, brighter as it does; each one on its
+            // own phase by its number. The MP test reads the row at rest: rows[0] is the table's colour at t 0.)
             const float phase = static_cast<float>(cl.time) * vr_elite_pulse_hz.value * 6.2831853f +
                                 static_cast<float>(e - cl_entities) * 1.7f;
-            rows[2][0] = clothes->light * (1.f + za::clamp(vr_elite_pulse.value, 0.f, 1.f) * za::sin(phase));
+            const float t = za::clamp(vr_elite_pulse.value, 0.f, 1.f) * (0.5f + 0.5f * za::sin(phase));
+            constexpr float gold[3] = {1.f, 0.85f, 0.35f};
+            for(int c = 0; c < 3; c++)
+            {
+                rows[0][c] = clothes->rgb[c] + (gold[c] - clothes->rgb[c]) * t;
+            }
+            rows[2][0] = clothes->light * (1.f + t);
         }
     }
     if(pack)

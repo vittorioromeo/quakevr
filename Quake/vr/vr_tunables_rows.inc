@@ -2979,5 +2979,5 @@ QVR_TUNABLE_SLIDER(vr_elite_health, "Health", 1.0f, 3.0f, 0.1f, "%.1fx", 0.1f, 1
 QVR_TUNABLE_SLIDER(vr_elite_spawn_chance, "Hard and Nightmare Chance", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "With Elites in Hard and Nightmare on, the chance each armed humanoid the map spawns is an elite (vr_elite_spawn_chance).")
 QVR_TUNABLE_SLIDER(vr_elite_arena_wave, "Arena: From Wave", 0.0f, 20.0f, 1.0f, "%.0f", 0.0f, 100.0f, "The Survival Arena's waves from this one on may send elites; 0 never (vr_elite_arena_wave).")
 QVR_TUNABLE_SLIDER(vr_elite_arena_chance, "Arena: Chance", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "In those waves, the chance each armed humanoid is an elite (vr_elite_arena_chance).")
-QVR_TUNABLE_SLIDER(vr_elite_pulse, "Dye Pulse", 0.0f, 0.5f, 0.02f, "%.2f", 0.0f, 1.0f, "The elite dye's lightness up and down by this share; 0 steady (vr_elite_pulse).")
+QVR_TUNABLE_SLIDER(vr_elite_pulse, "Dye Pulse", 0.0f, 0.5f, 0.02f, "%.2f", 0.0f, 1.0f, "How far the elite dye's dark gold glows towards bright gold and back (brighter by as much); 0 steady (vr_elite_pulse).")
 QVR_TUNABLE_SLIDER(vr_elite_pulse_hz, "Dye Pulse Rate", 0.1f, 3.0f, 0.1f, "%.1f Hz", 0.0f, 10.0f, "The elite dye's pulses a second (vr_elite_pulse_hz).")

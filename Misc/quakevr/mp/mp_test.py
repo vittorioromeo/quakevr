@@ -582,11 +582,13 @@ def elite(s):
         if n >= 1:
             break
     s.check("B's client knows the elite (its look's elite bit)", n == 1, "%d elites known" % n)
-    row = b.find(r"client elite \d+: clothes", since) if n >= 1 else None
+    row = b.find(r"client elite \d+ .*: clothes", since) if n >= 1 else None
     line = row[1] if row else ""
     m = re.search(r"clothes ([\d.]+) ([\d.]+) ([\d.]+) strength ([\d.]+) light ([\d.]+), mask (\w+)", line)
-    ok = bool(m) and abs(float(m.group(1)) - 0.95) < 0.02 and abs(float(m.group(2)) - 0.70) < 0.02 and \
-        abs(float(m.group(3)) - 0.18) < 0.02 and float(m.group(4)) > 0.5 and m.group(6) == "yes"
+    # (humlook.txt's elite row, dark gold 0.95 0.70 0.18, pulsing towards bright gold 1 0.85 0.35: each channel between)
+    ok = bool(m) and all(min(lo, hi) - 0.02 <= float(m.group(i + 1)) <= max(lo, hi) + 0.02
+                         for i, (lo, hi) in enumerate(((0.95, 1.0), (0.70, 0.85), (0.18, 0.35)))) and \
+        float(m.group(4)) > 0.5 and m.group(6) == "yes"
     s.check("B draws it with the elite dye (dark gold, masked)", ok, line.strip() or "no client elite line")
     since = srv.mark()
     srv.cmd("vr_attr_set elite 0")

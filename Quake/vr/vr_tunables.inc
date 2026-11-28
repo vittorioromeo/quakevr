@@ -3023,5 +3023,5 @@ QVR_TUNABLE(vr_elite_health, "1.5") // ... its health times this
 QVR_TUNABLE(vr_elite_spawn_chance, "0.15") // with Elites in Hard and Nightmare (vr_elite_spawn): each armed humanoid the map spawns an elite with this chance
 QVR_TUNABLE(vr_elite_arena_wave, "4") // the Survival Arena's waves from this one on may send elites (0: never)
 QVR_TUNABLE(vr_elite_arena_chance, "0.2") // ... each armed humanoid in them an elite with this chance
-QVR_TUNABLE(vr_elite_pulse, "0.2") // the elite dye's pulse: its lightness up and down by this share (0: steady)
+QVR_TUNABLE(vr_elite_pulse, "0.3") // the elite dye's pulse: its dark gold glows this far towards bright gold and back, brighter by as much (0: steady)
 QVR_TUNABLE(vr_elite_pulse_hz, "0.6") // ... this many times a second

@@ -16,6 +16,7 @@
 
 float VR_ATL_SHOT = 40; // frames before test 234's screenshot (their spawns' starts, their idle poses)
 float vr_atl_frames;
+float vr_att_dist; // VR_ATT_Spawn's distance ahead (0: 160) (the lineup's further: all six in view)
 entity vr_atl_ents[6];
 
 // Close: |a - b| within a thousandth of b.
@@ -66,7 +67,7 @@ entity(float kind, float wid, float side, float keyed) VR_ATT_Spawn =
 {
     entity p = vr_agt_player;
     makevectors('0 1 0' * p.angles_y);
-    vector at = p.origin + v_forward * 160 + v_right * side;
+    vector at = p.origin + v_forward * (vr_att_dist ? vr_att_dist : 160) + v_right * side;
     entity oldself = self;
     self = spawn();
     setorigin(self, at);
@@ -204,12 +205,14 @@ void() VR_ATL_Frame =
     float i;
     if(vr_atl_frames == 0)
     {
+        vr_att_dist = 260;
         for(i = 0; i < 6; i++)
         {
             float kind = floor(i / 2);
             float wid = kind == 0 ? WID_ROCKET_LAUNCHER : kind == 1 ? WID_LIGHTNING : WID_SWORD;
-            vr_atl_ents[i] = VR_ATT_Spawn(kind, wid, -125 + i * 50, (i & 1) ? VR_ATTR_ELITE : 0);
+            vr_atl_ents[i] = VR_ATT_Spawn(kind, wid, -100 + i * 40, (i & 1) ? VR_ATTR_ELITE : 0);
         }
+        vr_att_dist = 0;
         VR_AGT_Print("elite lineup: ordinary and elite grunt (rockets), enforcer (lightning), knight (sword), left to right");
     }
     vr_atl_frames = vr_atl_frames + 1;
