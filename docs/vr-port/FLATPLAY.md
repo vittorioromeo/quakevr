@@ -152,6 +152,19 @@ loaded from it, as a pickup comes (`VR_FlatReload_CycleOut` / `CycleIn`): the ha
 gun to the next (`VRCycleEntWeaponInst`), so its rounds were lost or loaded into the wrong gun. `vr_flat_reload 0`: no
 clips, every shot from the reserve, as before.
 
+**The procedural reload** (flatprocreload, his words 2026-11-28; Desktop Screen Play > Procedural Reload,
+`vr_flat_proc_reload 1`, a rule: the host's value holds). The shotgun held in one hand, the other empty: R (or the empty
+clip with Auto Reload) doesn't start the trip to the hip. The server raises the gun hand's bit (`STAT_QVR_FLATRELOAD` 16 /
+32; 64 while the option is on: the ammo pouch is shown, `vr_body.cpp ammoPouchEnabled`, nudged by `vr_flat_ammo_pouch_*`)
+and `vr_flatprocreload.cpp` drives the free hand: to the pouch, impulse 99 there (its hotspot the pouch's) takes a taped
+pair by VR's own `VR_Reload_Take`; to the port's mouth and in, where VR's own carry test (`VR_Reload_HeldFrame`, the port's
+reach) loads it; again until full. The gun's hand tilts the gun to present its port (`vr_flat_prl_tilt_*`). A shot, a shove
+or bash, the weapon changing, the free hand taking something else cancel it; a round in the hand goes back in the reserve
+(`VR_FlatReload_ProcPutBack`). Failsafes: the client cancels (impulse 106) when a round at the port isn't seated within
+`vr_flat_prl_failsafe` or the pouch gives nothing; the server when nothing is taken or loaded for `vr_flat_prl_giveup`.
+Dual wielding and every other gun: the timed trip. Timings, eases, angles: Tunables > Flatscreen > Procedural Reload.
+Test: `Misc/quakevr/flatprocreload_test.sh`.
+
 **The guns' own parts** (his words 2026-11-10; `QC/vr_flatreload.qc`, VR's immersive functions reused: the same sounds,
 casings and physical magazines, with their caps on rounds lying about). Desktop Screen Play's toggles, Tunables >
 Flatscreen > Reload's times:
