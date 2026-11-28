@@ -809,3 +809,28 @@ stands searching there, a knight that chased him under it searches where it saw 
   134` (e1m1, coop, a bot: `maxplayers 2; coop 1; map e1m1; impulse 100`): put under the raised lift it walks out in
   0.4 s; given a goal under it (a temp waypoint) it waits at the edge 2.5 s, 0 frames in the shaft; let go, 0 bounces,
   it boards and rides up in 5.8 s: 5 passed (`vr_shaft 0`: it stays under the lift).
+
+## 25. Chasers of an unreachable foe share one search; their repaths back off (2026-11-28, vr_nav_share)
+
+- **Why**: a foe the walker can't reach (a shut door's floor blocked, a ledge) makes Detour's search go through every
+  polygon the walker can reach (its island, ~1,000 in hip1m1's fight) before it ends at the one nearest the foe. In a
+  big fight almost every search is one of these (hip1m1's: all), each monster doing its own.
+- **Shared** (`vr_nav_share` 1, a cvar; `chaseSearch` in vr_nav.cpp): such a search is kept (up to 32 a class): the
+  island's polygons (sorted), its polygon nearest the foe, the foe's polygon and point, the class's `gen`. A chaser
+  after it starting on that island, for the same foe polygon, the foe's point within `vr_nav_repath_move` (64: the lag a
+  path already has) and `gen` unchanged (kept 4 x `vr_nav_repath` at most), searches only to that nearest polygon, aimed
+  at its point nearest the foe: a short search instead of the whole island. Not reached (a one-way drop between): its
+  own full search. 0: each its own search; 2: both, compared (`vr_nav_sharestats` prints how often they matched).
+- **The same place**: it heads to the island's polygon nearest the foe by the cheapest way. Its own search can end on
+  another polygon only where several are about as near (a polygon's place in a search is the middle of the edge it was
+  first reached by, so near-equal ones swap with the start): along the same edge, as near the foe within a few units.
+- **gen** (a class's): bumped when what a walker can reach may change: refreshMovers' blocked polygons or a
+  teleporter's open state differ from its last pass (a sum), an obstacle tile rebuilt or restored, the mesh made again.
+- **Backoff** (`vr_nav_unreach_backoff_max`, a cvar, 2.4 s; 0 off): a repath that finds the same foe polygon unreachable
+  again with `gen` unchanged waits twice the last wait (0.6 s plain, then 1.2, 2.4). It ends at once when `gen`
+  changes (a door opens, a lift moves), the walker is hurt, or (once the plain wait is over) its foe is out of its sight
+  (one trace): back on the plain interval, so it repaths now if that is over, else when it ends (never more searches
+  than without it). The old reasons still repath at once (the foe moved 64, another goal or slot, off its path).
+  Monsters never open doors. In hip1m1's fight it saves little (~4% of searches): most chasers there don't see him.
+- Debug: `vr_nav_sharestats [reset]` (Debug > Navmesh: "Print Chasers' Shared Searches"): searches a frame, full or
+  shared and their time, the repaths' causes, the classes' gen; with `vr_nav_share 2` how often the shared end matched.
