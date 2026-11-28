@@ -2,10 +2,12 @@
 // `seat` command, and vr_seat_test (two seats' state kept apart).
 #include "vr_seat.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/String/String.hpp"
 
 #include "vr_avatar.hpp"
+#include "vr_bindsetup.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_flatmove.hpp"
@@ -961,28 +963,52 @@ extern "C" qboolean Key_SeatHasBindings(const int seat)
 
 namespace
 {
-// split11: a controller seat's own layout for flat play, whose own keys (vr_flat_key_*: the holster menu, reload, swap,
-// crouch, ...) are the keyboard's and the mouse's (vr_seat.hpp, PadAction). The gamepad keys are the VR controllers'
-// too (quakevr/vr_bindings.cfg: the grips on the shoulders, the main stick's up and down swimming): a button seat 1's
-// copy has unbound or as the VR controllers' (or default.cfg's) binding, `stock`, takes the flat command; a button he
-// bound himself keeps his.
+// split11: a controller seat's own binds for flat play: the buttons no flat key has. The gamepad keys are the VR
+// controllers' too (quakevr/vr_bindings.cfg): a button seat 1's copy has unbound or as default.cfg's binding, `stock`,
+// takes the flat command; a button he bound himself keeps his. (split21 labels: the rest of split11's table went: next's
+// padflat gives those buttons flat keys, vr_flat_key_*, which win over any bind in flat play: B crouch, X reload, Y shove,
+// the shoulders the weapon wheels, the d-pad flashlight / grenade / throw / force grab, L3 the holster menu, R3 punch,
+// and Back + a button the alt layer. The screens read each button's real action: padRows.)
 constexpr qvr::seat::PadAction padDefaults[] = {
-    {K_RTRIGGER, "+attack", nullptr, "Fire (right)"},              // (the left mouse button)
-    {K_LTRIGGER, "+offhandattack", "+jump", "Left hand"},          // (the right mouse button; default.cfg's +jump)
+    {K_RTRIGGER, "+attack", nullptr, "Fire (right)"},           // (the left mouse button)
+    {K_LTRIGGER, "+offhandattack", "+jump", "Off-hand attack"}, // (the right mouse button; default.cfg's +jump)
     {K_ABUTTON, "+jump", nullptr, "Jump"},
-    {K_BBUTTON, "+flatcrouch", "impulse 10", "Crouch"},            // (Ctrl)
-    {K_XBUTTON, "impulse 55", "+reloadoff", "Reload"},             // (R)
-    {K_YBUTTON, "impulse 48", "impulse 12", "Swap hands"},         // (3)
-    {K_RSHOULDER, "impulse 10", "+grabmain", "Next weapon"},       // (the wheel; a flat hand is always closed)
-    {K_LSHOULDER, "impulse 12", "+graboff", "Prev weapon"},
-    {K_DPAD_UP, "+flatholsters", "+moveup", "Holster menu"},       // (mouse 3: the weapon wheel; the look stick points)
-    {K_DPAD_DOWN, "impulse 47", "+movedown", "Drop"},              // (H)
-    {K_DPAD_LEFT, "impulse 46", nullptr, "Force grab"},            // (mouse 4)
-    {K_DPAD_RIGHT, "vr_flashlight_toggle", nullptr, "Flashlight"}, // (F)
-    {K_LTHUMB, "+speed", nullptr, "Run"},                          // (Shift)
-    {K_RTHUMB, "vr_flat_punch main", "+reloadmain", "Punch"},      // (V)
-    // (Back is Tab, the scores, and Start the seat's menu: Ironwail maps them, no binding)
+    // (Back is the alt layer's +altmodifier, fillPadDefaults' bind; Start the seat's menu: Ironwail maps it, no binding)
 };
+
+// split21 labels: the buttons the layout lists (the join screen, the seat menu's Controls page), in order; and the alt
+// layer's (Back held), each with its button.
+constexpr int padButtons[] = {K_RTRIGGER, K_LTRIGGER, K_ABUTTON, K_BBUTTON, K_XBUTTON, K_YBUTTON, K_RSHOULDER, K_LSHOULDER,
+    K_DPAD_UP, K_DPAD_DOWN, K_DPAD_LEFT, K_DPAD_RIGHT, K_LTHUMB, K_RTHUMB, K_BACK};
+constexpr struct
+{
+    int key, base;
+} padAltButtons[] = {{K_RTRIGGER_ALT, K_RTRIGGER}, {K_LTRIGGER_ALT, K_LTRIGGER}, {K_ABUTTON_ALT, K_ABUTTON},
+    {K_BBUTTON_ALT, K_BBUTTON}, {K_XBUTTON_ALT, K_XBUTTON}, {K_YBUTTON_ALT, K_YBUTTON}, {K_RSHOULDER_ALT, K_RSHOULDER},
+    {K_LSHOULDER_ALT, K_LSHOULDER}, {K_DPAD_UP_ALT, K_DPAD_UP}, {K_DPAD_DOWN_ALT, K_DPAD_DOWN},
+    {K_DPAD_LEFT_ALT, K_DPAD_LEFT}, {K_DPAD_RIGHT_ALT, K_DPAD_RIGHT}, {K_LTHUMB_ALT, K_LTHUMB}, {K_RTHUMB_ALT, K_RTHUMB}};
+
+// The bind a seat joining now gets on `key` (applyPadDefaults on the current seat's): padDefaults' command where it
+// applies, else nullptr (the current seat's own).
+[[nodiscard]] const char* freshBind(int key)
+{
+    for(const qvr::seat::PadAction& d : padDefaults)
+    {
+        const char* b = Key_Seat()->bindings[key];
+        if(d.key == key && (!b || !b[0] || (d.stock && !ZA_STRCMP(b, d.stock))))
+        {
+            return d.command;
+        }
+    }
+    return nullptr;
+}
+
+// A button's name as the layout prints it: the d-pad's Up, Down, Left, Right without "DPAD "
+[[nodiscard]] const char* padName(int key)
+{
+    const char* name = Key_KeynumToFriendlyString(key);
+    return name + (!ZA_STRNCMP(name, "DPAD ", 5) ? 5 : 0);
+}
 
 // The current seat's bindings: the controller layout where a button is unbound or stock.
 void applyPadDefaults()
@@ -1002,6 +1028,41 @@ const qvr::seat::PadAction* qvr::seat::padLayout(int& count)
 {
     count = static_cast<int>(za::getArraySize(padDefaults));
     return padDefaults;
+}
+
+int qvr::seat::padRows(PadRow* out, int max, bool fresh, bool alt)
+{
+    const Scope in(at(fresh ? 0 : current().index)); // (fresh: seat 1's flat keys and binds, as a join copies them)
+    int n = 0;
+    auto add = [&](int key, int base, bool isAlt) {
+        const char* action = qvr::bindsetup::padButtonAction(key, fresh ? freshBind(key) : nullptr);
+        const char* b = Key_Seat()->bindings[key];
+        if(key == K_BACK && b && !ZA_STRCMP(b, "+altmodifier"))
+        {
+            action = "Alt layer";
+        }
+        if(n >= max || (isAlt && !action[0]))
+        {
+            return; // (the alt layer: only its buttons that do something)
+        }
+        PadRow& r = out[n++];
+        r.key = key;
+        r.action = action[0] ? action : "-";
+        q_strlcpy(r.name, padName(base), sizeof(r.name));
+    };
+    if(alt)
+    {
+        for(const auto& a : padAltButtons)
+        {
+            add(a.key, a.base, true);
+        }
+        return n;
+    }
+    for(const int k : padButtons)
+    {
+        add(k, k, false);
+    }
+    return n;
 }
 
 void applySavedBinds(int s); // split20 (below)

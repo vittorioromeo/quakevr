@@ -868,18 +868,16 @@ extern "C" void M_Splitscreen_Draw()
             M_DrawCharacter(68, y, 12 + (static_cast<int>(realtime * 4) & 1));
         }
     }
-    if(screen.showButtons) // split11: a controller seat's layout in the game (seat::padLayout; its seat menu's Controls)
-    {
-        int count = 0;
-        const PadAction* layout = padLayout(count);
+    if(screen.showButtons) // split11: a controller seat's layout in the game (split21 labels: seat::padRows, what each
+    {                      // button does for a seat joining now; its seat menu's Controls page shows the seat's own)
+        PadRow layout[16];
+        const int count = padRows(layout, 16, true, false);
         M_PrintWhite(16, rowY0 - 8, "A controller in the game:");
         for(int i = 0; i < count; i++)
         {
             const int x = i % 2 == 0 ? 16 : 168, y = rowY0 + 2 + (i / 2) * 8;
-            const char* name = Key_KeynumToFriendlyString(layout[i].key);
-            name += !ZA_STRNCMP(name, "DPAD ", 5) ? 5 : 0; // (the d-pad's Up, Down, Left, Right)
-            printClipped(x, y, name, 6, true);
-            printClipped(x + 56, y, layout[i].label, 12, false);
+            printClipped(x, y, layout[i].name, 6, true);
+            printClipped(x + 56, y, layout[i].action, 12, false);
         }
     }
     M_Print(12, 172, "Pads: A joins, B leaves, Start plays");

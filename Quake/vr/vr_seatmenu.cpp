@@ -21,6 +21,7 @@
 // "seat_menu_test: N passed, M failed".
 #include "vr_seat.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -203,6 +204,14 @@ void drawItem(const int y, const char* label, const char* value, const bool sele
     }
 }
 
+// `text` at (x, y), cut to `chars` characters
+void printCut(const int x, const int y, const char* text, const int chars, const bool white)
+{
+    char buf[32];
+    q_strlcpy(buf, text, static_cast<size_t>(za::min(static_cast<int>(sizeof(buf)), chars + 1)));
+    white ? M_PrintWhite(x, y, buf) : M_Print(x, y, buf);
+}
+
 void drawMenu(const int s, const SeatMenuState& m)
 {
     GL_SetCanvas(CANVAS_MENU);
@@ -213,21 +222,25 @@ void drawMenu(const int s, const SeatMenuState& m)
     }
     if(m.controls)
     {
-        // split11: flat play's whole controller layout (seat::padLayout), each with the seat's own button for it
-        int count = 0;
-        const PadAction* layout = padLayout(count);
-        M_DrawTextBox(32, 20, 30, count + 4);
-        M_PrintWhite(48, 30, va("seat %d: controls", s + 1));
-        int y = 44;
+        // split11: the seat's controller layout (split21 labels: seat::padRows, what each button really does for this
+        // seat: its flat keys, its own buttons included, else its binds), the alt layer's (Back held) beside it
+        PadRow main[16], alt[16];
+        const int count = padRows(main, 16, false, false);
+        const int altCount = padRows(alt, 16, false, true);
+        M_DrawTextBox(8, 20, 36, 19);
+        M_PrintWhite(24, 30, va("seat %d: controls", s + 1));
         for(int i = 0; i < count; i++)
         {
-            int keys[1] = {-1};
-            const bool bound = Key_GetKeysForCommand(layout[i].command, keys, 1, KDM_GAMEPAD) > 0;
-            M_Print(48, y, layout[i].label);
-            M_PrintWhite(208, y, bound ? Key_KeynumToFriendlyString(keys[0]) : "-");
-            y += 8;
+            printCut(16, 44 + i * 8, main[i].name, 6, true);
+            printCut(64, 44 + i * 8, main[i].action, 12, false);
         }
-        M_Print(48, y + 4, "B: back");
+        M_PrintWhite(168, 44, "With Back held:");
+        for(int i = 0; i < altCount; i++)
+        {
+            printCut(168, 56 + i * 8, alt[i].name, 6, true);
+            printCut(216, 56 + i * 8, alt[i].action, 11, false);
+        }
+        M_Print(168, 172, "B: back");
         return;
     }
     M_DrawTextBox(64, 48, 24, 11);
@@ -1281,8 +1294,229 @@ void split21TestFrame()
     split21Stage();
 }
 
+// ---- split21 labels: vr_seat_padlabels_test (Misc/quakevr/seat_padlabels_test.sh) ------------------------------------
+// The controller layout's labels show what each button really does (seat::padRows): the join screen's (a seat joining
+// now) and seat 2's Controls page match padflat's layout (L3 the holster menu, the d-pad flashlight / grenade / throw /
+// force grab, ...; Back the alt layer and its buttons); seat 2 moves the flashlight onto the d-pad's Down in its
+// Controller Bindings (the screen's pick, bindsetup::bindButton): its Controls page shows it there, seat 1's layout and
+// the join screen's stay as they were. Pictures: the join screen's layout, seat 2's Controls page before and after.
+// Verdict "seat_padlabels_test: N passed, M failed".
+namespace
+{
+struct PadLabelsTest
+{
+    testkit::Tally tally;
+    bool on = false;
+    int stage = 0;
+    int frames = 0;
+    int wait = 0;
+} padLabelsTest; // seat-shared: a test's own state
+
+bool lcheck(const bool ok, const char* what)
+{
+    if(padLabelsTest.tally.check(ok, "seat_padlabels_test", what))
+    {
+        Con_Printf("seat_padlabels_test: PASS %s\n", what);
+    }
+    return ok;
+}
+
+void lnext(const int wait = 0)
+{
+    padLabelsTest.stage++;
+    padLabelsTest.frames = 0;
+    padLabelsTest.wait = wait;
+}
+
+// Seat s's layout rows (fresh: a joining seat's, the join screen's) as "button=action; ..." in one text
+za::String layoutText(const int s, const bool fresh, const bool alt)
+{
+    const Scope in(at(s));
+    PadRow rows[16];
+    const int n = padRows(rows, 16, fresh, alt);
+    za::String out;
+    for(int i = 0; i < n; i++)
+    {
+        out += va("%s%s=%s", i ? "; " : "", Key_KeynumToString(rows[i].key), rows[i].action);
+    }
+    return out;
+}
+
+// The action seat s's row for `key` shows ("" no row)
+za::String actionOf(const int s, const bool fresh, const int key)
+{
+    const Scope in(at(s));
+    PadRow rows[16];
+    const bool alt = key >= K_LTHUMB_ALT && key <= K_RTRIGGER_ALT;
+    const int n = padRows(rows, 16, fresh, alt);
+    for(int i = 0; i < n; i++)
+    {
+        if(rows[i].key == key)
+        {
+            return za::String{rows[i].action};
+        }
+    }
+    return za::String{};
+}
+
+// padflat's layout (FLATPLAY.md "A gamepad"), as the rows name it
+constexpr struct
+{
+    int key;
+    const char* action;
+} padflatLayout[] = {{K_BBUTTON, "Crouch / slide"}, {K_XBUTTON, "Reload"}, {K_YBUTTON, "Shove"},
+    {K_RSHOULDER, "Cycle right hand"}, {K_LSHOULDER, "Cycle left hand"}, {K_DPAD_UP, "Flashlight"},
+    {K_DPAD_DOWN, "Quick grenade"}, {K_DPAD_LEFT, "Throw / drop"}, {K_DPAD_RIGHT, "Force grab"}, {K_LTHUMB, "Holster menu"},
+    {K_RTHUMB, "Punch"}, {K_BACK, "Alt layer"}, {K_ABUTTON_ALT, "Lie down"}, {K_YBUTTON_ALT, "Swap hands"},
+    {K_XBUTTON_ALT, "Next ammo type"}, {K_BBUTTON_ALT, "Grab / pull"}, {K_RSHOULDER_ALT, "Bullet time"},
+    {K_LSHOULDER_ALT, "Attach / detach"}};
+
+// Seat s's rows against padflat's layout: how many differ (each printed)
+int layoutMisses(const int s, const bool fresh, const char* what)
+{
+    int miss = 0;
+    for(const auto& l : padflatLayout)
+    {
+        const za::String a = actionOf(s, fresh, l.key);
+        if(!(a == l.action))
+        {
+            Con_Printf("seat_padlabels_test: %s: %s shows \"%s\", padflat's \"%s\"\n", what, Key_KeynumToString(l.key), a.cStr(), l.action);
+            miss++;
+        }
+    }
+    return miss;
+}
+
+void lfinish()
+{
+    if(stateOf(1).open)
+    {
+        shut(stateOf(1));
+    }
+    Cbuf_AddText("seat_unbindall 2\n"); // (seat 2's own buttons and binds the test made: none saved)
+    if(plays(1))
+    {
+        Cbuf_AddText("seat_leave 2\n");
+    }
+    IN_MockPad(seatPad, false);
+    padLabelsTest.on = false;
+    padLabelsTest.tally.verdict("seat_padlabels_test");
+}
+
+void padLabelsStage()
+{
+    PadLabelsTest& t = padLabelsTest;
+    switch(t.stage)
+    {
+        case 0:
+            if(!sv.active || !signedOn(0))
+            {
+                return;
+            }
+            {
+                const int miss = layoutMisses(0, true, "join screen");
+                lcheck(miss == 0, va("the join screen's layout is padflat's (%d of %d differ)", miss,
+                                      static_cast<int>(za::getArraySize(padflatLayout))));
+            }
+            Con_Printf("seat_padlabels_test: join screen: %s | Back held: %s\n", layoutText(0, true, false).cStr(),
+                layoutText(0, true, true).cStr());
+            M_Menu_Splitscreen_f();
+            M_Splitscreen_Key(K_YBUTTON); // (the layout in the rows' place)
+            lnext(4);
+            return;
+        case 1:
+            Cbuf_AddText("screenshot\n"); // (the join screen's layout: run.sh -Out composes the pictures)
+            lnext(2);
+            return;
+        case 2:
+            M_Splitscreen_Key(K_YBUTTON);
+            IN_Activate();
+            key_dest = key_game;
+            m_state = m_none;
+            IN_MockPad(seatPad, true);
+            Cbuf_AddText(va("seat_join %d\n", seatPad));
+            lnext();
+            return;
+        case 3:
+        {
+            if(!signedOn(1))
+            {
+                return;
+            }
+            const int miss = layoutMisses(1, false, "seat 2");
+            lcheck(miss == 0, va("seat 2's Controls page is padflat's layout, the alt layer's too (%d differ)", miss));
+            Cbuf_AddText("seat_menu 2\n");
+            lnext(2);
+            return;
+        }
+        case 4:
+            if(!stateOf(1).open)
+            {
+                return;
+            }
+            stateOf(1).controls = true;
+            lnext(4);
+            return;
+        case 5:
+            Cbuf_AddText("screenshot\n"); // (seat 2's Controls page in its tile)
+            lnext(2);
+            return;
+        case 6:
+        {
+            const za::String host = layoutText(0, false, false), join = layoutText(0, true, false);
+            {
+                const Scope in(at(1));
+                bindsetup::bindButton(K_DPAD_DOWN, "vr_flat_key_flashlight"); // (seat 2's Controller Bindings' pick)
+            }
+            const za::String down = actionOf(1, false, K_DPAD_DOWN), up = actionOf(1, false, K_DPAD_UP);
+            lcheck(down == "Flashlight" && !(up == "Flashlight"),
+                va("seat 2 moved the flashlight: its Controls page shows Down \"%s\", Up \"%s\"", down.cStr(), up.cStr()));
+            lcheck(host == layoutText(0, false, false) && join == layoutText(0, true, false) &&
+                       actionOf(0, false, K_DPAD_UP) == "Flashlight" && actionOf(0, false, K_DPAD_DOWN) == "Quick grenade",
+                "seat 1's layout and the join screen's unchanged (Up the flashlight, Down the grenade)");
+            lnext(4);
+            return;
+        }
+        case 7:
+            Cbuf_AddText("screenshot\n"); // (seat 2's Controls page with its own button)
+            lnext(2);
+            return;
+        default: lfinish(); return;
+    }
+}
+
+void padLabelsTest_f()
+{
+    padLabelsTest = PadLabelsTest{};
+    padLabelsTest.on = true;
+    Con_Printf("seat_padlabels_test: started (it runs once the map is up)\n");
+}
+} // namespace
+
+void padLabelsTestFrame()
+{
+    PadLabelsTest& t = padLabelsTest;
+    if(!t.on)
+    {
+        return;
+    }
+    if(t.wait > 0)
+    {
+        t.wait--;
+        return;
+    }
+    if(++t.frames > stageFrames)
+    {
+        lcheck(false, va("timed out (stage %d)", t.stage));
+        lfinish();
+        return;
+    }
+    padLabelsStage();
+}
+
 void registerMenuCommands()
 {
+    Cmd_AddCommand("vr_seat_padlabels_test", padLabelsTest_f);
     Cmd_AddCommand("vr_seat_split21_test", split21Test_f);
     Cvar_RegisterVariable(&scr_splitmenu);
     Cvar_RegisterVariable(&scr_splitpause);

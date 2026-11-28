@@ -65,6 +65,14 @@ void seatDraw();
 [[nodiscard]] bool seatKey(int key);
 [[nodiscard]] int cursorKey(); // the current seat's screen: the selected button's key (-1: none; vr_seat_bind_test)
 
+// split21 labels: what gamepad button `key` does for the current seat, named as this screen names it with a gamepad shown
+// (flat play's flat key on it if one has it, the seat's own buttons included, else its bind; `bind` non-null: that bind
+// in place of the seat's, a joining seat's): the action's name, "" nothing. seat::padRows (the join screen's layout, the
+// seat menu's Controls page).
+[[nodiscard]] const char* padButtonAction(int key, const char* bind = nullptr);
+void bindButton(int key, const char* command); // the current seat's screen's pick of `command` for `key` (a flat key's
+                                               // name: its button moved; vr_seat_padlabels_test)
+
 // The reminder panels' data (vr_bindpanel.cpp; ROUND26 "bindpanel2"): a controller's small pictures (a VR pair, the left
 // hand first, or a gamepad) and each of its buttons as this screen labels it, from the same tables and binds, so the
 // panels show what the screen edits. Keyboard: none (0).

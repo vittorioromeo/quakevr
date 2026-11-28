@@ -1538,6 +1538,32 @@ void bindTest_f()
 
 } // namespace
 
+const char* padButtonAction(int key, const char* bind)
+{
+    if(scr().actions.empty())
+    {
+        buildActions(); // (the actions' names, as panelButtons)
+    }
+    const char* b = bindingOf(key, Model::GenericPad); // (a gamepad's view: its flat key first)
+    if(bind && !flatKeyNamed(b))
+    {
+        b = bind;
+    }
+    return b[0] ? actionName(b) : "";
+}
+
+void bindButton(int key, const char* command)
+{
+    if(flatKeyNamed(command))
+    {
+        // (the screen's pick with a gamepad shown: the button moved to that flat key)
+        seat::bindsEdited();
+        flatplay::setPadKey(*flatKeyNamed(command), key);
+        return;
+    }
+    setKey(key, command);
+}
+
 const char* modelId(Model m)
 {
     return info(m).id;

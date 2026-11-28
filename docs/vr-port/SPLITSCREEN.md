@@ -1365,6 +1365,12 @@ between players becomes part of the per-player state."
   page) still names the d-pad up as the holster menu: on padflat's buttons the flat keys run instead (L3 holster menu,
   d-pad flashlight / grenade / throw / force grab), so the labels there are stale. Dazzle, embedfire and the beasts'
   breaks are the server's (per player already).
+- **Labels fixed (splitlabels, his "Yes, fix labels")**: the join screen's layout (Y / Tab) and the seat menu's Controls
+  page now list each button with what it really does (`seat::padRows` via `bindsetup::padButtonAction`, the Controller
+  Bindings screen's own resolution: the seat's flat key on it, its own buttons included, else its bind; Back "Alt layer",
+  and on the Controls page the alt layer's buttons beside it); `padDefaults` keeps only the buttons no flat key has
+  (RT, LT, A). Test: `Misc/quakevr/seat_padlabels_test.sh` (padflat's layout on both, seat 2's moved flashlight on its
+  page only).
 - **seat_state**: 3,674 allowlisted, 570 marked seat-shared.
 - **Tests**: new `Misc/quakevr/seat_split21_test.sh` (`vr_seat_split21_test`): seat 2 joins by a mock pad: its visor boots
   while seat 1's stays up; both seats fire and press R in one frame: each seat's off hand on its own trip, each counted

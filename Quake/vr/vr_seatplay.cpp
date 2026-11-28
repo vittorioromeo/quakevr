@@ -715,5 +715,6 @@ extern "C" void CL_SeatFrame()
     menuTestFrame();
     bindTestFrame(); // split20
     split21TestFrame(); // split21
+    padLabelsTestFrame(); // split21 labels
     joinTestFrame();
 }

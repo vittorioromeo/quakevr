@@ -5979,3 +5979,6 @@ labels (join screen) still show the old d-pad holster menu. Details, how to try 
 Tests: new `Misc/quakevr/seat_split21_test.sh` 6/0 (two seats reloading at once, seat 2's grenade, seat 2's visor boot);
 seat_bind_test.sh 14/0, seat_play_test.sh 63/0, split_join_test.sh 113/0, seat_menu_test.sh 62/0, seat_render_test.sh
 367/1 (the anim ragdoll's 15 of 16 frames: split20's known one-off).
+Labels (splitlabels, same branch): the join screen's layout and the seat menu's Controls page show each button's real
+action for the seat (its flat key, else its bind; Back the alt layer, its buttons on the Controls page), `padDefaults` cut
+to RT/LT/A; new `seat_padlabels_test.sh` 4/0, seat_bind 14/0, seat_menu 62/0, split_join 113/0, seat_split21 6/0.

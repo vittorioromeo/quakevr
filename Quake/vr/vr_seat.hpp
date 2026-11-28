@@ -191,9 +191,9 @@ void setInPlay(int n); // the first n seats in play, seat i driven by pad i-1 (v
                                  // first pad no seat has (in_sdl.c's IN_PadSeat)
 void setPlays(int i, bool on, int pad); // seat i (1-3) in or out of play, joined by that pad (vr_seatplay.cpp)
 
-// split11: a controller seat's layout for flat play (its keys are the keyboard's and the mouse's): each button's
-// command, given where seat 1's copied bindings leave the button unbound or as default.cfg has it (`stock`). The seat
-// menu's Controls page lists the seat's buttons for these commands; the join screen shows the layout.
+// split11: a controller seat's binds for flat play on the buttons no flat key has (the triggers, A): each button's
+// command, given where seat 1's copied bindings leave the button unbound or as default.cfg has it (`stock`); the
+// Controller Bindings screen names the commands by their labels.
 struct PadAction
 {
     int key;
@@ -202,6 +202,18 @@ struct PadAction
     const char* label;
 };
 [[nodiscard]] const PadAction* padLayout(int& count);
+// split21 labels: the controller layout the join screen and the seat menu's Controls page show: each of a pad's buttons
+// (the triggers, the face buttons, the shoulders, the d-pad, the sticks, Back) with what it really does for the current
+// seat (bindsetup::padButtonAction: its flat key, the seat's own buttons included, else its bind's action; Back's
+// +altmodifier "Alt layer"); `fresh`: for a seat joining now (seat 1's flat keys and binds, padDefaults applied:
+// the join screen's); `alt`: the alt layer's (Back held) buttons that do something instead. Rows written (<= max).
+struct PadRow
+{
+    int key;            // the button (alt: its alt key)
+    const char* action; // "-": nothing (valid until the binds change)
+    char name[16];      // the button's name ("X", "Up" for the d-pad's; alt: the button held with Back)
+};
+int padRows(PadRow* out, int max, bool fresh, bool alt);
 [[nodiscard]] clientseat_t* netIfMade(int i); // seat i's client if it was ever made (nullptr: never used)
 // A shared effect's emitter run once a frame (phase 7 part 3; CL_SeatEffectFirst's SEATFX_VR): the first drawn seat to run
 // it this frame does, the others skip it (key: the emitter's, e.g. an entity's number). One seat: always.
@@ -268,5 +280,6 @@ void bindsEdited();
 // split20 (vr_seatmenu.cpp): vr_seat_bind_test, its per-frame step (menuTestFrame's).
 void bindTestFrame();
 void split21TestFrame(); // split21 (vr_seatmenu.cpp): vr_seat_split21_test's per-frame step
+void padLabelsTestFrame(); // split21 labels (vr_seatmenu.cpp): vr_seat_padlabels_test's per-frame step
 
 } // namespace qvr::seat
