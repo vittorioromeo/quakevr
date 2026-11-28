@@ -327,6 +327,7 @@ float() VR_WP_DeathLoot;                                                 // VR_A
 .float vr_ag_dazzle_lit;  // ... the strongest lamp on its eyes then (0 none; the tests)
 .float vr_ag_shieldw;     // its shielding hand's share (0..1), eased (VR_AGP_Shield)
 .vector vr_ag_shield_at;  // ... where that hand was sent last (world; the tests)
+.float vr_ag_dazzle_hold; // ... held at this dazzle (above 0; the Dazzle Studio's subject: vr_dazzlestudio.cpp), whatever lights it
 void(entity g) VR_AG_DazzleTick;          // VR_AGP_Pose: its dazzle eased
 float(entity g) VR_AG_DazzleAim;          // VR_AGAI_Accuracy: its shots' error and spread times this
 void(entity g, entity p) VR_AGP_Shield;   // VR_AGP_PoseQC (and the engine's agpose): its off hand before its eyes

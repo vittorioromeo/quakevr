@@ -1658,6 +1658,7 @@ NOISE_FUNCTIONS
 "	vec4	Nails; // QVR: painted nails (vr/vr_view.cpp nailLook): the polish's rgb, w 1 + its gloss (0 none; NailTex its mask)\n"\
 "	vec4	Barrel; // QVR: a hot gun barrel's glow (vr/vr_hotblade.cpp barrelInstance): x 1 (no mask) or 2 + its mask's first word in BarrelMasks (0: not a barrel), yz its ramp along the rest pose's x (x * y + z), w 1: the mask shown flat (painted)\n"\
 "	vec4	Recolor[4]; // QVR: an armed humanoid's recolour by its weapon (vr/vr_humlook.cpp): [0] the clothes' colour, its strength; [1] the pack's; [2] their lightness factors and tint shares (clothes xy, pack zw); [3] x 1 + its mask's first word in HumMasks (0: none), yz the mask's size, w the mask shown\n"\
+"	vec4	Elite; // QVR: the elite marker (vr/vr_humlook.cpp eliteGlow; ModelRimReflect): rgb its glow times its strength, w its share over the whole body (zero: none)\n"\
 "	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none), z 1: one of the player's own, drawn at the flatscreen model FOV\n"\
 "};\n"\
 "\n"\

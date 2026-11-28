@@ -52,6 +52,11 @@ void weightDirections(hands::State& s, float turnYaw);
 // `margin` deeper (0: clear; floors and ceilings not counted). Flatscreen play's free hand at a wall (vr_flatsight.cpp).
 [[nodiscard]] float pointWallDepth(const glm::vec3& from, const glm::vec3& point, float margin);
 
+// And past the first surface of any kind, floors and ceilings too (each `margin` deeper): a flat punch or shove stopping
+// on the floor as on a wall (his words 2026-11-28: crouched, aiming down, the fists went through the floor; vr_flatplay.cpp
+// handOffWall).
+[[nodiscard]] float pointSurfaceDepth(const glm::vec3& from, const glm::vec3& point, float margin);
+
 // vr_gun_wall_depth: each hand's weapon as drawn last frame (held or carried), how far into the level it goes (its model's
 // points past the surfaces the lines from the hand to them meet), and how far the walls held the hand out.
 void gunWallDepth_f();

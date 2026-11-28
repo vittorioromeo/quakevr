@@ -344,6 +344,7 @@
         row(opt::vr_flat_holster_menu_blur),
         row(opt::vr_flat_holster_menu_xhair_fade),
         row(opt::vr_flat_holster_menu_size),
+        row(opt::vr_flat_holster_menu_levelbar),
         row(opt::vr_flat_holster_menu_fade_time),
         row(opt::vr_flat_holster_menu_cursor_speed),
         row(opt::vr_flat_holster_menu_crt),

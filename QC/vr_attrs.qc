@@ -76,9 +76,10 @@ float(entity e) VR_Attr_ShrugsPain =
 void(entity e) VR_Attr_Look =
 {
     float look = e.vr_hum_look - (e.vr_hum_look & VR_HUM_LOOK_ELITE);
-    if((e.vr_attrs & VR_ATTR_ELITE) && e.vr_ag && e.vr_ag_kind < VR_AM_DGUARD && !(look & 4096))
+    if((e.vr_attrs & VR_ATTR_ELITE) && e.vr_ag && !(look & 4096))
     {
-        // (no weapon colour of its own: its kind's row alone, category 0, for the dye)
+        // (no weapon colour of its own: its kind's row alone, category 0, for the dye; AD's death guard and crossbow
+        // knight (rows 4, 5) have no dye's masks: the bit gives them the engine's marker alone, vr_humlook.cpp eliteGlow)
         e.vr_hum_look = (look ? look : e.vr_ag_kind * 16) + VR_HUM_LOOK_ELITE;
         return;
     }
@@ -169,7 +170,11 @@ void(entity e) VR_Attr_Spawned =
             VR_Attr_Set(e, bit, TRUE);
         }
     }
-    if(VR_Elite_Rolls(e, cvar_hget(cvarh_vr_elite_spawn_chance)))
+    if(!(e.vr_attrs & VR_ATTR_ELITE) && VR_Run_ForcesElite(e))
+    {
+        VR_Attr_Set(e, VR_ATTR_ELITE, TRUE); // (the run's All Elites: no roll)
+    }
+    else if(VR_Elite_Rolls(e, cvar_hget(cvarh_vr_elite_spawn_chance)))
     {
         VR_Attr_Set(e, VR_ATTR_ELITE, TRUE);
         dprint(sprintf("elite: %s rolled elite (skill %g)\n", e.classname, skill));

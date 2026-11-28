@@ -1,0 +1,14 @@
+# elite_marker: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The elite marker (ROUND26.md,
+# "elite2"; vr_humlook.cpp eliteGlow, vr_elite_glow; the gold trim, vr_elite_trim): an armed grunt spawned nearest you made
+# an elite, two ordinary ones beside it; everyone armoured, a tier each by entity number (vr_agarmor 4: green, yellow,
+# red); you notarget, so they wait.
+title Elite marker: an armoured elite grunt beside two ordinary armoured grunts
+map vrtesthall
+god
+notarget
+cvar vr_agarmor 4
+spawnarmed monster_vr_grunt 0 0 160 0
+spawnarmed monster_vr_grunt 0 0 230 -60
+spawnarmed monster_vr_grunt 0 0 230 60
+cmd vr_attr_set elite 1
+hint The nearest grunt is an elite: a soft gold glow round its outline and its armour's, and its plates' edges trimmed gold while their faces keep their own colour. Compare the other two; in a dark corner of a real map an elite should still stand out.
