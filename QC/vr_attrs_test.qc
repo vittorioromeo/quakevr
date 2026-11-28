@@ -9,15 +9,17 @@
 //   Nightmare's roll (only with the option, only on Hard or Nightmare, never for the tools' spawns); the arena's wave
 //   rule (none before its wave, the same elites for the same wave, about its chance). One frame; ends on
 //   `agtest: test 233 over: P passed, F failed`.
-// `vr_agrunt_test 234` (his review): an ordinary and an elite grunt (rocket launcher), enforcer (lightning gun) and
-//   knight (sword) in a row ahead, held still (the script's vr_agrunt_freeze 1); after VR_ATL_SHOT frames a screenshot;
-//   ends the same way (test 234 over).
+// `vr_agrunt_test 234` (his review): an ordinary and an elite grunt (rocket launcher), enforcer (lightning gun), knight
+//   and death knight (sword) in a row ahead, unarmoured, held still (the script's vr_agrunt_freeze 1); after VR_ATL_SHOT
+//   frames a screenshot and `vr_humlook_dyetest 4` (each elite's clothes as drawn, warmer than its stock skin: its own
+//   verdict line `humlook dyetest: P passed, F failed`); ends the same way (test 234 over).
 // VR_Attr_TestOne: the toolgun's elite test's look at each spawn (vr_toolgun.cpp vr_toolgun_armed_elite_test).
 
 float VR_ATL_SHOT = 40; // frames before test 234's screenshot (their spawns' starts, their idle poses)
+float VR_ATL_COUNT = 8; // the lineup: an ordinary and an elite of each armed kind
 float vr_atl_frames;
-float vr_att_dist; // VR_ATT_Spawn's distance ahead (0: 160) (the lineup's further: all six in view)
-entity vr_atl_ents[6];
+float vr_att_dist; // VR_ATT_Spawn's distance ahead (0: 160) (the lineup's further: all eight in view)
+entity vr_atl_ents[8];
 
 // Close: |a - b| within a thousandth of b.
 float(float a, float b) VR_ATT_Near = { return fabs(a - b) <= 0.001 * max(1, fabs(b)); };
@@ -205,31 +207,42 @@ void() VR_ATL_Frame =
     float i;
     if(vr_atl_frames == 0)
     {
+        // (ROUND26 "elitedye": no armour, so its plates hide no dye: the skill's roll gave the elite enforcer a green
+        // cuirass, helmet and pauldrons, read as "stock green"; the first one clear of the hall's left wall)
         vr_att_dist = 260;
-        for(i = 0; i < 6; i++)
+        for(i = 0; i < VR_ATL_COUNT; i++)
         {
             float kind = floor(i / 2);
             float wid = kind == 0 ? WID_ROCKET_LAUNCHER : kind == 1 ? WID_LIGHTNING : WID_SWORD;
-            vr_atl_ents[i] = VR_ATT_Spawn(kind, wid, -100 + i * 40, (i & 1) ? VR_ATTR_ELITE : 0);
+            vr_atl_ents[i] = VR_ATT_Spawn(kind, wid, -55 + i * 36, (i & 1) ? VR_ATTR_ELITE : 0);
+            VR_AgArmor_Give(vr_atl_ents[i], 0, 0);
         }
         vr_att_dist = 0;
-        VR_AGT_Print("elite lineup: ordinary and elite grunt (rockets), enforcer (lightning), knight (sword), left to right");
+        VR_AGT_Print("elite lineup: ordinary and elite grunt (rockets), enforcer (lightning), knight and death knight (sword), left to right");
     }
     vr_atl_frames = vr_atl_frames + 1;
     if(vr_atl_frames == VR_ATL_SHOT)
     {
         localcmd("screenshot\n");
+        cvar_set("vr_test_humlook_dye", "-1");
+        localcmd(sprintf("vr_humlook_dyetest %g\n", VR_ATL_COUNT / 2)); // (each elite's clothes as drawn: its failures into vr_test_humlook_dye)
     }
     if(vr_atl_frames >= VR_ATL_SHOT + 4)
     {
         float made = 0;
-        for(i = 0; i < 6; i++)
+        float bare = 0;
+        for(i = 0; i < VR_ATL_COUNT; i++)
         {
             made = made + (vr_atl_ents[i] != world && ((vr_atl_ents[i].vr_hum_look & VR_HUM_LOOK_ELITE) != 0) == (i & 1));
+            bare = bare + (vr_atl_ents[i] != world && vr_atl_ents[i].vr_ar_mask == 0);
             VR_AGT_Remove(vr_atl_ents[i]);
             vr_atl_ents[i] = world;
         }
-        VR_AGT_Check(sprintf("elite lineup: %g of 6 as they should be (every second one an elite), the screenshot taken", made), made == 6);
+        VR_AGT_Check(sprintf("elite lineup: %g of %g as they should be (every second one an elite), %g unarmoured, the screenshot taken",
+            made, VR_ATL_COUNT, bare), made == VR_ATL_COUNT && bare == VR_ATL_COUNT);
+        float dyeFails = cvar_hget(cvarh_vr_test_humlook_dye);
+        VR_AGT_Check(sprintf("elite lineup: every elite's clothes drawn gold (vr_humlook_dyetest: %g failed; -1 not run)", dyeFails),
+            dyeFails == 0);
         vr_atl_frames = 0;
         cvar_set("vr_agrunt_test", "0");
     }

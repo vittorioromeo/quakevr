@@ -5347,3 +5347,22 @@ Docs only; 331 -> about 260 lines. Removed or rewritten:
 - Section 3: "Hotkeys for the remaining VR interactions" removed (audit done, FLATPLAY.md "Hotkeys"); "Procedural reloads" cut to the guns beyond the one-handed shotgun (flatprocreload).
 - Section 9: item 2 "Ironwail extraction" removed (iwextract; what is left stays inside Ironwail's functions); the check says melee tests, not the eval.
 - Kept, tightened: the rest of section 1, sections 2, 4-8, 10, 11 (each still open; none found implemented).
+## elitedye: the elite enforcer's dye hidden by its armour; every elite kind checked as drawn (branch agent/elitedye, 2026-11-28)
+
+Open from "elite": in the lineup (test 234) the elite enforcer looked stock green though `vr_humlook_info` gave it the elite
+row and a mask.
+- **Cause**: not the dye. The skill's armour roll (`VR_AgArmor_Roll`, by spawn position) gave that spot green armour: the
+  cuirass, helmet and pauldrons drew over the dyed clothes (a pure-red elite row dyed only its legs). The dye, mask, rows and
+  shader were right for every kind. In play an armoured elite shows its gold only where no plate sits (decision: the plates
+  keep their tier colour, which is armour information; a gold trim on an elite's plates is his call).
+- **Test 234** (`vr_attrs_test.qc`): the lineup is now 8 (death knight added), unarmoured (`VR_AgArmor_Give(e, 0, 0)`), laid
+  out clear of vrtesthall's left wall (dist 260, sides -55 + 36 i); it runs `vr_humlook_dyetest 4` with the screenshot and
+  checks its result (cvar `vr_test_humlook_dye`, its failures): 2/0.
+- **`vr_humlook_dyetest [n]`** (vr_humlook.cpp; Debug > Tools > Enemy Attributes > Check the Elites' Dye): each client
+  elite's skin texture read back, its clothes-masked texels through its instance rows (the shader's HumDye on the CPU)
+  against the stock texels: PASS when the mean hue moves (channel shares > 0.04) towards gold (blue share down > 0.05, red
+  over green); fewer than n elites fails. Grunt, enforcer, knight and death knight pass (blue share down 0.08-0.12).
+- **Infected**: an infected elite still loses the elite when it rises (kept). The risen body's `.vr_hum_look` is now 0
+  (`MG3_Infected_DropWeapon`: it kept its weapon's look, which the engine would dye on the zombie's skin by palette rows);
+  arena test 35 checks it. Test 35's "his plates shed" failures (4-6 of 504, varying) are the same without this change.
+- Tests: `vr_agrunt_test 233` 52/0, `234` 2/0 (dyetest 5/0), `vr_arena_test 35` 498/6 (pre-existing, above).
