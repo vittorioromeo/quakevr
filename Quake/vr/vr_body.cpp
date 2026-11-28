@@ -7,6 +7,7 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_flatprocreload.hpp"
 #include "vr_tunables.hpp"
 #include "vr_holsterzones.hpp"
@@ -406,11 +407,35 @@ constexpr float GEAR_FLOOR = -22.f; // vr_floor_offset's default
 // hands find it (updateHotspots).
 constexpr float THIGH_STRAP = 0.2f; // metres of the body
 
+// vr_flat_holster_bob_report: true while it works out where the hip holsters and the ammo pouch would be without the legs'
+// move (onTheThigh, onBothThighs add nothing), to print the move they add.
+bool legsMoveOff = false;
+
+// Flat-screen play only (his words 2026-11-28, item 2): the share of the legs' move of the hip holsters and the ammo pouch
+// kept, across (vr_flat_holster_bob_h) and up and down (vr_flat_holster_bob_v) apart; 1 each: all of it, as before.
+// With a headset, all of it.
+[[nodiscard]] glm::vec3 flatLegMove(const glm::vec3& move)
+{
+    if(!flatplay::active())
+    {
+        return move;
+    }
+    const float h = CLAMP(0.f, vr_flat_holster_bob_h.value, 1.f);
+    const float v = CLAMP(0.f, vr_flat_holster_bob_v.value, 1.f);
+    return {move.x * h, move.y * h, move.z * v};
+}
+
+// The share of the thigh's turn a hip holster's plate takes in flat-screen play: the larger of the two (both 0: none).
+[[nodiscard]] float flatLegTurn()
+{
+    return flatplay::active() ? CLAMP(0.f, za::max(vr_flat_holster_bob_h.value, vr_flat_holster_bob_v.value), 1.f) : 1.f;
+}
+
 void onTheThigh(const avatar::Follower& follow, Holster holster, glm::vec3& pos, HolsterPlate* plate)
 {
     const float amount = CLAMP(0.f, vr_holster_leg_follow.value, 1.f);
     avatar::ThighMotion m;
-    if((holster != LeftHip && holster != RightHip) || amount <= 0.f || vr_body_mode.value < 3.f ||
+    if((holster != LeftHip && holster != RightHip) || amount <= 0.f || vr_body_mode.value < 3.f || legsMoveOff ||
         !follow.thigh(holster == LeftHip ? 0 : 1, m))
     {
         return;
@@ -418,10 +443,11 @@ void onTheThigh(const avatar::Follower& follow, Holster holster, glm::vec3& pos,
 
     const float strap = THIGH_STRAP * units::metresToUnits() * units::bodyScale();
     const glm::vec3 anchor = pos + m.down * za::max(0.f, strap - glm::dot(pos - m.joint, m.down));
-    pos += (m.joint + m.turn * (anchor - m.joint) - anchor) * amount;
+    pos += flatLegMove((m.joint + m.turn * (anchor - m.joint) - anchor) * amount);
     if(plate)
     {
-        const glm::quat turn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, glm::normalize(glm::quat_cast(m.turn)), amount);
+        const glm::quat turn = glm::slerp(
+            glm::quat{1.f, 0.f, 0.f, 0.f}, glm::normalize(glm::quat_cast(m.turn)), amount * flatLegTurn());
         plate->out = turn * plate->out;
         plate->up = turn * plate->up;
     }
@@ -433,7 +459,7 @@ void onTheThigh(const avatar::Follower& follow, Holster holster, glm::vec3& pos,
 void onBothThighs(const avatar::Follower& follow, glm::vec3& pos)
 {
     const float amount = CLAMP(0.f, vr_ammo_pouch_leg_follow.value, 1.f);
-    if(amount <= 0.f || vr_body_mode.value < 3.f)
+    if(amount <= 0.f || vr_body_mode.value < 3.f || legsMoveOff)
     {
         return;
     }
@@ -452,7 +478,7 @@ void onBothThighs(const avatar::Follower& follow, glm::vec3& pos)
     }
     if(legs > 0)
     {
-        pos += moved * (amount / static_cast<float>(legs));
+        pos += flatLegMove(moved * (amount / static_cast<float>(legs)));
     }
 }
 
@@ -814,6 +840,30 @@ void queueDebug(const hands::State& s)
             shoulder.y = -shoulder.y;
         }
     }
+}
+
+void flatHolsterBobReport_f()
+{
+    const hands::State& s = hands::current();
+    if(!s.valid)
+    {
+        Con_Printf("holsterbob: no hands yet\n");
+        return;
+    }
+    const HolsterPositions moved = holsterPositions(s);
+    const glm::vec3 movedPouch = ammoPouchPosition(s);
+    legsMoveOff = true;
+    const HolsterPositions still = holsterPositions(s);
+    const glm::vec3 stillPouch = ammoPouchPosition(s);
+    legsMoveOff = false;
+    // Across (horizontal) and up and down: the legs' move of each (flatLegMove's split), world units.
+    const auto split = [](const glm::vec3& d) { return glm::vec2{glm::length(glm::vec2{d.x, d.y}), za::abs(d.z)}; };
+    const glm::vec2 l = split(moved[LeftHip] - still[LeftHip]), r = split(moved[RightHip] - still[RightHip]);
+    const glm::vec2 p = split(movedPouch - stillPouch);
+    Con_Printf("holsterbob: lhip h %.3f v %.3f rhip h %.3f v %.3f pouch h %.3f v %.3f (flat %d, bob_h %g bob_v %g, "
+               "speed %.0f)\n",
+        l.x, l.y, r.x, r.y, p.x, p.y, flatplay::active() ? 1 : 0, vr_flat_holster_bob_h.value,
+        vr_flat_holster_bob_v.value, glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]}));
 }
 
 void crouchReport_f()
