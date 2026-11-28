@@ -4,6 +4,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flycam.hpp"
 #include "vr_geom.hpp"
@@ -1142,7 +1143,9 @@ void magazineBox(hands::State& s, int hand, const view::ViewEntity& ve, qmodel_t
 {
     s.magBoxValid[hand] = false;
     s.magSeatValid[hand] = false;
-    const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
+    // (reloadstudio3: the Reload Studio's lock's magazine out after its Eject key, as a real reload's: its grip gone.)
+    const int flags =
+        flatprocreload::lockWeaponFlags(hand, cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2]);
     // Where a magazine sits seated, one in or not (hands::State::magSeat; reloadmags): its box's middle, its feed end up the
     // box's length, its front across it as QC VR_Reload_SeatedMagAngles turns a seated one (the super nailgun's the other way).
     if(const MagMount* seat = !floating && magazinesShown() ? magMountFor(model) : nullptr)
@@ -1810,8 +1813,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     ve.zeroBlend = 0.f;
 
     // The super shotgun broken open: how far its barrels are drawn down now (its parts: setupSsgParts).
-    const float ssgOpen = ssgStep(ssgHands[hand], floating ? nullptr : model,
-        cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2]);
+    const float ssgOpen = ssgHandStep(ssgHands[hand], floating ? nullptr : model, hand);
 
     // The heavy revolver: how far its crane is drawn swung out now, its cylinder's turn (its parts: setupRevolverParts);
     // its load point swings out with the crane.

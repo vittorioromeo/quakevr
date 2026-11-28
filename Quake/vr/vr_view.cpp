@@ -576,7 +576,9 @@ glm::vec3 revolverCraneTurn(const glm::vec3& p, float swing)
 float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int hand)
 {
     const bool main = hand == HAND_MAIN;
-    return revolverStep(st, gun, cl.stats[main ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2],
+    // (reloadstudio3: the Reload Studio's lock draws it swung out on the keys a real reload has it out.)
+    const int bits = flatprocreload::lockRevolverBits(hand, cl.stats[main ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2]);
+    return revolverStep(st, gun, bits,
         cl.statsf[main ? protocol::STAT_QVR_REVOLVERCYL : protocol::STAT_QVR_REVOLVERCYL2]);
 }
 
@@ -602,9 +604,10 @@ float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int bits, float turn)
 }
 
 // The angle the super shotgun `gun` (flags `flags`) is drawn open at now, stepped towards open or shut.
-float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags)
+float ssgHandStep(SsgDrawn& st, const qmodel_t* gun, int hand)
 {
-    return ssgStep(st, gun, flags, ssgBreaks());
+    const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
+    return ssgStep(st, gun, flatprocreload::lockWeaponFlags(hand, flags), ssgBreaks());
 }
 
 float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags, bool breaks)
@@ -2701,8 +2704,10 @@ void setupRevolverParts()
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        (void)revolverParts(entities.weapon[hand], rvHands[hand],
-            cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2], entities.rvFrame[hand],
+        // (reloadstudio3: the Reload Studio's lock swung out as a real reload: its spent shells out, flat play's eject.)
+        const int bits =
+            flatprocreload::lockRevolverBits(hand, cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2]);
+        (void)revolverParts(entities.weapon[hand], rvHands[hand], bits, entities.rvFrame[hand],
             entities.rvCrane[hand], entities.rvCyl[hand], entities.rvShell[hand], hand);
     }
 }
@@ -4072,7 +4077,9 @@ VrGunLook ownGunLook(int hand)
              ((cl.stats[protocol::STAT_QVR_MAGOUT] & (main ? 2 : 1)) ? VrGunLook::magOutBit : 0) |
              (ssgBreaks() ? VrGunLook::ssgBreaksBit : 0) | (rv ? VrGunLook::revolverBit : 0) |
              (ammoFollowsRoundsHere(entities.weapon[hand].ent.model) ? VrGunLook::ammoByMagBit : 0);
-    l.flags = static_cast<za::U16>(cl.stats[main ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2] & 0xFFFF);
+    // (reloadstudio3: the Reload Studio's lock draws the gun as a real reload has it on the locked key: open, magazine out.)
+    l.flags = static_cast<za::U16>(
+        flatprocreload::lockWeaponFlags(hand, cl.stats[main ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2]) & 0xFFFF);
     l.clip = static_cast<za::U8>(CLAMP(0, cl.stats[main ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2], 255));
     l.clipSize =
         static_cast<za::U8>(CLAMP(0, cl.stats[main ? protocol::STAT_QVR_WEAPONCLIPSIZE : protocol::STAT_QVR_WEAPONCLIPSIZE2], 255));

@@ -43,13 +43,6 @@
 
 [New: not yet sorted]
 Flat-screen: holster both guns and walk while looking at your belt: the hip holsters and the ammo pouch bob with the legs as before; Tunables > Flatscreen > Looks, Holster Bob Horizontal and Holster Bob Vertical at 0 keep them still on the belt, each way on its own. {test:flat_holster_bob}
-Flat-screen: both hands empty, crouch, look down at the floor and jab: the fists stop on the floor with a thud instead of going through it. {test:flat_fists}
-The spear and the Crystal Lance in the hip, shoulder and upper holsters sit as you set them (your offsets are now the defaults). {test:flat_spear}
-A grunt holding two guns, lit in the face by your lamp, shields its eyes with its left gun's hand (Dual Wielders Shield on by default now). {test:agrunt_flashblind}
-Flat-screen: hold TAB (as well as MMB): the holster menu opens with the bindings reminder above it and a level bar at the bottom (level name, kills, secrets, skill, time) in the menus' look; letting go closes it, and the old TAB scoreboard no longer appears in flat play. {test:wheel_grenade}
-Flat-screen: in the holster menu, BACK POUCH over the hands: GRENADE and CLUSTER, each with L and R buttons; L/R takes one into that hand, the other kind swaps it, the same kind puts it back (as the weapon wheel's BACK POUCH). {test:wheel_grenade}
-Flat-screen: with the right hand holding a shotgun and the left hand empty on it, hold 1: the left weapon wheel opens low on the left, where it opens with both hands empty, not at the screen's edge. {test:weapon_wheel}
-Flat-screen or VR: the pad's button glyphs in the holster menu's bindings panel, the VR weapon wheel's controller panel and the main menu's reminder are larger and readable (LB, RT, LS letters clear, no glow over them); rows and places unchanged. {test:flat_gamepad}
 Flat-screen: open the Dazzle Studio (Debug > Tools, or Tunables > Armed Humanoids > Flashlight Dazzle): a grunt stands ahead shielding its eyes; click the Hand, Elbow or Gun Arm dot and drag the gizmo, or move the sliders: the pose follows at once; try each kind and Two Weapons (E turns the left revolver in the hand), Live to see the hand rise, then Save and shine your flashlight at a real grunt of that kind: it shields the way you set. {test:dazzlestudio}
 Flat-screen or VR: kill or knock down a grunt standing right beside another, and drop a body onto one from about head height: the other should at most stagger, never fall over. {test:grunts_to_throw}
 Flat-screen or VR: shove a grunt hard into the other grunt, and throw or swing a body into a grunt fast: both should go down; thrown at the ogre it only staggers or shrugs it off. {test:grunts_to_throw}
@@ -69,6 +62,9 @@ Immersive reloading, a nailgun in hand: it has no ammo button, and the ammo pouc
 Immersive reloading, the rocket launcher with rockets in it: a multi-rocket from the pouch's left half won't go in (a dull tap); fire it empty and the multi-rocket loads, then it fires multi-rockets. The grenade launcher the same. {test:ammomags}
 Reloading on Hip Holsters or Off: the multi-ammo guns show their ammo button again and it switches the ammo as before; the pouch is not split. {test:ammomags}
 Flat-screen: with the procedural reload on, the nailgun shows no ammo button; N still switches its ammo and the next reload loads the new kind. {test:ammomags}
+Flat-screen: in the Reload Studio lock the super shotgun's and the revolver's keys after the break open / open: the gun is drawn broken open / swung out (the revolver's spent shells gone), as in a real reload. {test:flat_proc_reload}
+Flat-screen: in the Reload Studio lock the super nailgun's keys after the eject: the magazine is drawn out and the gun sits where a real reload holds it, the free hand at the pouch in the same place. {test:flat_proc_reload}
+Flat-screen: reload the super shotgun, the revolver, the thunderbolt and the nail pistol, then lock their take and carry keys in the Reload Studio: the hand holds the shells or magazine with the same wrist turn and fingers in both. {test:flat_proc_reload}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

@@ -545,7 +545,7 @@ void measureDest(int g, const Reload& r)
     {
         return;
     }
-    const int bits = revolverBits(g);
+    const int bits = lockRevolverBits(g, revolverBits(g)); // (the lock's swung out as a real reload's: reloadstudio3)
     const auto empty = [&](int i) { return ((bits >> (2 * (i % rvChambers))) & 3) == 0; };
     const int ent = ps.trip.on ? carriedEnt(ps.trip.free) : 0;
     const qmodel_t* inHand = ent > 0 && ent < cl.num_entities ? cl_entities[ent].model : nullptr;
@@ -1251,8 +1251,9 @@ void frame(bool on)
         return;
     }
     bool done = t.t >= 1.f;
-    // (vr_flat_prl_hold N, a test aid: held at key N's end, no failsafe, until it is set back.)
-    const bool holdHere = static_cast<int>(vr_flat_prl_hold.value) == t.key + 1 && !t.ending;
+    // (vr_flat_prl_hold N, a test aid: held at key N's end, no failsafe, until it is set back; an ending's key too:
+    // reloadstudio3's frame strip shows the return to the grip.)
+    const bool holdHere = static_cast<int>(vr_flat_prl_hold.value) == t.key + 1;
     switch(key->action)
     {
         case Action::Take:
@@ -1399,6 +1400,63 @@ bool posesGun(int h)
     return (ps.trip.on && h == ps.trip.gun) || (lk.on && h == lk.gun);
 }
 
+namespace
+{
+// The lock's gun in hand `h` as a real reload has it on the locked key: from the gun as the server has it, the keys played to
+// it (a key played once at its end: the lock's own key at its end, the scrub's before it): open from an Open key to a Close
+// key (the super shotgun broken open, the revolver swung out), its magazine out from an Eject key to an Insert key. False:
+// not the lock's gun.
+[[nodiscard]] bool lockGunState(int h, bool& open, bool& magOut)
+{
+    const Reload* r = lk.on && h == lk.gun ? reloadOf(lk.weapon) : nullptr;
+    if(!r)
+    {
+        return false;
+    }
+    open = weaponOf(h) == WID_REVOLVER ? (revolverBits(h) & rvOpenBit) != 0 : (flagsOf(h) & ssgOpenFlag) != 0;
+    magOut = (flagsOf(h) & noMagFlag) != 0;
+    const int played = lk.t >= 1.f ? lk.key : lk.key - 1;
+    for(int i = 0; i <= played && i < r->keyCount; i++)
+    {
+        const Action a = r->keys[i].action;
+        open = a == Action::Open ? true : a == Action::Close ? false : open;
+        magOut = a == Action::Eject ? true : a == Action::Insert ? false : magOut;
+    }
+    return true;
+}
+} // namespace
+
+bool lockOpens(int h)
+{
+    bool open = false, magOut = false;
+    return lockGunState(h, open, magOut) && open && (weaponOf(h) == WID_SUPER_SHOTGUN || weaponOf(h) == WID_REVOLVER);
+}
+
+int lockWeaponFlags(int h, int flags)
+{
+    bool open = false, magOut = false;
+    if(!lockGunState(h, open, magOut))
+    {
+        return flags;
+    }
+    flags = open && weaponOf(h) == WID_SUPER_SHOTGUN ? flags | ssgOpenFlag : flags & ~ssgOpenFlag;
+    return magOut ? flags | noMagFlag : flags & ~noMagFlag;
+}
+
+int lockRevolverBits(int h, int bits)
+{
+    if(!lockOpens(h) || weaponOf(h) != WID_REVOLVER)
+    {
+        return bits;
+    }
+    // Swung out, its spent shells out as flat play's swing-out throws them (QC VR_FlatReload_RvEjectFrame), the live kept.
+    for(int i = 0; i < rvChambers; i++)
+    {
+        bits = ((bits >> (2 * i)) & 3) == 2 ? bits & ~(3 << (2 * i)) : bits;
+    }
+    return bits | rvOpenBit;
+}
+
 bool freesForGrip(int h)
 {
     const bool lock = lk.on && h == lk.free;
@@ -1533,6 +1591,10 @@ bool poseSample(PoseSample& out)
         p.inHandPos = toHand * (itemAt - fp);
         held::anglesFromAxes(toHand * itemAxes, &p.inHandRot[0], true);
     }
+    const glm::vec3 me = geom::vec(cl_entities[cl.viewentity].origin);
+    p.gunAt = gp - me;
+    p.gunRot = gr;
+    p.freeAt = fp - me;
     p.palmMove = d.palmMove;
     p.palmTurn = d.palmTurn;
     p.wraps = d.wrapsWeapon ? 2 : d.wraps ? 1 : 0;

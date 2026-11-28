@@ -168,24 +168,20 @@ namespace
 // Whether `g` was solved for `held` where it is in the hand now: turned no more than `degrees`, moved no more than
 // `units` (hand units) from it, the fingers where they were. By default, vr_hand_fit_resolve's (cm, and twice as many
 // degrees; `rigUnit` world units a hand unit).
-[[nodiscard]] bool sameGrasp(const Grasp& g, const qmodel_t* model, int frame, const glm::mat4& inRig, const handrig::Pose& pose,
-    float rigUnit)
+[[nodiscard]] bool withinResolve(const glm::mat4& at, const glm::vec3 (&shift)[handrig::FingerCount], const glm::mat4& inRig,
+    const handrig::Pose& pose, float rigUnit)
 {
     const float cm = za::fmax(vr_hand_fit_resolve.value, 0.f);
     const float degrees = 2.f * cm;
     const float units = rigUnit > 0.f ? cm * 0.01f * units::metresToUnits() / rigUnit : 0.f;
-    if(!g.valid || g.model != model || g.frame != frame)
-    {
-        return false;
-    }
-    if(glm::distance(glm::vec3{inRig[3]}, glm::vec3{g.inRig[3]}) > units)
+    if(glm::distance(glm::vec3{inRig[3]}, glm::vec3{at[3]}) > units)
     {
         return false;
     }
     const float cosine = za::cos(glm::radians(degrees));
     for(int c = 0; c < 3; c++)
     {
-        const glm::vec3 a{inRig[c]}, b{g.inRig[c]};
+        const glm::vec3 a{inRig[c]}, b{at[c]};
         if(glm::dot(a, b) < cosine * glm::length(a) * glm::length(b))
         {
             return false;
@@ -193,12 +189,42 @@ namespace
     }
     for(int f = 0; f < handrig::FingerCount; f++)
     {
-        if(glm::distance(pose.shift[f], g.shift[f]) > 0.01f)
+        if(glm::distance(pose.shift[f], shift[f]) > 0.01f)
         {
             return false;
         }
     }
     return true;
+}
+
+[[nodiscard]] bool sameGrasp(const Grasp& g, const qmodel_t* model, int frame, const glm::mat4& inRig, const handrig::Pose& pose,
+    float rigUnit)
+{
+    return g.valid && g.model == model && g.frame == frame && withinResolve(g.inRig, g.shift, inRig, pose, rigUnit);
+}
+
+[[nodiscard]] bool differentSettings(const grasp::Settings& a, const grasp::Settings& b)
+{
+    return a.palmLimit != b.palmLimit || a.palmTurnLimit != b.palmTurnLimit || a.overlap != b.overlap || a.thenar != b.thenar ||
+           a.thumbTop != b.thumbTop || a.thumbOutside != b.thumbOutside || a.thumbSink != b.thumbSink || a.thumbWide != b.thumbWide ||
+           a.thumbAround != b.thumbAround || a.thumbAlong != b.thumbAlong || a.searchPlace != b.searchPlace ||
+           a.fixedPalm != b.fixedPalm || a.palmMove != b.palmMove || a.palmTurnMove != b.palmTurnMove;
+}
+
+// reloadstudio3: a grip `g` found afresh at rest for a prop held where `inRig` is (Grasp::restGrips), or null.
+[[nodiscard]] const Grasp::RestGrip* restGripFor(const Grasp& g, const qmodel_t* model, int frame, const glm::mat4& inRig,
+    const handrig::Pose& pose, const grasp::Settings& settings, float rigUnit)
+{
+    for(int i = 0; i < g.restGripsUsed; i++)
+    {
+        const Grasp::RestGrip& r = g.restGrips[i];
+        if(r.model == model && r.frame == frame && !differentSettings(r.settings, settings) &&
+            withinResolve(r.inRig, r.shift, inRig, pose, rigUnit))
+        {
+            return &r;
+        }
+    }
+    return nullptr;
 }
 } // namespace
 
@@ -282,6 +308,7 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
     {
         g.valid = false;
         g.rig = handrig::generation();
+        g.restGripsUsed = 0;
     }
     if(!held.ent || !held.ent->model || !vr_hand_fit.value)
     {
@@ -369,14 +396,7 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
         settings.palmMove = rh.fitPalm;
         settings.palmTurnMove = rh.fitTurn;
     }
-    const bool settingsChanged = settings.palmLimit != g.settings.palmLimit || settings.palmTurnLimit != g.settings.palmTurnLimit ||
-                                 settings.overlap != g.settings.overlap || settings.thenar != g.settings.thenar ||
-                                 settings.thumbTop != g.settings.thumbTop || settings.thumbOutside != g.settings.thumbOutside ||
-                                 settings.thumbSink != g.settings.thumbSink || settings.thumbWide != g.settings.thumbWide ||
-                                 settings.thumbAround != g.settings.thumbAround || settings.thumbAlong != g.settings.thumbAlong ||
-                                 settings.searchPlace != g.settings.searchPlace ||
-                                 settings.fixedPalm != g.settings.fixedPalm || settings.palmMove != g.settings.palmMove ||
-                                 settings.palmTurnMove != g.settings.palmTurnMove;
+    const bool settingsChanged = differentSettings(settings, g.settings);
     bool fresh = false;
     if(!settingsChanged && !otherMoved && sameGrasp(g, held.ent->model, frame, inRig, rh.pose, rigUnit))
     {
@@ -411,9 +431,25 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
         grasp::solve(rh.pose, *shape, inRig, settings, same ? &g.solution : nullptr, solution, &otherShape, glm::mat4{1.f},
             za::fmax(vr_hand_fit_overlap_hands.value, 0.f) * toRig);
     }
+    else if(const Grasp::RestGrip* r = fresh && !held.weapon ? restGripFor(g, held.ent->model, frame, inRig, rh.pose, settings, rigUnit) : nullptr)
+    {
+        solution = r->solution; // (the grip found resting here before: the same grip however it came here)
+    }
     else
     {
         grasp::solve(rh.pose, *shape, inRig, settings, same ? &g.solution : nullptr, solution);
+        if(fresh && !held.weapon)
+        {
+            Grasp::RestGrip& r = g.restGrips[g.restGripNext];
+            r.model = held.ent->model;
+            r.frame = frame;
+            r.inRig = inRig;
+            za::copy(rh.pose.shift, rh.pose.shift + handrig::FingerCount, r.shift);
+            r.settings = settings;
+            r.solution = solution;
+            g.restGripNext = (g.restGripNext + 1) % Grasp::restGripCount;
+            g.restGripsUsed = za::min(g.restGripsUsed + 1, Grasp::restGripCount);
+        }
     }
     za::copy(other, other + handrig::FingerCount * handrig::jointsPerFinger, g.other);
     g.otherInRig = otherInRig;

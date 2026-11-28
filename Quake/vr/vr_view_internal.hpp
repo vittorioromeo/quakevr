@@ -346,7 +346,8 @@ float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int hand);
 float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int bits, float turn);
 // A point of v_revolver.mdl (its Body's frame) on its crane, the crane swung out `swing` degrees.
 [[nodiscard]] glm::vec3 revolverCraneTurn(const glm::vec3& p, float swing);
-float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags);
+// (Yours, in hand `hand`: its flags from the server; the Reload Studio's lock may draw it open, flatprocreload::lockOpens.)
+float ssgHandStep(SsgDrawn& st, const qmodel_t* gun, int hand);
 // Any super shotgun's, `breaks`: whether it breaks open (yours: ssgBreaks; another's: his look).
 float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags, bool breaks);
 [[nodiscard]] glm::vec3 ssgTurnWorld(const view::ViewEntity& gun, const glm::vec3& w, float deg);
@@ -841,6 +842,24 @@ struct Grasp
     float other[handrig::FingerCount * handrig::jointsPerFinger]{}; // a cup's: the other hand's joints it was solved for
     glm::mat4 otherInRig{1.f};                                      // and where that hand was
     unsigned rig{0};                                                // handrig::generation() it was solved with
+    // reloadstudio3: the grips a held prop (not a weapon, not a cup) was last solved afresh for at rest, with the place in
+    // the hand, the fingers' moves and the settings they were found for. A prop coming to rest within vr_hand_fit_resolve
+    // of one takes that grip again: a taped shell pair or a magazine lay in reach of two grips (the palm turned 0 or 20
+    // degrees) a few thousandths of a unit apart, so the Reload Studio's lock and the game's real reload, resting it a
+    // hair apart, drew two hands.
+    struct RestGrip
+    {
+        const qmodel_t* model{nullptr};
+        int frame{-1};
+        glm::mat4 inRig{1.f};
+        glm::vec3 shift[handrig::FingerCount]{};
+        grasp::Settings settings;
+        grasp::Solution solution;
+    };
+    static constexpr int restGripCount = 8;
+    RestGrip restGrips[restGripCount];
+    int restGripsUsed{0};
+    int restGripNext{0};
 };
 
 struct RigHand
