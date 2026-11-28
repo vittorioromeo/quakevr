@@ -1208,3 +1208,75 @@ so each seat's frame or pass overwrote or undid the other's.
   hand, seat 1's kick 0 in different hands); and with each torch switched on, the server's move for each seat's player
   lit as that seat's client lit it, its lens within 48 units of that player. Results: seat_render_test.sh 368/0,
   seat_play_test.sh 63/0, split_join_test.sh 113/0, autopump_test.sh 14/0, gunfx_test.py --only player 16/0.
+
+## 29. Split20 (2026-11-28): next merged (353 commits), each player rebinds his own controller
+
+His words: "Please bring the splitscreen branch up to speed with next, and ensure that there is an easy way for each
+player to rebind their own controller binds with the newly added screens."
+
+### How to try it (for him)
+
+1. **Start it**: `C:\OHWorkspace\qvr-kit\scratch\play_splitscreen.ps1` in PowerShell (add `-Window` for a window), as before.
+   It starts this tree's Release exe (`qvr-agents\menuvis\...\bin\x64\Release\ironwail.exe`, rebuilt today). Use a
+   `progs.dat` built from next today or later (your checkout's).
+2. **Two pads**: plug in two controllers. Keyboard and mouse are Player 1 (with the first pad no seat has). Multiplayer >
+   Splitscreen, A on the second pad to join, Start to begin.
+3. **Player 1's pad**: Esc (or the pad's Start) > Options > Controller Bindings (or the main menu's bindings panel's
+   Setup Bindings) as on next. While two play, its title reads "Controller Bindings - Player 1". His keyboard keys stay
+   Options > Controls.
+4. **Player 2's own**: on the second pad press Start: Player 2's seat menu in its tile. Down to **Controller Bindings**, A.
+   Player 2's own screen opens in his tile, "Controller Bindings - Player 2", with his pad's picture (Xbox, PlayStation,
+   Switch or generic, by SDL's type). D-pad moves between the labels; A picks the button's action from the list (d-pad,
+   A; the shoulders page it); X picks a button, the d-pad moves to another, X swaps the two; the shoulders step the
+   picture; B goes back to his seat menu, B again shuts it. Player 1's pad and keyboard keep theirs (open his screen to
+   check).
+5. **The reminder panels**: hold the wheel or open the holster menu in each tile: Player 1's panel shows his keyboard
+   keys, Player 2's shows his pad's buttons for the same actions (his layout: Fire, Left hand, Jump, Crouch, Reload,
+   Swap hands, the wheel's weapons, Holster menu, Drop, Force grab, Flashlight, Run, Punch), with his swaps.
+6. **Saved**: quit and start again, join with the second pad: Player 2's swaps are still his (the config's
+   `seat_bind 2 ...` lines). A player who never opened his screen keeps getting Player 1's binds plus the pad layout at
+   his join, as before.
+
+### What changed
+
+- **The merge**: 353 commits, 11 conflicting files (27 hunks): menu.c / menu.h (both new menus: `m_splitscreen` and
+  `m_bindsetup`), vr_beastarmour.cpp (5: next's leather and shaped pieces), vr_view.cpp (6: the attachments on open
+  super shotguns), vr_weaponwheel.cpp (3: the slots' ammo and the bindings panel over the wheel), vr_flatsight.cpp (3),
+  vr_flatholster.cpp (2: the panel over the holster menu), vr_builtins_agpose.inc, vr_netsnap.cpp, vr_view_hands.cpp,
+  vr_voicechat.cpp. Every hunk kept next's side through the seats' accessors (`st()`, `ws()`, `entities()`,
+  `ssgHands()`, `ssgHolsters()`, `seatListen()`, `seatSnapPoses()`, `seatNetMove()`); next's other new lines that still
+  used the old globals (vr_flatplay.cpp 29 lines through `fs()`, the toolgun's `tg()` / `ps()`, vr_netmove.cpp's
+  `clientState`) too. `IN_GetGamepadSdlType` (the screen's picture) reads the current seat's pad (`IN_SeatPad`), not
+  Ironwail's one `joy_active_controller` (this branch has four pads).
+- **Made each seat's (new `seat::Part`s)**: `BeastArmour` grew next's drawn leather (its entities, bones, counts; the
+  bones' lookup searches every seat's), `HeldCommands` (vr_client.cpp: the reliable commands held while the seat's own
+  `cls.message` is full), `FlatAttach` (vr_flatattach.cpp: the flat Attach key's trip), `HolsterBody` (vr_flatholster.cpp:
+  the holster menu's picture of the body, made once a frame: seat 2's was seat 1's), `BindPanel` (vr_bindpanel.cpp: the
+  reminder's rows and image, once a frame per seat), `BindSetup` (vr_bindsetup.cpp: the whole screen). The weapon wheel's
+  new ammo lines and the panels' placement were already each seat's (`ws()`, `st()`).
+- **Per-seat bindings** (vr_bindsetup.cpp, vr_seatmenu.cpp, vr_seat.cpp, vr_bindpanel.cpp): the screen edits the current
+  seat's bind table (`Key_Seat()`; seats 2-4 already had their own since phase 2, copied from seat 1 at a join). The seat
+  menu's new row opens it in the seat's tile (`bindsetup::openInSeat`, `seatDraw`, `seatKey`: the d-pad as arrows, Start
+  and B back); the mouse is seat 1's only. Saved per seat, not per controller GUID: two pads of one model share SDL's
+  GUID, and the screens say "Player N". A seat's binds are saved once its player changed them (`seat::bindsEdited`):
+  `Key_WriteBindings` adds `seat_unbindall N` and `seat_bind N KEY "command"` for its pad's buttons; read at start, they
+  are laid over the seat's next join copy (`Key_SeatCopyBindings`). A pad seat's reminder panel lists its pad layout's
+  actions with its own buttons (`Key_GetKeysForCommand`, gamepad keys). The action list names the pad layout's commands
+  ("Flashlight", not `vr_flashlight_toggle`).
+- **Marked seat-shared** (37): the Armour Studio's and its gizmo's state, the drawn-hits probe, the bindings screen's
+  pictures, the panel's render target (made and drawn in one seat's pass, as the holster menu's), the hit model's shapes,
+  the box3d hands by player, scratch buffers (anim smooth rows, holster body mesh, net move), test and debug state, the
+  server's reliable backlogs and stats, the datagram driver's pool and control budget, the net refusal texts, the
+  renderer's lit-world caches, the scenario's install notice, the main menu's bindings panel (seat 1's).
+- **seat_state**: 3,677 -> 3,675 allowlisted.
+- **Tests**: new `Misc/quakevr/seat_bind_test.sh` (`vr_seat_bind_test`, two runs): seat 2 joins by a mock pad, Start,
+  down to Controller Bindings, A: its own screen in its tile (the full menu shut); X, d-pad, X swaps ABUTTON's `+jump`
+  with RTHUMB's punch; seat 2's two swapped, seat 1's pad bindings unchanged, saved, seat 2's panel shows Jump on RTHUMB;
+  B back, B shut; `writeconfig seatbind_test`. Then a restart that execs it: the saved bindings read, seat 2 joins with
+  exactly those two buttons swapped against a fresh join's copy.
+- **Results**: seat_bind_test.sh 14/0, seat_menu_test.sh 62/0, split_join_test.sh 113/0, weaponwheel_test 25/0,
+  vr_bindsetup_test 12/0, vr_bindsetup_detect_test 57/0. Failing, not chased (budget): seat_play_test.sh 62/1 (seat 2 back in
+  his old slot comes back with fresh parms, health 100 and nails 0, not his 70 and 50: likely next's QC parms change,
+  unchecked), seat_render_test.sh 367/1 (the anim run's ragdoll alike 15 of 16 frames, wants 16), bindpanel_test.sh 6/2
+  (its main-menu half: the run's frames stop a few frames after togglemenu on vrtesthall and the run times out; the
+  in-game rows pass; unchecked whether next does the same in the kit's low-impact mode).

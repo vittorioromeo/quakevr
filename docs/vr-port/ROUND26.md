@@ -4617,3 +4617,22 @@ with each button labelled by its binding, drag to swap, click for a list of ever
   The Android build compiles.
 - **Open**: phase 2 not done (the reminder panels: BACKLOG section 3 has the VR weapon wheel's; the menu's goes on wheelui's
   vr_bindpanel.cpp); splitscreen per-seat bindings (TODO in vr_bindsetup.hpp, BACKLOG section 3).
+
+## split20: splitscreen: next merged again (353 commits), each player rebinds his own controller (branch agent/split, 2026-11-28)
+
+- **What**: his words "bring the splitscreen branch up to speed with next, and ensure that there is an easy way for each
+  player to rebind their own controller binds with the newly added screens". The Controller Bindings screen (ctrlbind)
+  edits the current seat's bind table; seats 2-4 open it from their own seat menu (new row "Controller Bindings"), in
+  their tile, driven by their pad, titled "Controller Bindings - Player N" with their pad's picture. A seat's edited
+  binds are saved per seat (`seat_unbindall N`, `seat_bind N KEY "command"` in the config, laid over its next join's
+  copy of seat 1's). The bindings reminder panels (wheelui) of a pad seat list its pad layout's actions with its own
+  buttons. Keyboard and mouse stay seat 1's (Options > Controls).
+- **Decision**: per seat, not per controller GUID (two pads of one model share SDL's GUID; the screens say "Player N").
+  Only a seat whose player changed its binds saves them; others keep the old join copy (seat 1's plus the pad layout).
+- **Files**: vr_bindsetup.cpp/.hpp (per-seat screen `seat::Part::BindSetup`, `openInSeat`, `seatDraw`, `seatKey`,
+  `cursorKey`), vr_seatmenu.cpp (the row, `vr_seat_bind_test`), vr_seat.cpp (`seat_bind`, `seat_unbindall`,
+  `Key_SeatWriteBindings`, `bindsEdited`), keys.c (writes them), vr_bindpanel.cpp (per-seat rows and image, pad rows),
+  in_sdl.c (`IN_GetGamepadSdlType`: the current seat's pad). Merge details and what became per-seat: SPLITSCREEN.md
+  section 29. The TODO in vr_bindsetup.hpp and BACKLOG section 3's line are gone.
+- **Tests**: new `Misc/quakevr/seat_bind_test.sh` (test 'vr_seat_bind_test', two runs: edit + restart) 14/0, vr_bindsetup_test 12/0, seat_menu_test.sh 62/0, split_join_test.sh 113/0; open failures: SPLITSCREEN.md
+  section 29 (seat_play 62/1, seat_render 367/1, bindpanel 6/2).

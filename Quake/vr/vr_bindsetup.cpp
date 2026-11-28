@@ -460,6 +460,12 @@ void buildActions()
     scr().actions.clear();
     scr().actions.pushBack({za::String{}, za::String{"(nothing)"}});
     M_Keys_EachAction(addAction);
+    int padCount = 0; // split20: a controller seat's flat-play layout's actions by their names (seat::padLayout)
+    const seat::PadAction* layout = seat::padLayout(padCount);
+    for(int i = 0; i < padCount; i++)
+    {
+        addAction(layout[i].command, layout[i].label);
+    }
 }
 
 [[nodiscard]] const char* actionName(const char* binding)
