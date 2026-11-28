@@ -447,6 +447,7 @@ vr_agarmor_test  15-20    vr_beastarmour_test.qc           (VR_BAT_Frame: the be
 vr_agarmor_test  22       vr_beastarmour_test.qc           (VR_TTK_Frame: armourhits: time to kill, the beasts' armoured / bare ratio against the humanoids')
 vr_agarmor_test  21       vr_beastarmour_test.qc           (VR_DLT_Frame: doglerp: the drawn body smooth and the armour in step through a leap, a run, a shoved roll, a scrag, an ogre running and swinging its chainsaw, a shambler; the armour's points on the shape the shader drew (armourrebuild), at 0.25x and 1x)
 vr_agarmor_test  23       vr_beastarmour_test.qc           (VR_ARC_Frame: armourrebuild: ten armoured ogres running, the armour on the drawn body's cost: vr_anim_smooth_info's drawn points)
+vr_agarmor_test  25-27    vr_beastarmour_test.qc           (VR_BMP_Frame: beastmp: an armoured ogre and scrag for mp_test.py beastmp, 26 a part of each broken and a piece worn, 27 both killed)
 
 vr_ammocolor_test 1*       vr_ammocolor_test.qc             (the Debug menu runs it: the dispatcher's fall-through)
 vr_ammocolor_test 2        vr_ammocolor_test.qc             (VR_ACT_Give)
