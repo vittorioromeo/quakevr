@@ -778,8 +778,10 @@ weapon 3
     mnt_y "-1.48"
     mnt_z "2.14"
     mnt_size "2.083"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): lowered off the shroud
     att2_ok "1"
+    att2_z "-1.13"
     fsight_mode "1"
     pickup_tier "1"
     muzzle_av "20.21 -1.4772 5.5708"
@@ -1014,8 +1016,11 @@ weapon 5
     mnt_x "29.2"
     mnt_z "0.55"
     mnt_size "2.632"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): forward to the muzzle's lip, up under the body
     att2_ok "1"
+    att2_x "0.75"
+    att2_z "0.15"
     fsight_mode "1"
     pickup_tier "2"
     muzzle_av "30.3762 -0.0556 5.9837"
@@ -1101,8 +1106,11 @@ weapon 6
     mnt_x "50.6"
     mnt_z "-1.95"
     mnt_size "2.941"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): forward under the nose, up under it
     att2_ok "1"
+    att2_x "1"
+    att2_z "1.11"
     fsight_mode "1"
     pickup_tier "3"
     muzzle_av "56.1084 -0.0402 7.8293"
@@ -1191,8 +1199,11 @@ weapon 7
     mnt_x "33.4"
     mnt_z "7.55"
     mnt_size "2.857"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): forward to the muzzles, lowered off the body
     att2_ok "1"
+    att2_x "0.65"
+    att2_z "-0.99"
     pickup_tier "3"
     muzzle_av "33.8075 -0.0982 9.6295"
     muzzle_x "-0.000005"
@@ -1478,8 +1489,11 @@ weapon 10
     mnt_x "29.2"
     mnt_z "0.58"
     mnt_size "2.632"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): forward to the muzzle's lip, up under the body
     att2_ok "1"
+    att2_x "0.75"
+    att2_z "0.1"
     fsight_mode "1"
     pickup_tier "2"
     muzzle_av "30.3752 -0.0558 5.9597"
@@ -2047,8 +2061,10 @@ weapon 21
     mnt_x "32.85"
     mnt_z "6.74"
     mnt_size "2.564"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): up under the barrel
     att2_ok "1"
+    att2_z "0.76"
     pickup_tier "-1"
     muzzle_av "32.6554 0.0000 8.0800"
     muzzle_x "0.0"
@@ -2159,8 +2175,10 @@ weapon 22
     mnt_x "40.6"
     mnt_z "4.28"
     mnt_size "2.5"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): lowered off the body
     att2_ok "1"
+    att2_z "-1.07"
     pickup_tier "-1"
     muzzle_av "40.4663 0 5.0024"
     muzzle_x "0.0"
@@ -2649,8 +2667,10 @@ weapon 27
     mnt_x "32.85"
     mnt_z "6.74"
     mnt_size "2.564"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): the burst rifle's
     att2_ok "1"
+    att2_z "0.76"
     muzzle_av "33.1463 0.0159 8.0776"
     muzzle_x "0.0"
     muzzle_y "0.0"
@@ -2747,8 +2767,10 @@ weapon 28
     mnt_x "32.85"
     mnt_z "6.74"
     mnt_size "2.564"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): the burst rifle's
     att2_ok "1"
+    att2_z "0.76"
     muzzle_av "33.1463 0.0159 8.0776"
     muzzle_x "0.0"
     muzzle_y "0.0"
@@ -2845,8 +2867,10 @@ weapon 29
     mnt_x "32.85"
     mnt_z "6.74"
     mnt_size "2.564"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): the burst rifle's
     att2_ok "1"
+    att2_z "0.76"
     muzzle_av "33.1463 0.0159 8.0776"
     muzzle_x "0.0"
     muzzle_y "0.0"
@@ -2943,8 +2967,10 @@ weapon 30
     mnt_x "32.85"
     mnt_z "6.74"
     mnt_size "2.564"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): the burst rifle's
     att2_ok "1"
+    att2_z "0.76"
     muzzle_av "33.1463 0.0159 8.0776"
     muzzle_x "0.0"
     muzzle_y "0.0"
@@ -3044,8 +3070,10 @@ weapon 31
     mnt_x "32.85"
     mnt_z "6.74"
     mnt_size "2.564"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): the burst rifle's
     att2_ok "1"
+    att2_z "0.76"
     muzzle_av "33.1463 0.0159 8.0776"
     muzzle_x "0.0"
     muzzle_y "0.0"
@@ -3429,8 +3457,11 @@ weapon 35
     mnt_x "30.3"
     mnt_z "2.62"
     mnt_size "2.857"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): forward to the muzzle, up under the body
     att2_ok "1"
+    att2_x "0.5"
+    att2_z "0.62"
     fsight_mode "1"
     pickup_tier "3"
     muzzle_av "31.8792 0.0195 10.3979"
@@ -3757,8 +3788,10 @@ weapon 38
     mnt_x "20.26"
     mnt_z "5.56"
     mnt_size "2.222"
-    // The dagger as a bayonet: from the bayonet's mount as on the shotguns (their mean), level; tune in VR
+    // The dagger as a bayonet: the every-gun dagger offset from the mount, then this gun's (bayofix, measured on the
+    // model as drawn: no clipping, 0.2 under the gun, the guard 0.45 behind its front as on the shotgun): lowered off the frame
     att2_ok "1"
+    att2_z "-0.54"
     pickup_tier "0"
     muzzle_av "20.564 0 7.058" // (71: the barrel 1.5 times as long; was 16.964 0 7.058)
     muzzle_x "0.0"
