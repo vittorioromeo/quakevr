@@ -1107,7 +1107,9 @@ void() VR_AT_HolsterSet =
 //   vr_dm_test 26: every player's carried records' attachments and every thrown weapon's (dropped, thrown, stuck):
 //     `attachmp: player ent=N main=<wid>,<attach> off=<wid>,<attach> holsters=a,b,c,d,e,f`, `attachmp: lying wid=<wid>
 //     attach=<kind> stuck=<0|1> speed=<u/s> at=<x y z>`, the live monsters within 160 units of a player (`attachmp:
-//     monster`), then `attachmp: report done`.
+//     monster`), the stuck guns' shots so far (`attachmp: propshots=N`), then `attachmp: report done`.
+//   vr_dm_test 28 (mpsync): 25 with a dagger (Daggers as Bayonets, a weapon of its own); `attachmp: dagger in player N's
+//     off hand`.
 // (An entity's number: its place among the used edicts, exact for players, whose edicts are never freed.)
 float(entity e) VR_AT_EntNum =
 {
@@ -1139,6 +1141,25 @@ void() VR_AttachMPTest_Frame =
             }
         }
         bprint(sprintf("attachmp: no player %g with an empty off hand\n", who));
+    }
+    if(ask == 28) // (mpsync) a dagger (Daggers as Bayonets) given into the empty off hand, as 25's bayonet
+    {
+        cvar_set("vr_dm_test", "0");
+        float dwho = cvar_hget(cvarh_vr_dm_test_who);
+        entity dself = self;
+        for(entity dp = VR_Player(); dp; dp = VR_NextPlayer(dp))
+        {
+            if(VR_AT_EntNum(dp) == dwho && dp.health > 0 && VRIsHandEmpty(dp, cVR_OffHand) && VR_Carry_Held(dp, cVR_OffHand) == world)
+            {
+                self = dp;
+                VRGiveEntWeapon(self, cVR_OffHand, WID_SWORD, VR_ADMelee_Flags(VR_SWORDKIND_DAGGER), 0);
+                W_SetCurrentAmmo();
+                self = dself;
+                bprint(sprintf("attachmp: dagger in player %g's off hand\n", dwho));
+                return;
+            }
+        }
+        bprint(sprintf("attachmp: no player %g with an empty off hand\n", dwho));
     }
     if(ask == 27)
     {
@@ -1206,6 +1227,7 @@ void() VR_AttachMPTest_Frame =
                 }
             }
         }
+        bprint(sprintf("attachmp: propshots=%g\n", vr_wfired_propshots)); // (mpsync: the shots stuck guns fired)
         bprint("attachmp: report done\n");
     }
 };

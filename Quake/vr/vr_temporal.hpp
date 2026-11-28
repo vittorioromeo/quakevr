@@ -33,6 +33,12 @@ void endEye();
 
 void registerCommands();
 
+// A gfx draw's own motion (gfx::State::prevFromNow: the wrist gadget's screen): when the bound framebuffer is the eye's
+// scene collecting motion vectors, the draws that follow write the motion target alone (attachment 1; true) until
+// endOwnMotion. Its texels: QVR_TEMPORAL_WRITE's (vr_glsl.h).
+[[nodiscard]] bool beginOwnMotion();
+void endOwnMotion();
+
 // VR stopped (stereo::releaseTargets): the eye-sized textures freed (made again, the history anew, at their next use) and
 // the motion target detached from the eyes' framebuffers (made again: attached again next frame).
 void releaseTargets();

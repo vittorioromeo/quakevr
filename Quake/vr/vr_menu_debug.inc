@@ -1920,6 +1920,10 @@ za::Vector<Item> pageDebugTools()
         command("Infect the Nearest Monster", "vr_attr_set infected 1")
             .help("vr_attr_set infected 1: the monster nearest you infected (killed, it bursts and rises as a zombie; an elite "
                   "can be infected too)."),
+        command("Check the Elites' Dye", "vr_humlook_dyetest")
+            .help("vr_humlook_dyetest: each elite's clothes as drawn (its skin's masked texels through its dye) "
+                  "against its stock skin, in the console: PASS when warmer, towards gold. Armour plates cover the dye "
+                  "where they sit: Armour Studio or vr_agarmor_set <entity> 0 to see it bare."),
         header("Controller Bindings"),
         command("Controller Bindings Screen", "menu_bindsetup")
             .help("menu_bindsetup [model]: the Controller Bindings screen for the controller in use (or a model's: quest3, "
