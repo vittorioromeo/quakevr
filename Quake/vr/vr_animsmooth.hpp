@@ -51,8 +51,9 @@ struct ServerLerp
 // "drawnhits"): every .mdl vertex of `model` (n: its numverts) at that lerp, drawn as this machine's settings draw it (the
 // spline, the swing, the rebuild), from the model and the server's own state alone: the spline's key after by the frames'
 // names (not what a client learnt), no kick. Byte units, as drawnPoints. False: drawn as Quake's blend of the stored bytes
-// (no spline nor rebuild now, not a Quake .mdl, a pose out of range): `out` untouched.
-bool serverPoints(struct qmodel_s* model, const ServerLerp& lerp, glm::vec3* out, int n);
+// (no spline nor rebuild now, not a Quake .mdl, a pose out of range): `out` untouched. `verts` given: only those n
+// vertices (the .mdl's order), the same values bit for bit (hitmodel::drawnVertexPoints: 3 anchors, not the whole body).
+bool serverPoints(struct qmodel_s* model, const ServerLerp& lerp, glm::vec3* out, int n, const int* verts = nullptr);
 
 // vr_drawnlerp_watch: `e`'s shader inputs kept from each frame's first draw of it (VR_AnimSmooth: its poses, weights, rows,
 // a kick's), null none; capturedPoints replays that draw on the CPU for its vertices `verts` (byte units, as drawnPoints)

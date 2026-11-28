@@ -1699,7 +1699,7 @@ void testAim_f()
 }
 
 // vr_rigstudio_test_posekeys: the Pose Keys tool on the subject (the shotgun grunt, Aim): each part dragged by the mock
-// mouse on its handle by a known amount (the right weapon along its key's x and round its z, the right elbow down, the
+// mouse on its handle by a known amount (the right weapon along its key's x and round its z, the right elbow out, the
 // torso round its z; in Pickup the pelvis down): the key's values changed by that (its space), the drawn part moved or
 // turned by it, then undone: the key exactly as it was, the part back. Screenshots before and after the weapon's move.
 struct PkStep
@@ -1716,7 +1716,9 @@ constexpr PkStep pkSteps[] = {
     {"left hand: grip offset, rolled 15 deg (the gun's x)", 12, 20, 15.f, agpose::Aim},
     {"right weapon, forward 4", 0, 0, 4.f, agpose::Aim},
     {"right weapon, turned 20 deg left (z)", 0, 22, 20.f, agpose::Aim},
-    {"right elbow, down 4", 4, 2, -4.f, agpose::Aim},
+    // (out, not down: Aim's elbow hangs at the bottom of its round about the shoulder-to-wrist line, so down only
+    // lengthened its way and moved nothing; out to its right is along that round: ROUND26 "godfallout")
+    {"right elbow, out 4 (its right)", 4, 1, -4.f, agpose::Aim},
     {"torso, turned 15 deg left (z)", 6, 22, 15.f, agpose::Aim},
     {"pelvis, down 3 (Pickup)", 7, 2, -3.f, agpose::Pickup},
 };
