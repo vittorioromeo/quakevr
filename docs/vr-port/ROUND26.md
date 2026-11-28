@@ -6102,6 +6102,39 @@ colour still clearly read.
   none; the hook's rules); vr_runsetup_test 91/0; `mp_test.py suite --only mp_elite` 10/0 (B's marker 0.45); tunables_test
   passes. Scene: elite_marker.
 
+## ragknock: ragdolls knock living monsters down only when it convinces (branch agent/ragknock, 2026-11-28)
+
+His note (words_1128b item 1): bodies with smaller forces floored enemies too easily. The one path where a ragdoll
+(corpse, knocked-down or staggering one, thrown, swung or flung by anything) knocks a living monster over is the Thrown
+Body trigger: the engine's `callBodyHits` (vr_box3d_step.cpp) -> QC `VR_KdTrig_BodyHit` -> `VR_KdTrig_Bump`
+(vr_kdtrig.qc). (A gun or prop falling on one is the hit stagger's, vr_hitstagger.qc: not changed.)
+
+| | before | now (`vr_ragknock` 1) |
+|---|---|---|
+| meeting | the whole body's box (grown 4 u) overlapping the monster's box | only the parts whose own boxes meet it |
+| momentum | whole mass x the middle's whole speed (falling included) | meeting parts' mass x their speed into it (towards its middle, relative to its velocity) + `_body` 0.6 of the rest behind the pelvis/chest (`_limb` 0.15 behind limbs alone); a stagger's backpedal: all of it x `_driven` 1.75 |
+| when | every frame it overlaps | once a meeting: its hardest within `_wait` 0.15 s (sooner when all of it is in it or it stops striking); its speed capped at the closing speed as they met (falling on through one gains nothing); a new throw starts a new meeting |
+| floor | middle speed >= 40 u/s; strike >= `vr_kdtrig_thrown_least` 0.05 | also parts into it >= `_min_speed` 60 u/s, strike >= `_stagger` 0.35 |
+| tiers | strike 0.05..1: chance of down grows 0..full, else stagger | < 0.35 nothing; 0.35..0.9 stagger; 0.9..1.5 down at half to full chance, else stagger; >= 1.5 full chance |
+| victim | weight 80 x group resistance; weight classes | same, strike also / stance: off the ground x`_air` 0.6, a low wide box (height/width < `_low_ratio` 1.45: ogre, dog, spider) x`_low` 1.6 |
+
+Strike = momentum / (its weight x `vr_kdtrig_thrown_speed` 160), as before; the weight classes (`vr_kdtrig_weight_*`), the
+chance (`vr_kdtrig_thrown`), the push and the cooldowns keep their meaning. `vr_ragknock 0` is the old rule. Tunables
+under Combat > Ragdoll Triggers - Thrown Bodies. `vr_kdtrig_debug 2` prints the engine's measure each frame a pair meets
+(`ragknock: 47 of 84 kg meet it (trunk, driven) at 113 u/s into it, the body 120: ... as 93 u/s`).
+
+Measured (headless): a hard two-hand shove's backpedal into a grunt 1.3-1.6 (down), a corpse flung at a grunt at 380
+u/s 1.4-2.1 (a glancing one, a leg first, 0.4-0.8: a stagger), a body falling 140 units onto one 3.1, a grunt's
+ragdoll falling from its head through it: nothing, a corpse falling over beside it: nothing or 0.66 (stagger), a corpse
+at 380 u/s at an ogre 0.15-0.62 (nothing or a stagger; it is never toppled: its weight class).
+
+- Files: vr_box3d_step.cpp (`ragKnockStrike`, `callBodyHits`), vr_box3d_internal.hpp (`RagdollBodies::Meet`),
+  vr_kdtrig.qc (`VR_KdTrig_Bump`'s tiers, `VR_RagKnock_Stance`), vr_tunables*.inc (`vr_ragknock*`).
+- Test: `vr_agrunt_test 236` (QC/vr_ragknock_test.qc, map vrragtriggers): 6 cases x 3 trials, seeds 1-3 7/0 each; the
+  old rule (`tune vr_ragknock 0`) fails the light drop (1 of 3 down, 2 staggered).
+  `sv_random_seed 1;map vrragtriggers;wait30;god;vr_agrunt_test 236` -QuitOn "test 236 over".
+- Open: `vr_kdtrig_test 44` (the thrown trials) is confounded: its corpse is killed between you and the target, and the
+  kill push throws it into the target before the fling (down then, counted "stands"). Not changed.
 ## dazzlestudio: the dazzle shield's pose tweaked per armed humanoid kind, one weapon and two, in an ImGui Dazzle Studio with gizmos (branch agent/dazzlestudio, 2026-11-28)
 
 His words 2026-11-28 (item 14): per-kind offsets/rotations on top of the base dazzle pose, elbow and forearm adjustments,

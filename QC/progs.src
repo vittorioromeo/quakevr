@@ -678,6 +678,7 @@ vr_armedgrunt_grab_test.qc
 vr_armedgrunt_impact_test.qc
 vr_ledgeshove_test.qc
 vr_ragthud_test.qc
+vr_ragknock_test.qc
 vr_armedgrunt_lod_test.qc // tests 226-229: the armed grunts' cost by state, a far one woken, a worn pack's LOD
 vr_armedgrunt_dualdisarm_test.qc
 vr_armedgrunt_second_test.qc
