@@ -16,8 +16,8 @@ mkdir -p "$S"
 L="$S/run.log"
 press="+attack; wait2; -attack; wait50"
 SC="map vrtesthall; god; notarget; developer 1; vr_flatplay_debug 1; impulse 150; impulse 170; wait5"
-SC="$SC; setpos 0 300 25 70 90 0; +flatcrouch; wait40; vr_flatplay_debug 2; echo pf: down; $press; $press; vr_flatplay_debug 1; -flatcrouch; wait40"
-SC="$SC; setpos 0 300 25 0 90 0; wait10; vr_flatplay_debug 2; echo pf: level; $press; $press; vr_flatplay_debug 1"
+SC="$SC; setpos 0 300 25 70 90 0; noclip 0; +flatcrouch; wait40; vr_flatplay_debug 2; echo pf: down; $press; $press; vr_flatplay_debug 1; -flatcrouch; wait40"
+SC="$SC; setpos 0 300 25 0 90 0; noclip 0; wait10; vr_flatplay_debug 2; echo pf: level; $press; $press; vr_flatplay_debug 1"
 SC="$SC; echo pf: done; toggleconsole; quit"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Script "$SC" -QuitOn "^pf: done" -Timeout 180 \
     -Filter '^pf:|^flatwall:|^melee event|^flatplay: (main|off) punch|ERROR|CRASH' > "$L" 2>&1

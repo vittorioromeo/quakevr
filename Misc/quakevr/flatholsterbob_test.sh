@@ -12,7 +12,7 @@ S=$TREE/scratch/flatholsterbob
 mkdir -p "$S"
 L="$S/run.log"
 reports() { local r=""; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do r="$r; wait3; vr_flat_holster_bob_report"; done; echo "$r"; }
-walk() { echo "tune vr_flat_holster_bob_h $1; tune vr_flat_holster_bob_v $2; setpos 0 100 25 0 90 0; wait10; echo hb: case $1 $2; +forward; wait20 $(reports); -forward; wait10"; }
+walk() { echo "tune vr_flat_holster_bob_h $1; tune vr_flat_holster_bob_v $2; setpos 0 100 25 0 90 0; noclip 0; wait10; echo hb: case $1 $2; +forward; wait20 $(reports); -forward; wait10"; }
 SC="map vrtesthall; god; notarget; wait10"
 SC="$SC; $(walk 1 1); $(walk 0 0); $(walk 1 0); $(walk 0 1); tune_reset vr_flat_holster_bob_h; tune_reset vr_flat_holster_bob_v"
 SC="$SC; echo hb: done; toggleconsole; quit"
