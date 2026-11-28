@@ -510,6 +510,11 @@ struct Aim
     double from{0.0}, until{0.0};
     glm::vec3 target{0.f}, grip{0.f}; // world, metres
     float strength{0.f};
+    // Its wrist (ragfire2): the gun's barrel as drawn on its hand (world, unit; zero: not given, no wrist), learnt in the
+    // hand bone's axes (`local`, eased: the gun is fixed in its hand), and the hand bone turned so it points at `target`.
+    glm::vec3 barrel{0.f}, local{0.f};
+    int hand{-1};      // the aimed arm's hand bone this frame (-1 none: no wrist in the rig, or cut)
+    float weight{0.f}; // the aim's ease this frame (aimFrame's)
 };
 
 // ---- Struggling in the hands (vr_struggle; vr_ragstruggle.cpp; docs/vr-port/STRUGGLE.md) ----
@@ -842,7 +847,9 @@ bool beginClimb(State& s, const Parts& p, const Context& c);
 void guard(State& s, const glm::vec3& threat, double now, float hold);
 // A living armed one (its drive begun) aims the arm whose hand is nearest `grip` at `target` (world, metres) for `hold`
 // s at `strength` (0..1; vr_agrunt_ragfire's prototype): that arm's reach over whatever leads it, under a guard.
-void aim(State& s, const glm::vec3& target, const glm::vec3& grip, double now, float hold, float strength);
+// `barrel` (world, unit; zero: none): the gun's line as drawn on the hand now; its wrist turns the hand so it meets `target`.
+void aim(State& s, const glm::vec3& target, const glm::vec3& grip, double now, float hold, float strength,
+    const glm::vec3& barrel);
 
 // A mark of blood due on the hand holding a stump (Dismember::bloodDue, one taken): the hand's end (world, metres) and
 // the way to the stump. False: none due.

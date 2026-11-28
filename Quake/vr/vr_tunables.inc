@@ -3025,13 +3025,14 @@ QVR_TUNABLE(vr_elite_arena_chance, "0.2") // ... each armed humanoid in them an 
 QVR_TUNABLE(vr_elite_pulse, "0.3") // the elite dye's pulse: its dark gold glows this far towards bright gold and back, brighter by as much (0: steady)
 QVR_TUNABLE(vr_elite_pulse_hz, "0.6") // ... this many times a second
 // Armed ones firing as ragdolls (vr_agrunt_ragfire, a prototype; QC vr_armedgrunt_ragfire.qc; docs/vr-port/RAGFIRE.md).
-QVR_TUNABLE(vr_agrunt_ragfire_cone, "60") // degrees: it fires only while its gun points within this of its target (from the muzzle)
-QVR_TUNABLE(vr_agrunt_ragfire_steer, "30") // degrees: its shot turned from the gun's line towards its target by at most this (its wrist)
+QVR_TUNABLE(vr_agrunt_ragfire_cone, "35") // degrees: it fires only while its gun points within this of its target (from the muzzle)
+QVR_TUNABLE(vr_agrunt_ragfire_steer, "10") // degrees: its shot turned from the gun's drawn line towards its target by at most this (the gun itself is aimed by its arm and wrist: vr_agrunt_ragfire_wrist)
 QVR_TUNABLE(vr_agrunt_ragfire_interval, "1.6") // s: at least this between its shots (up to half again at random); its first this long after it became a ragdoll
 QVR_TUNABLE(vr_agrunt_ragfire_nail_interval, "0.6") // s: ... a nailgun's or the nail pistol's
 QVR_TUNABLE(vr_agrunt_ragfire_error, "5") // degrees: each shot's aim off at random by up to this, on top of its gun's spread
 QVR_TUNABLE(vr_agrunt_ragfire_aim, "0.7") // its gun arm's reach towards its target (0..1, the active ragdoll's arm strength; 0: no reach, it fires only when its gun happens to point near)
 QVR_TUNABLE(vr_agrunt_ragfire_held, "1") // 1: it fires held in your hands too (grab its gun to take it); 0 not while held
+QVR_TUNABLE(vr_agrunt_ragfire_wrist, "1") // 1: its gun hand's wrist turns the gun onto its target too, at the arm's strength (ragfire2; the rigs with a hand bone); 0 the arm's reach alone (before)
 QVR_TUNABLE(vr_elite_glow, "0.55") // the elite marker: a soft gold glow round an elite's outline and on its armour, unlit (seen in the dark); its strength (0: none). It pulses with the dye (vr_elite_pulse)
 QVR_TUNABLE(vr_elite_trim, "1") // an elite's armour plates drawn with a gold trim round their edges (make_agarmor.py's elite skins; the faces keep the tier's colour). 0: the tier's own trim
 QVR_TUNABLE(vr_elite_glow_fill, "0.12") // ... and this share of it over the whole body facing you, not its armour's plates (0: the outline alone)

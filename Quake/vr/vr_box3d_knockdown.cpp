@@ -794,7 +794,7 @@ bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold)
     return true;
 }
 
-bool ragdollAim(edict_t* ent, const glm::vec3& at, const glm::vec3& grip, float hold, float strength)
+bool ragdollAim(edict_t* ent, const glm::vec3& at, const glm::vec3& grip, float hold, float strength, const glm::vec3& barrel)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
     if(!rp || !rp->rig || !activeLiving(ent))
@@ -811,7 +811,7 @@ bool ragdollAim(edict_t* ent, const glm::vec3& at, const glm::vec3& grip, float 
     {
         beginLiving(r, ent); // (lying: its arms alone, by their reaches, as the guard's)
     }
-    ragactive::aim(a, glmv(world->toM(at)), glmv(world->toM(grip)), qcvm->time, hold, strength);
+    ragactive::aim(a, glmv(world->toM(at)), glmv(world->toM(grip)), qcvm->time, hold, strength, barrel);
     return true;
 }
 

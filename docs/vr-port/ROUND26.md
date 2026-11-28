@@ -6449,6 +6449,23 @@ Counts: closed 1 (a sub-item), trimmed 5, kept the rest (about 73), added 3.
 - **Added (section 11):** mixed ammo loads in launchers (placeholder for the ammomags worker), `vr_menu_pad_test` hang on agent/split,
   the unused scenes `agrunt_dual_guns` and `armour_beasts`.
 
+## Ragfire: the downed gun hand's wrist aims the gun (branch agent/ragfire2, 2026-11-28)
+
+His words: "Can you make that fix?" (steer the hand bone, then the shot's turn back to ~10 degrees). Full notes and the
+before/after table: `RAGFIRE.md` section 4b. Still behind `vr_agrunt_ragfire` 0 (experimental).
+- **Wrist**: `ragdollaim` (ragdollguard's optional `barrel`) takes the gun's drawn line; `aimWrist` (vr_ragactive.cpp) turns
+  the hand bone's target so it meets the target, within the rig's 30-degree wrist, at the aim's strength. Tunable
+  `vr_agrunt_ragfire_wrist` 1 (Debug > Tunables "Ragfire: Wrist"; 0 the arm alone, as before).
+- **The arm lifts now**: the aimed arm's shoulder cone clamped to Box3D's 90 (`b3SphericalJoint_SetConeLimit` skipped the
+  struggle's 150, leaving the rig's 40); its bones never stirred by the knockdown's stirring (it zeroed the wrist);
+  `aimArmDrive` 2 on its springs and motors. A struggle's own 150-degree cone has the same skip: not touched (BACKLOG).
+- **Defaults**: `vr_agrunt_ragfire_cone` 60 -> 35, `vr_agrunt_ragfire_steer` ("Shot Turn") 30 -> 10.
+- **Measured** (test 237, drawn gun's angle off the player, median/90th %): on its back 44/50 -> 8/20 deg, sides 56-74 ->
+  38-44, all poses 64/128 -> 32/122; the shots' own 40/50 -> 8/20; shots per 10 s down 3.8 -> 5.0.
+- **Test 237** rewritten: 3 guns x back/front/left/right x 2 rounds, then staggering, plus the launcher and setting-off
+  never cases, then `ragfire summary:` lines (by pose) and a check that the shots' drawn gun angle median is within 15:
+  30/0. Frame strip for review: kit `scratch/fb1127n/ragfire2_strip.png`.
+- Open: on its front it can't bring the gun round (needs a roll); the held case is not in the test (same code path).
 ## reloadstudio2: the Reload Studio shows what the game does; orbit camera, gun gizmo, gun pose paste; straight back to the 2H grip; reload speed (branch agent/reloadstudio2, 2026-11-28)
 
 His notes 2026-11-28 (kit `scratch/fb1127n/words_1128b.md` items 9-12) and his later ask (a global and a per-gun reload
