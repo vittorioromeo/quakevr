@@ -31,4 +31,20 @@ for GUN in $GUNS; do
     grep -a "reloadstudio_pose: .* (take|carry):" -E "$S/$GUN.log"
     expect_verdict "$OUT" reloadstudio_pose "$GUN: the lock's poses as a real reload's"
 done
+# The speed multipliers (his ask 2026-11-28): a nailgun reload at 1x, at vr_reload_speed 2 and at the gun's own speed 0.5
+# (vr_reloadsys_set nailgun - speed 0.5): full each time, its time (the server's "done" line) half and twice the 1x one.
+if [ -z "$3" ] || [ "$3" = speed ]; then
+    G="impulse 156; give n 100; wait20; +attack; wait30; -attack; wait10; vr_mock_key r down; wait2; vr_mock_key r up; wait600; echo SPEED timeout"
+    declare -A SECS
+    for c in "x1|vr_reload_speed 1" "x2|vr_reload_speed 2" "gun05|vr_reload_speed 1; vr_reloadsys_set nailgun - speed 0.5"; do
+        tag=${c%%|*}
+        bash $KIT/run.sh $AGENT -ExtraArgs -flatscreenmode -Script "$BASE; ${c#*|}; $G; toggleconsole; quit" \
+            -QuitOn "^flat proc reload: main hand (done|cancelled)|^SPEED timeout" -Timeout 100 -Filter "^flat proc reload: main hand (done|cancelled)" > "$S/speed_$tag.log" 2>&1
+        line=$(grep -a "main hand done (full;" "$S/speed_$tag.log" | head -1)
+        SECS[$tag]=$(sed -E 's/.*full; ([0-9.]+) s.*/\1/' <<<"$line")
+        check $([ -n "$line" ] && echo 1 || echo 0) "speed $tag: the nailgun reloaded full (${line:-none})"
+    done
+    check $(python -c "a,b,c=${SECS[x1]:-0},${SECS[x2]:-0},${SECS[gun05]:-0}; print(1 if a>0 and abs(b-a/2)<0.1*a and abs(c-2*a)<0.15*a else 0)") \
+        "speed: 2x took half the 1x time, the gun's 0.5 twice (${SECS[x1]} / ${SECS[x2]} / ${SECS[gun05]} s)"
+fi
 verdict
