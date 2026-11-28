@@ -116,7 +116,7 @@ choices themselves are the engine's line.
 | `armed` | As Style, Off, On | `vr_agrunt_repl`, `vr_agknight`, `vr_agdknight` |
 | `smartai` | As Style, Off, On | `vr_ai_enhanced` |
 | `startgun` | Shotgun, Nail Pistol, Heavy Revolver, Nothing | a new game's gun in the hip holster (`vr_run_startgun.qc`); held at Nothing by Melee Only |
-| `startmelee` | Axe, Dagger, Nothing | a new game's melee weapon (`vr_run_startgun.qc` too); Nothing and Nothing: bare fists. An old save's `startweapon=N` reads as gun and melee (revolver: Revolver and Axe; axe alone: Nothing and Axe; unarmed: Nothing and Nothing) |
+| `startmelee` | Axe, Dagger, Spear, Nothing (values 0, 1, 3, 2: the screen's order, `Mutator::order`; saved picks keep their numbers) | a new game's melee weapon (`vr_run_startgun.qc` too); Nothing and Nothing: bare fists. An old save's `startweapon=N` reads as gun and melee (revolver: Revolver and Axe; axe alone: Nothing and Axe; unarmed: Nothing and Nothing) |
 | `meleeonly` | Off, On | guns and ammunition can't be force grabbed, grabbed, caught or walked over; a gun in the hand only clicks (`vr_run_meleeonly.qc`) |
 | `glasscannon` | Off, On | the player and monsters take double damage (`vr_run_glasscannon.qc`) |
 | `pickups` | Off, Balanced, Anything Goes | the map's pickups swapped as it loads (`vr_run_pickups.qc`, below) |

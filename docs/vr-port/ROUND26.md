@@ -4942,3 +4942,131 @@ across the face by the IK); dual wielders don't shield (an option to try). Follo
   its eyes' line to the lens, under 50 degrees off square across it and off level; a dual wielder (two revolvers): with the
   option its left hand up before its eyes, the gun pointing up, not fired (its forearm within 6.5: below its grip), without
   it no shield. `scratch1 232`: nearer (64 units), a screenshot of each kind and of the dual wielder, for his review.
+
+## flatpunch: flat jabs along the crosshair's ray; Run Setup's melee row Axe, Dagger, Spear, Nothing (branch agent/flatpunch, 2026-11-28)
+
+His flat notes 2026-11-28, items 4 and 11.
+- **Jabs at the crosshair** (item 4): both fists' jabs (`fistsJab`) now end on the crosshair's ray, either hand. Before,
+  the fist was thrown 0.7 of the way (`vr_flat_punch_aim`) to a point measured off the shoulder by the rest pose's numbers,
+  out to the old throw's length: it ended 6.5 to 7.6 units from the crosshair's point, below and short of it (at arm's
+  length, well off the crosshair on the screen). Now (vr_flatplay.cpp pose loop) the target is measured from where the
+  hand really rests (`base`, the same place the swing is added to) and the jab goes all the way: to `jabThrough` (8) past
+  what the ray hits (ended on a grunt's face, the fist only touched it: no blow), never nearer along the ray than
+  `punchReach` (24) past the hand (a grunt right in front is still struck), at most the arm's reach along the ray
+  (`meleeAimPoint`'s new `jabFrom`). Other fist punches (a prop's, a free hand beside a gun, `vr_flat_jab_alternate` 0)
+  are unchanged. The melee probe's line gains `ray`: the blow's held end off the crosshair's ray, up and down too.
+  No new state: the pose is the client's; the blow is the game's hand motion as before (nothing new to network; per-seat
+  splitscreen needs nothing beyond the existing flat state).
+- **Run Setup melee order** (item 11): the Starting melee weapon row shows Axe, Dagger, Spear, Nothing (Nothing last, as
+  the Starting gun's). Display only: `Mutator::order` (vr_runsetup.hpp) gives a row's screen order of the values; the
+  values stay (Nothing 2, Spear 3), so saved picks, save lines and the QC's numbers are untouched (no config version).
+  The icon picker's pictures follow the screen's order (vr_menu_runsetup.inc).
+- **Tests**: flatfists_test.sh 21/0 (adds: the jabs in the air end on the ray, 0.0 off; a grunt off the line he faced,
+  turned onto with the mouse: each hand's jab hits it, 0.1 off the ray; the second jabhit grunt 60 back: the first's
+  falling corpse took the next jab and was thrown into it). vr_runsetup_test 88/0 (adds: every screen order a
+  permutation; the melee row's order and kept values). vr_runlaunch_test 91/1: the failing check is Select Campaign's
+  Arena Mode row under AD (campaign page; not touched here). flatmelee_test 12/0, flatmelee4 9/0, flatmelee6 9/0.
+## panelfix: the bindings reminder panels and the holster labels (branch agent/panelfix, 2026-11-28)
+
+His words (2026-11-28), items 1, 6, 9, 10, 12 of his flat-screen session.
+- **Every page** (9): the menus' panel (`vr_menuui.cpp` drawBindPanel) is drawn on every menu page where it fits, not only
+  the main menu. Its room goes from the panel's left edge to the page's leftmost text (the main menu's rows:
+  `M_Main_RowsExtent`; other pages `menu::contentLeft` / `contentLeftBelow`), from under the corner's buttons to above the
+  bottom corner's rows. Pages whose labels reach far left (VR Settings) leave no room, so the panel is not drawn there.
+  The Controller Bindings screen (m_bindsetup) never draws it.
+- **One anchor** (12): the panel's bottom left corner, for the keyboard and a pad alike. The pad's panel used to stand
+  under the column of corner buttons, while the keyboard's (too wide for that) moved to the canvas's left. Left margin:
+  20 menu units from the panel's edge (1). The panel used to touch the border (`l.left + 4`).
+- **Hover bug** (1): every corner hit test already checked both X and Y (`ToolbarLayout::hit`, `zoomHit`, `cornerRowAt`,
+  the flat Recording box, the version link). The panel was the problem: its room ended at `l.bottom - 24`, ignoring the
+  bottom corner's rows, so Setup Bindings sat over the OBS and Recording Settings rows and lit them. Its room now ends
+  `gap` above `menuui::cornerRowsTop()`, or above the flat Recording box. Those rows are also not lit while the mouse is
+  over Setup Bindings. Heights now count in true pixels: on a stretched canvas (Options: `l.k` 2) the letters are square
+  (`Draw_CharacterEx` keeps them so) and the rows are spaced to match.
+- **More rows, grouped** (10): `vr_bindpanel.cpp` has 20 rows (`maxRows` 24). The 9 main ones come first, drawn large:
+  fire, aim, reload, wheel, holster menu, grab, throw/drop, grenade, crouch. After them come smaller rows
+  (`BindPanelRow::minor`) in two groups under small titles (`BindPanelRow::header`):
+  - Hands: Cycle L / R (1 2), Holster L / R (4 5, `vr_flat_key_holster_*`), Drop L / R (6 7), Swap hands, Next ammo
+    (`vr_flat_key_ammo`), Attach / detach (`vr_flat_key_attach`).
+  - More: Force grab, Shove, Punch, Lie down (`vr_flat_key_prone`), Flashlight.
+
+  The menu draws the minor rows at 0.75 of the letters, each group's title with a rule. The gadget image over the MMB menu
+  and the flat wheel (`vr_gadget_holster.inc` bindRowsLayout) puts the main rows in its first column and the groups at 5 px
+  in the second. A pad's rows (its bound buttons) stay one group, all large.
+- **Holster titles** (6): `holsterTitleInk` goes from 0.55 to 0.8 of the label ink. This covers the MMB menu and the
+  weapon wheel, VR and flat.
+- **Report**: `vr_bindpanel_report`'s menu lines are now `bindpanel: menu panel drawn: N rows, letters, page <main|options|
+  keys|other>, corner hits H, obs row 0/1, clear C` and a `menu panel room ...` line. H is the hover test: of 15 spots over
+  Setup Bindings, how many the column, zoom, Recording, OBS or RenderDoc hit tests also take; it is measured while drawing,
+  in the menu's canvas. C is the gap from Setup Bindings's bottom to the corner rows' top. Rows print ` minor` and
+  ` group <title>`.
+- **Tests**: bindpanel_test 29/0. New checks: 20 rows; the new rows and their keys and groups; the panel drawn on the main
+  menu and on Options; with OBS's row (`vr_obs_mock 1`) corner hits 0 and clear >= 0; the keyboard's and the pad's Setup
+  Bindings at the same left and bottom. Also weaponwheel_test flat 21/0 and vr 26/0, flatholster_test 54/0,
+  flatmenu_esc 7/0. Screenshot: scratch/bindpanel/main.png (keyboard, Xbox pad, Options).
+- **MP / splitscreen**: client-side drawing only (key binds and cvars), nothing networked. Splitscreen: the panel reads
+  the one keyboard's binds; per-seat binds stay in BACKLOG section 3.
+## mountoffs: the bayonet and dagger hang from the gun's mount; every gun's bayonet and dagger offsets (branch agent/mountoffs, 2026-11-28)
+
+His flat notes 2026-11-28 (7) the nailgun's bayonet didn't follow his moved mount, (17) global, weapon-independent bayonet
+and dagger offsets from the mount.
+- **One hierarchy** (`attach::mount`, vr_attach.cpp; ATTACHMENTS.md): gun -> its mount (`mnt_x/y/z`, `mnt_pitch/yaw/roll`
+  in the gun model's space, `mnt_size` the bayonet's size on it: `attach::mountValues`) -> every gun's offset of the kind
+  (new `vr_attach_bayonet_*` / `vr_attach_dagger_*`: x/y/z, pitch/yaw/roll, scale, in the mount's units and axes) -> the
+  gun's own `att1_*` / `att2_*` (same units; 0 / scale 1 by default) -> the kind's frame (flatbayonet's). Everything goes
+  through it: held, holstered, lying, monsters', previews, the server's points (QC attachinfo via `fromMuzzle`), the stick
+  blade, the toolgun icons. The drawn rail (`railMount`) is the mount itself; a map pickup maps its view gun's mount onto
+  itself (`pickupRails` now hold the view gun's mount they were measured against: refPos / refScale), so a moved mount
+  moves the pickup's rail as before.
+- **weapons.txt converted** (scratch `mo_convert.py`): each gun's old att1 place is its `mnt_*` (the shipped mnt_* were
+  all 0); att1 back to 0; att2 from the mount: every bayomounts gun's dagger was the same (-2.79, 0.339, -1.47) from the
+  bayonet, now the dagger's global default, so their att2 are 0; the shotgun keeps (-0.004, 0, -0.535) and pitch -0.74,
+  the SSG (0.0055, 0, 0.533) and pitch 0.76. At the defaults every gun's bayonet and dagger are where they were (7 guns
+  checked: within 0.0009 units, sizes and turns exact).
+- **Configs: vr_wofs_version 81** (`takeMountOffsets81`, `attach::convertToMountOffsets`): a config's own att/mnt values
+  (the rest the old defaults, read back from today's) to the hierarchy: the mount where the old moved mount was drawn, the
+  bayonet on it (its size kept), the dagger kept relative to the bayonet's old place, so a moved mount takes both along.
+  His config: `vr_wofs_mnt_y_04 0.68` (bayonet units) becomes the nailgun's mount at y -0.0636 (from -1.48: centred);
+  **what moved**: the nailgun's bayonet and dagger 1.416 units left (gun model units) onto it, nothing else (his shotgun
+  att2 values convert to today's defaults with his -0.743 / 0.757 pitches kept). Step 80's old dagger scale reads the
+  mount's size now.
+- **Menu** (Weapon Offsets > Attachments): "Bayonet Mount" first (Bayonet Fits, Show, Mount Forward/Left/Up in the gun's
+  units with the old Bayonet ranges, Pitch/Yaw/Roll, Size), "Bayonet" (this gun's offset from the mount, small ranges),
+  "Every Weapon's Bayonet" (Every Bayonet Forward ... Scale), "Dagger" (as before, relative), "Every Weapon's Dagger".
+  Weapon Offsets pages are not in menu_paths.txt; vrcalibration 0 missing. (menu_paths.txt is stale on origin/next by 45
+  rows of the prl / reminder-panel work: not regenerated here.)
+- **MP / splitscreen**: the global offsets are local `CVAR_ARCHIVE` (like the per-slot vr_wofs values): each client draws
+  with its own, the server's attach points use the host's. Splitscreen seats share them (no per-seat state).
+- **Tests**: `menu_vr attachtest` 20/0 (new: the defaults unchanged on 7 guns, Mount Left 1.5 / Mount Yaw 20 on the
+  nailgun take its bayonet and dagger along, every-gun offsets and scale move every gun's, his config's nailgun converts
+  with the bayonet on the moved mount; the page's Mount Forward row moves the bayonet); `vr_embed_test 96` attachguns
+  57/0 + attach_guns_check 32/32; flat 80 17/0, flat dagger 85 18/0. The migration checked with his config's lines
+  (vr_wofs_version 80 -> 81: values above).
+## grenhold: a held grenade isn't a stuck prop: put back or swapped by the weapon wheel and the holster menu (branch agent/grenhold, 2026-11-28)
+
+His words (2026-11-28): "When holding a grenade, the hand is considered holding a prop, so I cannot put it back or switch it
+for a gun unless I drop it first. Make held grenades go back to the ammo if unlit, and make it possible to swap them or put
+them back by using the usual weapon wheel or MMB buttons."
+- **Put back** (`VR_HandGrenade_Stow`, vr_flatgrenade.qc): before a holster pick for a hand (the wheel's EMPTY HAND and
+  holster slots, `VR_Wheel_Pick` through `VR_FlatHolster_KeyHandOk`; the flat holster keys 1/2/4/5, Cycle/Put; the MMB
+  holster menu's holster buttons, `VR_FlatHolster_Swap`), an unarmed hand grenade in that hand goes back in the pouch: its
+  rocket or multi-rocket back (as the pouch's own let-go, VR_HandGrenade_LetGo), the pouch sound and tick, the headset's
+  collect effect into the pouch; then the pick goes on with the hand empty (the holster's weapon drawn into it). Flat-screen
+  play's quick grenade state for that hand is ended; its trip to the pouch (FETCH) with that hand is called off.
+- **Refused**: an armed grenade (or a pouch full up of its ammo) stays in the hand: a dull knock (`vr/pack_full.wav`), a buzz,
+  and "The grenade is armed: throw it or drop it." (the wheel's DROP still drops it; pressing G with it armed is as before).
+- **BACK POUCH** (`VR_Wheel_Grenade`): with a grenade in the hand, the other kind swaps it (put back, the other taken: the
+  headset's at once, flat's by its trip); the same kind puts it back (the hand empty). Armed: refused.
+- **Client** (both modes, MP-safe): STAT_QVR_FLATUNLOADFULL carries the hand grenade per hand (bits 6-7 off, 8-9 main:
+  1 unarmed, 2 unarmed multi, 3 armed; `VR_FlatReload_HandFrameOn`), read by `flatholster::handGrenade`. The wheel lights
+  EMPTY HAND ("put back", "armed!" when armed: lit so the press gets the refusal), keeps the held kind's BACK POUCH half lit
+  with none left, and names DROP's "grenade"; the MMB menu's holster buttons stay lit with a grenade carried. Stats are per
+  client, so coop/MP clients get their own; splitscreen seats read their own stats once agent/split gives each seat its
+  cl.stats (nothing else needed here).
+- Not done (decided): letting go of an unarmed grenade at a weapon holster in the headset still drops it as before (only
+  the pouch takes it back): an overhead throw passes the shoulder holsters, and with vr_handgrenade_arm 1 an unarmed throw
+  let go there would vanish into the pouch.
+- **Tests**: `weaponwheel_test.sh <agent> grenade` 15/0 and `flatgrenade` 16/0 (new steps: with a grenade in the hand
+  EMPTY HAND and CLUSTER lit; CLUSTER swaps it, the rocket back; the nailgun's holster: the gun in the hand, the
+  multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
+  `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.

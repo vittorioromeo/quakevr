@@ -25,15 +25,15 @@ RunSetupState runSetup;
 
 // The icon pickers' pictures (vr_menu_icons.inc; vr_menu_icons 0: plain rows), one a choice in the registry's order:
 // the guns and melee weapons the toolgun's thumbnails of their models, Nothing a bare hand, Difficulty's emblems,
-// Enemy Count's grunts.
+// Enemy Count's grunts. In the screen's order (a row's Mutator::order: the melee weapon's Nothing last).
 constexpr MenuIcon runSetupSkillIcons[] = {{.emblem = MenuIcon::Easy}, {.emblem = MenuIcon::Normal},
     {.emblem = MenuIcon::Hard}, {.emblem = MenuIcon::Nightmare}};
 constexpr MenuIcon runSetupGunIcons[] = {{.model = "progs/v_shot.mdl", .side = true},
     {.model = "progs/v_nailpistol.mdl", .side = true}, {.model = "progs/v_revolver.mdl", .side = true},
     {.emblem = MenuIcon::Hand}};
 constexpr MenuIcon runSetupMeleeIcons[] = {{.model = "progs/v_axe.mdl", .side = true},
-    {.model = "progs/v_dagger.mdl", .side = true}, {.emblem = MenuIcon::Hand},
-    {.model = "progs/v_spear.mdl", .side = true}};
+    {.model = "progs/v_dagger.mdl", .side = true}, {.model = "progs/v_spear.mdl", .side = true},
+    {.emblem = MenuIcon::Hand}};
 constexpr MenuIcon runSetupCountIcons[] = {{.model = "progs/soldier.mdl", .figures = 1},
     {.model = "progs/soldier.mdl", .figures = 2}, {.model = "progs/soldier.mdl", .figures = 3}};
 struct RunSetupIconRow
@@ -182,7 +182,8 @@ void runSetupRow(za::Vector<Item>& items, int i)
     za::Vector<Choice> choices;
     for(int o = 0; o < m.optionCount(); o++)
     {
-        choices.pushBack(Choice{static_cast<float>(o), m.options[o]});
+        const int v = m.order ? m.order[o] : o; // (the screen's order; the value kept: Mutator::order)
+        choices.pushBack(Choice{static_cast<float>(v), m.options[v]});
     }
     Item row = cycle(m.label, *m.pick, ZA_MOVE(choices)).help(m.help);
     if(const MenuIcon* icons = runSetupIcons(i))

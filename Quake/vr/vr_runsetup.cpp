@@ -159,6 +159,11 @@ int armedOnlyForced()
 // Adding a mutator (docs/vr-port/MUTATORS.md, "Adding a mutator"): its two cvars in vr_cvars.inc and one line here; a
 // mutator the QC reads needs nothing else on the engine's side (the screen, the save line, the summary, `vr_run` and the
 // hub's end of a run all go through this table).
+// The Starting melee weapon's row as the screen shows it: Axe, Dagger, Spear, Nothing, with Nothing last as the Starting
+// gun's is (flatpunch, his words 2026-11-28). Only the screen's order: the values stay (Nothing 2, Spear 3), so saved
+// picks and saves keep theirs.
+constexpr int startMeleeOrder[] = {0, 1, 3, 2};
+
 // clang-format off
 const Mutator registry[] = {
     {.id = "skill", .label = "Difficulty", .section = Section::Difficulty,
@@ -196,7 +201,7 @@ const Mutator registry[] = {
         .help = "The gun a new game starts with, in its hip holster: the shotgun, the nail pistol, the heavy revolver, or none.",
         .pick = &vr_runpick_startgun, .active = &vr_run_startgun, .forced = startGunForced, .heldBy = "Melee Only"},
     {.id = "startmelee", .label = "Starting melee weapon",
-        .options = {"Axe", "Dagger", "Nothing", "Spear"},
+        .options = {"Axe", "Dagger", "Nothing", "Spear"}, .order = startMeleeOrder,
         .help = "The melee weapon a new game starts with: the axe, the dagger, the spear, or none (bare fists: punch and grab).",
         .pick = &vr_runpick_startmelee, .active = &vr_run_startmelee},
     {.id = "meleeonly", .label = "Melee Only", .options = {"Off", "On"}, .tags = {"", "Melee only"},
@@ -548,6 +553,22 @@ void testCmd()
             t.check(atoi(m.pick->default_string) == m.def, name, va("%s: the pick's default is the registry's", m.id));
         }
         t.check(m.def >= 0 && m.def < m.optionCount() && m.help && m.help[0], name, va("%s: a default, a help", m.id));
+        if(m.order)
+        {
+            int seen = 0; // (each value once: a bit for each)
+            for(int o = 0; o < m.optionCount(); o++)
+            {
+                seen |= m.order[o] >= 0 && m.order[o] < m.optionCount() ? 1 << m.order[o] : 0;
+            }
+            t.check(seen == (1 << m.optionCount()) - 1, name, va("%s: its screen order shows every value once", m.id));
+        }
+    }
+    // (flatpunch, his words 2026-11-28: the melee weapon's Nothing after the Spear, as the gun's is last; the values kept.)
+    {
+        const Mutator& sm = registry[find("startmelee")];
+        t.check(sm.order && !ZA_STRCMP(sm.options[sm.order[2]], "Spear") && !ZA_STRCMP(sm.options[sm.order[3]], "Nothing") &&
+                    !ZA_STRCMP(sm.options[2], "Nothing") && !ZA_STRCMP(sm.options[3], "Spear"),
+            name, "Starting melee weapon shown Axe, Dagger, Spear, Nothing; saved values kept (Nothing 2, Spear 3)");
     }
 
     // A run: Classic, Minimal gore, armed on over it, the revolver, glass cannon.
