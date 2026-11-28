@@ -16,6 +16,9 @@ Flat-screen: with a gamepad as the last device used, the main menu's bindings pa
 Ragdoll climbs: knock a knight off a ledge so it falls past the lip: when it grabs the lip its fall is caught softly (no sudden jolt) and both hands stay on (no hand yanked off the lip), then it pulls itself up. {test:knight_ledge}
 Flat-screen: with the shotgun in one hand, fire it empty and press R: the gun tilts in and stays put for the whole reload, with no jolt backwards towards the camera when the pair comes into the hand or goes into the port. {test:flat_proc_reload}
 Flat-screen: open Tunables > Flatscreen > Procedural Reload, set Lock Pose (or use Next Key / Previous Key) and walk through the key poses (rest, gun tilted, hand at pouch, gripping the pair, at the port's mouth, inserted, returning); change a pose's sliders and see the held pose follow at once; set Lock Pose back to Off and R reloads as normal. {test:flat_proc_reload}
+Flat-screen or VR: take a grenade from the back pouch (the wheel's BACK POUCH, or G flat), then pick a gun on that hand's wheel or EMPTY HAND: the grenade goes back (the rocket count +1) and the gun comes into the hand. {test:wheel_grenade}
+Flat-screen or VR: holding a grenade, pick the other kind on the wheel's BACK POUCH: it is swapped (cluster for grenade); arm one and pick EMPTY HAND: a dull knock and "The grenade is armed: throw it or drop it.", it stays in the hand. {test:wheel_grenade}
+Flat-screen: holding an unarmed grenade, open the MMB holster menu and press a holster button for that hand: the grenade goes back and the holster's weapon comes into the hand. {test:wheel_grenade}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
