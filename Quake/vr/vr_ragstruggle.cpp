@@ -1219,6 +1219,7 @@ bool shoulderReach(State& s, const Parts& p, float dt)
     }
     constexpr float narrowRate = 1.5f; // rad/s: the cone eased back after a struggle
     constexpr float narrowMost = 3.f;  // s: then back at once as the drive ends (an arm left lying over its head)
+    constexpr float coneMost = 1.5707963f; // rad: Box3D's widest cone limit (b3SphericalJoint_SetConeLimit)
     const float wide = glm::radians(za::clamp(vr_struggle_arm_reach.value, 0.f, 175.f));
     const bool want = s.struggle.on && wide > 0.f;
     bool any = false;
@@ -1239,6 +1240,13 @@ bool shoulderReach(State& s, const Parts& p, float dt)
         {
             rigCone = rigCone < 0.f ? now : rigCone;
             to = za::max(rigCone, wide);
+            // (The aimed arm's within Box3D's most, 90 degrees: b3SphericalJoint_SetConeLimit skips a wider cone, and
+            // the arm kept the rig's 40 (ragfire2, measured: aimed 45 degrees off its goal, lying on the floor). A
+            // struggle's own 150 meets the same skip: left as it is here, BACKLOG.)
+            if(s.aim.on && s.aim.arm == arm)
+            {
+                to = za::max(rigCone, za::min(to, coneMost));
+            }
         }
         else if(rigCone >= 0.f)
         {

@@ -518,12 +518,14 @@ float(entity e, float begin) ragdolldrown = #0;
 // A living monster's ragdoll (a stagger, knocked down, getting up) guarding its head from a blow coming from `at`
 // (vr_ragdoll_active_guard; vr_hitreact.qc VR_Guard_Raise): its arms up before its face for `hold` s. 0: it can't (not
 // one of the kinds driven alive, Active Deaths off).
-float(entity e, vector at, float hold, optional vector grip, optional float strength) ragdollguard = #0;
+float(entity e, vector at, float hold, optional vector grip, optional float strength, optional vector barrel) ragdollguard = #0;
 // An armed one's ragdoll (staggering, down, held) aiming its gun arm, the hand nearest `grip`, at `at` for `hold` s at
-// `strength` 0..1 (vr_agrunt_ragfire's prototype: vr_armedgrunt_ragfire.qc). 0: it can't (not of the kinds driven alive).
-float(entity e, vector at, float hold, vector grip, float strength) ragdollaim =
+// `strength` 0..1 (vr_agrunt_ragfire's prototype: vr_armedgrunt_ragfire.qc). `barrel` (a direction; '0 0 0' none): its
+// gun's line as drawn on the hand now, its wrist turned to bring it onto `at` (ragfire2). 0: it can't (not of the kinds
+// driven alive).
+float(entity e, vector at, float hold, vector grip, float strength, vector barrel) ragdollaim =
 {
-    return ragdollguard(e, at, hold, grip, strength);
+    return ragdollguard(e, at, hold, grip, strength, barrel);
 };
 // (ragdollstagger's optional `recover`: up again that many seconds on, however it stands (a parry's stagger); `sure`:
 // it never goes over by itself, level ground; `far`: its travel's limit (4 m) times this, at least 1: a two-hand or a

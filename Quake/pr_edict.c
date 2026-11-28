@@ -1942,6 +1942,7 @@ void PR_ClearProgs(qcvm_t *vm)
 	PR_ShutdownExtensions();
 
 	free ((void *)qcvm->knownstrings); // QVR: realloc'd (PR_AllocStringSlot)
+	free (qcvm->qx_fused); // QVR: vr_qcexec_fuse's statements (vr/vr_qcexec.c)
 	VR_HeapFree(qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
 	if (qcvm->fielddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
 		VR_HeapFree(qcvm->fielddefs);
