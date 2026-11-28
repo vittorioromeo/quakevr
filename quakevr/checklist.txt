@@ -212,6 +212,7 @@ Flat-screen or VR: join that row anyway: you're back at the browser with one pla
 Host a deathmatch on the PC with a few bots and join it from the Quest standalone; mid-game take the headset off for 20-30 s (or sit in the Quest system menu), then put it back on: you are still in the game and catch up, and neither console says "overflow" (if one ever does, the line now says which buffer and its sizes: note it). {test:mp_dm_passive}
 Join a coop game from the Quest standalone and have the PC host change level: your slower map load no longer drops you; with voice chat and the weapon wheel in use over a weak Wi-Fi spot, no disconnect either. {test:mp_coop_passive}
 Flat-screen or VR: host a coop game on vrtesthall and join it from a second device with Show Melee Arcs on there (the host's own may be off); when an armed sword or axe grunt swings at either of you, the joined device draws its fading swing trail too (white winding up, yellow in the swing, red when it lands), as the host's view does. {test:agrunt_melee_arcs}
+Host a coop game with armoured beasts and join it from your Quest or a second PC: the joined game shows the ogre's and the scrag's armour as the host does (every plate, the leather between them, the tail segments), and a piece shot off on either side drops on both with its debris. {test:mp_coop_beasts}
 
 [12. Recording and dev tools]
 ## Takes
