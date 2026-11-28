@@ -164,5 +164,57 @@ private:
 	int m_size;
 };		
 
+// QVR: dtNodeQueue that keeps each node's place in the heap (by its index in `pool`), so modify() needs no linear search
+// of the heap. The same heap and the same steps as dtNodeQueue: the same order out (findPathQvr's results bit for bit).
+class dtQvrNodeQueue
+{
+public:
+	dtQvrNodeQueue(int n, const dtNodePool* pool);
+	~dtQvrNodeQueue();
+
+	inline void clear() { m_size = 0; }
+
+	inline dtNode* pop()
+	{
+		dtNode* result = m_heap[0];
+		m_size--;
+		trickleDown(0, m_heap[m_size]);
+		return result;
+	}
+
+	inline void push(dtNode* node)
+	{
+		m_size++;
+		bubbleUp(m_size-1, node);
+	}
+
+	inline void modify(dtNode* node)
+	{
+		bubbleUp(m_place[m_pool->getNodeIdx(node)], node);
+	}
+
+	inline bool empty() const { return m_size == 0; }
+	inline int getCapacity() const { return m_capacity; }
+	inline const dtNodePool* getPool() const { return m_pool; }
+
+private:
+	dtQvrNodeQueue(const dtQvrNodeQueue&);
+	dtQvrNodeQueue& operator=(const dtQvrNodeQueue&);
+
+	inline void put(int i, dtNode* node)
+	{
+		m_heap[i] = node;
+		m_place[m_pool->getNodeIdx(node)] = i;
+	}
+	void bubbleUp(int i, dtNode* node);
+	void trickleDown(int i, dtNode* node);
+
+	dtNode** m_heap;
+	int* m_place; // by node index (1-based, as the pool's)
+	const int m_capacity;
+	int m_size;
+	const dtNodePool* m_pool;
+};
+
 
 #endif // DETOURNODE_H
