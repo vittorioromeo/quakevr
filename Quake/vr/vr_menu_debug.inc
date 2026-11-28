@@ -896,6 +896,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_qc_native_think: an armed humanoid's weapon checks on frames where nothing comes at it (no shot, "
                   "throw or hand near: agstruck; no blow or raise to parry: agparry) done by the engine, the same results; "
                   "off: by QuakeC, as before. 2 (console): both, compared; vr_agthink_compare prints the verdict."),
+        toggle("QuakeC's Busiest Builtins, Faster", vr_qc_builtin_fast)
+            .help("vr_qc_builtin_fast: faster native ways for the engine functions QuakeC calls most, the same results "
+                  "(a worn backpack's place on a body out of view from the bones of the few vertices it rides, not the whole "
+                  "skeleton). Off: as before, to compare. 2 (console): both, compared bit for bit."),
         toggle("Armed Humanoids: Pose Message in One Builtin", vr_agposesend)
             .help("vr_agposesend: an armed humanoid's pose message written by one builtin (agposesend), the same bytes as "
                   "QuakeC's ~50 Write calls (vr_agarms_hash); off: QuakeC writes it, as before."),
