@@ -1019,6 +1019,11 @@ QVR_SLIDER(vr_agrunt_flaregun, "Flare Gun First", 0.f, 1.f, 0.05f, "%.2f", noExt
     "The chance one from the pool (or a replacement) holding one weapon carries a flare gun too: it fires "
     "its two flares first (setting you on fire), throws it away and takes its own weapon "
     "(vr_agrunt_flaregun).")
+QVR_TOGGLE(vr_agrunt_ragfire, "Fire While Down (Experimental)",
+    "One holding a one-handed gun (a shotgun, a nailgun, the nail pistol, the revolver, a grunt's or an "
+    "enforcer's own gun) keeps firing it while it staggers, lies knocked down or is held by you: its gun "
+    "arm reaches towards you and it fires when its muzzle points near you, slower and less accurate. Never "
+    "a big, explosive or melee weapon. Grab its gun to take it (vr_agrunt_ragfire).")
 QVR_TOGGLE(vr_agrunt_parry, "They Parry",
     "One holding a weapon defends against a melee blow as you do: seeing it coming it raises and angles its "
     "weapon into the blow's way, and a blow that meets its weapon before its body is parried (the ring, "

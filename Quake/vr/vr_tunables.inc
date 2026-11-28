@@ -3009,3 +3009,11 @@ QVR_TUNABLE(vr_elite_arena_wave, "4") // the Survival Arena's waves from this on
 QVR_TUNABLE(vr_elite_arena_chance, "0.2") // ... each armed humanoid in them an elite with this chance
 QVR_TUNABLE(vr_elite_pulse, "0.3") // the elite dye's pulse: its dark gold glows this far towards bright gold and back, brighter by as much (0: steady)
 QVR_TUNABLE(vr_elite_pulse_hz, "0.6") // ... this many times a second
+// Armed ones firing as ragdolls (vr_agrunt_ragfire, a prototype; QC vr_armedgrunt_ragfire.qc; docs/vr-port/RAGFIRE.md).
+QVR_TUNABLE(vr_agrunt_ragfire_cone, "35") // degrees: it fires only while its gun points within this of its target (from the muzzle)
+QVR_TUNABLE(vr_agrunt_ragfire_steer, "10") // degrees: its shot turned from the gun's line towards its target by at most this (its wrist)
+QVR_TUNABLE(vr_agrunt_ragfire_interval, "1.6") // s: at least this between its shots (up to half again at random); its first this long after it became a ragdoll
+QVR_TUNABLE(vr_agrunt_ragfire_nail_interval, "0.6") // s: ... a nailgun's or the nail pistol's
+QVR_TUNABLE(vr_agrunt_ragfire_error, "5") // degrees: each shot's aim off at random by up to this, on top of its gun's spread
+QVR_TUNABLE(vr_agrunt_ragfire_aim, "0.7") // its gun arm's reach towards its target (0..1, the active ragdoll's arm strength; 0: no reach, it fires only when its gun happens to point near)
+QVR_TUNABLE(vr_agrunt_ragfire_held, "1") // 1: it fires held in your hands too (grab its gun to take it); 0 not while held

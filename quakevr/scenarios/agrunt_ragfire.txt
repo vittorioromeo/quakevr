@@ -1,0 +1,10 @@
+# agrunt_ragfire: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoids firing while down (the Fire While Down prototype; god)
+map vrtesthall
+god
+cvar vr_agrunt_ragfire 1
+spawn "Armed Grunt: Revolver" 140 -50
+spawn "Armed Grunt: Shotgun" 140 50
+spawn "Armed Enforcer: Nail Pistol" 200 0
+spawn "Armed Grunt: Rocket Launcher" 260 -90
+hint Shove them over (open hand) or pick one up: lying, staggering or held, the revolver, shotgun and nail pistol holders keep firing at you, their gun arm reaching towards you, slower and less accurate than standing. The rocket launcher's never fires while down. Grab a downed one's gun to take it.

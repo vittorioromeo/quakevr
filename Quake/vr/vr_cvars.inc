@@ -3043,6 +3043,8 @@ QVR_CVAR(vr_agrunt_tug_downed_scale, "0.5", CVAR_ARCHIVE | QVR_RULE) // a stagge
 QVR_CVAR(vr_agrunt_tug_second_grab, "0", CVAR_ARCHIVE | QVR_RULE)  // your other hand grabbing its weapon in a tug: 0 joins it (both pulls count, it gives sooner), 1 tears it free at once
 QVR_CVAR(vr_agrunt_tug_strike, "1", CVAR_ARCHIVE | QVR_RULE)       // 1: in a tug, your other fist striking its weapon (vr_agrunt_tug_strike_swing of the disarm swing) tears it free into your holding hand
 QVR_CVAR(vr_agrunt_parry_disarm, "0.3", CVAR_ARCHIVE | QVR_RULE) // the chance your weapon's parry of its melee weapon knocks the weapon out of its hand (a well-timed one 1.5x)
+// Armed ones firing as ragdolls (a prototype, off by default: QC vr_armedgrunt_ragfire.qc; docs/vr-port/RAGFIRE.md).
+QVR_CVAR(vr_agrunt_ragfire, "0", CVAR_ARCHIVE | QVR_RULE) // 1: an armed humanoid staggering, knocked down or held as a ragdoll keeps firing a one-handed gun (shotgun, nailgun, nail pistol, revolver, burst rifle, laser rifle) at its target, its gun arm reaching towards it, slower and less accurate; 0 never (before)
 // Armed ones parrying melee blows with their weapon (QC vr_armedgrunt_parry.qc; ROUND22.md "Armed grunts parry").
 QVR_CVAR(vr_agrunt_parry, "1", CVAR_ARCHIVE | QVR_RULE)          // 1: an armed grunt or enforcer holding a weapon parries a melee blow (yours, a monster's) that meets its weapon first
 QVR_CVAR(vr_agrunt_parry_strikes_only, "1", CVAR_ARCHIVE | QVR_RULE) // 1: it raises its parry only for a real strike (a weapon swung at it, a closed fist punching past vr_melee_speed), never for hands near it or reaching; 0: any hand within 30 units

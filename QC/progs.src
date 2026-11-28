@@ -626,6 +626,7 @@ vr_armedgrunt_shot.qc
 vr_ownclash.qc // weapon clash: your own two weapons meeting; the weapon-on-weapon material table (after VR_AG_SegDist)
 vr_armedgrunt_parry.qc
 vr_armedgrunt_guard.qc // its guard: the preventive and wind-up parries (vr_agrunt_preparry, vr_agrunt_windup_parry)
+vr_armedgrunt_ragfire.qc // firing as a ragdoll (vr_agrunt_ragfire, a prototype: staggering, down or held)
 vr_dirparry.qc // the directional parry: a blow's line, your weapon held across it
 vr_playerdisarm.qc // the player disarmed: monsters' shots and blows on your weapon, by the armed humanoids' rules; VR_Player_Disarm
 vr_playerdisarm_grab.qc // another player's weapon taken by a grab and a pull (MP B10)
@@ -683,6 +684,7 @@ vr_armedgrunt_second_test.qc
 vr_ogre_friends_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
+vr_armedgrunt_ragfire_test.qc // vr_agrunt_test 236: firing as a ragdoll (vr_agrunt_ragfire)
 vr_armedknight_test.qc
 vr_footstep_test.qc
 vr_armedgrunt_range_test.qc
