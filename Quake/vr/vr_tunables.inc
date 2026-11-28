@@ -2990,7 +2990,7 @@ QVR_TUNABLE(vr_agrunt_dazzle_face_left, "0.5") // ... to its left,
 QVR_TUNABLE(vr_agrunt_dazzle_face_up, "-0.5") // ... and up (the grunt: 11 0.5 21.5 from its origin, as before)
 QVR_TUNABLE(vr_agrunt_dazzle_bend, "0.9") // ... that grip within this share of its arm's reach from its shoulder (drawn towards it: a bent arm, its forearm across its face, never held out straight)
 QVR_TUNABLE(vr_agrunt_dazzle_elbow, "1") // ... its elbow's way: 0 the arm's usual (down and back), 1 out to its side (its forearm across its eyes)
-QVR_TUNABLE(vr_agrunt_dazzle_dual, "0") // ... holding two weapons: 1 it shields with its left one's hand (the weapon still held, pointing up and away; not fired while raised); 0 both weapons stay up
+QVR_TUNABLE(vr_agrunt_dazzle_dual, "1") // ... holding two weapons: 1 it shields with its left one's hand (the weapon still held, pointing up and away; not fired while raised); 0 both weapons stay up
 
 // Armed Humanoids > Elite (QC vr_attrs.qc; ROUND26.md, "elite"): an elite's factors on the armed humanoids' knobs, its
 // gains, who gets one, its dye's pulse (the engine's vr_humlook.cpp; its colour: humlook.txt's "elite" rows)
