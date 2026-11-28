@@ -56,26 +56,78 @@ constexpr MountKeys mountKeys[Count] = {
 };
 
 // The map pickups' bayonet mounts (bayomounts; ATTACHMENTS.md "The bayonet", make_bayonet.py MOUNTS): the pickup model, the
-// weapon slot's model whose mnt_* tweaks it shares, the mount in the pickup's own space (level, along its +x) and its
-// scale (the view model's bayonet to its gun, kept in the pickup's proportion).
+// weapon slot's model whose mount (mnt_*) it shares, the mount in the pickup's own space (level, along its +x) and its
+// scale (the view model's bayonet to its gun, kept in the pickup's proportion), and the view gun's mount they were measured
+// against (mountoffs: its place and size then, the old att1_*): the pickup draws the view gun's mount, wherever it is now,
+// mapped by them (pos + (scale / refScale) * (mount - refPos)).
 struct PickupRail
 {
     const char* model;
     const char* gun;
     glm::vec3 pos;
     float scale;
+    glm::vec3 refPos;
+    float refScale;
 };
 constexpr PickupRail pickupRails[] = {
-    {"progs/g_shot0.mdl", "progs/v_shot.mdl", {18.2f, 0.f, 33.79f}, 2.3048f},
-    {"progs/g_shot.mdl", "progs/v_shot2.mdl", {21.6f, 0.f, 34.86f}, 2.9398f},
+    {"progs/g_shot0.mdl", "progs/v_shot.mdl", {18.2f, 0.f, 33.79f}, 2.3048f, {32.9f, 0.f, 2.84f}, 2.2727f},
+    {"progs/g_shot.mdl", "progs/v_shot2.mdl", {21.6f, 0.f, 34.86f}, 2.9398f, {26.f, 0.f, 3.62f}, 2.0833f},
     // bayomounts (scratch bm_auto.py: the underside at the front on the barrel's line; the scale the view model's bayonet
     // to its gun, as above)
-    {"progs/g_nail.mdl", "progs/v_nail.mdl", {13.33f, -3.f, 34.24f}, 2.1315f},
-    {"progs/g_rock.mdl", "progs/v_rock.mdl", {17.3f, 0.f, 31.21f}, 2.107f},
-    {"progs/g_prox.mdl", "progs/v_prox.mdl", {17.4f, 0.f, 27.97f}, 2.1107f},
-    {"progs/g_rock2.mdl", "progs/v_rock2.mdl", {21.9f, 0.f, 28.39f}, 2.249f},
-    {"progs/g_light.mdl", "progs/v_light.mdl", {20.3f, 0.f, 34.63f}, 3.0316f},
+    {"progs/g_nail.mdl", "progs/v_nail.mdl", {13.33f, -3.f, 34.24f}, 2.1315f, {20.f, -1.48f, 2.14f}, 2.083f},
+    {"progs/g_rock.mdl", "progs/v_rock.mdl", {17.3f, 0.f, 31.21f}, 2.107f, {29.2f, 0.f, 0.55f}, 2.632f},
+    {"progs/g_prox.mdl", "progs/v_prox.mdl", {17.4f, 0.f, 27.97f}, 2.1107f, {29.2f, 0.f, 0.58f}, 2.632f},
+    {"progs/g_rock2.mdl", "progs/v_rock2.mdl", {21.9f, 0.f, 28.39f}, 2.249f, {50.6f, 0.f, -1.95f}, 2.941f},
+    {"progs/g_light.mdl", "progs/v_light.mdl", {20.3f, 0.f, 34.63f}, 3.0316f, {33.4f, 0.f, 7.55f}, 2.857f},
 };
+
+// The global attachment offsets from the mount (mountoffs: vr_attach_<kind>_*, Weapon Offsets > Attachments).
+struct GlobalCvars
+{
+    cvar_t *x, *y, *z, *pitch, *yaw, *roll, *scale;
+};
+const GlobalCvars globals[Count] = {
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
+    {&vr_attach_bayonet_x, &vr_attach_bayonet_y, &vr_attach_bayonet_z, &vr_attach_bayonet_pitch, &vr_attach_bayonet_yaw,
+        &vr_attach_bayonet_roll, &vr_attach_bayonet_scale},
+    {&vr_attach_dagger_x, &vr_attach_dagger_y, &vr_attach_dagger_z, &vr_attach_dagger_pitch, &vr_attach_dagger_yaw,
+        &vr_attach_dagger_roll, &vr_attach_dagger_scale},
+};
+
+// A placement (mountoffs): a point p of the child's space is at pos + basis * (scale * p) in the parent's.
+struct Place
+{
+    glm::vec3 pos{0.f};
+    glm::mat3 basis{1.f};
+    float scale{1.f};
+};
+[[nodiscard]] Place then(const Place& parent, const Place& child)
+{
+    return Place{parent.pos + parent.basis * (child.pos * parent.scale), parent.basis * child.basis, parent.scale * child.scale};
+}
+[[nodiscard]] Place inverse(const Place& p)
+{
+    const glm::mat3 t = glm::transpose(p.basis);
+    return Place{-(t * p.pos) / p.scale, t, 1.f / p.scale};
+}
+[[nodiscard]] Place placeOf(const MountValues& v)
+{
+    return Place{v.pos, view::mountBasis(v.angles), v.scale > 0.f ? v.scale : 1.f};
+}
+[[nodiscard]] MountValues valuesOf(const Place& p)
+{
+    return MountValues{p.pos, hands::anglesFromVectors(glm::normalize(p.basis[0]), glm::normalize(p.basis[2])), p.scale};
+}
+[[nodiscard]] MountValues slotValues(int slot, Key x, Key y, Key z, Key pitch, Key yaw, Key roll, Key scale)
+{
+    return MountValues{weapons::vec(slot, x, y, z), weapons::vec(slot, pitch, yaw, roll), weapons::value(slot, scale)};
+}
+[[nodiscard]] MountValues globalValues(int kind, bool defaults)
+{
+    const GlobalCvars& g = globals[kind];
+    const auto v = [defaults](const cvar_t* c) { return defaults ? static_cast<float>(Q_atof(c->default_string)) : c->value; };
+    return MountValues{glm::vec3{v(g.x), v(g.y), v(g.z)}, glm::vec3{v(g.pitch), v(g.yaw), v(g.roll)}, v(g.scale)};
+}
 
 // The client's: which weapon (by its id) has which attachment.
 struct Known
@@ -144,16 +196,15 @@ Mount mount(int slot, int kind)
     {
         return m;
     }
+    // (mountoffs) the gun's mount, then every gun's offset of this kind from it, then this gun's own
     const MountKeys& k = mountKeys[kind];
     m.fits = weapons::value(slot, k.ok) != 0.f;
-    m.pos = weapons::vec(slot, k.x, k.y, k.z);
-    m.angles = weapons::vec(slot, k.pitch, k.yaw, k.roll);
-    m.basis = view::mountBasis(m.angles) * kindFrame(*info(kind));
-    m.scale = weapons::value(slot, k.scale);
-    if(m.scale <= 0.f)
-    {
-        m.scale = 1.f;
-    }
+    const Place own = placeOf(slotValues(slot, k.x, k.y, k.z, k.pitch, k.yaw, k.roll, k.scale));
+    const Place p = then(then(placeOf(mountValues(slot)), placeOf(globalValues(kind, false))), own);
+    m.pos = p.pos;
+    m.angles = valuesOf(p).angles;
+    m.basis = p.basis * kindFrame(*info(kind));
+    m.scale = p.scale;
     // (a weapon model as an attachment, the dagger: drawn with its own Scale, weapons::modelTransform's; its world size,
     // modelScale, is the gun's: view::placeAttachment takes it out)
     const int ownSlot = weapons::slotForName(info(kind)->model);
@@ -194,31 +245,60 @@ bool railMount(const qmodel_t* model, Mount& out)
         return false;
     }
     const int slot = railSlot(model);
-    Mount base = mount(slot, Bayonet);
-    for(const PickupRail& p : pickupRails)
-    {
-        if(!ZA_STRCMP(model->name, p.model))
-        {
-            base.pos = p.pos;
-            base.basis = kindFrame(kinds[Bayonet]);
-            base.scale = p.scale;
-            base.own = 1.f;
-        }
-    }
-    if(!base.fits)
+    if(slot < 0 || weapons::value(slot, Key::Att1Ok) == 0.f)
     {
         return false;
     }
-    float size = weapons::value(slot, Key::MntSize);
-    size = size > 0.f ? size : 1.f;
-    const glm::vec3 move = weapons::vec(slot, Key::MntX, Key::MntY, Key::MntZ);
-    out = base;
-    out.pos = onGun(base, move);
-    out.angles = weapons::vec(slot, Key::MntPitch, Key::MntYaw, Key::MntRoll);
-    out.basis = base.basis * view::mountBasis(out.angles);
-    out.scale = base.scale * size;
+    const MountValues v = mountValues(slot);
+    Place p = placeOf(v);
+    for(const PickupRail& r : pickupRails)
+    {
+        if(!ZA_STRCMP(model->name, r.model))
+        {
+            p = then(Place{r.pos - r.refPos * (r.scale / r.refScale), glm::mat3{1.f}, r.scale / r.refScale}, p);
+        }
+    }
+    out.fits = true;
+    out.pos = p.pos;
+    out.angles = v.angles;
+    out.basis = p.basis; // (the bayonet's frame is its model's axes: kindFrame is 1)
+    out.scale = p.scale;
     out.own = 1.f;
     return true;
+}
+
+MountValues mountValues(int slot)
+{
+    if(slot < 0)
+    {
+        return MountValues{};
+    }
+    MountValues v = slotValues(slot, Key::MntX, Key::MntY, Key::MntZ, Key::MntPitch, Key::MntYaw, Key::MntRoll, Key::MntSize);
+    v.scale = v.scale > 0.f ? v.scale : 1.f;
+    return v;
+}
+
+MountValues globalOffset(int kind)
+{
+    return info(kind) ? globalValues(kind, false) : MountValues{};
+}
+
+void convertToMountOffsets(MountValues& att1, MountValues& att2, MountValues& mnt)
+{
+    const Place a1 = placeOf(att1), a2 = placeOf(att2), old = placeOf(mnt);
+    // The old mount was the bayonet's place moved: the new one is where that put it (the bayonet's place, then the old
+    // mount's move). The bayonet and the dagger keep their sizes (unscaled by an old Mount Size); the dagger keeps its place
+    // from the bayonet's place (so a moved mount takes it along); every gun's offsets at their defaults (an old config has
+    // none of its own) taken out.
+    const Place unsize{glm::vec3{0.f}, glm::mat3{1.f}, 1.f / old.scale};
+    mnt = valuesOf(then(a1, old));
+    att1 = valuesOf(then(inverse(placeOf(globalValues(Bayonet, true))), unsize));
+    att2 = valuesOf(then(then(inverse(placeOf(globalValues(Dagger, true))), unsize), then(inverse(a1), a2)));
+}
+
+void composeMountDefaults(const MountValues& mnt, MountValues& att2)
+{
+    att2 = valuesOf(then(then(placeOf(mnt), placeOf(globalValues(Dagger, true))), placeOf(att2)));
 }
 
 // The dagger's mounts before its frame (vr_wofs_version 80, weapons.cpp): turned by its angles alone, its model's own axes.
