@@ -161,7 +161,10 @@ pair by VR's own `VR_Reload_Take`; to the port's mouth and in, where VR's own ca
 reach) loads it; again until full. The gun's hand tilts the gun to present its port. Since reloadsys (2026-11-28) all of
 this is the gun's keyframes (`vr_reloadsys.hpp`, `quakevr/data/reloads.txt`, the Reload Studio `vr_reloadstudio`; the
 shotgun and the super shotgun: broken open by impulse 107, closed by 108), the hand at the port solved backwards from the
-item's place there; ROUND26.md "reloadsys". A shot, a shove
+item's place there; ROUND26.md "reloadsys". The magazine guns too (reloadmags: the nailguns, the thunderbolt, the nail
+pistol): the magazine let out by impulse 109 (its rounds back in the reserve), a fresh one from the pouch carried up its
+well's line to where a seated one sits (`hands::State::magSeat`) and seated by VR's own well test; ROUND26.md "reloadmags".
+A shot, a shove
 or bash, the weapon changing, the free hand taking something else cancel it; a round in the hand goes back in the reserve
 (`VR_FlatReload_ProcPutBack`). Failsafes: the client cancels (impulse 106) when a round at the port isn't seated within
 `vr_flat_prl_failsafe` or the pouch gives nothing; the server when nothing is taken or loaded for `vr_flat_prl_giveup`.

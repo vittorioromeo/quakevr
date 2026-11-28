@@ -10,7 +10,9 @@
 # free hand's fingers closed on each pair. reloadsys: the super shotgun already open, or broken open by the reload, a pair
 # into its chambers, closed by the end's flick; the matrix ("almost always succeed"): both guns, standing,
 # running, jumping, crouching, sliding, at 60 and 144 fps: every round seated, no failsafe, full. base: all but the matrix;
-# matrix: the matrix alone (matrix-sg, matrix-ssg: one gun's); all (the default): both. Each run ends on its own verdict line (-QuitOn);
+# reloadmags: the magazine guns (ng sng lg np) in the matrix too, partly fired (the eject key, the rounds back in the
+# reserve, one magazine seated); base: the nailgun and super nailgun fired empty (no eject), a shot mid-carry (nothing lost).
+# matrix: the matrix alone (matrix-<gun>: one gun's); all (the default): both. Each run ends on its own verdict line (-QuitOn);
 # flatprocreload_check.py checks the logs and prints "flatprocreload: N passed, M failed".
 AGENT=${1:?agent}
 MODE=${2:-all}

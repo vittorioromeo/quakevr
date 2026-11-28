@@ -314,7 +314,7 @@ def matrix_checks():
                 fs = [l for l in L if l.startswith("flatprocreload: cancelled (failsafe") or
                       (l.startswith("flat proc reload: main hand cancelled") and "failsafe" in l)]
                 full = bool(end) and end[-1].group(2) == "done" and int(end[-1].group(6)) == int(end[-1].group(7))
-                shut = gun == "sg" or any(l.startswith("flat proc reload: main hand: the super shotgun closed") for l in L)
+                shut = gun != "ssg" or any(l.startswith("flat proc reload: main hand: the super shotgun closed") for l in L)
                 check(not timed_out(run) and bool(st) and full and shut and not lost and not fs and sum(ins) == sum(takes) > 0,
                       "%s: full, every round seated (%d taken, %s in), none dropped (%d), no failsafe (%d)%s" %
                       (run, sum(takes), ins, len(lost), len(fs), "" if shut else ", NOT CLOSED"))
