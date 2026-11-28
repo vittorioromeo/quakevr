@@ -6321,13 +6321,13 @@ His words 2026-11-28, items 2, 7, 8.
   bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
   renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
 
-## split22: splitscreen: next merged again (43 commits), the Controller Bindings freeze fixed (branch agent/split, 2026-11-28)
+## split22: splitscreen: next merged again (58 commits), the Controller Bindings freeze fixed (branch agent/split, 2026-11-28)
 
-Next merged twice (118c6d6a2 clean; 22927c839 with conflicts in vr_flatholster.cpp and vr_flatplay.cpp: flatmenu3's
+Next merged three times (118c6d6a2 and 705fcf179 clean; 22927c839 with conflicts in vr_flatholster.cpp and vr_flatplay.cpp: flatmenu3's
 pouch buttons and level bar and flatmisc3's wall probe through the seat's `st()` / `fs()`, next's other new uses of
 `st` and the wheel's `ws` too). aglod's unseen test already counts every seat (each seat is a server client). Made each
 seat's: the holster menu's level bar text (remade per seat: seat 2's bar showed seat 1's stats). Marked seat-shared:
-the movers, qcexec_time, pointBonesCheck, dazzle.txt's table, the Dazzle Studio, the level bar's target, legsMoveOff.
+the movers, qcexec_time, pointBonesCheck, dazzle.txt's table, the Dazzle Studio, the level bar's target, legsMoveOff, elitesTally.
 The branch's own bug: split20's `bindsetup::pointerOn()` called itself (clang made it a loop), so the Controller
 Bindings screen froze the game on its first frame: the `vr_menu_pad_test` hang; now `menuui::pointerOn(true)`.
 Tests: flatpad_test.sh 4/0, seat_bind 14/0, seat_menu 62/0, seat_play 63/0, seat_padlabels 4/0, seat_split21 6/0,

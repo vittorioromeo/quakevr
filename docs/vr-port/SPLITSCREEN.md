@@ -1380,7 +1380,7 @@ between players becomes part of the per-player state."
   goes through the seat's own flat keys, seat 1's unchanged, restored after a restart. `split_join_test`'s holster menu by
   pad is padflat's L3.
 
-## 31. Split22 (2026-11-28): next merged (43 commits), the Controller Bindings freeze fixed
+## 31. Split22 (2026-11-28): next merged (58 commits), the Controller Bindings freeze fixed
 
 His words: "Please bring splitscreen up to speed with next, I'll give it another round of testing, and if it looks good
 we can merge it into next."
@@ -1388,7 +1388,7 @@ we can merge it into next."
 ### How to try it (for him)
 
 1. **Start it**: `C:\OHWorkspace\qvr-kit\scratch\play_splitscreen.ps1` in PowerShell (`-Window` for a window): this tree's
-   Release exe, rebuilt today with next 22927c839 in it. Your quakevr folder's `progs.dat` from next is fine (the branch's
+   Release exe, rebuilt today with next 705fcf179 in it. Your quakevr folder's `progs.dat` from next is fine (the branch's
    only QuakeC change is split12's deathmatch obituary line). Two pads; Multiplayer > Splitscreen, A on the second pad.
 2. **Controller Bindings** (the freeze): Player 1 from Options, Player 2 from Start > Controller Bindings: the screen opens
    and stays live (on this branch it froze the whole game on its first frame since split20). Player 1's mouse hovers
@@ -1406,8 +1406,8 @@ we can merge it into next."
 
 ### What changed
 
-- **The merge**: 43 commits in two goes (next 118c6d6a2: aglod, qcvm, qcjit, qcbuiltins, cltidy2, diskclean; then next
-  22927c839: flatmenu3, flatmisc3, dazzlestudio, his tweaks). Conflicts in vr_flatholster.cpp (flatmenu3's pouch
+- **The merge**: 58 commits in three goes (next 118c6d6a2: aglod, qcvm, qcjit, qcbuiltins, cltidy2, diskclean; next
+  22927c839: flatmenu3, flatmisc3, dazzlestudio, his tweaks; next 705fcf179: elite2, ragknock, blcheck). Conflicts in vr_flatholster.cpp (flatmenu3's pouch
   buttons and level bar) and vr_flatplay.cpp (flatmisc3's wall probe): next's lines through the seat's `st()` / `fs()`;
   next's other new lines on the old globals (vr_flatholster.cpp's test and report `st`, vr_weaponwheel.cpp `ws`) too.
 - **Made each seat's**: the level bar's text (vr_flatholster.cpp `levelBarText`, made once a frame) is remade for each
@@ -1419,7 +1419,7 @@ we can merge it into next."
   (the server's), vr_qcexec.c's `qcexec_time` (the VM's clock), vr_animsmooth.cpp's `pointBonesCheck` (a debug tally),
   vr_dazzledata.cpp's table and path (dazzle.txt, the server's), vr_dazzlestudio.cpp's window (one debug tool),
   vr_gadget_holster.inc's level bar target (made and drawn in one seat's pass, as the holster menu's), vr_body.cpp's
-  `legsMoveOff` (inside one report call).
+  `legsMoveOff` (inside one report call), vr_runsetup.cpp's `elitesTally` (a test's).
 - **The Controller Bindings freeze (the branch's own bug)**: split20's `bindsetup::pointerOn()` (the mouse only on seat
   1's screen) called itself unqualified instead of `menuui::pointerOn(true)`; clang turned the endless recursion into a
   loop, so the first frame of the screen spun forever, flat or VR, on any seat. This is the `vr_menu_pad_test` hang
@@ -1432,7 +1432,7 @@ we can merge it into next."
 
 ### Merging into next
 
-agent/split holds next 22927c839 whole: while next stays there the merge is clean. Each later next commit that touches
+agent/split holds next 705fcf179 whole: while next stays there the merge is clean. Each later next commit that touches
 the client (keys.c, in_sdl.c, menu.c, vr_bindsetup.cpp, vr_flat*.cpp, vr_view*.cpp, the visor, the toolgun) may
 conflict, and any new client file-scope state it adds fails the seat_state check until it is a seat's or marked
 `// seat-shared: <why>`. Once merged, every worker's build runs that check, and BACKLOG section 9.1's clang-format pass
