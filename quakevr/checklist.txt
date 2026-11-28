@@ -112,6 +112,7 @@ Pose Studio on the spear holders: a frozen armed enforcer, knight and death knig
 Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, and the knight with a rifle carries it your way: look at the spear grunt in each pose. {test:pose_grunt_pole}
 ## Lifts
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
+Armour skins restyled toward your "after" image: muted olive, ochre and brick-red plates under grime, chipped and rusted edges, blood and dirt specks, dark gaps between the rows; check each type still reads at a glance next to the bare grunt, and on enforcers, knights and the armoured beasts too. {test:armour_lineup}
 
 [7. Armoured beasts]
 ## Armour on the body

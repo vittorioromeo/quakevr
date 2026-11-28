@@ -431,6 +431,7 @@ vr_agtune_test   2        vr_agtune_test.qc                the loaded map's arme
 vr_agtune_test   3        vr_agtune_test.qc                a death knight with a gun over two minutes: casts against the gun's attacks
 vr_agarmor_test  2        vr_agarmor_test.qc               (VR_AgArmor_Give)
 vr_agarmor_test  3        vr_agarmor_test.qc               (VR_ART_SpawnKind)
+vr_agarmor_test  24       vr_agarmor_test.qc               (VR_ART_SpawnKind: armourstyle's lineup renders, temp1 the kind: bare, green, yellow, red)
 vr_agarmor_test  4        vr_agarmor_test.qc               (VR_ART_SpawnKind)
 vr_agarmor_test  5        vr_agarmor_test.qc               (VR_AgArmor_FxTestFrame)
 vr_agarmor_test  6        vr_agarmor_test.qc               (VR_AgArmor_Give)

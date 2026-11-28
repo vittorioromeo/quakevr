@@ -4710,6 +4710,40 @@ with each button labelled by its binding, drag to swap, click for a list of ever
 - **Open**: phase 2 not done (the reminder panels: BACKLOG section 3 has the VR weapon wheel's; the menu's goes on wheelui's
   vr_bindpanel.cpp); splitscreen per-seat bindings (TODO in vr_bindsetup.hpp, BACKLOG section 3).
 
+## armourstyle: the armour skins muted and grittier, the types still told apart (branch agent/armourstyle, 2026-11-28)
+
+His words (2026-11-28): an image generator's "after" of the armoured grunts that "fit the artstyle better and look less
+cartoonish/clean, while still retaining the colour scheme"; "Do you think we can achieve a similar look?" (no reference
+images were in the kit's review folder: worked from the brief's description of it).
+- **Skins** (`make_agarmor.py`, shared by every wearer: grunts, enforcers, knights, AD knights, the player's plates and the
+  beasts' pieces through `make_beastarmour.py`): new paints, an olive drab (72 96 62 tones: the palette's sage and olive
+  rows' texels side by side), a mustard ochre (the tan row: the yellow row's bright, fully saturated colours dropped) and a
+  brick red (pure reds and red-browns); heavy grit at the texel's own scale, dark smudges; the row above's overlap baked
+  deeper and longer and corners darker (`paint_tiles`); the bevel a slightly lighter line where the face turns into it and
+  a darker underside (`Layers.bev`), the plates' sides (`rim`) dark, no bright steel lines; chipped paint along edges and
+  corners (dull dark metal, a rust halo; `Layers.chips`), rust further along the edges; rivets small dark domes with a
+  lighter dot; blood and dirt specks in clusters (`Layers.specks`: Quake's dark reds and the brown row, the bare grunt's own;
+  `SPECK_COLOURS` allowed on every tier's speck texels through `Layers.accent`). Dented and battered skins: the same base
+  plus their damage (their chips and scratches now dark metal too).
+- **Palette**: `to_palette` now picks, per texel, the pair of the tier's colours whose mix comes nearest (a hue-weighted
+  distance, a penalty for far-apart pairs: `PairQuantiser`, `PAIR_SPREAD` lower for green so sage and olive mix) and one of
+  the two by white noise (irregular, never an ordered dither); fullbrights never allowed (as before).
+- **Check**: `vr_agarmor_look_check`'s `hueApart` 30 -> 25 degrees: a brick red and a mustard ochre sit closer in hue
+  than the old pure red and lemon (his "after"), and stay apart in value and saturation too (means: green 45 48 29 hue 69,
+  yellow 78 58 26 hue 37 value .31, red 61 20 13 hue 9 value .24; apart 32 / 28 / 59). Dim light (30%, nearest of the whole
+  palette): three different colours (grey, ochre-brown, red-brown).
+- **Drift kept**: the scrag's tail4 stays as shipped (its geometry and beastarmour.txt line, ROUND26 "ogreplates"), with
+  the new skins spliced into its .mdl (`scratch/armourstyle_keep_tail4.py` after a `make_beastarmour.py` run). Both
+  generators deterministic (two runs, the same bytes).
+- **Renders** (`vr_agarmor_test 24`, temp1 the kind: a bare one then green, yellow, red full sets, three quarters on, down
+  e1m1's first lit hall; scenario `armour_lineup`): qvr-kit `review/armourstyle/` `armourstyle_lineup_grunts.png` (before
+  over after), `armourstyle_lineup_others.png` (enforcers, knights, death knights), `armourstyle_beasts.png`
+  (`vr_agarmor_test 17-20` in yellow), `armourstyle_skins_before/after.png` (the atlases, wear 0 over wear 2).
+- **Not done / open**: in game the lit, retro-palettised result still reads brighter and more saturated than the skins
+  (the yellow most): lighting and vr_retro's palette pull put a lit ochre near the yellow row; a darker yellow or a tint in
+  the shader would go further. Geometry (bigger layered pauldrons, more leg segments) not touched.
+- **Tests**: vr_agarmor_test 1 38/0, 15 71/0; vr_beastarmour_lookcheck 78/0; vr_armour_test 23/0; vr_agarmor_look_check
+  88/26, every colour check passing (the 26 the coverage/shape checks on the player bodies, untouched here).
 ## flatprocreload: flat-screen procedural shotgun reload, the free hand between the ammo pouch and the port (branch agent/flatprocreload, 2026-11-28)
 
 His words 2026-11-28: "adding actual procedural reloading animations to flatscreen play, gated behind an option, on by

@@ -58,18 +58,23 @@ TILES_X, TILES_Y = 5, 6  # (vr_agarmor.cpp plateTilesX, plateTilesY)
 BEVEL = 0.12             # (vr_agarmor.cpp plateBevelUv)
 # What each tier's skin may use of the palette: its own family, so a shade or a stain never turns another colour.
 GREYS, BROWNS = list(range(0, 13)), list(range(16, 23))  # (no white; the dark browns: rust, grime, leather)
-TIER_COLOURS = {1: list(range(176, 192)) + GREYS + BROWNS, 2: list(range(16, 32)) + list(range(198, 208)) + GREYS, 3: list(range(64, 80)) + list(range(96, 104)) + GREYS + BROWNS}
+OLIVES = list(range(49, 60))  # (the palette's olive row, its darks: with the sage row an olive drab)
+MAROONS = list(range(150, 158))  # (the pink row's dark end: with the pure reds and the red-browns a deep brick, held back)
+TIER_COLOURS = {1: list(range(176, 192)) + OLIVES + GREYS + BROWNS, 2: list(range(16, 32)) + list(range(201, 208)) + GREYS, 3: list(range(64, 80)) + list(range(96, 104)) + MAROONS[-3:] + GREYS + BROWNS}
 
-# The paint, full colour. Not the old ramps' pure hues: a dull painted metal, red the most held back, and still three hues
-# told apart in the dark (the generator check: vr_agarmor_look_check's hue distance). sRGB, 0..255. vr_retro pulls what's
-# drawn to Quake's palette, which has no true green and few dull reds: each tier stays near one family so it doesn't jump between
-# them: green the palette's sage row (176-191; a little more red and it's the olive row, as a shade or a stain), yellow its
-# tan row, red between its pure reds and its browns.
-PAINT = {1: (64, 88, 48), 2: (152, 136, 44), 3: (118, 26, 26)}
-STEEL = (120, 116, 108)   # the bare metal at worn edges
-RUST = {1: (58, 62, 48), 2: (104, 80, 36), 3: (88, 40, 28)}  # (each near its own hue: an accent, and no tier's plates turn another's colour)
+# The paint, full colour (armourstyle, ROUND26.md: his "after": muted, darker, dirty, still three types at a glance). A dull
+# painted metal: a military olive drab (the sage and olive rows' texels side by side), a mustard ochre (the tan row's top and
+# the yellow row's darks), a deep brick red (the pure reds' darks and the red-browns), and still three hues told apart in the
+# dark (vr_agarmor_look_check's hue distance). sRGB, 0..255. Each tier stays near its own rows of Quake's palette.
+PAINT = {1: (70, 88, 50), 2: (138, 108, 38), 3: (114, 26, 26)}
+PAIR_SPREAD = {1: 0.2, 2: 1.0, 3: 1.0}  # (to_palette: green's pairs may be far apart: the sage and olive rows' texels together its olive drab)
+DARK_STEEL = (60, 56, 50)  # the metal under chipped paint at the edges: dull, never a bright line
+RUST = {1: (62, 56, 34), 2: (100, 72, 28), 3: (80, 30, 24)}  # (each near its own hue: an accent, and no tier's plates turn another's colour)
 GRIME = (26, 22, 18)
-RUST_SHARE = {1: 0.35, 2: 0.4, 3: 0.45}  # how far a patch of rust goes over the paint
+RUST_SHARE = {1: 0.42, 2: 0.5, 3: 0.5}  # how far a patch of rust goes over the paint
+# Blood and dirt specks, the bare grunt's own skin's reds and browns (Quake's dark reds and brown row): dried blood, wet blood, mud.
+SPECK = ((46, 8, 4), (66, 10, 6), (50, 38, 22))
+SPECK_COLOURS = list(range(64, 72)) + list(range(16, 23))
 LEATHER_DARK = (46, 40, 26)
 LEATHER_BROWN = (62, 42, 26)
 
@@ -89,7 +94,7 @@ WIDE_HIGH = 0.4  # a pauldron's big plate's height over its width (three of six 
 UNDER_V = 0.15            # the under-layer's share of a tile's top
 UNDER = (30, 25, 18)      # (not the armour's paint: the same under every tier)
 TRIM_DARK = 0.55          # the trim: the paint this much darker ...
-TRIM_TINT = {1: 0.25, 2: 0.45, 3: 0.3}  # ... and this much towards TRIM_BROWN
+TRIM_TINT = {1: 0.1, 2: 0.3, 3: 0.15}  # ... and this much towards TRIM_BROWN
 TRIM_BROWN = (92, 64, 26)
 TRIM_SHARE = 0.85         # the trim's strength over the paint (0: none)
 TRIM_REACH = 1.15         # the trim's width, of BEVEL (past the bevel onto the face)
@@ -157,6 +162,12 @@ class Layers:
         self.rustmask = fractal(W, H, 16, 51)
         self.pits = 0.6 * noise_grid(W, H, 3, 61) + 0.4 * white(W, H, 62)
         self.scratch = self.scratches(71)
+        # (armourstyle) The grime's grit at the texel's own scale, its darker blotches, the chips' shapes along the edges, the specks.
+        self.grit = 0.55 * white(W, H, 81) + 0.45 * noise_grid(W, H, 2, 82)
+        self.smudge = fractal(W, H, 6, 91, 3)
+        self.chips = 0.6 * fractal(W, H, 5, 111, 2) + 0.4 * white(W, H, 112)
+        self.speck, self.speck_kind = self.specks(121)
+        self.bev = np.zeros((H, W))      # the bevels' light: + a lighter line along a plate's edge, - its underside
         # What each texel is: 0 paint's share of the base (shade), rust, steel, grime, and its height.
         self.shade = np.ones((H, W))
         self.edge = np.zeros((H, W))     # the worn metal's reach, before its noise
@@ -185,6 +196,29 @@ class Layers:
                 px, py = int(x + np.cos(ang) * k) % W, int(y + np.sin(ang) * k) % H
                 out[py, px] = max(out[py, px], amp)
         return out
+
+    @staticmethod
+    def specks(seed):
+        """Blood and dirt spattered in clusters: (each texel's share, its kind: 0 dried blood, 1 wet blood, 2 mud)."""
+        rng = np.random.RandomState(seed)
+        share = np.zeros((H, W))
+        kind = np.zeros((H, W), dtype=np.int8)
+        for _ in range(45):
+            cx, cy = rng.uniform(0, W), rng.uniform(0, H)
+            k = rng.choice(3, p=(0.45, 0.2, 0.35))
+            for _ in range(rng.randint(3, 14)):
+                x, y = cx + rng.normal(0.0, 7.0), cy + rng.normal(0.0, 5.0)
+                r = rng.uniform(0.9, 2.3)
+                x0, x1 = max(0, int(x - r)), min(W, int(x + r) + 2)
+                y0, y1 = max(0, int(y - r)), min(H, int(y + r) + 2)
+                if x0 >= x1 or y0 >= y1:
+                    continue
+                ys, xs = np.mgrid[y0:y1, x0:x1]
+                m = np.clip(1.6 - np.hypot(xs + 0.5 - x, ys + 0.5 - y) / r, 0.0, 1.0)
+                hit = m > share[y0:y1, x0:x1]
+                share[y0:y1, x0:x1] = np.where(hit, m, share[y0:y1, x0:x1])
+                kind[y0:y1, x0:x1] = np.where(hit, k, kind[y0:y1, x0:x1])
+        return share, kind
 
 
 def box_of(block):
@@ -277,9 +311,14 @@ def paint_tiles(lay):
             # The plate's own tone: a little darker or lighter, warmer or cooler.
             lay.tone[ys, xs] = (tone * (1 + warm), tone, tone * (1 - warm))
             # A bright face, lighter to its lower lip; the shadow of the lip above just under the under-layer.
-            lay.shade[ys, xs] = 1.06 + 0.1 * v - 0.42 * smooth(UNDER_V + 0.2, UNDER_V, v)
+            # (armourstyle: the row above's overlap baked deeper and longer, so the plates read as thick metal laid over each other)
+            lay.shade[ys, xs] = 1.0 + 0.1 * v - 0.55 * smooth(UNDER_V + 0.34, UNDER_V, v)
             corner = np.minimum(np.minimum(np.hypot(u, v), np.hypot(span - u, v)), np.minimum(np.hypot(u, 1 - v), np.hypot(span - u, 1 - v)))
-            lay.shade[ys, xs] *= 1.0 - 0.25 * smooth(0.22, 0.05, corner)
+            lay.shade[ys, xs] *= 1.0 - 0.3 * smooth(0.26, 0.05, corner)
+            # The bevel's light (armourstyle): a slightly lighter line where the face turns into it, its underside (the lower edge's,
+            # over the next row) darker, its sides a little; no bright rim line.
+            lay.bev[ys, xs] = (0.1 * band(side, BEVEL * 0.95, BEVEL * 1.3) - 0.38 * smooth(BEVEL * 0.95, BEVEL * 0.1, 1 - v)
+                               - 0.14 * smooth(BEVEL * 0.95, BEVEL * 0.1, np.minimum(u, span - u)))
             # A dent or a crease, its own for each plate.
             dd = smooth(1.0, 0.0, np.hypot(u - dx * span, v - dy) / dr)
             lay.height[ys, xs] -= 0.35 * dd * dent
@@ -491,10 +530,11 @@ def paint_leather_and_gaps(lay):
     x0, y0, x1, y1 = box_of("rim")
     ys, xs = np.mgrid[y0:y1, x0:x1]
     bb = (ys + 0.5 - y0) / (y1 - y0)
-    lay.shade[ys, xs] = 0.62 - 0.42 * bb
-    lay.grime[ys, xs] = 0.35 + 0.6 * bb
-    lay.edge[ys, xs] = 0.5 * smooth(0.25, 0.05, bb)
-    lay.rust[ys, xs] = 0.35
+    # (armourstyle: dark down into the gap; its outer edge a little lighter, chipped, never a bright line)
+    lay.shade[ys, xs] = 0.52 - 0.4 * bb + 0.12 * smooth(0.2, 0.05, bb)
+    lay.grime[ys, xs] = 0.4 + 0.55 * bb
+    lay.edge[ys, xs] = 0.35 * smooth(0.25, 0.05, bb)
+    lay.rust[ys, xs] = 0.5
 
 
 def dents_of(level, seed):
@@ -522,49 +562,58 @@ def paint(lay, armor, level):
     base = np.asarray(PAINT[armor], dtype=float)
     img = base[None, None] * lay.tone
     # The paint's own mottling and fine grain.
-    img = img * (0.92 + 0.16 * lay.mottle)[..., None] * (0.94 + 0.12 * lay.grain)[..., None]
+    # (armourstyle, ROUND26.md: his "after": muted paint under heavy grime, chipped and rusted at the edges, blood and dirt
+    # specks, baked occlusion, soft bevels, rivets as small dark and light dots: the bare grunt's skin's value and grit)
+    img = img * (0.86 + 0.26 * lay.mottle)[..., None] * (0.92 + 0.16 * lay.grain)[..., None]
     # The trim: the paint darker and browner, shaded as the plate is.
     trim_col = np.asarray(base, dtype=float) * TRIM_DARK * (1 - TRIM_TINT[armor]) + np.asarray(TRIM_BROWN, dtype=float) * TRIM_TINT[armor]
     t = (lay.trim * TRIM_SHARE)[..., None]
     img = img * (1 - t) + trim_col[None, None] * lay.tone * (0.9 + 0.2 * lay.mottle)[..., None] * t
-    img = img * np.clip(lay.shade, 0.0, 1.5)[..., None]
+    img = img * np.clip(lay.shade * (1.0 + lay.bev), 0.0, 1.5)[..., None]
     # The emblem, under the wear.
     em = lay.emblem[..., None]
     img = img * (1 - em) + np.asarray(EMBLEM[armor], dtype=float)[None, None] * np.clip(lay.shade, 0.0, 1.3)[..., None] * (0.8 + 0.3 * lay.pits)[..., None] * em
     wear = level * 0.22
-    # Rust: an accent. Its reach by the plate, its shape by noise, a tier's own share of the paint.
-    rust = smooth(0.57 - wear, 0.74 - wear, lay.rust * 0.62 + lay.rustmask * 0.75)
-    rust = rust * (0.7 + 0.3 * lay.pits)
-    rust_col = np.asarray(RUST[armor], dtype=float)[None, None] * (0.6 + 0.8 * lay.pits)[..., None]
+    # Rust: an accent. Its reach by the plate (its edges and low corners most), its shape by noise, a tier's own share of the paint.
+    rust = smooth(0.52 - wear, 0.7 - wear, lay.rust * 0.7 + lay.rustmask * 0.72)
+    rust = rust * (0.65 + 0.35 * lay.pits)
+    rust_col = np.asarray(RUST[armor], dtype=float)[None, None] * (0.55 + 0.8 * lay.pits)[..., None]
     img = img * (1 - (rust * RUST_SHARE[armor])[..., None]) + rust_col * (rust * RUST_SHARE[armor])[..., None]
-    # The grime.
-    g = np.clip(lay.grime * (0.55 + 0.9 * lay.blotch) + 0.22 * smooth(0.55, 0.9, lay.blotch), 0.0, 0.9)
-    img = mix(img, GRIME, g)
-    # The worn metal on the edges and scratches: bare steel where the paint's gone, in broken lengths.
-    steel_mask = np.clip(0.6 * lay.edge * smooth(0.40 - wear, 0.62 - wear, lay.pits * 0.5 + lay.blotch * 0.5), 0.0, 1.0)
-    steel_mask = np.maximum(steel_mask, 0.7 * lay.scratch * (lay.mottle > 0.42 - wear))
-    # (steel with the paint's stain left on it: no other hue at the plates' edges)
-    stained = np.asarray(STEEL, dtype=float) * 0.6 + base * 0.55
-    steel = stained[None, None] * (0.62 + 0.5 * lay.pits)[..., None]
-    img = img * (1 - steel_mask[..., None]) + steel * steel_mask[..., None]
-    # Rivets: dull metal, lit from above (the relief too).
+    # The grime: in the corners and under the laps (the plate's own), dark smudges anywhere.
+    g = lay.grime * (0.6 + 0.9 * lay.blotch) + 0.3 * smooth(0.5, 0.82, lay.smudge) + 0.14 * smooth(0.5, 0.9, lay.blotch)
+    img = mix(img, base * 0.2 + np.asarray(GRIME, dtype=float) * 0.45, np.clip(g, 0.0, 0.92))  # (the dirt a little of the paint's own hue: dark, not brown)
+    # Chipped paint along the edges and corners: the dull metal under it, rust round each chip; and the scratches, dull.
+    reach = np.clip(lay.edge * 1.6, 0.0, 1.0)
+    cut = 0.9 - 0.2 * reach - 0.45 * wear
+    chip = smooth(cut, cut + 0.04, lay.chips) * (reach > 0.05)
+    halo = smooth(cut - 0.08, cut - 0.02, lay.chips) * (reach > 0.05) * (1 - chip)
+    dark_steel = np.asarray(DARK_STEEL, dtype=float)[None, None] * (0.75 + 0.5 * lay.pits)[..., None]
+    img = mix(img, np.asarray(RUST[armor], dtype=float) * 0.8, halo * 0.7)
+    img = img * (1 - chip[..., None]) + dark_steel * chip[..., None]
+    scr = 0.45 * lay.scratch * (lay.mottle > 0.42 - wear)
+    img = img * (1 - scr[..., None]) + dark_steel * 1.15 * scr[..., None]
+    # Rivets: small dark domes, a lighter dot where the light catches them (the relief too).
     riv = np.clip(lay.rivet * 2.0, 0.0, 1.0)
-    lit = 0.55 + 0.5 * lay.rivet
-    img = img * (1 - riv[..., None]) + np.asarray((172, 164, 146), dtype=float)[None, None] * (lit * riv)[..., None]
+    rcol = np.asarray(DARK_STEEL, dtype=float)[None, None] * (0.7 + 0.9 * lay.rivet ** 3)[..., None]
+    img = img * (1 - riv[..., None]) + rcol * riv[..., None]
     # Vents' and grooves' insides: near black.
     img = mix(img, base * 0.14, lay.vent * 0.92)  # (the tier's own hue, darkened: its tiles stay one hue)
-    # Fine specks.
-    img = img * (0.96 + 0.08 * lay.fine)[..., None]
+    # Blood and dirt specks (the bare grunt's own reds and browns).
+    sp = np.clip(lay.speck * 1.4, 0.0, 1.0) * (1 - lay.vent)
+    scol = np.asarray(SPECK, dtype=float)[lay.speck_kind] * (0.8 + 0.4 * lay.pits)[..., None]
+    img = img * (1 - sp[..., None]) + scol * sp[..., None]
+    # The grit: heavy, at the texel's own scale.
+    img = img * (0.8 + 0.36 * lay.grit)[..., None] * (0.97 + 0.06 * lay.fine)[..., None]
     if level >= 1:
         dshade, _ = lay.dents[level]
         img = img * np.clip(1.0 + dshade, 0.3, 1.5)[..., None]
         # more scratches, the metal showing
         extra = lay.scratch2[level] * (lay.blotch > 0.4 - 0.08 * level)
-        img = img * (1 - extra[..., None] * 0.75) + steel * (extra[..., None] * 0.75)
+        img = img * (1 - extra[..., None] * 0.7) + dark_steel * 1.3 * (extra[..., None] * 0.7)
     if level >= 2:
         # chips to the bare metal, soot and scorch
         chips = (fractal(W, H, 10, 201) > 0.68) & (white(W, H, 202) > 0.45)
-        img = np.where(chips[..., None], steel * 0.8, img)
+        img = np.where(chips[..., None], dark_steel * 1.2, img)
         scorch = lay.scorch
         soot = smooth(0.52, 0.68, scorch)
         img = mix(img, (18, 16, 15), soot * 0.85)
@@ -610,32 +659,58 @@ def write_png(path, arr):
         f.write(chunk(b"IEND", b""))
 
 
+class PairQuantiser:
+    """A colour to one of a pair of the palette's (`table`, their indices `ids`): the pair whose mix comes nearest it, less a
+    little for pairs far apart (no black and white for a grey), in a distance where hue counts for more than brightness (the
+    red-green and green-blue differences too); the pair's second where the noise is under its share of the mix."""
+
+    def __init__(self, table, ids, spread=1.0):
+        self.spread = spread  # (how much a pair's own distance counts against it)
+        self.ids = np.asarray(ids)
+        t = self.feature(np.asarray(table, dtype=float))
+        a, b = np.triu_indices(len(t))
+        self.a, self.b = a, b
+        self.p, self.d = t[a], t[b] - t[a]
+        self.dd = np.maximum((self.d ** 2).sum(axis=1), 1e-6)
+
+    @staticmethod
+    def feature(c):
+        k = np.sqrt(1.5)
+        return np.concatenate((c, k * (c[..., 0:1] - c[..., 1:2]), k * (c[..., 1:2] - c[..., 2:3])), axis=-1)
+
+    def row(self, colours, noise):
+        c = self.feature(colours)[:, None, :] - self.p[None]
+        t = np.clip((c * self.d[None]).sum(axis=2) / self.dd[None], 0.0, 1.0)
+        err = ((c - t[..., None] * self.d[None]) ** 2).sum(axis=2) + self.spread * self.dd[None] * t * (1.0 - t)
+        best = err.argmin(axis=1)
+        n = np.arange(len(colours))
+        return np.where(noise < t[n, best], self.ids[self.b[best]], self.ids[self.a[best]])
+
+
 def to_palette(img, armor, emblem):
     """The skin in 8 bits, the game's own size: each 2 x 2 texels' mean, a little irregular noise (the paint's grain, never a
     regular dither), the nearest colour of the tier's rows of the palette; leather and grime may use the browns and greys; the
-    emblem's texels (`emblem`, full size) the reds too (on green and yellow: EMBLEM_REDS)."""
+    emblem's and the blood and dirt specks' texels (`emblem`: Layers.accent, full size) the reds too (EMBLEM_REDS on green and
+    yellow; SPECK_COLOURS on every tier)."""
     pal = np.asarray(palette(), dtype=float)
     allowed = sorted(set(TIER_COLOURS[armor]))
-    red_allowed = np.asarray(sorted(set(allowed + (EMBLEM_REDS if armor != 3 else []))))
+    red_allowed = np.asarray(sorted(set(allowed + (EMBLEM_REDS if armor != 3 else []) + SPECK_COLOURS)))
     red_table = pal[red_allowed]
     red_texels = emblem.reshape(SKIN_H, SCALE, SKIN_W, SCALE).mean(axis=(1, 3)) > 0.4
     table = pal[allowed]
     small = img.reshape(SKIN_H, SCALE, SKIN_W, SCALE, 3).mean(axis=(1, 3))
-    # (red between its pure and its brown rows, an irregular grain of the two its dull colour; the others a row each, a little noise)
-    amount = {1: 2.0, 2: 2.0, 3: 9.0}[armor]
-    grain = (0.25 * noise_grid(SKIN_W, SKIN_H, 3, 410 + armor) + 0.75 * white(SKIN_W, SKIN_H, 400 + armor) - 0.5)[..., None] * np.asarray((1.0, 1.0, 1.0)) * amount
+    # A little irregular grain, then each texel one of the pair of the tier's colours whose mix is nearest its own, picked by
+    # white noise in their mix's share (armourstyle: the colours between the palette's rows, an olive drab of the sage and the
+    # olive rows' texels, a brick of the pure reds' and the red-browns', in an irregular grain; never a regular dither).
+    grain = (0.25 * noise_grid(SKIN_W, SKIN_H, 3, 410 + armor) + 0.75 * white(SKIN_W, SKIN_H, 400 + armor) - 0.5)[..., None] * np.asarray((1.0, 1.0, 1.0)) * 3.0
     small = small + grain
+    pick = white(SKIN_W, SKIN_H, 420 + armor)
     idx = np.zeros((SKIN_H, SKIN_W), dtype=np.uint8)
-    allowed = np.asarray(allowed)
+    plain, reds = PairQuantiser(table, np.asarray(allowed), PAIR_SPREAD[armor]), PairQuantiser(red_table, red_allowed)
     for y in range(SKIN_H):
-        # (hue counts for more than brightness: the distance on the colour's red-green and green-blue differences too)
-        diff = small[y][:, None, :] - table[None, :, :]
-        d = (diff ** 2).sum(axis=2) + 1.5 * ((diff[:, :, 0] - diff[:, :, 1]) ** 2 + (diff[:, :, 1] - diff[:, :, 2]) ** 2)
-        idx[y] = allowed[d.argmin(axis=1)]
+        idx[y] = plain.row(small[y], pick[y])
         if red_texels[y].any():
-            diff = small[y][:, None, :] - red_table[None, :, :]
-            d = (diff ** 2).sum(axis=2) + 1.5 * ((diff[:, :, 0] - diff[:, :, 1]) ** 2 + (diff[:, :, 1] - diff[:, :, 2]) ** 2)
-            idx[y] = np.where(red_texels[y], red_allowed[d.argmin(axis=1)], idx[y])
+            idx[y] = np.where(red_texels[y], reds.row(small[y], pick[y]), idx[y])
     # (the top-left texel black: the engine's Mod_FloodFillSkin floods the region of the top-left texel's colour with black unless
     # it's black already, which took the dark under-layer along the atlas's top out of its tiles)
     idx[0, 0] = 0
@@ -650,6 +725,7 @@ def build():
     lay.dents = {1: dents_of(1, 301), 2: dents_of(2, 302)}
     lay.scratch2 = {1: Layers.scratches(311), 2: np.maximum(Layers.scratches(312), Layers.scratches(313))}
     lay.scorch = fractal(W, H, 28, 321)
+    lay.accent = np.maximum(lay.emblem, np.clip(lay.speck * 1.4, 0.0, 1.0) * (1 - lay.vent))  # (to_palette's reds: the emblem, the specks)
     return lay
 
 
@@ -659,7 +735,7 @@ def main():
     # Nine skins: type - 1 + 3 x wear (0 whole, 1 at two thirds of its pool, 2 at a third: vr_agarmor.cpp relink).
     images = [paint(lay, armor, level) for level in (0, 1, 2) for armor in (1, 2, 3)]
     armors = [armor for level in (0, 1, 2) for armor in (1, 2, 3)]
-    skins = [to_palette(img, armor, lay.emblem) for img, armor in zip(images, armors)]
+    skins = [to_palette(img, armor, lay.accent) for img, armor in zip(images, armors)]
     mesh = mdlgen.Mesh(SKIN_W, SKIN_H, REGIONS)
     mesh.box((0.0, 0.0, 0.0), (1.0, 1.0, 1.0), "whole")  # (a placeholder: only the skins are used)
     path = os.path.join(out, "vragarmor.mdl")
