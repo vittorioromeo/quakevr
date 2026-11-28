@@ -5683,3 +5683,49 @@ His words (kit `scratch/fb1127n/reload_words_1128.md`, the magazine paragraph): 
   jump, crouch, slide x 60 / 144 fps, partly fired: the eject key, the rounds back, one magazine seated, no failsafe).
   Scenario `flat_proc_reload` spawns the four guns. Strips for his review: worktree `scratch/reloadmags_strip_ng.png`
   (bottom well) and `scratch/reloadmags_strip_sng.png` (side), the lock on each key after a real reload.
+## questopt2: hip1m1's fights' QuakeC measured on the Quest; shared scans; the unworn headset's pauses explained (branch agent/questopt2, 2026-11-28)
+
+- **The scene** (no fight in his autosave: questopt's spot had its wearers dead or in view): hip1m1, skill 2, god,
+  `vr_test_monsters 4` then `2` (all 69 woken onto him: 40 armed humanoids, 29 worn packs), 300 frames on, then
+  `vr_qcprofile 1` + `profile_qc` over 720-823 frames. Quest 3: a release APK of this branch with the test progs
+  (beta6's progs leave the tests out: no `vr_test_monsters`), unattended. PC: Release, mock headset.
+- **QuakeC a frame**: PC 2.20 ms, Quest 5.66 ms (2.6x; the ARM profiler reads clock_gettime round each call: ~0.5 ms of it).
+  His recording's 8-15 ms in fights adds his own play (shots, gibs, a moving player) on top of this crowd.
+
+| Quest 3 (ms a frame) | self | incl. | calls | its builtins |
+|---|---|---|---|---|
+| `VR_AG_PropThink` (the weapon props' think) | 0.14 | **2.67** | 82 | (below) |
+| `VR_AGP_Pose` (the pose) | 0.69 | 1.01 | 40 | `agpose` 0.67 (native since qcpu2) |
+| `VR_AG_WeaponStruck` (shots, strikes, throws on the weapon) | 0.22 | 0.83 | 82 | `findradiusmoving` 0.49 (173 calls; the shot scan's 0.33) |
+| `VR_WP_Think` / `VR_WP_Place` (the worn packs) | 0.09 / 0.53 | 0.75 / 0.53 | 61 / 29 | `limbpiece` 0.47 (questopt's fast path: only out-of-view wearers) |
+| `VR_NAV_Step` (navmesh chase) | 0.40 | 0.41 | 9 | `navsteer` 0.33 (36 us a call: Detour) |
+| `VR_AGPar_Frame` (the parry) | 0.08 | 0.37 | 61 | |
+| `VR_Lean_Scan` (lean sight) | 0.25 | 0.26 | 6.4 | `playerbodypoint` 0.13, `traceline` 0.11 |
+| `VR_AGP_Lod`, `VR_AGG_Frame`, `VR_AG_DazzleTick`, `VR_AG_StrikeFrame` | 0.15, 0.14, 0.10, 0.10 | | 40-82 | |
+| builtins at large | | | | `cvar_hget` 0.15 (1,880 calls), `find` 0.12 (603) |
+
+  About half is builtins already native (agpose, findradiusmoving, limbpiece, navsteer); the QuakeC statements are
+  spread thin (no function over 0.25 ms self but the pose's builtin). PC's order is the same (navsteer first there).
+- **Shared scans** (`vr_qc_scan_share`, Debug tunables "Shared QuakeC Scans", default 1; 0 as before; 2 both, compared,
+  `scanshare: N compared, M differed` every 4,000): (1) an armed humanoid's throw scan (`VR_AG_WeaponStruck`:
+  `findradiusmoving(grip, 48 + 192, 99)`) is skipped when the shot scan's first look in the same think
+  (`VR_AGS_Projectiles`: 128 + 192 units, any speed, the same grip) found nothing: what it would find is a subset; a
+  player within 160 (`VR_AG_StrikeFrame`) or a pending shot roll clears it (things may move between). (2) The lean sight's
+  seven body points come from one shape: `playerbodypoint(e, 16 + i)` reads the shape the last call made for e
+  (vr_playerhit.cpp keeps it; the tracelines between move nothing of him). Exact: 168,000 compared over 1,500 fight
+  frames, 0 differed. PC: findradiusmoving 167 -> 83 calls a frame, `VR_AG_WeaponStruck` self 0.15-0.19 -> 0.04-0.05 ms.
+  Quest (his config, 8 interleaved blocks of 432 frames in one launch): QuakeC median 4.40 off / 4.44 on: no gain
+  measured; there the throw scan ran ~4 times a frame (not 82: its early tests already end it), the lean sight's share is
+  ~0.1 ms of a drifting fight.
+- **The unworn headset's pauses** (item 4): `-unattended` holds: the game ignores user presence ("ignored for this run").
+  What pauses is the runtime: unworn, the Quest stops the session after ~10-15 s (`session STOPPING` -> `IDLE`, logcat
+  and the perf CSV's marks) and the launch scripts' KEYCODE_WAKEUP every 10 s brings it back ~5.5 s later; a cycle of
+  ~15 s on, ~5.5 s off (ab1: 8 cycles). Frames don't run while stopped, so the frame counts and per-frame numbers hold;
+  wall-clock waits stretch. The perf mark was misleading: "xr user absent" is now "xr user absent (ignored)" when ignored.
+  Holding the display on needs the proximity sensor faked (`am broadcast -a com.oculus.vrpowermanager.prox_close`,
+  undone by `prox_open` or a reboot): a device setting, not run here; his call. Scripts: worktree `scratch/qo2_*.sh`.
+- **Open (by size on the Quest)**: the props' think (2.7 ms) is the lever: a native port of `VR_AG_PropThink`'s scans and
+  parry frame as qcpu2 did the pose; `agpose`'s own 16.6 us a call; `limbpiece` for wearers in view; `navsteer`'s Detour
+  queries. Models, view entities and sound spikes not reached.
+- Headset: beta6 put back (1.2.0-beta6 APK reinstalled, progs a0bfe11a), his 31 autosaves and 3 saves restored
+  (checksums match). Left: `quakevr/qo2.cfg`.
