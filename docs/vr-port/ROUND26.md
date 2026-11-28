@@ -6265,3 +6265,20 @@ His item 17 (fb1127n). Full notes: `RAGFIRE.md`. Verdict: feasible and cheap; pr
 - Measured: a lying ragdoll's gun stays 36-59 deg off the player with the arm reach on (limp wrist, arm on the floor); a
   shotgun lying muzzle down holds every shot (blocked). Next: drive the hand bone, then cut the steer to ~10 deg.
 - Test `vr_agrunt_test 237` (vr_armedgrunt_ragfire_test.qc): 5/0. Scene `agrunt_ragfire`.
+## blcheck: BACKLOG items checked against the code and ROUND26 (branch agent/blcheck, 2026-11-28)
+
+Every open BACKLOG.md bullet (about 79) read against ROUND26/ROUND25 sections and the code (greps; no tests run: docs only).
+Counts: closed 1 (a sub-item), trimmed 5, kept the rest (about 73), added 3.
+
+- **Closed:** the flat `weaponwheel_test` failure (section 1): flatmenu3 ran weaponwheel_test flat 21/0 (the wheel's tap cycle).
+- **Trimmed to what is left:** section 1 hip1m1 (QuakeC profiled and cut: questopt2, qcnative, aglod, qcbuiltins, qcvm; the unworn
+  headset's pauses explained by questopt2; left: props' think native port, agpose, limbpiece, navsteer); section 3 procedural
+  reloads (reloadsys, reloadmags, reloadmuzzle did the super shotgun, magazine guns, nailguns, launchers, heavy revolver); section 6
+  AD humanoids (adknights armed the death guard and crossbow knight and their worn packs; his look and the other AD kinds left);
+  section 8 the dagger's flight (its Dagger Settling tunables shipped in ROUND25; values and refinement left); section 1's toolgun
+  panel line (its sibling fixed).
+- **Checked, still open:** agent/split is not in origin/next; `vr_physsound.cpp` still has its surface-hold copy (line ~403);
+  `vr_main.cpp` still registers many test commands; flat left-handed mode has no mirrored `routeFire`; the ammomags work is not
+  in yet ("Ammo type follows the loaded magazine" stays).
+- **Added (section 11):** mixed ammo loads in launchers (placeholder for the ammomags worker), `vr_menu_pad_test` hang on agent/split,
+  the unused scenes `agrunt_dual_guns` and `armour_beasts`.
