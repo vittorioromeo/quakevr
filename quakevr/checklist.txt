@@ -25,6 +25,7 @@ Flat-screen or VR: in Run Setup, the Starting melee weapon row should read Axe, 
 Flat-screen: empty the shotgun, then press R while running, strafing, jumping, sliding and crouch-walking: every pair goes into the loading port at the bottom and the gun fills, with no reload cancelled or shell dropped. {test:flat_proc_reload}
 Flat-screen: during the procedural reload, look at the reloading hand: its fingers close round the taped pair from the pouch to the port, as in VR, and open again on the way back. {test:flat_proc_reload}
 Flat-screen: in Tunables > Flatscreen > Procedural Reload, lock the pose at the port's mouth or inserted and move Hand at Port: Forward / Right / Up: the hand and its pair move along the gun. {test:flat_proc_reload}
+- [ ] The menu's bindings reminder is larger: main rows and the Hands / More groups, in two columns, still clear of the corner rows; try the main menu and Options, keyboard and pad {test:hub_start}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
