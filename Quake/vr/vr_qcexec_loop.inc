@@ -47,6 +47,13 @@ static void QX_FUNC (func_t fnum)
 #define QX_B ((eval_t *)&glob[st->b])
 #define QX_C ((eval_t *)&glob[st->c])
 #define QX_ABC eval_t *const a = QX_A, *const b = QX_B, *const c = QX_C; (void)a; (void)b; (void)c
+#if QX_FASTCALL // calls and returns by the loop's own entry and exit (vr_qcexec.c, QCExec_Enter)
+#define QX_ENTERF(f) QCExec_Enter (vm, f)
+#define QX_LEAVEF() QCExec_Leave (vm)
+#else
+#define QX_ENTERF(f) PR_EnterFunction (f)
+#define QX_LEAVEF() PR_LeaveFunction ()
+#endif
 
 	if (!fnum || fnum >= qcvm->progs->numfunctions)
 	{
@@ -339,7 +346,7 @@ qx_dispatch:
 		}
 		// Normal function
 		{
-			const int first = PR_EnterFunction (newf) + 1;
+			const int first = QX_ENTERF (newf) + 1;
 			off += QX_IDX (st) + 1 - first;
 			st = stbase + first;
 		}
@@ -359,7 +366,7 @@ qx_dispatch:
 		glob[OFS_RETURN + 1] = glob[st->a + 1];
 		glob[OFS_RETURN + 2] = glob[st->a + 2];
 		{
-			const int ret = PR_LeaveFunction ();
+			const int ret = QX_LEAVEF ();
 			if (vm->depth == exitdepth)
 			{ // Done
 				vm->instr_total += cur; // QVR: the per-edict think costs (SV_RunThink, QC thinkcost)
@@ -403,4 +410,6 @@ qx_badop:
 #undef QX_B
 #undef QX_C
 #undef QX_ABC
+#undef QX_ENTERF
+#undef QX_LEAVEF
 }
