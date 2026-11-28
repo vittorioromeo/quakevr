@@ -38,6 +38,7 @@
 #include "vr_flatattach.hpp"
 #include "vr_flatgrenade.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_flathit.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatswim.hpp"
@@ -3241,14 +3242,15 @@ void setupAmmoPouch(const hands::State& s)
                 avatar::crouchPoseShare(s) + // (crouched: its crouched turn on top; seated, the seated layout's)
             (qvr::seated::active() ? glm::vec3{vr_ammo_pouch_seated_pitch.value, vr_ammo_pouch_seated_yaw.value,
                                     vr_ammo_pouch_seated_roll.value}
-                              : glm::vec3{0.f}));
+                              : glm::vec3{0.f}) +
+            flatprocreload::pouchTurn()); // (flat-screen play's own: vr_flat_ammo_pouch_pitch/yaw/roll; 0 otherwise)
     if(vr_body_debug.value < 2.f)
     {
         zones::publish(zones::ZoneAmmoPouch, pos, frame.out, frame.side, frame.up, pose.slotPos, false);
     }
     place(ve, model, pose.slotPos, pose.slotAngles, ammoPouchFrame(), false);
     ve.ent.skinnum = 0;
-    ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f) * zones::size(zones::ZoneAmmoPouch)};
+    ve.scale = glm::vec3{CLAMP(0.25f, flatprocreload::pouchScale(vr_ammo_pouch_scale.value), 4.f) * zones::size(zones::ZoneAmmoPouch)};
     ammoPouchPlaced = true;
     {
         // Its wobble's spring, driven by how it moves (its back's middle, its axes, world units a pouch unit).
@@ -3299,7 +3301,7 @@ void setupAmmoPouch(const hands::State& s)
     if(vr_ammo_pouch_counter.value && cl.stats[protocol::STAT_QVR_POUCHKIND] > 0 && pouchCounterFrame != host_framecount)
     {
         pouchCounterFrame = host_framecount;
-        const float k = CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f);
+        const float k = CLAMP(0.25f, flatprocreload::pouchScale(vr_ammo_pouch_scale.value), 4.f);
         const float deeper = pouchitems::shapeOf(ammoPouchFrame()).depth - 2.5f;
         const glm::vec3 side = glm::normalize(glm::cross(frame.up, frame.out)); // (the body's right, looking out)
         const glm::vec3 pos = at + (frame.out * (vr_ammo_pouch_counter_x.value + deeper) +

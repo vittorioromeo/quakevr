@@ -4681,6 +4681,32 @@ with each button labelled by its binding, drag to swap, click for a list of ever
 - **Open**: phase 2 not done (the reminder panels: BACKLOG section 3 has the VR weapon wheel's; the menu's goes on wheelui's
   vr_bindpanel.cpp); splitscreen per-seat bindings (TODO in vr_bindsetup.hpp, BACKLOG section 3).
 
+## flatprocreload: flat-screen procedural shotgun reload, the free hand between the ammo pouch and the port (branch agent/flatprocreload, 2026-11-28)
+
+His words 2026-11-28: "adding actual procedural reloading animations to flatscreen play, gated behind an option, on by
+default ... begin with the shotgun, only when held one handed". FLATPLAY.md "The procedural reload" has the design.
+- **Setting**: Desktop Screen Play > Procedural Reload (`vr_flat_proc_reload 1`, QVR_RULE: the host's value holds, no wire
+  change; the client follows the server's bits). Tunables > Flatscreen > Procedural Reload: every phase's time (reach 0.2,
+  grab 0.06, carry 0.22, insert 0.08, return 0.22 s; tilt in 0.15 / out 0.2 s), the ease, the arc (3 u), the port approach
+  (5 u), the gun's tilt (pitch -10, yaw 12, roll -35, mirrored for the left hand) and move (up 2, in 3), the hand's turn at
+  the pouch (pitch 60) and at the port (the gun's), the failsafes (client 0.6 s, server 3 s), and the flat pouch's own
+  offset / turn / size (`vr_flat_ammo_pouch_*`, 0 / 0 / 1: on the belt where the headset has it).
+- **Shared with VR** (note_reuse): the take is VR's `VR_Reload_Take` (a taped pair; a single shell for the last place, as
+  `VR_Reload_ManualInHand` is now true for a flat gun on its procedural reload), the load is VR's carry test
+  (`VR_Carry_HandFrame` -> `VR_Reload_HeldFrame` -> `VR_Reload_LoadInto`, the port's reach, sounds, haptics, collect fx),
+  the pouch is VR's (drawn, its zone and hotspot, its rounds) shown by `ammoPouchEnabled`; the return to the pouch is
+  `VR_Reload_Refund`. Flat-only: the hand's driving (vr_flatprocreload.cpp, the flatattach trip's shape: eased segments,
+  each from where the hand was drawn), impulses 99 (take at the pouch's hotspot) and 106 (cancel; 100-105 are FrikBot's),
+  the server's state (`.vr_flatrl` 16/32/64, `.vr_fprl_*`).
+- **Cancels**: the gun's fire button (server; a dry click too), the shove/bash impulses (server), a punch (client, impulse
+  106), the weapon or the free hand changing, the option off. The round in the hand is refunded (drawn into the pouch).
+- **Tests**: `Misc/quakevr/flatprocreload_test.sh` 17/0 (trips: R from empty, +2 a trip to 8 of 8, a trip 0.56 s, full in
+  2.26 s, 8 taken = 8 loaded, nothing lost; fire mid-carry; a shove mid-carry; `vr_flat_prl_test_miss 12`: the client's
+  failsafe; dual shotguns and the super shotgun: the timed trip). Timed-trip tests opt out (`vr_flat_proc_reload 0`):
+  flatreload_test.sh 54/0, flatxhair_test.sh's reload case 31/0; flatitems_test.sh 14/0 unchanged.
+- **Open**: his feel pass on the times and angles (frame strips in the report); at the default level view the pouch and
+  most of the hand's trip are below the screen (the gun tilts up into view, the hand comes up to its port): a look-down or
+  a raised flat pouch (`vr_flat_ammo_pouch_z`) may suit; the other guns and dual wielding next, as he said.
 ## bindpanel2: the controller reminder panels: VR above the weapon wheel, a pad's glyphs in flat and the main menu (branch agent/bindpanel2, 2026-11-28)
 
 His words (2026-11-28): "In VR mode, it would be nice for the weapon wheel to have the same reminder panel, but with the
