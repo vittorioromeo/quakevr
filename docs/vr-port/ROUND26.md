@@ -4945,3 +4945,31 @@ and dagger offsets from the mount.
   with the bayonet on the moved mount; the page's Mount Forward row moves the bayonet); `vr_embed_test 96` attachguns
   57/0 + attach_guns_check 32/32; flat 80 17/0, flat dagger 85 18/0. The migration checked with his config's lines
   (vr_wofs_version 80 -> 81: values above).
+## grenhold: a held grenade isn't a stuck prop: put back or swapped by the weapon wheel and the holster menu (branch agent/grenhold, 2026-11-28)
+
+His words (2026-11-28): "When holding a grenade, the hand is considered holding a prop, so I cannot put it back or switch it
+for a gun unless I drop it first. Make held grenades go back to the ammo if unlit, and make it possible to swap them or put
+them back by using the usual weapon wheel or MMB buttons."
+- **Put back** (`VR_HandGrenade_Stow`, vr_flatgrenade.qc): before a holster pick for a hand (the wheel's EMPTY HAND and
+  holster slots, `VR_Wheel_Pick` through `VR_FlatHolster_KeyHandOk`; the flat holster keys 1/2/4/5, Cycle/Put; the MMB
+  holster menu's holster buttons, `VR_FlatHolster_Swap`), an unarmed hand grenade in that hand goes back in the pouch: its
+  rocket or multi-rocket back (as the pouch's own let-go, VR_HandGrenade_LetGo), the pouch sound and tick, the headset's
+  collect effect into the pouch; then the pick goes on with the hand empty (the holster's weapon drawn into it). Flat-screen
+  play's quick grenade state for that hand is ended; its trip to the pouch (FETCH) with that hand is called off.
+- **Refused**: an armed grenade (or a pouch full up of its ammo) stays in the hand: a dull knock (`vr/pack_full.wav`), a buzz,
+  and "The grenade is armed: throw it or drop it." (the wheel's DROP still drops it; pressing G with it armed is as before).
+- **BACK POUCH** (`VR_Wheel_Grenade`): with a grenade in the hand, the other kind swaps it (put back, the other taken: the
+  headset's at once, flat's by its trip); the same kind puts it back (the hand empty). Armed: refused.
+- **Client** (both modes, MP-safe): STAT_QVR_FLATUNLOADFULL carries the hand grenade per hand (bits 6-7 off, 8-9 main:
+  1 unarmed, 2 unarmed multi, 3 armed; `VR_FlatReload_HandFrameOn`), read by `flatholster::handGrenade`. The wheel lights
+  EMPTY HAND ("put back", "armed!" when armed: lit so the press gets the refusal), keeps the held kind's BACK POUCH half lit
+  with none left, and names DROP's "grenade"; the MMB menu's holster buttons stay lit with a grenade carried. Stats are per
+  client, so coop/MP clients get their own; splitscreen seats read their own stats once agent/split gives each seat its
+  cl.stats (nothing else needed here).
+- Not done (decided): letting go of an unarmed grenade at a weapon holster in the headset still drops it as before (only
+  the pouch takes it back): an overhead throw passes the shoulder holsters, and with vr_handgrenade_arm 1 an unarmed throw
+  let go there would vanish into the pouch.
+- **Tests**: `weaponwheel_test.sh <agent> grenade` 15/0 and `flatgrenade` 16/0 (new steps: with a grenade in the hand
+  EMPTY HAND and CLUSTER lit; CLUSTER swaps it, the rocket back; the nailgun's holster: the gun in the hand, the
+  multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
+  `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.
