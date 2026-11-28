@@ -564,9 +564,9 @@ def elite(s):
     since = srv.mark()
     srv.cmd("vr_physics_spawn monster_vr_grunt %d 0" % ARMED_SPAWNS[0])
     srv.wait(r"vr_physics_spawn: \d+ monster_vr_grunt at", 20, since, "an armed grunt ahead")
-    since = srv.mark()
+    since = b.mark()  # (QC's bprint: the players' consoles, not the dedicated server's)
     srv.cmd("vr_attr_set elite 1")
-    _, made = srv.wait(r"vr_attr_set: .* now elite", 10, since, "the grunt made an elite")
+    _, made = b.wait(r"vr_attr_set: .* now elite", 10, since, "the grunt made an elite")
     s.note(made.strip())
 
     def elites_on_b():
@@ -590,9 +590,9 @@ def elite(s):
                          for i, (lo, hi) in enumerate(((0.95, 1.0), (0.70, 0.85), (0.18, 0.35)))) and \
         float(m.group(4)) > 0.5 and m.group(6) == "yes"
     s.check("B draws it with the elite dye (dark gold, masked)", ok, line.strip() or "no client elite line")
-    since = srv.mark()
+    since = b.mark()
     srv.cmd("vr_attr_set elite 0")
-    srv.wait(r"vr_attr_set: .* no longer elite", 10, since, "the grunt made ordinary")
+    b.wait(r"vr_attr_set: .* no longer elite", 10, since, "the grunt made ordinary")
     for _ in range(40):
         n, _ = elites_on_b()
         if n == 0:
