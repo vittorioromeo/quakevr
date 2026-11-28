@@ -15,7 +15,7 @@ const string Usage = """
     qvr-setup install (--package <zip|folder> | --feed <latest.json url>) [--downloads <dir>]
                       (--target <dir> [--shortcuts-dir <dir>] | --sandbox <dir>) [--quake <dir>]
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
-                      [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register] --accept-statement
+                      [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register]
                       [--hd] [--no-feed] [--dry-run] [--prepare] [--ad [--ad-zip <zip>]] [--dwell [--dwell-zip <zip>]]
                       [--quoth [--quoth-zip <zip>] | --no-quoth] [--no-stores]
                       (--feed: the package downloaded as the window does; QVR_SETUP_FEED is the default feed. --hd: the
@@ -39,7 +39,7 @@ const string Usage = """
                        only when its inputs changed. --dry-run prints the plan (from --feed: the file plan needs the
                        package, unless it is in --downloads already). Shortcuts are kept unless --shortcuts-dir)
     qvr-setup reinstall [--target <dir> | --sandbox <dir>] [--reset-settings] [--remove-saves] [--remove-personal]
-                      [--clean] [--dry-run] (install's options) --accept-statement
+                      [--clean] [--dry-run] (install's options)
                       (install again from scratch: the chosen files (settings: configs, retro overrides, body calibration;
                        saves and the Map Library's installed maps; personal: screenshots, voice notes, recordings, logs,
                        tips seen, checklist ticks, maps and mods added by hand; --clean: all three, a new install's start
@@ -54,7 +54,7 @@ const string Usage = """
                        collision of Quake's and the mission packs' maps made once (their first visits faster; listed
                        in <install>\quakevr\cache\setup_hulls.txt for the Quest copy). Progress in
                        <install>\quakevr\cache\setup_prepare.txt. Ctrl+C stops it)
-    qvr-setup statement                              (prints the author's statement on AI usage; install needs --accept-statement)
+    qvr-setup statement                              (prints the author's statement on AI usage; install prints it too and goes on)
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
     qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--file <vc_redist.x64.exe>] [--assume-missing]] [--downloads <dir>]
@@ -327,14 +327,10 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
         Console.WriteLine("dry run: nothing downloaded or installed");
         return 0;
     }
-    // The wizard's Statement page: the console installs only with YES to both claims, given as --accept-statement.
-    if (!Flag("accept-statement"))
-    {
-        Console.Write(AiStatement.Format());
-        Console.WriteLine();
-        Console.WriteLine("To install, pass --accept-statement: it answers YES to both claims above.");
-        return 3;
-    }
+    // The wizard's Statement page is static text: the console prints it (no prompt) and goes on. --accept-statement is
+    // still accepted and ignored, for old scripts.
+    Console.Write(AiStatement.Format());
+    Console.WriteLine();
     var probe = new WindowsSystemProbe();
     var quake = Opt("quake") ?? (reinstallOf is { } ri && Directory.Exists(Path.Combine(ri.Record.QuakeDir, "id1")) ? ri.Record.QuakeDir : null)
         ?? DetectionReport.Run(probe).DefaultQuake?.BaseDir

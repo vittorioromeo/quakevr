@@ -9,6 +9,9 @@ a rename changes) and settings_schema.py (the cvar comments' paths). Regenerate 
 
   bash <kit>/run.sh <agent> -Filter "^MP\\|" -QuitOn "menu paths dumped" -Script "vr_menu_dump_paths;toggleconsole;quit" > log
   python Misc/quakevr/menu_paths.py log          write menu_paths.txt from the log's MP| lines
+The dump lists every page whatever the game holds (the Held Weapon pages for a pinned weapon slot, Developer detail, the
+Tunables rows in a non-QVR_RELEASE build), so one regeneration is the whole file: never add rows by hand. The check:
+`vr_menu_path_check <full path>/Misc/quakevr/menu_paths.txt` prints `menu_paths.txt: current` or `MENU PATHS FILE STALE`.
 """
 import os
 import sys

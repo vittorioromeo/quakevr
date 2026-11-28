@@ -548,7 +548,9 @@ void(float req) VR_BAT_Frame =
 // Each is watched frame by frame (vr_drawnlerp_watch, vr_hitmodel_diag.cpp): the drawn body against the hit model the
 // armour is placed from: no frame drawn still while it moves, no jump, the two in step; and the armour's points against
 // the shape the shader drew (the spline, the rebuild: within 0.05 units every frame; ROUND26 "armourrebuild"). First at
-// a quarter speed (vr_timescale 0.25), then at 1. Ends on "doglerp test: N passed, M failed".
+// a quarter speed (vr_timescale 0.25), then at 1. Each armoured case also shoots each drawn piece's middle every frame
+// as the server takes it (vr_drawnhits_check: the hit model and shotPiece on the drawn shape, vr_hitmodel_drawn; ROUND26
+// "drawnhits"): at least 96.5% strike that piece. Ends on "doglerp test: N passed, M failed".
 float vr_dlt_busy;
 float vr_dlt_case;   // 0 leap, 1 run, 2 roll, 3 scrag, 4 ogre, 5 ogre's chainsaw, 6 shambler; + 7 at full speed
 float vr_dlt_state;  // 1 spawned, 2 moving (watched), 3 the watch ended: its result next frame
@@ -630,6 +632,7 @@ void(entity p, float c) VR_DLT_Move =
     }
     self = oself;
     localcmd(sprintf("vr_drawnlerp_watch %s\n", vr_dlt_e.classname));
+    localcmd(sprintf("vr_drawnhits_check %s\n", vr_dlt_e.classname));
     vr_dlt_state = 2;
     vr_dlt_wait = time + (k == 2 ? 1.6 : k == 5 ? 1.4 : 0.8); // (the run, the flight: 8 frames; the roll: its 16; the swing its 14)
 };
@@ -655,6 +658,7 @@ void(float req) VR_DLT_Frame =
     {
         VR_Test_Check(FALSE, sprintf("%s: timed out in state %g", VR_DLT_Name(vr_dlt_case), vr_dlt_state));
         localcmd("vr_drawnlerp_watch 0 timedout\n");
+        localcmd("vr_drawnhits_check 0 timedout\n");
         vr_dlt_state = 3;
         vr_dlt_ticks = -1000; // (no result read)
     }
@@ -684,6 +688,7 @@ void(float req) VR_DLT_Frame =
             VR_Test_Check(vr_dlt_flew, sprintf("%s: off the ground in it", VR_DLT_Name(vr_dlt_case)));
         }
         localcmd(sprintf("vr_drawnlerp_watch 0 \"%s at %s\"\n", VR_DLT_Name(vr_dlt_case), vr_dlt_case < VR_DLT_CASES ? "0.25x" : "1x"));
+        localcmd(sprintf("vr_drawnhits_check 0 \"%s at %s\"\n", VR_DLT_Name(vr_dlt_case), vr_dlt_case < VR_DLT_CASES ? "0.25x" : "1x"));
         vr_dlt_state = 3;
         vr_dlt_ticks = 0;
         return;
@@ -700,6 +705,14 @@ void(float req) VR_DLT_Frame =
             float r = cvar_hget(cvarh_vr_drawnlerp_result);
             VR_Test_Check(r == 1, sprintf("%s at %s: drawn smoothly, the armour in step (%s)", VR_DLT_Name(vr_dlt_case),
                 vr_dlt_case < VR_DLT_CASES ? "0.25x" : "1x", r == 0 ? "not smooth" : r < 0 ? "too few frames" : "smooth"));
+            // (drawnhits; ROUND26.md) a shot at each drawn piece's middle, each frame, strikes that piece on the server
+            // (the hit model and shotPiece on the drawn shape: vr_hitmodel_drawn); a bare beast has none to shoot
+            float hr = cvar_hget(cvarh_vr_drawnhits_result);
+            if(hr >= 0)
+            {
+                VR_Test_Check(hr == 1, sprintf("%s at %s: shots at the drawn pieces' middles strike them (%s)", VR_DLT_Name(vr_dlt_case),
+                    vr_dlt_case < VR_DLT_CASES ? "0.25x" : "1x", hr == 1 ? "struck" : "too few struck"));
+            }
         }
         if(vr_dlt_e) remove(vr_dlt_e);
         vr_dlt_e = world;
@@ -740,6 +753,17 @@ float() VR_ARC_Alive =
     return n;
 };
 
+// (drawnhits) a shot at each ogre a frame (the hit model's drawn shapes: vr_hitmodel_stats' "drawn shapes" line)
+void(entity p) VR_ARC_Shots =
+{
+    entity e = find(world, classname, "monster_ogre");
+    while(e)
+    {
+        traceline(p.origin + p.view_ofs, e.origin + '0 0 8', MOVE_HITMODEL, p);
+        e = find(e, classname, "monster_ogre");
+    }
+};
+
 void(float req) VR_ARC_Frame =
 {
     entity p = VR_Player();
@@ -770,13 +794,19 @@ void(float req) VR_ARC_Frame =
     if(vr_arc_state == 1 && vr_arc_frames >= VR_ARC_SETTLE)
     {
         localcmd("vr_anim_smooth_info\n"); // (its counts reset)
+        localcmd("vr_hitmodel_stats reset\n");
         vr_arc_state = 2;
         vr_arc_frames = 0;
         return;
     }
+    if(vr_arc_state == 2)
+    {
+        VR_ARC_Shots(VR_Player());
+    }
     if(vr_arc_state == 2 && vr_arc_frames >= VR_ARC_FRAMES)
     {
         localcmd("vr_anim_smooth_info\n");
+        localcmd("vr_hitmodel_stats\n");
         VR_Test_Check(VR_ARC_Alive() == 10, sprintf("ten armoured ogres alive through %g frames (%g)", VR_ARC_FRAMES, VR_ARC_Alive()));
         vr_arc_state = 3;
         vr_arc_frames = 0;

@@ -1712,6 +1712,41 @@ float(float xHand) VR_Carry_AtHolster =
 };
 
 // Every player frame, for each hand (self is the player).
+// A thing put in a headset's hand without its grip (the weapon wheel's grenade: VR_Wheel_Grenade, vr_flatgrenade.qc) is
+// held as a wheel's weapon is (VR_Scene_HoldGiven): it stays, the grip unpressed, until that hand's grip is pressed; from
+// then on the grip holds it as ever (let go on release: a throw).
+.entity vr_carry_given_main;
+.entity vr_carry_given_off;
+
+void(entity p, float xHand, entity xBox) VR_Carry_HoldGiven =
+{
+    if(xHand == cVR_MainHand)
+    {
+        p.vr_carry_given_main = xBox;
+    }
+    else
+    {
+        p.vr_carry_given_off = xBox;
+    }
+};
+
+// Whether `xBox` in `xHand` of self is still held as given (its grip not pressed since); forgotten once the grip takes it
+// or the hand holds something else.
+float(float xHand, entity xBox) VR_Carry_GivenHeld =
+{
+    entity given = xHand == cVR_MainHand ? self.vr_carry_given_main : self.vr_carry_given_off;
+    if(given == world)
+    {
+        return FALSE;
+    }
+    if(given == xBox && !VR_HandGrabUtil_IsHandGrabbing(self, xHand))
+    {
+        return TRUE;
+    }
+    VR_Carry_HoldGiven(self, xHand, world);
+    return FALSE;
+};
+
 void(float xHand) VR_Carry_HandFrame =
 {
     VR_Corpse_StrikeFrame(xHand); // a blow on a corpse (vr_corpse_gib, combat.qc)
@@ -1748,7 +1783,8 @@ void(float xHand) VR_Carry_HandFrame =
     VR_Tips_Grabbed(box); // (still held: its GRABBED tips on it, once; the tutorial's keycard)
 
     float takeMode = cvar_hget(cvarh_vr_carry_take);
-    if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
+    float given = VR_Carry_GivenHeld(xHand, box); // (every frame: the grip's press forgets it)
+    if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand) && !given)
     {
         // An unarmed hand grenade let go of at the grenade pouch: back in it (vr_grenade.qc).
         if(VR_HandGrenade_LetGo(xHand, box))

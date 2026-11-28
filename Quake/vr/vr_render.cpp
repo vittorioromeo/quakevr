@@ -310,6 +310,43 @@ extern "C" int VR_GLOpaqueNoBlend(void)
     return v < 0.f ? VR_GLESCompat() : (v != 0.f ? 1 : 0);
 }
 
+// questperf2: the opaque pass's alias batches numbered in each eye's scene (vr_debug_alias_first/_count/_probe_at).
+int debugAliasBatch = 0;
+
+extern "C" void VR_DebugAliasBatchesBegin(void)
+{
+    debugAliasBatch = 0;
+}
+
+// The opaque batch about to be drawn is drawn (vr_debug_alias_first, vr_debug_alias_count); *probe: the LRZ probe's
+// pair goes after it (vr_debug_lrz_probe 8 at vr_debug_alias_probe_at). Numbers the batches.
+extern "C" int VR_DebugAliasBatchDrawn(int* probe)
+{
+    const int n = debugAliasBatch++;
+    const int first = static_cast<int>(vr_debug_alias_first.value);
+    const int count = static_cast<int>(vr_debug_alias_count.value);
+    *probe = static_cast<int>(vr_debug_lrz_probe.value) == 8 && n == static_cast<int>(vr_debug_alias_probe_at.value);
+    return n >= first && (count < 0 || n < first + count) ? 1 : 0;
+}
+
+extern "C" int VR_DebugAliasLrz(void)
+{
+    return static_cast<int>(vr_debug_alias_lrz.value);
+}
+
+// questperf2: the models' instance data kept across frames (vr_alias_frame_cache: 1 on, 2 the check).
+extern "C" int VR_AliasFrameCacheMode(void)
+{
+    const int v = static_cast<int>(vr_alias_frame_cache.value);
+    return v == 1 || v == 2 ? v : 0;
+}
+
+// questperf2: an opaque alias batch sets the blended state only for skins with blended texels (vr_gl_alias_lazy_blend).
+extern "C" int VR_GLAliasLazyBlend(void)
+{
+    return vr_gl_alias_lazy_blend.value != 0.f ? 1 : 0;
+}
+
 // qlrz: GL_SAMPLE_SHADING on as Ironwail has it, unless vr_gl_sample_shading is 0.
 extern "C" int VR_GLSampleShading(void)
 {

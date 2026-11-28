@@ -849,7 +849,8 @@ vector(entity xPlayer, float xHand) flatthrowfrom = #0;
 vector(string xModel) weaponmasscentre = #0;
 // Show Melee Arcs (vr_enemy_melee_arc_show): an armed humanoid's swinging weapon `xWeapon` this frame, drawn as a hand's
 // sweep is (meleeshow's `xWhat` 0, 1, 6; vr_meleerules.qc VR_MeleeArc_ShowSwings); world records nothing. Returns the
-// frames the view drew any armed humanoid's swing (the tests).
+// frames the view drew any armed humanoid's swing (the tests). World with `xWhat` -2: 1 if a remote client draws them
+// (his own Show Melee Arcs on: the swings go to him, mparcs), else 0.
 float(entity xWeapon, float xWhat, vector xA, vector xB, float xV) meleeshowfoe = #0;
 // A line on Embedded Blades' debug panel (vr_debug_embed; axestick::debugDraw).
 void(string xText) embedsay = #0;

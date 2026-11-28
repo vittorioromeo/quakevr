@@ -57,6 +57,15 @@ struct Mount
 [[nodiscard]] Mount mount(int slot, int kind);
 // A point of the attachment (its own model space) in the gun model's own space, by the mount.
 [[nodiscard]] glm::vec3 onGun(const Mount& m, const glm::vec3& p);
+
+// The bayonet's mount drawn on a weapon a bayonet fits (bayomounts: progs/bayonet_mount.mdl, its origin the bayonet's):
+// at the gun's bayonet mount moved and turned by its Weapon Offsets mnt_* keys (in the bayonet's units and frame), sized
+// mnt_size times the bayonet. `model`: the gun's (a weapon slot's, or a map pickup's: pickupRails in vr_attach.cpp).
+// False if no bayonet fits it (or vr_attach_mount_show 0).
+constexpr const char* railModel = "progs/bayonet_mount.mdl";
+[[nodiscard]] bool railMount(const qmodel_t* model, Mount& out);
+// The weapon slot whose bayonet mount the gun drawn with `model` takes (its own, or a pickup's gun's); -1 none.
+[[nodiscard]] int railSlot(const qmodel_t* model);
 // A mount of `kind` made before its frame (its angles turned its model's own axes) as the frame's angles and place: the
 // same blade, its guard rolled level, its tip kept (vr_wofs_version 80). `size`: the mount's scale times the
 // attachment's own (Mount::scale * Mount::own).
@@ -72,6 +81,7 @@ void convertOldMount(int kind, glm::vec3& pos, glm::vec3& angles, float size);
 void parseEvent();          // QVR_SVC_WEAPONATTACH
 void forgetUid(int uid);    // QVR_SVC_WEAPONGONE
 void clientClear();         // a new server
+void registerCommands();    // vr_attach_mdl_dump
 
 // Server: the attachment of the weapon record `rec` (QC vr_weaponinst.qc), and of the record `ent`'s field `refOfs`
 // refers to (a hand's .weaponinst, a holster's, a prop's).

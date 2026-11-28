@@ -57,6 +57,7 @@ qboolean water_warp;
 
 extern byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 extern qboolean SV_EdictInPVS (edict_t *test, byte *pvs);
+extern qboolean r_alias_opaque_pass; // QVR: r_alias.c (questperf2)
 extern qboolean SV_BoxInPVS (vec3_t mins, vec3_t maxs, byte *pvs, mnode_t *node);
 
 //
@@ -1419,6 +1420,9 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	int		aliascount, firstcount = 0; // QVR
 
 	GL_BeginGroup (alphapass ? "Translucent entities" : "Opaque entities");
+	r_alias_opaque_pass = !alphapass; // QVR: the opaque pass's alias batches numbered (vr_debug_alias_first; questperf2)
+	if (!alphapass)
+		VR_DebugAliasBatchesBegin ();
 
 	ofs = cl_modtype_ofs + (alphapass ? 1 : 0);
 	stereophase = alphapass ? 0 : VR_StereoSinglePhase (); // QVR: single-pass stereo: the multiview pass (1) draws the opaque
@@ -1452,6 +1456,7 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 			VR_GPUZoneEnd ();
 			VR_ProfileEnd (); // QVR
 		}
+		VR_LrzProbe (6); // QVR: vr_debug_lrz_probe 6: after your own models drawn first (questperf2)
 	}
 	VR_ProfileBeginGPU (alphapass ? "brush" : "world+brush"); // QVR: profile
 	if (!stereophase || (stereophase == 1) == (VR_StereoSingleTakesBrush () != 0)) // QVR
@@ -1463,6 +1468,8 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 			R_ModelFragmentsEnd (MF_BRUSH, 1);
 	}
 	VR_ProfileEnd (); // QVR
+	if (!alphapass)
+		VR_LrzProbe (7); // QVR: vr_debug_lrz_probe 7: after the world and the brush models (questperf2)
 	VR_ProfileBeginGPU ("alias"); // QVR: profile
 	R_DrawAliasModelsZoned (aliasents, aliascount, alphapass);
 	VR_ProfileEnd (); // QVR
@@ -1472,6 +1479,7 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	if (!alphapass && stereophase != 1) // QVR: (per eye)
 		R_DrawSpriteModels (entlist + cl_modtype_ofs[2*mod_sprite], cl_modtype_ofs[2*mod_sprite+2] - cl_modtype_ofs[2*mod_sprite]);
 	VR_ProfileEnd (); // QVR
+	r_alias_opaque_pass = false; // QVR
 
 	GL_EndGroup ();
 }

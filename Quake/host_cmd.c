@@ -604,6 +604,14 @@ static qboolean Download_LocalIPv6 (const unsigned char *a)
 	return (a[0] & 0xfe) == 0xfc || (a[0] == 0xfe && (a[1] & 0xc0) == 0x80); // fc00::/7, fe80::/10
 }
 
+#if !defined (WITHOUT_CURL) && defined (__GLIBC__) && defined (_FORTIFY_SOURCE)
+// QVR: inet_pton through a pointer when glibc fortifies it: its fortified inline calls __inet_pton_chk with clang (the
+// size check isn't folded), a glibc 2.42 symbol that alone would make the Linux build (the Flatpak's binary, also the
+// tarball's) need glibc 2.42 instead of 2.38 (docs/vr-port/LINUX.md, "Linux tarball"). volatile: never inlined back.
+static int (*volatile download_inet_pton) (int, const char *, void *) = inet_pton;
+#define inet_pton download_inet_pton
+#endif
+
 qboolean Download_LocalHost (const char *host)
 {
 	size_t n = strlen (host);
@@ -2139,8 +2147,7 @@ Host_Ping_f
 */
 static void Host_Ping_f (void)
 {
-	int		i, j;
-	float		total;
+	int		i;
 	client_t	*client;
 
 	if (cmd_source == src_command)
@@ -2154,11 +2161,7 @@ static void Host_Ping_f (void)
 	{
 		if (!client->active)
 			continue;
-		total = 0;
-		for (j = 0; j < NUM_PING_TIMES; j++)
-			total+=client->ping_times[j];
-		total /= NUM_PING_TIMES;
-		SV_ClientPrintf ("%4i %s\n", (int)(total*1000), client->name);
+		SV_ClientPrintf ("%4i %s\n", VR_ClientPingMs (i), client->name); // QVR: (review S3) the one mean (vr_svstatus.cpp)
 	}
 }
 
@@ -3852,6 +3855,12 @@ static void Host_Give_f (void)
 			if (sv_player->v.weapon > IT_LIGHTNING)
 			    sv_player->v.ammo_rockets = v;
 		    }
+		}
+		else if ((val = GetEdictFieldValueByName(sv_player, "ammo_multi_rockets")) != NULL)
+		{
+		    // Quake VR's progs carry multi-rockets in every game (the back pouch's multi-grenade: the weapon
+		    // wheel's CLUSTER, wheelgrenade): "give m 5" gives them outside the mission pack too.
+		    val->_float = v;
 		}
 		break;
 

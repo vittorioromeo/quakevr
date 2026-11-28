@@ -134,6 +134,7 @@
 #include "vr_prepare.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bigfont.hpp"
+#include "vr_bindsetup.hpp"
 #include "vr_fontstyle.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_setup.hpp"
@@ -2338,6 +2339,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_prop_heads", props::heads_f); // the monster heads' prop slots and their weights (vr_props.cpp)
     Cmd_AddCommand("vr_gloves_reload", render::glovesReload_f); // the gloves' painted leather read again (vr_render.cpp)
     VR_FileCacheRegisterCommands();
+    bindsetup::registerCommands(); // menu_bindsetup, vr_bindsetup_print/_test/_detect_test (vr_bindsetup.cpp)
     jobs::registerCommands();
     animsmooth::registerCommands();
     mdldequant::registerCommands();

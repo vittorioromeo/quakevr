@@ -59,6 +59,14 @@
   "sha256": "02e7bb10926146f8e87870db42c0a5f7798abbd1535eb13bdcfcffe4061b47cb",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/bayonet_mount.mdl": {
+  "sha256": "e2ac6ff67df477f9cc951dc721fa4ef036f81993cb307210a65d13e4360c9c9e",
+  "by": "make_bayonet.py"
+ },
+ "quakevr/progs/bayonet_mount.mdl_0.png": {
+  "sha256": "fa153f8bbf9b1b640088901f8834acda72cb44e7450ab8f6c0a4ad5ccee0ab08",
+  "by": "make_bayonet.py"
+ },
  "quakevr/progs/beam.mdl": {
   "by": "beam.blend",
   "source": "Misc/quakevr/src_models/blend/beam/beam.blend"

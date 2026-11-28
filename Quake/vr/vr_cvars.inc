@@ -197,6 +197,8 @@ QVR_CVAR(vr_attach_snap_radius, "5", CVAR_ARCHIVE | QVR_RULE)  // weapon attachm
 QVR_CVAR(vr_attach_snap_angle, "50", CVAR_ARCHIVE | QVR_RULE)  // and within how many degrees of the gun's way it must point
 QVR_CVAR(vr_attach_pull_radius, "6", CVAR_ARCHIVE | QVR_RULE)  // how near (units) the empty hand grips an attachment on the other hand's gun to pull it off
 QVR_CVAR(vr_attach_pull_button, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: pulled off by that hand's B/Y with its grip held (a grip there alone is the gun's two-handed grip); 0: by the grip alone
+QVR_CVAR(vr_attach_mount_show, "1", CVAR_ARCHIVE)               // bayomounts: the bayonet's mount drawn on every weapon a bayonet fits (progs/bayonet_mount.mdl at its att1 mount, Weapon Offsets mnt_*): 1 always; 2 not while an attachment is on it; 0 never
+QVR_CVAR(vr_attach_mount_dist, "1500", CVAR_ARCHIVE)            // bayomounts: lying and carried guns' mounts drawn within this many units of the view (the nearest 32)
 QVR_CVAR(vr_attach_daggers, "1", CVAR_ARCHIVE | QVR_RULE)      // Daggers as Bayonets (daggerattach; his 2026-11-27, on for testing): 1 the dagger in a hand goes on the other hand's shotgun or super shotgun as its bayonet (brought to the mount; flat: the Attach key); 0 not (one already on still comes off)
 QVR_CVAR(vr_attach_turn, "1", CVAR_NONE)                // 1: the server's attachment points (QC attachinfo) turned by the gun's Pitch/Yaw/Roll in the hand; 0: not (attach2's comparison)
 QVR_CVAR(vr_attach_probe, "0", CVAR_NONE)              // 1: the client writes the main hand's drawn attachment tip into vr_attach_probe_x/y/z every frame (the tests: QC vr_attach_test.qc)
@@ -741,6 +743,11 @@ QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
 QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
+// Debug > Profiling > Still Models' Set-up Check (questperf2): 1 a model's instance data (VR_AliasInstance)
+// kept from the frame before while nothing it is made from changed (r_alias.c R_AliasFrameInstance: the same model,
+// frame, skin, transform, light styles and dynamic lights; not your own models, glows or morphs); 0 made every frame;
+// 2 made again and compared (vr_alias_frame_cache_stats).
+QVR_CVAR(vr_alias_frame_cache, "0", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts: 1 the last plan of the crates and of the rocks and
 // bricks kept for the session and taken again while its key is the same (vr_debris.hpp PlanKey: the map's name, files
 // and geometry, every vr_crate*, vr_debris*, vr_place_* setting, the entities' boxes at the plan): a restart of the map
@@ -824,6 +831,20 @@ QVR_CVAR(vr_gl_sample_shading, "1", CVAR_NONE)
 // Killed"). n < 0: at point -n one quad far behind the scene (hidden: the picture kept): killed where the scene's own
 // draws wrote LRZ. 0 off.
 QVR_CVAR(vr_debug_lrz_probe, "0", CVAR_NONE)
+// questperf2: bisecting what ends the Quest's LRZ in the opaque entity pass. The opaque pass's alias batches (not the
+// shadow maps', the translucent ones or the outlines) are numbered from 0 in each eye's scene: only those from
+// vr_debug_alias_first, vr_debug_alias_count of them (-1: all) are drawn (their set-up still runs);
+// vr_debug_lrz_probe 8 draws the probe's quad pair right after batch vr_debug_alias_probe_at. 6 and 7 are the points
+// after your own models drawn first and after the world and brush models. vr_debug_alias_lrz (bits) changes the opaque
+// batches' state: 2 no clip distance, 4 shaded by the depth-only program, 8 none of the extra buffers and textures
+// bound, 16 no depth pre-pass, 32 no motion-vector draw buffers.
+QVR_CVAR(vr_debug_alias_first, "0", CVAR_NONE)
+QVR_CVAR(vr_debug_alias_count, "-1", CVAR_NONE)
+QVR_CVAR(vr_debug_alias_probe_at, "0", CVAR_NONE)
+QVR_CVAR(vr_debug_alias_lrz, "0", CVAR_NONE)
+// questperf2: an opaque alias batch sets the blended state (GL_BLEND on) only when one of its skins has blended texels
+// (R_FlushAliasInstances); 0 every batch sets it after its opaque draws, as Ironwail. The same pixels.
+QVR_CVAR(vr_gl_alias_lazy_blend, "0", CVAR_NONE)
 QVR_CVAR(vr_debug_hide_models, "", CVAR_NONE)   // alias models whose name holds any of these comma-separated parts are not drawn in the eyes (vr_render.cpp VR_AliasDebugHidden; questperf)
 QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
 QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
@@ -4443,7 +4464,7 @@ QVR_CVAR(vr_runpick_gore, "0", CVAR_ARCHIVE)          // Run Setup: the Gore pre
 QVR_CVAR(vr_runpick_armed, "0", CVAR_ARCHIVE)         // Run Setup: Armed Humanoids: 0 as the Style sets them, 1 off, 2 on
 QVR_CVAR(vr_runpick_smartai, "0", CVAR_ARCHIVE)       // Run Setup: Smarter AI (vr_ai_enhanced): 0 as the Style sets it, 1 off, 2 on
 QVR_CVAR(vr_runpick_startgun, "0", CVAR_ARCHIVE)      // Run Setup: Starting gun: 0 shotgun, 1 nail pistol, 2 heavy revolver, 3 nothing
-QVR_CVAR(vr_runpick_startmelee, "0", CVAR_ARCHIVE)    // Run Setup: Starting melee weapon: 0 axe, 1 dagger, 2 nothing
+QVR_CVAR(vr_runpick_startmelee, "0", CVAR_ARCHIVE)    // Run Setup: Starting melee weapon: 0 axe, 1 dagger, 2 nothing, 3 spear
 QVR_CVAR(vr_runpick_meleeonly, "0", CVAR_ARCHIVE)     // Run Setup: Melee Only
 QVR_CVAR(vr_runpick_glasscannon, "0", CVAR_ARCHIVE)   // Run Setup: Glass Cannon
 QVR_CVAR(vr_runpick_pickups, "0", CVAR_ARCHIVE)       // Run Setup: Randomized Pickups: 0 off, 1 balanced (same kind, similar value), 2 anything goes
@@ -4608,6 +4629,7 @@ QVR_CVAR(vr_monster_lerp_continue, "1", CVAR_ARCHIVE | QVR_RULE) // a monster's 
 QVR_CVAR(vr_debug_drawn_moves, "", CVAR_NONE)       // a part of model names (progs/dog): those monsters drawn jumping between frames logged ("drawnmove:")
 QVR_CVAR(vr_drawnlerp_log, "0", CVAR_NONE)           // 1: vr_drawnlerp_watch prints every frame of its monster ("drawnlerp frame:": the drawn lerp against the hit model's)
 QVR_CVAR(vr_drawnlerp_result, "-1", CVAR_NONE)       // vr_drawnlerp_watch's last watch: 1 smooth and in step with the hit model (the armour), 0 not, -1 too few frames (read by vr_agarmor_test 21)
+QVR_CVAR(vr_drawnhits_result, "-1", CVAR_NONE)       // vr_drawnhits_check's last check: 1 the shots at the drawn pieces' middles struck those pieces (the server's hit model and shotPiece; at least 96.5%), 0 not, -1 no pieces drawn (read by vr_agarmor_test 21; ROUND26 "drawnhits")
 QVR_CVAR(vr_debug_lift, "0", CVAR_NONE)              // 1: the player and monsters riding a moving lift: how far their boxes, drawn models and the drawn eye sink into it, each ride's worst logged as it stops ("liftdebug:"; a local game)
 QVR_CVAR(vr_debug_lift_player, "-999", CVAR_NONE)    // (read-only, for tests) the last ride's worst sink of the player (box or drawn feet), -999 none measured
 QVR_CVAR(vr_debug_lift_eye, "-999", CVAR_NONE)       // ... and of his drawn eye (under its height over his feet standing still)
@@ -4733,6 +4755,9 @@ QVR_CVAR(vr_flat_ssg_break, "1", CVAR_ARCHIVE)          // flat-screen play with
 QVR_CVAR(vr_flat_mag_eject, "1", CVAR_ARCHIVE)          // the same: a magazine gun (nailgun, super nailgun, thunderbolt, nail pistol) fired empty drops its magazine (VR's physical one, vr_flat_mag_eject_delay later); the reload seats a new one at the hip
 QVR_CVAR(vr_flat_revolver_eject, "1", CVAR_ARCHIVE)     // the same: the revolver fired empty swings its cylinder out by itself (vr_flat_revolver_open_delay later), its spent shells thrown out, and dry-clicks out; a reload with shells left swings it out as it starts; home after the rounds go in (vr_flat_reload_close_delay)
 QVR_CVAR(vr_flat_autoreload, "0", CVAR_ARCHIVE | QVR_PREF)        // flat-screen play: 1: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0 (default since 2026-11-09, his call): only R reloads
+QVR_CVAR(vr_flat_proc_reload, "1", CVAR_ARCHIVE | QVR_RULE)       // flat-screen play (flatprocreload, his words 2026-11-28): 1: the shotgun held in one hand, the other empty, reloads as a headset does: the free hand takes taped pairs from the ammo pouch (shown) to its port until it is full (vr_flatprocreload.cpp, QC vr_flatreload.qc; Tunables > Flatscreen > Procedural Reload); 0: the timed trip to the hip (vr_flat_reload_*). Dual wielding and other guns: the timed trip either way. The host's value holds (the server decides, the client follows its bit)
+QVR_CVAR(vr_flat_proc_reload_debug, "0", CVAR_NONE)  // 1: the flat-screen procedural reload's hand printed step by step (flatprocreload: ...; vr_flatprocreload.cpp)
+QVR_CVAR(vr_flat_prl_test_miss, "0", CVAR_NONE)      // the tests' blocked port: units the procedural reload's hand stops short of the port (out of its opening), so the round never goes in and the failsafe cancels
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none
@@ -4768,6 +4793,8 @@ QVR_CVAR(vr_weaponwheel_distance, "3", CVAR_ARCHIVE)   // the weapon wheel: its 
 QVR_CVAR(vr_flat_wheel, "1", CVAR_ARCHIVE)             // flatscreen play (holsters on): holding 1 / 2 (vr_flat_key_cycle_left / _right) opens the weapon wheel where that hand is on the screen, time slowed, the mouse its cursor; let go on a slot: that hand takes it (a tap still cycles); 0: 1 / 2 only cycle, on the press, as before (his words 2026-11-23)
 QVR_CVAR(vr_flat_wheel_hold, "0.15", CVAR_ARCHIVE)     // flatscreen play: seconds 1 / 2 are held before the weapon wheel opens (a shorter press cycles the hand when let go)
 QVR_CVAR(vr_flat_wheel_size, "0.5", CVAR_ARCHIVE)      // flatscreen play: the weapon wheel's height, a share of the window's
+QVR_CVAR(vr_flat_bind_panel, "1", CVAR_ARCHIVE)      // flatscreen play: the most used flat keys as key caps in a panel over the holster menu and the weapon wheel, and in the main menu left of its rows with Setup Bindings under it (vr_bindpanel.cpp; wheelui, his words 2026-11-28); with a gamepad the device last used, its bound buttons' glyphs and actions instead (bindpanel2); 0 none
+QVR_CVAR(vr_wheel_bind_panel, "1", CVAR_ARCHIVE)     // the headset's weapon wheel: a panel above it with the detected controllers' pictures, each bound button's glyph and action beside it (vr_bindpanel.cpp; bindpanel2, his words 2026-11-28); 0 none
 QVR_CVAR(vr_flat_holster_drop_ahead, "20", CVAR_ARCHIVE | QVR_PREF) // flatscreen play: how far ahead of him (units) a holster's DROP lays its weapon
 QVR_CVAR(vr_flat_unload_volume, "0.8", CVAR_ARCHIVE) // flatscreen play: the holster menu's UNLOAD sound's volume (its rounds back into the pouch); 0 silent
 QVR_CVAR(vr_flat_toolgun_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the toolgun panel's cursor speed (1: as the desktop's pointer, a mouse count a window pixel)

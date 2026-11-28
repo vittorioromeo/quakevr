@@ -4057,6 +4057,7 @@ void M_Menu_Gamepad_f (void)
 		item (SPACER,					"")								\
 		item (OPT_CUSTOMIZE,			"Key Setup")					\
 		item (OPT_GAMEPAD,				"Controller")					\
+		item (OPT_CTRLBIND,				"Controller Bindings") /* QVR */	\
 		item (OPT_VR,					"VR Settings")	/* QVR */		\
 		item (OPT_MOUSESPEED,			"Mouse Speed")					\
 		item (OPT_INVMOUSE,				"Invert Mouse")					\
@@ -5174,6 +5175,7 @@ static void M_Options_DrawItem (int y, int item)
 	case OPT_GAME:
 	case OPT_CUSTOMIZE:
 	case OPT_GAMEPAD:
+	case OPT_CTRLBIND: // QVR
 	case OPT_VR: // QVR
 	case OPT_MODS:
 	case GPAD_OPT_CALIBRATE:
@@ -5839,6 +5841,9 @@ void M_Options_Key (int k)
 		case OPT_VR: // QVR
 			VR_Menu_Open ();
 			break;
+		case OPT_CTRLBIND: // QVR: the Controller Bindings screen (vr/vr_bindsetup.cpp)
+			VR_BindSetup_Open ();
+			break;
 		case OPT_GAME:
 			M_Options_Init (m_game);
 			break;
@@ -6174,11 +6179,72 @@ static void M_Keys_Populate (void)
 	keysmenu.list.scroll = 0;
 }
 
+static void M_Keys_LoadCustomItems (void);
+
 void M_Menu_Keys_f (void)
+{
+	keydevice_t lastactive = IN_GetLastActiveDeviceType ();
+
+	M_Keys_LoadCustomItems ();
+
+	// hacky: determine the maximum number of items by populating the item list for both kb/m & gamepad
+	// (easy way to properly account for the quirky item deduplication logic)
+	keysmenu.maxitems = 0;
+	keysmenu.devicemask = KDM_KEYBOARD_AND_MOUSE;
+	M_Keys_Populate ();
+	keysmenu.maxitems = q_max (keysmenu.maxitems, keysmenu.list.numitems);
+	keysmenu.devicemask = KDM_GAMEPAD;
+	M_Keys_Populate ();
+	keysmenu.maxitems = q_max (keysmenu.maxitems, keysmenu.list.numitems);
+
+	IN_DeactivateForMenu();
+	key_dest = key_menu;
+	m_state = m_keys;
+	m_entersound = true;
+	keysmenu.list.isactive_fn = M_Keys_IsSelectable;
+	keysmenu.list.search.match_fn = M_Keys_Match;
+	keysmenu.devicemask = (lastactive == KD_GAMEPAD) ? KDM_GAMEPAD : KDM_KEYBOARD_AND_MOUSE;
+	keysmenu.flatslot = 0;
+
+	M_Keys_Populate ();
+	M_List_ClearSearch (&keysmenu.list);
+
+	M_Keys_UpdateLayout ();
+}
+
+// QVR: the Controller Bindings screen's list of actions (menu.h).
+void M_Keys_EachAction (void (*add) (const char *command, const char *name))
+{
+	size_t i;
+	keydevicemask_t mask = keysmenu.devicemask;
+
+	M_Keys_LoadCustomItems ();
+	keysmenu.devicemask = KDM_ANY;
+	M_Keys_Populate ();
+	for (i = 0; i < VEC_SIZE (keysmenu.filtered_items); i++)
+	{
+		const menukeybind_t *item = &keysmenu.filtered_items[i];
+		if (item->command[0] && item->command[0] != '*' && item->flatkey == 0)
+			add (item->command, item->description);
+	}
+	keysmenu.devicemask = mask;
+	M_Keys_Populate ();
+}
+
+void M_GetBounds (int *left, int *top, int *width, int *height)
+{
+	M_UpdateBounds ();
+	*left = m_left;
+	*top = m_top;
+	*width = m_width;
+	*height = m_height;
+}
+
+// The mod's own actions (bindlist.lst) read again into keysmenu.custom_items.
+static void M_Keys_LoadCustomItems (void)
 {
 	size_t i;
 	char *file;
-	keydevice_t lastactive = IN_GetLastActiveDeviceType ();
 
 	// free custom items
 	for (i = 0; i < VEC_SIZE (keysmenu.custom_items); i++)
@@ -6209,30 +6275,6 @@ void M_Menu_Keys_f (void)
 
 		VR_HeapFree (file);
 	}
-
-	// hacky: determine the maximum number of items by populating the item list for both kb/m & gamepad
-	// (easy way to properly account for the quirky item deduplication logic)
-	keysmenu.maxitems = 0;
-	keysmenu.devicemask = KDM_KEYBOARD_AND_MOUSE;
-	M_Keys_Populate ();
-	keysmenu.maxitems = q_max (keysmenu.maxitems, keysmenu.list.numitems);
-	keysmenu.devicemask = KDM_GAMEPAD;
-	M_Keys_Populate ();
-	keysmenu.maxitems = q_max (keysmenu.maxitems, keysmenu.list.numitems);
-
-	IN_DeactivateForMenu();
-	key_dest = key_menu;
-	m_state = m_keys;
-	m_entersound = true;
-	keysmenu.list.isactive_fn = M_Keys_IsSelectable;
-	keysmenu.list.search.match_fn = M_Keys_Match;
-	keysmenu.devicemask = (lastactive == KD_GAMEPAD) ? KDM_GAMEPAD : KDM_KEYBOARD_AND_MOUSE;
-	keysmenu.flatslot = 0;
-
-	M_Keys_Populate ();
-	M_List_ClearSearch (&keysmenu.list);
-
-	M_Keys_UpdateLayout ();
 }
 
 // QVR: the Controls menu with its cursor on a row: its command or name (a flat key's: its cvar, vr_flat_key_*), on the
@@ -8668,6 +8710,7 @@ int M_ContentLeft (void)
 	case m_maps:
 	case m_mods:
 	case m_modinfo:
+	case m_bindsetup: // QVR
 		return q_min (m_left, 0);
 	default:
 		return 0;
@@ -8687,6 +8730,7 @@ void M_ContentExtent (float *right, float *bottom)
 	case m_maps:
 	case m_mods:
 	case m_modinfo:
+	case m_bindsetup: // QVR
 		*right = (float) q_max (320, m_left + m_width);
 		*bottom = (float) q_max (200, m_top + m_height);
 		break;
@@ -8902,6 +8946,10 @@ void M_DrawPanel (void)
 	case m_autosaves: // QVR
 		M_Autosaves_Draw ();
 		break;
+
+	case m_bindsetup: // QVR
+		VR_BindSetup_Draw ();
+		break;
 	}
 
 	VR_MenuDrawOverlay (); // QVR: the "Back to game" button
@@ -9053,6 +9101,10 @@ void M_Keydown (int key, qboolean repeat)
 	case m_autosaves: // QVR
 		M_Autosaves_Key (key);
 		return;
+
+	case m_bindsetup: // QVR
+		VR_BindSetup_Key (key);
+		return;
 	}
 }
 
@@ -9181,6 +9233,9 @@ void M_Mousemove (int screenx, int screeny)
 	case m_autosaves: // QVR
 		M_Autosaves_Mousemove (x, y);
 		return;
+
+	case m_bindsetup: // QVR: the screen reads m_mousex, m_mousey as it draws
+		return;
 	}
 }
 
@@ -9266,6 +9321,9 @@ void M_Charinput (int key)
 	case m_vr: // QVR: the Search page's box
 		VR_Menu_Char (key);
 		return;
+	case m_bindsetup: // QVR: the action list's search
+		VR_BindSetup_Char (key);
+		return;
 	case m_confirm: // QVR
 		M_Confirm_Char (key);
 		return;
@@ -9295,6 +9353,8 @@ textmode_t M_TextEntry (void)
 		return M_Keys_TextEntry ();
 	case m_vr: // QVR
 		return (textmode_t) VR_Menu_TextEntry ();
+	case m_bindsetup: // QVR: the action list open: typing searches it
+		return VR_BindSetup_TextEntry () ? TEXTMODE_NOPOPUP : TEXTMODE_OFF;
 	case m_confirm: // QVR: y and n answer it
 		return TEXTMODE_NOPOPUP;
 	default:

@@ -1348,6 +1348,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 	}
 	// QVR: the messages about entities it sees (armed humanoids' poses; all of them to the loopback client)
 	VR_WriteScoped (&msg, SV_IsLocalClient (client), snap);
+	VR_WriteMeleeArcs (&msg, client); // QVR: Show Melee Arcs' armed swings, to a remote client drawing them (vr/vr_meleeshow.cpp)
 
 // send the datagram
 	if (NET_SendUnreliableMessage (client->netconnection, &msg) == -1)

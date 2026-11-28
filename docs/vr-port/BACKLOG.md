@@ -23,13 +23,11 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Dog wedged against a wall**: it can stay standing wedged with the wiggle off. ROUND25.md "wallglue".
 - **Flat: no low or sideways swing, so no flat leg sweeps** (his call 2026-11-24: not now).
 - **Splitscreen**: agent/split (6e6f2af6e, split19, SPLITSCREEN.md) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next if it still shows.
-- **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache is open; LRZ still dead in the opaque entity pass (some alias batch; next: bisect by batch); CPU-bound big fights
+- **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache across frames would rarely hit (questperf2: the instance data changes every frame with the flickering dynamic lights and the wounds' timers); LRZ in the opaque entity pass (questperf2): alive with no alias draws and after your first model, dead after your leg holsters (batches 2-3), not from one state alone; `vr_debug_alias_lrz 62` plus `vr_gl_alias_lazy_blend 1` together keep it (1.16M pixels killed): next, bisect that combination (ROUND26 "questperf2"); CPU-bound big fights
   (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
 - **Baseline failures, 2026-11-26 list, what is left** (agrunt 203 fixed: ROUND26 "basefix2"; `ragdoll_grab` and teleporters: "basefix1"/"basefix2"): `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14 (0/5 on 11-27, same check); agrunt 16 (0/5: the drawn grip 2.73-2.76 off, limit 2.5) and agrunt 65 (1/5: "grab anywhere: an axe swung at its chest at 4.5 m/s: its parry raised 0.12, parried 0, disarmed 1") as in basefix2. Agrunt 74 and the recoil test passed 5/5 on 11-27 (ROUND26 "flakysweep").
 - **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` points to `qvr-kit/relit`); no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
-- **menu_paths.txt**: a full regeneration loses the Held Weapon pages (workers add rows by hand).
 - **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
-- **Melee arcs**: armed humanoids' swing trail is drawn on the host view only, not on remote MP clients (ROUND25.md "Show Melee Arcs").
 
 - **Flaky/stale lists below, from 11-12 to 11-21 (rechecked 2026-11-27 by the flaky sweep, 5 unseeded runs each: ROUND26 "flakysweep" has the table; the lines below are updated)**.
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
@@ -89,13 +87,6 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   95 monster_* edicts (the extra ones: a monster_morph spawner and a knight-class entity that counts itself without
   FL_MONSTER). The 95/94 on another skill is the same one-off. vr_run_enemies_check failing r2m1 on it needs an
   exemption, not a spawn-code fix.
-- **MP review lows not fixed by mpfix (2026-11-20; `qvr-kit/scratch/mprev_A.md`, `mprev_C.md`, MP_PLAN.md "Review
-  fixes")**: A6 (room service expire() on each over-cap REGISTER), A7 (server rule values unchecked on the client:
-  refuse non-finite, clamp to the menu range), A8 (connect "host:port" sets net_hostport for the session), A10
-  (control replies 5-10x their requests: pad or rate-limit), A11 (keyless rejoin records: bots' apart, a key required
-  from v40), A13 (guest ping from his clock: clamp 0..10 s), S1-S3, O1 (drain the shared socket once a frame), O2 (a
-  datagram pool), C7 (box3d hand shapes scan the model precache per hand per frame), C8 (Voice Chat page tests
-  "talking" in the row text: export voicechat::talking).
 - **mp_coopbots, rare flake (2026-11-20, mpfinal)**: vr_dm_test 11's "the bot kills the grunt" gave up once in ten
   takes (the grunt at 19 health at 864 frames; the fight is the bot's aim over 12 s of real time); the base before the
   review passed its ten. Known; don't chase unless it repeats.
@@ -150,6 +141,8 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
      the takes tool), so the last shot is real flat play.
   New work, small: the desk map generator, the scene QC (actor walk + camera), optionally the hands-to-face fade and a
   sit pose. Everything else exists.
+- **Splitscreen: per-seat controller bindings in the rebinding screen** (2026-11-28, todo): the Controller Bindings
+  screen edits the one bind table; with true seats (agent/split) each seat's controller gets its own page and binds.
 
 ## 4. Monsters' movement: the navmesh (NAVMESH.md)
 
@@ -194,12 +187,6 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
   until this is done. 2026-11-22 (disarmfix, ROUND25): PvE now by jolts (no dice, a warning before the drop, fists and
   heavy blows count); left: his try in VR, then his OK to turn `vr_player_disarm` on.
-- **Blinding with the flashlight** (2026-11-27): pointing the flashlight straight at an armed humanoid's face dazzles
-  it: it raises one hand in front of its face (the other keeps the gun; a pose key/override, IK on the shared rig
-  paths) and shoots with worse accuracy while the beam stays on its eyes (and a moment after). Needs: the beam's cone
-  vs the face (distance, angle, line of sight), a dazzle level that builds and fades, the shield pose blended in, the
-  aim spread scaled by it; one-handed guns fire from the free hand, two-handed ones fire one-handed and worse. Also the
-  flat-screen flashlight and bots' if they carry one.
 
 ## 7. Combat and feel
 
@@ -310,15 +297,12 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   0.37-0.46 ms step; `vr_ragdoll_self_pairs 0` A/B). An exact skip (a Box3D change: a self pair's narrow phase skipped
   while its last distance less a motion bound stays over the speculative distance) would save at most that. Left: the
   GPU side close up, and a test on a lower-end PC to see whether the drop remains.
-- **The knight's ledge grab "pulled away"** (ROUND25.md "box3dup2"): climb_test pull, seeds 7-10, with upstream's mesh
-  ghost handling (the default, `vr_box3d_mesh_ghosts 1`): 21/24, the ogre 4/4 now (its "not hanging" fixed), but the
-  knight 2/4 (4/4 before the Box3D update and with the handling off): falling past the lip at speed, a hand's hold
-  stretches 11-15 units off at the cap and lets go ("pulled away"), sometimes both. Chaotic: which seeds fail changes
-  between the batched and the single runs. Look at its grab's load (the cap against the fall) before tuning.
 - **Linux Flatpak needed Steam folder access** (same tester): it worked once she granted access to
   ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
   `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,
   host vs sandbox paths) and make the launcher say exactly which override to run when it finds no Quake.
+  (2026-11-27, linuxtar: the launcher now prints the `flatpak override` for each Steam library from
+  libraryfolders.vdf the sandbox can't see, and the unsandboxed tarball avoids the question; the cause is not found.)
 
 - **Performance, only when a capture makes one the top cost:** decals (PERF_DECISIONS.md 15), parallax option B and
   depth write, hit-box traces, shadows in crowded light, teleporter views, model loading in parallel, kept level copies:

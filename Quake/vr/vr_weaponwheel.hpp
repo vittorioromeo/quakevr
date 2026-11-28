@@ -18,6 +18,10 @@
 // as 6 / 7 and the holster menu's DROP), FLIP GRIP (its sword's, dagger's or Crystal Lance's grip turned over, as the eject
 // button and the holster menu's FLIP GRIP) and UNLOAD (its gun's live rounds back into the reserve, the holster menu's
 // UNLOAD), greyed when they would do nothing (flatholster::canDrop / canFlip / canUnload, the holster menu's own tests).
+// And (wheelgrenade, his words 2026-11-28) the back pouch's grenade, after UNLOAD (with the pouch on: vr_handgrenade): a
+// slot with the grenade's thumbnail and how many are left; split into two halves (GRENADE on top, CLUSTER below) when
+// both rockets and multi-rockets are carried; greyed with neither. Eleven places on the ring then (an oval, the image
+// 308 x 318: vr_weaponwheel_size is the width of its first 280 pixels, as the ten-slot wheel's was).
 //
 // Flatscreen play (vr_flat_wheel, his words 2026-11-23): the same wheel, its image and provider; only the input, the
 // cursor and the placement are flat's. Holding 1 / 2 (vr_flat_key_cycle_left / _right) vr_flat_wheel_hold seconds opens it
@@ -45,6 +49,16 @@ struct Choice
     char name[40]{};   // what is there ("shotgun"; "" nothing: "- EMPTY -")
     char model[64]{};  // its model's file (the thumbnail; "" none)
     bool usable{true}; // a pick would do something now (else greyed, and a pick does nothing)
+    // Its gun's ammunition and attachment (wheelui: the line under its name, the thumbnail's attachment and the name's
+    // glyph; flatholster::HolsterSlot's): magazine and size (0 none), QC ammo type, reserve (-1 none), attach::Kind.
+    int clip{0};
+    int clipSize{0};
+    int ammoType{0};
+    int reserve{-1};
+    int attach{0};
+    // A split slot (wheelgrenade: the grenade entry with both kinds): 1 its top half, 2 its bottom half (the next choice in
+    // the list, at the same place on the ring); 0 a whole slot.
+    int half{0};
     // An action (the holsters': EMPTY HAND, DROP, FLIP GRIP, UNLOAD; his words 2026-11-23): drawn smaller, as the holster menu's
     // buttons, this icon above its title (name and model unused). None (the default): a slot.
     gadget::MenuIcon icon{};
@@ -54,6 +68,11 @@ constexpr int maxChoices = 16;
 constexpr int keyDrop = -2;
 constexpr int keyUnload = -3;
 constexpr int keyFlip = -4;
+// Its grenade entry (wheelgrenade, his words 2026-11-28; QC VR_WHEEL_GRENADE, VR_WHEEL_MULTIGRENADE): a grenade, or the
+// multi-grenade (CLUSTER), from the back pouch into the hand (VR_Wheel_Grenade: its weapon put away first). Both in the
+// pouch: the entry split in two halves, the grenade on top.
+constexpr int keyGrenade = -5;
+constexpr int keyMultiGrenade = -6;
 
 struct Provider
 {
