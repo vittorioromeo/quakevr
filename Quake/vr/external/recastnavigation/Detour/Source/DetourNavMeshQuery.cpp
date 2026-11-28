@@ -144,7 +144,8 @@ dtNavMeshQuery::dtNavMeshQuery() :
 	m_nav(0),
 	m_tinyNodePool(0),
 	m_nodePool(0),
-	m_openList(0)
+	m_openList(0),
+	m_qvrOpenList(0)
 {
 	memset(&m_query, 0, sizeof(dtQueryData));
 }
@@ -157,9 +158,12 @@ dtNavMeshQuery::~dtNavMeshQuery()
 		m_nodePool->~dtNodePool();
 	if (m_openList)
 		m_openList->~dtNodeQueue();
+	if (m_qvrOpenList)
+		m_qvrOpenList->~dtQvrNodeQueue();
 	dtFree(m_tinyNodePool);
 	dtFree(m_nodePool);
 	dtFree(m_openList);
+	dtFree(m_qvrOpenList);
 }
 
 /// @par 
@@ -219,7 +223,25 @@ dtStatus dtNavMeshQuery::init(const dtNavMesh* nav, const int maxNodes)
 	{
 		m_openList->clear();
 	}
-	
+
+	// QVR: findPathQvr's open list, on the node pool (made again whenever the pool is).
+	if (!m_qvrOpenList || m_qvrOpenList->getCapacity() < maxNodes || m_qvrOpenList->getPool() != m_nodePool)
+	{
+		if (m_qvrOpenList)
+		{
+			m_qvrOpenList->~dtQvrNodeQueue();
+			dtFree(m_qvrOpenList);
+			m_qvrOpenList = 0;
+		}
+		m_qvrOpenList = new (dtAlloc(sizeof(dtQvrNodeQueue), DT_ALLOC_PERM)) dtQvrNodeQueue(maxNodes, m_nodePool);
+		if (!m_qvrOpenList)
+			return DT_FAILURE | DT_OUT_OF_MEMORY;
+	}
+	else
+	{
+		m_qvrOpenList->clear();
+	}
+
 	return DT_SUCCESS;
 }
 
@@ -1161,6 +1183,225 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 	if (outOfNodes)
 		status |= DT_OUT_OF_NODES;
 	
+	return status;
+}
+
+// QVR: findPath's search step for step (see the header). Where findPath reads a newly reached node's place with
+// getEdgeMidPoint (getPortalPoints: the first of bestPoly's links to that polygon, searched again), this reads it from
+// the link at hand: the same link, as the first visit through bestPoly comes on its first link to that polygon (an
+// earlier link to it would have reached the node already: the same reference passes or fails every test alike).
+dtStatus dtNavMeshQuery::findPathQvr(dtPolyRef startRef, dtPolyRef endRef,
+									 const float* startPos, const float* endPos,
+									 const dtQueryFilter* filter,
+									 dtPolyRef* path, int* pathCount, const int maxPath) const
+{
+	dtAssert(m_nav);
+	dtAssert(m_nodePool);
+	dtAssert(m_qvrOpenList);
+
+	if (!pathCount)
+		return DT_FAILURE | DT_INVALID_PARAM;
+
+	*pathCount = 0;
+
+	if (!m_nav->isValidPolyRef(startRef) || !m_nav->isValidPolyRef(endRef) ||
+		!startPos || !dtVisfinite(startPos) ||
+		!endPos || !dtVisfinite(endPos) ||
+		!filter || !path || maxPath <= 0)
+	{
+		return DT_FAILURE | DT_INVALID_PARAM;
+	}
+
+	if (startRef == endRef)
+	{
+		path[0] = startRef;
+		*pathCount = 1;
+		return DT_SUCCESS;
+	}
+
+	dtQvrNodeQueue& open = *m_qvrOpenList;
+	m_nodePool->clear();
+	open.clear();
+
+	dtNode* startNode = m_nodePool->getNode(startRef);
+	dtVcopy(startNode->pos, startPos);
+	startNode->pidx = 0;
+	startNode->cost = 0;
+	startNode->total = dtVdist(startPos, endPos) * H_SCALE;
+	startNode->id = startRef;
+	startNode->flags = DT_NODE_OPEN;
+	open.push(startNode);
+
+	dtNode* lastBestNode = startNode;
+	float lastBestNodeCost = startNode->total;
+
+	bool outOfNodes = false;
+
+	while (!open.empty())
+	{
+		dtNode* bestNode = open.pop();
+		bestNode->flags &= ~DT_NODE_OPEN;
+		bestNode->flags |= DT_NODE_CLOSED;
+
+		if (bestNode->id == endRef)
+		{
+			lastBestNode = bestNode;
+			break;
+		}
+
+		const dtPolyRef bestRef = bestNode->id;
+		const dtMeshTile* bestTile = 0;
+		const dtPoly* bestPoly = 0;
+		m_nav->getTileAndPolyByRefUnsafe(bestRef, &bestTile, &bestPoly);
+
+		dtPolyRef parentRef = 0;
+		const dtMeshTile* parentTile = 0;
+		const dtPoly* parentPoly = 0;
+		if (bestNode->pidx)
+			parentRef = m_nodePool->getNodeAtIdx(bestNode->pidx)->id;
+		if (parentRef)
+			m_nav->getTileAndPolyByRefUnsafe(parentRef, &parentTile, &parentPoly);
+
+		for (unsigned int i = bestPoly->firstLink; i != DT_NULL_LINK; i = bestTile->links[i].next)
+		{
+			const dtLink& link = bestTile->links[i];
+			const dtPolyRef neighbourRef = link.ref;
+
+			if (!neighbourRef || neighbourRef == parentRef)
+				continue;
+
+			const dtMeshTile* neighbourTile = 0;
+			const dtPoly* neighbourPoly = 0;
+			m_nav->getTileAndPolyByRefUnsafe(neighbourRef, &neighbourTile, &neighbourPoly);
+
+			if (!filter->passFilter(neighbourRef, neighbourTile, neighbourPoly))
+				continue;
+
+			unsigned char crossSide = 0;
+			if (link.side != 0xff)
+				crossSide = link.side >> 1;
+
+			dtNode* neighbourNode = m_nodePool->getNode(neighbourRef, crossSide);
+			if (!neighbourNode)
+			{
+				outOfNodes = true;
+				continue;
+			}
+
+			// First visit: the node's place, the portal's middle (getPortalPoints' cases on this link).
+			if (neighbourNode->flags == 0)
+			{
+				float left[3], right[3];
+				bool found = true;
+				if (bestPoly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+				{
+					const float* v = &bestTile->verts[bestPoly->verts[link.edge]*3];
+					dtVcopy(left, v);
+					dtVcopy(right, v);
+				}
+				else if (neighbourPoly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+				{
+					found = false;
+					for (unsigned int k = neighbourPoly->firstLink; k != DT_NULL_LINK; k = neighbourTile->links[k].next)
+					{
+						if (neighbourTile->links[k].ref == bestRef)
+						{
+							const float* v = &neighbourTile->verts[neighbourPoly->verts[neighbourTile->links[k].edge]*3];
+							dtVcopy(left, v);
+							dtVcopy(right, v);
+							found = true;
+							break;
+						}
+					}
+				}
+				else
+				{
+					const float* v0 = &bestTile->verts[bestPoly->verts[link.edge]*3];
+					const float* v1 = &bestTile->verts[bestPoly->verts[(link.edge+1) % (int)bestPoly->vertCount]*3];
+					dtVcopy(left, v0);
+					dtVcopy(right, v1);
+					if (link.side != 0xff && (link.bmin != 0 || link.bmax != 255))
+					{
+						const float s = 1.0f/255.0f;
+						dtVlerp(left, v0, v1, link.bmin*s);
+						dtVlerp(right, v0, v1, link.bmax*s);
+					}
+				}
+				// (getEdgeMidPoint failing leaves the node's place as the pool made it: unchanged here too.)
+				if (found)
+				{
+					neighbourNode->pos[0] = (left[0]+right[0])*0.5f;
+					neighbourNode->pos[1] = (left[1]+right[1])*0.5f;
+					neighbourNode->pos[2] = (left[2]+right[2])*0.5f;
+				}
+			}
+
+			float cost = 0;
+			float heuristic = 0;
+
+			if (neighbourRef == endRef)
+			{
+				const float curCost = filter->getCost(bestNode->pos, neighbourNode->pos,
+													  parentRef, parentTile, parentPoly,
+													  bestRef, bestTile, bestPoly,
+													  neighbourRef, neighbourTile, neighbourPoly);
+				const float endCost = filter->getCost(neighbourNode->pos, endPos,
+													  bestRef, bestTile, bestPoly,
+													  neighbourRef, neighbourTile, neighbourPoly,
+													  0, 0, 0);
+
+				cost = bestNode->cost + curCost + endCost;
+				heuristic = 0;
+			}
+			else
+			{
+				const float curCost = filter->getCost(bestNode->pos, neighbourNode->pos,
+													  parentRef, parentTile, parentPoly,
+													  bestRef, bestTile, bestPoly,
+													  neighbourRef, neighbourTile, neighbourPoly);
+				cost = bestNode->cost + curCost;
+				heuristic = dtVdist(neighbourNode->pos, endPos)*H_SCALE;
+			}
+
+			const float total = cost + heuristic;
+
+			if ((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total)
+				continue;
+			if ((neighbourNode->flags & DT_NODE_CLOSED) && total >= neighbourNode->total)
+				continue;
+
+			neighbourNode->pidx = m_nodePool->getNodeIdx(bestNode);
+			neighbourNode->id = neighbourRef;
+			neighbourNode->flags = (neighbourNode->flags & ~DT_NODE_CLOSED);
+			neighbourNode->cost = cost;
+			neighbourNode->total = total;
+
+			if (neighbourNode->flags & DT_NODE_OPEN)
+			{
+				open.modify(neighbourNode);
+			}
+			else
+			{
+				neighbourNode->flags |= DT_NODE_OPEN;
+				open.push(neighbourNode);
+			}
+
+			if (heuristic < lastBestNodeCost)
+			{
+				lastBestNodeCost = heuristic;
+				lastBestNode = neighbourNode;
+			}
+		}
+	}
+
+	dtStatus status = getPathToNode(lastBestNode, path, pathCount, maxPath);
+
+	if (lastBestNode->id != endRef)
+		status |= DT_PARTIAL_RESULT;
+
+	if (outOfNodes)
+		status |= DT_OUT_OF_NODES;
+
 	return status;
 }
 

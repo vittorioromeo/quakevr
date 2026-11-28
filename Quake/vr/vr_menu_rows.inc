@@ -6363,6 +6363,11 @@ QVR_CYCLE(vr_qcexec, "QuakeC Loop",
     "compare or to rule it out. Goto, Old Calls: the fast loop with calls and returns through the original's "
     "function entry and exit (the loop before 2026-11-28, to compare).",
     {0.f, "Original"}, {1.f, "Fast (goto)"}, {2.f, "Fast (switch)"}, {3.f, "Goto, Old Calls"})
+QVR_CYCLE(vr_qcexec_fuse, "QuakeC Combined Instructions",
+    "vr_qcexec_fuse: with the Fast (goto) loop, the most frequent pairs of QuakeC statements (a compare and its "
+    "if, two stores, a store and its call, a field load and its compare...) run as one instruction: the same "
+    "results, errors and instruction counts, quicker (docs/vr-port/QC_VM.md). Off: one at a time, to compare.",
+    {1.f, "On"}, {0.f, "Off"})
 QVR_CYCLE(vr_gun_pieces_cache, "Gun Shapes on Disk",
     "The guns' convex pieces kept on disk (cache/gunpieces) and read back the first time a gun is dropped, "
     "picked up or holstered in a session, instead of cut again (10-85 ms each: a hitch as the first "
@@ -6724,6 +6729,10 @@ QVR_TOGGLE(vr_flat_proc_reload_debug, "Flatscreen Procedural Reload Print",
 QVR_SLIDER(vr_flat_prl_test_miss, "Procedural Reload: Miss the Port", 0.f, 24.f, 1.f, "%.0f units", ext(0.f, 48.f),
     "vr_flat_prl_test_miss: a test aid: the procedural reload's hand stops this many units short of the shotgun's port, "
     "so its round never goes in and the failsafe cancels the reload (0: off).")
+QVR_SLIDER(vr_flat_prl_hold, "Procedural Reload: Hold Real Reload at Key", 0.f, 24.f, 1.f, "%.0f", noExt,
+    "vr_flat_prl_hold: a test aid: a real procedural reload (R) stops at the end of key N of its gun's reload and stays there "
+    "(no failsafe) until this is set back to 0, the item kept in the hand: compare it with the Reload Studio's lock on the "
+    "same key (Procedural Reload: Pose Print). 0: off.")
 QVR_SLIDER(vr_flat_prl_lock, "Procedural Reload: Lock Pose", -1.f, 24.f, 1.f, "%.0f", noExt,
     "vr_flat_prl_lock: to tune the procedural reload's poses, holds it at one keyframe's pose (a gun with a procedural "
     "reload in one hand, the other empty; no R needed): N the end of key N of its reload (the Reload Studio lists them), "

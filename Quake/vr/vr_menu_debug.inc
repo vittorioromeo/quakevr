@@ -309,6 +309,9 @@ za::Vector<Item> pageDebugViews()
         command("Print Navmesh Hash", "vr_nav_hash")
             .help("vr_nav_hash: one hash of the navmesh (its tiles, as doors, lifts and props left them) and one of the "
                   "monsters' paths, bit for bit: two runs of the same play print the same (determinism tests)."),
+        command("Time the Chasers' Path Searches", "vr_nav_pathbench 20")
+            .help("vr_nav_pathbench 20: the last 64 path searches of chasing monsters run 20 times each, by Detour's own way "
+                  "and by Quake VR's faster one (vr_qc_builtin_fast): the time a search each way and whether every result matched."),
         command("Crowd Stall Test (40 s)", "vr_nav_crowdtest 40")
             .help("vr_nav_crowdtest 40: every walker comes at you; each half second one moved under 8 units while over 128 "
                   "away is a stall, given its cause (a monster or a wall in the way, a ledge, in a wall, no chase...). The "
@@ -679,6 +682,13 @@ za::Vector<Item> pageDebugProfiling()
                   "report (Time QuakeC Functions on), in the console; then all are zeroed. Press it, do the thing, press "
                   "it again."),
         row(opt::vr_qcexec),
+        row(opt::vr_qcexec_fuse),
+        command("QuakeC Opcode Stats Start", "vr_qcexec_stats start")
+            .help("vr_qcexec_stats start: counts the server QuakeC's opcodes, the pairs and triples run one after the "
+                  "other and the calls (a slower loop while on); QuakeC Opcode Stats prints them."),
+        command("QuakeC Opcode Stats", "vr_qcexec_stats dump 30")
+            .help("vr_qcexec_stats dump 30: the 30 most run opcodes, pairs, triples and builtins since Start, in the "
+                  "console (stop ends the count; hash prints a hash of every function's statement count)."),
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
@@ -908,7 +918,8 @@ za::Vector<Item> pageDebugProfiling()
         toggle("QuakeC's Busiest Builtins, Faster", vr_qc_builtin_fast)
             .help("vr_qc_builtin_fast: faster native ways for the engine functions QuakeC calls most, the same results "
                   "(a worn backpack's place on a body out of view from the bones of the few vertices it rides, not the whole "
-                  "skeleton). Off: as before, to compare. 2 (console): both, compared bit for bit."),
+                  "skeleton; a chasing monster's path search without Detour's linear open-list search; an armed humanoid's gun "
+                  "vertices with its frame set up once). Off: as before, to compare. 2 (console): both, compared bit for bit."),
         slider("Monsters' Thinks Spread over Frames", vr_think_spread, 0.f, 32.f, 1.f, "%.0f")
             .help("vr_think_spread: a server frame runs at most 12 monsters' thinks; the rest wait a frame (each at most "
                   "vr_think_spread_frames, 4) and run at that frame's time: a crowd woken together (a shot's noise) no "
@@ -1144,6 +1155,11 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_attach_debug),
         row(opt::vr_flat_proc_reload_debug),
         row(opt::vr_flat_prl_test_miss),
+        row(opt::vr_flat_prl_hold),
+        command("Procedural Reload: Pose Print", "vr_flatprocreload_pose")
+            .help("vr_flatprocreload_pose: the free hand and the item in it as drawn now (a real reload's or the Reload Studio's "
+                  "lock), in the gun hand's frame: the hand placed and drawn, the item, the grasp's palm move and the fingers' "
+                  "curls (fprl_pose: ...)."),
         command("Reload Studio", "vr_reloadstudio")
             .help("vr_reloadstudio: the procedural reloads' keyframes in an ImGui window over play (flat screen): pick a gun, "
                   "play, pause, step or scrub its keys, edit each key's times, ease, the gun's tilt, the free hand's offset and "

@@ -71,6 +71,32 @@ float drawnGripCurl(int hand)
     return sum / (4.f * static_cast<float>((handrig::FingerCount - handrig::Index) * handrig::jointsPerFinger));
 }
 
+bool drawnHandDiag(int hand, DrawnHandDiag& out)
+{
+    if(hand < 0 || hand > 1 || !rigHands[hand].drawn || !entities.hand[hand].ent.model)
+    {
+        return false;
+    }
+    const RigHand& rh = rigHands[hand];
+    const entity_t& e = entities.hand[hand].ent;
+    out.origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    out.angles = glm::vec3{e.angles[0], e.angles[1], e.angles[2]};
+    out.palmMove = glm::length(rh.palm);
+    out.palmTurn = glm::degrees(glm::angle(rh.turn));
+    out.wraps = rh.held.ent != nullptr;
+    out.wrapsWeapon = rh.held.ent != nullptr && rh.held.weapon;
+    for(int f = 0; f < handrig::FingerCount && f < 5; f++)
+    {
+        float sum = 0.f;
+        for(int j = 0; j < handrig::jointsPerFinger; j++)
+        {
+            sum += rh.pose.curl[f][j];
+        }
+        out.curl[f] = sum / (4.f * static_cast<float>(handrig::jointsPerFinger));
+    }
+    return true;
+}
+
 void resetCaches()
 {
     za::fill(viewModels, ViewModelEntry{});

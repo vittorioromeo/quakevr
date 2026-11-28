@@ -65,7 +65,8 @@ ModelTravel measured;
 
 [[nodiscard]] bool isNailPistol(const qmodel_s* m)
 {
-    return m && m->type == mod_alias && modelmeta::is(m, modelmeta::Id::VNailPistol);
+    return m && m->type == mod_alias &&
+           (modelmeta::is(m, modelmeta::Id::VNailPistol) || modelmeta::is(m, modelmeta::Id::VNailPistolLava)); // (and its lava look)
 }
 
 // How far the back frame is blended for the slide back by vr_nailpistol_slide_travel. The back frame is only ~0.65 units

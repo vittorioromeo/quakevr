@@ -6319,6 +6319,103 @@ His words 2026-11-28, items 2, 7, 8.
   bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
   renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
 
+## qcconv: the QuakeC <-> C boundary measured, the fight's opcode mix, combined instructions; builtins called straight from the loop (branch agent/qcconv, 2026-11-28)
+
+- **Scope** (his update): QuakeC is to be converted to C++ (qc2cpp); the measurements are written up for that design,
+  only small exact cvar-gated engine changes landed, no FTEQCC change. Details and tables: docs/vr-port/QC_VM.md "The
+  C <-> QuakeC boundary, the opcode mix, combined instructions".
+- **Tools**: `vr_qcexec_stats start|stop|dump [N]|hash` (Debug > Profiling "QuakeC Opcode Stats Start" / "QuakeC Opcode
+  Stats"): opcode, pair, triple, call and builtin counts, and the dispatches the combined instructions save. Boundary
+  benches in QC/qcconv_test.qc (test progs): `vr_qcexec_bench qcconv_bench_{empty,builtin,vbuiltin,qccall,field} 2000
+  100`; the exactness check `vr_qcexec_bench qcconv_fuse_check 200 60`. `vr_qcexec_bench` now times five loops (+ goto
+  combined).
+- **hip1m1 fight, a frame**: 99,700 statements, 3,790 QuakeC calls, 4,220 builtin calls, 417 runs from C. Top opcodes
+  IFNOT 15.6%, STORE_F 15.3, AND 7.6, LOAD_F 6.7, EQ_F 4.8, OR 4.7; top pairs AND+IFNOT 6.05%, STORE_F+STORE_F 5.09,
+  STORE_F+CALL1 3.65, NE_F+IFNOT 2.45, IFNOT+LOAD_F 2.23.
+
+| idea | measured gain PC (Release, fast mode) | Quest | kept? |
+|---|---|---|---|
+| builtin called straight from the loop (no QCExec_Builtin call without an extension check or profiler) | builtin call 8.7 -> 7.5 ns (switch loop, no fusion) | not measured (headset busy) | yes (vr_qcexec 1/2; 3 the A/B) |
+| locals saved and restored inline up to 8 (no memcpy call) | with the above: QuakeC call and return 11.3 -> 8.6 ns | not measured | yes (same) |
+| combined instructions, 36 pairs, load-time copy (`vr_qcexec_fuse` 1) | check function 1.24x, fast_pow 1.23x, builtin call 3.8 ns in all; fight QuakeC 0.831 -> 0.767 ms a frame (-8%, lower in 6/6 blocks); 33% of dispatches saved | not measured | yes (default 1; 0 the A/B) |
+| FTEQCC: jump-based conditions (AND/OR/NOT + IFNOT) | ~5-8% fewer statements (estimate) | | no: documented (the conversion) |
+| FTEQCC: parameters kept in the OFS_PARM slots (no copy at entry) | STORE+STORE+CALL are 9% of statements | | no: an ABI change |
+| think dispatch batching | ~0.02 ms PC at most | | no |
+
+- **Exact**: `qcconv_fuse_check` returns the same bits and statement count in all 5 loops; its traces with fuse 0 and 1
+  are identical (427 lines); every bench "results and counts equal". The fight is not repeatable run to run even
+  unchanged (two identical runs: 103.59 M and 103.91 M statements; e1m1 alone too), so no whole-scene hash compare.
+- **Tests**: agrunt group (run_baseline, 224 cases): all PASS but agrunt_71 8/2 (flaky list), agrunt_206 14/1 (re-run alone: PASS twice with fuse 1, twice with 0; its 20 s pickup window), agrunt_231 TIMEOUT in the pool, alone FAIL 2 adpose rows (tags 656/658, Shotgun reach short) the same with fuse 0: not this change. Check function and traces as above.
+- Memory: the combined copy is 16 bytes a statement (13 MB for our progs, malloc'd at the first QuakeC call, freed
+  with the progs). Files: Quake/vr/vr_qcexec.c, vr_qcexec_loop.inc (QX_DO_* bodies shared by the single and combined
+  handlers), progs.h, pr_edict.c, the Debug menu rows; QC/qcconv_test.qc. Scripts: worktree scratch/qcconv_* (not
+  committed).
+## qcbuiltins2: why the next builtins are slow; navsteer's path search and agpose's vertices faster, the same results (branch agent/qcbuiltins2, 2026-11-28)
+
+- **Scene**: questopt2's hip1m1 fight (skill 2, god, `sv_random_seed 1`, all 69 woken, 300 frames settled, 720 measured).
+  PC Release (no LTO), mock headset; the native breakdown from temporary section timers (`Sys_DoubleTime` round each
+  step, not committed; numbers in worktree `scratch/qcb2_navprof.txt`). The Quest was not used (no headset run here).
+- **Why slow, and what changed** (`vr_qc_builtin_fast`, the qcbuiltins cvar, default 1; 0 as before; 2 both, compared):
+
+| builtin | why slow (PC timers) | change | gain PC (2 runs each, same frames, fast 0 -> 1) |
+|---|---|---|---|
+| `navsteer` (12.6 calls/frame) | 81% is Detour's findPath (107 us each, 1.6 a frame). **1,676 of 1,678 searches end partial: the foe is unreachable** (shut doors' floors blocked, ledges), so every repath is an exhaustive A* over the monster's island (~1,030 nodes, each popped once). Then the start poly 7% (1.3 us), the straight path 3% (0.6 us). refreshMovers is small: 84 us a run every 0.25 s (~4.5 us a frame; the boarding pass 6.5 us a class, the movers' queries 23 us a class, the props 21 us): the "8 us a call" read before was not per call. Repath causes: goal changed or no path 733, timer 932, foe moved 13. An agent's inputs equal to its last search's: 18 of 1,717 (an exact memo would hit ~1%) | `findPathQvr` (QVR, DetourNavMeshQuery.cpp): findPath step for step, its open list keeping each node's place (dtQvrNodeQueue: Detour's modify() searched the heap linearly) and a new node's place read from the link at hand (getPortalPoints searched the polygon's links again for it) | navsteer 0.275/0.222 -> 0.211/0.206 ms a frame (-7..-23%); `vr_nav_pathbench`: findPath 88 -> 80 us (1.07-1.11x, hip1m1), 4.9 -> 4.1 us (1.18x, e1m2) |
+| `agpose` (33-41 calls/frame) | each of a pose's 10 `modelvertex` calls rebuilt the model's frame setup (hitmodel::drawnOf: lerp track, transforms, axes, a 3x3 inverse) for one vertex; the hand's three were summed and thrown away (only the last call's trace_fraction is read) | the hand's first two calls skipped (their globals all set again by the third; vertices only); six of the seven gun vertices from one setup (`hitmodel::vertexPoints`), the last through modelanchorpoint, leaving the QC globals as before | agpose 0.237/0.178 -> 0.167/0.158 ms a frame (-11..-29%) |
+| `agstruck` / findradiusmoving, `traceline`, `cvar_hget` | not profiled further here. cvar_hget's body is two loads and a bounds check: its 0.09 us on the Quest is the builtin call and the profiler's clock reads (the VM's: qcconv's) | none | |
+
+- **Exact**: agpose: `vr_agpose_native 2` (the native pose, batched, against QuakeC's, which calls modelvertex for all ten)
+  30,683 poses compared, 0 values differ, PASS exact. navsteer: `vr_qc_builtin_fast 2` (both searches each repath) 0
+  differed (hip1m1 fight; e1m2 woken, drop links: 500 compared, 0 differed); pathbench 0 differed on both maps;
+  `vr_nav_hash` after the fight the same as before the change (mesh fb87da22..., paths de4866da..., 1,763 found).
+- **Not done**: the unreachable foe's search itself (the lever: ~0.2 ms a frame PC here). Exact shortcuts don't exist (a
+  node's place is the portal it was first reached through, so the partial result depends on start and end). Behaviour
+  choices for him: repath an unreachable foe less often while the island's flags are unchanged, or let monsters open the
+  doors whose floors are blocked (Quake's doors open for monsters). The Quest A/B (vr_qcexec_time) was not run.
+- Debug: `vr_nav_pathbench [times]` (Debug > Navmesh: "Time the Chasers' Path Searches"): the last 64 searches both ways.
+- Files: Detour (DetourNode.h/.cpp dtQvrNodeQueue; DetourNavMeshQuery.h/.cpp findPathQvr), vr_nav.cpp (searchPath,
+  pathbench_f), vr_builtins_agpose.inc (agModelVertices), vr_hitmodel.cpp/.hpp (vertexPoints), vr_cvars.inc, vr_menu_debug.inc.
+- Tests: teleporters_test.sh chase 6/0; the compare runs above.
+
+## nplava: the nail pistol fires lava nails: an inner-side ammo button, a lava look, a lava magazine (branch agent/nplava, 2026-11-28)
+
+His words (kit `scratch/fb1127n/words_1128b.md` item 19): lava nails for the nail pistol with a new lava magazine, a button
+on its inner side for the simple/no-reloading modes, a lava look in the lava nailguns' style.
+- **Firing** (QC `vr_nailpistol.qc` `W_FireNailPistol`): with `QVR_WPNFLAG_USE_SECONDARY_AMMO` (its button, N) it uses a
+  lava nail (`AID_LAVA_NAILS`) and fires `launch_lava_spike` (class `lava_spike`: Rogue's model, trail, light) with its own
+  touch, speed and spread; the crack keeps, the nailguns' lava whoosh (`rocket1i`) replaces the spike layer. Its hit
+  (`VR_NailPistol_SpikeTouch`, a lava nail by its class): its damage `vr_dmg_nailpistol` x `vr_dmg_lava_nail` /
+  `vr_dmg_nail` (12 x 15 / 9 = 20 to a monster; a player hit takes 3/5 of that, as Rogue's give a player), the lava man
+  unhurt, what it hits set on fire (`VR_Burn_LavaNail`). A plain pistol nail through a torch's flame now stays the
+  pistol's (its touch, the lava damage above; it took the nailgun's lava touch before), and a pistol lava nail put out by
+  water becomes the pistol's plain nail (vr_burning.qc). Weapon table row: `ammo2` lava nails, `model2`
+  `progs/v_nailpistol_lava.mdl`, `VR_WROW_SECONDARY`; `VR_Pack_WeaponFlags` drops it without Rogue's lava spike.
+  Armed humanoids: none of them use lava nails (the nailguns' armed users have none: `vr_armedgrunt.qc` zeroes
+  `ammo_lava_nails`), so neither do the nail pistol's.
+- **The button**: weapons.txt slot 36 `wpnbtnmode 1`, `wpnbtn_av "3.6 1.15 2.3"` (the frame band under the slide on its
+  +y side: the side facing the other hand; mirrored for the left hand), `wpnbtn_roll -90` (its face out of that side). On
+  the frame, so it doesn't ride the slide. Shown in every reload mode like the other guns' buttons (the later ammomags
+  work hides them all under immersive reloading). Settings version 82 (`takeNailPistolLava82`): slot 39 reset (unused
+  before), the button's mode/roll/anchor taken where a config holds the old placeholder (0, 0, "-1.4 1.2 4.6").
+- **The lava look** (one model per gun): `vr_gunvariants.inc` `v_nailpistol_lava` (weapons.txt slot 39, inheriting slot
+  36), skin `src_models/blend/v_nailpistol/v_nailpistol_skin_v_nailpistol_lava.png` written by
+  `Misc/quakevr/make_nailpistol_lava.py` from the shipped skin: tan/copper paint and brown wear to a deep lava red, the
+  side vents' slots (found by the model's geometry) molten (amber floors, red walls). The gun's skin is a sighted one
+  (vr_sights.cpp, vr_sightalign.cpp read fire texels as its sights), so its glow uses the non-fire fullbrights (240,
+  247-251); the sight inserts stay. Engine: `modelmeta::Id::VNailPistolLava` in the slide (vr_nailslide.cpp), the seated
+  magazine mount and load port (vr_view.cpp, vr_view_internal.hpp), gun fx, sights, the lava gun glow light
+  (`emissive::isLavaGun`) and the ammo-switch morph pair (kind 0, lava); flat holster ammo table (29: nails / lava).
+- **The lava magazine**: `vr_mag_npistol.mdl` gains skin 1 (QC `VR_Reload_MakeRound` already gives a lava magazine skin 1;
+  the pouch's kind 2 + 16 + 8), and the seated one `vr_mag_on_v_nailpistol_lava.mdl`: red paint, the nails in its window
+  glowing (fire indices: the magazines aren't sighted). `make_gun_variants.py` `PROP_SKINS` writes the prop's skin 1 from
+  `src_models/blend/vr_mag_npistol/vr_mag_npistol_skin1.png` on every build (a prop re-exported from its .blend gets it back).
+- **Tests**: `vr_np_test 8` (QC/vr_nplava_test.qc; Debug > Tests > Nail Pistol Lava Nails Test): headset 16/0 (the mock's
+  finger presses the button), flat-screen 13/0 (N; the flat switch ejects the magazine, the test seats the new one).
+  `mp_test.py wpnsync` 17/0 (a remote draws B's pistol in its lava look and back; its button shown). `vr_np_test 1` 39/0,
+  `vr_nail_test 4` 17/0. Scenario `nplava`. Screenshots for his review: worktree `scratch/nplava_review.png` (inner side
+  plain with the button, lava; outer side lava; a lava magazine in the off hand) and `scratch/nplava_button.png` (the
+  button close: roll -90 face out, +90 its back, from above).
+- **Open**: the button's size is the shared `wpnbutton.mdl`'s (bigger than the frame band; no per-weapon scale key):
+  tune `wpnbtn_*_37` in the weapon studio if it should sit elsewhere. Flat R after N wasn't exercised by the test.
 ## Armed ragdolls keep firing one-handed guns: research and prototype (branch agent/ragfire, 2026-11-28)
 
 His item 17 (fb1127n). Full notes: `RAGFIRE.md`. Verdict: feasible and cheap; prototype done behind `vr_agrunt_ragfire`
@@ -6369,3 +6466,47 @@ before/after table: `RAGFIRE.md` section 4b. Still behind `vr_agrunt_ragfire` 0 
   never cases, then `ragfire summary:` lines (by pose) and a check that the shots' drawn gun angle median is within 15:
   30/0. Frame strip for review: kit `scratch/fb1127n/ragfire2_strip.png`.
 - Open: on its front it can't bring the gun round (needs a roll); the held case is not in the test (same code path).
+## reloadstudio2: the Reload Studio shows what the game does; orbit camera, gun gizmo, gun pose paste; straight back to the 2H grip; reload speed (branch agent/reloadstudio2, 2026-11-28)
+
+His notes 2026-11-28 (kit `scratch/fb1127n/words_1128b.md` items 9-12) and his later ask (a global and a per-gun reload
+speed). His reloads.txt values are untouched (no frame change forced a conversion).
+- **Why the studio and the game differed** (measured: `vr_flatprocreload_pose` prints the free hand, its drawn entity, the item
+  and the fingers in the drawn gun hand's frame; `vr_flat_prl_hold N` holds a real reload at key N's end): (1) the lock's item
+  was drawn after the hands and wrapped by nothing: the fingers closed to a fist through it (curl 1.25), while the real hand
+  wrapped the server's item with the prop's VR finger settings (Held Object Offsets), the grasp moving the palm up to 1.9 units
+  and turning it up to its 20 degree limit; (2) in a real reload the item rode the hand placed before the drawn-gun attach
+  (followDrawnHands) while the hand itself was carried on the drawn gun (attachDrawn): the item moved in the hand, the grasp
+  re-solved warm every frame and drifted to a 20 degree palm turn at the carry (0 at the take); (3) before a gun's first real
+  take the lock used the shotgun pair's place in the hand for every gun's item: the hand solved for a magazine sat 1-2 units off
+  the real one; (4) the port and the seated magazine were measured on the breathing, swaying drawn gun against the steady hand,
+  then carried on the drawn gun again: the hand drifted 0.2-0.3 units about the port over time; (5) the revolver's (and the
+  broken-open super shotgun's) open pose was added on top of the keys' tilt in a real reload, never in the lock: 19 units / 45
+  degrees at the revolver's take; (6) the lock's empty hand kept the guard's fist as its fingers' input, the real hand (holding a
+  prop) didn't.
+- **Fixes**: one path for both (vr_view_hands.cpp setupHand): after attachDrawn, a busy free hand's item is put rigid on the
+  hand as drawn (`held::followHand`; the lock's `placePrlItem`, moved there from after the hands) and wrapped with the prop's
+  fingers (`propHeld`, shared with every held prop); per-gun item places in the hand (vr_flatprocreload.cpp `itemDefaults`,
+  measured from real takes, deterministic; a take still measures afresh); flat play's ports and seats steadied like the muzzle
+  (vr_view.cpp, flat only); the open pose eases out while a procedural reload poses the gun (`flatprocreload::posesGun`); the
+  round's grip input without the guard fist (vr_view.cpp updateFingerFrames).
+- **Straight back to the grip** (item 10): a reload's-end key to the hand's own pose (`freesForGrip`) lets flatsight take the
+  hand now: the grip's pin (rocket launcher, shotgun-style grips) and the stance look (nailguns) during the return key, so its
+  target is the grip and nothing is left to ease after the trip. One-handed guns: no grip, as before.
+- **Studio**: Camera: His Eyes / Orbit / Reset View; over the scene right drag orbits, middle drag pans, the wheel zooms
+  (`VR_ReloadStudioView` after the fly camera; `flycam::borrowView` keeps his hands posed from his own eye). Gizmo: On the Hand /
+  On the Gun (Move: the key's gun Move in the body's frame; Rotate: its Tilt about the gun's axes, the turned angles less the
+  drawn ones). Copy Gun Pose, Paste, Paste Down (into the next key and on to it), Paste Up (the previous). Reload: Speed.
+- **Speed** (his ask): `vr_reload_speed` (Tunables > Flatscreen > Procedural Reload, default 1, 0.5..3) times each gun's `speed`
+  (reloads.txt, the studio's Speed row; default 1) scales every key's times, the take's wait and the studio's Play; the server's
+  give-up stretches under 1. Movement is never slowed by a reload (nothing did, nothing does).
+- **Debug** (Debug > Flatscreen): Procedural Reload: Hold Real Reload at Key (`vr_flat_prl_hold`), Pose Print
+  (`vr_flatprocreload_pose`).
+- **Tests**: `Misc/quakevr/reloadstudio_pose_test.sh <tree>` (`vr_reloadstudio posetest` per gun: the lock before any real
+  reload vs a held real reload, the take key and the carry after it; plus the speed runs 1x / 2x / gun 0.5: 0.82 / 0.44 / 1.60 s,
+  full). Matrix `flatprocreload_test.sh matrix-<gun>`: see the report. `vr_reloadstudio test` 15/0.
+- **Open**: the grasp on a taped pair (super shotgun, revolver) and on the thunderbolt's and nail pistol's magazines still
+  settles on one of two solutions (palm 0 or 20 degrees) depending on how the hand got there: the grasp solves afresh once the
+  item rests, with the controller-curl input of that moment (sameGrasp ignores curls); a fix is a fresh solve once the busy
+  hand's input curls settle (vr_view_hands.cpp updateGrasp). The super nailgun's take differs 4.5 units (the gun posed
+  differently at the take: not found). The lock draws the super shotgun shut and the revolver's cylinder in (the real reload
+  opens them), so their carry isn't compared. No frame strips were made (budget).

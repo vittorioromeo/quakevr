@@ -22,6 +22,7 @@
 #include "DetourNavMesh.h"
 #include "DetourNavMeshBuilder.h"
 #include "DetourNavMeshQuery.h"
+#include "DetourNode.h"
 #include "Recast.h"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -47,6 +48,8 @@
 
 namespace qvr::nav
 {
+void pathbench_f(); // (vr_nav_pathbench: by the chasers' path search, below)
+
 namespace
 {
 
@@ -67,6 +70,7 @@ constexpr unsigned short flagWalk = 1, flagBlocked = 2, flagDrop = 4, flagLift =
 constexpr int maxPath = 256;    // polygons in a monster's path
 constexpr int maxCorners = 6;   // a path's straight corners looked at a step
 constexpr int queryNodes = 4096; // Detour's search nodes per query
+
 constexpr za::SizeT maxClasses = 32; // size classes a map can have
 
 // Recast is y-up: Quake's (x, y, z) is Recast's (x, z, -y) (a turn, so the windings keep their sense).
@@ -3315,6 +3319,7 @@ void init()
 {
     Cmd_AddCommand("vr_nav_info", info_f);
     Cmd_AddCommand("vr_nav_hash", hash_f);
+    Cmd_AddCommand("vr_nav_pathbench", pathbench_f);
     Cmd_AddCommand("vr_nav_cliptest", cliptest_f);
     Cmd_AddCommand("vr_nav_toptest", toptest_f);
     Cmd_AddCommand("vr_nav_links", links_f);
@@ -4440,6 +4445,119 @@ void planToDraw(const NavClass& c, Agent& a, const float* startPt, int from)
     }
 }
 
+// A chaser's path search (steer's repath). vr_qc_builtin_fast (qcbuiltins2): Detour's search done by findPathQvr (QVR,
+// DetourNavMeshQuery.cpp), the same results bit for bit, faster: an unreachable foe (a shut door, a ledge) makes each
+// search go through every polygon it can reach (~1,000 nodes in hip1m1's fight), and Detour's open list searched itself
+// linearly for each node it updated. 0: Detour's findPath (the A/B); 2: both, compared (path, count, status).
+struct PathCheck
+{
+    int compared = 0, differed = 0;
+};
+PathCheck pathCheck;
+
+// vr_nav_pathbench: the last searches' inputs, replayed by both ways (a ring).
+struct PathAsk
+{
+    int cls = -1;
+    bool noLinks = false;
+    dtPolyRef start = 0, end = 0;
+    float startPt[3]{}, endPt[3]{};
+};
+constexpr int pathAsks = 64;
+struct PathBench
+{
+    PathAsk asks[pathAsks];
+    int next = 0, count = 0;
+};
+PathBench pathBench;
+
+dtStatus searchPath(const NavClass& c, int cls, dtPolyRef startRef, dtPolyRef endRef, const float* startPt,
+    const float* endPt, const dtQueryFilter& filt, dtPolyRef* out, int* n)
+{
+    PathAsk& ask = pathBench.asks[pathBench.next];
+    ask.cls = cls;
+    ask.noLinks = &filt == &filterNoLinks;
+    ask.start = startRef;
+    ask.end = endRef;
+    ZA_MEMCPY(ask.startPt, startPt, sizeof(ask.startPt));
+    ZA_MEMCPY(ask.endPt, endPt, sizeof(ask.endPt));
+    pathBench.next = (pathBench.next + 1) % pathAsks;
+    pathBench.count = za::min(pathBench.count + 1, pathAsks);
+    const float fast = vr_qc_builtin_fast.value;
+    if(fast == 0.f)
+    {
+        return c.query->findPath(startRef, endRef, startPt, endPt, &filt, out, n, maxPath);
+    }
+    const dtStatus status = c.query->findPathQvr(startRef, endRef, startPt, endPt, &filt, out, n, maxPath);
+    if(fast >= 2.f)
+    {
+        dtPolyRef ref[maxPath];
+        int rn = 0;
+        const dtStatus refStatus = c.query->findPath(startRef, endRef, startPt, endPt, &filt, ref, &rn, maxPath);
+        ++pathCheck.compared;
+        if(refStatus != status || rn != *n || ZA_MEMCMP(ref, out, sizeof(dtPolyRef) * static_cast<za::SizeT>(rn)) != 0)
+        {
+            ++pathCheck.differed;
+        }
+        if(pathCheck.compared % 500 == 0)
+        {
+            Con_Printf("vr_qc_builtin_fast paths check: %d compared, %d differed\n", pathCheck.compared, pathCheck.differed);
+        }
+    }
+    return status;
+}
+
+// vr_nav_pathbench [times]: the last 64 chasers' path searches (as the mesh is now) run `times` times each (default 20)
+// by Detour's findPath and by findPathQvr: the time a search each way and whether every result matched (a timing aid
+// with no game noise; vr_qc_builtin_fast's A/B).
+void pathbench_f()
+{
+    if(!state.ready || pathBench.count == 0)
+    {
+        Con_Printf("vr_nav_pathbench: no searches yet (a map with chasing walkers)\n");
+        return;
+    }
+    const int times = Cmd_Argc() > 1 ? za::max(Q_atoi(Cmd_Argv(1)), 1) : 20;
+    double ms[2] = {0.0, 0.0};
+    int ran = 0, differed = 0, partial = 0;
+    long long nodes = 0;
+    for(int k = 0; k < pathBench.count; ++k)
+    {
+        const PathAsk& ask = pathBench.asks[k];
+        NavClass* c = readyClass(ask.cls);
+        if(!c || !c->mesh->isValidPolyRef(ask.start) || !c->mesh->isValidPolyRef(ask.end))
+        {
+            continue;
+        }
+        const dtQueryFilter& filt = ask.noLinks ? filterNoLinks : filter;
+        dtPolyRef out[2][maxPath];
+        int n[2] = {0, 0};
+        dtStatus status[2] = {0, 0};
+        for(int way = 0; way < 2; ++way)
+        {
+            const double t0 = Sys_DoubleTime();
+            for(int r = 0; r < times; ++r)
+            {
+                status[way] = way == 0 ? c->query->findPath(ask.start, ask.end, ask.startPt, ask.endPt, &filt, out[0], &n[0], maxPath)
+                                       : c->query->findPathQvr(ask.start, ask.end, ask.startPt, ask.endPt, &filt, out[1], &n[1], maxPath);
+            }
+            ms[way] += (Sys_DoubleTime() - t0) * 1000.0;
+        }
+        nodes += c->query->getNodePool()->getNodeCount();
+        partial += dtStatusDetail(status[0], DT_PARTIAL_RESULT) ? 1 : 0;
+        differed += status[0] != status[1] || n[0] != n[1] ||
+                            ZA_MEMCMP(out[0], out[1], sizeof(dtPolyRef) * static_cast<za::SizeT>(n[0])) != 0
+                        ? 1
+                        : 0;
+        ++ran;
+    }
+    const double per = static_cast<double>(za::max(ran * times, 1));
+    Con_Printf("vr_nav_pathbench: %d searches x %d (%d partial, %.0f nodes each): findPath %.1f us, findPathQvr %.1f us "
+               "(%.2fx); %d differed\n",
+        ran, times, partial, static_cast<double>(nodes) / static_cast<double>(za::max(ran, 1)), ms[0] * 1000.0 / per,
+        ms[1] * 1000.0 / per, ms[1] > 0.0 ? ms[0] / ms[1] : 0.0, differed);
+}
+
 float steer(edict_t* ent, edict_t* goal)
 {
     if(vr_nav.value == 0.f || !sv.active || !state.ready || !ent || !goal || !walker(ent))
@@ -4525,7 +4643,7 @@ float steer(edict_t* ent, edict_t* goal)
         }
         dtPolyRef buf[maxPath];
         int n = 0;
-        (void)c->query->findPath(startRef, endRef, startPt, endPt, &filt, buf, &n, maxPath);
+        (void)searchPath(*c, cls, startRef, endRef, startPt, endPt, filt, buf, &n);
         a.path.clear();
         a.path.emplaceBackRange(buf, static_cast<za::SizeT>(n));
         a.partial = n > 0 && buf[n - 1] != endRef;

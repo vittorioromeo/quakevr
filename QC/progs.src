@@ -67,6 +67,7 @@ vr_grenade.qc
 vr_reload.qc
 vr_revgrip.qc
 vr_reload_test.qc
+qcconv_test.qc
 vr_debris.qc
 vr_bayonet.qc
 // Weapon attachments (the bayonet on the shotguns): after the bayonet's prop and the carrying it uses.
@@ -713,6 +714,7 @@ vr_armedgrunt_reach_test.qc
 vr_armedgrunt_guard_test.qc
 vr_armedgrunt_adpose_test.qc
 vr_nailpistol_test.qc
+vr_nplava_test.qc // the nail pistol's lava nails (vr_np_test 8; nplava)
 vr_magslide_test.qc
 vr_nail_test.qc
 vr_flaregun_test.qc

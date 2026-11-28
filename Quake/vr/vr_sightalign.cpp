@@ -71,6 +71,7 @@ constexpr Painted painted[] = {
     {"progs/v_shot2.mdl", Rear::Notch}, // a square U notch: an insert on each ear's back; a ramp post, its insert (2026-11)
     {"progs/v_light.mdl", Rear::Notch}, // two rear posts, a front post (round 20)
     {"progs/v_light_plasma.mdl", Rear::Notch}, // the lightning gun's alternate: the same model
+    {"progs/v_nailpistol_lava.mdl", Rear::Notch}, // its lava nails' look (nplava): the same model
     {"progs/v_nailpistol.mdl", Rear::Notch}, // two rear ears, a front post: an insert on each ear's back, the post's (2026-11-08)
 };
 

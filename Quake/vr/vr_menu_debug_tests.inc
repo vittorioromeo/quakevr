@@ -1400,6 +1400,11 @@ za::Vector<Item> pageDebugTests()
             .help("Each gun fired 1.5 s with its trigger held, without Haste then with it: the nailgun, the lightning gun and "
                   "the shotgun 1.4 times as often or more; the nail pistol, the heavy revolver and the flare gun one shot a "
                   "pull, hasted full auto (\"nphaste: N passed, M failed\")."),
+        command("Nail Pistol Lava Nails Test", "vr_np_test 8")
+            .help("A nail pistol with nails and lava nails: its ammo button (flat play: N) switches it to its lava nails and "
+                  "its lava look; three lava nails fired into a box (the lava nails used, the nailguns' lava damage ratio); "
+                  "back to nails; with immersive reloading the switch ejects the magazine and the lava one is skin 1 "
+                  "(\"nplava: N passed, M failed\")."),
         command("Nail Pistol Aim Test", "vr_np_test 5")
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "

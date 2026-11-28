@@ -1866,6 +1866,7 @@ float cvarh_vr_reload_pull_speed;
 float cvarh_vr_reload_reinsert_clearance;
 float cvarh_vr_reload_reinsert_time;
 float cvarh_vr_reload_shell_pairs;
+float cvarh_vr_reload_speed;
 float cvarh_vr_reload_ssg_break;
 float cvarh_vr_reload_ssg_close_auto;
 float cvarh_vr_reload_ssg_close_button;
@@ -4175,6 +4176,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_reload_reinsert_clearance = VR_CVar_Make("vr_reload_reinsert_clearance");
     cvarh_vr_reload_reinsert_time = VR_CVar_Make("vr_reload_reinsert_time");
     cvarh_vr_reload_shell_pairs = VR_CVar_Make("vr_reload_shell_pairs");
+    cvarh_vr_reload_speed = VR_CVar_Make("vr_reload_speed");
     cvarh_vr_reload_ssg_break = VR_CVar_Make("vr_reload_ssg_break");
     cvarh_vr_reload_ssg_close_auto = VR_CVar_Make("vr_reload_ssg_close_auto");
     cvarh_vr_reload_ssg_close_button = VR_CVar_Make("vr_reload_ssg_close_button");
