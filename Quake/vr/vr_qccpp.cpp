@@ -160,6 +160,10 @@ void VR_QCCpp_Init (void)
 {
 	Cvar_RegisterVariable (&vr_qc_cpp);
 	Cmd_AddCommand ("vr_qc_cpp_info", QCCpp_Info_f);
+	// QVR_QC_CPP_RUN=<0|1> in the environment: vr_qc_cpp's starting value (a whole test suite run in C++: every test
+	// launcher passes its environment on to the game)
+	if (const char *const env = getenv ("QVR_QC_CPP_RUN"))
+		Cvar_SetQuick (&vr_qc_cpp, env);
 }
 
 } // extern "C"
