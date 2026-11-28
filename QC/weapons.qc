@@ -114,6 +114,7 @@ float vr_flatthrow_refused; // (vr_flatgrenade.qc: frames of the fire button ref
 void() VR_FlatReload_Key;
 void() VR_FlatReload_ProcTake;                  // (vr_flatreload.qc: the procedural reload's take, impulse 99)
 void(string xWhy) VR_FlatReload_ProcCancelAll; // (and its cancel)
+void() VR_FlatReload_ProcEject;                 // (and its eject key, impulse 109: reloadmags)
 void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
 void() VR_FlatThrow_Release;
@@ -4935,11 +4936,25 @@ void() ImpulseCommands =
     }
     // Flatscreen play's procedural reload (vr_flatprocreload.cpp drives the free hand; vr_flatreload.qc): 99 the free hand
     // at the ammo pouch takes a round, 106 cancels (100-105 are the bots') (a punch, the client's failsafe). Nobody else's impulses.
-    if((self.impulse == 99 || self.impulse == 106) && VR_FlatPlay(self))
+    // 107 / 108: its keys' open and close (reloadsys: the super shotgun broken open, snapped shut).
+    // 109: its eject key (reloadmags: a magazine gun's magazine let out, its rounds back in the reserve).
+    if((self.impulse == 99 || (self.impulse >= 106 && self.impulse <= 109)) && VR_FlatPlay(self))
     {
         if(self.impulse == 99)
         {
             VR_FlatReload_ProcTake();
+        }
+        else if(self.impulse == 107)
+        {
+            VR_FlatReload_ProcOpen();
+        }
+        else if(self.impulse == 108)
+        {
+            VR_FlatReload_ProcClose();
+        }
+        else if(self.impulse == 109)
+        {
+            VR_FlatReload_ProcEject();
         }
         else
         {

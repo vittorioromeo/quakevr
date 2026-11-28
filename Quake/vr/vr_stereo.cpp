@@ -1617,7 +1617,10 @@ extern "C" int VR_RenderView()
     // (it resamples the image anyway), one full-screen read and write an eye fewer (a tiler's bandwidth). The part's
     // pixels are the resample target's; the UI is drawn into it at the eye's size.
     const int subImageMode = static_cast<int>(vr_eye_subimage.value);
-    bool subImage = stereo::resampling && drawnWidth <= imageWidth && drawnHeight <= imageHeight &&
+    // vr_menu_native (questvis): with a menu open, never the part: the world resampled to the image's size and the UI (the
+    // menu) drawn over it at that size, as sharp as at scale 1 while the world keeps its own scale
+    const bool menuNative = key_dest == key_menu && vr_menu_native.value != 0.f;
+    bool subImage = stereo::resampling && !menuNative && drawnWidth <= imageWidth && drawnHeight <= imageHeight &&
                     (subImageMode >= 2 || (subImageMode == 1 && (VR_GLESCompat() || VR_Android()))) &&
                     upscale::resamplesBilinearly(drawnWidth, drawnHeight, imageWidth, imageHeight);
     subImage = be->setEyeImageRect(0, subImage ? drawnWidth : 0, subImage ? drawnHeight : 0) && subImage;

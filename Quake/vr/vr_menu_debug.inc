@@ -1115,11 +1115,15 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_attach_debug),
         row(opt::vr_flat_proc_reload_debug),
         row(opt::vr_flat_prl_test_miss),
+        command("Reload Studio", "vr_reloadstudio")
+            .help("vr_reloadstudio: the procedural reloads' keyframes in an ImGui window over play (flat screen): pick a gun, "
+                  "play, pause, step or scrub its keys, edit each key's times, ease, the gun's tilt, the free hand's offset and "
+                  "turn (sliders or the gizmo on the hand), Save to quakevr/data/reloads.txt."),
         row(opt::vr_flat_prl_lock),
         command("Procedural Reload: Next Key", "vr_flat_prl_lock_next")
-            .help("vr_flat_prl_lock_next: holds the procedural reload at its next key pose (Lock Pose; from off, Rest)."),
+            .help("vr_flat_prl_lock_next: holds the procedural reload at its next keyframe's pose (Lock Pose; from off, the first)."),
         command("Procedural Reload: Previous Key", "vr_flat_prl_lock_prev")
-            .help("vr_flat_prl_lock_prev: holds the procedural reload at its previous key pose (Lock Pose)."),
+            .help("vr_flat_prl_lock_prev: holds the procedural reload at its previous keyframe's pose (Lock Pose)."),
         row(opt::vr_flat_prl_scrub),
         command("Holster Menu Dump", "vr_flat_holster_menu_dump")
             .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "
@@ -1918,6 +1922,10 @@ za::Vector<Item> pageDebugTools()
         command("Infect the Nearest Monster", "vr_attr_set infected 1")
             .help("vr_attr_set infected 1: the monster nearest you infected (killed, it bursts and rises as a zombie; an elite "
                   "can be infected too)."),
+        command("Check the Elites' Dye", "vr_humlook_dyetest")
+            .help("vr_humlook_dyetest: each elite's clothes as drawn (its skin's masked texels through its dye) "
+                  "against its stock skin, in the console: PASS when warmer, towards gold. Armour plates cover the dye "
+                  "where they sit: Armour Studio or vr_agarmor_set <entity> 0 to see it bare."),
         header("Controller Bindings"),
         command("Controller Bindings Screen", "menu_bindsetup")
             .help("menu_bindsetup [model]: the Controller Bindings screen for the controller in use (or a model's: quest3, "

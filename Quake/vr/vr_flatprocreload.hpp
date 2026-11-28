@@ -47,6 +47,8 @@ void attachDrawn(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot
 // Where that pair is for the hand drawn at `handPos` turned `handRot` (hands::State angles), and its model's axes (forward,
 // left, up): as it sat in the hand at the last real take (a default before one).
 [[nodiscard]] glm::vec3 lockPairPlace(const glm::vec3& handPos, const glm::vec3& handRot, glm::mat3& axes);
+// The model drawn for it: the taped pair, a magazine gun's magazine (reloadmags; QC VR_Reload_MagModel's).
+[[nodiscard]] const char* lockItemModel();
 // Whether flat-screen play shows the ammo pouch (the server says the procedural reload is on: STAT_QVR_FLATRELOAD's 64),
 // vr_body.cpp ammoPouchEnabled.
 [[nodiscard]] bool pouchShown();
@@ -57,5 +59,30 @@ void attachDrawn(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot
 // `headsetScale`), vr_view.cpp setupAmmoPouch.
 [[nodiscard]] glm::vec3 pouchTurn();
 [[nodiscard]] float pouchScale(float headsetScale);
+
+// The Reload Studio's readouts (vr_reloadstudio.cpp): the lock (its key from 0, its share; the gun it would hold and its
+// weapon ID), the trip (its gun's weapon, its key, share), the item's gap to its destination now and as the last insert's
+// key reached its end (the success readout), and the counts.
+struct Status
+{
+    bool locked{false};
+    int lockKey{-1};
+    float lockShare{1.f};
+    int lockGun{-1};
+    int lockWeapon{0};
+    bool tripOn{false};
+    int tripWeapon{0};
+    int tripKey{-1};
+    float tripShare{0.f};
+    float portGap{-1.f};
+    float insertGap{-1.f};
+    int trips{0}, seated{0}, dropped{0}, cancels{0}, failsafes{0};
+    const char* lastCancel{"-"};
+};
+[[nodiscard]] Status status();
+// The locked key's free hand as drawn (its place and turn) and the frame its offsets are in (a place and its axes: forward,
+// left, up; the gun hand's for the destination's keys, the body's otherwise) and the key's target (reloadsys::Target): the
+// studio's gizmo. False: not locked.
+bool lockFrames(glm::vec3& framePos, glm::mat3& frameAxes, glm::vec3& handPos, glm::vec3& handRot, int& kind);
 
 } // namespace qvr::flatprocreload

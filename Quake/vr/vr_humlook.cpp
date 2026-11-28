@@ -7,8 +7,10 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_glutil.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_testkit.hpp"
 #include "vr_tunables.hpp"
 
 #include "Zancle/Base/Memcmp.hpp"
@@ -17,6 +19,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -654,6 +657,106 @@ void info_f()
     describe(stateOf(e));
 }
 
+// The shader's HumDye (vr_glsl_alias.h) on the CPU: `c` dyed by the row `col` (rgb, strength) at light/tint `lt`.
+void humDye(const float c[3], const float col[4], const float lt[2], float out[3])
+{
+    const auto lum = [](const float* v) { return v[0] * 0.299f + v[1] * 0.587f + v[2] * 0.114f; };
+    const float l = lum(c) * lt[0];
+    const float cl = za::max(lum(col), 0.02f);
+    const float cm = za::max(za::max(col[0], col[1]), za::max(col[2], 0.02f));
+    for(int i = 0; i < 3; i++)
+    {
+        const float dyed = za::min(col[i] * (l / cl), 1.f);
+        const float tinted = za::min(c[i] * lt[0] * col[i] / cm, 1.f);
+        const float d = dyed + (tinted - dyed) * lt[1];
+        out[i] = c[i] + (d - c[i]) * col[3];
+    }
+}
+
+// vr_humlook_dyetest [n]: each of the client's elites' clothes as drawn (its skin texture's masked texels, read back,
+// through its instance's rows, the shader's dye on the CPU) against its stock skin: the mean colour moved, towards gold (red over blue). Ends on
+// `humlook dyetest: P passed, F failed` (fewer than n elites: a failure each). ROUND26.md, "elitedye".
+void dyeTest_f()
+{
+    ensureLoaded();
+    const int want = Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 0;
+    testkit::Tally tally;
+    for(int i = 0; i < static_cast<int>(looks.size()) && cl_entities && i < cl_max_edicts; i++)
+    {
+        const int look = looks[static_cast<za::SizeT>(i)];
+        const entity_t* e = &cl_entities[i];
+        if(!(look & eliteBit) || (look & partPack) || !e->model)
+        {
+            continue;
+        }
+        float rows[4][4];
+        instanceRows(e, rows);
+        const int kind = (look & (partPack - 1)) / maxCategories;
+        Skin* s = skinFor(e->model, e->skinnum, keyOf(look));
+        // (the skin as drawn: its texture read back, an external or retro one too; the mask's texel at its place)
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
+        const int sk = hdr && e->skinnum >= 0 && e->skinnum < hdr->numskins ? e->skinnum : 0;
+        gltexture_t* tex = hdr ? hdr->gltextures[sk][0] : nullptr;
+        GLint tw = 0, th = 0;
+        za::Vector<unsigned char> px;
+        if(tex)
+        {
+            GL_Bind(GL_TEXTURE0, tex);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &tw);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &th);
+            px.resize(static_cast<za::SizeT>(za::max(tw, 0) * za::max(th, 0) * 4), 0);
+            if(px.empty() || !gfx::readTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data(), false))
+            {
+                px.clear();
+            }
+        }
+        double before[3] = {}, after[3] = {};
+        int n = 0;
+        for(int t = 0; s && !px.empty() && rows[3][0] > 0.f && t < s->w * s->h; t++)
+        {
+            if(classAt(*s, t) != 1u)
+            {
+                continue;
+            }
+            const int x = (t % s->w) * tw / s->w, y = (t / s->w) * th / s->h;
+            const unsigned char* p = &px[static_cast<za::SizeT>((y * tw + x) * 4)];
+            const float c[3] = {p[0] / 255.f, p[1] / 255.f, p[2] / 255.f};
+            float d[3];
+            humDye(c, rows[0], rows[2], d);
+            for(int k = 0; k < 3; k++)
+            {
+                before[k] += c[k];
+                after[k] += d[k];
+            }
+            n++;
+        }
+        for(int k = 0; k < 3 && n > 0; k++)
+        {
+            before[k] /= n;
+            after[k] /= n;
+        }
+        // (by hue, not lightness: the elite rows darken; each colour's channels' shares of its sum. Gold's blue share is
+        // 0.1: the dyed clothes' blue share down by 0.05 or more, red over green)
+        const double sb = za::max(before[0] + before[1] + before[2], 1e-6), sa = za::max(after[0] + after[1] + after[2], 1e-6);
+        double moved = 0.0;
+        for(int k = 0; k < 3; k++)
+        {
+            moved = za::max(moved, za::abs(after[k] / sa - before[k] / sb));
+        }
+        const double warmer = before[2] / sb - after[2] / sa;
+        const bool ok = n > 0 && moved > 0.04 && warmer > 0.05 && after[0] > after[1];
+        tally.check(ok);
+        Con_Printf("humlook dyetest: %s entity %d (%s %s, look %d): %d clothes texels, mean %.3f %.3f %.3f -> %.3f %.3f %.3f "
+                   "(moved %.3f, warmer %.3f)\n",
+            ok ? "PASS" : "FAIL", i, kind < static_cast<int>(countof(kindNames)) ? kindNames[kind] : "?", e->model->name, look,
+            n, before[0], before[1], before[2], after[0], after[1], after[2], moved, warmer);
+    }
+    const int drawn = tally.passed + tally.failed;
+    tally.check(drawn >= want, "humlook dyetest", "fewer elites drawn than wanted");
+    tally.verdict("humlook dyetest");
+    Cvar_SetValueQuick(&vr_test_humlook_dye, static_cast<float>(tally.failed)); // (test 234's QC check reads it)
+}
+
 // Where a file of quakevr/ is written: quakevr/ in the last base folder that has one (as vr_armourdata.cpp's).
 [[nodiscard]] const char* writePath(const char* name)
 {
@@ -1049,6 +1152,7 @@ void registerCommands()
         Con_Printf("humlook: %d rows from %s, masks from %s\n", table.rows, tableName(), masksName());
     });
     Cmd_AddCommand("vr_humlook_info", info_f);
+    Cmd_AddCommand("vr_humlook_dyetest", dyeTest_f);
     studioInit();
 }
 

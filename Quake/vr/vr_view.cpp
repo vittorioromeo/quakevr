@@ -3216,7 +3216,7 @@ void setupPrlPair(const hands::State& s)
     view::ViewEntity& ve = entities.prlPair;
     int hand = HAND_OFF;
     float size = 1.f;
-    qmodel_t* const model = flatprocreload::lockPair(hand, size) ? view::viewModel("progs/vr_shell_pair.mdl") : nullptr;
+    qmodel_t* const model = flatprocreload::lockPair(hand, size) ? view::viewModel(flatprocreload::lockItemModel()) : nullptr;
     if(!model)
     {
         ve.visible = false;
@@ -6476,7 +6476,7 @@ extern "C" void VR_SetupViewEntities()
         s = unposed;
         for(int hand = 0; hand < 2; hand++)
         {
-            s.muzzleValid[hand] = s.grip2HValid[hand] = s.loadPortValid[hand] = s.magBoxValid[hand] = false;
+            s.muzzleValid[hand] = s.grip2HValid[hand] = s.loadPortValid[hand] = s.magBoxValid[hand] = s.magSeatValid[hand] = false;
             s.onMagazine[hand] = false;
         }
     }

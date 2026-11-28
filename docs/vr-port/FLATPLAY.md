@@ -158,16 +158,22 @@ clip with Auto Reload) doesn't start the trip to the hip. The server raises the 
 32; 64 while the option is on: the ammo pouch is shown, `vr_body.cpp ammoPouchEnabled`, nudged by `vr_flat_ammo_pouch_*`)
 and `vr_flatprocreload.cpp` drives the free hand: to the pouch, impulse 99 there (its hotspot the pouch's) takes a taped
 pair by VR's own `VR_Reload_Take`; to the port's mouth and in, where VR's own carry test (`VR_Reload_HeldFrame`, the port's
-reach) loads it; again until full. The gun's hand tilts the gun to present its port (`vr_flat_prl_tilt_*`). A shot, a shove
+reach) loads it; again until full. The gun's hand tilts the gun to present its port. Since reloadsys (2026-11-28) all of
+this is the gun's keyframes (`vr_reloadsys.hpp`, `quakevr/data/reloads.txt`, the Reload Studio `vr_reloadstudio`; the
+shotgun and the super shotgun: broken open by impulse 107, closed by 108), the hand at the port solved backwards from the
+item's place there; ROUND26.md "reloadsys". The magazine guns too (reloadmags: the nailguns, the thunderbolt, the nail
+pistol): the magazine let out by impulse 109 (its rounds back in the reserve), a fresh one from the pouch carried up its
+well's line to where a seated one sits (`hands::State::magSeat`) and seated by VR's own well test; ROUND26.md "reloadmags".
+A shot, a shove
 or bash, the weapon changing, the free hand taking something else cancel it; a round in the hand goes back in the reserve
 (`VR_FlatReload_ProcPutBack`). Failsafes: the client cancels (impulse 106) when a round at the port isn't seated within
 `vr_flat_prl_failsafe` or the pouch gives nothing; the server when nothing is taken or loaded for `vr_flat_prl_giveup`.
-Dual wielding and every other gun: the timed trip. Timings, eases, angles: Tunables > Flatscreen > Procedural Reload.
+Dual wielding and every other gun: the timed trip. Timings, eases, angles: the keyframes (the Reload Studio).
 On the move (prlmove): the round is aimed at the port in the game's frame and the move sends that same port
 (`flatprocreload::portNow`); the server's carry keeps the round in the hand through the body and the gun
 (`VR_FlatReload_ProcHolds`), so running, jumping and sliding don't matter. The drawn free hand rides the drawn gun from the
-carry to the insert; its fingers grip the pair as a headset's do (`gripShare`). Hand at Port: Forward / Right / Up
-(`vr_flat_prl_port_fwd/right/up`, 0) nudge the hand and its pair at the port. Test: `Misc/quakevr/flatprocreload_test.sh`.
+carry to the insert; its fingers grip the pair as a headset's do (`gripShare`). A key's hand offset at the port nudges
+the hand and its pair there. Test: `Misc/quakevr/flatprocreload_test.sh` (`base`, `matrix`).
 
 **The guns' own parts** (his words 2026-11-10; `QC/vr_flatreload.qc`, VR's immersive functions reused: the same sounds,
 casings and physical magazines, with their caps on rounds lying about). Desktop Screen Play's toggles, Tunables >

@@ -592,6 +592,7 @@ void resetBodyEquipment()
         row(opt::vr_xr_foveation_dynamic).advanced().unavailableBecause(VR_Android() ? nullptr : "Quest standalone only."),
         row(opt::vr_xr_foveation_offset).advanced().unavailableBecause(VR_Android() ? nullptr : "Quest standalone only."),
         row(opt::vr_xr_spacewarp).unavailableBecause(VR_Android() ? nullptr : "Quest standalone only."),
+        row(opt::vr_fov_reduce),
     };
 }
 
