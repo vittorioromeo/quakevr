@@ -84,6 +84,8 @@ Stab a grunt with the bayonet shotgun so it sticks, keep your hand on it, and br
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
 Heavy revolver: fire a few shots, swing the cylinder out and press B/Y (or push it back): only the spent shells drop and the live ones stay; eject again and the live ones drop too (Spent Shells First, on by default). {test:revolver_reload}
 Heavy revolver: the pouch gives a taped pair of blue slugs that loads two chambers at once with the two-shell sound; with only one chamber empty one goes in and the other stays in your hand (Slug Pairs, on by default). {test:revolver_reload}
+Flat-screen or VR: put a bayonet on the nailgun: it sits on its mount, centred where you moved the mount (your Mount Left tweak, converted); put the dagger on it: it moved across with the mount too. {test:attach_bayomounts}
+Flat-screen or VR: Weapon Offsets > Attachments: Mount Forward, Left and Up move a gun's rail with its bayonet and dagger; the Every Weapon's Bayonet and Every Weapon's Dagger rows move the bayonet or dagger on every gun from its mount at once. {test:attach_bayomounts}
 
 [5. Ropes and chains]
 ## Climbing
