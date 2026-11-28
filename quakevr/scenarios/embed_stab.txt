@@ -10,4 +10,5 @@ spawn "Grunt" 120 -60
 spawn "Grunt" 120 60
 spawn "Armed Grunt: Axe" 200 0
 spawn "Shambler" 320 0
+spawn "Wooden Crate" 90 0
 hint Stab hard, tip first: the sword stays in. Slide it in and out, pull it free, or open your hand and grip it again. Swing the axe hard, edge first. A strong stab staggers a grunt: pull or push the blade to move it; walk away holding it to drag it, slowly; past arm's reach it comes out. The shambler behind them is too heavy: no stagger, no drag. Reset to try again.
