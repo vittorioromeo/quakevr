@@ -258,6 +258,16 @@ void tunablesNodeRows(za::Vector<Item>& list, int node)
     {
         list.pushBack(row(tunablesLinkText, tunablesLinkHelp, tunablesPick, c, tunablesPageAt(n.depth + 1)));
     }
+    // Flatscreen > Procedural Reload: its key-pose lock first, to see a pose while tuning it (prlfix; the Debug page's rows).
+    if(n.name == za::StringView{"Procedural Reload"} && n.parent > 0 && tunableNode(n.parent).name == za::StringView{"Flatscreen"})
+    {
+        list.pushBack(row(opt::vr_flat_prl_lock));
+        list.pushBack(command("Next Key", "vr_flat_prl_lock_next")
+                .help("vr_flat_prl_lock_next: holds the procedural reload at its next key pose (Lock Pose; from off, Rest)."));
+        list.pushBack(command("Previous Key", "vr_flat_prl_lock_prev")
+                .help("vr_flat_prl_lock_prev: holds the procedural reload at its previous key pose (Lock Pose)."));
+        list.pushBack(row(opt::vr_flat_prl_scrub));
+    }
     if(!n.ids.empty())
     {
         if(!n.children.empty())

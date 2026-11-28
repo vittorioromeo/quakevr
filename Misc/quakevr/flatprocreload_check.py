@@ -23,7 +23,7 @@ def lines(run):
     p = os.path.join(D, run + ".log")
     out = []
     for l in (open(p, encoding="utf-8", errors="replace").read().splitlines() if os.path.exists(p) else []):
-        if out and not re.match(r"^(flat|fprl_test|exit=)", l):
+        if out and not re.match(r"^(flat|fprl_|exit=)", l):
             out[-1] += l
         else:
             out.append(l)
@@ -108,6 +108,81 @@ for run in ("dual", "ssg"):
           (run, len(basic), len(proc)))
 L = lines("dual")
 check(any(l.startswith("flat reload: start off hand") for l in L), "dual: the off hand's shotgun reloads at the hip too")
+
+# prlfix: the gun's path over a whole reload (its model's origin from the camera, each frame): no step, no back-and-forth
+# spike. Before the fix the stance went off and on with the pair in the hand and the reloading arm pushed the gun: 4 units in
+# a frame (forward and back) every trip, 0.5-0.8 unit dips mid-carry; after it, 0.09 a frame at most with the gun held tilted
+# and 0.17 the most its per-frame move changes (72 fps).
+TRACE = re.compile(r"^fprl_trace: ([\d.]+) (\w+) ([\d.-]+) ([\d.]+) h (\S+) (\S+) (\S+) r (\S+) (\S+) (\S+) g (\S+) (\S+) (\S+)")
+for run, rate in (("trips", 72), ("cont144", 144)):
+    rows = [m for m in map(TRACE.match, lines(run)) if m]
+    gun = [tuple(float(m.group(i)) for i in (11, 12, 13)) for m in rows]
+    tilt = [float(m.group(4)) for m in rows]
+    dist = lambda a, b: sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+    steps = [dist(gun[i], gun[i - 1]) for i in range(1, len(gun))]
+    held = [steps[i - 1] for i in range(1, len(gun)) if tilt[i] >= 1.0 and tilt[i - 1] >= 1.0]
+    acc = [dist([a - 2 * b + c for a, b, c in zip(gun[i + 1], gun[i], gun[i - 1])], (0, 0, 0)) for i in range(1, len(gun) - 1)]
+    k = 72.0 / rate
+    check(not timed_out(run) and len(rows) > 60, "%s: the gun traced over the reload (%d frames)" % (run, len(rows)))
+    check(bool(held) and max(held) <= 0.25 * k, "%s: the gun held tilted moves at most %.2f a frame (%.2f)" %
+          (run, 0.25 * k, max(held) if held else -1))
+    check(bool(acc) and max(acc) <= 0.4 * k, "%s: no spike: its per-frame move changes at most %.2f (%.2f)" %
+          (run, 0.4 * k, max(acc) if acc else -1))
+    check(bool(steps) and max(steps) <= 1.0 * k, "%s: no step anywhere (the tilt in and out included): at most %.2f a frame (%.2f)" %
+          (run, 1.0 * k, max(steps) if steps else -1))
+
+# lock: each key held, as its pose; a tunable live; next / previous; the scrub; let go (and never a server reload).
+LOCK = re.compile(r"^flatprocreload: lock (on|off) key (\d+) \((.*?)\) (\w+) ([\d.]+) (\w+); free hand \w+ from the gun hand "
+                  r"(\S+) (\S+) (\S+) turned (\S+) (\S+) (\S+); tilt ([\d.]+) pair (\d) busy (\d) round gap (\S+)")
+L = lines("lock")
+reps = []
+label = None
+for l in L:
+    if l.startswith("fprl_test: "):
+        label = l[len("fprl_test: "):].strip()
+    m = LOCK.match(l)
+    if m:
+        reps.append((label, m))
+        label = None
+bykey = {}
+for lab, m in reps:
+    if lab is None and m.group(1) == "on":
+        bykey.setdefault(int(m.group(2)), []).append(m)
+rel = lambda m: tuple(float(m.group(i)) for i in (7, 8, 9))
+check(not timed_out("lock") and all(len(bykey.get(k, [])) >= 2 for k in range(1, 8)), "lock: every key 1-7 locked and reported (%s)" %
+      sorted((k, len(v)) for k, v in bykey.items()))
+if all(len(bykey.get(k, [])) >= 2 for k in range(1, 8)):
+    still = max(dist(rel(bykey[k][0]), rel(bykey[k][1])) for k in range(1, 8))
+    check(still < 0.05, "lock: each key holds its pose (the most a pose moved between two reports %.3f)" % still)
+    tilts = [float(bykey[k][1].group(13)) for k in range(1, 8)]
+    check(tilts[0] == 0.0 and all(t == 1.0 for t in tilts[1:6]) and 0.2 < tilts[6] < 0.8, "lock: the gun's tilt by key (%s)" % tilts)
+    pairs = [int(bykey[k][1].group(14)) for k in range(1, 8)]
+    check(pairs == [0, 0, 0, 1, 1, 1, 0], "lock: a pair in the hand from the grip to the insert (%s)" % pairs)
+    busy = all(int(bykey[k][1].group(15)) == 1 for k in range(1, 8))
+    check(busy, "lock: the free hand is busy (off the grip, no pushes) while locked")
+    restMoved = dist(rel(bykey[1][1]), rel(bykey[3][1]))
+    check(restMoved > 4.0 and dist(rel(bykey[3][1]), rel(bykey[4][1])) < 0.05,
+          "lock: the hand at the pouch is away from its rest (%.1f) and the grip is the same place (pouch and grip)" % restMoved)
+    gap5, gap6 = float(bykey[5][1].group(16)), float(bykey[6][1].group(16))
+    check(0.2 < gap5 < 1.0 and gap6 < 0.2, "lock: the pair at the port's mouth %.2f out (Port Approach 0.5) and in the port %.2f" %
+          (gap5, gap6))
+    tuned = [m for lab, m in reps if lab == "tuned"]
+    before = [m for lab, m in reps if lab == "before tune"]
+    moved = dist(rel(tuned[0]), rel(before[0])) if tuned and before else -1
+    check(bool(tuned) and int(tuned[0].group(2)) == 3 and 3.5 < moved < 4.5,
+          "lock: Hand at Pouch: Up 1 -> 5 moved the held pose live (%.2f units)" % moved)
+nx = [m for lab, m in reps if lab == "next"]
+pv = [m for lab, m in reps if lab == "prev"]
+sc = [m for lab, m in reps if lab == "scrub"]
+check(bool(nx) and int(nx[0].group(2)) == 1 and bool(pv) and int(pv[0].group(2)) == 7,
+      "lock: next from returning is rest, previous from rest is returning (%s, %s)" %
+      (nx[0].group(2) if nx else "-", pv[0].group(2) if pv else "-"))
+check(bool(sc) and int(sc[0].group(2)) == 8 and sc[0].group(4) == "pouch" and sc[0].group(6) == "mouth" and int(sc[0].group(14)) == 1,
+      "lock: scrub 0.5 is mid-carry with the pair (%s)" % (sc[0].group(0)[16:80] if sc else "none"))
+check(any(l.startswith("flatprocreload: none -> return (the lock let go") for l in L) and
+      any(l.startswith("flatprocreload: the off hand back in its pose") for l in L), "lock: let go, the hand back in its pose")
+check(not any(l.startswith("flat proc reload: start") for l in L) and not any(l.startswith("flatprocreload: impulse 99") for l in L),
+      "lock: no reload ran, nothing taken from the pouch")
 
 print(f"flatprocreload: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

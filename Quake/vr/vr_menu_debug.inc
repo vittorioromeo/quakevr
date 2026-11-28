@@ -1109,6 +1109,12 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_attach_debug),
         row(opt::vr_flat_proc_reload_debug),
         row(opt::vr_flat_prl_test_miss),
+        row(opt::vr_flat_prl_lock),
+        command("Procedural Reload: Next Key", "vr_flat_prl_lock_next")
+            .help("vr_flat_prl_lock_next: holds the procedural reload at its next key pose (Lock Pose; from off, Rest)."),
+        command("Procedural Reload: Previous Key", "vr_flat_prl_lock_prev")
+            .help("vr_flat_prl_lock_prev: holds the procedural reload at its previous key pose (Lock Pose)."),
+        row(opt::vr_flat_prl_scrub),
         command("Holster Menu Dump", "vr_flat_holster_menu_dump")
             .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "
                   "hand holds, and each button's place, whether it does something now and its impulse."),
