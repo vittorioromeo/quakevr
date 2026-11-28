@@ -3727,6 +3727,7 @@ QVR_CVAR(vr_agtune_test, "0", CVAR_NONE)             // the QC tests of the arme
 QVR_CVAR(vr_agrunt_speed, "1", CVAR_ARCHIVE | QVR_RULE)          // Movement Speed: every step they take times this (running, closing in, backing off, strafing); 1 as before
 QVR_CVAR(vr_agrunt_speed_back, "1", CVAR_ARCHIVE | QVR_RULE)     // Backpedal Speed: the part of a step backwards of their facing times this too (on top of vr_agrunt_speed)
 QVR_CVAR(vr_agrunt_speed_strafe, "1", CVAR_ARCHIVE | QVR_RULE)   // Strafe Speed: the part of a step sideways of their facing times this too (on top of vr_agrunt_speed)
+QVR_CVAR(vr_elite_spawn, "0", CVAR_ARCHIVE | QVR_RULE)          // Elites in Hard and Nightmare: 1 an armed humanoid spawned by the map may be an elite (vr_elite_spawn_chance; QC vr_attrs.qc)
 QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE | QVR_RULE)    // units: an unarmed one with you this near fights with its fists rather than going for a weapon lying further than 64 from it; 0 off (as before)
 QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE | QVR_RULE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
 QVR_CVAR(vr_agrunt_strafe_turn, "60", CVAR_ARCHIVE | QVR_RULE)   // degrees: armed humanoids moving sideways turn their pelvis and legs this far toward the way they go (at 80 u/s; scaled by sideways speed, eased; backing off: never flipped), the spine turning back so the chest and gun stay aimed; 0 none
@@ -4696,6 +4697,7 @@ QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's 
 QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
 QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
 QVR_CVAR(vr_toolgun_armed_infected, "0", CVAR_ARCHIVE)  // ... what it is infected with: a row of QC's VR_INFECT_ROWS (0 none; killed, it bursts and rises as that monster)
+QVR_CVAR(vr_toolgun_armed_elite, "0", CVAR_ARCHIVE)  // ... 1: an elite (QC vr_attrs.qc: much faster fire, reaction, aim and melee, 1.25x steps, shrugs pains; its own dye)
 QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
 QVR_CVAR(vr_toolgun_beast_armor, "5", CVAR_ARCHIVE)     // the spawn panel's Monsters page: a beast's armour (the rottweiler, ogre, scrag, fiend: VR_AgArmor_Toolgun's 0-4 as vr_toolgun_armed_armor; 5 as the skill rolls, the skill's roll held otherwise)
 QVR_CVAR(vr_toolgun_beast_pieces, "1", CVAR_ARCHIVE)    // ... its pieces: 0 the core (its cuirass group and its helmet), 1 all its pieces, 2 random (the core and some of the rest)
@@ -4817,6 +4819,7 @@ QVR_CVAR(vr_flat_wheel, "1", CVAR_ARCHIVE)             // flatscreen play (holst
 QVR_CVAR(vr_flat_wheel_hold, "0.15", CVAR_ARCHIVE)     // flatscreen play: seconds 1 / 2 are held before the weapon wheel opens (a shorter press cycles the hand when let go)
 QVR_CVAR(vr_flat_wheel_size, "0.5", CVAR_ARCHIVE)      // flatscreen play: the weapon wheel's height, a share of the window's
 QVR_CVAR(vr_flat_bind_panel, "1", CVAR_ARCHIVE)      // flatscreen play: the most used flat keys as key caps in a panel over the holster menu and the weapon wheel, and in the main menu left of its rows with Setup Bindings under it (vr_bindpanel.cpp; wheelui, his words 2026-11-28); with a gamepad the device last used, its bound buttons' glyphs and actions instead (bindpanel2); 0 none
+QVR_CVAR(vr_menu_bind_panel_scale, "1.5", CVAR_ARCHIVE) // the menus' bindings reminder panel's letters, times 8 menu units at most (it shrinks to fit the room; two columns when too short for one; vr_menuui.cpp drawBindPanel; panelsize, his words 2026-11-28)
 QVR_CVAR(vr_wheel_bind_panel, "1", CVAR_ARCHIVE)     // the headset's weapon wheel: a panel above it with the detected controllers' pictures, each bound button's glyph and action beside it (vr_bindpanel.cpp; bindpanel2, his words 2026-11-28); 0 none
 QVR_CVAR(vr_flat_holster_drop_ahead, "20", CVAR_ARCHIVE | QVR_PREF) // flatscreen play: how far ahead of him (units) a holster's DROP lays its weapon
 QVR_CVAR(vr_flat_unload_volume, "0.8", CVAR_ARCHIVE) // flatscreen play: the holster menu's UNLOAD sound's volume (its rounds back into the pouch); 0 silent
@@ -4901,6 +4904,7 @@ QVR_CVAR(vr_flat_visor_fog, "1", CVAR_ARCHIVE)          // under water the visor
 QVR_CVAR(vr_flat_visor_fog_clear, "1.5", CVAR_ARCHIVE)  // seconds the visor's fog takes to clear after surfacing (0.2..10)
 QVR_CVAR(vr_flat_visor_low_health, "25", CVAR_ARCHIVE)  // health at or under which the health panel pulses red (faster and stronger at half of it; 0 never)
 QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels' power-on sweep at a spawn, a respawn and a new map (0: none)
+QVR_CVAR(vr_flat_visor_boot_seq, "1", CVAR_ARCHIVE)     // 1: the visor boots at a spawn, a respawn, a new map and a loaded save: no panels, a power-up sound, the panels fading in with a glitch, then the sweep (its times: Debug > Tunables > Visor Boot); 0: the sweep alone, as before
 QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
 QVR_CVAR(vr_flat_visor_autohide_log, "1", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
 QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (top middle: its width, the text shrinking or growing with it; 0.3 .. 2, shrunk to fit between the top corners' panels)

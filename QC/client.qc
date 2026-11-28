@@ -2426,6 +2426,7 @@ Called every frame after physics are run
 ================
 */
 void(entity pl) VR_PDG_Frame; // (vr_playerdisarm_grab.qc)
+void(float xHand, void(float) xFn) VR_PropFire_With; // (vr_propfire.qc)
 void() PlayerPostThink =
 {
     VR_PP_Frame(self); // QVR: the armour's plates follow what is left of it (vr_playerplates.qc; bots too)
@@ -2489,8 +2490,8 @@ void() PlayerPostThink =
     W_Frame();
     VR_Chainsaw_Frame(cVR_MainHand); // QVR: the chainsaws' engines, chains and cords (vr_chainsaw.qc)
     VR_Chainsaw_Frame(cVR_OffHand);
-    VR_EnemyGuns_Frame(cVR_MainHand); // QVR: the grunts' burst rifles' bursts (vr_enemyguns.qc)
-    VR_EnemyGuns_Frame(cVR_OffHand);
+    VR_PropFire_With(cVR_MainHand, VR_EnemyGuns_Frame); // QVR: the grunts' burst rifles' bursts (vr_enemyguns.qc), on a gun
+    VR_PropFire_With(cVR_OffHand, VR_EnemyGuns_Frame);  // stuck in a body that the hand drives too (vr_propfire.qc)
     VR_ShotImpacts(); // QVR: projectiles fired from inside what they hit meet it (weapons.qc)
 
 // check to see if player landed and play landing sound

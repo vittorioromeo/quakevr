@@ -612,6 +612,16 @@ za::Vector<Item> pageDebugTests()
             .help("vr_agarmor_test 23: ten ogres in full armour running at you, 288 frames measured: the console's \"animsmooth: drawn "
                   "points\" line is the time the armour spends reading the drawn body (Beast Armour On The Drawn Body in Debug > "
                   "Reports). Ends on \"armourcost: N passed, M failed\"."),
+        command("Beast Armour in Multiplayer: Armoured Ogre and Scrag", "vr_agarmor_test 25")
+            .help("vr_agarmor_test 25 (the host or a single game): an ogre and a scrag ahead of you in full yellow armour, calm. Join with a "
+                  "second game: it should draw every piece, the leather and the wear as here (Beast Armour Drawn Here on each)."),
+        command("Beast Armour in Multiplayer: Break a Part of Each", "vr_agarmor_test 26")
+            .help("vr_agarmor_test 26 (after 25): the ogre's left shin and the scrag's third tail segment broken off (their debris), the "
+                  "ogre's breastplate worn to two thirds. A remote client drops the same pieces and shows the debris and the wear."),
+        command("Beast Armour Drawn Here", "vr_beastarmour_drawn")
+            .help("vr_beastarmour_drawn: each armoured beast this game drew last frame: the pieces it was told (the mask), the pieces and "
+                  "parts drawn and at which wear, its leather, and the broken pieces' debris in view; \"client-body\" where the body is this "
+                  "game's own drawing of a remote server's beast (multiplayer), \"server-body\" a listen host's or a single game's."),
         command("Armour Studio: ImGui Window Test (Flat Screen)", "vr_armourstudio_window test").help("vr_armourstudio_window test: the Armour Studio's ImGui window opened, its Start, a value's + step, Save, Reset Part and Reload the File clicked with a mock mouse (the grunt's bracer), a change made the menu's way shown on the window, Stop, Escape closes it. In a headset: the window refuses to open. Ends on \"armourwin: N passed, M failed\". It writes quakevr/data/armour_wintest.txt."),
         command("Armour Studio: Window Handle (Gizmo) Test (Flat Screen)", "vr_armourstudio_gizmo_test").help("vr_armourstudio_gizmo_test: the Armour Studio's ImGui window and its handle on the part, dragged with a mock mouse: the grunt's cuirass moved 2 units along its forward arrow (then undone), turned 30 degrees round its up ring (yaw), sized 1.25x along its forward arm, scaled 1.5x by its centre; a rottweiler's piece moved along its up arrow. Each drag the values it should make and one undo step. Ends on \"armourgizmo: N passed, M failed\". It writes quakevr/data/armour_gizmotest.txt."),
         command("Armour Studio: Your Clone's Armour Test", "vr_armourstudio_clone_test").help("vr_armourstudio_clone_test (a fresh game, no armour on you): Kind = Player shown (flat screen: the ImGui window; in a headset: the menu's page), your body and its mirror image wear the studio's armour, each tier, then the build switched while shown (2 to 1, 3 and 2 again); none again once the kind is another. Ends on \"armourclone: N passed, M failed\"."),
@@ -1016,6 +1026,13 @@ za::Vector<Item> pageDebugTests()
         command("Melee Arcs Drawn", "vr_enemy_melee_arc_status")
             .help("vr_enemy_melee_arc_status: how many of each rule Show Melee Arcs last drew (arc, leap, all round, "
                   "shove), and each monster's arc, reach and whether you are inside."),
+        command("Test: Elite Armed Humanoids", "vr_agrunt_test 233")
+            .help("vr_agrunt_test 233 (vrtesthall, god): each armed kind ordinary beside elite: the elite's factors, 1.25x "
+                  "steps, health, look, quicker swings, shrugged pains; infected too; the Hard/Nightmare roll and the "
+                  "arena's wave rule (agtest: test 233 over: N passed, M failed)."),
+        command("Elite Lineup (Screenshot)", "vr_agrunt_freeze 1; vr_agrunt_test 234")
+            .help("vr_agrunt_test 234: an ordinary and an elite grunt, enforcer and knight in a row ahead, held still, "
+                  "and a screenshot (Hold Still stays on: Debug > Tools > Texture Studio's to turn it off)."),
         command("Test: Melee Rules (Side-step, Arcs)", "vr_agrunt_test 212")
             .help("vr_agrunt_test 212 (vrtesthall): an armed sword's blow lands from ahead, a side-step out of its swing "
                   "dodges it; Show Melee Arcs shows each kind's rule. One agtest: line each."),

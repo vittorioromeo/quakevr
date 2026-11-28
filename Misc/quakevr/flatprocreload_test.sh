@@ -4,7 +4,9 @@
 # cancels with no shell lost; a blocked port (vr_flat_prl_test_miss) trips the failsafe; dual wielding and the super
 # shotgun keep the timed trip to the hip. prlfix: the gun's path over a whole reload has no step or back-and-forth spike
 # (its per-frame trace, vr_flat_proc_reload_debug 2, at 72 and 144 frames a second), and the key-pose lock
-# (vr_flat_prl_lock) holds each key, follows a tunable live, steps next/previous, scrubs and lets go. Each run ends on its
+# (vr_flat_prl_lock) holds each key, follows a tunable live, steps next/previous, scrubs and lets go. prlmove: full reloads
+# while running, jumping, sliding, crouch-strafing (and at 60 / 144 fps) seat every pair with no failsafe, the free hand's
+# fingers closed on each pair (a headset's grip), and the hand-at-port offsets move the locked hand at the port. Each run ends on its
 # own verdict line (-QuitOn); flatprocreload_check.py checks the logs and prints "flatprocreload: N passed, M failed".
 AGENT=${1:?agent}
 source "$(dirname "$0")/qvrtest.sh"
@@ -32,7 +34,20 @@ vr_flat_prl_lock 4; $LK; vr_flat_prl_lock 5; $LK; vr_flat_prl_lock 6; $LK; vr_fl
 echo fprl_test: before tune; vr_flatprocreload_report; tune vr_flat_prl_pouch_up 5; wait3; echo fprl_test: tuned; vr_flatprocreload_report; tune vr_flat_prl_pouch_up 1; \
 vr_flat_prl_lock 7; vr_flat_prl_lock_next; wait3; echo fprl_test: next; vr_flatprocreload_report; \
 vr_flat_prl_lock_prev; wait3; echo fprl_test: prev; vr_flatprocreload_report; \
+vr_flat_prl_lock 6; wait40; echo fprl_test: port before; vr_flatprocreload_report; tune vr_flat_prl_port_up 2; tune vr_flat_prl_port_fwd 1; wait3; \
+echo fprl_test: port nudged; vr_flatprocreload_report; tune vr_flat_prl_port_up 0; tune vr_flat_prl_port_fwd 0; \
 vr_flat_prl_lock 8; vr_flat_prl_scrub 0.5; wait3; echo fprl_test: scrub; vr_flatprocreload_report; vr_flat_prl_scrub 0; vr_flat_prl_lock 0"
+# prlmove: full reloads on the move (running in a circle, jumping, sliding, crouched strafing; running at 60 and 144 frames
+# a second): every pair seated (none dropped), no failsafe, the gun full; the free hand's fingers closed on each pair.
+J="+jump; wait3; -jump; wait30"
+C="+flatcrouch; wait40; -flatcrouch; wait30"
+MQ="^flat proc reload: main hand (done|cancelled)"
+run mrun "$MQ" "$BASE; $SG; $EMPTY; +forward; +right; $R"
+run mjump "$MQ" "$BASE; $SG; $EMPTY; +forward; +right; $R; $J; $J; $J; $J; $J; $J; $J; $J; $J; $J"
+run mslide "$MQ" "$BASE; $SG; $EMPTY; +forward; +right; $R; $C; $C; $C; $C; $C; $C"
+run mcrouch "$MQ" "$BASE; $SG; $EMPTY; +flatcrouch; +moveleft; +right; $R"
+run mrun60 "$MQ" "vr_fixed_frames_rate 60; $BASE; $SG; $EMPTY; +forward; +right; $R"
+run mrun144 "$MQ" "vr_fixed_frames_rate 144; $BASE; $SG; $EMPTY; +forward; +right; $R"
 # A shot (a dry click: nothing in yet) while the first pair is carried: cancelled, the pair back in the pouch. (wait20: the
 # carry of the first pair with his promoted times, 0.22-0.43 s; wait30 was past it, the pair already in.)
 run fire "^flatprocreload: the off hand back in its pose" "$BASE; $SG; $EMPTY; $R; wait20; vr_flatprocreload_report; +attack; wait2; -attack"

@@ -29,7 +29,15 @@
 // seconds (a wall, the hand blocked), or nothing taken at the pouch within it (impulse 106, the reason printed and kept for
 // the report). The server puts a round still in the hand back in the reserve.
 //
-// vr_flat_proc_reload_debug 1 prints each step (flatprocreload: ...); vr_flatprocreload_report the state and counts;
+// On the move (prlmove, 2026-11-28): the hand aims the round at the port in the game's frame (the port measured in the
+// game's gun hand, the round's place in the hand the server's), the move sends that very port (portNow), and the server's
+// carry keeps the round in the hand through the body and the gun (QC VR_Carry_Follow): round against port is the hands'
+// relative placement, so running, jumping or sliding doesn't come between them. The drawn free hand rides the drawn gun
+// from the carry to the insert (attachDrawn: the drawn gun sways off its game pose), and its fingers take a headset's grip
+// on the round while it holds one (gripShare). Hand at Port: Forward / Right / Up nudge its place at the port.
+//
+// vr_flat_proc_reload_debug 1 prints each step (flatprocreload: ...), 3 the gaps on the way to the port (fprl_gap:);
+// vr_flatprocreload_report the state and counts;
 // vr_flat_prl_test_miss N stops the hand N units short of the port (the tests' blocked port).
 
 #include "vr_flatprocreload.hpp"
@@ -112,9 +120,25 @@ struct ProcState
     int dropped{0};              // carried rounds gone without the clip rising
     int cancels{0};
     const char* lastCancel{"-"};
+    float grip{0.f};             // the free hand's fingers on the round (gripShare), before its ease
 };
 
 ProcState ps;
+
+// The drawn free hand carried on the drawn gun (attachDrawn): the gun hand's game pose and its drawn pose as last noted
+// (noteDrawn), and how much the free hand goes with it (0 at the pouch, 1 bringing the round to the port and in).
+struct DrawnGun
+{
+    glm::vec3 gamePos{0.f};
+    glm::vec3 gameRot{0.f};
+    glm::vec3 drawnPos{0.f};
+    glm::vec3 drawnRot{0.f};
+    int hand{-1};
+    int frame{-1000};
+    float share{0.f};
+};
+
+DrawnGun dg;
 
 // The key-pose lock (vr_flat_prl_lock; his words 2026-11-28: "please add a way to lock the animation for debug purposes in
 // those keyframes so that I can tweak the poses precisely"): the gun and the free hand held at one key pose, made from the
@@ -172,6 +196,8 @@ Lock lk;
 constexpr int procBitBase = 16; // STAT_QVR_FLATRELOAD: 16 the off hand's gun, 32 the main's (QC VR_FlatReload_ProcBit)
 constexpr int procOnBit = 64;   // the procedural reload on: the pouch shown (QC VR_FLATRL_PROC_ON)
 constexpr float pi = 3.14159265f;
+constexpr float attachTime = 0.12f; // (s: the drawn free hand onto the drawn gun and off it, attachDrawn)
+constexpr float gripTime = 0.08f;   // (s: the free hand's fingers onto the round and off it, gripShare)
 
 [[nodiscard]] float timeOf(const Tunable& c, float least)
 {
@@ -310,15 +336,30 @@ void cancel(const char* why, bool tellServer)
     }
 }
 
-// The port of the gun in `g` measured in its hand's frame as drawn last (hands::State::loadPort, placed by the view with
-// the muzzle), and its opening's way; kept from the last good frame.
+// The port of the gun in `g` measured in its hand's frame (hands::State::loadPort, placed by the view with the muzzle), and
+// its opening's way; kept from the last good frame. In the game's hand (the pose the view placed it from:
+// State::placedFrom, its turn), not the drawn one: the server tests the round against the port in the game's frame (both
+// sent with the move), and running the drawn gun hand sways 1-1.5 units and 2-3 degrees off the game's (prlmove,
+// 2026-11-28: measured from the drawn hand, the free hand aimed the pair as far beside the port the server tests).
 void measurePort(int g)
 {
     const hands::State& cur = hands::current();
-    glm::vec3 pos, rot;
-    if(!cur.loadPortValid[g] || !view::drawnHandPose(g, pos, rot))
+    if(!cur.loadPortValid[g])
     {
         return;
+    }
+    const glm::vec3 pos = cur.placedFrom[g];
+    const glm::vec3 rot = cur.rot[g];
+    // vr_flat_proc_reload_debug 3, carrying a round to the port: the drawn gun hand off the game's, and the round's gap from
+    // the port as drawn (the free hand drawn, the port drawn) and in the game (what the server tests).
+    const Trip& t = ps.trip;
+    glm::vec3 dp, dr, fp, fr;
+    if(vr_flat_proc_reload_debug.value >= 3.f && (t.phase == Phase::Carry || t.phase == Phase::Insert) && t.roundKnown &&
+        view::drawnHandPose(g, dp, dr) && view::drawnHandPose(1 - g, fp, fr))
+    {
+        const glm::vec3 round = fp + held::axesFromAngles(&fr[0], true) * t.roundIn;
+        Con_Printf("fprl_gap: %s %.2f gun drawn off the game's %.2f; round from the port drawn %.2f, game %.2f\n", phaseName(t.phase),
+            t.t, glm::distance(dp, pos), glm::distance(round, cur.loadPort[g]), ps.portGap);
     }
     const glm::mat3 toHand = glm::transpose(held::axesFromAngles(&rot[0], true));
     ps.portIn = toHand * (cur.loadPort[g] - pos);
@@ -329,27 +370,28 @@ void measurePort(int g)
     ps.portKnown = glm::length(ps.portIn) < 48.f;
 }
 
-// The carried round's place in the free hand's frame, from the drawn hand and the round (a carried prop drawn in the hand:
-// vr_held.cpp), measured while the hand is still at the pouch.
+// The carried round's place in the free hand's frame: where it sits in the hand as drawn (vr_held.cpp placeInHand: the
+// server's own place for it in the hand, its .carry_offset), not where the entity is drawn: that one is interpolated
+// between the server's frames, a frame's walk behind the hand on the move (running, 3.3 units off: the hand then put the
+// pair beside the port, and the failsafe cancelled every trip; prlmove, 2026-11-28).
 void measureRound(Trip& t)
 {
     const int ent = carriedEnt(t.free);
-    glm::vec3 pos, rot;
-    if(ent <= 0 || ent >= cl.num_entities || !view::drawnHandPose(t.free, pos, rot))
+    glm::vec3 in, other;
+    glm::mat3 axes;
+    bool both = false;
+    if(ent <= 0 || ent >= cl.num_entities || held::placeInHand(t.free, in, axes, both, other) != ent)
     {
         return;
     }
     const entity_t& e = cl_entities[ent];
-    const glm::vec3 r = geom::vec(e.origin);
-    const glm::mat3 toHand = glm::transpose(held::axesFromAngles(&rot[0], true));
-    const glm::vec3 in = toHand * (r - pos);
     if(glm::length(in) < 16.f)
     {
         t.roundIn = in;
         t.roundKnown = true;
         // (Kept for the lock's pair: vr_flat_prl_lock.)
         lk.roundIn = in;
-        lk.roundAxes = toHand * held::axesFromAngles(e.angles, false);
+        lk.roundAxes = axes;
         lk.roundScale = ENTSCALE_DECODE(e.scale);
         if(debugOn())
         {
@@ -399,9 +441,9 @@ void report_f()
     const bool drawn = lk.on && view::drawnHandPose(lk.free, fp, fr) && view::drawnHandPose(lk.gun, gp, gr);
     const glm::vec3 rel = drawn ? glm::transpose(held::axesFromAngles(&gr[0], true)) * (fp - gp) : glm::vec3{0.f};
     Con_Printf("flatprocreload: lock %s key %d (%s) %s %.2f %s; free hand %s from the gun hand %.2f %.2f %.2f turned %.1f %.1f %.1f; "
-               "tilt %.2f pair %d busy %d round gap %.2f\n",
+               "tilt %.2f pair %d busy %d round gap %.2f grip %.2f fingers %.2f\n",
         lk.on ? "on" : "off", lk.key, keyNames[lk.key], spotName(lk.from), lk.t, spotName(lk.to), handName(lk.free), rel.x, rel.y, rel.z,
-        fr.x, fr.y - gr.y, fr.z, ps.tilt, lk.pair ? 1 : 0, busy(lk.free) ? 1 : 0, ps.portGap);
+        fr.x, fr.y - gr.y, fr.z, ps.tilt, lk.pair ? 1 : 0, busy(lk.free) ? 1 : 0, ps.portGap, gripShare(lk.free), view::drawnGripCurl(lk.free));
 }
 
 [[nodiscard]] int lockKey()
@@ -523,8 +565,13 @@ struct Spots
     const glm::vec3 portRot =
         s.rot[g] + glm::vec3{vr_flat_prl_port_pitch.value, side * vr_flat_prl_port_yaw.value, side * vr_flat_prl_port_roll.value};
     sp.rot[SpotMouth] = sp.rot[SpotPort] = portRot;
-    sp.pos[SpotMouth] = handFor(sp.port + sp.face * za::max(vr_flat_prl_approach.value, vr_flat_prl_test_miss.value), portRot);
-    sp.pos[SpotPort] = handFor(sp.port + sp.face * za::max(0.f, vr_flat_prl_test_miss.value), portRot);
+    // And its place there nudged by vr_flat_prl_port_fwd / _right / _up in the gun hand's frame (forward, left, up; the right
+    // mirrored: the free hand is the off one for a gun in the main hand, side -1), the round with it (prlmove: his "hand at
+    // port" offsets).
+    const glm::vec3 nudge =
+        gunAxes * glm::vec3{vr_flat_prl_port_fwd.value, side * vr_flat_prl_port_right.value, vr_flat_prl_port_up.value};
+    sp.pos[SpotMouth] = handFor(sp.port + sp.face * za::max(vr_flat_prl_approach.value, vr_flat_prl_test_miss.value), portRot) + nudge;
+    sp.pos[SpotPort] = handFor(sp.port + sp.face * za::max(0.f, vr_flat_prl_test_miss.value), portRot) + nudge;
     return sp;
 }
 
@@ -659,9 +706,22 @@ void frame(bool on)
         ps = ProcState{};
         lk.on = false;
         lk.shown = KeyOff;
+        dg.share = 0.f;
         return;
     }
     const float step = static_cast<float>(dt);
+    // The drawn free hand on the drawn gun: eased in as the round sets off for the port, out as the hand leaves it.
+    {
+        const bool toPort = lk.on ? (lk.pair && (lk.to == SpotMouth || lk.to == SpotPort))
+                                  : (t.phase == Phase::Carry || t.phase == Phase::Insert);
+        const float rate = step / attachTime;
+        dg.share = toPort ? za::min(1.f, dg.share + rate) : za::max(0.f, dg.share - rate);
+        // The free hand's fingers: a headset's grip on the round while it holds one (gripShare), eased in and out.
+        const bool holds = lk.on ? lk.pair
+                                 : (t.phase == Phase::Grab || t.phase == Phase::Carry || t.phase == Phase::Insert) && carriedEnt(t.free) > 0;
+        const float grip = step / gripTime;
+        ps.grip = holds ? za::min(1.f, ps.grip + grip) : za::max(0.f, ps.grip - grip);
+    }
     const int bits = cl.stats[protocol::STAT_QVR_FLATRELOAD];
     int upHand = -1;
     for(int h : {HAND_OFF, HAND_MAIN})
@@ -780,14 +840,19 @@ void frame(bool on)
             break;
         case Phase::Carry:
         case Phase::Insert:
+            if(!t.roundKnown && carried > 0)
+            {
+                measureRound(t); // (not placed in the hand yet at the grab's end: the hand itself aims at the port till then)
+            }
             if(carried == 0)
             {
                 const bool in = clipOf(t.gun) > t.clipAtCarry;
                 (in ? ps.seated : ps.dropped)++;
                 if(debugOn())
                 {
-                    Con_Printf("flatprocreload: the round %s (%s %.2f s in; clip %d)\n", in ? "went in" : "left the hand",
-                        phaseName(t.phase), since, clipOf(t.gun));
+                    Con_Printf("flatprocreload: the round %s (%s %.2f s in; clip %d; fingers %.2f, grip %.2f)\n",
+                        in ? "went in" : "left the hand", phaseName(t.phase), since, clipOf(t.gun), view::drawnGripCurl(t.free),
+                        gripShare(t.free));
                 }
                 setPhase(Phase::Reach, in ? "seated: the next round" : "lost on the way: another");
             }
@@ -899,6 +964,53 @@ void apply(hands::State& s)
     ps.faceToFree = glm::length(toFree) > 1e-3f ? glm::dot(face, glm::normalize(toFree)) : 0.f;
     ps.portGap = t.roundKnown && carriedEnt(f) > 0 ? glm::distance(s.pos[f] + held::axesFromAngles(&s.rot[f][0], true) * t.roundIn, port)
                                                    : -1.f;
+}
+
+float gripShare(int h)
+{
+    const int f = lk.on ? lk.free : ps.trip.free;
+    return busy(h) && h == f ? geom::smooth01(ps.grip) : 0.f;
+}
+
+void noteDrawn(const hands::State& s, int hand, const glm::vec3& pos, const glm::vec3& rot)
+{
+    const int g = lk.on ? lk.gun : ps.trip.gun;
+    if(hand != g || (!lk.on && ps.trip.phase == Phase::None))
+    {
+        return;
+    }
+    dg = DrawnGun{s.pos[hand], s.rot[hand], pos, rot, hand, host_framecount, dg.share};
+}
+
+void attachDrawn(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot)
+{
+    const int f = lk.on ? lk.free : ps.trip.free;
+    if(!busy(hand) || hand != f || dg.share <= 0.f || dg.hand != 1 - hand || host_framecount - dg.frame > 1)
+    {
+        return;
+    }
+    // The game's free hand from the game's gun hand, put on the gun hand as drawn (its sway, its own drawn turn): the round
+    // drawn where the server has it from the port it tests, into the port as drawn. (A gun in the off hand is drawn after
+    // the free main hand: its drawn offset is last frame's, put on its game hand of this frame.)
+    const int g = 1 - hand;
+    const glm::mat3 turn = held::axesFromAngles(&dg.drawnRot[0], true) * glm::transpose(held::axesFromAngles(&dg.gameRot[0], true));
+    const glm::vec3 onGun = s.pos[g] + (dg.drawnPos - dg.gamePos) + turn * (s.pos[hand] - s.pos[g]);
+    glm::vec3 onRot;
+    held::anglesFromAxes(turn * held::axesFromAngles(&s.rot[hand][0], true), &onRot[0], true);
+    const float k = geom::smooth01(dg.share);
+    pos += (onGun - pos) * k;
+    rot = flatplay::blendHandAngles(rot, onRot, k);
+}
+
+bool portNow(const hands::State& s, int g, glm::vec3& port)
+{
+    const bool trip = ps.trip.phase != Phase::None && ps.trip.phase != Phase::Return && g == ps.trip.gun;
+    if(!trip || !ps.portKnown || !s.loadPortValid[g])
+    {
+        return false;
+    }
+    port = s.pos[g] + held::axesFromAngles(&s.rot[g][0], true) * ps.portIn;
+    return true;
 }
 
 bool busy(int h)

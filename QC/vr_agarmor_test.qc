@@ -638,6 +638,11 @@ void() VR_AgArmor_TestFrame =
             VR_ARC_Frame(request); // (armourrebuild: the armour on the drawn body's cost, ten ogres; vr_beastarmour_test.qc)
             return;
         }
+        if(request >= 25 && request <= 27)
+        {
+            VR_BMP_Frame(request); // (beastmp: an armoured ogre and scrag for the MP test, a part broken, killed; vr_beastarmour_test.qc)
+            return;
+        }
         if(request == 2)
         {
             // (the eyeshots: green, yellow and red full sets side by side, facing the player)

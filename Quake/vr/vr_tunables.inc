@@ -2005,9 +2005,9 @@ QVR_TUNABLE(vr_flat_prl_tilt_in_time, "0.17") // seconds the gun's hand takes to
 QVR_TUNABLE(vr_flat_prl_tilt_out_time, "0.2") // and seconds back
 QVR_TUNABLE(vr_flat_prl_tilt_pitch, "-20") // degrees the gun tilts (pitch, + muzzle down), mirrored for a gun in the left hand
 QVR_TUNABLE(vr_flat_prl_tilt_yaw, "60") // degrees it turns in towards the body (yaw)
-QVR_TUNABLE(vr_flat_prl_tilt_roll, "35") // degrees it rolls, its bottom (the port) towards the free hand
+QVR_TUNABLE(vr_flat_prl_tilt_roll, "69") // degrees it rolls, its bottom (the port) towards the free hand
 QVR_TUNABLE(vr_flat_prl_gun_fwd, "3") // units the gun moves forward while tilted
-QVR_TUNABLE(vr_flat_prl_gun_up, "0") // and up
+QVR_TUNABLE(vr_flat_prl_gun_up, "-2.5") // and up
 QVR_TUNABLE(vr_flat_prl_gun_in, "-1") // and in towards the body's middle
 QVR_TUNABLE(vr_flat_prl_approach, "0.5") // units before the port (out of its opening) the carried round comes to, before it is pushed in
 QVR_TUNABLE(vr_flat_prl_arc, "3") // units the hand's way bows up (and out) between the pouch and the gun
@@ -2021,6 +2021,9 @@ QVR_TUNABLE(vr_flat_prl_pouch_roll, "5") // and degrees it rolls (mirrored)
 QVR_TUNABLE(vr_flat_prl_port_pitch, "-40") // the free hand's turn at the port, on the gun's: degrees pitch
 QVR_TUNABLE(vr_flat_prl_port_yaw, "59") // and yaw (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_prl_port_roll, "-9") // and roll (mirrored)
+QVR_TUNABLE(vr_flat_prl_port_fwd, "0") // units the free hand sits off its place at the port (the round at the port), forward along the gun (its hand's frame)
+QVR_TUNABLE(vr_flat_prl_port_right, "0") // and to the gun's right (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_prl_port_up, "0") // and up from the gun
 QVR_TUNABLE(vr_flat_prl_failsafe, "0.6") // seconds after the round reaches the port without going in (a wall, a blocked hand) before the reload is cancelled (its round back in the pouch)
 QVR_TUNABLE(vr_flat_prl_giveup, "1.5") // the server's failsafe (QC): seconds with nothing taken or loaded before it cancels the reload
 QVR_TUNABLE(vr_flat_ammo_pouch_x, "-1") // flat-screen play's ammo pouch (shown with vr_flat_proc_reload): units it sits forward of the headset's place
@@ -2066,6 +2069,11 @@ QVR_TUNABLE(vr_flat_swap_2h_attach_time, "0.1") // then the seconds the hands ta
 QVR_TUNABLE(vr_flat_swap_look, "1") // 1: a long gun's free hand drawn on its hotspot (the shotguns, the nailguns, AD's guns: no real grip ahead of the trigger hand) lets go and takes it again at the pace the rocket launcher's real grip does (flatsight's gripEase) through the hand swap; 0: it stayed on through the release and came back at the slow look pace after (before 2026-11-12)
 QVR_TUNABLE(vr_flat_swap_2h_all, "1") // 1: every weapon held alone with the other hand empty (on its grip or beside it) takes the release, pass and attach; 0: only a gun whose two-hand grip the free hand holds (before 2026-11-11: the rocket launcher's kind)
 QVR_TUNABLE(vr_flat_swap_things, "1") // 1: what a hand carries (a prop, a gib, a torch, a ragdoll's limb) changes hands with the rest; 0: a carried thing swaps nothing, as before
+// Flatscreen > Visor Boot (vr_visor.cpp; vr_flat_visor_boot_seq; visorboot 2026-11-28). Then the sweep: vr_flat_visor_boot.
+QVR_TUNABLE(vr_flat_visor_boot_dark, "0.3") // seconds with no panels at all as the boot starts (its sound starting)
+QVR_TUNABLE(vr_flat_visor_boot_fade, "0.5") // then the seconds the panels take to fade in, glitching
+QVR_TUNABLE(vr_flat_visor_boot_glitch, "0.6") // the fade's glitch: flicker, tearing and colour fringes (0 none .. 2)
+QVR_TUNABLE(vr_flat_visor_boot_volume, "0.6") // the boot's power-up sound (vr/visor_boot.wav; 0: silent)
 
 // Flatscreen > Quick Grenade (vr_flatgrenade.cpp, QC vr_flatgrenade.qc; vr_flat_key_grenade). Places off the hand's
 // shoulder as shares of the arm's reach: forward, out at the hand's own side, down (or up); angles Quake's (pitch down +).
@@ -2437,6 +2445,7 @@ QVR_TUNABLE(vr_flat_thrust_yaw, "0") // and in towards the middle (degrees; nega
 QVR_TUNABLE(vr_flat_thrust_dwell_time, "0.08") // seconds held out
 QVR_TUNABLE(vr_flat_thrust_back_time, "0.25") // seconds back to the spear pose
 QVR_TUNABLE(vr_flat_thrust_off_slide, "2") // thrust out, the other hand rides with the pole, sliding back along it this far at the full reach (units; 0 carried all the way, the thrust's reach: stays put)
+QVR_TUNABLE(vr_flat_thrust_2h_drive, "1") // a gun held in two hands thrust with its bayonet (V): this share of the free arm's reach no longer pulls it back while it goes out, both hands drive it forward (0: the free arm's reach holds it back, as before)
 QVR_TUNABLE(vr_flat_thrust_arm_stretch, "1.35") // the arms' IK may stretch to this (times their length; vr_body_arm_stretch when not thrusting) as the thrust goes out, so the other hand keeps on the pole
 // The one-handed thrust (flatthrust, his decision 2026-11-24): V with a blade stuck in by its point (weapons.txt embed 1).
 QVR_TUNABLE(vr_flat_thrust_blades, "1") // flatscreen: V with a stabbing blade (a sword, a dagger) thrusts it as the spear does (0: V swings it as its fire button does)
@@ -3005,3 +3014,21 @@ QVR_TUNABLE(vr_agrunt_dazzle_face_up, "-0.5") // ... and up (the grunt: 11 0.5 2
 QVR_TUNABLE(vr_agrunt_dazzle_bend, "0.9") // ... that grip within this share of its arm's reach from its shoulder (drawn towards it: a bent arm, its forearm across its face, never held out straight)
 QVR_TUNABLE(vr_agrunt_dazzle_elbow, "1") // ... its elbow's way: 0 the arm's usual (down and back), 1 out to its side (its forearm across its eyes)
 QVR_TUNABLE(vr_agrunt_dazzle_dual, "0") // ... holding two weapons: 1 it shields with its left one's hand (the weapon still held, pointing up and away; not fired while raised); 0 both weapons stay up
+
+// Armed Humanoids > Elite (QC vr_attrs.qc; ROUND26.md, "elite"): an elite's factors on the armed humanoids' knobs, its
+// gains, who gets one, its dye's pulse (the engine's vr_humlook.cpp; its colour: humlook.txt's "elite" rows)
+QVR_TUNABLE(vr_elite_firerate, "3") // an elite's fire rate times this (its pause after an attack divided by it)
+QVR_TUNABLE(vr_elite_reaction, "0.25") // ... its reaction time on first seeing you times this
+QVR_TUNABLE(vr_elite_accuracy, "3") // ... its accuracy times this (its aim error and spread divided by it)
+QVR_TUNABLE(vr_elite_aggression, "1.5") // ... its aggressiveness times this (attacks more readily, presses closer)
+QVR_TUNABLE(vr_elite_speed, "1.25") // ... its steps times this (walking, running, strafing)
+QVR_TUNABLE(vr_elite_melee, "1.35") // ... its swings and punches this much quicker (wind-up, strike, recovery)
+QVR_TUNABLE(vr_elite_pain, "0.35") // ... the share of its pains it takes (the rest shrugged off: no flinch)
+QVR_TUNABLE(vr_elite_aimlag, "0") // ... its aim's lag behind a moving target times this (0: where you are now)
+QVR_TUNABLE(vr_elite_turn, "1.5") // ... its turning speed times this
+QVR_TUNABLE(vr_elite_health, "1.5") // ... its health times this
+QVR_TUNABLE(vr_elite_spawn_chance, "0.15") // with Elites in Hard and Nightmare (vr_elite_spawn): each armed humanoid the map spawns an elite with this chance
+QVR_TUNABLE(vr_elite_arena_wave, "4") // the Survival Arena's waves from this one on may send elites (0: never)
+QVR_TUNABLE(vr_elite_arena_chance, "0.2") // ... each armed humanoid in them an elite with this chance
+QVR_TUNABLE(vr_elite_pulse, "0.3") // the elite dye's pulse: its dark gold glows this far towards bright gold and back, brighter by as much (0: steady)
+QVR_TUNABLE(vr_elite_pulse_hz, "0.6") // ... this many times a second

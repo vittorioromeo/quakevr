@@ -273,6 +273,7 @@
         row(opt::vr_flat_visor_fog_clear),
         row(opt::vr_flat_visor_low_health),
         row(opt::vr_flat_visor_boot),
+        row(opt::vr_flat_visor_boot_seq),
     };
 }
 

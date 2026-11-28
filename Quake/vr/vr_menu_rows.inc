@@ -6879,6 +6879,10 @@ QVR_SLIDER(vr_flat_visor_low_health, "Visor Low Health", 0.f, 100.f, 1.f, "%.0f"
 QVR_SLIDER(vr_flat_visor_boot, "Visor Power On", 0.f, 3.f, 0.1f, "%.1f s", noExt,
     "At a spawn, a respawn and a new map the visor's panels power on with a sweep this long. 0: at once "
     "(vr_flat_visor_boot).")
+QVR_TOGGLE(vr_flat_visor_boot_seq, "Visor Boot Sequence",
+    "At a spawn, a respawn, a new map and a loaded save the visor boots: no panels at first, a power-up sound, the "
+    "panels fading in with a short glitch, then the power-on sweep. Off: the sweep alone. Its times: Debug > Tunables "
+    "> Visor Boot (vr_flat_visor_boot_seq).")
 QVR_TOGGLE(vr_flat_visor_log, "Visor Messages",
     "The console's messages (pickups, a door's text) in the visor's low panel, its last three short lines, instead of "
     "the screen's top left (vr_flat_visor_log).")

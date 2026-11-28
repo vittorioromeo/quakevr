@@ -173,6 +173,10 @@ inline constexpr int strikePathMost = 13;
 // vr_flat_thrust_off_slide times thrustOutShare (it rides with the pole, sliding back along it). Any pole weapon held as a
 // spear (vr_view_weapon.cpp chooseGrip).
 [[nodiscard]] float thrustOffSlide(int h);
+// bayofix: how much of the free arm's reach no longer pulls back hand `h`'s gun held in two hands while V thrusts its
+// bayonet (or dagger) now (0 .. vr_flat_thrust_2h_drive, by the thrust's share): both hands drive it forward
+// (vr_flatsight.cpp pinToGrip / gripPull). 0 for a pole weapon, a gun with no blade on it, or no thrust.
+[[nodiscard]] float bayonetDrive2H(int h);
 // The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
 // over its grip's pin and before vr_twohand takes the hold).
 void bladePin(hands::State& s);
