@@ -452,4 +452,90 @@ void() VR_AGLOD_PackFrame =
     VR_AGLOD_PackEnd();
 };
 
+// vr_agrunt_test 235: a fight's census, for vr_agrunt_think_lod on against off (agent aglod; aglod_balance.py runs it on
+// hip1m1's 69-monster fight, combat maps and the arena's waves, several seeds each). Over AGLODC_FRAMES frames
+// (default 2160, 30 s) from its start: the players' damage taken (health set to 100000 first, no armour; god off),
+// the frames he was hit in, the armed humanoids' shots (vr_ag_shots' rises), the monsters killed, the frames' think-LOD
+// skips; then a hash of the game alone (every monster's place, health, frame, enemy; his health) and "test 235 over".
+// Same seed, LOD on and off: the same hash means the same fight, frame for frame.
+float AGLODC_FRAMES = 2160;
+float aglodc_start, aglodc_hp, aglodc_hits, aglodc_shots, aglodc_kills, aglodc_skips0, aglodc_frames;
+.float vr_aglodc_shots; // its vr_ag_shots last frame (the census)
+.float vr_aglodc_dead;  // counted dead (the census)
+void() VR_AGLOD_CensusFrame =
+{
+    entity p = VR_Player();
+    entity e;
+    if(!aglodc_start)
+    {
+        aglodc_start = time;
+        aglodc_hits = 0;
+        aglodc_shots = 0;
+        aglodc_kills = 0;
+        aglodc_frames = 0;
+        aglodc_skips0 = vr_aglod_skips;
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        p.health = 100000;
+        p.armorvalue = 0;
+        aglodc_hp = p.health;
+        return;
+    }
+    aglodc_frames = aglodc_frames + 1;
+    if(p.health < aglodc_hp)
+    {
+        aglodc_hits = aglodc_hits + 1;
+    }
+    aglodc_hp = p.health;
+    e = nextent(world);
+    while(e)
+    {
+        if(e.flags & FL_MONSTER)
+        {
+            if(e.vr_ag_shots > e.vr_aglodc_shots)
+            {
+                aglodc_shots = aglodc_shots + (e.vr_ag_shots - e.vr_aglodc_shots);
+            }
+            e.vr_aglodc_shots = e.vr_ag_shots;
+            if(e.health <= 0 && !e.vr_aglodc_dead)
+            {
+                e.vr_aglodc_dead = 1;
+                aglodc_kills = aglodc_kills + 1;
+            }
+        }
+        e = nextent(e);
+    }
+    float want = AGLODC_FRAMES;
+    if(aglodc_frames < want)
+    {
+        return;
+    }
+    float h = p.health * 19;
+    float n = 0;
+    float hunting = 0;
+    float dmin = 100000;
+    e = nextent(world);
+    while(e)
+    {
+        if(e.flags & FL_MONSTER)
+        {
+            n = n + 1;
+            if(e.health > 0 && e.enemy == p)
+            {
+                hunting = hunting + 1;
+                dmin = min(dmin, vlen(e.origin - p.origin));
+            }
+            h = h + (e.origin * '1 3 7' + e.health * 11 + e.frame * 13 + (e.enemy.origin * '1 1 1') * 17) * (1 + (n & 7));
+        }
+        e = nextent(e);
+    }
+    string head = sprintf("think_lod %g frames %g dmg %g hits %g shots %g", cvar_hget(cvarh_vr_agrunt_think_lod),
+        aglodc_frames, 100000 - p.health, aglodc_hits, aglodc_shots);
+    VR_AGT_Print(sprintf("aglod census: %s kills %g skips %g monsters %g game %.3f", head, aglodc_kills,
+        vr_aglod_skips - aglodc_skips0, n, h));
+    VR_AGT_Print(sprintf("aglod census hunting: %g of them hunting him, the nearest %.0f units; his flags %g", hunting, dmin,
+        p.flags));
+    aglodc_start = 0;
+    cvar_set("vr_agrunt_test", "0");
+};
+
 #endif

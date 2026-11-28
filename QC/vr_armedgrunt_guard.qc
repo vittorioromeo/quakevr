@@ -420,6 +420,7 @@ string(entity g) VR_AGG_Label =
 .float vr_aglod_t;  // VR_AG_ThinkLod: the server time it last decided at,
 .float vr_aglod_on; // ... its answer then (both weapons' thinks ask it: the first decides for the frame),
 .float vr_aglod_n;  // ... the frames its weapon think has skipped since its last whole one
+float vr_aglod_skips; // weapon thinks skipped since the map began (vr_agrunt_test 235's census)
 
 // TRUE when `g`'s weapon think skips this frame (VR_AG_PropThink, both weapons): the shot, throw and strike scans on its
 // weapons, its parry frame and its pose; its weapons carried along by its move (VR_AGP_LodCarry). Once every
@@ -474,6 +475,7 @@ float(entity g, float still) VR_AG_ThinkLod =
     if(on)
     {
         g.vr_aglod_n = g.vr_aglod_n + 1;
+        vr_aglod_skips = vr_aglod_skips + 1;
         g.vr_agp_lod_skip = g.vr_agp_lod_skip + 1; // (its pose's LOD counts it: VR_AGP_Lod's cadence, its eases' time)
     }
     else
