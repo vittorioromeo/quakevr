@@ -332,6 +332,10 @@ void transportRows()
     Reload& r = cur();
     const flatprocreload::Status st = flatprocreload::status();
     const int lock = static_cast<int>(vr_flat_prl_lock.value + (vr_flat_prl_lock.value >= 0.f ? 0.5f : -0.5f));
+    if(lock > 0 && st.locked && st.lockWeapon == r.weapon && st.lockKey >= 0 && st.lockKey < r.keyCount)
+    {
+        win.key = st.lockKey; // (locked from the console or the menu: the key edited follows)
+    }
     if(ImGui::Button(win.playing ? "Pause" : "Play"))
     {
         win.playing = !win.playing;
