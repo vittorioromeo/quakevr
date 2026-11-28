@@ -298,6 +298,20 @@ void PF_weapondrawnpose()
         progs::returnVec(what == 33 ? back : what == 34 ? front : glm::vec3{radius, glm::distance(front, back), 0.f});
         return;
     }
+    if(what >= 57 && what <= 59)
+    {
+        // weapondrawnpose(g, side, 57 / 58 / 59): armed humanoid `g`'s arm on `side` (0 right, 1 left) as solved lately (this
+        // listen server's own view: hitreact::drawnArm): its shoulder, its elbow, its hand's grip (world); '0 0 0' (all):
+        // not drawn lately. QC test 232: the shielding forearm before its eyes.
+        glm::vec3 sh{0.f}, el{0.f}, hd{0.f};
+        const bool local = sv.active && cls.state == ca_connected;
+        if(!local || !hitreact::drawnArm(NUM_FOR_EDICT(player), hand, sh, el, hd))
+        {
+            sh = el = hd = glm::vec3{0.f};
+        }
+        progs::returnVec(what == 57 ? sh : what == 58 ? el : hd);
+        return;
+    }
     if(what == 36)
     {
         // weapondrawnpose(g, side, 36): armed humanoid `g`'s ragdoll's hand bone holding its weapon on `side` (0 the main

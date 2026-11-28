@@ -70,6 +70,7 @@ vector vr_am_anchor_at;     // ... where it is at rest (its body's space: x ahea
 vector vr_am_sh_r;          // its shoulders at rest
 vector vr_am_sh_l;
 float vr_am_arm;            // ... an arm from its shoulder to its wrist (units)
+vector vr_am_eye;          // its eyes at rest (its body's space; its rig's head bone): the flashlight's dazzle, its shield
 vector vr_am_grip_r;        // its hands' grips at rest (on its own gun: its rest pose's hold, the wrists as the artist made them)
 vector vr_am_grip_l;
 vector vr_am_gun_fw;        // ... its own gun's way at rest
@@ -154,6 +155,7 @@ void(float k) VR_AM_Row =
             vr_am_sh_r = '3.5 -9 17.5';
             vr_am_sh_l = '3.5 8.5 17';
             vr_am_arm = 17.6;
+            vr_am_eye = '6.3 -0.1 23.5'; // (its rig's head bone, 0.41 up from its base: the dazzle's eyes, its shield's aim)
             // The grunt-made poses moved so the grunt's shoulders land on his (a little narrower, higher and forward).
             vr_am_fit_scale = '1 0.95 1';
             vr_am_fit_shift = '3.2 -0.06 2.05';
@@ -176,6 +178,7 @@ void(float k) VR_AM_Row =
         vr_am_sh_r = '2.5 -7.4 17.2';
         vr_am_sh_l = '2.5 10.1 16.7';
         vr_am_arm = 15.1;
+        vr_am_eye = '6 3.3 23.1'; // (its rig's head bone, 0.41 up from its base: the dazzle's eyes, its shield's aim)
         vr_am_fit_scale = '1 0.95 1';
         vr_am_fit_shift = '2.2 1.54 1.75';
         vr_am_grip_r = '7.1 -7.8 6.2';
@@ -224,6 +227,7 @@ void(float k) VR_AM_Row =
         vr_am_sh_r = '0.5 -13.5 24';
         vr_am_sh_l = '0.5 13 24';
         vr_am_arm = 16.4;
+        vr_am_eye = '4.2 0 29.1'; // (its rig's head bone, 0.41 up from its base: the dazzle's eyes, its shield's aim)
         // The grunt-made poses moved so the grunt's shoulders land on his (half as wide again, 8.8 higher).
         vr_am_fit_scale = '1 1.44 1';
         vr_am_fit_shift = '0.2 0.04 8.8';
@@ -277,6 +281,7 @@ void(float k) VR_AM_Row =
         vr_am_sh_r = '4 -8.5 13';
         vr_am_sh_l = '3 11 13';
         vr_am_arm = 16.7;
+        vr_am_eye = '5.4 1.8 21.5'; // (its rig's head bone, 0.41 up from its base: the dazzle's eyes, its shield's aim)
         // The grunt-made poses moved so the grunt's shoulders land on his (his a little wider, lower and forward).
         vr_am_fit_scale = '1 1.06 1';
         vr_am_fit_shift = '3.2 1.46 -2.2';
@@ -327,6 +332,7 @@ void(float k) VR_AM_Row =
         vr_am_sh_r = '-5.5 -12.5 21';
         vr_am_sh_l = '-5.5 11.5 21';
         vr_am_arm = 15;
+        vr_am_eye = '-4.1 -1.2 28.4'; // (its rig's head bone, 0.41 up from its base: the dazzle's eyes, its shield's aim)
         // The grunt-made poses fitted so the grunt's authored shoulders land on these, drawn in ahead and down 15 and
         // 10% (its arm reaches 18.9 to a grip: the goals a plain shift put were out of reach; glitch finder reach p95
         // 3.7 -> 2.6; ROUND22.md, "The enforcer's rig fixed").
@@ -379,6 +385,7 @@ void(float k) VR_AM_Row =
     vr_am_sh_r = '-0.3 -9.4 15.2';
     vr_am_sh_l = '0.9 9.0 15.2';
     vr_am_arm = 15.2; // (its right arm, shoulder to wrist: upper arm 8.2, forearm 7.0)
+    vr_am_eye = '3 0 22'; // (its rig's head bone, 0.41 up from its base: the dazzle's eyes, its shield's aim)
     vr_am_grip_r = '5.7 -3.6 4.8';
     vr_am_grip_l = '11.8 5.5 1.9';
     vr_am_gun_fw = '0.394 0.888 -0.235';

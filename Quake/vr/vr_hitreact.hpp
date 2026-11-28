@@ -64,6 +64,11 @@ void tiltModel(const entity_t* e, float matrix[16]);
 // volumes, VR_AG_WeaponLine; a ragdoll's weapon placed there, VR_AG_RagProp). False: not drawn lately.
 bool drawnWeapon(int prop, glm::vec3& at, glm::vec3& fw, glm::vec3& up);
 
+// Armed humanoid `ent`'s arm on `side` (0 right, 1 left) as its arms were solved lately (world): its shoulder, its elbow and
+// its hand's grip point. QC weapondrawnpose(g, side, 57 / 58 / 59): the dazzle test's shielding forearm. False: not drawn
+// lately.
+bool drawnArm(int ent, int side, glm::vec3& shoulder, glm::vec3& elbow, glm::vec3& hand);
+
 // An armed humanoid's held weapon (entity `prop`) as the arms drew it lately (this listen server's own view, within
 // the last 0.15 s): `turn` the rotation (world; its axis times degrees) from the server's forward to the drawn one, `off`
 // the drawn origin less the server's. QC weapondrawnpose(p, 0, 21 / 22): its shots go along the drawn line
