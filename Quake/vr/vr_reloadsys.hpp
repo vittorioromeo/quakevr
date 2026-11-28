@@ -63,14 +63,14 @@ enum class Action : int
     Insert, // the key waits at its end for the item to go in (VR's port test), its failsafe after
     Open,   // impulse 107: the gun opened (the super shotgun broken open, its spent shells out)
     Close,  // impulse 108: the gun closed (the super shotgun snapped shut)
-    Eject,  // (later: a magazine let out; nothing yet)
+    Eject,  // impulse 109: a magazine gun's magazine let out (its rounds back in the reserve; none in: nothing)
     Count
 };
 // When a key plays (skipped otherwise).
 enum class Cond : int
 {
     Always,
-    Closed, // the gun shut (the super shotgun not broken open)
+    Closed, // the gun shut (the super shotgun not broken open; a magazine gun with its magazine in)
     Opened,
     Loaded, // rounds in the gun
     Count

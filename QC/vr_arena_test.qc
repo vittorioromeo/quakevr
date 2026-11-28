@@ -3686,7 +3686,8 @@ void() VR_AT35_Frame =
         T_Damage(m, p, p, 100000);
         float tries;
         for(tries = 0; tries < 6 && m.vr_mg3_infected; tries++) { T_Damage(m, p, p, 100000); }
-        VR_AT_Check(vr_mg3_infected_drops == at35_drops + 1 && m.vr_ag == 0 && m.vr_ag_prop == world, sprintf("%s: his weapon fell, the armed layer gone", what));
+        VR_AT_Check(vr_mg3_infected_drops == at35_drops + 1 && m.vr_ag == 0 && m.vr_ag_prop == world && m.vr_hum_look == 0,
+            sprintf("%s: his weapon fell, the armed layer gone (look %g)", what, m.vr_hum_look));
         VR_AT_Check(m.vr_ar_type == 0 && m.vr_ar_mask == 0, sprintf("%s: his plates shed", what));
         if(at35_room == 2)
         {

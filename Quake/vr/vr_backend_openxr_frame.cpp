@@ -208,6 +208,30 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
         viewCount == 2 &&
         (viewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT);
 
+    // The runtime's fields of view, once a session (questvis: what the eyes are drawn at, beside the images' size)
+    if(viewsOk && !fovLogged)
+    {
+        fovLogged = true;
+        for(int eye = 0; eye < 2; eye++)
+        {
+            const XrFovf& f = views[eye].fov;
+            Con_Printf("VR: eye %d field of view (the runtime's): left %.2f right %.2f up %.2f down %.2f degrees (%.1f x %.1f)\n",
+                eye, static_cast<double>(glm::degrees(f.angleLeft)), static_cast<double>(glm::degrees(f.angleRight)),
+                static_cast<double>(glm::degrees(f.angleUp)), static_cast<double>(glm::degrees(f.angleDown)),
+                static_cast<double>(glm::degrees(f.angleRight - f.angleLeft)), static_cast<double>(glm::degrees(f.angleUp - f.angleDown)));
+        }
+    }
+    // vr_fov_reduce: the views drawn and submitted narrower (each edge's tangent scaled; the eyes' size with it)
+    if(fovReduceFactor() < 1.f)
+    {
+        for(XrView& v : views)
+        {
+            v.fov.angleLeft = reducedFovAngle(v.fov.angleLeft);
+            v.fov.angleRight = reducedFovAngle(v.fov.angleRight);
+            v.fov.angleUp = reducedFovAngle(v.fov.angleUp);
+            v.fov.angleDown = reducedFovAngle(v.fov.angleDown);
+        }
+    }
     for(int eye = 0; eye < 2; eye++)
     {
         frame.eyes[eye].pose = toPose(views[eye].pose, viewsOk);

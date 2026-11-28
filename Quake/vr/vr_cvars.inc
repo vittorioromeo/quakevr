@@ -38,7 +38,8 @@ QVR_CVAR(vr_enemy_melee_kind, "1", CVAR_ARCHIVE | QVR_RULE)       // each kind's
 QVR_CVAR(vr_enemy_melee_arc_show, "0", CVAR_NONE)      // each melee monster after you within 600 units draws its arc (its sweeping blows' too once seen) and reach on the floor, red with you inside, green outside, orange inside a sweeping blow's only; 2: also printed once a second (meleearc: show) (fight.qc VR_MeleeArc_ShowFrame, vr_bodycontact.cpp meleeArcDraw)
 QVR_CVAR(vr_enemy_melee_arc_debug, "0", CVAR_NONE)      // each monster blow's angle off its facing, its arc and reach, and whether it landed, printed (meleearc:)
 QVR_CVAR(vr_test_aimcone, "0", CVAR_NONE)               // the aim cone test (vr_aimcone_test.qc; Debug > Tests > Holding Enemies): distance * 1000 + degrees (300060: 300 units, 60 deg; degrees alone: 300 units): the nearest monster set that far from you, after you, its ranged attack started, and you held that many degrees off its facing (to its right) until the attack ends; then one "aimcone: result" line (shots, waits, bends, hits)
-QVR_CVAR(vr_test_meleearc, "0", CVAR_NONE)             // the melee arc test (vr_meleearc_test.qc; Debug > Tests > Holding Enemies): the nearest monster set 56 units from you and after you: 1 facing you, 2 facing away, 3 facing you and you step aside when it swings; 4 s, then a "meleearc:" summary
+QVR_CVAR(vr_test_humlook_dye, "-1", CVAR_NONE)          // (tests: vr_attrs_test.qc 234) set by vr_humlook_dyetest (vr_humlook.cpp): its failed checks (-1 not run)
+QVR_CVAR(vr_test_meleearc, "0", CVAR_NONE)           // the melee arc test (vr_meleearc_test.qc; Debug > Tests > Holding Enemies): the nearest monster set 56 units from you and after you: 1 facing you, 2 facing away, 3 facing you and you step aside when it swings; 4 s, then a "meleearc:" summary
 QVR_CVAR(vr_enemy_aim_cone, "1", CVAR_ARCHIVE | QVR_RULE)          // a monster's ranged shot (a grunt's, an ogre's grenade, a scrag's spit; not homing ones, not bosses) leaves along its facing bent toward you at most its aim cone (pitch free), and with you outside its fire cone it waits (turning) up to vr_enemy_aim_delay first; 0: Quake's shots, straight at you whatever its facing (vr_aimcone.qc; ROUND22.md "Ranged aim cone")
 QVR_CVAR(vr_enemy_aim_narrow, "1", CVAR_ARCHIVE | QVR_RULE)         // the aim and fire cones' multiplier for hitscan and fast shots (grunts, enforcers, gremlins, scourges, the expansions' gunners)
 QVR_CVAR(vr_enemy_aim_wide, "2", CVAR_ARCHIVE | QVR_RULE)           // the aim and fire cones' multiplier for lobbed and slow shots (an ogre's grenade, a scrag's spit, a death knight's magic, a zombie's flesh)
@@ -716,6 +717,10 @@ QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 // and depth, and it shows a made-up frame between the game's (the game at half the display's rate). The eyes go
 // through the post-process path then (the motion target needs the scene's own targets). Off by default (first beta).
 QVR_CVAR(vr_xr_spacewarp, "0", CVAR_ARCHIVE)
+// FOV reduction (questvis; vr_backend_openxr_frame.cpp, vr_main.cpp scaledEyeSize): the rendered field of view shrunk by
+// this many percent of each edge's tangent (0..30), the eyes drawn with as many fewer pixels a side (the same sharpness);
+// the compositor shows black beyond. Any OpenXR headset; 0 off.
+QVR_CVAR(vr_fov_reduce, "0", CVAR_ARCHIVE)
 // vr_spacewarp_test (tests, Debug > Profiling): 1 makes SpaceWarp's motion vectors and depth every frame into the
 // game's own images without a runtime that has it (the PC, the mock headset); vr_spacewarp_probe reads them.
 QVR_CVAR(vr_spacewarp_test, "0", CVAR_NONE)

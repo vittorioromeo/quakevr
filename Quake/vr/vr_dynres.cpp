@@ -186,7 +186,8 @@ void change(int bucket, unsigned long long serial, double ms, float drawn)
         return 0.f;
     }
     const float v = vr_menu_render_scale.value;
-    return v < 0.f ? (VR_GLESCompat() || VR_Android() ? 1.f : 0.f) : za::min(v, 2.f);
+    // (-1 with vr_menu_native: none, the menu is drawn at the image's own size over the world at its scale: questvis)
+    return v < 0.f ? ((VR_GLESCompat() || VR_Android()) && vr_menu_native.value == 0.f ? 1.f : 0.f) : za::min(v, 2.f);
 }
 
 } // namespace
@@ -246,7 +247,8 @@ void beginFrame()
     st.drawnScale[serial % ringSize] = bucketScale(st.bucket);
     ++fightStats.frames;
     fightStats.below += bucketScale(st.bucket) < normalFloorScale() - 1e-4f ? 1 : 0;
-    st.drawnSerial[serial % ringSize] = menuFloor() > bucketScale(st.bucket) ? 0 : serial; // (a menu's floor: not measured)
+    // (a menu's floor, or its native resample: not measured, those frames' GPU is not the bucket's)
+    st.drawnSerial[serial % ringSize] = menuFloor() > bucketScale(st.bucket) || key_dest == key_menu ? 0 : serial;
     if(st.changeSerial > serial)
     {
         st.changeSerial = serial; // the first frame at the new bucket

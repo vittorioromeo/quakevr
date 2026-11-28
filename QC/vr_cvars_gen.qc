@@ -2171,6 +2171,7 @@ float cvarh_vr_test_hit_all;
 float cvarh_vr_test_hit_calm;
 float cvarh_vr_test_hit_damage;
 float cvarh_vr_test_hit_watch;
+float cvarh_vr_test_humlook_dye;
 float cvarh_vr_test_hurt;
 float cvarh_vr_test_kill;
 float cvarh_vr_test_magslide_first;
@@ -4458,6 +4459,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_test_hit_calm = VR_CVar_Make("vr_test_hit_calm");
     cvarh_vr_test_hit_damage = VR_CVar_Make("vr_test_hit_damage");
     cvarh_vr_test_hit_watch = VR_CVar_Make("vr_test_hit_watch");
+    cvarh_vr_test_humlook_dye = VR_CVar_Make("vr_test_humlook_dye");
     cvarh_vr_test_hurt = VR_CVar_Make("vr_test_hurt");
     cvarh_vr_test_kill = VR_CVar_Make("vr_test_kill");
     cvarh_vr_test_magslide_first = VR_CVar_Make("vr_test_magslide_first");

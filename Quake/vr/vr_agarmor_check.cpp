@@ -683,6 +683,32 @@ void lookCoverage(const Shell& s, const rig2::Rig& rig, bool bent, float backCut
     {
         at(posed, v) = lookSkin(pose, at(s.verts, v).w, at(s.verts, v).p, 1.f);
     }
+    // The elbows' and knees' leather in the same pose: since the leather bridge (ROUND24.md, "Leather bridge at elbows and
+    // knees") it is no longer in the shell's triangles but made per frame; the skin between a limb's plates and its joint is
+    // under it, as it was under the old load-time sleeves (ROUND26.md, "alwaysfail2").
+    float bones[rig2::maxBones * 12]{};
+    for(int b = 0; b < rig2::maxBones; b++)
+    {
+        for(int row = 0; row < 3; row++)
+        {
+            for(int col = 0; col < 4; col++)
+            {
+                bones[b * 12 + row * 4 + col] = pose.m[b][col][row];
+            }
+        }
+    }
+    za::Vector<glm::vec3> leather(static_cast<za::SizeT>(za::max(s.bridgeVerts, 0)), glm::vec3{0.f});
+    bool leatherOk[NumJoints]{};
+    for(int j = 0; j < NumJoints && s.bridgeVerts > 0; j++)
+    {
+        const Bridge& br = s.bridges[j];
+        glm::vec3 P[bridgeMostRings * (bridgeCols + 1)], N[bridgeMostRings * (bridgeCols + 1)];
+        leatherOk[j] = br.ok && evalBridge(s, j, bones, rig.numBones, true, true, P, N, nullptr);
+        for(int v = 0; leatherOk[j] && v < br.rings * (bridgeCols + 1); v++)
+        {
+            at(leather, br.first + v) = P[v];
+        }
+    }
     for(int piece = 0; piece < NumPieces; piece++)
     {
         const uint32_t bones = pieceRegionBones(rig, piece);
@@ -730,6 +756,10 @@ void lookCoverage(const Shell& s, const rig2::Rig& rig, bool bent, float backCut
             for(int k = 0; k + 2 < count(s.tris) && !hit; k += 3)
             {
                 hit = rayHitsTri(o, d, at(posed, at(s.tris, k)), at(posed, at(s.tris, k + 1)), at(posed, at(s.tris, k + 2)), reach);
+            }
+            for(int k = 0; k + 2 < count(s.bridgeTris) && !hit; k += 3)
+            {
+                hit = rayHitsTri(o, d, at(leather, at(s.bridgeTris, k)), at(leather, at(s.bridgeTris, k + 1)), at(leather, at(s.bridgeTris, k + 2)), reach);
             }
             covered += hit ? 1 : 0;
             if(!hit && !bent && piece == lookListPiece && lookListModel && !ZA_STRCMP(lookListModel, s.model.cStr()))
@@ -925,6 +955,12 @@ void lookCheck_f()
     constexpr float mirrorMost = 0.25f;  // units: left against right, the plates' outer vertices (the player's symmetric body)
     constexpr float mirrorMostAuthored = 4.f; // (a humanoid's: its two arms' rest poses and meshes differ)
     constexpr float coverRest = 0.85f, coverBent = 0.8f; // a covered piece's skin under plates: rays out from its vertices
+    // (a humanoid's: its low-poly pieces measured on 8-20 vertices, one of them 5-12%; the fewer, bigger plates (ROUND24.md, 2026-11-08)
+    // and his armour.txt tuning: grunt thigh 75% at rest, enforcer upper arm 75% bent, knight forearm 81% at rest; ROUND26.md "alwaysfail2")
+    constexpr float coverRestAuthored = 0.7f, coverBentAuthored = 0.7f;
+    // (a death knight's: his armour.txt tuning (5c475b022): thigh taper_start 1.5 widens its hip row (8.89 over, taper 0.46);
+    // his cuirass start 2.5 / end 4 / standoff -0.4 bares his clavicles under his shoulder shells (cuirass 68% at rest, 78% untuned))
+    constexpr float widthOverMostDK = 9.5f, taperOffMostDK = 0.5f, coverRestDK = 0.65f, coverBentDK = 0.6f;
     constexpr float tileHueMost = 14.f;  // degrees: one tier's tiles, most apart
     constexpr float widthOverMost = 5.5f; // units: a row of plates' width past the skin's at that height (the player's)
     constexpr float widthOverMostAuthored = 7.5f; // (a low-poly humanoid's: a slice's few edges)
@@ -972,7 +1008,9 @@ void lookCheck_f()
         // Left against right.
         const rig2::Rig* rig = rigOfShell(src);
         const bool player = !ZA_STRNCMP(m, "progs/vrbody", 12);
-        const float widthLimit = player ? widthOverMost : widthOverMostAuthored, taperLimit = player ? taperOffMost : taperOffMostAuthored;
+        const bool dk = ZA_STRSTR(m, "hknight") != nullptr;
+        const float widthLimit = player ? widthOverMost : dk ? widthOverMostDK : widthOverMostAuthored;
+        const float taperLimit = player ? taperOffMost : dk ? taperOffMostDK : taperOffMostAuthored;
         float worst = lookMirror(*sp, *rig, Cuirass, Cuirass, !player);
         for(int p = PauldronL; p + 1 < NumPieces; p += 2)
         {
@@ -1004,10 +1042,10 @@ void lookCheck_f()
             static_cast<double>(za::min(rest[BracerL], rest[BracerR])), static_cast<double>(za::min(bent[BracerL], bent[BracerR])), static_cast<double>(za::min(rest[ThighL], rest[ThighR])),
             static_cast<double>(za::min(bent[ThighL], bent[ThighR])), static_cast<double>(za::min(rest[ShinL], rest[ShinR])), static_cast<double>(za::min(bent[ShinL], bent[ShinR])));
         // (a death knight's shins: 82% at rest, their skin past the sleeves, which hug it; ROUND24.md, "Armour round four's loose ends")
-        const float restLimit = ZA_STRSTR(m, "hknight") ? 0.8f : coverRest;
+        const float restLimit = dk ? coverRestDK : player ? coverRest : coverRestAuthored;
         check(restLeast >= restLimit, va("%s: no body showing at rest: at least %.0f%% of each covered piece's skin under plates (%.0f%%)", m, static_cast<double>(restLimit * 100.f), static_cast<double>(restLeast * 100.f)));
         // (a death knight's upper arms: his shoulder shells stay on his clavicles, his arm bends out from under them)
-        const float bentLimit = ZA_STRSTR(m, "hknight") ? 0.6f : coverBent;
+        const float bentLimit = dk ? coverBentDK : player ? coverBent : coverBentAuthored;
         check(bentLeast >= bentLimit, va("%s: bent: at least %.0f%% (%.0f%%)", m, static_cast<double>(bentLimit * 100.f), static_cast<double>(bentLeast * 100.f)));
     }
     float hue[3]{}, sat[3]{};

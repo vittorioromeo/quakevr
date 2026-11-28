@@ -995,7 +995,9 @@ HeldCommands heldCommands;
 
 bool fitsNow(int n)
 {
-    return cls.message.cursize + n + 2 <= cls.message.maxsize; // (clc_stringcmd, the text, its NUL)
+    // (signon 0: connected, the server's serverinfo not yet read; reading it clears cls.message (CL_ClearState), so a command
+    // written now was lost: a script's "map x; god" never reached the server; ROUND26.md "alwaysfail2". Held until then.)
+    return cls.signon > 0 && cls.message.cursize + n + 2 <= cls.message.maxsize; // (clc_stringcmd, the text, its NUL)
 }
 
 void writeCommand(const char* text)

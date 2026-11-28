@@ -213,6 +213,7 @@ vr_xr_foveation|0|VR Settings - Display and Graphics|Quest Foveation|VR Settings
 vr_xr_foveation_dynamic|1|VR Settings - Display and Graphics|Quest Foveation: Dynamic|VR Settings > Display and Graphics > Quest Foveation: Dynamic
 vr_xr_foveation_offset|1|VR Settings - Display and Graphics|Quest Foveation: Shift|VR Settings > Display and Graphics > Quest Foveation: Shift
 vr_xr_spacewarp|0|VR Settings - Display and Graphics|SpaceWarp|VR Settings > Display and Graphics > SpaceWarp
+vr_fov_reduce|0|VR Settings - Display and Graphics|FOV Reduction|VR Settings > Display and Graphics > FOV Reduction
 vr_retro|0|VR Settings - Display and Graphics|Retro Textures|VR Settings > Display and Graphics > Retro Textures
 vr_retrolight|0|VR Settings - Display and Graphics|Retro Lighting|VR Settings > Display and Graphics > Retro Lighting
 vid_fsaa|0|VR Settings - Display and Graphics|Antialiasing|VR Settings > Display and Graphics > Antialiasing
@@ -5285,6 +5286,7 @@ vr_gl_alias_nofb|2|Tunables|No Fullbright Read (Quest)|Advanced VR Options > Deb
 vr_gl_alias_flat|2|Tunables|Flat-Lit Gore (Quest)|Advanced VR Options > Debug > Tunables > Flat-Lit Gore (Quest)
 vr_gl_alias_vlight|2|Tunables|Plain Models Lit at Vertices (Quest)|Advanced VR Options > Debug > Tunables > Plain Models Lit at Vertices (Quest)
 vr_menu_render_scale|2|Tunables|Menu Render Scale|Advanced VR Options > Debug > Tunables > Menu Render Scale
+vr_menu_native|2|Tunables|Menu at Native Resolution|Advanced VR Options > Debug > Tunables > Menu at Native Resolution
 vr_gl_foveation|2|Tunables|Scene Foveation (Quest)|Advanced VR Options > Debug > Tunables > Scene Foveation (Quest)
 vr_revgrip_pivot|2|Tunables|Flip Pivot|Advanced VR Options > Debug > Tunables > Flip Pivot
 vr_revgrip_pivot_shift|2|Tunables|Flip Pivot Shift|Advanced VR Options > Debug > Tunables > Flip Pivot Shift

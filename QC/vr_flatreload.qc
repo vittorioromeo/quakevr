@@ -486,10 +486,11 @@ float(entity p, entity xBox) VR_FlatReload_ProcHolds =
 float(float xHand) VR_FlatReload_ProcWanted =
 {
     // (reloadsys: the shotgun and the super shotgun, the one that breaks open in flat-screen play: vr_flat_ssg_break;
+    // reloadmags: the magazine guns, VR_Reload_UsesMag: the nailguns, the thunderbolt and its plasma look, the nail pistol;
     // reloadmuzzle: the launchers loaded at the muzzle, vr_reload_front, and the heavy revolver's cylinder)
     float w = VRGetEntWeapon(self, xHand);
-    float kind = w == WID_SHOTGUN || (w == WID_SUPER_SHOTGUN && VR_FlatReload_SsgBreaks(self, xHand)) || VR_Reload_IsFront(w) ||
-                 (w == WID_REVOLVER && VRGetEntWeaponInst(self, xHand) != world);
+    float kind = w == WID_SHOTGUN || VR_Reload_UsesMag(w) || (w == WID_SUPER_SHOTGUN && VR_FlatReload_SsgBreaks(self, xHand)) ||
+                 VR_Reload_IsFront(w) || (w == WID_REVOLVER && VRGetEntWeaponInst(self, xHand) != world);
     if(!cvar_hget(cvarh_vr_flat_proc_reload) || !kind || !VR_FlatReload_Can(xHand))
     {
         return FALSE;
@@ -572,6 +573,37 @@ void(string xWhy) VR_FlatReload_ProcCancelAll =
     VR_FlatReload_ProcStop(cVR_OffHand, FALSE, xWhy);
 };
 
+// The magazine gun in `xHand` of self lets its magazine out for its procedural reload (reloadmags; `xWhy` for the log): the
+// rounds in it back into the reserve first (as the timed reload's R on a clip not yet empty: nothing lost; what has no room
+// there stays in the magazine), then out by the gun's own eject (VR_Reload_EjectOut: the nail pistol's sliding out of its
+// grip; pushed out at vr_flat_mag_eject_speed as an empty gun's). TRUE if one came out; none in (already out, sliding out,
+// not a magazine gun): FALSE.
+float(float xHand, string xWhy) VR_FlatReload_ProcEjectHand =
+{
+    float w = VRGetEntWeapon(self, xHand);
+    float f = VRGetEntWeaponFlags(self, xHand);
+    if(!VR_Reload_UsesMag(w) || (f & QVR_WPNFLAG_NOMAG) || (self.vr_mag_out & VR_FlatReload_Bit(xHand)))
+    {
+        return FALSE;
+    }
+    VR_FlatReload_SetDue(xHand, 0);
+    float n = VRGetEntWeaponClip(self, xHand);
+    float aid = WeaponIdToAmmoId(w, f);
+    float back = 0;
+    if(n > 0 && aid != AID_NONE)
+    {
+        back = min(n, max(0, VR_MaxAmmo(self, aid) - VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid)));
+        VR_AmmoUtil_AddAmmoCountByAmmoId(self, aid, back);
+        VRSetEntWeaponClip(self, xHand, n - back);
+    }
+    VR_Reload_EjectOut(self, xHand, max(0, cvar_hget(cvarh_vr_flat_mag_eject_speed)), strcat("flat-screen play: ", xWhy));
+    self.vr_fprl_prog = time;
+    self.vr_fprl_clip = VRGetEntWeaponClip(self, xHand);
+    dprint(sprintf("flat proc reload: %s hand: the magazine out (%s): %g of its %g back in the reserve, storage %g\n",
+        VR_FlatReload_HandName(xHand), xWhy, back, n, VR_FlatReload_Storage(xHand)));
+    return TRUE;
+};
+
 // Impulse 99 (the client: the free hand at the pouch): it takes a round as a headset's grip there takes one
 // (VR_Reload_Take: a taped pair, a single shell for the last place), the pouch's hotspot reported for it.
 void() VR_FlatReload_ProcTake =
@@ -592,6 +624,9 @@ void() VR_FlatReload_ProcTake =
     }
     // (reloadmuzzle: a swung-out revolver's spent shells out first if their time hasn't come yet: the empty chambers to load.)
     VR_FlatReload_RvEjectFrame(gun, TRUE);
+    // (A magazine gun whose magazine is still in, its eject key skipped or not yet come: let out first, its rounds kept,
+    // so the new one never seats over it and loses them: VR_FlatReload_ProcEjectHand.)
+    VR_FlatReload_ProcEjectHand(gun, "the take, a magazine still in");
     vr_flatreload_proc_go = TRUE;
     VR_Reload_Take(free);
     vr_flatreload_proc_go = FALSE;
@@ -609,6 +644,16 @@ void() VR_FlatReload_ProcTake =
 float() VR_FlatReload_ProcGun =
 {
     return VR_FlatReload_ProcIn(self, cVR_MainHand) ? cVR_MainHand : (VR_FlatReload_ProcIn(self, cVR_OffHand) ? cVR_OffHand : -1);
+};
+
+// Impulse 109 (the client's eject key, reloadmags): the magazine of the gun of the procedural reload let out.
+void() VR_FlatReload_ProcEject =
+{
+    float gun = VR_FlatReload_ProcGun();
+    if(gun < 0 || !VR_FlatReload_ProcEjectHand(gun, "the reload's eject"))
+    {
+        dprint("flat proc reload: eject: no magazine in a gun reloading\n");
+    }
 };
 
 // Impulse 107 (the client's open key, reloadsys): the super shotgun of the procedural reload broken open if it is shut (the

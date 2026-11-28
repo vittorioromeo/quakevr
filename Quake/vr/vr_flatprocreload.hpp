@@ -42,12 +42,16 @@ void noteDrawn(const hands::State& s, int hand, const glm::vec3& pos, const glm:
 void attachDrawn(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot);
 [[nodiscard]] bool portNow(const hands::State& s, int g, glm::vec3& port);
 // The key-pose lock (vr_flat_prl_lock, prlfix: to tune the poses) holding a taped pair in the free hand: that hand and the
-// pair's size (vr_view.cpp prlPair draws it) and its model (reloadmuzzle: the launcher's round, the revolver's slugs: the
-// gun's item); false: no pair to draw.
-[[nodiscard]] bool lockPair(int& hand, float& scale, const char*& model, int& skin);
+// pair's size (vr_view.cpp prlPair draws it); false: no pair to draw.
+[[nodiscard]] bool lockPair(int& hand, float& scale);
+// Its skin (reloadmuzzle: the revolver's slugs, 1).
+[[nodiscard]] int lockItemSkin();
 // Where that pair is for the hand drawn at `handPos` turned `handRot` (hands::State angles), and its model's axes (forward,
 // left, up): as it sat in the hand at the last real take (a default before one).
 [[nodiscard]] glm::vec3 lockPairPlace(const glm::vec3& handPos, const glm::vec3& handRot, glm::mat3& axes);
+// The model drawn for it: the taped pair, a magazine gun's magazine (reloadmags; QC VR_Reload_MagModel's), a launcher's round
+// or the revolver's slugs (reloadmuzzle).
+[[nodiscard]] const char* lockItemModel();
 // Whether flat-screen play shows the ammo pouch (the server says the procedural reload is on: STAT_QVR_FLATRELOAD's 64),
 // vr_body.cpp ammoPouchEnabled.
 [[nodiscard]] bool pouchShown();

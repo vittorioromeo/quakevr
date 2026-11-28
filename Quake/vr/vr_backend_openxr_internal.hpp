@@ -442,6 +442,7 @@ private:
     int tracedFrame{0};
     XrFrameState frameState{XR_TYPE_FRAME_STATE};
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
+    bool fovLogged{false}; // the runtime's fields of view said (once: questvis)
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
     // XR_EXT_user_presence (vr_xr_user_presence; from PR #75, by Kasper Olesen): enabled when offered; the system's

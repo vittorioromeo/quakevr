@@ -244,6 +244,7 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
+#include "Zancle/Math/Atan.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
@@ -2057,9 +2058,21 @@ void statusLines(za::Vector<za::String>& out)
     out.pushBack(za::String{line});
 }
 
+float fovReduceFactor()
+{
+    return 1.f - za::clamp(vr_fov_reduce.value, 0.f, 30.f) * 0.01f;
+}
+
+float reducedFovAngle(float angle)
+{
+    const float k = fovReduceFactor();
+    return k >= 1.f ? angle : za::atan(za::tan(angle) * k);
+}
+
 int scaledEyeSize(int image, int max)
 {
-    return dynres::eyeSize(image, max, dynres::scale()); // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp)
+    // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp; vr_fov_reduce's narrower view at the same density)
+    return dynres::eyeSize(image, max, dynres::scale() * fovReduceFactor());
 }
 
 } // namespace qvr
