@@ -188,6 +188,7 @@ typedef struct vraliasinstance_s
 	float		nails[4]; // painted nails (vr_view.cpp nailLook; the shaders' Nails): the polish's rgb, w 1 + its gloss (0 none)
 	float		barrel[4]; // a hot gun barrel's glow (vr_hotblade.cpp barrelInstance; the shaders' Barrel): 1 + its mask's place in BarrelMasks (1 + first word; 1 alone: no mask; 0: not a barrel), its ramp along the rest pose's x (x * [1] + [2]), [3] 1: the mask shown flat (painted)
 	float		recolor[4][4]; // an armed humanoid's recolour by its weapon (vr_humlook.cpp instanceRows; the shaders' Recolor): the clothes' and the pack's colours, their lightness and tint, the mask ([3][0] 0: none)
+	float		elite[4]; // the elite marker (vr_humlook.cpp eliteGlow, vr_elite_glow; the shaders' Elite, in ModelRimReflect): its glow's rgb times its strength, w its share over the whole body (zero: none)
 } vraliasinstance_t;
 int VR_AliasPlainNeeds (const vraliasinstance_t *vr); // r_alias.c: the per-model features an instance turns on (vr_gl_alias_plain_mask's bits; vr_render.cpp)
 int VR_AliasPlainUse (int needs); // r_alias.c: a batch needing `needs` drawn by glprogs.alias_plain (vr_gl_alias_plain)

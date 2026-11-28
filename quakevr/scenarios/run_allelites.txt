@@ -1,0 +1,6 @@
+# run_allelites: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Run mutator All Elites on e1m1
+map e1m1
+cvar vr_agrunt_repl 1
+cvar vr_run_allelites 1
+hint All Elites: every armed grunt of e1m1 is an elite: gold clothes, a soft gold glow round it and its armour (gold-trimmed plates), much quicker to fire and react, tougher. The dogs stay ordinary.

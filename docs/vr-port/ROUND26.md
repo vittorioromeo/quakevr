@@ -6143,7 +6143,69 @@ to RT/LT/A; new `seat_padlabels_test.sh` 4/0, seat_bind 14/0, seat_menu 62/0, sp
 - Headset: beta6 put back (1.2.0-beta6, progs a0bfe11a), his 31 autosaves and 3 top-level saves restored (35 sums match).
   Scripts: worktree `scratch/qcb_*` (not committed): `qcb_q.sh` (backup/install/launch/restore), `qcb_mkcfg.py`,
   `qcb_parse.py`, `qcb_q2.cfg` (the profile A/B).
+## elite2: elites easy to spot (gold rim glow, gold-trimmed plates) and the All Elites mutator (branch agent/elite2, 2026-11-28)
 
+His words 2026-11-28 (items 15, 16): the elite colouring is not easily visible, armoured elites harder still; a glow or aura; a
+Run Setup mutator making every enemy spawn elite. Then (his addition): a gold trim on an armoured elite's plates, the tier's
+colour still clearly read.
+- **The marker** (`vr_elite_glow` 0.55, `vr_elite_glow_fill` 0.12; Tunables > Armed Humanoids > Elite): a gold fresnel rim
+  (1 - |n.v|)^2 plus a small fill, unlit (added after the model's light, before fog): an elite reads in the dark. On its body
+  and on its armour's plates and joints' leather (`agarmor::sourceOf` maps them to the wearer); the plates get the outline
+  alone (no fill: their tier's colour kept). Pulses with the dye (`vr_elite_pulse`, same phase). `humlook::eliteGlow` fills a
+  new instance vec4 `Elite` (vraliasinstance_t.elite); the term lives in `ModelRimReflect`, so an elite's instance sets the
+  rim bit (128) of `VR_AliasPlainNeeds`: no new plain-form bit, no extra pass. AD's death guard and crossbow knight now carry
+  the elite bit too (QC VR_Attr_Look: kind * 16 + 8192; no dye masks there: keyOf -1, the marker alone; dyetest skips them).
+- **The gold trim** (`vr_elite_trim` 1): make_agarmor.py paints 9 more skins (9..17: the same nine with the plates' trim, sides
+  and lower edge, a bright gold quantised with Quake's tan-gold and yellow rows, not the tier's: no green or red speckle); the
+  faces are untouched. relink draws an elite's plates with skin + 9 (the leather keeps its own). The first nine skins and the
+  relief are byte-identical; vragarmor.mdl 295 KB -> 590 KB. On red the gold reads orange-gold (the palette's limit).
+- **Cost**: per elite fragment one dot, an abs and three mads under a per-instance branch; 16 bytes more per alias instance;
+  the trim a skin swap (9 more 256x128 skins in memory). Not measured on the Quest (no headset run here), nor timed on PC.
+- **All Elites** (`allelites`, Run Setup's Enemies group and Arena Mode's screen): `vr_run_allelites.qc` through the new hook
+  `VR_Run_ForcesElite(e)` in VR_Attr_Spawned (VR_AM_Spawn's end): every armed humanoid the map, a replacement, Enemy Count or
+  Randomized Enemies spawns, and the arena's waves (its held roll, preset waves too); never the tools' (vr_agr_hold) or
+  deathmatch's. Not held by Armed Humanoids (decision: Arena Mode always has them; without them it changes nothing). Saved
+  with the run through the registry like the others.
+- **Debug**: `vr_humlook_glowtest [elites] [plates]` (Debug > Tools > Enemy Attributes > Check the Elites' Marker); the client
+  elite lines of `vr_humlook_info` print the marker.
+- **Tests**: `vr_agrunt_test 234` 4/0 (three screenshots now: plain, armoured a tier per pair, dim light; glowtest 10/0, then
+  26/0 with the plates and their skins); `vr_run_elites_check` 4/0 (e1m2: 17 of 17 armed humanoids elite, 0 of 7 others; off:
+  none; the hook's rules); vr_runsetup_test 91/0; `mp_test.py suite --only mp_elite` 10/0 (B's marker 0.45); tunables_test
+  passes. Scene: elite_marker.
+
+## ragknock: ragdolls knock living monsters down only when it convinces (branch agent/ragknock, 2026-11-28)
+
+His note (words_1128b item 1): bodies with smaller forces floored enemies too easily. The one path where a ragdoll
+(corpse, knocked-down or staggering one, thrown, swung or flung by anything) knocks a living monster over is the Thrown
+Body trigger: the engine's `callBodyHits` (vr_box3d_step.cpp) -> QC `VR_KdTrig_BodyHit` -> `VR_KdTrig_Bump`
+(vr_kdtrig.qc). (A gun or prop falling on one is the hit stagger's, vr_hitstagger.qc: not changed.)
+
+| | before | now (`vr_ragknock` 1) |
+|---|---|---|
+| meeting | the whole body's box (grown 4 u) overlapping the monster's box | only the parts whose own boxes meet it |
+| momentum | whole mass x the middle's whole speed (falling included) | meeting parts' mass x their speed into it (towards its middle, relative to its velocity) + `_body` 0.6 of the rest behind the pelvis/chest (`_limb` 0.15 behind limbs alone); a stagger's backpedal: all of it x `_driven` 1.75 |
+| when | every frame it overlaps | once a meeting: its hardest within `_wait` 0.15 s (sooner when all of it is in it or it stops striking); its speed capped at the closing speed as they met (falling on through one gains nothing); a new throw starts a new meeting |
+| floor | middle speed >= 40 u/s; strike >= `vr_kdtrig_thrown_least` 0.05 | also parts into it >= `_min_speed` 60 u/s, strike >= `_stagger` 0.35 |
+| tiers | strike 0.05..1: chance of down grows 0..full, else stagger | < 0.35 nothing; 0.35..0.9 stagger; 0.9..1.5 down at half to full chance, else stagger; >= 1.5 full chance |
+| victim | weight 80 x group resistance; weight classes | same, strike also / stance: off the ground x`_air` 0.6, a low wide box (height/width < `_low_ratio` 1.45: ogre, dog, spider) x`_low` 1.6 |
+
+Strike = momentum / (its weight x `vr_kdtrig_thrown_speed` 160), as before; the weight classes (`vr_kdtrig_weight_*`), the
+chance (`vr_kdtrig_thrown`), the push and the cooldowns keep their meaning. `vr_ragknock 0` is the old rule. Tunables
+under Combat > Ragdoll Triggers - Thrown Bodies. `vr_kdtrig_debug 2` prints the engine's measure each frame a pair meets
+(`ragknock: 47 of 84 kg meet it (trunk, driven) at 113 u/s into it, the body 120: ... as 93 u/s`).
+
+Measured (headless): a hard two-hand shove's backpedal into a grunt 1.3-1.6 (down), a corpse flung at a grunt at 380
+u/s 1.4-2.1 (a glancing one, a leg first, 0.4-0.8: a stagger), a body falling 140 units onto one 3.1, a grunt's
+ragdoll falling from its head through it: nothing, a corpse falling over beside it: nothing or 0.66 (stagger), a corpse
+at 380 u/s at an ogre 0.15-0.62 (nothing or a stagger; it is never toppled: its weight class).
+
+- Files: vr_box3d_step.cpp (`ragKnockStrike`, `callBodyHits`), vr_box3d_internal.hpp (`RagdollBodies::Meet`),
+  vr_kdtrig.qc (`VR_KdTrig_Bump`'s tiers, `VR_RagKnock_Stance`), vr_tunables*.inc (`vr_ragknock*`).
+- Test: `vr_agrunt_test 236` (QC/vr_ragknock_test.qc, map vrragtriggers): 6 cases x 3 trials, seeds 1-3 7/0 each; the
+  old rule (`tune vr_ragknock 0`) fails the light drop (1 of 3 down, 2 staggered).
+  `sv_random_seed 1;map vrragtriggers;wait30;god;vr_agrunt_test 236` -QuitOn "test 236 over".
+- Open: `vr_kdtrig_test 44` (the thrown trials) is confounded: its corpse is killed between you and the target, and the
+  kill push throws it into the target before the fling (down then, counted "stands"). Not changed.
 ## dazzlestudio: the dazzle shield's pose tweaked per armed humanoid kind, one weapon and two, in an ImGui Dazzle Studio with gizmos (branch agent/dazzlestudio, 2026-11-28)
 
 His words 2026-11-28 (item 14): per-kind offsets/rotations on top of the base dazzle pose, elbow and forearm adjustments,
@@ -6272,3 +6334,20 @@ Tests: flatpad_test.sh 4/0, seat_bind 14/0, seat_menu 62/0, seat_play 63/0, seat
 split_join 113/0, flatholster 61/0, flatpunchfloor 6/0, weaponwheel 26/0, flatholsterbob 14/0, aglod_test 18/0,
 seat_render 367/1 (the anim ragdoll in both seats 13-14 of 16 frames: recurring, open). How to try it and what a merge
 into next needs: SPLITSCREEN.md section 31.
+## blcheck: BACKLOG items checked against the code and ROUND26 (branch agent/blcheck, 2026-11-28)
+
+Every open BACKLOG.md bullet (about 79) read against ROUND26/ROUND25 sections and the code (greps; no tests run: docs only).
+Counts: closed 1 (a sub-item), trimmed 5, kept the rest (about 73), added 3.
+
+- **Closed:** the flat `weaponwheel_test` failure (section 1): flatmenu3 ran weaponwheel_test flat 21/0 (the wheel's tap cycle).
+- **Trimmed to what is left:** section 1 hip1m1 (QuakeC profiled and cut: questopt2, qcnative, aglod, qcbuiltins, qcvm; the unworn
+  headset's pauses explained by questopt2; left: props' think native port, agpose, limbpiece, navsteer); section 3 procedural
+  reloads (reloadsys, reloadmags, reloadmuzzle did the super shotgun, magazine guns, nailguns, launchers, heavy revolver); section 6
+  AD humanoids (adknights armed the death guard and crossbow knight and their worn packs; his look and the other AD kinds left);
+  section 8 the dagger's flight (its Dagger Settling tunables shipped in ROUND25; values and refinement left); section 1's toolgun
+  panel line (its sibling fixed).
+- **Checked, still open:** agent/split is not in origin/next; `vr_physsound.cpp` still has its surface-hold copy (line ~403);
+  `vr_main.cpp` still registers many test commands; flat left-handed mode has no mirrored `routeFire`; the ammomags work is not
+  in yet ("Ammo type follows the loaded magazine" stays).
+- **Added (section 11):** mixed ammo loads in launchers (placeholder for the ammomags worker), `vr_menu_pad_test` hang on agent/split,
+  the unused scenes `agrunt_dual_guns` and `armour_beasts`.

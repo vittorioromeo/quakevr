@@ -255,6 +255,59 @@ float(float rk, float ww, float af) VR_Run_ArmedCheck2 = { VR_Test_Begin("vr_run
 float(float rk, float ww, float af) VR_Run_ArmedCheck3 = { VR_Test_Begin("vr_run_armed_check"); VR_RAT_Armour(af); return vr_test_fail == 0; };
 float(float rk, float ww, float af) VR_Run_ArmedCheck4 = { VR_Test_Begin("vr_run_armed_check"); VR_RAT_Map(rk, af); return vr_test_fail == 0; };
 
+// The engine's `vr_run_elites_check <allelites>` (vr_runsetup.cpp; All Elites): the map's armed humanoids every one an
+// elite as the run says (none without it: the script keeps vr_elite_spawn 0), its other monsters never; then the hook's
+// rules on a living armed humanoid: the arena's wave spawn (its held roll, a preset's held replacements too) forced as
+// the run says, the tools' never (vr_agr_hold). 1: as expected (each check printed, developer 1).
+float(float ae, float b, float c) VR_Run_ElitesCheck =
+{
+    VR_Test_Begin("vr_run_elites_check");
+    float armed = 0, elites = 0, others = 0, otherElites = 0, pending = 0;
+    entity probe = world;
+    entity e;
+    for(e = nextent(world); e; e = nextent(e))
+    {
+        if(!(e.flags & FL_MONSTER) || e.health <= 0)
+        {
+            continue;
+        }
+        if(e.vr_ag)
+        {
+            armed = armed + 1;
+            elites = elites + ((e.vr_attrs & VR_ATTR_ELITE) != 0);
+            pending = pending + (e.vr_agr_pending != 0);
+            probe = probe ? probe : e;
+        }
+        else
+        {
+            others = others + 1;
+            otherElites = otherElites + ((e.vr_attrs & VR_ATTR_ELITE) != 0);
+        }
+    }
+    VR_Test_Check(armed > 0 && pending == 0, sprintf("the map: %g armed humanoids, %g still to roll", armed, pending));
+    VR_Test_Check(elites == (ae ? armed : 0), sprintf("the map: %g of %g armed humanoids elite (all elites %g)", elites, armed, ae));
+    VR_Test_Check(otherElites == 0, sprintf("the map: %g of its %g other monsters elite", otherElites, others));
+    if(probe)
+    {
+        float hold0 = vr_agr_hold, roll0 = vr_ar_hold_roll;
+        vr_agr_hold = 0;
+        vr_ar_hold_roll = 1;
+        float arena = VR_Run_ForcesElite(probe);
+        vr_agr_hold = 1;
+        float preset = VR_Run_ForcesElite(probe);
+        vr_ar_hold_roll = 0;
+        float tools = VR_Run_ForcesElite(probe);
+        vr_agr_hold = 0;
+        float map = VR_Run_ForcesElite(probe);
+        vr_agr_hold = hold0;
+        vr_ar_hold_roll = roll0;
+        VR_Test_Check(arena == (ae != 0) && preset == (ae != 0) && map == (ae != 0) && !tools,
+            sprintf("the hook: an arena wave's %g, a preset wave's %g, the map's %g, the tools' %g (all elites %g)", arena, preset,
+                    map, tools, ae));
+    }
+    return vr_test_fail == 0;
+};
+
 // vr_gameplay_classic_check (the engine's, vr_gameplaypresets.cpp), the Classic gameplay preset in the running game: no
 // gun has a reloading mode (they fire from the reserve), no grunt burst rifle, no armed humanoid, the map's grunts the
 // original ones.

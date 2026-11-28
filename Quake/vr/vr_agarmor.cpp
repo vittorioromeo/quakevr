@@ -19,6 +19,7 @@
 #include "vr_engine.hpp"
 #include "vr_held.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_humlook.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_mdldequant.hpp"
@@ -3873,7 +3874,8 @@ void relink()
             a.model = armor;
             // (the Armour Studio's subject: its body a ghost, its plates whole)
             a.alpha = studio.ent > 0 && num == studio.ent ? static_cast<byte>(ENTALPHA_DEFAULT) : a.alpha;
-            a.skinnum = type - 1 + 3 * level;
+            // (an elite's: the same skin with the trim gold, make_agarmor.py's 9 more: elite2, vr_elite_trim)
+            a.skinnum = type - 1 + 3 * level + (numSkins >= 18 && vr_elite_trim.value != 0.f && humlook::isElite(num) ? 9 : 0);
             a.frame = 0;
             a.previouspose = a.currentpose = 0;
             a.lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));

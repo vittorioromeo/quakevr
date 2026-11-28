@@ -449,9 +449,9 @@ extern "C" int VR_AliasPlainNeeds(const vraliasinstance_t* vr)
     {
         needs |= 64; // in_morph
     }
-    if(vr->surface[0] > 0.f || vr->surface[1] > 0.f)
+    if(vr->surface[0] > 0.f || vr->surface[1] > 0.f || vr->elite[3] > 0.f || vr->elite[0] > 0.f)
     {
-        needs |= 128; // rim light, reflections (ModelRimReflect)
+        needs |= 128; // rim light, reflections, the elite marker (ModelRimReflect)
     }
     return needs;
 }
@@ -857,6 +857,8 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     {
         ZA_MEMSET(out->recolor, 0, sizeof(out->recolor));
     }
+    // the elite marker (vr_elite_glow): an elite's body and its armour's plates and leather (lit or not: seen in the dark)
+    humlook::eliteGlow(e, out->elite);
     ZA_MEMSET(out->skintone, 0, sizeof(out->skintone));
     ZA_MEMSET(out->glove, 0, sizeof(out->glove));
     ZA_MEMSET(out->glovecuff, 0, sizeof(out->glovecuff));

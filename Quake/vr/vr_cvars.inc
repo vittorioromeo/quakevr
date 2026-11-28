@@ -39,6 +39,7 @@ QVR_CVAR(vr_enemy_melee_arc_show, "0", CVAR_NONE)      // each melee monster aft
 QVR_CVAR(vr_enemy_melee_arc_debug, "0", CVAR_NONE)      // each monster blow's angle off its facing, its arc and reach, and whether it landed, printed (meleearc:)
 QVR_CVAR(vr_test_aimcone, "0", CVAR_NONE)               // the aim cone test (vr_aimcone_test.qc; Debug > Tests > Holding Enemies): distance * 1000 + degrees (300060: 300 units, 60 deg; degrees alone: 300 units): the nearest monster set that far from you, after you, its ranged attack started, and you held that many degrees off its facing (to its right) until the attack ends; then one "aimcone: result" line (shots, waits, bends, hits)
 QVR_CVAR(vr_test_humlook_dye, "-1", CVAR_NONE)          // (tests: vr_attrs_test.qc 234) set by vr_humlook_dyetest (vr_humlook.cpp): its failed checks (-1 not run)
+QVR_CVAR(vr_test_humlook_glow, "-1", CVAR_NONE)         // (tests: vr_attrs_test.qc 234) set by vr_humlook_glowtest (vr_humlook.cpp): its failed checks (-1 not run)
 QVR_CVAR(vr_test_meleearc, "0", CVAR_NONE)           // the melee arc test (vr_meleearc_test.qc; Debug > Tests > Holding Enemies): the nearest monster set 56 units from you and after you: 1 facing you, 2 facing away, 3 facing you and you step aside when it swings; 4 s, then a "meleearc:" summary
 QVR_CVAR(vr_enemy_aim_cone, "1", CVAR_ARCHIVE | QVR_RULE)          // a monster's ranged shot (a grunt's, an ogre's grenade, a scrag's spit; not homing ones, not bosses) leaves along its facing bent toward you at most its aim cone (pitch free), and with you outside its fire cone it waits (turning) up to vr_enemy_aim_delay first; 0: Quake's shots, straight at you whatever its facing (vr_aimcone.qc; ROUND22.md "Ranged aim cone")
 QVR_CVAR(vr_enemy_aim_narrow, "1", CVAR_ARCHIVE | QVR_RULE)         // the aim and fire cones' multiplier for hitscan and fast shots (grunts, enforcers, gremlins, scourges, the expansions' gunners)
@@ -4530,6 +4531,8 @@ QVR_CVAR(vr_runpick_armoredfoes, "0", CVAR_ARCHIVE)   // Run Setup: Armored Foes
 QVR_CVAR(vr_run_rangedknights, "0", CVAR_NONE)        // the run's Ranged Knights: armed knights and death knights spawn with and take up ranged weapons (QC vr_armedrepl.qc VR_AKN_Pick)
 QVR_CVAR(vr_run_wildweapons, "0", CVAR_NONE)          // the run's Wild Weaponry: armed humanoids' rolled weapons ignore what the player owns and the rare weapons' map (QC VR_AGR_Eligible)
 QVR_CVAR(vr_run_armoredfoes, "0", CVAR_NONE)          // the run's Armored Foes: armed humanoids spawn armoured far more often (QC vr_agarmor.qc VR_AgArmor_Roll, vr_armoredfoes_chance)
+QVR_CVAR(vr_runpick_allelites, "0", CVAR_ARCHIVE)     // Run Setup: All Elites (the campaigns' and Arena Mode's)
+QVR_CVAR(vr_run_allelites, "0", CVAR_NONE)            // the run's All Elites: every armed humanoid spawns an elite (QC vr_run_allelites.qc, through vr_run.qc VR_Run_ForcesElite)
 QVR_CVAR(vr_rangedknights_w_sword, "6", CVAR_ARCHIVE | QVR_RULE)    // Ranged Knights' pool weights (0: never): his own sword
 QVR_CVAR(vr_rangedknights_dual, "0.2", CVAR_ARCHIVE | QVR_RULE)     // 0..1: ... the chance a sword knight holds a second sword
 QVR_CVAR(vr_rangedknights_w_crossbow, "2.5", CVAR_ARCHIVE | QVR_RULE) // ... AD's crossbow (only with Arcane Dimensions' rules on: AD mounted)
