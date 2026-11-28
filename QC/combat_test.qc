@@ -77,6 +77,10 @@ void() VR_TestKill_Frame =
     dprint(sprintf("test kill: %s at %v struck %g at %v\n", best.classname, best.origin, part, at));
     // (A shotgun blast's worth on its last point of health: its kill push a real shot's, vr_kill_push.)
     best.health = 1;
+    // (its armour plates off first: a plate where it is struck (Plate Blocks All) took the shot and left it alive with 1,
+    // its plates shed as debris, flatgrabthrow's ragpush ogre: a kill aid kills; ROUND26 "godfallout")
+    best.vr_ar_type = 0;
+    best.vr_ar_mask = 0;
     T_Damage(best, pl, pl, 20);
     VR_Hit_End();
     hit_targ = world;
