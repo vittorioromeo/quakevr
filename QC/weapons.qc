@@ -4935,11 +4935,20 @@ void() ImpulseCommands =
     }
     // Flatscreen play's procedural reload (vr_flatprocreload.cpp drives the free hand; vr_flatreload.qc): 99 the free hand
     // at the ammo pouch takes a round, 106 cancels (100-105 are the bots') (a punch, the client's failsafe). Nobody else's impulses.
-    if((self.impulse == 99 || self.impulse == 106) && VR_FlatPlay(self))
+    // 107 / 108: its keys' open and close (reloadsys: the super shotgun broken open, snapped shut).
+    if((self.impulse == 99 || self.impulse == 106 || self.impulse == 107 || self.impulse == 108) && VR_FlatPlay(self))
     {
         if(self.impulse == 99)
         {
             VR_FlatReload_ProcTake();
+        }
+        else if(self.impulse == 107)
+        {
+            VR_FlatReload_ProcOpen();
+        }
+        else if(self.impulse == 108)
+        {
+            VR_FlatReload_ProcClose();
         }
         else
         {

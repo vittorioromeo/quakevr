@@ -5142,6 +5142,80 @@ them back by using the usual weapon wheel or MMB buttons."
   EMPTY HAND and CLUSTER lit; CLUSTER swaps it, the rocket back; the nailgun's holster: the gun in the hand, the
   multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
   `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.
+## questvis: SpaceWarp's black squares and the gadget's jitter; the menu at native resolution; FOV reduction (branch agent/questvis, 2026-11-28)
+
+His words (Quest 3 standalone): SpaceWarp shows black floating squares and the wrist gadget's UI jitters; the menu
+renders the world at full scale; top foveation barely shows; are we rendering the right FOV; add FOV reduction.
+- **SpaceWarp, black squares (causes found in the code; not seen worn)**: (1) the camera motion of a point behind or
+  at the last frame's eye (near walls and props while turning or strafing) divided by its previous clip w near 0: huge
+  or infinite motion vectors (half floats overflow to inf), and the runtime's made-up frame fetched from outside the
+  picture: black blocks of a motion texel (4x4 eye pixels). Now such texels get no motion, any non-finite value is 0,
+  |xy| is clamped to 0.6 NDC and z to +-1. (2) The depth went to the runtime in reversed Z (nearZ > farZ, which the
+  spec only "may" allow) with the scene's own planes; it is now written in Meta's GLES sample's form (OpenGL depth
+  1 - near/z, nearZ 0.05 m, farZ infinite), whatever the scene's convention: the runtime's most used path.
+  `vr_spacewarp_check` counts "wild" texels (not finite or past the clamp): every check requires 0.
+- **SpaceWarp, the gadget's jitter**: the wrist gadget's screen is a gfx quad in the scene that wrote depth but no
+  motion, so SpaceWarp (and TAA) took it for world-fixed: the made-up frames left it behind the moving hand while the
+  gadget model (an alias model, its own motion) went on. `gfx::State::prevFromNow` (a world transform now -> a frame
+  ago) makes an opaque depth-writing draw write its own motion (the same triangles again into the motion target alone,
+  `temporal::beginOwnMotion`, a small program with TAA's texel format); the gadget's screen and Doom's picture on it
+  use it (`vr_gadget.cpp` ScreenMotion). Not done: the UI drawn over the eyes after the scene (lasers, HUD panel, head
+  text, the gadget's log) still takes the scene's motion under it (a quad layer or a UI motion pass would fix it);
+  SpaceWarp stays off by default until he has looked at it worn.
+- **Menu at native resolution** (`vr_menu_native`, tunable, 1): while a menu is open the eyes are never drawn into
+  the corner part of their images (`vr_eye_subimage`): the world, at its own scale (Render Scale or dynamic
+  resolution), is resampled to the image's full size and the menu and all the UI over the eyes are drawn at that
+  size, as sharp as at scale 1. `vr_menu_render_scale` -1 now means no floor with it (the old: 1 on the Quest, which
+  drew the whole world at 1 behind a menu). Dynamic resolution skips menu frames. PC VR already drew the UI after the
+  resample at the image's size (no floor there): unchanged.
+- **FOV**: the eyes are drawn with exactly xrLocateViews' field of view (`VR_OverrideProjection` takes
+  `frameState().eyes[].fov`, and the projection layer submits the same), with the runtime's hidden-area mesh drawn
+  first: nothing is rendered outside what the runtime asks for. The console now says the runtime's angles once a
+  session (`VR: eye N field of view (the runtime's): ...`). Quest 3: left eye left -54 right 40 up 44 down -55 degrees
+  (94 x 99), the right eye mirrored; recommended 1680 x 1760 an eye. No waste to cut beyond the hidden area.
+- **FOV reduction** (`vr_fov_reduce`, 0..30 %, saved, default 0; VR Settings > Display and Graphics, "FOV
+  Reduction"): each edge's tangent of the located views is scaled (both the projection and the submitted layer, so the
+  compositor places the picture right and shows black beyond), and the eyes' drawn size with it (`scaledEyeSize`):
+  the same sharpness, (1 - p)^2 of the pixels. Any OpenXR headset and the mock.
+- **Foveation**: what is applied is right (the runtime says "fixed foveation level N ... set" for 0..4, the profile on
+  the eye swapchains, the eyes drawn straight into them, form 2). Its coverage is the driver's: whole bins of 864 x 448
+  (qfov4), the bins round the submitted rect's centre kept full. At his 0.55-0.65 scale the drawn part (about 1090 x
+  1140 at 0.65) covers 2 x 3 bins, so little is left to reduce: High saves 0.6 ms on the hub (below); at 0.9 it saved
+  5.5 ms (questfovmusic). XR_FB_foveation has no level past High (Top) and no custom map; eye-tracked foveation is
+  Quest Pro only. Show Foveation models zones, not the driver's bins. Nothing changed.
+- **Headset numbers** (Quest 3 unworn, `-unattended -noconfigwrite`, the hub vrstart, fixed scale 0.65, `vr_dynres 0`,
+  parts of 360 frames interleaved, 2 rounds in one launch, GPU mean a frame from `vr_profile_report 3`, median):
+
+  | part | GPU ms | frame period | missed |
+  |---|---|---|---|
+  | Foveation Off | 13.22 | 13.88 | 0.6% |
+  | Low | 13.07 | 13.92 | 0.2% |
+  | Medium | 13.08 | 13.91 | 0.2% |
+  | High | 12.64 | 13.88 | 0.2% |
+  | High (Top) | 13.52 (12.77 / 14.27) | 14.65 | 2.9% |
+  | High + FOV reduction 10% | 11.62 | 13.89 | 0.4% |
+  | High + FOV reduction 20% | 11.21 | 13.88 | 0.2% |
+  | Menu open, native (world 0.65, menu at the image's size) | 13.98 | 15.67 | 16.9% |
+  | Menu open, old (`vr_menu_native 0`: the whole eye at 1) | 13.91 | 15.37 | 11.8% |
+  | SpaceWarp on (High) | 15.11 | 27.77 | 0.0% |
+  | SpaceWarp off | 12.76 | 13.95 | 0.8% |
+
+  FOV reduction: -1.0 ms (8%) at 10%, -1.4 ms (11%) at 20% (the pixels -19% / -36%; the fixed costs stay). The menu
+  at native resolution costs the same as the old floor: the world at 0.65 leaves the straight-in path (the resample
+  needs the post-process path, the scene's own unfoveated targets, more full-image passes). Its cheap form is the menu
+  as a compositor quad layer (the world straight in, the menu sampled by the runtime): not done. SpaceWarp with the
+  new depth and motion: half rate at once, nothing missed, no crash; its look worn: not checked.
+- **Headset**: this branch's release APK for the block only; the APK installed before (questnext's 1.2.0-beta6
+  release build) put back with `install -r`, his 439 saves/configs verified md5-equal. Left on the headset:
+  quakevr/qv_measure.cfg and qv_round.cfg (to delete).
+- Files: vr_spacewarp.cpp, vr_backend.hpp, vr_gfx.hpp, vr_gfx_gl.cpp, vr_temporal.cpp/.hpp, vr_gadget.cpp,
+  vr_stereo.cpp, vr_dynres.cpp, vr_main.cpp, vr_backend_openxr_frame.cpp, vr_backend_openxr_internal.hpp,
+  vr_backend_mock.cpp, vr_cvars.inc, vr_menu_rows.inc, vr_menu_settings.inc, vr_tunables.inc, vr_tunables_rows.inc;
+  menu_paths.txt regenerated; canonical_allowlist (the new program: motion vectors are two-pass only).
+- Tests: spacewarp_test.sh 20/0 (was 16: the wild-texel checks); tunables_test 13/0; gles_render_test 15/6: its
+  four "both drew" checks fail on the eyeshots' mean brightness (6-7 of 255 vs > 8, PC and ES alike, every other check
+  incl. ES = PC identity passes): not this branch's changes as far as the code shows (not run on origin/next);
+  dynres_ceiling_test is Linux-only (fails to start on Windows).
 
 ## panelsize: the menu's bindings reminder easier to read (branch agent/panelsize, 2026-11-28)
 
@@ -5197,6 +5271,53 @@ then "the hand grabbing the shells doesn't use the same finger pose as VR" and "
 - **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
   the pair); his eyes on the drawn pair at the port while running.
 
+## reloadsys: keyframed procedural reloads, the Reload Studio, the super shotgun (branch agent/reloadsys, 2026-11-28)
+
+His words (2026-11-28 night, kit `scratch/fb1127n/reload_words_1128.md`): a keyframe-based system for every reloadable
+weapon, tweakable per keyframe in a new ImGui studio; "the reloads almost always succeed"; the hand's target worked out
+backwards from where the shell must be. Phase 1: the system, the studio, the shotgun moved onto it, the super shotgun.
+- **The data** (`Quake/vr/vr_reloadsys.hpp/.cpp`; `quakevr/data/reloads.txt`, `vr_reload_file`; built-ins in the code where
+  the file has no entry). Per gun (`reload shotgun|supershotgun { ... }`): `item` (shell, pair, magazine, rocket, cylinder),
+  `dest` (port, chamber, receiver, muzzle, cylinder), `item_rot` (the item's turn at its destination in the gun's frame),
+  `loop a b` (keys a..b, from 1, repeat until full), then `key "<name>" { ... }`: `time`, `gun_time` (0: the key's),
+  `ease` (linear, smooth, in, out), `hand` (rest, pouch, mouth, dest, hold), `hand_ofs` / `hand_rot` (rest and pouch: the
+  body's frame; mouth and dest: the item's offset and turn on its destination, the gun's frame), `arc`, `approach` (mouth:
+  out of the opening), `gun_rot` (pitch + muzzle down, yaw in, roll) / `gun_ofs` (forward, in, up), `action` (none, take,
+  insert, open, close, eject), `if` (always, closed, opened, loaded), `finish 1` (the end: played when the reload is over or
+  cancelled). The free hand's values mirror by its side, the gun's by its hand's (as the tunables did). Magazines,
+  rockets, the revolver's cylinder (later phases) fit: their item, destination (receiver, muzzle, cylinder slots), an eject
+  action. `vr_reloadsys_set <gun> <key|-> <field> <values>`, `_save`, `_reload`, `_list`.
+- **Playback** (`vr_flatprocreload.cpp`, rewritten on the data): each key moves the free hand and the gun hand's pose from
+  where each was drawn last over its times and ease; Take (impulse 99 at the pouch's hotspot, the key waits for the item),
+  Insert (waits at its end for VR's port test, then its failsafe), Open / Close (impulses 107 / 108); the item going in
+  goes on after the insert's key at once; the loop while the server's bit is up, then the finish keys. **Backwards solve**
+  (`target`): the item's destination pose (the port measured on the gun's game pose, `item_rot` and the key's turn on the
+  gun's frame), the item's place in the hand (`held::placeInHand`, the server's), so the hand = destination * grip^-1, every
+  frame. No hand-gun or hand-body collision while busy (prlfix's, kept). The shotgun's built-ins are his promoted tunables:
+  `item_rot` -38.17 / -43.74 / 51.87 baked from his hand at the port (pitch -40, yaw 59, roll -9 on the gun's) at a level
+  view (the same look there; looking up or down the item now keeps its turn on the gun, the old angles' sum didn't).
+- **Retired**: 28 tunables `vr_flat_prl_{reach,grab,carry,insert,return,tilt_in,tilt_out}_time`, `_tilt_*`, `_gun_*`,
+  `_approach`, `_arc`, `_ease`, `_pouch_*`, `_port_*` (in the data now; a saved value of them is an unknown command).
+  Kept: `vr_flat_prl_failsafe`, `_giveup`, `_test_miss`, `vr_flat_ammo_pouch_*`. **The lock generalised**:
+  `vr_flat_prl_lock N` holds key N's end pose (any gun's), -1 the scrub (`vr_flat_prl_scrub` over one pass of the keys);
+  next / previous step them.
+- **The super shotgun** (QC `VR_FlatReload_ProcWanted`: with `vr_flat_ssg_break`; not the Widowmaker): keys present, break
+  open (if closed: impulse 107, `VR_FlatReload_ProcOpen`: VR's `VR_Reload_SsgBreak`, its spent shells out, live ones kept
+  by `vr_ssg_keep_live`), reach, grip (VR's take: a pair, a single shell for one place), carry, insert (VR's chambers
+  test), reach again (loop), then return (if loaded: a flick up), close (impulse 108, `VR_FlatReload_ProcClose`: VR's
+  `VR_Reload_SsgClose`; a second later by itself if that never comes). The flat break's silent close skips a gun its
+  reload holds open. Its poses are a start for his tuning (tilt 25 / 35 / -30, the item's turn the shotgun's).
+- **The Reload Studio** (`vr_reloadstudio.cpp`; `vr_reloadstudio [open|close|toggle|test]`; Debug > Tools > Flatscreen:
+  Reload Studio, Tunables > Flatscreen > Procedural Reload): Gun (Hold This Gun: impulse 154 / 155), unsaved / saved,
+  Save / Revert / Reset Gun; Timeline: Play / Pause (the scrub looping, Speed), < > (step and lock), Lock Key, Unlock,
+  Reload (R) (a real one), Scrub; the readout: the item's gap to its destination now and at the last insert's end, and the
+  real reloads' seated / dropped / cancelled / failsafes; Reload: Item, Destination, Item Turn, Loop Keys; Keys: the list
+  (click locks it), Add (a copy after), Remove, Up, Down; Key: Name, Time, Gun Time, Ease, Action, Condition, Reload's End,
+  the free hand's Target, Offset, Turn, Arc, Approach, the gun hand's Tilt and Move; the gizmo on the free hand (Off / Move
+  / Rotate, vr_gizmo.hpp's, in the key's frame) while its key is locked.
+- **Tests**: `flatprocreload_test.sh questi base` 53/0 before the ssgshut change (trips, cont144, lock on the 6 keys,
+  mrun/jump/slide/crouch/60/144, fire, melee, blocked, dual, ssg; ssgshut alone: opened by 107, 2 in, closed). The matrix
+  ("almost always succeed", `matrix-sg` / `matrix-ssg`): see the report's numbers below. `vr_reloadstudio test`.
 ## Enemy attributes; the elite (branch agent/elite, 2026-11-28)
 
 His ask: a system of special attributes on enemies like "infected", with an "elite" first: much faster fire, reaction,
