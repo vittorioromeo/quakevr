@@ -4715,3 +4715,44 @@ match the connected controller type." Phase 2 of ctrlbind.
   menu: keyboard, then an Xbox pad).
 - **Open**: the VR panel is not interactive (no Setup Bindings in it); a gamepad's panel in a headset is not used (a headset
   shows its controllers). Splitscreen per-seat bindings stay in BACKLOG section 3.
+
+## ledgegrab: a ledge grab's catch takes the fall (branch agent/ledgegrab, 2026-11-28)
+
+The knight's ledge grab "pulled away" (BACKLOG 11, ROUND25 box3dup2). On origin/next (after b3dtune's gap-relative
+"pulled away") climb_test pull passed (knight 4/4 batched and alone), but its hands were still yanked off. Measured with
+the new load trace (knight, seeds 7-10, `vr_box3d_mesh_ghosts` 1/0, batched/alone; `ledge_load.py`):
+- Falling past the lip at 3.4-4.3 m/s (pelvis), its first hand's ball joint caught it late: its arms straightened as it
+  fell on, its holds taking 0.1-0.4 of their cap while its pelvis dropped 36 units and sped up to 5.5 m/s in 0.2 s, then
+  one hold took the rest at once, 0.7-1.1 of its cap (not past it long enough to slip: 2 frames of slipTime's 18), and
+  the hand was yanked 11-13 units off its hold (a forearm's joint can't hold a 230 kg body's jerk): "pulled away" 0.22-0.32 s
+  after the grab. The climb went on (its other hand, reaching again), so the test passed.
+- Pulled away: ghosts off 6 (batched) and 5 (alone) in 4 runs each; ghosts on 0 and 0 (their bodies stopped sooner
+  against the lip). The other hand's re-grabs, 20-30 units off as it pulled itself up, took 1.2-3.4 of the cap.
+- Not the cap (2.4 body weights, holdCap) and not Box3D: the joint's softness against a light forearm under a heavy pull.
+
+Fix (`vr_ragactive_hold.cpp` catchFrame, called while it hangs): from its first hold its muscles take its fall, a force up
+on every part (its support, as the pull's climbLift), stopping its whole body's fall (its parts' mass-weighted speed: the
+pelvis's alone swings on its arms) over 0.2 s, at most 2.5 body weights, till it falls slower than 0.5 m/s (0.4 s at
+most), then eased off over 0.15 s. Tried and dropped: catching its later falls too (swinging down off one hand, from 1.5 m/s):
+a hell knight then hung otherwise and was stuck at the lip going over (pull hknight seed 10 batched).
+`vr_ragdoll_env_hit` (the test tool) now also strikes the hand's own part: push takes the part whose box is nearest, and
+with the knight hanging higher its right shin, kicked up onto the lip beside the hand, was it (hit knight seeds 7, 9 held on).
+Debug: the `ragenv` trace line adds `vz` (the pelvis's, m/s) and each hold's cap; "holds on" says how fast it was falling;
+a `climb:` line "caught its fall (N m/s at its grab) in T s, its muscles taking B body weights at most"; endClimb's line
+the most the catch took; `ragenv: struck on its <bone>` (vr_debug_ragdoll). climb_test: `XFILTER` (more lines), `CLIMB_LOG`
+(each run's lines, under `== run <class> seed <n>`), and a "N pulled away" count on each line (information).
+`Misc/quakevr/ragdoll/ledge_load.py <log>`: per run each ledge hold's fall speed, distance, cap, load at most against it,
+frames at the cap, distance at most, how it let go. Scenario `knight_ledge`.
+
+| check (Release, merged origin/next ae1e445c1) | before (origin/next) | now |
+|---|---|---|
+| knight pull seeds 7-10, ghosts on/off x batched/alone (16) | 16/16; 11 holds pulled away (ghosts off), worst load 3.38 of the cap | 16/16; 0 pulled away, worst 1.92 (a re-grab 26 units off as it pulls) |
+| knight first grab | caught by one hold at 0.7-1.1 of its cap | its muscles 1.5-1.7 body weights for 0.04-0.32 s; holds at most 0.2-0.6 of the cap |
+| climb_test pull, all classes, seeds 7-10, batched (24) | 24/24 | 24/24 |
+| the same alone (TB_SLOW=1) (24) | knight 4/4 | 24/24 |
+| climb_test drop, hit, off, seeds 7-9, batched (54) | 18/18 (seed 7, hkclimb) | 54/54 (2 knight drops each had a hand pulled away, information) |
+| env_test (default cases) | | 18 lines, no NaN or crash; the hit case's hands let go "hit" |
+| scenario knight_ledge | | validate 0 missing, runall OK |
+
+Left: `ragdollPartNear` (any push or shot on a ragdoll) takes the part whose bounding box is nearest, so a point inside
+two boxes (a hand at the lip, a shin kicked up beside it) can take the wrong part: a box3d change, not done here.

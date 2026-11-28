@@ -230,8 +230,8 @@ void ragdollActiveList_f()
 }
 
 // vr_ragdoll_env_hit [speed]: each dying hand holding on (a wall, a ledge: vr_ragdoll_active_env) struck as a shot strikes
-// it (box3d::push at the hand, `speed` u/s outward from the body, 200 by default): it lets go (Debug > World and Physics;
-// the tests).
+// it (box3d::push at the hand, `speed` u/s outward from the body, 200 by default; the hand's part struck whichever part
+// the push took): it lets go (Debug > World and Physics; the tests).
 void ragdollEnvHit_f()
 {
     if(!sv.active || !world)
@@ -261,6 +261,9 @@ void ragdollEnvHit_f()
             const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(r.body[0])) * world->m2u;
             const glm::vec3 away = glm::length(hand - pelvis) > 1e-3f ? glm::normalize(hand - pelvis) : glm::vec3{0.f, 0.f, 1.f};
             qvr::box3d::push(EDICT_NUM(r.num), hand, away * speed, 0.f, 0.f, 0.f);
+            // (The hand itself struck: push takes the part whose box is nearest, and a leg kicked up onto the lip beside
+            // the hand was it, the hand holding on: climb_test hit knight seeds 7, 9, ROUND26 "ledgegrab".)
+            ragactive::struck(r.active, activeParts(r), r.body[static_cast<za::SizeT>(lo)]);
             Con_Printf("vr_ragdoll_env_hit: %d's %s hand struck at %.0f %.0f %.0f\n", r.num, arm == 0 ? "left" : "right",
                 hand.x, hand.y, hand.z);
             struck++;

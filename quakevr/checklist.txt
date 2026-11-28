@@ -26,6 +26,7 @@ Flat-screen or VR: every gun that takes a bayonet (the shotguns, the nailgun, th
 Flat-screen or VR: put a bayonet on the nailgun, the launchers, the lightning gun and the other new guns: it sits under the barrel at the muzzle, stabs and sticks by its point, and the gun fires where it is stuck (the grenade launcher's mount is under its body's front). {test:attach_bayomounts}
 Flat-screen: V with a bayonet on the grenade, proximity or rocket launcher: flat play holds them two-handed once the other hand is free, and V does not stab with the bayonet then (known; the other guns stab). {test:attach_bayomounts}
 Flat-screen or VR: the weapon wheel has a BACK POUCH entry after UNLOAD; with rockets and multi-rockets it is split, GRENADE on top and CLUSTER below with each one's count; letting go on a half puts that grenade in that hand (its gun holstered), and it arms and throws as a pouch grenade does. {test:wheel_grenade}
+Ragdoll climbs: knock a knight off a ledge so it falls past the lip: when it grabs the lip its fall is caught softly (no sudden jolt) and both hands stay on (no hand yanked off the lip), then it pulls itself up. {test:knight_ledge}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
