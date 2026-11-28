@@ -428,6 +428,209 @@ void(float xHand, float xDone) VR_FlatReload_Stop =
     self.vr_flatrl = self.vr_flatrl - (self.vr_flatrl & bits);
 };
 
+// ----------------------------------------------------------------------------
+// The procedural reload (flatprocreload; his words 2026-11-28: "adding actual procedural reloading animations to
+// flatscreen play, gated behind an option, on by default ... Let's begin with the shotgun, only when held one handed"):
+// with vr_flat_proc_reload on, R (or the empty clip) on the shotgun held in one hand, the other empty, doesn't start the
+// timed trip to the hip. Its bit (16 off, 32 main: the gun's hand) tells the client (vr_flatprocreload.cpp), which drives
+// the free hand: to the ammo pouch (shown in flat-screen play while bit 64 is up), where impulse 99 takes a taped pair
+// by VR's own take (VR_Reload_Take, as a headset's grip there), to the gun's loading port, where the carried pair goes
+// in by VR's own path (VR_Carry_HandFrame's VR_Reload_HeldFrame: the port's reach), and back, until the gun is full.
+// Cancelled by a shot of the gun (or a dry click), a quick melee (the shove and bash impulses), impulse 100 (the client's:
+// a punch, its failsafe when a round isn't seated in time), the weapon changing, the free hand taking something else:
+// a round in the free hand goes back into the reserve (nothing lost). The server's own failsafe: no progress (a take, a
+// round in) for vr_flat_prl_giveup seconds. Dual wielding and every other gun: the timed trip above.
+//
+// developer 1 prints each step ("flat proc reload: ...").
+
+.float vr_fprl_at;     // the procedural reload's start (time)
+.float vr_fprl_prog;   // and its last progress (the start, a take, rounds in)
+.float vr_fprl_clip;   // the gun's clip then
+.float vr_fprl_takes;  // rounds taken from the pouch so far (VR_Reload_Take's takes)
+.entity vr_fprl_inst;  // the gun's record (another: cancelled)
+
+float VR_FLATRL_PROC_ON = 64; // .vr_flatrl: the procedural reload is on for this player (the pouch shown, flat-screen)
+
+float(float xHand) VR_FlatReload_ProcBit =
+{
+    return VR_FlatReload_Bit(xHand) * 16;
+};
+
+float(entity p, float xHand) VR_FlatReload_ProcIn =
+{
+    return VR_FlatPlay(p) && (p.vr_flatrl & VR_FlatReload_ProcBit(xHand)) != 0;
+};
+
+// Whether the gun in `xHand` of self reloads procedurally now: the option on, the shotgun held by its handle in that hand,
+// the other empty (nothing in it, not climbing), not stuck by its bayonet, and it can take rounds (VR_FlatReload_Can).
+float(float xHand) VR_FlatReload_ProcWanted =
+{
+    if(!cvar_hget(cvarh_vr_flat_proc_reload) || VRGetEntWeapon(self, xHand) != WID_SHOTGUN || !VR_FlatReload_Can(xHand))
+    {
+        return FALSE;
+    }
+    if(vr_fire_prop != world || VR_PropFire_Held(self, xHand) != world)
+    {
+        return FALSE;
+    }
+    float other = VRGetOtherHand(xHand);
+    return VR_HandGrenade_PouchHandEmpty(self, other) && VRIsHandWeaponless(self, other);
+};
+
+// A round the free hand of the reload of the gun in `xHand` holds goes back into the reserve (drawn going into the pouch,
+// as VR_Reload_LetGo's); one that doesn't fit (the reserve full meanwhile) is let go of where it is (a loose round).
+void(float xHand, string xWhy) VR_FlatReload_ProcPutBack =
+{
+    float free = VRGetOtherHand(xHand);
+    entity r = VR_Carry_Held(self, free);
+    if(r == world || !VR_Reload_IsRound(r))
+    {
+        return;
+    }
+    VR_CollectFx_Note(r);
+    if(VR_Reload_Refund(self, r, free))
+    {
+        VR_CollectFx_Send(free, r, QVR_HS_AMMO_POUCH);
+        dprint(sprintf("flat proc reload: the round in the %s hand back in the pouch (%s): storage %g\n",
+            VR_FlatReload_HandName(free), xWhy, VR_FlatReload_Storage(xHand)));
+    }
+    else
+    {
+        VR_Carry_Release(free, r);
+        dprint(sprintf("flat proc reload: the round in the %s hand let go of (%s): the reserve is full\n",
+            VR_FlatReload_HandName(free), xWhy));
+    }
+};
+
+void(float xHand, string xWhy) VR_FlatReload_ProcStart =
+{
+    self.vr_flatrl = self.vr_flatrl | VR_FlatReload_ProcBit(xHand);
+    self.vr_fprl_at = time;
+    self.vr_fprl_prog = time;
+    self.vr_fprl_clip = VRGetEntWeaponClip(self, xHand);
+    self.vr_fprl_takes = 0;
+    self.vr_fprl_inst = VRGetEntWeaponInst(self, xHand);
+    dprint(sprintf("flat proc reload: start %s hand (%s): weapon %g, clip %g of %g, storage %g\n", VR_FlatReload_HandName(xHand),
+        xWhy, VRGetEntWeapon(self, xHand), VRGetEntWeaponClip(self, xHand), VR_ClipSizeIn(self, xHand), VR_FlatReload_Storage(xHand)));
+};
+
+// Its end (`xDone`: the gun full or the reserve out; else cancelled, `xWhy`): a round still in the free hand back in the
+// reserve.
+void(float xHand, float xDone, string xWhy) VR_FlatReload_ProcStop =
+{
+    if(!VR_FlatReload_ProcIn(self, xHand))
+    {
+        return;
+    }
+    VR_FlatReload_ProcPutBack(xHand, xWhy);
+    self.vr_flatrl = self.vr_flatrl - (self.vr_flatrl & VR_FlatReload_ProcBit(xHand));
+    dprint(sprintf("flat proc reload: %s hand %s (%s; %.2f s, %g taken): ", VR_FlatReload_HandName(xHand),
+        xDone ? "done" : "cancelled", xWhy, time - self.vr_fprl_at, self.vr_fprl_takes));
+    dprint(sprintf("clip %g of %g, storage %g\n", VRGetEntWeaponClip(self, xHand), VR_ClipSizeIn(self, xHand),
+        VR_FlatReload_Storage(xHand)));
+};
+
+// Every procedural reload of self cancelled (`xWhy`: a quick melee, the client's impulse 100).
+void(string xWhy) VR_FlatReload_ProcCancelAll =
+{
+    VR_FlatReload_ProcStop(cVR_MainHand, FALSE, xWhy);
+    VR_FlatReload_ProcStop(cVR_OffHand, FALSE, xWhy);
+};
+
+// Impulse 99 (the client: the free hand at the pouch): it takes a round as a headset's grip there takes one
+// (VR_Reload_Take: a taped pair, a single shell for the last place), the pouch's hotspot reported for it.
+void() VR_FlatReload_ProcTake =
+{
+    float gun = VR_FlatReload_ProcIn(self, cVR_MainHand) ? cVR_MainHand : (VR_FlatReload_ProcIn(self, cVR_OffHand) ? cVR_OffHand : -1);
+    if(gun < 0)
+    {
+        dprint("flat proc reload: take: no procedural reload on\n");
+        return;
+    }
+    float free = VRGetOtherHand(gun);
+    float spot = VR_HAND_FIELD(self, free, mainhand_hotspot, offhand_hotspot);
+    if(spot != QVR_HS_AMMO_POUCH || !VR_HandGrenade_PouchHandEmpty(self, free))
+    {
+        dprint(sprintf("flat proc reload: take: the %s hand isn't empty at the pouch (hotspot %g, free %g)\n",
+            VR_FlatReload_HandName(free), spot, VR_HandGrenade_PouchHandEmpty(self, free)));
+        return;
+    }
+    vr_flatreload_proc_go = TRUE;
+    VR_Reload_Take(free);
+    vr_flatreload_proc_go = FALSE;
+    entity r = VR_Carry_Held(self, free);
+    if(r != world && VR_Reload_IsRound(r))
+    {
+        self.vr_fprl_takes = self.vr_fprl_takes + r.vr_ammo_count;
+        self.vr_fprl_prog = time;
+        dprint(sprintf("flat proc reload: take: %g from the pouch into the %s hand (%.2f s): storage %g\n", r.vr_ammo_count,
+            VR_FlatReload_HandName(free), time - self.vr_fprl_at, VR_FlatReload_Storage(gun)));
+    }
+};
+
+// Each server frame, the gun's hand of a procedural reload: its cancels, its progress, its end.
+void(float xHand) VR_FlatReload_ProcFrame =
+{
+    float free = VRGetOtherHand(xHand);
+    if(!VR_FlatPlay(self) || self.health <= 0 || VRIsHandWeaponless(self, xHand) || VRGetEntWeaponInst(self, xHand) != self.vr_fprl_inst ||
+       (VRGetEntWeaponFlags(self, xHand) & QVR_WPNFLAG_FOREGRIP_CARRIED))
+    {
+        VR_FlatReload_ProcStop(xHand, FALSE, "the weapon changed");
+        return;
+    }
+    if(!cvar_hget(cvarh_vr_flat_proc_reload))
+    {
+        VR_FlatReload_ProcStop(xHand, FALSE, "turned off");
+        return;
+    }
+    entity r = VR_Carry_Held(self, free);
+    float holdsRound = r != world && VR_Reload_IsRound(r);
+    if(!VRIsHandWeaponless(self, free) || (r != world && !holdsRound))
+    {
+        VR_FlatReload_ProcStop(xHand, FALSE, "the free hand took something else");
+        return;
+    }
+    if(VRGetFireButtonPressed(xHand))
+    {
+        VR_FlatReload_ProcStop(xHand, FALSE, "fired");
+        return;
+    }
+    float clip = VRGetEntWeaponClip(self, xHand);
+    if(clip != self.vr_fprl_clip)
+    {
+        dprint(sprintf("flat proc reload: %s hand: %g in (%.2f s): clip %g of %g, storage %g\n", VR_FlatReload_HandName(xHand),
+            clip - self.vr_fprl_clip, time - self.vr_fprl_at, clip, VR_ClipSizeIn(self, xHand), VR_FlatReload_Storage(xHand)));
+        self.vr_fprl_clip = clip;
+        self.vr_fprl_prog = time;
+    }
+    if(clip >= VR_ClipSizeIn(self, xHand))
+    {
+        VR_FlatReload_ProcStop(xHand, TRUE, "full");
+        return;
+    }
+    if(!holdsRound && VR_FlatReload_Storage(xHand) <= 0)
+    {
+        VR_FlatReload_ProcStop(xHand, TRUE, "the reserve is out");
+        return;
+    }
+    float giveUp = max(0.5, cvar_hget(cvarh_vr_flat_prl_giveup));
+    if(time >= self.vr_fprl_prog + giveUp)
+    {
+        VR_FlatReload_ProcStop(xHand, FALSE, sprintf("failsafe: nothing taken or loaded for %g s", giveUp));
+    }
+};
+
+// R or the empty clip: the procedural reload where it applies (VR_FlatReload_ProcWanted), else the timed trip.
+void(float xHand, string xWhy) VR_FlatReload_Begin =
+{
+    if(VR_FlatReload_ProcWanted(xHand))
+    {
+        VR_FlatReload_ProcStart(xHand, xWhy);
+        return;
+    }
+    VR_FlatReload_Start(xHand, xWhy);
+};
+
 // R (impulse 55): every hand whose gun can take rounds, both with a gun in each (dual wield reloads both at once).
 void() VR_FlatReload_Key =
 {
@@ -440,9 +643,9 @@ void() VR_FlatReload_Key =
         {
             VR_PropFire_Begin(prop, hand);
         }
-        if(!VR_FlatReload_Busy(self, hand) && VR_FlatReload_Can(hand))
+        if(!VR_FlatReload_Busy(self, hand) && !VR_FlatReload_ProcIn(self, hand) && VR_FlatReload_Can(hand))
         {
-            VR_FlatReload_Start(hand, "R");
+            VR_FlatReload_Begin(hand, "R");
             ++n;
         }
         if(prop != world)
@@ -637,12 +840,23 @@ void(float xHand) VR_FlatReload_HandFrameOn =
         unl = 0;
         if(xHand == cVR_MainHand) { self.vr_flatrl_unl1 = 0; } else { self.vr_flatrl_unl0 = 0; }
     }
+    // The procedural reload's own steps (flatprocreload); bit 64 tells the client to show the pouch.
+    if(xHand == cVR_MainHand)
+    {
+        float procOn = VR_FlatPlay(self) && cvar_hget(cvarh_vr_flat_proc_reload);
+        self.vr_flatrl = self.vr_flatrl - (self.vr_flatrl & VR_FLATRL_PROC_ON) + (procOn ? VR_FLATRL_PROC_ON : 0);
+    }
+    if(VR_FlatReload_ProcIn(self, xHand))
+    {
+        VR_FlatReload_ProcFrame(xHand);
+        return;
+    }
     if(!VR_FlatReload_Busy(self, xHand))
     {
         if(cvar_hget(cvarh_vr_flat_autoreload) && !unl && !VRIsHandWeaponless(self, xHand) && VRGetEntWeaponClip(self, xHand) <= 0 &&
            VR_FlatReload_Can(xHand))
         {
-            VR_FlatReload_Start(xHand, "auto: the clip is empty");
+            VR_FlatReload_Begin(xHand, "auto: the clip is empty");
         }
         return;
     }

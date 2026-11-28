@@ -1081,6 +1081,11 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flatattach_report: the Attach key's (J) hand trip as drawn: its phase, putting on or taking off, the hands, "
                   "the attachment, the hand's share of the way and the slide's, and the presses, trips, impulses sent at once and "
                   "on arrival, cancels and the last one's reason."),
+        command("Flatscreen Procedural Reload Report", "vr_flatprocreload_report")
+            .help("vr_flatprocreload_report: the procedural reload as drawn (the shotgun one-handed, Settings: Procedural Reload): "
+                  "its phase (to the pouch, taking, carrying, pushing in, back), the hands, the server's bits, the round in the free "
+                  "hand, the gun's tilt and the port's distance from the round, and the trips, takes sent, rounds seated, cancels "
+                  "and the last one's reason."),
         command("Flatscreen Swim Report", "vr_flatswim_report")
             .help("vr_flatswim_report: the swimming strokes as drawn (swimming, the stroke's cycle, speed and mix of kinds), each "
                   "hand's share and take-over, and what vr_flatswim_probe measured since: each hand's path and palm."),
@@ -1095,6 +1100,8 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flat_fg_press: E's force grab, as the key presses it (the palm turns out first, then the grab)."),
         row(opt::vr_flat_reload_debug),
         row(opt::vr_flat_attach_debug),
+        row(opt::vr_flat_proc_reload_debug),
+        row(opt::vr_flat_prl_test_miss),
         command("Holster Menu Dump", "vr_flat_holster_menu_dump")
             .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "
                   "hand holds, and each button's place, whether it does something now and its impulse."),

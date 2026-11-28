@@ -112,6 +112,8 @@ float(entity p, float xHand) VR_FlatReload_Busy; // (vr_flatreload.qc)
 float(entity p, float xHand) VR_FlatThrow_WindsUpWeapon; // (vr_flatgrenade.qc)
 float vr_flatthrow_refused; // (vr_flatgrenade.qc: frames of the fire button refused while the weapon was wound up)
 void() VR_FlatReload_Key;
+void() VR_FlatReload_ProcTake;                  // (vr_flatreload.qc: the procedural reload's take, impulse 99)
+void(string xWhy) VR_FlatReload_ProcCancelAll; // (and its cancel)
 void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
 void() VR_FlatThrow_Release;
@@ -4907,6 +4909,7 @@ void() ImpulseCommands =
     // the main, 56 both hands, as the drawn push reaches out; vr_melee_bash.qc VR_FlatShove).
     if((self.impulse == 53 || self.impulse == 54 || self.impulse == 56) && VR_FlatPlay(self))
     {
+        VR_FlatReload_ProcCancelAll("a quick melee (a shove)"); // (flatprocreload: its round back in the pouch)
         VR_FlatShove(self.impulse == 53 ? cVR_OffHand : cVR_MainHand, self.impulse == 56);
         self.impulse = 0;
         return;
@@ -4915,6 +4918,7 @@ void() ImpulseCommands =
     // vr_flat_bash: 58 the off hand, 59 the main, as the drawn push reaches out; vr_melee_bash.qc VR_FlatBash).
     if((self.impulse == 58 || self.impulse == 59) && VR_FlatPlay(self))
     {
+        VR_FlatReload_ProcCancelAll("a quick melee (a bash)");
         VR_FlatBash(self.impulse == 58 ? cVR_OffHand : cVR_MainHand);
         self.impulse = 0;
         return;
@@ -4925,6 +4929,21 @@ void() ImpulseCommands =
     {
         self.impulse = 0;
         VR_FlatReload_Key();
+        return;
+    }
+    // Flatscreen play's procedural reload (vr_flatprocreload.cpp drives the free hand; vr_flatreload.qc): 99 the free hand
+    // at the ammo pouch takes a round, 100 cancels (a punch, the client's failsafe). Nobody else's impulses.
+    if((self.impulse == 99 || self.impulse == 100) && VR_FlatPlay(self))
+    {
+        if(self.impulse == 99)
+        {
+            VR_FlatReload_ProcTake();
+        }
+        else
+        {
+            VR_FlatReload_ProcCancelAll("the client's cancel (a punch, or its failsafe)");
+        }
+        self.impulse = 0;
         return;
     }
 
