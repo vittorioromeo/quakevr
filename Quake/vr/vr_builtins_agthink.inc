@@ -11,11 +11,15 @@
 // QC's constants this port reads (FTEQCC keeps no names for them: vr_armedgrunt_defs.qc).
 constexpr float agtc_VR_AG_LINE_REACH = 192.f;
 
-#define AGT_FIELDS(X) X(vr_ags_pend) X(vr_ag_tug_pl) X(vr_ag_prop)
-#define AGT_GLOBALS(X) X(vr_ags_quiet) X(vr_ags_quiet_at) X(vr_ags_proj_won)
-#define AGT_FUNCS(X) X(VR_AG_WeaponStruckQC)
+#define AGT_FIELDS(X) \
+    X(vr_ags_pend) X(vr_ag_tug_pl) X(vr_ag_prop) X(vr_ag) X(vr_agpar_w) X(vr_agpar_since) X(vr_agpar_seen) X(vr_agpar_ready) \
+    X(vr_agg_state) X(vr_agg_until) X(vr_agg_next) X(vr_agg_wup0) X(vr_agg_wread0) X(vr_agg_wup1) X(vr_agg_wread1)
+#define AGT_GLOBALS(X) \
+    X(vr_ags_quiet) X(vr_ags_quiet_at) X(vr_ags_proj_won) X(vr_agg_reach) X(vr_agg_reach_at) X(vr_melee_begun_last)
+#define AGT_FUNCS(X) X(VR_AG_WeaponStruckQC) X(VR_AGPar_FrameQC)
 #define AGT_CVARS(X) \
-    X(vr_agrunt_shotdisarm) X(vr_agrunt_shotdisarm_block) X(vr_agrunt_shotdisarm_debug) X(vr_agrunt_disarm) X(vr_qc_scan_share)
+    X(vr_agrunt_shotdisarm) X(vr_agrunt_shotdisarm_block) X(vr_agrunt_shotdisarm_debug) X(vr_agrunt_disarm) X(vr_qc_scan_share) \
+    X(vr_agrunt_parry) X(vr_agrunt_preparry) X(vr_agrunt_windup_parry)
 
 struct AgtBind
 {
@@ -40,6 +44,7 @@ AgtBind agt; // (the server's VM: the main thread)
 struct AgtStats
 {
     long long struckAsked{0}, struckNative{0}, struckCompared{0}, struckDiffered{0};
+    long long parryAsked{0}, parryNative{0}, parryCompared{0}, parryDiffered{0};
 };
 AgtStats agtStats;
 
@@ -80,7 +85,7 @@ AgtStats agtStats;
     return ok;
 }
 
-#define TF(e, n) (reinterpret_cast<float*>(&(e)->v)[agt.fo_##n])
+#define TF(e, n) (reinterpret_cast<float*>(const_cast<entvars_t*>(&(e)->v))[agt.fo_##n])
 #define TFE(e, n) PROG_TO_EDICT(*reinterpret_cast<int*>(&TF(e, n)))
 #define TG(n) (*agt.g_##n)
 #define TGE(n) PROG_TO_EDICT(*reinterpret_cast<int*>(agt.g_##n))
@@ -225,14 +230,190 @@ void agtStruckWrite(edict_t* p, const AgtStruckQuiet& q)
     return r;
 }
 
+// The parry's fields VR_AGPar_Frame's quiet run writes (agparry), in AgtParry's order.
+constexpr int agtParryFields = 10;
+
+// What VR_AGPar_Frame's quiet run leaves in them.
+struct AgtParry
+{
+    float v[agtParryFields];
+};
+
+[[nodiscard]] AgtParry agtParryRead(const edict_t* g)
+{
+    return {{TF(g, vr_agpar_w), TF(g, vr_agpar_since), TF(g, vr_agpar_ready), TF(g, vr_agg_state), TF(g, vr_agg_next),
+        TF(g, vr_agg_wup0), TF(g, vr_agg_wread0), TF(g, vr_agg_wup1), TF(g, vr_agg_wread1), 0.f}};
+}
+
+void agtParryWrite(edict_t* g, const AgtParry& s)
+{
+    TF(g, vr_agpar_w) = s.v[0];
+    TF(g, vr_agpar_since) = s.v[1];
+    TF(g, vr_agpar_ready) = s.v[2];
+    TF(g, vr_agg_state) = s.v[3];
+    TF(g, vr_agg_next) = s.v[4];
+    TF(g, vr_agg_wup0) = s.v[5];
+    TF(g, vr_agg_wread0) = s.v[6];
+    TF(g, vr_agg_wup1) = s.v[7];
+    TF(g, vr_agg_wread1) = s.v[8];
+}
+
+constexpr float agtc_VR_AGG_IDLE = 0.f; // (vr_armedgrunt_guard.qc)
+constexpr float agtc_VR_AGG_REACTING = 1.f;
+constexpr float agtc_VR_AGG_RAISED = 2.f;
+constexpr float agtc_VR_AGG_RECOVERING = 3.f;
+
+// VR_AGPar_Guards
+[[nodiscard]] bool agtGuards(const edict_t* g)
+{
+    return TF(g, vr_ag) != 0.f && agHas(TFE(g, vr_ag_prop)) && TCV(vr_agrunt_parry) != 0.f;
+}
+
+// VR_AGPar_Frame's steps for `g` while nothing comes (VR_AGG_Frame's guard idle or recovering, no raise read, no
+// preventive check due, no player within the 160 units the hands are looked for at, no monster's melee begun in 1.5 s):
+// `out` the parry's fields after them. False: something to do (QuakeC's), nothing written.
+[[nodiscard]] bool agtParryQuiet(const edict_t* g, AgtParry& out)
+{
+    out = agtParryRead(g);
+    if(!agtGuards(g))
+    {
+        out.v[0] = 0.f;
+        out.v[1] = 0.f;
+        return true;
+    }
+    const float now = agTime();
+    // VR_AGG_Frame
+    const float pre = TCV(vr_agrunt_preparry);
+    const float wup = TCV(vr_agrunt_windup_parry);
+    float& state = out.v[3];
+    if(g->v.health <= 0 || (pre == 0.f && wup == 0.f))
+    {
+        if(state == agtc_VR_AGG_RAISED)
+        {
+            out.v[2] = -1.f;
+        }
+        state = agtc_VR_AGG_IDLE;
+    }
+    else
+    {
+        // The nearest player (alive), across the floor.
+        const edict_t* best = nullptr;
+        float bestD = 100000.f;
+        for(edict_t* pl = agtNextPlayer(agWorld()); pl; pl = agtNextPlayer(pl))
+        {
+            AgV d = agOrigin(pl) - agOrigin(g);
+            d.z = 0.f;
+            if(pl->v.health > 0 && agVlen(d) < bestD)
+            {
+                bestD = agVlen(d);
+                best = pl;
+            }
+        }
+        // The timers: a raise due, or held (VR_AGPar_Able, the rolls): QuakeC's.
+        if(state == agtc_VR_AGG_RAISED || (state == agtc_VR_AGG_REACTING && now >= TF(g, vr_agg_until)))
+        {
+            return false;
+        }
+        if(state == agtc_VR_AGG_RECOVERING && now >= TF(g, vr_agg_until))
+        {
+            state = agtc_VR_AGG_IDLE;
+            out.v[4] = now;
+        }
+        if(best)
+        {
+            // Your raises: none read from this far (VR_AGG_ReadReach, worked out once a frame: not yet, QuakeC's).
+            if(TG(vr_agg_reach_at) != now)
+            {
+                return false;
+            }
+            if(!(wup == 0.f || bestD > TG(vr_agg_reach)))
+            {
+                return false;
+            }
+            out.v[5] = 0.f;
+            out.v[6] = 0.f;
+            out.v[7] = 0.f;
+            out.v[8] = 0.f;
+            if(pre != 0.f && state == agtc_VR_AGG_IDLE && now >= out.v[4])
+            {
+                return false; // (the preventive check due)
+            }
+        }
+    }
+    // Back in VR_AGPar_Frame: nothing can be coming (its guard down, no parry up, no blow seen in 0.35 s).
+    if(!(state != agtc_VR_AGG_RAISED && out.v[0] == 0.f && now - TF(g, vr_agpar_seen) >= 0.35f &&
+         now - TG(vr_melee_begun_last) >= 1.5f))
+    {
+        return false;
+    }
+    if(agtPlayerWithin160(g))
+    {
+        return false;
+    }
+    out.v[1] = 0.f;
+    return true;
+}
+
+// vr_qc_native_think 2: QuakeC's run after the engine's answer, the fields against the answer's.
+void agtParryCompare(edict_t* g, const AgtParry& want)
+{
+    agArgE(0, g);
+    agRun(agt.fn_VR_AGPar_FrameQC, 1);
+    const AgtParry got = agtParryRead(g);
+    agtStats.parryCompared++;
+    for(int i = 0; i < agtParryFields; i++)
+    {
+        if(!(got.v[i] == want.v[i]))
+        {
+            if(agtStats.parryDiffered++ < 8)
+            {
+                Con_Printf("agthink: agparry differs (edict %d): field %d QuakeC %g, engine %g\n", NUM_FOR_EDICT(g), i,
+                    got.v[i], want.v[i]);
+            }
+            return;
+        }
+    }
+}
+
+// float(entity g) agparry: VR_AGPar_Frame answered by the engine while nothing comes (TRUE: its writes made), else FALSE:
+// VR_AGPar_FrameQC's to do (vr_qc_native_think 0, a blow or a raise to read).
+void PF_agparry()
+{
+    edict_t* g = G_EDICT(OFS_PARM0);
+    const int mode = static_cast<int>(vr_qc_native_think.value);
+    bool done = false;
+    if(mode > 0 && agtBound())
+    {
+        agtStats.parryAsked++;
+        AgtParry s;
+        if(agtParryQuiet(g, s))
+        {
+            agtStats.parryNative++;
+            if(mode >= 2)
+            {
+                agtParryCompare(g, s);
+            }
+            else
+            {
+                agtParryWrite(g, s);
+            }
+            done = true;
+        }
+    }
+    G_FLOAT(OFS_RETURN) = done ? 1.f : 0.f;
+}
+
 // vr_agthink_compare: what vr_qc_native_think did since the last (then zeroed); its last line the verdict.
 void agthinkCompareReport()
 {
     const AgtStats& s = agtStats;
-    Con_Printf("agthink: agstruck %lld asked, %lld answered by the engine\n", s.struckAsked, s.struckNative);
-    const bool pass = s.struckDiffered == 0;
-    Con_Printf("agthink: %lld compared, %lld differed: %s\n", s.struckCompared, s.struckDiffered,
-        s.struckCompared == 0 ? "nothing compared (vr_qc_native_think 2)" : pass ? "PASS" : "FAIL");
+    Con_Printf("agthink: agstruck %lld asked, %lld answered by the engine; agparry %lld asked, %lld answered\n",
+        s.struckAsked, s.struckNative, s.parryAsked, s.parryNative);
+    const long long compared = s.struckCompared + s.parryCompared;
+    const long long differed = s.struckDiffered + s.parryDiffered;
+    Con_Printf("agthink: %lld compared, %lld differed (agstruck %lld/%lld, agparry %lld/%lld): %s\n", compared, differed,
+        s.struckCompared, s.struckDiffered, s.parryCompared, s.parryDiffered,
+        compared == 0 ? "nothing compared (vr_qc_native_think 2)" : differed == 0 ? "PASS" : "FAIL");
     agtStats = AgtStats{};
 }
 

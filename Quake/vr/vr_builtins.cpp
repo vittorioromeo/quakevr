@@ -951,6 +951,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"agposekey", PF_agposekey},
     {"agpose", PF_agpose},
     {"agstruck", PF_agstruck},
+    {"agparry", PF_agparry},
     {"agstrikeblend", PF_agstrikeblend},
     {"agkeytime", PF_agkeytime},
     {"agdrawnframe", PF_agdrawnframe},

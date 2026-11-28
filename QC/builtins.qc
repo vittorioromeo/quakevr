@@ -295,6 +295,9 @@ float(entity g, entity p) agpose = #0;
 // roll due, no tug, no player within reach): 0, QuakeC's writes made; -1: VR_AG_WeaponStruckQC's to do
 // (vr_qc_native_think; vr_builtins_agthink.inc).
 float(entity g, entity p) agstruck = #0;
+// agparry: VR_AGPar_Frame answered by the engine while nothing comes at armed humanoid `g` (its guard idle, no raise to
+// read, no player within reach, no monster's melee begun): TRUE, QuakeC's writes made; FALSE: VR_AGPar_FrameQC's to do.
+float(entity g) agparry = #0;
 // AD sword kind's (VR_ADMELEE_*) blade at share f of the line from the hand to its tip, off that line (shares of its
 // length): x along the line's normal in the blade's plane (the model's +y crossed with the line), y along its +y; z 1
 // if it is curved, else 0 (vr_admelee.cpp admelee::bend; QC VR_Melee_At).

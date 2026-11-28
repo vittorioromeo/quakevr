@@ -1019,8 +1019,19 @@ float(entity g, entity p) VR_AG_StrikeFrame =
 
 // Its weapon's think, each frame: a blow coming at it (your hand's weapon or fist closing on it fast, a monster's melee
 // attack on it) decided once (the chance), the parry raised after the reaction time and held while it comes; its point
-// (body space, eased) the pose's target.
+// (body space, eased) the pose's target. Nothing coming: the engine's answer (agparry, vr_qc_native_think: QuakeC's steps
+// below, the same writes).
+void(entity g) VR_AGPar_FrameQC;
 void(entity g) VR_AGPar_Frame =
+{
+    if(!agparry(g))
+    {
+        VR_AGPar_FrameQC(g);
+    }
+};
+
+// ... by QuakeC (vr_qc_native_think 0; whatever the engine leaves to it; its comparison, vr_qc_native_think 2).
+void(entity g) VR_AGPar_FrameQC =
 {
     if(!VR_AGPar_Guards(g))
     {
