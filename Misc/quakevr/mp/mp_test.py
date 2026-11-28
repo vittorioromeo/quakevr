@@ -3511,6 +3511,21 @@ def wpnsync(s, flat=""):
     s.metric("mag_out_reports", n)
     s.check("A sees B's nailgun without its magazine", True, "A's %s; after %d reports" % (wa, n))
 
+    # (nplava) The nail pistol (WID 29) switched to its lava nails by its button (impulse 43: the weapon button's press):
+    # A draws B's gun in its lava look (progs/v_nailpistol_lava.mdl), and back.
+    srv.cmd("vr_test_give_wid 29")
+    b.cmd("impulse 149")
+    gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and str(w.get("model", "")).endswith("v_nailpistol.mdl"),
+              "A draws B's nail pistol")
+    b.cmd("impulse 43")
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and "v_nailpistol_lava" in str(w.get("model")),
+                          "A draws B's nail pistol in its lava look")
+    s.metric("lava_look_reports", n)
+    s.check("A sees B's nail pistol switched to its lava nails (its lava look)", True, "A's %s; after %d reports" % (wa, n))
+    b.cmd("impulse 43")
+    gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and str(w.get("model", "")).endswith("v_nailpistol.mdl"),
+              "A sees B's nail pistol back on its nails")
+
     # The torch: B takes it in his off hand and lights it; A draws it where B does and lights its beam from it.
     b.cmd("vr_flashlight_give left")
     b.cmd("vr_flashlight_toggle")
