@@ -5653,12 +5653,12 @@ turns noclip on). 40 pass, 5 give no verdict line (below); the changed ones ("be
 |---|---|---|---|---|---|
 | flatads | 13/0 | 10/3 (crosshair pixels; aim sway: shotgun and launcher, no jump or turn sway) | its `setpos 480 -352 88` (e1m1's start) now applied: noclip on, the jump and turn of section g gave nothing | setpos dropped (the map's start) | 13/0 |
 | flatpose | - | 20/2 (the nudges and his origin 88; the near plane) | the same setpos | setpos dropped | 22/0 |
-| flatvisuals | - | 6/2 (+ "dead, Immersive": the camera 2.3 from the head's eyes) | god now held: the death case's view | mortal again (god, notarget out) | 7/1 (the dot, below) |
 | flatgrabthrow | 64/0 | 61/3 (ragpush: H takes the ogre, too heavy, let go) | `vr_test_kill 1` struck an armour plate (Plate Blocks All): the ogre lived on 1 health, its plates shed as debris, H took a plate. Its plates come by chance, so the run's random sequence (now with notarget) decides | the kill aid strips its target's plates first (combat_test.qc VR_TestKill_Frame: a kill aid kills) | 64/0 |
 
 Not from the god fix (the same with god taken out of the script): flat_ammo_key 11/2 (the toolgun's N, the shotgun's N),
 flatslide 22/4 (lean: "a shot across the leant head hits him"; keys: 3, R, mouse 4; its god comes after `wait60`, as ever),
-flatthrow 53/1 (the cancel's left button), flatvisuals' dot (1 red pixel), flatwall a's "the others" (known since 11-26),
+flatthrow 53/1 (the cancel's left button), flatvisuals 6/2 (the dot: 1 red pixel, every run; "dead, Immersive": the
+camera 2.3 from the head's eyes, run to run: with god failed, without god passed once and failed once), flatwall a's "the others" (known since 11-26),
 attach 51/2 (alwaysfail2's). All in BACKLOG section 1. ragdoll/active ran past 780 s (a diagnostic of 8 cases; no FAIL in
 deaths, head, wound, crawl, stumble); ragdoll/dismember, saveload, smallgibs and flatswim_shots give no verdict line (exit 0).
 None passes now that failed before: nothing comes off test_flaky.txt.
@@ -5679,7 +5679,7 @@ None passes now that failed before: nothing comes off test_flaky.txt.
   line, so "down 4" only lengthened its way (now key +(-0.02, 0.03, 0), moved 0.16); case 5 drags it out to its right
   (axis y, -4): key +(0.22, -0.28, 0.11), moved (1.28, -1.04, 0.51): 14/0 (3 runs). strikekeys 22/0.
 - **Files:** vr_disarmhull_test.qc, vr_posestudio.cpp, vr_rigstudio.cpp, combat_test.qc, flatads_test.sh,
-  flatpose_test.sh, flatvisuals_test.sh, BACKLOG.md.
+  flatpose_test.sh, BACKLOG.md.
 ## reloadmags: flat play's procedural reload for the magazine guns (branch agent/reloadmags, 2026-11-28)
 
 His words (kit `scratch/fb1127n/reload_words_1128.md`, the magazine paragraph): eject first, a magazine from the pouch,
