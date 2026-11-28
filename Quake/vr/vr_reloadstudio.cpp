@@ -108,6 +108,7 @@ struct Window
     bool orbit{false};
     float camYaw{150.f}, camPitch{15.f}, camDist{48.f};
     glm::vec2 camPan{0.f};
+    bool hideUi{false}; // (the frame strip: the window's controls not drawn, the scene alone in its shots)
     // The test.
     int step{0};
     int stepFrames{0};
@@ -1249,6 +1250,164 @@ void startPoseTest()
     Con_Printf("reloadstudio_pose: %s, keys %d (%s) and %d\n", r.gun, pt.k1 + 1, r.keys[za::max(pt.k1, 0)].name, pt.k2 + 1);
 }
 
+// ---- The frame strip (vr_reloadstudio strip; reloadstudio3, for his review): the gun in hand as for the pose test; the
+// studio's orbit camera (its window's controls hidden), a screenshot of the lock on each key in turn, then of a real reload
+// held at each key's end (vr_flat_prl_hold) in turn, the same keys; "reloadstudio_strip: key N lock|game" before each shot,
+// a key the real reload skipped (its condition unmet) or never reached noted so, "reloadstudio_strip: N passed, M failed" at
+// the end. Misc/quakevr/reloadstudio_strip.sh lays the shots out a row a key, studio left, game right.
+
+constexpr const char* stripName = "reloadstudio_strip";
+constexpr int stripShotFrames = 4; // frames after a screenshot is asked for before the scene changes
+constexpr float stripMiss = 6.f;   // units an insert's key is held out of the port (vr_flat_prl_test_miss), as the pose test's
+
+struct Strip
+{
+    bool on{false};
+    int step{0}; // 1 the lock's keys, 2 let go, 3 the real reload's keys, 4 its end
+    int key{0};
+    int frames{0};
+    int settled{0};
+    int shot{-1}; // frames since the screenshot was asked for (-1: not yet)
+    testkit::Tally tally;
+};
+Strip sp;
+
+void stripVerdict()
+{
+    Cvar_SetValueQuick(&vr_flat_prl_lock, 0.f);
+    Cvar_SetValueQuick(&vr_flat_prl_hold, 0.f);
+    Cvar_SetValueQuick(&vr_flat_prl_test_miss, 0.f);
+    sp.on = false;
+    win.hideUi = false;
+    closeWindow();
+    sp.tally.verdict(stripName);
+}
+
+void stripFrame()
+{
+    if(!sp.on)
+    {
+        return;
+    }
+    const flatprocreload::Status st = flatprocreload::status();
+    const Reload& r = cur();
+    sp.frames++;
+    if(sp.frames > 3 * testStepFrames)
+    {
+        sp.tally.check(false, stripName, "timed out");
+        stripVerdict();
+        return;
+    }
+    const auto settledOn = [&](bool cond) {
+        sp.settled = cond ? sp.settled + 1 : 0;
+        return sp.settled >= poseSettle;
+    };
+    // The screenshot asked for, then stripShotFrames frames for it before going on; true once done.
+    const auto shoot = [&](const char* what) {
+        if(sp.shot < 0)
+        {
+            Con_Printf("%s: key %d %s (%s)\n", stripName, sp.key + 1, what, r.keys[sp.key].name);
+            Cbuf_AddText("screenshot\n");
+            sp.shot = 0;
+        }
+        return ++sp.shot > stripShotFrames;
+    };
+    const auto nextKey = [&]() {
+        sp.key++;
+        sp.frames = 0;
+        sp.settled = 0;
+        sp.shot = -1;
+        // (An insert's key held out of the port by stripMiss, in both, so the game's round waits at its end.)
+        const bool insert = sp.key < r.keyCount && r.keys[sp.key].action == reloadsys::Action::Insert;
+        Cvar_SetValueQuick(&vr_flat_prl_test_miss, insert ? stripMiss : 0.f);
+    };
+    switch(sp.step)
+    {
+        case 1:
+            if((sp.shot >= 0 || settledOn(st.locked && st.lockKey == sp.key)) && shoot("lock"))
+            {
+                nextKey();
+                if(sp.key < r.keyCount)
+                {
+                    lockKey(sp.key);
+                }
+                else
+                {
+                    Cvar_SetValueQuick(&vr_flat_prl_lock, 0.f);
+                    sp.step = 2;
+                }
+            }
+            break;
+        case 2: // let go (its ending played): a real reload, held at the first key
+            if(settledOn(!st.locked && !st.tripOn))
+            {
+                sp.key = -1;
+                nextKey();
+                Cvar_SetValueQuick(&vr_flat_prl_hold, 1.f);
+                Cbuf_AddText("impulse 55\n");
+                sp.step = 3;
+            }
+            break;
+        case 3:
+        {
+            // (A key skipped, its condition unmet, or a reload over before it: noted, no shot.)
+            const bool past = (st.tripOn && st.tripKey > sp.key) || (!st.tripOn && sp.frames > poseSettle);
+            if(sp.shot < 0 && past)
+            {
+                Con_Printf("%s: key %d game skipped (%s)\n", stripName, sp.key + 1, r.keys[sp.key].name);
+                sp.shot = stripShotFrames;
+            }
+            if((sp.shot >= 0 || settledOn(st.tripOn && st.tripKey == sp.key && st.tripShare >= 1.f)) && shoot("game"))
+            {
+                sp.tally.check(true, stripName, va("%s key %d done", r.gun, sp.key + 1));
+                nextKey();
+                Cvar_SetValueQuick(&vr_flat_prl_hold, sp.key < r.keyCount ? static_cast<float>(sp.key + 1) : 0.f);
+                sp.step = sp.key < r.keyCount ? 3 : 4;
+            }
+            break;
+        }
+        case 4: // the real reload goes on to its end
+            if(!st.tripOn)
+            {
+                stripVerdict();
+            }
+            break;
+        default: stripVerdict(); break;
+    }
+}
+
+void startStrip()
+{
+    const flatprocreload::Status st = flatprocreload::status();
+    sp = Strip{};
+    sp.tally.reset();
+    int gun = -1;
+    for(int i = 0; i < reloadsys::count(); i++)
+    {
+        gun = reloadsys::at(i).weapon == st.lockWeapon ? i : gun;
+    }
+    if(st.lockGun < 0 || gun < 0)
+    {
+        sp.tally.check(false, stripName, "a gun with a procedural reload in one hand, the other empty");
+        sp.tally.verdict(stripName);
+        return;
+    }
+    openWindow();
+    win.gun = gun;
+    win.orbit = true;
+    win.hideUi = true;
+    win.camYaw = 210.f;
+    win.camPitch = 15.f;
+    win.camDist = 40.f; // (from in front of him to his left, the free hand's side: the gun and both hands in the shot)
+    win.camPan = glm::vec2{0.f};
+    win.key = 0;
+    Cvar_SetValueQuick(&vr_flat_prl_test_miss, 0.f);
+    lockKey(0);
+    sp.on = true;
+    sp.step = 1;
+    Con_Printf("%s: %s, %d keys\n", stripName, cur().gun, cur().keyCount);
+}
+
 void startTest()
 {
     win.tally.reset();
@@ -1278,6 +1437,10 @@ void window_f()
     {
         startPoseTest();
     }
+    else if(!ZA_STRCMP(sub, "strip"))
+    {
+        startStrip();
+    }
     else if(!ZA_STRCMP(sub, "toggle"))
     {
         if(win.open)
@@ -1291,7 +1454,7 @@ void window_f()
     }
     else
     {
-        Con_Printf("vr_reloadstudio [open|close|toggle|test|posetest]: the Reload Studio's flat-screen ImGui window\n");
+        Con_Printf("vr_reloadstudio [open|close|toggle|test|posetest|strip]: the Reload Studio's flat-screen ImGui window\n");
     }
 }
 
@@ -1343,7 +1506,8 @@ void frame()
     }
     testFrame();
     poseTestFrame();
-    if(!win.open)
+    stripFrame();
+    if(!win.open || win.hideUi)
     {
         return;
     }

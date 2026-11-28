@@ -1251,8 +1251,9 @@ void frame(bool on)
         return;
     }
     bool done = t.t >= 1.f;
-    // (vr_flat_prl_hold N, a test aid: held at key N's end, no failsafe, until it is set back.)
-    const bool holdHere = static_cast<int>(vr_flat_prl_hold.value) == t.key + 1 && !t.ending;
+    // (vr_flat_prl_hold N, a test aid: held at key N's end, no failsafe, until it is set back; an ending's key too:
+    // reloadstudio3's frame strip shows the return to the grip.)
+    const bool holdHere = static_cast<int>(vr_flat_prl_hold.value) == t.key + 1;
     switch(key->action)
     {
         case Action::Take:
