@@ -4909,3 +4909,27 @@ the camera suddenly a few units, then goes back" and "add a way to lock the anim
   the scrub, let go; the fire and melee cases now cancel at wait20: with his promoted times the first pair was already in
   at wait30). flatreload_test.sh 54/0.
 - **Open**: the pair in the locked hand is drawn but only checked by numbers (his eyes: key 4 looking down, key 6).
+
+## flatpunch: flat jabs along the crosshair's ray; Run Setup's melee row Axe, Dagger, Spear, Nothing (branch agent/flatpunch, 2026-11-28)
+
+His flat notes 2026-11-28, items 4 and 11.
+- **Jabs at the crosshair** (item 4): both fists' jabs (`fistsJab`) now end on the crosshair's ray, either hand. Before,
+  the fist was thrown 0.7 of the way (`vr_flat_punch_aim`) to a point measured off the shoulder by the rest pose's numbers,
+  out to the old throw's length: it ended 6.5 to 7.6 units from the crosshair's point, below and short of it (at arm's
+  length, well off the crosshair on the screen). Now (vr_flatplay.cpp pose loop) the target is measured from where the
+  hand really rests (`base`, the same place the swing is added to) and the jab goes all the way: to `jabThrough` (8) past
+  what the ray hits (ended on a grunt's face, the fist only touched it: no blow), never nearer along the ray than
+  `punchReach` (24) past the hand (a grunt right in front is still struck), at most the arm's reach along the ray
+  (`meleeAimPoint`'s new `jabFrom`). Other fist punches (a prop's, a free hand beside a gun, `vr_flat_jab_alternate` 0)
+  are unchanged. The melee probe's line gains `ray`: the blow's held end off the crosshair's ray, up and down too.
+  No new state: the pose is the client's; the blow is the game's hand motion as before (nothing new to network; per-seat
+  splitscreen needs nothing beyond the existing flat state).
+- **Run Setup melee order** (item 11): the Starting melee weapon row shows Axe, Dagger, Spear, Nothing (Nothing last, as
+  the Starting gun's). Display only: `Mutator::order` (vr_runsetup.hpp) gives a row's screen order of the values; the
+  values stay (Nothing 2, Spear 3), so saved picks, save lines and the QC's numbers are untouched (no config version).
+  The icon picker's pictures follow the screen's order (vr_menu_runsetup.inc).
+- **Tests**: flatfists_test.sh 21/0 (adds: the jabs in the air end on the ray, 0.0 off; a grunt off the line he faced,
+  turned onto with the mouse: each hand's jab hits it, 0.1 off the ray; the second jabhit grunt 60 back: the first's
+  falling corpse took the next jab and was thrown into it). vr_runsetup_test 88/0 (adds: every screen order a
+  permutation; the melee row's order and kept values). vr_runlaunch_test 91/1: the failing check is Select Campaign's
+  Arena Mode row under AD (campaign page; not touched here). flatmelee_test 12/0, flatmelee4 9/0, flatmelee6 9/0.
