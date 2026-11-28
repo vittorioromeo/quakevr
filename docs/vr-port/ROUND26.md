@@ -5497,6 +5497,55 @@ Docs only; 331 -> about 260 lines. Removed or rewritten:
 - Section 3: "Hotkeys for the remaining VR interactions" removed (audit done, FLATPLAY.md "Hotkeys"); "Procedural reloads" cut to the guns beyond the one-handed shotgun (flatprocreload).
 - Section 9: item 2 "Ironwail extraction" removed (iwextract; what is left stays inside Ironwail's functions); the check says melee tests, not the eval.
 - Kept, tightened: the rest of section 1, sections 2, 4-8, 10, 11 (each still open; none found implemented).
+
+## mpsync: the features of 11-27/28 in multiplayer, audited and tested from a remote client (branch agent/mpsync, 2026-11-28)
+
+His words (2026-11-28): "Ensure that all the newly added features (e.g. attachment, bayonets) are properly synced in
+multiplayer and splitscreen." Audit of each feature's path (what a remote client sees and does against the host) and a new
+MP scenario for the ones no MP test covered. **No sync gap found**: every new feature keeps its state on the server (QC
+fields, records, stats) or sends it in an existing message; the client-driven parts (hands, poses) ride the move. No
+QVR_NET_VERSION change.
+
+| Feature | Remote client (VR / flat), listen or dedicated | Status / test |
+|---|---|---|
+| Attachments held, holstered, dropped, thrown, stuck (attach1-5) | the record's kind by weapon id (QVR_SVC_WEAPONATTACH) and the avatar's attachment byte per gun look and holster | OK: mp_attach 26/0 |
+| Dagger as a bayonet (daggerattach) | the same kind byte (2) | OK, newly tested: mp_mpsync (B's J; A draws kind 2 held and stuck) |
+| Mount rails (bayomounts), global and per-gun offsets (mountoffs, bayofix) | drawn from local weapons.txt / CVAR_ARCHIVE offsets; the server's attach points use the host's | OK by design (a client with edited offsets sees its own drawing; hits are the host's) |
+| Holstered attachments, SSG open (holsterattach) | drawGunParts on the avatar's holster looks | OK: mp_attach (other_holster) |
+| Firing a stuck gun as a client (embedfire2) | the server's trigger path (VR_PropFire_With); flash via weaponfired on the prop; beam entity the prop | OK, newly tested: mp_mpsync (prop shots 0 -> 3, grunt hurt) |
+| Bayonet stab / V thrust by a client (attach, flatbayonet, bayofix) | server-side strike from the move's hands; flat V an impulse | OK: mp_attach (coop stick, deathmatch hurt), mp_mpsync (dagger stick) |
+| Dazzle by a client's flashlight, the forearm pose (flashblind, dazzlepose) | flashlightbeam reads the client's move (lampLit/Lens/Dir, stealth's path); pose in VR_AGP_BODY (the existing pose message) | OK by code (no new wire state) |
+| Elite (elite) | a bit in QVR_SVC_HUMLOOK, with the spawn state | OK: mp_elite (suite) |
+| Beast armour drawn remotely, independent breaks (beastmp, armourhits, scragtail) | QVR_SVC_ARMOR (its bytes unchanged; the 64-bit word is each side's own unpacking: no version bump) | OK: mp_beastmp 19/0 (suite), beastmp_dedicated |
+| Drawn-body hits, lag compensation (drawnhits) | server shapes from the server's own lerp; rewound pose a key | OK: mp_lagcomp (suite) |
+| Held grenade put back / swapped, BACK POUCH (wheelgrenade, grenhold) | client command vr_wheel_pick (whitelisted, slots -6..5) into QC; hand-grenade bits in STAT_QVR_FLATUNLOADFULL per client | OK, newly tested: mp_mpsync (a remote flat client's pick, then EMPTY HAND: the rocket back) |
+| Procedural reload as a client (flatprocreload, prlmove, prlfix, reloadsys) | the hand is the client's (state machine, impulses 99/106-108, the port in the move); the server owns rounds; rule vr_flat_proc_reload is the host's | OK, newly tested: mp_mpsync (full clip on the server; A sees B's free hand travel 29 units) |
+| Flat jabs, fists, punch aim (flatfists, flatpunch) | the pose is the client's; the blow the game's hand motion from the move | OK by design (no new state) |
+| Visor boot, gamepad, panels, controller bindings (visorboot, padflat, panelfix, ctrlbind, bindpanel2, wheelui) | local UI and input | OK (local) |
+| mparcs, netmismatch, mpoverflow, mplows, menupaths | MP work of their own, each with its group | OK (their tests) |
+
+- **New scenario** `mp_test.py mpsync` (suite `mp_mpsync`): a listen host A (VR), B flat-screen remote through the proxy,
+  coop e1m1. (1) B fires his shotgun empty, R: the server's `flat proc reload: main hand done` and a full clip; A's avatar
+  of B shows the free hand's trip. (2) B's `cmd vr_wheel_pick 0 -5` (BACK POUCH): the flat trip, the grenade in his off
+  hand, a rocket out; `vr_wheel_pick 0 -1` (EMPTY HAND): put back, the rocket back. (3) `vr_dm_test 28` (new,
+  vr_attach_test.qc: a dagger into a player's empty off hand), J: the record's kind 2; B and A draw the dagger. (4) V
+  sticks the gun in a grunt by the dagger; A draws it on the stuck gun; B's trigger fires the stuck gun (`vr_dm_test 26`
+  now also prints `attachmp: propshots=N`, the stuck guns' shots). 16/0.
+- **Harness fix**: `mp_test.py weaponwheel` ran the whole suite (the choice was missing from main_run's list): now its own
+  scenario.
+- **Seen, not MP**: a flat wheel pick of a grenade for the off hand while the main hand holds a gun stuck in a grunt is
+  refused ("the hand is not free"); single player has the same rule. A remote client's procedural reload sends the take
+  (impulse 99) again while its stat catches up: the server refuses the repeat harmlessly ("the off hand isn't empty").
+- **For split21** (client state that is the local player's today):
+  - vr_flatprocreload.cpp's state machine and the port it sends (one per seat), and its debug/lock tools.
+  - flatholster::handGrenade and the wheel's lit slots read cl.stats (the seat's own stats); the wheel's
+    vr_wheel_pick goes through the seat's own connection (forwardCommand per seat).
+  - flatplay's jab/guard pose, flat V's bayonet thrust and the flat Attach key's hand trip (flatattachanim): per-seat
+    flat state.
+  - vr_attach_report's own-hand entries and the held-weapon attachment drawing (setupAttachments) per seat's hands;
+    other players' guns already come from the entities (shared).
+  - Visor boot, the bindings panels, padflat's stick cursor and Controller Bindings: per seat's input device and HUD.
+  - Global attachment offsets are shared CVAR_ARCHIVE (seats draw with the same; nothing to do).
 ## elitedye: the elite enforcer's dye hidden by its armour; every elite kind checked as drawn (branch agent/elitedye, 2026-11-28)
 
 Open from "elite": in the lineup (test 234) the elite enforcer looked stock green though `vr_humlook_info` gave it the elite
