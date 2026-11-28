@@ -2652,6 +2652,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 	qcvm->effects_mask = PR_FindSupportedEffects ();
 
 	VR_OnProgsLoaded (); // QVR
+	VR_QCCpp_ProgsLoaded (); // QVR: vr_qc_cpp checks its C++ against this progs at the next call
 	PR_WarnUnboundBuiltins (); // QVR: after the VR builtins are bound
 	VR_TracyQCProgs (); // QVR: Tracy builds only; after VR_OnProgsLoaded bound the VR builtins
 

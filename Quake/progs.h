@@ -289,6 +289,10 @@ typedef struct qcvm_s
 	const unsigned char	*fieldwatch;
 	int			fieldwatch_n;
 	int			watchpending;
+
+	// QVR: the C++ QuakeC's statement count in the running outermost call and its last credit to a function's
+	// profile (vr/vr_qccpp.cpp, vr_qc_cpp 1: the interpreter's profile/startprofile)
+	int			qcpp_prof, qcpp_mark;
 } qcvm_t;
 
 typedef struct savedata_s

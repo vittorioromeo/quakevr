@@ -98,9 +98,18 @@ static void cg_sanitize (const char *n, char *out, size_t outsz)
 		if (!strcmp (out, cg_keywords[j]))
 		{
 			if (i + 2 < outsz)
-				out[i] = '_', out[i + 1] = 0;
+				out[i] = '_', out[i + 1] = 0, i++;
 			break;
 		}
+	// an ALL_CAPS name may be one of the engine's macros (MOVE_HITGIBS, TE_LIGHTNING2...): suffixed, as a keyword
+	if (out[i ? i - 1 : 0] != '_' || !i)
+	{
+		int upper = 0, lower = 0;
+		for (j = 0; j < i; j++)
+			upper |= out[j] >= 'A' && out[j] <= 'Z', lower |= out[j] >= 'a' && out[j] <= 'z';
+		if (upper && !lower && i + 2 < outsz)
+			out[i] = '_', out[i + 1] = 0;
+	}
 }
 
 // Name sets: one name per offset (the first name seen for it); another offset with a name already taken gets

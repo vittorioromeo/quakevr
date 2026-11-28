@@ -410,6 +410,42 @@
     <!--   That check runs in the kit's build.sh, the ships and the release script (Misc/release/make_release.ps1), no
            longer here: it cost every QC edit in the IDE ~2 s. -->
   </Target>
+  <!-- QVR: the C++ QuakeC (docs/vr-port/QC_TO_CPP.md), built only with /p:QvrQcCpp=1 (or QVR_QC_CPP=1 in the
+       environment): FTEQCC's -cppout writes the QC as C++ into build\qccpp (one .cpp per QC file; a build output, not
+       committed; only changed files are rewritten), compiled into the engine with QVR_QC_CPP; vr_qc_cpp 1 runs it. -->
+  <PropertyGroup>
+    <QvrQcCpp Condition="'$(QvrQcCpp)'=='' and '$(QVR_QC_CPP)'=='1'">1</QvrQcCpp>
+    <QvrQcCppDir>$(MSBuildProjectDirectory)\..\..\build\qccpp\</QvrQcCppDir>
+  </PropertyGroup>
+  <Target Name="QvrQcCppGenerate" BeforeTargets="ClCompile" AfterTargets="QvrCompileQC" Inputs="@(QvrQcSource);$(QvrQcCompiler)" Outputs="$(QvrQcCppDir)qc_table.cpp" Condition="'$(QvrQcCpp)'=='1'">
+    <MakeDir Directories="$(QvrQcCppDir)" />
+    <Exec WorkingDirectory="$(QvrQcDir)"
+          Command="&quot;$(QvrQcCompiler)&quot; -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 -cppout &quot;$(QvrQcCppDir).&quot;" />
+    <Touch Files="$(QvrQcCppDir)qc_table.cpp" />
+  </Target>
+  <Target Name="QvrQcCppSources" BeforeTargets="ClCompile" AfterTargets="QvrQcCppGenerate" Condition="'$(QvrQcCpp)'=='1'">
+    <MakeDir Directories="$(IntDir)qccpp" />
+    <ItemGroup>
+      <ClCompile Include="$(QvrQcCppDir)*.cpp">
+        <CompileAs>CompileAsCpp</CompileAs>
+        <AdditionalOptions>/clang:-std=c++23 -Wno-overriding-option -Wno-unused-command-line-argument /clang:-ffp-contract=off %(AdditionalOptions)</AdditionalOptions>
+        <LanguageStandard_C></LanguageStandard_C>
+        <AdditionalIncludeDirectories>..\..\Quake\vr\qccpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+        <PrecompiledHeader>NotUsing</PrecompiledHeader>
+        <ForcedIncludeFiles></ForcedIncludeFiles>
+        <ExceptionHandling>false</ExceptionHandling>
+        <ObjectFileName>$(IntDir)qccpp\</ObjectFileName>
+      </ClCompile>
+    </ItemGroup>
+  </Target>
+  <!-- (without the precompiled header: QVR_QC_CPP would not match it) -->
+  <ItemGroup>
+    <ClCompile Update="..\..\Quake\vr\vr_qccpp.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+      <PreprocessorDefinitions Condition="'$(QvrQcCpp)'=='1'">QVR_QC_CPP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemGroup>
   <!-- Visual Studio's fast up-to-date check decides from the tracking logs whether to run MSBuild at all, and QC sources
        aren't compile items: these logs (the format of Microsoft.CppCommon.targets' CustomBuildStep) name them as inputs
        and progs.dat as their output, so an F5 after a QC-only edit builds (and compiles the QC). Written on every build,
