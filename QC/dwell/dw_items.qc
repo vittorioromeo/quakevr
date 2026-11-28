@@ -430,7 +430,7 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
     dw_variant_shots++;
-    weaponfired(self, xHand);
+    VR_WeaponFired(xHand);
     VRGunHaptic(xHand, 0.4, 70, 0.8);
     ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 1, 0.3, 0);
     return TRUE;

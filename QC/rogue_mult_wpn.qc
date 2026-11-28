@@ -175,7 +175,7 @@ void(float xHand) W_FireMultiGrenade =
     VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_GrenShot_Make(missile); // QVR: a shot sets it off (vr_grenade_shoot; vr_grenade.qc)
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 };
@@ -374,7 +374,7 @@ void(float xHand) W_FireMultiRocket =
     MultiRocketLaunch(xHand, 5, 0);
     MultiRocketLaunch(xHand, 10, 1);
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.5, 75, 1.0);
 };
 
@@ -599,7 +599,7 @@ void(float xHand) W_FirePlasma =
     delAmmoOrClipAndUpdateCounter(xHand, AID_PLASMA, 1);
 
     sound(self, VRGetGunChannel(xHand), "plasma/fire.wav", 0.5, ATTN_NORM);
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.5, 75, 1.0);
 
     self.punchangle_x = -2;
