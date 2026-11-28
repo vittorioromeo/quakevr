@@ -46,6 +46,9 @@ void attachDrawn(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot
 // so that key's own pose is the grip and the hand goes there straight, not to the body's side first. One-handed guns: no grip,
 // as before.
 [[nodiscard]] bool freesForGrip(int h);
+// The gun in hand `h` posed by a procedural reload (a trip's or the lock's): flat play's open pose of a broken-open super
+// shotgun or a swung-out revolver (vr_flatreload.cpp openFrame) eases out for it, the keys' tilt alone, as the studio shows.
+[[nodiscard]] bool posesGun(int h);
 // The key-pose lock (vr_flat_prl_lock, prlfix: to tune the poses) holding a taped pair in the free hand: that hand and the
 // pair's size (vr_view.cpp prlPair draws it); false: no pair to draw.
 [[nodiscard]] bool lockPair(int& hand, float& scale);
@@ -92,5 +95,29 @@ struct Status
 // left, up; the gun hand's for the destination's keys, the body's otherwise) and the key's target (reloadsys::Target): the
 // studio's gizmo. False: not locked.
 bool lockFrames(glm::vec3& framePos, glm::mat3& frameAxes, glm::vec3& handPos, glm::vec3& handRot, int& kind);
+// reloadstudio2: the locked key's gun hand as drawn (its place and turn), the body's frame its moves are in (forward, right;
+// up +z) and its side (1: the right hand's; -1 the left's: its turns' yaw and roll and its "in" mirrored). False: not locked.
+bool lockGunFrame(glm::vec3& handPos, glm::vec3& handRot, glm::vec3& bodyFwd, glm::vec3& bodyRight, float& side);
+
+// reloadstudio2 (his note item 11): the free hand and the item in it as drawn this frame -- the lock's or a real reload's --
+// in the drawn gun hand's frame (forward, left, up; turns as the angles of the relative axes): the hand placed (before the
+// grasp), the hand entity drawn (after the grasp's palm move), the item, the item in the placed hand's own frame, the grasp's
+// palm move (rig units) and turn (degrees), what it wraps (0 nothing, 1 a held thing, 2 a weapon), the five fingers' curls.
+// vr_flatprocreload_pose prints it; the studio's pose test compares the lock's with a held real reload's (vr_flat_prl_hold).
+struct PoseSample
+{
+    bool lock{false};
+    int key{-1};
+    float t{0.f};
+    glm::vec3 handPos{0.f}, handRot{0.f}, drawnPos{0.f}, drawnRot{0.f};
+    bool item{false};
+    glm::vec3 itemPos{0.f}, itemRot{0.f}, inHandPos{0.f}, inHandRot{0.f};
+    float palmMove{0.f}, palmTurn{0.f};
+    int wraps{0};
+    float curl[5]{};
+    const char* itemModel{""}; // (the item's model's name)
+    int itemFrame{0};
+};
+bool poseSample(PoseSample& out);
 
 } // namespace qvr::flatprocreload

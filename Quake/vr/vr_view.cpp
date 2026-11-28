@@ -180,7 +180,10 @@ void updateFingerFrames()
         // (Flat-screen play's procedural reload, prlmove: its free hand holding the round grips it as a headset's hand does,
         // the grip squeezed (blended in by its share), the index closing with it: vr_flatprocreload.cpp gripShare.)
         const float roundShare = flatplay::active() && !holder && !flatGrips ? flatprocreload::gripShare(hand) : 0.f;
-        HandInput onRound = fistShare > 0.f ? fist : input.hands[hand];
+        // (reloadstudio2: never the guard's fist under it: a real reload's hand holds the round as a prop, which opens the
+        // guard's fist (flatplay::fistShare: carryShare), while the Reload Studio's lock's hand holds none and kept the fist,
+        // so its fingers' solve started from another pose and wrapped the same item differently.)
+        HandInput onRound = input.hands[hand];
         onRound.gripValue = za::fmax(onRound.gripValue, roundShare);
         const HandInput& in = holder || flatGrips ? holding : roundShare > 0.f ? onRound : fistShare > 0.f ? fist : input.hands[hand];
         // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
@@ -6456,7 +6459,35 @@ extern "C" void VR_SetupViewEntities()
             const glm::mat3 shaken = axes(shakenRot), steady = axes(s.visualRot[hand] + knockAngles[hand]);
             s.muzzle[hand] = s.pos[hand] + knockPos[hand] + steady * (glm::transpose(shaken) * (s.muzzle[hand] - shakenPos));
         }
-        else if(s.muzzleValid[hand])
+        if(flatplay::active() && (shakePos[hand] != glm::vec3{0.f} || shakeAngles[hand] != glm::vec3{0.f}))
+        {
+            // (reloadstudio2) Flat play: the loading port and the seated magazine's place too, as the muzzle: put back on the
+            // steady gun. Measured on the breathing, swaying gun against the steady hand (flatprocreload's measurePort), the
+            // procedural reload's hand was solved to a port that breathed with the looks' sway, and then carried on the drawn
+            // gun once more (attachDrawn): it drifted 0.2-0.3 units about the drawn port as the gun breathed.
+            const auto axes = [](const glm::vec3& angles) {
+                glm::vec3 f, r, u;
+                hands::angleVectors(angles, f, r, u);
+                return glm::mat3{f, r, u};
+            };
+            const glm::mat3 back = axes(s.visualRot[hand] + knockAngles[hand]) * glm::transpose(axes(shakenRot));
+            const glm::vec3 steadyPos = s.pos[hand] + knockPos[hand];
+            if(s.loadPortValid[hand])
+            {
+                s.loadPort[hand] = steadyPos + back * (s.loadPort[hand] - shakenPos);
+                s.loadPortAxis[hand] = back * s.loadPortAxis[hand];
+                s.loadPortFace[hand] = back * s.loadPortFace[hand];
+            }
+            if(s.magSeatValid[hand])
+            {
+                s.magSeat[hand][0] = steadyPos + back * (s.magSeat[hand][0] - shakenPos);
+                for(int i = 1; i < 4; i++)
+                {
+                    s.magSeat[hand][i] = back * s.magSeat[hand][i];
+                }
+            }
+        }
+        if(s.muzzleValid[hand] && shakePos[hand] == glm::vec3{0.f} && shakeAngles[hand] == glm::vec3{0.f})
         {
             // Nor held back on a prop (vr_box3d_press_back): the game's muzzle is the far end of a melee weapon's line
             // (QC VR_Blow_Points). Held back, it lagged the hand and then caught up at once as the press let go: a blow

@@ -17,7 +17,9 @@
 #include "vr_armourstudio.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_flatprocreload.hpp"
+#include "vr_flycam.hpp"
 #include "vr_gizmo.hpp"
 #include "vr_held.hpp"
 #include "vr_imgui.hpp"
@@ -33,8 +35,12 @@
 
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "vr_api.h"
 
 #include <glm/gtc/quaternion.hpp>
@@ -88,6 +94,20 @@ struct Window
     glm::vec3 ofs0{0.f}, rot0{0.f};
     float sweep{0.f};
     int dragKind{0};
+    // reloadstudio2: the gizmo on the free hand or on the gun (its key's tilt and move), and the gun's angles at the drag's
+    // start (a turn's change measured from them).
+    bool onGun{false};
+    glm::vec3 gunAngles0{0.f};
+    glm::vec3 gunRot0{0.f}, gunOfs0{0.f};
+    float gunSide{1.f};
+    // The gun pose copied (Copy Gun Pose; Paste, Paste Down / Up).
+    bool copied{false};
+    glm::vec3 copyRot{0.f}, copyOfs{0.f};
+    // The orbit camera (reloadstudio2, his note item 9): round his eye, turned off his view's yaw (degrees), pitched (down
+    // positive), so far off (units), its focus moved across the view (right, up; units).
+    bool orbit{false};
+    float camYaw{150.f}, camPitch{15.f}, camDist{48.f};
+    glm::vec2 camPan{0.f};
     // The test.
     int step{0};
     int stepFrames{0};
@@ -219,6 +239,38 @@ bool editEnum(const char* label, E& v, int count, const char* (*name)(E), const 
     return win.key >= 0 && win.key < cur().keyCount;
 }
 
+// The gun's gizmo (reloadstudio2, his note item 12): on the gun hand as drawn; moves along the body's frame (forward, left,
+// up: the key's Move, "in" mirrored by the gun's side), turns about the gun's own axes (the key's Tilt: the turned gun's
+// angles less the drawn ones, added to the key's, as the reload adds them to the hand's).
+void placeGunGizmo(const flatprocreload::Status& st)
+{
+    glm::vec3 pos, rot, fwd, right;
+    float side = 1.f;
+    if(win.gizmo == GizmoOff || !st.locked || st.lockKey != win.key || st.lockWeapon != cur().weapon ||
+       !flatprocreload::lockGunFrame(pos, rot, fwd, right, side))
+    {
+        return;
+    }
+    win.h.centre = pos;
+    const glm::mat3 gunAxes = held::axesFromAngles(&rot[0], true);
+    const glm::mat3 body{fwd, -right, glm::vec3{0.f, 0.f, 1.f}};
+    const glm::mat3& axes = win.gizmo == GizmoRotate ? gunAxes : body;
+    for(int i = 0; i < 3; i++)
+    {
+        win.h.axis[i] = axes[i];
+    }
+    win.h.move = win.gizmo == GizmoMove;
+    win.h.rot = win.gizmo == GizmoRotate;
+    win.h.scale = false;
+    if(!win.dragging)
+    {
+        win.frame0 = body;
+        win.gunAngles0 = rot;
+        win.gunSide = side;
+    }
+    gizmo::place(win.h, win.view, 70.f);
+}
+
 void placeGizmo()
 {
     win.h.shown = false;
@@ -226,6 +278,11 @@ void placeGizmo()
     glm::mat3 frame;
     int kind = 0;
     const flatprocreload::Status st = flatprocreload::status();
+    if(win.onGun)
+    {
+        placeGunGizmo(st);
+        return;
+    }
     if(win.gizmo == GizmoOff || !st.locked || st.lockKey != win.key || st.lockWeapon != cur().weapon ||
        !flatprocreload::lockFrames(framePos, frame, handPos, handRot, kind))
     {
@@ -250,6 +307,56 @@ void placeGizmo()
     gizmo::place(win.h, win.view, 70.f);
 }
 
+// The key's gun Move for a world move `d` (the body's frame: forward, right, up; "in" is the stored y, mirrored by the side).
+[[nodiscard]] glm::vec3 gunOfsAfter(const glm::vec3& ofs0, const glm::mat3& body, const glm::vec3& d, float side)
+{
+    const float right = -glm::dot(d, body[1]); // (body[1]: left)
+    return ofs0 + glm::vec3{glm::dot(d, body[0]), -side * right, glm::dot(d, body[2])};
+}
+
+// The key's gun Tilt for the drawn gun (angles `angles0`) turned `a` radians about the world axis `axis`: the turned axes'
+// angles less the drawn ones (each the short way round), mirrored back by the side, on the Tilt at the drag's start.
+[[nodiscard]] glm::vec3 gunRotAfter(const glm::vec3& rot0, const glm::vec3& angles0, const glm::vec3& axis, float a, float side)
+{
+    const glm::mat3 turned = glm::mat3_cast(glm::angleAxis(a, axis)) * held::axesFromAngles(&angles0[0], true);
+    glm::vec3 now;
+    held::anglesFromAxes(turned, &now[0], true);
+    glm::vec3 d;
+    for(int i = 0; i < 3; i++)
+    {
+        d[i] = za::remainder(now[i] - angles0[i], 360.f);
+    }
+    return rot0 + glm::vec3{d.x, side * d.y, side * d.z};
+}
+
+void dragGun(Key& k, const gizmo::Handle& h, const glm::vec2& m)
+{
+    if(h.move)
+    {
+        glm::vec3 world{0.f};
+        if(win.part <= 2)
+        {
+            world = gizmo::axisMoveExact(h, win.view, win.part, win.start, m);
+        }
+        else
+        {
+            const glm::vec3 n = win.part >= 4 ? h.axis[win.part - 4] : win.view.fwd;
+            glm::vec3 hit;
+            if(!win.view.rayPlane(m, h.centre, n, hit))
+            {
+                return;
+            }
+            world = hit - win.planeStart;
+        }
+        k.gunOfs = gunOfsAfter(win.gunOfs0, win.frame0, world, win.gunSide);
+    }
+    else if(win.part <= 2)
+    {
+        win.sweep += gizmo::ringSweepExact(h, win.view, h.axis[win.part], win.last, m);
+        k.gunRot = gunRotAfter(win.gunRot0, win.gunAngles0, h.axis[win.part], win.sweep, win.gunSide);
+    }
+}
+
 void dragTo(const glm::vec2& m)
 {
     if(!keyValid())
@@ -258,6 +365,13 @@ void dragTo(const glm::vec2& m)
     }
     Key& k = cur().keys[win.key];
     const gizmo::Handle& h = win.h0;
+    if(win.onGun)
+    {
+        dragGun(k, h, m);
+        win.last = m;
+        edited();
+        return;
+    }
     if(win.h0.move)
     {
         glm::vec3 world{0.f};
@@ -286,8 +400,55 @@ void dragTo(const glm::vec2& m)
     edited();
 }
 
+// ---- The orbit camera (reloadstudio2) -----------------------------------------------------------------------------
+
+constexpr float camYawStart = 150.f; // (in front of him and to his right, looking back at the gun and the free hand)
+constexpr float camPitchStart = 15.f;
+constexpr float camDistStart = 48.f;
+constexpr float camOrbitSpeed = 0.3f;  // degrees a pixel
+constexpr float camPanSpeed = 0.0025f; // of the distance a pixel
+constexpr float camZoomStep = 0.1f;    // of the distance a wheel notch
+constexpr float camFocusDown = 14.f;   // units below his eye it looks at (the hands and the gun)
+
+void resetView()
+{
+    win.camYaw = camYawStart;
+    win.camPitch = camPitchStart;
+    win.camDist = camDistStart;
+    win.camPan = glm::vec2{0.f};
+}
+
+// As the Rig Studio's and the Armour Studio's: right drag orbits, middle drag pans, the wheel zooms, over the scene (not the
+// window); any of them puts the camera in orbit.
+void cameraInput()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    if(io.WantCaptureMouse || win.dragging)
+    {
+        return;
+    }
+    const glm::vec2 d{io.MouseDelta.x, io.MouseDelta.y};
+    if(ImGui::IsMouseDown(ImGuiMouseButton_Right) && (d.x != 0.f || d.y != 0.f))
+    {
+        win.orbit = true;
+        win.camYaw -= d.x * camOrbitSpeed;
+        win.camPitch = za::clamp(win.camPitch + d.y * camOrbitSpeed, -85.f, 85.f);
+    }
+    if(ImGui::IsMouseDown(ImGuiMouseButton_Middle) && (d.x != 0.f || d.y != 0.f))
+    {
+        win.orbit = true;
+        win.camPan += glm::vec2{-d.x, d.y} * (win.camDist * camPanSpeed);
+    }
+    if(io.MouseWheel != 0.f)
+    {
+        win.orbit = true;
+        win.camDist = za::clamp(win.camDist * (1.f - io.MouseWheel * camZoomStep), 8.f, 400.f);
+    }
+}
+
 void gizmoFrame()
 {
+    cameraInput();
     ImGuiIO& io = ImGui::GetIO();
     win.view = gizmo::refdefProjection(io.DisplaySize.x, io.DisplaySize.y);
     placeGizmo();
@@ -314,6 +475,8 @@ void gizmoFrame()
         win.sweep = 0.f;
         win.ofs0 = cur().keys[win.key].handOfs;
         win.rot0 = cur().keys[win.key].handRot;
+        win.gunOfs0 = cur().keys[win.key].gunOfs;
+        win.gunRot0 = cur().keys[win.key].gunRot;
         const glm::vec3 n = win.part >= 4 && win.part <= 6 ? win.h.axis[win.part - 4] : win.view.fwd;
         if(!win.view.rayPlane(m, win.h.centre, n, win.planeStart))
         {
@@ -507,6 +670,67 @@ void keyListRows()
     }
 }
 
+// Copy / paste of the gun hand's pose (Tilt and Move) between keys (his note item 12): Paste into this key; Paste Down into
+// the next key (and on to it: pressed again, the one after), Paste Up into the previous one.
+void pasteGunPose(int to)
+{
+    Reload& r = cur();
+    if(!win.copied || to < 0 || to >= r.keyCount)
+    {
+        return;
+    }
+    r.keys[to].gunRot = win.copyRot;
+    r.keys[to].gunOfs = win.copyOfs;
+    win.key = to;
+    lockKey(to);
+    edited();
+}
+
+void gunPoseRows()
+{
+    Key& k = cur().keys[win.key];
+    if(ImGui::Button("Copy Gun Pose"))
+    {
+        win.copied = true;
+        win.copyRot = k.gunRot;
+        win.copyOfs = k.gunOfs;
+    }
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("This key's gun Tilt and Move, for Paste / Paste Down / Paste Up");
+    }
+    ImGui::BeginDisabled(!win.copied);
+    ImGui::SameLine();
+    if(ImGui::Button("Paste"))
+    {
+        pasteGunPose(win.key);
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("Paste Down"))
+    {
+        pasteGunPose(win.key + 1);
+    }
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("The copied gun pose into the next key, and on to it (again: the one after)");
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("Paste Up"))
+    {
+        pasteGunPose(win.key - 1);
+    }
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("The copied gun pose into the previous key, and on to it (again: the one before)");
+    }
+    ImGui::EndDisabled();
+    if(win.copied)
+    {
+        ImGui::TextDisabled("Copied: tilt %.1f %.1f %.1f, move %.2f %.2f %.2f", win.copyRot.x, win.copyRot.y, win.copyRot.z, win.copyOfs.x,
+            win.copyOfs.y, win.copyOfs.z);
+    }
+}
+
 void keyRows()
 {
     if(!keyValid())
@@ -544,7 +768,19 @@ void keyRows()
     ImGui::SeparatorText("Gun Hand");
     editVec("Tilt", k.gunRot, 0.5f, -180.f, 180.f, "%.1f", "Degrees: pitch (+ muzzle down), yaw (in), roll");
     editVec("Move", k.gunOfs, 0.05f, -24.f, 24.f, "%.2f", "Units: forward, in (towards the body's middle), up");
-    ImGui::SeparatorText("Gizmo on the Hand");
+    gunPoseRows();
+    ImGui::SeparatorText("Gizmo");
+    if(ImGui::RadioButton("On the Hand", !win.onGun))
+    {
+        win.onGun = false;
+        win.dragging = false;
+    }
+    ImGui::SameLine();
+    if(ImGui::RadioButton("On the Gun", win.onGun))
+    {
+        win.onGun = true;
+        win.dragging = false;
+    }
     constexpr const char* modes[GizmoCount] = {"Off", "Move", "Rotate"};
     for(int i = 0; i < GizmoCount; i++)
     {
@@ -557,8 +793,33 @@ void keyRows()
             win.gizmo = i;
         }
     }
-    ImGui::TextDisabled("The handle shows on the free hand while this key is locked.");
+    ImGui::TextDisabled(win.onGun ? "On the gun: Move drags its Move (body's frame), Rotate turns its Tilt about the gun's axes."
+                                  : "The handle shows on the free hand while this key is locked.");
     ImGui::PopID();
+}
+
+void cameraRows()
+{
+    if(ImGui::RadioButton("His Eyes", !win.orbit))
+    {
+        win.orbit = false;
+    }
+    ImGui::SameLine();
+    if(ImGui::RadioButton("Orbit", win.orbit))
+    {
+        win.orbit = true;
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("Reset View"))
+    {
+        resetView();
+        win.orbit = true;
+    }
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("The orbit camera back in front of him and to his right, looking at the gun and the free hand");
+    }
+    ImGui::TextDisabled("Over the scene: right drag orbits, middle drag pans, the wheel zooms (any of them: Orbit).");
 }
 
 void drawWindow()
@@ -617,6 +878,8 @@ void drawWindow()
         {
             ImGui::SetTooltip("This gun's built-in keys (Save to keep them)");
         }
+        ImGui::SeparatorText("Camera");
+        cameraRows();
         ImGui::SeparatorText("Timeline");
         transportRows();
         ImGui::SeparatorText("Reload");
@@ -784,6 +1047,204 @@ void testFrame()
     }
 }
 
+// ---- The pose test (vr_reloadstudio posetest; reloadstudio2, his note item 11): the gun in hand (the script gave it, partly
+// fired), the lock's pose on its take key (the item in the hand at the pouch) and the key after it (the carry, held off the
+// destination by vr_flat_prl_test_miss so nothing goes in), before any real reload of it; then a real reload held on the same
+// keys (vr_flat_prl_hold); each pair compared: the hand placed and drawn off the gun hand, the item in the hand, the grasp's
+// palm, the fingers. The super shotgun's and the revolver's carry is left out: the lock draws them shut, a real reload open.
+
+constexpr const char* poseTestName = "reloadstudio_pose";
+constexpr int poseSettle = 50; // frames a pose is let settle before it is sampled (the attach's and the grasp's easing, ~0.3 s)
+
+struct PoseTest
+{
+    bool on{false};
+    int step{0};
+    int frames{0};
+    int settled{0};
+    int k1{-1}, k2{-1};
+    flatprocreload::PoseSample lock1, lock2, trip1, trip2;
+    testkit::Tally tally;
+};
+PoseTest pt;
+
+[[nodiscard]] float angleGap(const glm::vec3& a, const glm::vec3& b)
+{
+    // (the turn between the two: the relative axes' angle)
+    const glm::mat3 ra = held::axesFromAngles(&a[0], true), rb = held::axesFromAngles(&b[0], true);
+    const float c = za::clamp((ra[0][0] * rb[0][0] + ra[0][1] * rb[0][1] + ra[0][2] * rb[0][2] + ra[1][0] * rb[1][0] + ra[1][1] * rb[1][1] +
+                                  ra[1][2] * rb[1][2] + ra[2][0] * rb[2][0] + ra[2][1] * rb[2][1] + ra[2][2] * rb[2][2] - 1.f) * 0.5f,
+        -1.f, 1.f);
+    return glm::degrees(za::acos(c));
+}
+
+void poseCompare(const char* what, const flatprocreload::PoseSample& l, const flatprocreload::PoseSample& t)
+{
+    float curl = 0.f;
+    for(int i = 0; i < 5; i++)
+    {
+        curl = za::max(curl, za::abs(l.curl[i] - t.curl[i]));
+    }
+    const float hand = glm::distance(l.handPos, t.handPos), handTurn = angleGap(l.handRot, t.handRot);
+    const float drawn = glm::distance(l.drawnPos, t.drawnPos), drawnTurn = angleGap(l.drawnRot, t.drawnRot);
+    const float inHand = glm::distance(l.inHandPos, t.inHandPos), inHandTurn = angleGap(l.inHandRot, t.inHandRot);
+    // (Short lines: the console wraps long ones.)
+    Con_Printf("reloadstudio_pose: %s %s: hand %.3f u %.2f deg, drawn %.3f u %.2f deg\n", cur().gun, what, hand, handTurn, drawn, drawnTurn);
+    Con_Printf("reloadstudio_pose: %s %s: item in hand %.3f u %.2f deg, palm %.2f/%.2f u %.1f/%.1f deg, fingers %.3f\n", cur().gun, what,
+        inHand, inHandTurn, l.palmMove, t.palmMove, l.palmTurn, t.palmTurn, curl);
+    Con_Printf("reloadstudio_pose: %s %s: curls lock %.2f %.2f %.2f %.2f %.2f, real %.2f %.2f %.2f %.2f %.2f\n", cur().gun, what, l.curl[0],
+        l.curl[1], l.curl[2], l.curl[3], l.curl[4], t.curl[0], t.curl[1], t.curl[2], t.curl[3], t.curl[4]);
+    Con_Printf("reloadstudio_pose: %s %s: the hand off the gun hand: lock %.2f %.2f %.2f, real %.2f %.2f %.2f\n", cur().gun, what,
+        l.handPos.x, l.handPos.y, l.handPos.z, t.handPos.x, t.handPos.y, t.handPos.z);
+    Con_Printf("reloadstudio_pose: %s %s: the item: lock %s %d, real %s %d\n", cur().gun, what, l.itemModel, l.itemFrame, t.itemModel,
+        t.itemFrame);
+    char label[96];
+    const auto check = [&](bool ok, const char* part) {
+        q_snprintf(label, sizeof(label), "%s %s: %s", cur().gun, what, part);
+        pt.tally.check(ok, poseTestName, label);
+    };
+    check(l.item && t.item, "an item in both hands");
+    check(l.wraps == 1 && t.wraps == 1, "both hands wrap it (the prop's fingers)");
+    check(hand < 0.25f && handTurn < 1.5f, "the hand placed alike");
+    check(drawn < 0.3f && drawnTurn < 2.f, "the hand drawn alike (after the grasp)");
+    check(inHand < 0.05f && inHandTurn < 1.f, "the item in the hand alike");
+    check(za::abs(l.palmTurn - t.palmTurn) < 2.f, "the grasp's palm turn alike");
+    check(curl < 0.05f, "the fingers alike");
+}
+
+void poseVerdict()
+{
+    Cvar_SetValueQuick(&vr_flat_prl_lock, 0.f);
+    Cvar_SetValueQuick(&vr_flat_prl_hold, 0.f);
+    Cvar_SetValueQuick(&vr_flat_prl_test_miss, 0.f);
+    pt.on = false;
+    closeWindow();
+    pt.tally.verdict(poseTestName);
+}
+
+void poseTestFrame()
+{
+    if(!pt.on)
+    {
+        return;
+    }
+    const flatprocreload::Status st = flatprocreload::status();
+    pt.frames++;
+    if(pt.frames > testStepFrames)
+    {
+        pt.tally.check(false, poseTestName, "timed out");
+        poseVerdict();
+        return;
+    }
+    const auto next = [&]() {
+        pt.step++;
+        pt.frames = 0;
+        pt.settled = 0;
+    };
+    // Settled: the condition held poseSettle frames running.
+    const auto settledOn = [&](bool cond) {
+        pt.settled = cond ? pt.settled + 1 : 0;
+        return pt.settled >= poseSettle;
+    };
+    switch(pt.step)
+    {
+        case 1: // the lock on the take key
+            if(settledOn(st.locked && st.lockKey == pt.k1))
+            {
+                pt.tally.check(flatprocreload::poseSample(pt.lock1), poseTestName, "the lock's take pose sampled");
+                if(pt.k2 >= 0)
+                {
+                    lockKey(pt.k2);
+                }
+                next();
+            }
+            break;
+        case 2: // the lock on the carry key
+            if(pt.k2 < 0 || settledOn(st.locked && st.lockKey == pt.k2))
+            {
+                if(pt.k2 >= 0)
+                {
+                    pt.tally.check(flatprocreload::poseSample(pt.lock2), poseTestName, "the lock's carry pose sampled");
+                }
+                Cvar_SetValueQuick(&vr_flat_prl_lock, 0.f);
+                next();
+            }
+            break;
+        case 3: // let go (its ending played): a real reload, held at the take key
+            if(settledOn(!st.locked && !st.tripOn))
+            {
+                Cvar_SetValueQuick(&vr_flat_prl_hold, static_cast<float>(pt.k1 + 1));
+                Cbuf_AddText("impulse 55\n");
+                next();
+            }
+            break;
+        case 4:
+            if(settledOn(st.tripOn && st.tripKey == pt.k1 && st.tripShare >= 1.f))
+            {
+                pt.tally.check(flatprocreload::poseSample(pt.trip1), poseTestName, "the real reload's take pose sampled");
+                Cvar_SetValueQuick(&vr_flat_prl_hold, static_cast<float>(pt.k2 >= 0 ? pt.k2 + 1 : 0));
+                next();
+            }
+            break;
+        case 5:
+            if(pt.k2 < 0 || settledOn(st.tripOn && st.tripKey == pt.k2 && st.tripShare >= 1.f))
+            {
+                if(pt.k2 >= 0)
+                {
+                    pt.tally.check(flatprocreload::poseSample(pt.trip2), poseTestName, "the real reload's carry pose sampled");
+                }
+                Cvar_SetValueQuick(&vr_flat_prl_hold, 0.f);
+                Cvar_SetValueQuick(&vr_flat_prl_test_miss, 0.f);
+                poseCompare("take", pt.lock1, pt.trip1);
+                if(pt.k2 >= 0)
+                {
+                    poseCompare("carry", pt.lock2, pt.trip2);
+                }
+                next();
+            }
+            break;
+        case 6: // the real reload goes on to its end
+            if(!st.tripOn)
+            {
+                poseVerdict();
+            }
+            break;
+        default: poseVerdict(); break;
+    }
+}
+
+void startPoseTest()
+{
+    const flatprocreload::Status st = flatprocreload::status();
+    pt = PoseTest{};
+    pt.tally.reset();
+    int gun = -1;
+    for(int i = 0; i < reloadsys::count(); i++)
+    {
+        gun = reloadsys::at(i).weapon == st.lockWeapon ? i : gun;
+    }
+    if(st.lockGun < 0 || gun < 0)
+    {
+        pt.tally.check(false, poseTestName, "a gun with a procedural reload in one hand, the other empty");
+        pt.tally.verdict(poseTestName);
+        return;
+    }
+    openWindow();
+    win.gun = gun;
+    const Reload& r = cur();
+    pt.k1 = reloadsys::takeKey(r);
+    const int after = pt.k1 + 1;
+    const bool shutInLock = r.weapon == WID_SUPER_SHOTGUN || r.weapon == WID_REVOLVER;
+    pt.k2 = !shutInLock && after < r.keyCount && (r.keys[after].target == Target::Mouth || r.keys[after].target == Target::Dest) ? after : -1;
+    Cvar_SetValueQuick(&vr_flat_prl_test_miss, 6.f);
+    win.key = pt.k1;
+    lockKey(pt.k1);
+    pt.on = true;
+    pt.step = 1;
+    pt.frames = 0;
+    Con_Printf("reloadstudio_pose: %s, keys %d (%s) and %d\n", r.gun, pt.k1 + 1, r.keys[za::max(pt.k1, 0)].name, pt.k2 + 1);
+}
+
 void startTest()
 {
     win.tally.reset();
@@ -809,6 +1270,10 @@ void window_f()
     {
         startTest();
     }
+    else if(!ZA_STRCMP(sub, "posetest"))
+    {
+        startPoseTest();
+    }
     else if(!ZA_STRCMP(sub, "toggle"))
     {
         if(win.open)
@@ -822,7 +1287,7 @@ void window_f()
     }
     else
     {
-        Con_Printf("vr_reloadstudio [open|close|toggle|test]: the Reload Studio's flat-screen ImGui window\n");
+        Con_Printf("vr_reloadstudio [open|close|toggle|test|posetest]: the Reload Studio's flat-screen ImGui window\n");
     }
 }
 
@@ -873,6 +1338,7 @@ void frame()
         SDL_ShowCursor(SDL_ENABLE);
     }
     testFrame();
+    poseTestFrame();
     if(!win.open)
     {
         return;
@@ -895,4 +1361,34 @@ bool open()
     return win.open;
 }
 
+bool cameraView(float* vieworg, float* viewangles)
+{
+    if(!win.open || !win.orbit || !flatplay::active() || flycam::on() || cl.stats[STAT_HEALTH] <= 0)
+    {
+        return false;
+    }
+    // Round his eye a little below it (the hands' height), turned off his view's yaw; panned across the camera's view.
+    const float yaw = glm::radians(viewangles[1] + win.camYaw), pitch = glm::radians(win.camPitch);
+    const glm::vec3 fwd{za::cos(pitch) * za::cos(yaw), za::cos(pitch) * za::sin(yaw), -za::sin(pitch)};
+    const glm::vec3 right = glm::normalize(glm::cross(fwd, glm::vec3{0.f, 0.f, 1.f}));
+    const glm::vec3 up = glm::cross(right, fwd);
+    const glm::vec3 focus = glm::vec3{vieworg[0], vieworg[1], vieworg[2] - camFocusDown} + right * win.camPan.x + up * win.camPan.y;
+    const glm::vec3 org = focus - fwd * win.camDist;
+    for(int i = 0; i < 3; i++)
+    {
+        vieworg[i] = org[i];
+    }
+    viewangles[0] = win.camPitch;
+    viewangles[1] += win.camYaw;
+    viewangles[2] = 0.f;
+    flycam::borrowView();
+    return true;
+}
+
 } // namespace qvr::reloadstudio
+
+// V_CalcRefdef, after the fly camera (vr_api.h): the Reload Studio's orbit camera over the view.
+extern "C" void VR_ReloadStudioView(float* vieworg, float* viewangles)
+{
+    (void)qvr::reloadstudio::cameraView(vieworg, viewangles);
+}
