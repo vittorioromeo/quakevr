@@ -475,7 +475,7 @@ struct Screen
 // The mouse (the laser) points only on seat 1's screen: seats 2-4 have a pad alone.
 [[nodiscard]] bool pointerOn()
 {
-    return seat::current().index == 0 && pointerOn();
+    return seat::current().index == 0 && menuui::pointerOn(true); // (menuui's: unqualified, this one called itself forever)
 }
 
 // The mouse's buttons and Shift are seat 1's keys.
