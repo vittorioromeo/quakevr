@@ -5511,14 +5511,17 @@ void attachHierarchyChecks(const Check& check)
         float scale;
         glm::vec3 dagger;
         float daggerPitch;
+        glm::vec2 own{0.f}; // (bayofix: the gun's own dagger offset since, att2_x / att2_z in its mount's units)
     };
     const Old olds[] = {{"progs/v_shot.mdl", {32.9f, 0.f, 2.84f}, 2.2727f, {26.55f, 0.77f, -1.717f}, -0.74f},
         {"progs/v_shot2.mdl", {26.f, 0.f, 3.62f}, 2.0833f, {20.199f, 0.706f, 1.668f}, 0.76f},
-        {"progs/v_nail.mdl", {20.f, -1.48f, 2.14f}, 2.083f, {14.188f, -0.774f, -0.922f}, 0.f},
-        {"progs/v_rock2.mdl", {50.6f, 0.f, -1.95f}, 2.941f, {42.394f, 0.997f, -6.274f}, 0.f},
-        {"progs/v_light.mdl", {33.4f, 0.f, 7.55f}, 2.857f, {25.429f, 0.969f, 3.35f}, 0.f},
-        {"progs/v_enfrifle.mdl", {40.6f, 0.f, 4.28f}, 2.5f, {33.625f, 0.848f, 0.605f}, 0.f},
-        {"progs/v_revolver.mdl", {20.26f, 0.f, 5.56f}, 2.222f, {14.06f, 0.753f, 2.293f}, 0.f}};
+        {"progs/v_nail.mdl", {20.f, -1.48f, 2.14f}, 2.083f, {14.188f, -0.774f, -0.922f}, 0.f, {0.f, -1.13f}},
+        {"progs/v_rock2.mdl", {50.6f, 0.f, -1.95f}, 2.941f, {42.394f, 0.997f, -6.274f}, 0.f, {1.f, 1.11f}},
+        {"progs/v_light.mdl", {33.4f, 0.f, 7.55f}, 2.857f, {25.429f, 0.969f, 3.35f}, 0.f, {0.65f, -0.99f}},
+        {"progs/v_enfrifle.mdl", {40.6f, 0.f, 4.28f}, 2.5f, {33.625f, 0.848f, 0.605f}, 0.f, {0.f, -1.07f}},
+        {"progs/v_revolver.mdl", {20.26f, 0.f, 5.56f}, 2.222f, {14.06f, 0.753f, 2.293f}, 0.f, {0.f, -0.54f}}};
+    // (Where the dagger is today: before bayofix's own offsets, moved by them, the mount level: in the gun's axes.)
+    const auto daggerNow = [](const Old& o) { return o.dagger + glm::vec3{o.own.x, 0.f, o.own.y} * o.scale; };
     const attach::KindInfo* const d = attach::info(attach::Dagger);
     const glm::vec3 df = glm::normalize(d->forward);
     float worstPos = 0.f, worstScale = 0.f, worstTurn = 0.f;
@@ -5533,13 +5536,14 @@ void attachHierarchyChecks(const Check& check)
         }
         const attach::Mount b = attach::mount(slot, attach::Bayonet), g = attach::mount(slot, attach::Dagger);
         const glm::mat3 oldDagger = view::mountBasis(glm::vec3{o.daggerPitch, 0.f, 0.f});
-        worstPos = za::max(worstPos, za::max(glm::distance(b.pos, o.bayonet), glm::distance(g.pos, o.dagger)));
+        worstPos = za::max(worstPos, za::max(glm::distance(b.pos, o.bayonet), glm::distance(g.pos, daggerNow(o))));
         worstScale = za::max(worstScale, za::max(za::fabs(b.scale - o.scale), za::fabs(g.scale - o.scale)));
         worstTurn = za::max(worstTurn, za::max(glm::distance(b.basis[0], glm::vec3{1.f, 0.f, 0.f}),
                                            glm::distance(g.basis * df, oldDagger[0])));
     }
     char line[220];
-    q_snprintf(line, sizeof(line), "at the defaults every gun's bayonet and dagger where they were (7 guns: %.4f units, sizes "
+    q_snprintf(line, sizeof(line), "at the defaults every gun's bayonet and dagger where they were, the daggers moved by bayofix "
+        "(7 guns: %.4f units, sizes "
         "%.4f, turns %.4f)", worstPos, worstScale, worstTurn);
     check(all && worstPos < 0.01f && worstScale < 0.001f && worstTurn < 0.001f, line);
 
@@ -5588,7 +5592,7 @@ void attachHierarchyChecks(const Check& check)
         }
         const attach::Mount b = attach::mount(slot, attach::Bayonet), g = attach::mount(slot, attach::Dagger);
         worstB = za::max(worstB, glm::distance(b.pos, o.bayonet + glm::vec3{0.f, 0.f, o.scale}));
-        worstD = za::max(worstD, glm::distance(g.pos, o.dagger + glm::vec3{0.5f * o.scale, 0.f, 0.f}));
+        worstD = za::max(worstD, glm::distance(g.pos, daggerNow(o) + glm::vec3{0.5f * o.scale, 0.f, 0.f}));
         worstS = za::max(worstS, za::fabs(b.scale - 1.5f * o.scale));
     }
     Cvar_SetQuick(&vr_attach_bayonet_z, vr_attach_bayonet_z.default_string);
@@ -5598,9 +5602,10 @@ void attachHierarchyChecks(const Check& check)
         "by its mount's size times them (%.4f, %.4f, %.4f off)", worstB, worstD, worstS);
     check(worstB < 0.01f && worstD < 0.01f && worstS < 0.001f, line);
 
-    // His config before 81: the nailgun's mount moved 0.68 left in the bayonet's units, the rest the defaults.
+    // His config before 81: the nailgun's mount moved 0.68 left in the bayonet's units, the rest the defaults (as
+    // takeMountOffsets81 reads them back from today's: the dagger where today's defaults put it, bayofix's offset in it).
     attach::MountValues a1{glm::vec3{20.f, -1.48f, 2.14f}, glm::vec3{0.f}, 2.083f};
-    attach::MountValues a2{glm::vec3{14.188f, -0.774f, -0.922f}, glm::vec3{0.f}, 2.083f};
+    attach::MountValues a2{daggerNow(olds[2]), glm::vec3{0.f}, 2.083f};
     attach::MountValues mnt{glm::vec3{0.f, 0.68f, 0.f}, glm::vec3{0.f}, 1.f};
     attach::convertToMountOffsets(a1, a2, mnt);
     const weapons::Key keys[3][7] = {{Key::Att1X, Key::Att1Y, Key::Att1Z, Key::Att1Pitch, Key::Att1Yaw, Key::Att1Roll, Key::Att1Scale},
