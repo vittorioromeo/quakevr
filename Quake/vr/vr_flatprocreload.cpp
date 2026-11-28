@@ -128,6 +128,7 @@ struct ProcState
     glm::vec3 destIn{0.f};
     glm::vec3 acrossIn{0.f};
     int chamber{-1};
+    int aimed{-1}; // (the chamber the item in the hand was aimed at last: the debug print as it goes in)
     float portGap{-1.f};        // the carried item's distance from its destination as placed (the report; -1 none)
     float insertGap{-1.f};       // and as the last insert's key reached its end (the studio's success readout)
     float faceToFree{0.f};       // how much the port's opening faces the free hand (cosine; the report)
@@ -1075,6 +1076,10 @@ void frame(bool on)
         measureRound(t.free);
         t.clipAtCarry = clipOf(t.gun);
     }
+    if(carried > 0)
+    {
+        ps.aimed = ps.chamber;
+    }
     if(t.hadItem && carried == 0 && !t.ending)
     {
         t.hadItem = false;
@@ -1082,8 +1087,9 @@ void frame(bool on)
         (in ? ps.seated : ps.dropped)++;
         if(debugOn())
         {
-            Con_Printf("flatprocreload: the round %s (key %d %s %.2f s in; clip %d; fingers %.2f, grip %.2f)\n", in ? "went in" : "left the hand",
-                t.key + 1, key->name, since, clipOf(t.gun), view::drawnGripCurl(t.free), gripShare(t.free));
+            Con_Printf("flatprocreload: the round %s (key %d %s %.2f s in; clip %d; fingers %.2f, grip %.2f; aimed at chamber %d)\n",
+                in ? "went in" : "left the hand", t.key + 1, key->name, since, clipOf(t.gun), view::drawnGripCurl(t.free), gripShare(t.free),
+                ps.aimed);
         }
         const int n = insert >= 0 ? reloadsys::nextKey(*r, insert, up, cond) : -1;
         if(!up)

@@ -259,3 +259,467 @@ reload supershotgun
         finish 1
     }
 }
+
+reload grenadelauncher
+{
+    item rocket
+    dest muzzle
+    item_rot 0 0 0
+    loop 2 5
+    key "reach"
+    {
+        time 0.3
+        gun_time 0.25
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 0
+        approach 0
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action none
+        if always
+        finish 0
+    }
+    key "grip"
+    {
+        time 0.06
+        gun_time 0
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 0
+        approach 0
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action take
+        if always
+        finish 0
+    }
+    key "carry"
+    {
+        time 0.28
+        gun_time 0
+        ease smooth
+        hand mouth
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 4
+        approach 3
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action none
+        if always
+        finish 0
+    }
+    key "insert"
+    {
+        time 0.12
+        gun_time 0
+        ease smooth
+        hand dest
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action insert
+        if always
+        finish 0
+    }
+    key "reach again"
+    {
+        time 0.24
+        gun_time 0
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 4
+        approach 0
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action none
+        if always
+        finish 0
+    }
+    key "return"
+    {
+        time 0.25
+        gun_time 0.22
+        ease smooth
+        hand rest
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot 0 0 0
+        gun_ofs 0 0 0
+        action none
+        if always
+        finish 1
+    }
+}
+
+reload proxlauncher
+{
+    item rocket
+    dest muzzle
+    item_rot 0 0 0
+    loop 2 5
+    key "reach"
+    {
+        time 0.3
+        gun_time 0.25
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 0
+        approach 0
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action none
+        if always
+        finish 0
+    }
+    key "grip"
+    {
+        time 0.06
+        gun_time 0
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 0
+        approach 0
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action take
+        if always
+        finish 0
+    }
+    key "carry"
+    {
+        time 0.28
+        gun_time 0
+        ease smooth
+        hand mouth
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 4
+        approach 3
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action none
+        if always
+        finish 0
+    }
+    key "insert"
+    {
+        time 0.12
+        gun_time 0
+        ease smooth
+        hand dest
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action insert
+        if always
+        finish 0
+    }
+    key "reach again"
+    {
+        time 0.24
+        gun_time 0
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 4
+        approach 0
+        gun_rot -30 60 0
+        gun_ofs 4 2 -2
+        action none
+        if always
+        finish 0
+    }
+    key "return"
+    {
+        time 0.25
+        gun_time 0.22
+        ease smooth
+        hand rest
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot 0 0 0
+        gun_ofs 0 0 0
+        action none
+        if always
+        finish 1
+    }
+}
+
+reload rocketlauncher
+{
+    item rocket
+    dest muzzle
+    item_rot 0 0 0
+    loop 2 5
+    key "reach"
+    {
+        time 0.3
+        gun_time 0.25
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 0
+        approach 0
+        gun_rot -25 65 0
+        gun_ofs 2 2 -4
+        action none
+        if always
+        finish 0
+    }
+    key "grip"
+    {
+        time 0.06
+        gun_time 0
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 0
+        approach 0
+        gun_rot -25 65 0
+        gun_ofs 2 2 -4
+        action take
+        if always
+        finish 0
+    }
+    key "carry"
+    {
+        time 0.28
+        gun_time 0
+        ease smooth
+        hand mouth
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 4
+        approach 4
+        gun_rot -25 65 0
+        gun_ofs 2 2 -4
+        action none
+        if always
+        finish 0
+    }
+    key "insert"
+    {
+        time 0.12
+        gun_time 0
+        ease smooth
+        hand dest
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot -25 65 0
+        gun_ofs 2 2 -4
+        action insert
+        if always
+        finish 0
+    }
+    key "reach again"
+    {
+        time 0.24
+        gun_time 0
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 4
+        approach 0
+        gun_rot -25 65 0
+        gun_ofs 2 2 -4
+        action none
+        if always
+        finish 0
+    }
+    key "return"
+    {
+        time 0.25
+        gun_time 0.22
+        ease smooth
+        hand rest
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot 0 0 0
+        gun_ofs 0 0 0
+        action none
+        if always
+        finish 1
+    }
+}
+
+reload revolver
+{
+    item cylinder
+    dest cylinder
+    item_rot 0 0 0
+    loop 4 7
+    key "open"
+    {
+        time 0.14
+        gun_time 0
+        ease out
+        hand hold
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot -10 25 -55
+        gun_ofs 8 3 0
+        action open
+        if closed
+        finish 0
+    }
+    key "eject"
+    {
+        time 0.26
+        gun_time 0
+        ease smooth
+        hand hold
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot -55 25 -30
+        gun_ofs 8 3 0
+        action none
+        if always
+        finish 0
+    }
+    key "reach"
+    {
+        time 0.24
+        gun_time 0.2
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 0
+        approach 0
+        gun_rot 50 25 -40
+        gun_ofs 8 3 0
+        action none
+        if always
+        finish 0
+    }
+    key "grip"
+    {
+        time 0.06
+        gun_time 0
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 0
+        approach 0
+        gun_rot 50 25 -40
+        gun_ofs 8 3 0
+        action take
+        if always
+        finish 0
+    }
+    key "carry"
+    {
+        time 0.24
+        gun_time 0
+        ease smooth
+        hand mouth
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 3
+        approach 4
+        gun_rot 50 25 -40
+        gun_ofs 8 3 0
+        action none
+        if always
+        finish 0
+    }
+    key "insert"
+    {
+        time 0.1
+        gun_time 0
+        ease smooth
+        hand dest
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot 50 25 -40
+        gun_ofs 8 3 0
+        action insert
+        if always
+        finish 0
+    }
+    key "reach again"
+    {
+        time 0.22
+        gun_time 0
+        ease smooth
+        hand pouch
+        hand_ofs 0 0.5 1
+        hand_rot 90 27 5
+        arc 3
+        approach 0
+        gun_rot 50 25 -40
+        gun_ofs 8 3 0
+        action none
+        if always
+        finish 0
+    }
+    key "close"
+    {
+        time 0.14
+        gun_time 0
+        ease out
+        hand rest
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot 20 10 35
+        gun_ofs 0 0 0
+        action close
+        if loaded
+        finish 1
+    }
+    key "return"
+    {
+        time 0.22
+        gun_time 0.18
+        ease smooth
+        hand rest
+        hand_ofs 0 0 0
+        hand_rot 0 0 0
+        arc 0
+        approach 0
+        gun_rot 0 0 0
+        gun_ofs 0 0 0
+        action none
+        if always
+        finish 1
+    }
+}

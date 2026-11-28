@@ -173,14 +173,13 @@ Reload superShotgun()
 // the barrel's by the backwards solve: Dest::Muzzle), pushed in along it (VR's muzzle test), the next, back. A start for
 // his tuning; `approach` the round's butt out of the muzzle before it goes in, `move` the gun's (the rocket launcher's tube is
 // longer: pulled back and down more).
-Reload launcher(int weapon, const char* name, float approach, const glm::vec3& move)
+Reload launcher(int weapon, const char* name, float approach, const glm::vec3& tilt, const glm::vec3& move)
 {
     Reload r;
     q_strlcpy(r.gun, name, sizeof(r.gun));
     r.weapon = weapon;
     r.item = Item::Rocket;
     r.dest = Dest::Muzzle;
-    const glm::vec3 tilt{-50.f, 40.f, 0.f};
     const glm::vec3 pouchOfs{0.f, 0.5f, 1.f}, pouchRot{90.f, 27.f, 5.f};
     Key k[6];
     k[0] = makeKey("reach", 0.3f, Target::Pouch);
@@ -232,7 +231,7 @@ Reload revolver()
     r.weapon = WID_REVOLVER;
     r.item = Item::Cylinder;
     r.dest = Dest::CylinderSlot;
-    const glm::vec3 tilt{45.f, 30.f, -30.f}, move{1.f, 1.f, 0.f};
+    const glm::vec3 tilt{50.f, 25.f, -40.f}, move{8.f, 3.f, 0.f};
     const glm::vec3 pouchOfs{0.f, 0.5f, 1.f}, pouchRot{90.f, 27.f, 5.f};
     Key k[10];
     k[0] = makeKey("open", 0.14f, Target::Hold);
@@ -250,7 +249,7 @@ Reload revolver()
     k[3].action = Action::Take;
     k[4] = makeKey("carry", 0.24f, Target::Mouth);
     k[4].arc = 3.f;
-    k[4].approach = 1.5f;
+    k[4].approach = 4.f; // (out past the face's reach: the pair goes in at its chambers, not on the way)
     k[5] = makeKey("insert", 0.1f, Target::Dest);
     k[5].action = Action::Insert;
     k[6] = makeKey("reach again", 0.22f, Target::Pouch);
@@ -290,9 +289,12 @@ Reload builtInOf(int weapon)
     switch(weapon)
     {
         case WID_SUPER_SHOTGUN: return superShotgun();
-        case WID_GRENADE_LAUNCHER: return launcher(weapon, "grenadelauncher", 3.f, glm::vec3{-2.f, 3.f, -4.f});
-        case WID_PROXIMITY_GUN: return launcher(weapon, "proxlauncher", 3.f, glm::vec3{-2.f, 3.f, -4.f});
-        case WID_ROCKET_LAUNCHER: return launcher(weapon, "rocketlauncher", 4.f, glm::vec3{-6.f, 3.f, -8.f});
+        // (The muzzle up and across the view to the free hand, in sight: the rocket launcher's longer tube less up.)
+        case WID_GRENADE_LAUNCHER:
+            return launcher(weapon, "grenadelauncher", 3.f, glm::vec3{-30.f, 60.f, 0.f}, glm::vec3{4.f, 2.f, -2.f});
+        case WID_PROXIMITY_GUN: return launcher(weapon, "proxlauncher", 3.f, glm::vec3{-30.f, 60.f, 0.f}, glm::vec3{4.f, 2.f, -2.f});
+        case WID_ROCKET_LAUNCHER:
+            return launcher(weapon, "rocketlauncher", 4.f, glm::vec3{-25.f, 65.f, 0.f}, glm::vec3{2.f, 2.f, -4.f});
         case WID_REVOLVER: return revolver();
         default: return shotgun();
     }

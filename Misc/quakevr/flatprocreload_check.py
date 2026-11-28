@@ -252,10 +252,72 @@ def base_checks():
             check(a == b + (0 if run == "ssg" else 0), "%s: no shell lost (clip + storage %d before, %d after)" % (run, b, a))
 
 
-# reloadsys's matrix ("almost always succeed"): both guns, standing, running, jumping, crouch-strafing, sliding, at 60 and 144
-# fps: started, every round taken went in (none dropped), no failsafe, the gun full (the super shotgun closed too).
+RVOPEN = re.compile(r"^flat proc reload: main hand: the revolver swung out: clip (\d+) of (\d+)")
+RVCLOSED = re.compile(r"^flat proc reload: main hand: the revolver closed \((.*)\): clip (\d+)")
+
+
+def conserved(run, st, end):
+    if st and end:
+        b = int(st[0].group(4)) + int(st[0].group(6))
+        a = int(end[-1].group(6)) + int(end[-1].group(8))
+        check(a == b, "%s: no round lost (clip + storage %d before, %d after)" % (run, b, a))
+
+
+# reloadmuzzle: the launchers loaded at the muzzle (fired empty: 4 rounds one at a time, every one seated, nothing lost), the
+# heavy revolver (2 fired: swung out by the reload's flick, the 2 spent out, a pair in, home by the end's flick; 6 fired: out
+# by itself, 3 pairs; a shot mid-reload: cancelled, home by the end's flick with what went in, nothing lost).
+def muzzle_checks():
+    for run, wid in (("gl", 8), ("px", 9), ("rl", 10), ("rlrun", 10)):
+        L = lines(run)
+        st = [m for m in map(START.match, L) if m]
+        ins = [int(m.group(2)) for m in map(IN.match, L) if m]
+        takes = [int(m.group(1)) for m in map(TAKE.match, L) if m]
+        end = [m for m in map(END.match, L) if m]
+        fs = [l for l in L if "failsafe" in l and l.startswith("flatprocreload: cancelled")]
+        full = bool(end) and end[-1].group(2) == "done" and int(end[-1].group(6)) == int(end[-1].group(7)) == 4
+        check(not timed_out(run) and bool(st) and int(st[0].group(3)) == wid and full and ins == [1, 1, 1, 1] and takes == [1, 1, 1, 1]
+              and not fs, "%s: the launcher (%d) loaded at the muzzle a round at a time, 4 in (%s), full, no failsafe (%s)" %
+              (run, wid, ins, end[-1].group(0)[18:80] if end else "no end"))
+        conserved(run, st, end)
+    for run, opened, fired in (("rv", True, 2), ("rvempty", False, 6)):
+        L = lines(run)
+        st = [m for m in map(START.match, L) if m]
+        need = 6 - int(st[0].group(4)) if st else fired
+        pairs = [2] * (need // 2) + [1] * (need % 2) # (a taped pair a trip, one slug for one empty chamber)
+        check(need == fired, "%s: %d of its 6 fired before R (%d)" % (run, fired, need))
+        ins = [int(m.group(2)) for m in map(IN.match, L) if m]
+        end = [m for m in map(END.match, L) if m]
+        op = [m for m in map(RVOPEN.match, L) if m]
+        cl = [m for m in map(RVCLOSED.match, L) if m]
+        spent = [l for l in L if re.match(r"^flat reload: main hand: the revolver's shells out", l)]
+        full = bool(end) and end[-1].group(2) == "done" and int(end[-1].group(6)) == 6
+        check(not timed_out(run) and bool(st) and int(st[0].group(3)) == 31 and full and ins == pairs,
+              "%s: the revolver's procedural reload: %s in, full (%s)" % (run, ins, end[-1].group(0)[18:80] if end else "no end"))
+        check(bool(op) == opened, "%s: %s" % (run, "swung out by the reload's flick" if opened else "already out (fired empty): no flick"))
+        # (Only the spent: the live ones kept in, so the pairs in fill just the fired chambers: `ins` above.)
+        check(bool(spent), "%s: its spent shells out (%s)" % (run, spent[0][19:] if spent else "none"))
+        check(bool(cl) and "flick" in cl[0].group(1) and int(cl[0].group(2)) == 6, "%s: home by the end's flick, loaded (%s)" %
+              (run, cl[0].group(0)[35:] if cl else "not closed"))
+        conserved(run, st, end)
+    L = lines("rvfire")
+    st = [m for m in map(START.match, L) if m]
+    end = [m for m in map(END.match, L) if m]
+    cl = [m for m in map(RVCLOSED.match, L) if m]
+    check(bool(end) and end[-1].group(2) == "cancelled" and "fired" in end[-1].group(3) and 0 < int(end[-1].group(6)) < 6,
+          "rvfire: a shot cancels it mid-reload (%s)" % (end[-1].group(0)[18:90] if end else "no end"))
+    check(bool(cl) and int(cl[0].group(2)) > 0, "rvfire: home by the end's flick with what went in (%s)" % (cl[0].group(0)[35:] if cl else "not closed"))
+    conserved("rvfire", st, end)
+    L = lines("rllock")
+    lk = [l for l in L if l.startswith("flatprocreload: lock on key 4 (insert)")]
+    gap = re.search(r"round gap ([-\d.]+)", lk[-1]) if lk else None
+    check(bool(lk) and " pair 1 " in lk[-1] and gap is not None and 0 <= float(gap.group(1)) < 0.5,
+          "rllock: the lock holds the rocket launcher's insert, the round at the muzzle (%s)" % (gap.group(0) if gap else "no lock"))
+
+
+# reloadsys's matrix ("almost always succeed"): every gun, standing, running, jumping, crouch-strafing, sliding, at 60 and 144
+# fps: started, every round taken went in (none dropped), no failsafe, the gun full (the super shotgun, the revolver closed too).
 def matrix_checks():
-    guns = ("sg",) if MODE == "matrix-sg" else ("ssg",) if MODE == "matrix-ssg" else ("sg", "ssg")
+    guns = (MODE[7:],) if MODE.startswith("matrix-") else ("sg", "ssg", "gl", "px", "rl", "rv")
     for gun in guns:
         for fps in (60, 144):
             for stance in ("stand", "run", "jump", "crouch", "slide"):
@@ -269,14 +331,17 @@ def matrix_checks():
                 fs = [l for l in L if l.startswith("flatprocreload: cancelled (failsafe") or
                       (l.startswith("flat proc reload: main hand cancelled") and "failsafe" in l)]
                 full = bool(end) and end[-1].group(2) == "done" and int(end[-1].group(6)) == int(end[-1].group(7))
-                shut = gun == "sg" or any(l.startswith("flat proc reload: main hand: the super shotgun closed") for l in L)
+                shut = gun in ("sg", "gl", "px", "rl") or any(l.startswith("flat proc reload: main hand: the super shotgun closed") or
+                                                             l.startswith("flat proc reload: main hand: the revolver closed") for l in L)
                 check(not timed_out(run) and bool(st) and full and shut and not lost and not fs and sum(ins) == sum(takes) > 0,
                       "%s: full, every round seated (%d taken, %s in), none dropped (%d), no failsafe (%d)%s" %
                       (run, sum(takes), ins, len(lost), len(fs), "" if shut else ", NOT CLOSED"))
 
-if not MODE.startswith("matrix"):
+if MODE in ("muzzle", "all"):
+    muzzle_checks()
+if not MODE.startswith("matrix") and MODE != "muzzle":
     base_checks()
-if MODE != "base":
+if MODE not in ("base", "muzzle"):
     matrix_checks()
 print(f"flatprocreload: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

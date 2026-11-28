@@ -10,7 +10,10 @@
 # free hand's fingers closed on each pair. reloadsys: the super shotgun already open, or broken open by the reload, a pair
 # into its chambers, closed by the end's flick; the matrix ("almost always succeed"): both guns, standing,
 # running, jumping, crouching, sliding, at 60 and 144 fps: every round seated, no failsafe, full. base: all but the matrix;
-# matrix: the matrix alone (matrix-sg, matrix-ssg: one gun's); all (the default): both. Each run ends on its own verdict line (-QuitOn);
+# matrix: the matrix alone (matrix-sg, matrix-ssg: one gun's); all (the default): both. reloadmuzzle: the launchers loaded
+# at the muzzle (grenade, proximity, rocket) and the heavy revolver's cylinder (swung out by the reload's flick, its spent shells
+# out, taped pairs into its empty chambers, home by the end's flick): muzzle: their runs alone; matrix-gl/-px/-rl/-rv: theirs
+# in the matrix. Each run ends on its own verdict line (-QuitOn);
 # flatprocreload_check.py checks the logs and prints "flatprocreload: N passed, M failed".
 AGENT=${1:?agent}
 MODE=${2:-all}
@@ -33,8 +36,31 @@ J="+jump; wait3; -jump; wait30"
 C="+flatcrouch; wait40; -flatcrouch; wait30"
 MQ="^flat proc reload: main hand (done|cancelled)"
 SQ="^flat proc reload: main hand: the super shotgun closed|^flat proc reload: main hand cancelled"
+# reloadmuzzle: the launchers (the test give 150 + their IDs: 158 the grenade launcher, 159 the proximity launcher, 160 the
+# rocket launcher), fired empty (4 rounds); the heavy revolver (ID 31, the test give 149), 2 of its 6 fired (R: the reload's
+# flick swings it out, its 2 spent out, a pair in, the end's flick home) or all 6 (it swings out by itself, 3 pairs).
+GL="impulse 158; give r 50; wait20; +attack; wait300; -attack; wait20"
+PX="impulse 159; give r 50; wait20; +attack; wait300; -attack; wait20"
+RL="impulse 160; give r 50; wait20; +attack; wait400; -attack; wait20"
+SHOT="+attack; wait5; -attack; wait90"
+RV="vr_test_give_wid 31; impulse 149; give s 50; wait80; $SHOT; $SHOT"
+RVEMPTY="vr_test_give_wid 31; impulse 149; give s 50; wait80; $SHOT; $SHOT; $SHOT; $SHOT; $SHOT; $SHOT; wait30"
+VQ="^flat proc reload: main hand: the revolver closed|^flat proc reload: main hand cancelled"
 
-case "$MODE" in matrix*) ;; *)
+if [ "$MODE" = muzzle ] || [ "$MODE" = all ]; then
+run gl "$MQ" "$BASE; $GL; $R"
+run px "$MQ" "$BASE; $PX; $R"
+run rl "$MQ" "$BASE; $RL; $R"
+run rlrun "$MQ" "$BASE; $RL; +forward; +right; $R"
+run rv "$VQ" "$BASE; $RV; $R"
+run rvempty "$VQ" "$BASE; $RVEMPTY; $R"
+# A shot of the revolver mid-reload (its first pair in): cancelled, the cylinder home by the end's flick, no slug lost.
+run rvfire "$VQ" "$BASE; $RVEMPTY; $R; wait100; +attack; wait2; -attack"
+# The lock on the rocket launcher's insert key (no R): the free hand's round at the muzzle, the gap reported.
+run rllock "^fprl_test: rllock locked" "$BASE; $RL; vr_flat_prl_lock 4; wait40; vr_flatprocreload_report; vr_flat_prl_lock 0; wait5; echo fprl_test: rllock locked"
+fi
+
+case "$MODE" in matrix*|muzzle) ;; *)
 # R with the clip empty: trips of 2 to full, the server's "done (full)" ends it; the gun traced each frame (continuity).
 run trips "^flat proc reload: main hand done" "$BASE; vr_flat_proc_reload_debug 2; $SG; $EMPTY; vr_flatprocreload_report; $R"
 # The same at 144 frames a second: the path's continuity doesn't hang on the frame rate.
@@ -75,14 +101,20 @@ run ssg "$SQ" "$BASE; $SSG; $SSGEMPTY; $R"
 run ssgshut "$SQ" "$BASE; $SSG; $SSGSHUT; $R"
 ;; esac
 
-GUNS="sg ssg"
-[ "$MODE" = matrix-sg ] && GUNS=sg
-[ "$MODE" = matrix-ssg ] && GUNS=ssg
-if [ "$MODE" != "base" ]; then
-# reloadsys's matrix: both guns, standing, running in a circle, jumping, crouch-strafing, sliding, at 60 and 144 fps
-# (matrix-sg / matrix-ssg: one gun's, each under 13 minutes).
+GUNS="sg ssg gl px rl rv"
+case "$MODE" in matrix-*) GUNS=${MODE#matrix-} ;; esac
+if [ "$MODE" != "base" ] && [ "$MODE" != "muzzle" ]; then
+# reloadsys's matrix: every gun, standing, running in a circle, jumping, crouch-strafing, sliding, at 60 and 144 fps
+# (matrix-<gun>: one gun's, each under 13 minutes; sg ssg gl px rl rv).
 for GUN in $GUNS; do
-    if [ $GUN = sg ]; then GIVE="$SG; $EMPTY"; Q="$MQ"; else GIVE="$SSG; $SSGEMPTY"; Q="$SQ"; fi
+    case $GUN in
+        sg) GIVE="$SG; $EMPTY"; Q="$MQ" ;;
+        ssg) GIVE="$SSG; $SSGEMPTY"; Q="$SQ" ;;
+        gl) GIVE="$GL"; Q="$MQ" ;;
+        px) GIVE="$PX"; Q="$MQ" ;;
+        rl) GIVE="$RL"; Q="$MQ" ;;
+        rv) GIVE="$RVEMPTY"; Q="$VQ" ;;
+    esac
     for FPS in 60 144; do
         PRE="vr_fixed_frames_rate $FPS; $BASE; $GIVE"
         run "x_${GUN}_stand_$FPS" "$Q" "$PRE; $R"
