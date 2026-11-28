@@ -3520,8 +3520,14 @@ def wpnsync(s, flat=""):
     # A draws B's gun in its lava look (progs/v_nailpistol_lava.mdl), and back.
     srv.cmd("vr_test_give_wid 29")
     b.cmd("impulse 149")
-    gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and str(w.get("model", "")).endswith("v_nailpistol.mdl"),
-              "A draws B's nail pistol")
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and str(w.get("model", "")).endswith("v_nailpistol.mdl"),
+                          "A draws B's nail pistol")
+    # (ammomags) B's immersive reloading: the magazine loaded sets its ammo, its look's bit 64: A draws no button on it.
+    s.check("A draws B's nail pistol without its ammo button (his immersive reloading: the magazine sets the ammo)",
+            int(wa.get("bits", 0)) & 64 != 0 and wa.get("button", 1) == 0, "A's %s" % wa)
+    b.cmd("vr_reload_mode_npistol 0")  # (B's pistol without reloading: its button back, and pressed)
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and w.get("button", 0) == 1,
+                          "A draws B's nail pistol with its button (no reloading for it)")
     b.cmd("impulse 43")
     wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and "v_nailpistol_lava" in str(w.get("model")),
                           "A draws B's nail pistol in its lava look")
@@ -3530,6 +3536,7 @@ def wpnsync(s, flat=""):
     b.cmd("impulse 43")
     gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and str(w.get("model", "")).endswith("v_nailpistol.mdl"),
               "A sees B's nail pistol back on its nails")
+    b.cmd("vr_reload_mode_npistol -1")
 
     # The torch: B takes it in his off hand and lights it; A draws it where B does and lights its beam from it.
     b.cmd("vr_flashlight_give left")

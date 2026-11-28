@@ -312,6 +312,10 @@ za::Vector<Item> pageDebugViews()
         command("Time the Chasers' Path Searches", "vr_nav_pathbench 20")
             .help("vr_nav_pathbench 20: the last 64 path searches of chasing monsters run 20 times each, by Detour's own way "
                   "and by Quake VR's faster one (vr_qc_builtin_fast): the time a search each way and whether every result matched."),
+        command("Print Chasers' Shared Searches", "vr_nav_sharestats reset")
+            .help("vr_nav_sharestats reset: the chasers' path searches since the last press: how many a frame, full or shared "
+                  "(vr_nav_share: chasers of a foe they can't reach share one search of their island), their time, why "
+                  "they searched again (vr_nav_unreach_backoff_max's backoff), then starts the count again."),
         command("Crowd Stall Test (40 s)", "vr_nav_crowdtest 40")
             .help("vr_nav_crowdtest 40: every walker comes at you; each half second one moved under 8 units while over 128 "
                   "away is a stall, given its cause (a monster or a wall in the way, a ledge, in a wall, no chase...). The "
@@ -682,6 +686,13 @@ za::Vector<Item> pageDebugProfiling()
                   "report (Time QuakeC Functions on), in the console; then all are zeroed. Press it, do the thing, press "
                   "it again."),
         row(opt::vr_qcexec),
+        row(opt::vr_qcexec_fuse),
+        command("QuakeC Opcode Stats Start", "vr_qcexec_stats start")
+            .help("vr_qcexec_stats start: counts the server QuakeC's opcodes, the pairs and triples run one after the "
+                  "other and the calls (a slower loop while on); QuakeC Opcode Stats prints them."),
+        command("QuakeC Opcode Stats", "vr_qcexec_stats dump 30")
+            .help("vr_qcexec_stats dump 30: the 30 most run opcodes, pairs, triples and builtins since Start, in the "
+                  "console (stop ends the count; hash prints a hash of every function's statement count)."),
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "

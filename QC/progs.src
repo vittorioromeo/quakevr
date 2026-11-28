@@ -67,6 +67,7 @@ vr_grenade.qc
 vr_reload.qc
 vr_revgrip.qc
 vr_reload_test.qc
+qcconv_test.qc
 vr_debris.qc
 vr_bayonet.qc
 // Weapon attachments (the bayonet on the shotguns): after the bayonet's prop and the carrying it uses.
@@ -149,6 +150,7 @@ vr_flatreload.qc
 vr_flatholster.qc
 // A holstered gun keeps its rounds, every path (vr_reload_test 49): after vr_flatholster.qc's keys and wheel pick.
 vr_holsterammo_test.qc
+vr_ammomags_test.qc // the ammo follows the rounds loaded (vr_reload_test 51-54; ammomags)
 // Flat-screen play's quick grenade (G) and unified throw/drop (B): after vr_grenade.qc's pouch grenade and vr_flatreload.qc.
 vr_flatgrenade.qc
 // Flat-screen play's Grab / Pull (H): uses every available empty hand to grab props, crates, ragdolls and gibs.

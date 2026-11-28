@@ -10,9 +10,9 @@
 // ammo switched by its own button (headset: the mock's off hand's fingertip brought to the button, as a finger presses
 // it; flat play: N) to its lava nails (its lava model); three lava nails fired into a box: three of the lava nails used
 // and none of the nails, each nail the nailguns' lava nail over their plain one times its own damage (as the box's
-// health drops); switched back, a plain nail uses a nail. Then (headset only) immersive reloading (mode 3): the switch
-// ejects the plain magazine (skin 0, its nails in it), the pouch gives lava magazines (kind 2 + 16 + 8), a lava
-// magazine is the magazine prop's skin 1; switched back with one seated, the lava magazine drops out (skin 1). Ends with
+// health drops); switched back, a plain nail uses a nail. Then (headset only) immersive reloading (mode 3; ammomags):
+// the button refused, the pouch in halves (kind 2 + 16 right, 2 + 16 + 8 left), a lava magazine is the magazine prop's
+// skin 1, and seated it makes the pistol fire lava nails. Ends with
 // "nplava: N passed, M failed"; each step waits on its condition (a give-up after 300 frames is a FAIL "timed out").
 
 float vr_npl_on, vr_npl_step, vr_npl_frames, vr_npl_mode, vr_npl_grip, vr_npl_flat;
@@ -219,43 +219,33 @@ void() VR_NPL_Frame =
     {
         if(vr_npl_frames < 3) return;
         VR_NPL_NewMag(TRUE);
-        localcmd("impulse 43\n"); // (the main hand's weapon button: its press)
+        localcmd("impulse 43\n"); // (the main hand's weapon button: its press, refused: ammomags)
         VR_NPL_Next();
         return;
     }
     if(vr_npl_step == 8)
     {
-        entity m = VR_NPL_NewMag(FALSE);
-        if(!lava || !m) return;
-        VR_Test_Check(m.vr_ammo_aid == AID_NAILS && m.skin == 0 && m.vr_ammo_count == VR_NailPistol_MagSize() &&
-            m.model == "progs/vr_mag_npistol.mdl", sprintf("immersive: the switch ejects the plain magazine (%s, ammo %g, %g in it, skin %g)",
-            m.model, m.vr_ammo_aid, m.vr_ammo_count, m.skin));
-        VR_Test_Check((VRGetEntWeaponFlags(p, cVR_MainHand) & QVR_WPNFLAG_NOMAG) != 0, "the gun empty, waiting for a lava magazine");
+        // (ammomags: immersive reloading in the headset: the rounds loaded set the ammo, the button refused, nothing out.)
+        if(vr_npl_frames < 10) return;
+        VR_Test_Check(!lava && VR_NPL_NewMag(FALSE) == world && !(VRGetEntWeaponFlags(p, cVR_MainHand) & QVR_WPNFLAG_NOMAG),
+            "immersive: the button refused (the magazine loaded sets the ammo), its magazine kept in");
         VR_NPL_Next();
         return;
     }
     if(vr_npl_step == 9)
     {
-        if(vr_npl_frames < 3) return; // (the pouch's kind: VR_Reload_PlayerFrame)
-        VR_Test_Check(p.vr_pouch_aid == AID_LAVA_NAILS && p.vr_pouch_kind == 2 + 16 + 8,
-            sprintf("the pouch gives lava nail pistol magazines (ammo %g, kind %g: want 26)", p.vr_pouch_aid, p.vr_pouch_kind));
+        if(vr_npl_frames < 3) return; // (the pouch's kinds: VR_Reload_PlayerFrame)
+        VR_Test_Check(p.vr_pouch_aid == AID_NAILS && p.vr_pouch_kind == 2 + 16 && p.vr_pouch_kind2 == 2 + 16 + 8,
+            sprintf("the pouch in halves: nail pistol magazines right, lava ones left (kinds %g, %g: want 18, 26)",
+            p.vr_pouch_kind, p.vr_pouch_kind2));
         entity r = VR_Reload_MakeRound(WID_NAILPISTOL, AID_LAVA_NAILS, VR_NailPistol_MagSize(), p.origin + '0 0 40', '0 0 0');
         VR_Test_Check(r.skin == 1 && r.model == "progs/vr_mag_npistol.mdl", sprintf("a lava magazine: %s skin %g (want 1)", r.model, r.skin));
-        remove(r);
-        // (One seated: the lava rounds in, the magazine in.)
-        VRSetEntWeaponClip(p, cVR_MainHand, VR_NailPistol_MagSize());
-        VRSetEntWeaponFlags(p, cVR_MainHand, VRGetEntWeaponFlags(p, cVR_MainHand) - QVR_WPNFLAG_NOMAG);
-        VR_NPL_NewMag(TRUE);
-        localcmd("impulse 43\n");
-        VR_NPL_Next();
-        return;
-    }
-    if(vr_npl_step == 10)
-    {
-        entity m2 = VR_NPL_NewMag(FALSE);
-        if(lava || !m2) return;
-        VR_Test_Check(m2.vr_ammo_aid == AID_LAVA_NAILS && m2.skin == 1, sprintf("switched back: the lava magazine drops out (ammo %g, skin %g)",
-            m2.vr_ammo_aid, m2.skin));
+        // (Its magazine out, the lava one seated: it fires lava nails.)
+        VRSetEntWeaponClip(p, cVR_MainHand, 0);
+        VRSetEntWeaponFlags(p, cVR_MainHand, VRGetEntWeaponFlags(p, cVR_MainHand) | QVR_WPNFLAG_NOMAG);
+        VR_Reload_SeatMagInto(cVR_MainHand, r, FALSE);
+        VR_Test_Check(VRGetEntWeaponFlags(p, cVR_MainHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO,
+            sprintf("the lava magazine seated: lava nails (%s)", p.weaponmodel));
         VR_NPL_End();
         return;
     }

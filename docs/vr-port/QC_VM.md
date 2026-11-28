@@ -111,6 +111,103 @@ from the spawns, which dominate the averages).
   1.3-1.5x on the interpreter, i.e. ~0.03 ms a frame. Not worth a second statement format.
 - Native versions of the few hot QuakeC functions (forcegrabbable_think_impl runs 5-18% of all statements on these
   scenes; done below) or the backlog's native filters (`findfilter`, `forall`) cut statements rather than their cost.
+- Superinstructions were done after all (qcconv, below), without a second statement format: a copy with other opcodes.
+
+## The C <-> QuakeC boundary, the opcode mix, combined instructions (qcconv, 2026-11-28)
+
+QuakeC is to be converted to C++ once and retired (qc2cpp); these numbers are for that design as much as for the VM.
+
+### What the fight runs (`vr_qcexec_stats`)
+
+`vr_qcexec_stats start|stop|dump [N]|hash` (Debug > Profiling "QuakeC Opcode Stats"): the server VM's opcode counts,
+the pairs and triples run at consecutive statements (control fell through), calls by kind, argument count and the
+callee's locals, builtins by number, and the dispatches the combined instructions would save. While on, the server's
+QuakeC runs in `QCExec_RunStats` (the switch loop with a count per dispatch). hip1m1's 69-monster fight (skill 2,
+god, `vr_test_monsters 4` then `2`, 300 frames on, 720 counted), a frame:
+
+- 99,700 statements; 3,790 QuakeC calls (81% to functions with <= 8 locals, 12% 9-16, 3% 17-32, 3% more); 4,220
+  builtin calls (cvar_hget 1,460, max 470, min 370, find 240, isragdoll 230, vlen 130, nextent 120, ragdollbone 120,
+  limbpiece 116, unseenfar 105); 417 runs of the loop from C (thinks, touches, nested calls from builtins). Calls by
+  argument count (both kinds): 0 8%, 1 54%, 2 27%, 3 9%, 4+ 2%.
+- Opcodes (top 20, % of statements): IFNOT 15.6, STORE_F 15.3, AND 7.6, LOAD_F 6.7, EQ_F 4.8, OR 4.7, CALL1 4.3,
+  NE_F 3.6, RETURN 3.5, IF 3.1, NOT_F 3.0, LOAD_ENT 2.4, CALL2 2.2, ADDRESS 2.1, LT 1.6, STORE_V 1.5, STOREP_F 1.5,
+  LOAD_V 1.2, MUL_F 1.1, GT 1.1. Arithmetic is ~5%: QuakeC here is conditions, field loads, stores and calls.
+- Pairs (top 20): AND+IFNOT 6.05, STORE_F+STORE_F 5.09, STORE_F+CALL1 3.65, NE_F+IFNOT 2.45, IFNOT+LOAD_F 2.23,
+  STORE_F+CALL2 2.15, OR+IFNOT 1.83, EQ_F+OR 1.82, EQ_F+IFNOT 1.52, NOT_F+AND 1.51, ADDRESS+STOREP_F 1.47,
+  IFNOT+STORE_F 1.32, CALL1+STORE_F 1.29, OR+EQ_F 1.14, OR+IF 1.07, LOAD_F+NE_F 1.04, LT+IFNOT 0.97, LOAD_F+NOT_F
+  0.96, LOAD_F+EQ_F 0.92, IFNOT+RETURN 0.86.
+- Triples (top 10): STORE_F+STORE_F+CALL2 2.09, STORE_F x3 1.45, AND+IFNOT+LOAD_F 1.35, STORE_F+CALL1+STORE_F 1.21,
+  NOT_F+AND+IFNOT 1.18, OR+EQ_F+OR 1.14, EQ_F+OR+EQ_F 1.14, LOAD_F+NOT_F+AND 0.79, IFNOT+LOAD_F+NOT_F 0.79,
+  STORE_F+CALL2+STORE_F 0.63.
+- Static (progs.dat, 822,913 statements, 25,027 functions): STORE_F 22%, IFNOT 9.3, CALL1 5.7, LOAD_F 5.6, ADDRESS
+  5.1, RETURN 4.5; pairs STORE_F+STORE_F 9.1%, STORE_F+CALL1 4.5, LT+IFNOT 3.2, ADDRESS+STOREP_F 3.2.
+
+### The boundary's costs (`vr_qcexec_bench qcconv_bench_<kind> 2000 100`, PC Release, best of 7)
+
+QC/qcconv_test.qc (test progs only): the same counted loop empty, with `fabs()`, `vlen()`, a one-argument QuakeC
+call, a field load; ns a call over 100 iterations, less the empty loop's, is one of each (with its argument store):
+
+| | before (goto loop) | after (goto, combined + the two call changes) |
+|---|---|---|
+| empty loop, a statement | 0.66 ns | 0.63 |
+| builtin call (`fabs`, 1 float) | 8.0 ns | **3.8** |
+| builtin call (`vlen`, 1 vector) | 11.2 ns (its sqrt included) | 10.7 |
+| QuakeC call and return (1 float) | 11.3 ns | **8.6** |
+| field load (`world.frags`) | 0.46 ns | 0.43 |
+
+So on PC a builtin call costs ~6 statements and a QuakeC call ~14; the Quest is ~3x slower a statement (QC_VM.md
+above). The builtin's own argument reads (`G_FLOAT(OFS_PARM0)`: qcvm, then globals, then the value) are a few ns;
+the rest was the loop's path to it (QCExec_Builtin's call, its profile and extension checks, the registers saved
+around two calls). The fight's 4,220 builtin calls and 3,790 QuakeC calls a frame are ~0.08 ms PC (~0.25 Quest) of
+boundary at the old costs: the C++ conversion removes all of it (direct calls, arguments in registers, no locals
+save: C's stack), which matters more than any opcode change.
+
+Kept (both exact, in the QX_FASTCALL loops, i.e. vr_qcexec 1 and 2; `vr_qcexec 3` is the A/B with the old calls):
+- **A builtin called straight from the loop** when it has no extension to check and no profiler times it
+  (`!vm->builtin_ext[i] && !qcprof.active && !vr_profile_fine`, no Tracy build); else QCExec_Builtin as before.
+- **Locals saved and put back inline** for up to 8 (QCExec_CopyInts; memcpy with a variable size was a library call).
+
+Not done (ideas measured or weighed): builtins reading their arguments in place (they already do: OFS_PARM* are
+globals, there is no copy on a builtin call; a pointer per vector would change every builtin's body); a table of native
+function pointers with arity (the builtins table is that; the arity is in `vm->argc`); fewer edict<->index conversions
+(PROG_TO_EDICT is an add; EDICT_TO_PROG a subtract: nothing to win); think dispatch batching (417 runs from C a frame
+at ~30-50 ns of entry each is ~0.02 ms PC: not worth a new calling path before the conversion).
+
+### Combined instructions (`vr_qcexec_fuse`, default 1)
+
+The 36 most frequent fusible pairs (vr_qcexec.c `QX_FUSED`: compare/AND/OR + IFNOT/IF, STORE+STORE, STORE+CALL1-3,
+field load + compare, IFNOT + load/store/return, ADDRESS + STOREP_F/V, ...) get opcodes past OP_BITOR in a copy of
+the statements (`vm->qx_fused`, built at the first call, freed with the progs; 16 bytes a statement: 13 MB for our
+progs): a pair's handler runs the first statement's body, then jumps straight to the second's handler (no dispatch:
+no opcode load, bounds check or indirect branch). Statement i + 1 keeps its own opcode, so a jump to it runs it alone,
+and control can only reach i + 1 from i by falling through: the same statements in the same order, the same counts
+(implicit, as before), errors at the same statement, and a trace (`traceon`) runs the original statements one at a
+time. No compiler or progs change: mods' progs get it too. In the fight the pairs save 33% of the dispatches (23.7 M
+of 71.8 M statements).
+
+Exactness: the check function `qcconv_fuse_check` (QC/qcconv_test.qc, its statements make 40-odd of the pairs):
+`vr_qcexec_bench qcconv_fuse_check 200 60` returns the same bits and statement count in all five loops; its
+`vr_qcexec_run trace` with fuse 0 and 1 is identical (427 lines). Every bench function: "results and counts equal".
+(The fight itself is not repeatable run to run, even unchanged: the statement totals of two identical runs differ
+by ~0.3%, e1m1 alone too; so no whole-scene hash compare is possible. `vr_qcexec_stats hash` prints it anyway.)
+
+Measured (PC Release, fast mode): the check function 7,192 -> 5,780 ns (1.24x), ad_mathlib_fast_pow 156 -> 127 ns
+(1.23x), the boundary benches above; hip1m1 fight QuakeC a frame (vr_qcexec_time, 6 interleaved blocks of 432
+frames): 0.831 -> 0.767 ms median (-8%), lower in all 6 pairs. Quest: not measured (the headset was busy).
+
+### Missed FTEQCC optimisations (documented, not done: the C++ conversion makes them moot)
+
+Our build: `-O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope` (QC/build.sh), target standard.
+- **Conditions compiled as values**: `if (a && b)` with a cheap b (one statement, or a plain variable) drops the
+  short-circuit jump (qcc_pr_comp.c: "the jump is the same cost") and computes AND into a temp, then IFNOT: AND+IFNOT
+  is 6% of the fight's statements, OR+IFNOT/IF 2.9%, NOT_F+AND 1.5%, the `x == 1 || x == 2 || ...` chains (EQ_F+OR,
+  OR+EQ_F) 3%. Jump-based conditions (`IFNOT a -> else; IFNOT b -> else`, `IF a -> then`, `!a && b` as `IF a -> else`)
+  would cut ~5-8% of statements and exit chains early. Needs the condition context passed into the expression parser.
+- **Argument stores**: STORE_F+STORE_F(+CALLn) are 9% (static 13%): a variable passed as-is is copied to OFS_PARMn,
+  then copied again into the callee's locals at entry. An ABI where parameters live in the OFS_PARM slots (no copy
+  at entry) would cut both, but changes every function's frame.
+- **Return value copies**: CALLn+STORE_F 1.9%: OFS_RETURN copied to a temp before the next call clobbers it.
+- Temps are fine (-Olo overlaps them); constant folding is on (-O3 includes `a`); no dead stores seen in the mix.
 
 ## Native prop think (worktree `qcvm`, branch `agent/fgnative`, 2026-10-15)
 

@@ -56,6 +56,9 @@ gun's port are, as drawn) and draws.
   teleporter with a shell in the hand.
 - A partly used magazine (phase 2) keeps its count; put back in the pouch it refunds that count.
 - The mode switch never creates or destroys ammo: magazines keep what they hold whatever the mode.
+- Two ammo kinds (ammomags, 2026-11-28; ROUND26.md "ammomags"): in the headset a gun with two kinds fires the kind loaded
+  in it (no ammo button); the pouch splits, the basic kind on its right half, the other on its left; a launcher's tube
+  takes the other kind only once empty (no mixed loads: BACKLOG section 11).
 
 ## Model work per weapon
 

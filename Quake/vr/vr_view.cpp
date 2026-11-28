@@ -408,6 +408,86 @@ bool magazinesShown()
 
 namespace
 {
+// ammomags: the guns whose button switches their ammo (QC weapons.qc ToggleSecondaryAmmo), in either look.
+enum class AmmoGun
+{
+    None,
+    Nail,
+    SuperNail,
+    Grenade,
+    Rocket,
+    Light,
+    NailPistol
+};
+
+[[nodiscard]] AmmoGun ammoGunOf(const qmodel_t* model)
+{
+    using modelmeta::Id;
+    const modelmeta::ModelMetadata& m = modelmeta::get(model);
+    if(m.is(Id::VNail) || m.is(Id::VLava))
+    {
+        return AmmoGun::Nail;
+    }
+    if(m.is(Id::VNail2) || m.is(Id::VLava2))
+    {
+        return AmmoGun::SuperNail;
+    }
+    if(m.is(Id::VRock) || m.is(Id::VMulti))
+    {
+        return AmmoGun::Grenade;
+    }
+    if(m.is(Id::VRock2) || m.is(Id::VMulti2))
+    {
+        return AmmoGun::Rocket;
+    }
+    if(m.is(Id::VLight) || m.is(Id::VPlasma))
+    {
+        return AmmoGun::Light;
+    }
+    if(m.is(Id::VNailPistol) || m.is(Id::VNailPistolLava))
+    {
+        return AmmoGun::NailPistol;
+    }
+    return AmmoGun::None;
+}
+} // namespace
+
+bool ammoFollowsRoundsHere(const qmodel_t* model)
+{
+    const AmmoGun gun = model ? ammoGunOf(model) : AmmoGun::None;
+    if(gun == AmmoGun::None)
+    {
+        return false;
+    }
+    const bool launcher = gun == AmmoGun::Grenade || gun == AmmoGun::Rocket;
+    if(launcher && vr_reload_front.value == 0.f)
+    {
+        return false; // (the launchers loaded at the muzzle only with vr_reload_front: else they reload at the hips)
+    }
+    if(flatplay::active())
+    {
+        // (Flat-screen play's procedural reload on, the server's: STAT_QVR_FLATRELOAD's 64, QC VR_FLATRL_PROC_ON. N still
+        // switches the ammo there: the button alone goes.)
+        return cl.stats[protocol::STAT_QVR_RELOADMODE] != 0 && (cl.stats[protocol::STAT_QVR_FLATRELOAD] & 64) != 0;
+    }
+    const cvar_t& own = gun == AmmoGun::Nail ? vr_reload_mode_nail : gun == AmmoGun::SuperNail ? vr_reload_mode_snail :
+                        gun == AmmoGun::Grenade ? vr_reload_mode_gl : gun == AmmoGun::Rocket ? vr_reload_mode_rl :
+                        gun == AmmoGun::Light ? vr_reload_mode_light : vr_reload_mode_npistol;
+    const float mode = own.value >= 0.f ? own.value : vr_reload_mode.value;
+    return vr_holster_mode.value == 0.f && static_cast<int>(mode) == 3;
+}
+
+bool ammoButtonHidden(const qmodel_t* model, const VrGunLook* look)
+{
+    if(!model || ammoGunOf(model) == AmmoGun::None)
+    {
+        return false;
+    }
+    return look ? look->has(VrGunLook::ammoByMagBit) : ammoFollowsRoundsHere(model);
+}
+
+namespace
+{
 // The shotgun's auto pump (vr_autopump.cpp; polish_weapons.py auto_pump, split_auto_pump): its moving fore-end and the gun
 // without it, made in v_shot.mdl's model space with its header (scale, origin) and frames (setupPumps).
 constexpr const char* pumpModelName = "progs/vr_pump_on_v_shot.mdl";
@@ -1936,13 +2016,17 @@ bool holsterLive[HolsterCount]{};
 // (vr_weapon_screen_idle), so that they do not pop up as it is taken: `button` placed (or hidden), and a grappling gun's
 // front button, `front` (setupFrontButton); the screen queued when `queueText` (once a frame). `clip`: its clip if known
 // (a holstered gun's), else -1.
+// (ammomags: the look of the gun drawGunParts draws, another player's: its button by his settings, VrGunLook::ammoByMagBit;
+// null: yours, a lying gun's, by this client's: ammoButtonHidden.)
+const VrGunLook* idleLook = nullptr;
+
 void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntity& button, view::ViewEntity& front, int clip,
     int clipSize, bool queueText, bool total = true, const char* seenCvar = nullptr, int lightPlayer = 0, int lightSide = 0)
 {
     const bool on = vr_weapon_screen_idle.value != 0.f && slot >= 0 && e.model && !isHandModel(e.model) &&
                     slot != weapons::fistSlot();
     const glm::vec3 drawn{e.angles[0], e.angles[1], e.angles[2]};
-    if(on && weapons::value(slot, Key::WpnButtonMode) != 0.f)
+    if(on && weapons::value(slot, Key::WpnButtonMode) != 0.f && !ammoButtonHidden(e.model, idleLook))
     {
         const glm::vec3 pos = view::anchorPosition(e, mirrored, 0.f,
             weapons::anchor(slot, Key::WpnButtonAnchor),
@@ -3171,7 +3255,9 @@ void setupPumps()
 // (ammoPouchFrame); what it holds is drawn on its own (setupAmmoPouchItems); lit up while a hand is at it.
 [[nodiscard]] int ammoPouchFrame()
 {
-    return pouchitems::frameFor(cl.stats[protocol::STAT_QVR_POUCHKIND] & 7, cl.stats[protocol::STAT_QVR_POUCHCOUNT]);
+    // (ammomags: a pouch in halves stretched by both halves' rounds)
+    return pouchitems::frameFor(cl.stats[protocol::STAT_QVR_POUCHKIND] & 7, cl.stats[protocol::STAT_QVR_POUCHCOUNT] +
+        (cl.stats[protocol::STAT_QVR_POUCHKIND2] != 0 ? cl.stats[protocol::STAT_QVR_POUCHCOUNT2] : 0));
 }
 
 // What the ammo pouch holds (vr_pouchitems.cpp: what it gives, STAT_QVR_POUCHKIND, its 8 the lava nails', plasma, the
@@ -3181,18 +3267,21 @@ void setupPumps()
 void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
 {
     ammoPouchItems = posePouchItemsIn(pouch, placed, cl.stats[protocol::STAT_QVR_POUCHKIND],
-        cl.stats[protocol::STAT_QVR_POUCHCOUNT], entities.ammoPouchItem);
+        cl.stats[protocol::STAT_QVR_POUCHCOUNT], cl.stats[protocol::STAT_QVR_POUCHKIND2], cl.stats[protocol::STAT_QVR_POUCHCOUNT2],
+        entities.ammoPouchItem);
 }
 
 } // namespace
 
 // The rounds in an ammo pouch (yours: setupAmmoPouchItems; another player's on his copy, syncfix2: view::posePouchItems)
 // -> how many placed.
-int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int count,
+int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int count, int kind2, int count2,
     view::ViewEntity (&out)[pouchitems::most])
 {
     pouchitems::Item items[pouchitems::most];
-    const int n = placed && pouch.ent.model ? pouchitems::posed(kind & 23, (kind & 8) != 0, count, items) : 0;
+    // (ammomags: `kind2` nonzero, the pouch in halves: `kind` on its right, `kind2` on its left.)
+    const int n = placed && pouch.ent.model ? pouchitems::posed(kind & 23, (kind & 8) != 0, count, items, kind2 & 23,
+        (kind2 & 8) != 0, kind2 != 0 ? count2 : -1) : 0;
     for(int j = 0; j < pouchitems::most; j++)
     {
         view::ViewEntity& ve = out[j];
@@ -3378,6 +3467,11 @@ void setupAmmoPouch(const hands::State& s)
             {vr_ammo_pouch_counter_pitch.value, vr_ammo_pouch_counter_yaw.value, vr_ammo_pouch_counter_roll.value});
         char buf[16];
         q_snprintf(buf, sizeof(buf), "%d", cl.stats[protocol::STAT_QVR_POUCHCOUNT]);
+        if(cl.stats[protocol::STAT_QVR_POUCHKIND2] != 0)
+        {
+            // (ammomags: a pouch in halves: its left half's count, then its right's, as they lie)
+            q_snprintf(buf, sizeof(buf), "%d | %d", cl.stats[protocol::STAT_QVR_POUCHCOUNT2], cl.stats[protocol::STAT_QVR_POUCHCOUNT]);
+        }
         text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * vr_ammo_pouch_counter_scale.value * k,
             vr_weapon_screen.value != 0.f);
     }
@@ -3981,7 +4075,8 @@ VrGunLook ownGunLook(int hand)
     l.bits = VrGunLook::gunBit | (magazinesShown() ? VrGunLook::magsShownBit : 0) |
              (cl.stats[protocol::STAT_QVR_RELOADMODE] == 0 ? VrGunLook::clipFullBit : 0) |
              ((cl.stats[protocol::STAT_QVR_MAGOUT] & (main ? 2 : 1)) ? VrGunLook::magOutBit : 0) |
-             (ssgBreaks() ? VrGunLook::ssgBreaksBit : 0) | (rv ? VrGunLook::revolverBit : 0);
+             (ssgBreaks() ? VrGunLook::ssgBreaksBit : 0) | (rv ? VrGunLook::revolverBit : 0) |
+             (ammoFollowsRoundsHere(entities.weapon[hand].ent.model) ? VrGunLook::ammoByMagBit : 0);
     // (reloadstudio3: the Reload Studio's lock draws the gun as a real reload has it on the locked key: open, magazine out.)
     l.flags = static_cast<za::U16>(
         flatprocreload::lockWeaponFlags(hand, cl.stats[main ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2]) & 0xFFFF);
@@ -4209,10 +4304,13 @@ void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held
             p[GunParts::RvShell + i].visible = false;
         }
     }
-    // Its button and ammo screen (its clip), as a gun not in your hands carries them (idleAttachments).
+    // Its button and ammo screen (its clip), as a gun not in your hands carries them (idleAttachments; ammomags: no button
+    // with its ammo following its rounds, his look's bit).
     const int slot = model && screen ? weapons::slotForModel(model) : -1;
+    idleLook = &look;
     idleAttachments(gun.ent, gun.mirrored, slot, p[GunParts::Button], p[GunParts::Front], look.clip, look.clipSize, slot >= 0,
         false, nullptr, held ? player : 0, side);
+    idleLook = nullptr;
     g.inParts = parts;
     if(parts)
     {
@@ -5288,9 +5386,10 @@ qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out
     return slotModel;
 }
 
-int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, ViewEntity (&out)[pouchitems::most])
+int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, int kind2, int count2,
+    ViewEntity (&out)[pouchitems::most])
 {
-    return view_detail::posePouchItemsIn(pouch, placed, kind, count, out);
+    return view_detail::posePouchItemsIn(pouch, placed, kind, count, kind2, count2, out);
 }
 
 void netGear(VrDrawnGear& out)

@@ -2240,6 +2240,8 @@ void guardFrame(State& s, const Parts& p, const Context& c)
 // over it (its head before its gun).
 constexpr float aimIn = 0.2f;  // s
 constexpr float aimOut = 0.3f; // s
+constexpr float wristLearn = 10.f; // 1/s: the gun's line in its hand's axes, learnt this fast (Aim::local)
+constexpr float aimArmDrive = 2.f; // the aimed arm's springs' and motors' cap times this (a struggle's arm drive, 1..2.5)
 
 void aimFrame(State& s, const Parts& p, const Context& c)
 {
@@ -2254,6 +2256,8 @@ void aimFrame(State& s, const Parts& p, const Context& c)
             s.reach[static_cast<za::SizeT>(a.arm)].weight = 0.f;
         }
         a.arm = -1;
+        a.hand = -1;
+        a.weight = 0.f;
     };
     if(c.now > a.until + aimOut || s.mode == Mode::Dying || s.mode == Mode::Climbing)
     {
@@ -2299,11 +2303,73 @@ void aimFrame(State& s, const Parts& p, const Context& c)
     r.goal = shoulder + to * (0.95f * limbLength(s, p, arm));
     r.weight = za::max(r.weight * (1.f - w), w);
     r.strength = za::max(r.strength, za::clamp(a.strength, 0.f, 1.f));
+    a.weight = w;
+    // Its wrist: the hand bone on the forearm (a ball: the soldier's, the enforcer's hand_l/_r), given the gun's line.
+    a.hand = -1;
+    const int lo = s.chain[static_cast<za::SizeT>(arm)][1];
+    for(int b = 0; b < p.count && glm::length(a.barrel) > 0.5f; b++)
+    {
+        if(p.rig->bones[b].parent == lo && p.rig->bones[b].joint == ragdoll::Joint::Ball && drivable(s, p, b))
+        {
+            a.hand = b;
+            break;
+        }
+    }
+    if(a.hand >= 0)
+    {
+        // (The gun is fixed in its hand: its line in the hand's axes, eased against the drawn pose's frame lag.)
+        const glm::vec3 now = glm::inverse(bodyRot(p, a.hand)) * a.barrel;
+        a.local = glm::length(a.local) < 0.5f ? now : glm::normalize(glm::mix(a.local, now, za::min(1.f, wristLearn * c.dt)));
+    }
     if(vr_debug_ragdoll.value >= 2.f)
     {
-        Con_Printf("ragaim: arm %d mode %d weight %.2f strength %.2f hand %.2f m from its goal, base %.2f\n", arm,
-            static_cast<int>(s.mode), r.weight, r.strength, glm::length(limbEnd(s, p, arm) - r.goal), s.base);
+        const glm::vec3 arm2 = limbEnd(s, p, arm) - shoulder;
+        const float off = glm::length(arm2) > 1e-3f ? glm::degrees(za::acos(za::clamp(glm::dot(glm::normalize(arm2), to), -1.f, 1.f))) : 0.f;
+        Con_Printf("ragaim: arm %d mode %d weight %.2f strength %.2f hand %.2f m from its goal (arm %.2f m, %.0f deg off), "
+                   "joints %.2f %.2f wrist %.2f, base %.2f\n",
+            arm, static_cast<int>(s.mode), r.weight, r.strength, glm::length(limbEnd(s, p, arm) - r.goal), limbLength(s, p, arm),
+            off, s.strength[static_cast<za::SizeT>(u)], s.strength[static_cast<za::SizeT>(lo)],
+            a.hand >= 0 ? s.strength[static_cast<za::SizeT>(a.hand)] : -1.f, s.base);
+        // (3: its shoulder joint's state: the cone's limit, its spring's target, its motor against its cap.)
+        const b3JointId ju = s.joint[static_cast<za::SizeT>(u)];
+        if(vr_debug_ragdoll.value >= 3.f && p.rig->bones[u].joint == ragdoll::Joint::Ball && B3_IS_NON_NULL(ju) && b3Joint_IsValid(ju))
+        {
+            const b3Quat tq = b3SphericalJoint_GetTargetRotation(ju);
+            Con_Printf("ragaim2: cone %.0f limit %.0f twist %.0f (%.0f..%.0f) target %.0f, motor %.2f of %.2f, spring %.1f Hz\n",
+                glm::degrees(b3SphericalJoint_GetConeAngle(ju)), glm::degrees(b3SphericalJoint_GetConeLimit(ju)),
+                glm::degrees(b3SphericalJoint_GetTwistAngle(ju)), glm::degrees(b3SphericalJoint_GetLowerTwistLimit(ju)),
+                glm::degrees(b3SphericalJoint_GetUpperTwistLimit(ju)), glm::degrees(2.f * za::acos(za::clamp(za::abs(tq.s), 0.f, 1.f))),
+                glm::length(glmv(b3SphericalJoint_GetMotorTorque(ju))), b3SphericalJoint_GetMaxMotorTorque(ju),
+                b3SphericalJoint_GetSpringHertz(ju));
+        }
     }
+}
+
+// The aimed arm's wrist (driveReaches, after the arm's reach): its hand bone's target turned so the gun's line (Aim::local)
+// meets the way from its grip to the target, from the forearm as it is now, eased with the aim; the joint's range clamps it
+// (driveJoints: the soldier's wrist swings 30 degrees), its strength the aim's (driveJoints): a struggling arm, not a turret.
+void aimWrist(const State& s, const Parts& p, za::Array<glm::quat, ragdoll::maxBones>& target,
+    za::Array<glm::vec3, ragdoll::maxBones>& spin)
+{
+    const Aim& a = s.aim;
+    if(!a.on || a.hand < 0 || a.weight <= 0.f || glm::length(a.local) < 0.5f)
+    {
+        return;
+    }
+    const auto h = static_cast<za::SizeT>(a.hand);
+    const int parent = p.rig->bones[a.hand].parent;
+    glm::vec3 want = a.target - a.grip;
+    if(glm::length(want) < 1e-3f)
+    {
+        return;
+    }
+    want = glm::normalize(want);
+    const glm::quat qh = bodyRot(p, a.hand);
+    const glm::quat qh2 = ragpose::between(qh * a.local, want) * qh;
+    const glm::quat rel = glm::normalize(glm::inverse(bodyRot(p, parent)) * qh2);
+    const float w = za::clamp(a.weight, 0.f, 1.f);
+    target[h] = glm::slerp(target[h], ragpose::nearTo(rel, target[h]), w);
+    spin[h] *= 1.f - w;
 }
 
 // A living one's fall (drive(): a shove's knockdown, a stagger gone over, a throw; fallFrame's arms bracing): another
@@ -3516,19 +3582,22 @@ void weaken(State& s, float keep)
     s.base *= za::clamp(keep, 0.f, 1.f); // (a stagger's pin too: its balance goes with it)
 }
 
-void aim(State& s, const glm::vec3& target, const glm::vec3& grip, double now, float hold, float strength)
+void aim(State& s, const glm::vec3& target, const glm::vec3& grip, double now, float hold, float strength,
+    const glm::vec3& barrel)
 {
     Aim& a = s.aim;
     if(!a.on)
     {
         a.from = now;
         a.arm = -1;
+        a.local = glm::vec3{0.f};
     }
     a.on = true;
     a.until = now + static_cast<double>(za::max(hold, 0.f));
     a.target = target;
     a.grip = grip;
     a.strength = strength;
+    a.barrel = glm::length(barrel) > 1e-3f ? glm::normalize(barrel) : glm::vec3{0.f};
 }
 
 void guard(State& s, const glm::vec3& threat, double now, float hold)
@@ -3719,6 +3788,7 @@ void driveReaches(DriveWork& w, State& s, const Parts& p, const Context& c)
             }
         }
     }
+    aimWrist(s, p, s.target, spin); // (an armed one's aimed gun: its hand turned onto the target, ragfire2)
     if(!envLeads && s.mode == Mode::Falling)
     {
         fallEnv(s, p, c); // (a living fall: a hand may grab another; its other holds let go)
@@ -3776,6 +3846,10 @@ void driveJoints(DriveWork& w, State& s, const Parts& p, const Context& c)
                 k = za::max(k, r.strength * za::min(1.f, r.weight * 2.f));
             }
         }
+        if(s.aim.on && s.aim.hand == b)
+        {
+            k = za::max(k, za::clamp(s.aim.strength, 0.f, 1.f) * za::min(1.f, s.aim.weight * 2.f)); // (its wrist, aimWrist)
+        }
         // (A landed fall's joint the concussed stirring moves is its: measured, the fading drive held it to a tenth.)
         k = (s.yield & (1u << b)) != 0u ? 0.f : za::clamp(k * global * s.partScale[i], 0.f, 3.f);
         const float was = s.strength[i];
@@ -3793,9 +3867,15 @@ void driveJoints(DriveWork& w, State& s, const Parts& p, const Context& c)
         // (the joint's frames: ragpose::jointFrameA, jointFrameB; the authored rig's differ)
         const GroupGains& gg = groupGains(channelOf(bone)); // (vr_ragdoll_active_*_<group>: 1 each by default)
         // (Struggling, its class's arm drive: its arms' springs stiffer, their cap too: struggleFrame's arms.)
-        const float armDrive = s.struggle.on && channelOf(bone) == Channel::Arms ? s.struggle.arms : 1.f;
+        float armDrive = s.struggle.on && channelOf(bone) == Channel::Arms ? s.struggle.arms : 1.f;
+        // (An armed one's aimed gun arm and wrist, a struggle's arm drive too: lying, its arm lifts off the floor (ragfire2,
+        // measured: at 1 its shoulder's motor held at its most, 15 degrees short of its goal); its motor's cap too.)
+        const bool aimed = s.aim.on && s.aim.arm >= 0 &&
+                           (b == s.chain[static_cast<za::SizeT>(s.aim.arm)][0] ||
+                               b == s.chain[static_cast<za::SizeT>(s.aim.arm)][1] || b == s.aim.hand);
+        armDrive = aimed ? za::max(armDrive, aimArmDrive) : armDrive;
         const float hertz = za::min(hertzAt1 * gg.hertz * za::sqrt(k) * armDrive, maxHertz * armDrive);
-        const float most = s.friction + k * s.cap[i] * torque * gg.torque;
+        const float most = s.friction + k * s.cap[i] * torque * gg.torque * (aimed ? aimArmDrive : 1.f);
         const float jointDamping = damping * gg.damping;
         if(bone.joint == ragdoll::Joint::Ball)
         {
