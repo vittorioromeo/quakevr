@@ -1953,9 +1953,24 @@ float(entity g, float xIntensity, vector xDir, string xHow) VR_Gib_Impact;
 float(entity box, vector xFrom, vector xTo) VR_Prop_HeldSmash;
 float(entity e) VR_Prop_Kind;
 
+float(entity p, entity xBox) VR_FlatReload_ProcHolds; // (vr_flatreload.qc)
+
 float(entity box, vector target) VR_Carry_Follow =
 {
     vector wanted = target;
+    // The round of flat-screen play's procedural reload goes where its hand has it, as the hand is drawn: through the torso
+    // and the gun. Swept from where it was a frame ago, running or jumping, the body (carrybody) and then the gun's drawn
+    // hull (the trace below) stopped it behind the moving player and the hand let go: a pair lost each trip (prlmove,
+    // 2026-11-28).
+    if(VR_FlatReload_ProcHolds(self, box))
+    {
+        if(frametime > 0)
+        {
+            box.velocity = (target - box.origin) * (1 / frametime);
+        }
+        setorigin(box, target);
+        return TRUE;
+    }
     target = carrybody(box, self, target);
     // As at a wall: a hand pulled much farther than the stopped prop lets go. A torso/wall trap releases it too.
     if(trace_allsolid || vlen(target - wanted) > 32)

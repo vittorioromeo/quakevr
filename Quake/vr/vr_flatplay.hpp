@@ -173,6 +173,10 @@ inline constexpr int strikePathMost = 13;
 // vr_flat_thrust_off_slide times thrustOutShare (it rides with the pole, sliding back along it). Any pole weapon held as a
 // spear (vr_view_weapon.cpp chooseGrip).
 [[nodiscard]] float thrustOffSlide(int h);
+// bayofix: how much of the free arm's reach no longer pulls back hand `h`'s gun held in two hands while V thrusts its
+// bayonet (or dagger) now (0 .. vr_flat_thrust_2h_drive, by the thrust's share): both hands drive it forward
+// (vr_flatsight.cpp pinToGrip / gripPull). 0 for a pole weapon, a gun with no blade on it, or no thrust.
+[[nodiscard]] float bayonetDrive2H(int h);
 // The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
 // over its grip's pin and before vr_twohand takes the hold).
 void bladePin(hands::State& s);
@@ -380,8 +384,23 @@ void flickTestFrame();
 // Each key cvar holds up to keySlots keys ("c CTRL": bind names, a space between; his words 2026-11-25, two bindings per
 // action). One way to read and set them, for every action: keyNum (slot's key, -1 none), keyIs (one of its keys), keyHeld
 // (one of them down now), setKey (a slot set, or cleared with key <= 0: the slots stay packed, a key in one slot only).
-constexpr int keySlots = 2; // (VR_FLATKEY_SLOTS, vr_api.h)
+// Three since padflat (2026-11-28): the keyboard's two and a gamepad's button ("c CTRL BBUTTON"; FLATPLAY.md "A gamepad").
+constexpr int keySlots = 3; // (VR_FLATKEY_SLOTS, vr_api.h)
 [[nodiscard]] int keyNum(const cvar_t& c, int slot);
+// The `slot`th of its keyboard and mouse keys (a gamepad's buttons skipped: the keyboard's panels), -1 none.
+[[nodiscard]] int keyNumKeyboard(const cvar_t& c, int slot);
+// Its gamepad button (the first; an _ALT one is held with the alt layer's button), -1 none.
+[[nodiscard]] int keyNumPad(const cvar_t& c);
+// The gamepad button `key` set as the action's (in place of the button it had, or added; -1 its button cleared), its
+// keyboard keys kept; the button taken off every other flat key first (one action a button).
+void setPadKey(cvar_t& c, int key);
+// Every flat key's gamepad button back to its default's (padflat; the keyboard's keys kept): the Controller Bindings
+// screen's Reset for a gamepad.
+void resetPadKeys();
+// Once (vr_flat_pad_defaults_version): a config whose flat key has keys of its own but no gamepad button gets its
+// default's button where no other flat key has it; a gamepad's alt layer and scoreboard binds where unbound.
+void fillPadDefaults();
+[[nodiscard]] bool isPadKey(int key);
 [[nodiscard]] bool keyIs(const cvar_t& c, int key);
 [[nodiscard]] bool keyHeld(const cvar_t& c);
 void setKey(cvar_t& c, int slot, int key);

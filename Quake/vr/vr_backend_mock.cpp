@@ -1141,8 +1141,16 @@ void handToNearest(int hand)
         }
     }
     target.z += Cmd_Argc() >= 5 + (head ? 1 : 0) ? Q_atof(Cmd_Argv(4 + (head ? 1 : 0))) : 0.f;
-    Con_Printf("vr_mock_hand_to: %s %d%s: %.1f %.1f %.1f\n", Cmd_Argv(3), found, head ? "'s head" : "", target.x,
-        target.y, target.z);
+    // ("nearest <class> <units> palm": the palm's middle there, not the hand's point (hands::palmPoint): a fist closing
+    // on a small thing lying about, whatever way it came to rest; reload_test's lying shell.)
+    const bool palm = !head && Cmd_Argc() >= 6 && !q_strcasecmp(Cmd_Argv(5), "palm");
+    Con_Printf("vr_mock_hand_to: %s %d%s: %.1f %.1f %.1f%s\n", Cmd_Argv(3), found, head ? "'s head" : "", target.x,
+        target.y, target.z, palm ? " (the palm)" : "");
+    if(palm)
+    {
+        const hands::State& st = hands::current();
+        target -= hands::palmPoint(st, hand) - st.pos[hand];
+    }
     moveHandTo(hand, target);
 }
 

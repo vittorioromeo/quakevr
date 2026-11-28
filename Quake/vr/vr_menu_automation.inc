@@ -105,6 +105,8 @@ za::Vector<Item> pageDebugAutomation()
             .help("Every button, list and popup of the editor clicked by the test's mouse (waveeditor test: N passed, M failed)."),
         command("Armed Humanoids: Infection Test", "vr_toolgun_armed_infected_test")
             .help("Each armed kind with each outcome from the toolgun's page, spawned, killed, rising (toolgun infected test: N passed, M failed)."),
+        command("Armed Humanoids: Elite Test", "vr_toolgun_armed_elite_test")
+            .help("Each armed kind from the toolgun's page elite, elite and infected, neither: spawned and looked at (toolgun elite test: N passed, M failed)."),
         command("Armed Humanoids: Preview Test", "vr_toolgun_armed_icons_test")
             .help("Every kind the toolgun's Armed Humanoid page lists has its preview picture, AD's knights too (toolgun armed icons test: N passed, M failed)."),
         command("Jump to Wave 6", "vr_arena_goto 6")

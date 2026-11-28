@@ -235,11 +235,12 @@ float VR_AGP_CAST_RAISE = 0.3;    // the cast's: his off hand up into the Cast k
 float VR_AGP_CAST_HOLD = 0.45;    // ... held there through the volley's sweep (its six a tenth of a second apart)
 float VR_AGP_CAST_LOWER = 0.3;    // ... back to the stance
 
-// `g`'s attack's speed: a swing's or a punch's vr_ag_act_speed (0.1..1), 1 for anything else.
+// `g`'s attack's speed: a swing's or a punch's vr_ag_act_speed (0.1..3: over 1 an elite's, vr_elite_melee), 1 for
+// anything else.
 float(entity g) VR_AGP_Speed =
 {
     float sp = g.vr_ag_act_speed;
-    return (sp > 0 && sp < 1 && (g.vr_ag_act == VR_AGP_SWING || g.vr_ag_act == VR_AGP_PUNCH)) ? max(0.1, sp) : 1;
+    return (sp > 0 && sp != 1 && (g.vr_ag_act == VR_AGP_SWING || g.vr_ag_act == VR_AGP_PUNCH)) ? min(3, max(0.1, sp)) : 1;
 };
 
 void(entity g) VR_AGP_Times =
@@ -282,7 +283,7 @@ void(entity g) VR_AGP_Times =
         vr_agp_tr = heavy ? 0.36 : 0.3;
     }
     float sp = VR_AGP_Speed(g);
-    if(sp < 1)
+    if(sp != 1) // (slowed, or an elite's quicker: every phase as much)
     {
         // (slowed: every phase as much, so its keys, its blow and its hit come at the same points of it)
         vr_agp_tw = vr_agp_tw / sp;
@@ -1345,6 +1346,7 @@ vector vr_agp_drawl;
 vector vr_agp_waist; // the waist the torso was turned about, as sent (agposesend reads it)
 vector vr_agp_elr;   // the elbows' poles (its body's space; their length the share: 0 the animation's)
 vector vr_agp_ell;
+vector vr_agp_shpole; // the shielding elbow's pole (its body's space; its length the share): VR_AGP_Shield's, laid on vr_agp_ell
 vector VR_AGP_WAIST = '-4.7 0.9 4.8'; // the grunt's waist (its rig's pelvis's end: the chest's turn's pivot)
 
 // The shares at `g`'s attack's time now (its strike's parameter as its pose's: a swing's smoothed, a punch's not).
@@ -2616,6 +2618,21 @@ void(entity g, entity p) VR_AGP_PoseQC =
             body = TRUE;
         }
     }
+    if(vr_agp_shpole != '0 0 0' && !(vr_agp_flags & VR_AGP_FIXED))
+    {
+        // (dazzled: its shielding elbow out to its side, VR_AGP_Shield; on a strike's or the keys' poles, or alone: then
+        // no torso turn, only the poles sent)
+        if(!body)
+        {
+            vr_agp_tq = '0 0 0';
+            vr_agp_elr = '0 0 0';
+            vr_agp_ell = '0 0 0';
+        }
+        vr_agp_ell = vr_agp_ell + vr_agp_shpole;
+        vr_agp_flags = vr_agp_flags | VR_AGP_BODY;
+        body = TRUE;
+    }
+    vr_agp_shpole = '0 0 0';
     if(vlen(vr_agp_elr) > 1) { vr_agp_elr = normalize(vr_agp_elr); }
     if(vlen(vr_agp_ell) > 1) { vr_agp_ell = normalize(vr_agp_ell); }
     if(vr_agk_on)
@@ -2915,7 +2932,8 @@ void(float act) VR_AGP_Begin =
         self.vr_ag_act_kind = 0;
     }
     self.vr_ag_act_at = time;
-    self.vr_ag_act_speed = min(1, max(0.1, cvar_hget(cvarh_vr_agrunt_melee_speed))); // (parry practice: 1 normal)
+    // (parry practice: 1 normal; an elite's quicker, vr_elite_melee: vr_attrs.qc)
+    self.vr_ag_act_speed = min(1, max(0.1, cvar_hget(cvarh_vr_agrunt_melee_speed))) * VR_Attr_Mult(self, VR_ATTR_ST_MELEE);
     self.vr_ag_act_var = random();
     self.vr_ag_act_hit = 0;
     self.vr_ag_act_hitl = 0;

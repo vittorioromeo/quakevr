@@ -5503,6 +5503,10 @@ static qboolean M_Keys_Clash (const menukeybind_t *item, int key, char *out, siz
 
 	if (key <= 0 || key >= MAX_KEYS)
 		return false;
+	// QVR: a gamepad button both a flat key's and bound is meant so (padflat): the bind is the headset's controllers' (they
+	// send the same keys), the flat key a pad's in flat play; only two flat keys on one button clash
+	if (key >= K_GAMEPAD_BEGIN && key < K_GAMEPAD_END && (flat < 0 || VR_FlatKeyFor (key, flat) < 0))
+		return false;
 	if (flat >= 0)
 	{
 		other = VR_FlatKeyFor (key, flat);

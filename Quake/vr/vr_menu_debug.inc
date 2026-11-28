@@ -1070,7 +1070,11 @@ za::Vector<Item> pageDebugReports()
             .help("toggle vr_flat_visor_cache: 1 (the default) the visor's panels and layer drawn again only when what they show "
                   "changes, over the mounts' rectangles alone; 0 every frame over the whole view, as before (vr_profile: the cost)."),
         command("Visor: Power On", "vr_flat_visor_fx boot")
-            .help("vr_flat_visor_fx boot: the visor's panels power on again with their sweep, as at a spawn."),
+            .help("vr_flat_visor_fx boot: the visor powers on again as at a spawn: its boot sequence (vr_flat_visor_boot_seq: "
+                  "dark, the power-up sound, the panels fading in glitching) and the sweep."),
+        command("Visor: Power On, Traced", "vr_flat_visor_fx trace 1; vr_flat_visor_fx boot")
+            .help("vr_flat_visor_fx trace 1, then boot: every boot from now prints its phases in the console as it ends "
+                  "(\"visorboot: ...\": frames dark, fading, glitching, sweeping, the sound; vr_flat_visor_fx trace 0 stops)."),
         command("Visor: Centre Message", "vr_flat_visor_fx center \"You need the gold key\"")
             .help("vr_flat_visor_fx center <text>: a centre print as the game's (\\n a new line), in the visor's centre "
                   "message panel (vr_flat_visor_centerprint) or over the view."),
@@ -1830,9 +1834,10 @@ za::Vector<Item> pageTextureStudio()
             .help("vr_humstudio_kind: the row of the table edited, and whose mask the palette rows below edit."),
         cycle("Weapon Category", vr_humstudio_cat,
             {{1.f, "Explosive"}, {2.f, "Energy"}, {3.f, "Flame"}, {4.f, "Poison"}, {5.f, "Shells"}, {6.f, "Nails"},
-                {7.f, "Melee"}, {8.f, "Its Own Gun"}})
+                {7.f, "Melee"}, {8.f, "Its Own Gun"}, {15.f, "Elite"}})
             .help("vr_humstudio_cat: the weapon it spawned with (shells, nails, melee and its own gun have no row: give one a "
-                  "strength to make one)."),
+                  "strength to make one). Elite: an elite's clothes whatever it holds (its pack keeps its weapon's colour; "
+                  "the lineup shows the weapons' colours: make one elite with Enemy Attributes on the Tools page)."),
         cycle("Part", vr_humstudio_part, {{0.f, "Clothes"}, {1.f, "Pack"}})
             .help("vr_humstudio_part: its body's clothes, or its pack (its worn backpack, and the pack in an enforcer's skin)."),
         header("Colour"),
@@ -1902,6 +1907,15 @@ za::Vector<Item> pageDebugTools()
         open("Texture Studio", pageIndex(pageTextureStudio))
             .help("The armed humanoids' recolours by weapon: each row's colour, strength, lightness and tint, and which "
                   "texels they dye (palette rows, painted texels), live on a row lined up ahead; saved to quakevr/humlook.txt."),
+        header("Enemy Attributes"),
+        command("Make the Nearest Monster Elite", "vr_attr_set elite 1")
+            .help("vr_attr_set elite 1: the monster nearest you an elite (much faster fire, reaction, aim and swings, 1.25x "
+                  "steps, more health, most pains shrugged off; an armed humanoid's dark gold dye). QC vr_attrs.qc."),
+        command("Make the Nearest Monster Ordinary", "vr_attr_set elite 0")
+            .help("vr_attr_set elite 0: the monster nearest you no longer an elite (its health and turning back)."),
+        command("Infect the Nearest Monster", "vr_attr_set infected 1")
+            .help("vr_attr_set infected 1: the monster nearest you infected (killed, it bursts and rises as a zombie; an elite "
+                  "can be infected too)."),
         header("Controller Bindings"),
         command("Controller Bindings Screen", "menu_bindsetup")
             .help("menu_bindsetup [model]: the Controller Bindings screen for the controller in use (or a model's: quest3, "
@@ -1918,6 +1932,19 @@ za::Vector<Item> pageDebugTools()
             .help("vr_bindpanel_device auto: the reminder panels show the controller in use again."),
         command("Reminder Panels Report", "vr_bindpanel_report")
             .help("vr_bindpanel_report: the flat panel's rows (keys or a pad's glyphs) and the headset panel's callouts."),
+        command("Flat Gamepad Layout Test", "vr_flat_pad_test")
+            .help("vr_flat_pad_test (flat play, in a map): the flat-screen gamepad's default layout (every action on a "
+                  "button, none twice), Back's alt layer, filling an older config, reset; the verdict line in the console "
+                  "(FLATPLAY.md \"A gamepad\")."),
+        command("Gamepad Menu Cursor Test", "vr_menu_pad_test")
+            .help("vr_menu_pad_test: on the Controller Bindings screen (an Xbox pad) the left stick's cursor is moved, "
+                  "steered onto B's label and clicked with A, then the d-pad steps; the verdict line in the console."),
+        command("Gamepad Menu Cursor Report", "vr_menu_pad_report")
+            .help("vr_menu_pad_report: the menus' gamepad cursor: shown or hidden, where, its moves, clicks and hides "
+                  "(Tunables > Flatscreen > Gamepad tunes it)."),
+        command("Fill Flat Gamepad Defaults", "vr_flat_pad_defaults_version 0; vr_checkbindings")
+            .help("Runs the once-only fill again: each flat key without a gamepad button gets its default's where no other "
+                  "action has it; Back the alt layer and Back + right stick click the scoreboard where unbound."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),

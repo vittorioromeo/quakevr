@@ -35,17 +35,18 @@ float(float easy, float hard, float nightmare) VR_AGAI_Skill =
     return max(0, 1 + cvar_hget(cvarh_vr_agrunt_ai_skill) * (m - 1));
 };
 
-float() VR_AGAI_Aggression = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_aggression)) * VR_AGAI_Skill(0.85, 1.2, 1.4); };
+// Each times self's attributes' factor (vr_attrs.qc: an elite's; exactly 1 with none).
+float() VR_AGAI_Aggression = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_aggression)) * VR_AGAI_Skill(0.85, 1.2, 1.4) * VR_Attr_Mult(self, VR_ATTR_ST_AGGRESSION); };
 // (a flashlight in its eyes makes it worse: VR_AG_DazzleAim, 1 undazzled; vr_armedgrunt_dazzle.qc)
-float() VR_AGAI_Accuracy = { return max(0.05, max(0, cvar_hget(cvarh_vr_agrunt_ai_accuracy)) * VR_AGAI_Skill(0.8, 1.25, 1.5)) / VR_AG_DazzleAim(self); };
-float() VR_AGAI_Reaction = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_reaction)) * VR_AGAI_Skill(1.3, 0.7, 0); };
+float() VR_AGAI_Accuracy = { return max(0.05, max(0, cvar_hget(cvarh_vr_agrunt_ai_accuracy)) * VR_AGAI_Skill(0.8, 1.25, 1.5) * VR_Attr_Mult(self, VR_ATTR_ST_ACCURACY)) / VR_AG_DazzleAim(self); };
+float() VR_AGAI_Reaction = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_reaction)) * VR_AGAI_Skill(1.3, 0.7, 0) * VR_Attr_Mult(self, VR_ATTR_ST_REACTION); };
 float() VR_AGAI_Retreat = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_retreat)) * VR_AGAI_Skill(0.85, 1.15, 1.3); };
-float() VR_AGAI_FireRate = { return max(0.05, max(0, cvar_hget(cvarh_vr_agrunt_ai_firerate)) * VR_AGAI_Skill(0.9, 1.15, 1.15)); };
+float() VR_AGAI_FireRate = { return max(0.05, max(0, cvar_hget(cvarh_vr_agrunt_ai_firerate)) * VR_AGAI_Skill(0.9, 1.15, 1.15) * VR_Attr_Mult(self, VR_ATTR_ST_FIRERATE)); };
 
 // The movement speed sliders (his voice note 2026-11-01 18:34): every step times vr_agrunt_speed; of a step `yaw` from its
 // facing, the part backwards times vr_agrunt_speed_back and the part sideways times vr_agrunt_speed_strafe (an ellipse: a
 // step at a slant blends them; all three 1: as before).
-float() VR_AG_Speed = { return max(0, cvar_hget(cvarh_vr_agrunt_speed)); };
+float() VR_AG_Speed = { return max(0, cvar_hget(cvarh_vr_agrunt_speed)) * VR_Attr_Mult(self, VR_ATTR_ST_SPEED); }; // (an elite's 1.25x: vr_elite_speed)
 float(float yaw) VR_AG_StepDir =
 {
     if(cvar_hget(cvarh_vr_agrunt_speed_back) == 1 && cvar_hget(cvarh_vr_agrunt_speed_strafe) == 1)

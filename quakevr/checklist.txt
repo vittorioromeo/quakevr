@@ -11,10 +11,8 @@
 Flat-screen or VR: point the switched-on flashlight straight at an armed grunt's face from a few metres; after a moment it raises its free hand in front of its eyes (a shotgun goes into one hand) and its shots spray wider, and it lowers the hand a second or two after the beam leaves its face. Check the hand looks like it shields the eyes and nothing happens with the beam off to the side or at its back. {test:agrunt_flashblind}
 Flat-screen or VR: Options > Controller Bindings shows your controller (the name says "detected") with each button labelled by its binding; drag a label onto another and the two bindings swap, click one and pick an action from the list (typing searches it), then Reset to Defaults puts the shipped ones back. {test:hub_start}
 Flat-screen or VR: step through the controller pictures with the arrows beside the name (Quest 3, Quest 2, Quest Pro, Rift, Index, Vive, WMR, Steam Frame, Xbox, PlayStation, Switch Pro, generic pad) and say which pictures, labels or glyphs need work. {test:hub_start}
-Quest, Debug > Profiling: turn on "Still Models' Set-up Check" in the gib fight, then off; nothing should look different and the game should not hitch. {test:quest_gibfight}
 Flat-screen: with a gamepad as the last device used, the main menu's bindings panel and the one over the holster menu and the weapon wheel list the pad's buttons with that pad's icons (Xbox, PlayStation, Switch) and what each does; touch the keyboard or mouse and the keys come back. Setup Bindings then opens the controller screen for the pad. {test:hub_start}
 Ragdoll climbs: knock a knight off a ledge so it falls past the lip: when it grabs the lip its fall is caught softly (no sudden jolt) and both hands stay on (no hand yanked off the lip), then it pulls itself up. {test:knight_ledge}
-Flat-screen: with the shotgun in one hand, fire it empty and press R: the gun tilts in and stays put for the whole reload, with no jolt backwards towards the camera when the pair comes into the hand or goes into the port. {test:flat_proc_reload}
 Flat-screen: open Tunables > Flatscreen > Procedural Reload, set Lock Pose (or use Next Key / Previous Key) and walk through the key poses (rest, gun tilted, hand at pouch, gripping the pair, at the port's mouth, inserted, returning); change a pose's sliders and see the held pose follow at once; set Lock Pose back to Off and R reloads as normal. {test:flat_proc_reload}
 Flat-screen or VR: take a grenade from the back pouch (the wheel's BACK POUCH, or G flat), then pick a gun on that hand's wheel or EMPTY HAND: the grenade goes back (the rocket count +1) and the gun comes into the hand. {test:wheel_grenade}
 Flat-screen or VR: holding a grenade, pick the other kind on the wheel's BACK POUCH: it is swapped (cluster for grenade); arm one and pick EMPTY HAND: a dull knock and "The grenade is armed: throw it or drop it.", it stays in the hand. {test:wheel_grenade}
@@ -24,6 +22,21 @@ Flat-screen: in the menu, the bindings reminder lists the main actions large, th
 Flat-screen: hold 1 (weapon wheel) and press MMB (holster menu): the reminder panel above shows the main actions in the left column and the Hands / More groups smaller on the right; the slots' holster titles read clearly (less faded than before). {test:weapon_wheel}
 Flat-screen: with both hands empty, jab with the left button at a grunt that is off to one side: each fist, left and right, should travel to whatever the crosshair is on and hit it. {test:flat_fists}
 Flat-screen or VR: in Run Setup, the Starting melee weapon row should read Axe, Dagger, Spear, Nothing (Nothing last, like the gun row), and a pick you saved before should still be the same weapon. {test:run_setup_newgame}
+Flat-screen: empty the shotgun, then press R while running, strafing, jumping, sliding and crouch-walking: every pair goes into the loading port at the bottom and the gun fills, with no reload cancelled or shell dropped. {test:flat_proc_reload}
+Flat-screen: during the procedural reload, look at the reloading hand: its fingers close round the taped pair from the pouch to the port, as in VR, and open again on the way back. {test:flat_proc_reload}
+Flat-screen: in Tunables > Flatscreen > Procedural Reload, lock the pose at the port's mouth or inserted and move Hand at Port: Forward / Right / Up: the hand and its pair move along the gun. {test:flat_proc_reload}
+- [ ] The menu's bindings reminder is larger: main rows and the Hands / More groups, in two columns, still clear of the corner rows; try the main menu and Options, keyboard and pad {test:hub_start}
+Flat-screen or VR: stab the ogre with the bayonet nailgun and hold fire: it fires as fast as in the hand, both barrels in turn, the barrels animate on the stuck gun with its muzzle flash and sparks. {test:attach_bayomounts}
+Flat-screen or VR: stuck by its bayonet, the thunderbolt plays its start sound once and then its loop, its beam from the stuck gun's muzzle; the burst rifle bursts and the revolver fires a shot each pull. {test:attach_bayomounts}
+Flat-screen: with a bayonet on the grenade launcher, the proximity launcher and the rocket launcher (held in both hands, the other hand free), V thrusts the gun forward with both hands and sticks it in the ogre by the bayonet's point; fire it stuck. {test:attach_bayomounts}
+Flat-screen or VR: put your dagger on the nailgun, the launchers, the thunderbolt, the Plasma Gun, the burst rifle, the laser rifle and the revolver (Daggers as Bayonets): the blade runs level under the muzzle, its guard just behind the gun's front, nothing sinking into the gun. {test:attach_bayomounts}
+Flat-screen or VR: an elite armed humanoid reads at a glance next to ordinary ones: dark gold clothes pulsing towards bright gold, its backpack still in its weapon's colour; check it also reads next to armoured ones and in dim light. {test:elite_pair}
+Flat-screen or VR: fight an elite (the scene's nearer one, notarget off): it fires much more often, reacts at once, aims true, walks a quarter faster, swings quicker, rarely flinches; say if it is too hard or not hard enough (Debug > Tunables > Armed Humanoids > Elite). {test:elite_pair}
+Flat-screen or VR: the toolgun's Armed Humanoid page has Elite: On/Off beside Infected With; spawn an elite that is also infected: dark gold, and killed it bursts into a zombie that is not an elite. {test:elite_pair}
+Flat-screen or VR: Combat > Armed Grunts > AI Behaviour > Elites in Hard and Nightmare on, a map on Hard: about one armed humanoid in seven is an elite; off, none. {test:elite_pair}
+Flat-screen or VR: the Survival Arena from wave 4 sends some elites among the armed humanoids (about one in five). {test:arena_run}
+Flat-screen or VR: in co-op, an elite the host makes (vr_attr_set elite 1) shows its dark gold dye on the other player's screen too. {test:mp_coop_bot}
+Flat-screen: the visor HUD boots at every map start, level change, loaded save and respawn: no panels at first, a power-up sound, the panels fading in with a short subtle glitch, then the scanline sweep; check the timing and the glitch's strength feel right (Debug > Tunables > Visor Boot) and the sound's level against the other UI sounds. {test:flat_visor_boot}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -51,14 +64,15 @@ Flat-screen or VR: start once with -glsafe; the game starts, vr_glsafe_status li
 Play Dwell's d1m1 and Quoth's kellbase1 up close: brick walls, door frames and pillar panels have depth (Setup's reliefs), no shimmering or wrong-way lighting; if in doubt turn Generated Companion Maps (VR Settings > Graphics) off and load the next map. {test:hub_start}
 ## Loading and collision cache
 ## Quest performance and options
-On the Quest, VR Settings > Scaling: turn SpaceWarp on and play the hub, a gib fight and the terrace for a minute each: motion looks as smooth as at 72 Hz, no stutter at smooth or snap turns or when opening and closing the menu (it shows at the full rate), no smearing of the world while walking; look for wobbling edges on your hands, the gun and moving monsters, and judder on head-fixed text. Say where you still feel stutter (it decides which GPU or CPU fix comes next). {test:quest_gibfight}
-On the Quest, Quest Foveation: High (Top) blurs the top of the view (sky, ceilings) more than High while the lower middle stays sharp, at least as smooth as High, and Show Foveation's pattern sits lower; Shift (advanced) at -15 and +15 moves the sharp middle down and up, no crash when changing it. {test:quest_foveation}
-On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution of Eternity: each plays its own soundtrack, not Quake's. {test:campaign_music}
 
 [2. Flat screen]
 ## Grab, hold and push
 ## Spear and Crystal Lance
 Flat-screen: with the shotgun in one hand and the other empty, fire then press R: the free hand goes to the ammo pouch on your belt, brings a taped pair to the port under the shotgun (tilted to meet it) and back, two shells a trip until full; say how the speed, the tilt and the hand's path feel. {test:flat_proc_reload}
+Flat-screen: with a gamepad every common action has a button: RT/LT fire, A jump, B crouch, X reload, Y shove, R3 punch, LB/RB tap to cycle or hold for that hand's weapon wheel, L3 held the holster menu, the d-pad flashlight/grenade/throw/force grab, and Back held a second layer (lie down, grab/pull, next ammo, swap hands, attach, bullet time, scoreboard); check each feels natural. {test:flat_gamepad}
+Flat-screen: with a gamepad, the weapon wheel (LB/RB held) picks the slot the right stick points at, and the holster menu (L3 held) moves its cursor with the right stick; check the view does not turn meanwhile. {test:flat_gamepad}
+Flat-screen: in the menus a gamepad's left stick moves a cursor (A clicks what it is on), the d-pad still steps the rows and hides the cursor, and moving the mouse hides it too; check its speed and feel. {test:hub_start}
+Flat-screen: the Controller Bindings screen with a pad shows its flat-play actions (Crouch / slide, Cycle right hand, ...), drag swaps them and Reset to Defaults brings back the new layout. {test:hub_start}
 
 [3. Tutorial and VR interface]
 ## Tutorial
@@ -110,6 +124,8 @@ Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, a
 ## Lifts
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
 Armour skins restyled toward your "after" image: muted olive, ochre and brick-red plates under grime, chipped and rusted edges, blood and dirt specks, dark gaps between the rows; check each type still reads at a glance next to the bare grunt, and on enforcers, knights and the armoured beasts too. {test:armour_lineup}
+Take the flashlight and shine it straight in an armed knight's or death knight's face: it raises its free forearm across its eyes with the elbow out to its side, not a fist held up like a punch; armed grunts shield as before. {test:arena_gunknights}
+In Tunables > Flashlight Dazzle turn Dual Wielders Shield on, then shine the flashlight in a dual-wielding grunt's face: it raises its left gun, still held and pointing up, in front of its eyes and fires only its right one; with it off both guns stay up. {test:agrunt_dual_guns}
 
 [7. Armoured beasts]
 ## Armour on the body
@@ -205,6 +221,7 @@ Flat-screen or VR: join that row anyway: you're back at the browser with one pla
 Host a deathmatch on the PC with a few bots and join it from the Quest standalone; mid-game take the headset off for 20-30 s (or sit in the Quest system menu), then put it back on: you are still in the game and catch up, and neither console says "overflow" (if one ever does, the line now says which buffer and its sizes: note it). {test:mp_dm_passive}
 Join a coop game from the Quest standalone and have the PC host change level: your slower map load no longer drops you; with voice chat and the weapon wheel in use over a weak Wi-Fi spot, no disconnect either. {test:mp_coop_passive}
 Flat-screen or VR: host a coop game on vrtesthall and join it from a second device with Show Melee Arcs on there (the host's own may be off); when an armed sword or axe grunt swings at either of you, the joined device draws its fading swing trail too (white winding up, yellow in the swing, red when it lands), as the host's view does. {test:agrunt_melee_arcs}
+Host a coop game with armoured beasts and join it from your Quest or a second PC: the joined game shows the ogre's and the scrag's armour as the host does (every plate, the leather between them, the tail segments), and a piece shot off on either side drops on both with its debris. {test:mp_coop_beasts}
 
 [12. Recording and dev tools]
 ## Takes

@@ -62,6 +62,7 @@ extern "C" void M_Main_RowsExtent(float* left, float* right); // menu.c: the mai
 #include "vr_toolgun.hpp"
 #include "vr_units.hpp"
 #include "vr_window.hpp"
+#include "vr_flatholster.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Base/Strlen.hpp"
@@ -73,6 +74,10 @@ extern "C" void M_Main_RowsExtent(float* left, float* right); // menu.c: the mai
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
@@ -1281,9 +1286,9 @@ FlatRecording flatRecording;
 // under their groups' titles.
 struct BindPanelMenu
 {
-    static constexpr float most = 8.f;  // the letters' size at most (menu units), and the least drawn
+    static constexpr float most = 8.f;  // the letters' size at most (menu units; vr_menu_bind_panel_scale times it), and the least drawn
     static constexpr float least = 4.f;
-    static constexpr float minor = 0.75f; // a minor row's letters, of the main rows'
+    static constexpr float minor = 0.85f; // a minor row's letters, of the main rows'
     static constexpr float gap = 8.f;   // from the corner's buttons above, the rows right of it, the corner's rows under it
     static constexpr float margin = 20.f; // from the panel's left edge at least (menu x)
     static constexpr float glyph = 1.5f; // a pad button's glyph (bindpanel2), in letters
@@ -1296,6 +1301,8 @@ struct BindPanelMenu
     int menu{m_none}; // the page it was drawn on
     int rows{0};    // (vr_bindpanel_report: menuui::bindPanelReport)
     float size{0.f};
+    float top{0.f}, right{0.f}; // the panel's extent drawn (menu units; the report's)
+    int cols{1};    // 2: the minor rows' groups in a second column (panelsize)
     glm::vec4 room{0.f}; // x0, y0, x1, y1 (menu units)
     const char* leftOut{"no menu drawn yet"}; // why it was not drawn (nullptr: drawn)
     int cornerHits{0};   // the hover's hit test, as last drawn (drawBindPanel)
@@ -1375,7 +1382,7 @@ void drawBindPanel(const Painter& p, const ToolbarLayout& l)
     const float x0 = xMin; // (the bottom left corner for every device: the pad's used to stand under the column alone)
     // In letters: each size's longest action and its keys' caps (each its letters, a quarter letter a side, half a letter
     // apart), the rows' and the groups' titles' height, Setup Bindings's (a letter over it, its own).
-    float labelMain = 0.f, keysMain = 0.f, labelMinor = 0.f, keysMinor = 0.f, tall = 0.f;
+    float labelMain = 0.f, keysMain = 0.f, labelMinor = 0.f, keysMinor = 0.f, tallMain = 0.f, tallMinor = 0.f;
     for(int i = 0; i < n; i++)
     {
         const gadget::BindPanelRow& r = rows[i];
@@ -1391,18 +1398,42 @@ void drawBindPanel(const Painter& p, const ToolbarLayout& l)
         labelOf = za::fmax(labelOf, label);
         keysOf = za::fmax(keysOf, k);
         const float sz = r.minor ? BindPanelMenu::minor : 1.f;
-        tall += BindPanelMenu::step * sz;
+        float& tallOf = r.minor ? tallMinor : tallMain;
+        tallOf += BindPanelMenu::step * sz;
         if(r.header[0])
         {
-            tall += BindPanelMenu::headerGap + BindPanelMenu::headerStep * BindPanelMenu::minor;
+            tallOf += BindPanelMenu::headerGap + BindPanelMenu::headerStep * BindPanelMenu::minor;
         }
     }
-    const float wide = za::fmax(labelMain + keysMain, (labelMinor + keysMinor) * BindPanelMenu::minor) + 1.f;
-    tall += 1.f + 1.f; // (Setup Bindings: a letter over it, and its letters; 6 true pixels more: buttonH)
+    const float wideMain = za::fmax(labelMain + keysMain + 1.f, static_cast<float>(ZA_STRLEN(BindPanelMenu::button)) + 1.f);
+    const float wideMinor = (labelMinor + keysMinor) * BindPanelMenu::minor + 1.f;
+    const float buttonRows = 1.f + 1.f; // (Setup Bindings: a letter over it, and its letters; 6 true pixels more: buttonH)
     const float buttonH = 6.f;
+    const float colGap = 2.f; // (letters between the two columns)
     // (Heights in true pixels: menu y times l.k on a stretched canvas, as the letters keep square.)
     const float K = l.k;
-    const float s = za::fmin(BindPanelMenu::most, za::fmin((x1 - x0) / wide, ((y1 - y0) * K - buttonH) / tall));
+    const float scaleMax = BindPanelMenu::most * CLAMP(0.5f, vr_menu_bind_panel_scale.value, 3.f);
+    // One column (the main rows, then the groups), or two (the main rows and Setup Bindings; the groups right of them)
+    // when the room is too short for one: whichever gives the larger letters.
+    const auto fit = [&](float fx1, float fy0, int nc)
+    {
+        const float h = ((y1 - fy0) * K - buttonH);
+        if(nc == 2)
+        {
+            return tallMinor > 0.f ? za::fmin(scaleMax, za::fmin((fx1 - x0) / (wideMain + colGap + wideMinor),
+                                                            h / za::fmax(tallMain + buttonRows, tallMinor)))
+                                   : 0.f;
+        }
+        return za::fmin(scaleMax, za::fmin((fx1 - x0) / za::fmax(wideMain, wideMinor), h / (tallMain + tallMinor + buttonRows)));
+    };
+    float s = fit(x1, y0, 1);
+    int cols = 1;
+    const float s2 = fit(x1, y0, 2);
+    if(s2 > s)
+    {
+        s = s2;
+        cols = 2;
+    }
     b.room = {x0, y0, x1, y1};
     b.bottom = l.bottom;
     b.cornerTop = menuui::active() ? menuui::cornerRowsTop() : flatRecording.leftOut ? l.bottom : flatRecording.y0;
@@ -1416,20 +1447,34 @@ void drawBindPanel(const Painter& p, const ToolbarLayout& l)
     b.menu = m_state;
     b.rows = n;
     b.size = s;
+    b.cols = cols;
+    const float col2 = x0 + (wideMain + colGap) * s; // (the second column's left)
     // From the bottom: Setup Bindings's bottom at the room's.
-    float y = y1 - (tall * s + buttonH) / K; // (menu y)
+    float y = y1 - (((cols == 2 ? tallMain : tallMain + tallMinor) + buttonRows) * s + buttonH) / K; // (menu y)
+    b.top = cols == 2 ? za::fmin(y, y1 - tallMinor * s / K) : y;
+    b.right = cols == 2 ? col2 + wideMinor * s : x0 + za::fmax(wideMain, wideMinor) * s;
+    float yMain = y; // (two columns: where the main column's rows ended)
+    float cx = x0;   // the column's left
+    bool second = false;
     for(int i = 0; i < n; i++)
     {
         const gadget::BindPanelRow& r = rows[i];
         const float sz = r.minor ? s * BindPanelMenu::minor : s;
+        if(cols == 2 && r.minor && !second)
+        {
+            second = true;
+            yMain = y;
+            cx = col2;
+            y = y1 - tallMinor * s / K; // (bottom aligned)
+        }
         if(r.header[0])
         {
             // A group's title: small, a rule after it to the keys' end.
             y += BindPanelMenu::headerGap * s / K;
             const float hs = s * BindPanelMenu::minor, hc = y + hs * 0.5f / K;
-            drawBindText(x0, hc, hs, r.header, false);
-            const float rx0 = x0 + (static_cast<float>(ZA_STRLEN(r.header)) + 1.f) * hs;
-            const float rx1 = x0 + (labelMinor + keysMinor) * hs;
+            drawBindText(cx, hc, hs, r.header, false);
+            const float rx0 = cx + (static_cast<float>(ZA_STRLEN(r.header)) + 1.f) * hs;
+            const float rx1 = cx + (labelMinor + keysMinor) * hs;
             if(rx1 > rx0)
             {
                 p.rect(rx0, rx1, hc, 0.5f, colors::boxBorder);
@@ -1437,8 +1482,8 @@ void drawBindPanel(const Painter& p, const ToolbarLayout& l)
             y += BindPanelMenu::headerStep * hs / K;
         }
         const float yc = y + sz * 0.5f / K;
-        drawBindText(x0, yc, sz, r.action, true);
-        float kx = x0 + (r.minor ? labelMinor : labelMain) * sz;
+        drawBindText(cx, yc, sz, r.action, true);
+        float kx = cx + (r.minor ? labelMinor : labelMain) * sz;
         for(int slot = 0; slot < 2; slot++)
         {
             const char* key = r.keys[slot];
@@ -1459,7 +1504,7 @@ void drawBindPanel(const Painter& p, const ToolbarLayout& l)
         y += BindPanelMenu::step * sz / K;
     }
     // Setup Bindings: a button under the rows.
-    const float by = y + s / K;
+    const float by = (cols == 2 ? yMain : y) + s / K;
     const float bw = static_cast<float>(ZA_STRLEN(BindPanelMenu::button)) * s + 8.f;
     b.x0 = x0;
     b.x1 = x0 + bw;
@@ -1898,6 +1943,8 @@ void bindPanelReport()
         qvr::obs::banner().shown ? 1 : 0, b.cornerTop - b.y1);
     Con_Printf("bindpanel: menu panel room %.0f %.0f .. %.0f %.0f, button %.0f %.0f .. %.0f %.0f, corner top %.0f\n",
         b.room.x, b.room.y, b.room.z, b.room.w, b.x0, b.y0, b.x1, b.y1, b.cornerTop);
+    // panelsize: the panel's extent (its rows' and button's), in the room, in columns 1 or 2.
+    Con_Printf("bindpanel: menu panel extent %.0f %.0f .. %.0f %.0f, columns %d\n", b.room.x, b.top, b.right, b.y1, b.cols);
     if(!drawn)
     {
         Con_Printf("bindpanel: menu panel left out: %s\n", b.leftOut ? b.leftOut : "not this page");
@@ -4218,4 +4265,124 @@ extern "C" int VR_MenuRunsGame()
         case m_vr: return !monsterHunting();
         default: return 0;
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A gamepad's menu cursor (padflat; his words 2026-11-28: "there needs to be a cursor in the menu that can be controlled
+// with the thumbstick. Leave discrete navigation for the directional keypad."). The left stick moves a mouse-like cursor
+// over the flat screen's menus (in_sdl.c IN_Commands: VR_MenuPadStick, in place of its emulated arrow keys), A clicks
+// while it shows (the left mouse button, its press and release: VR_MenuPadKey), the d-pad still steps the rows and hides
+// it, as the mouse moving or a key does (VR_MenuPadHide). Not in a headset (its laser). Tunables > Flatscreen > Gamepad.
+// ---------------------------------------------------------------------------------------------------------------------
+
+extern "C" cvar_t ui_mouse; // menu.c: the menus follow the mouse
+
+namespace
+{
+struct MenuPad
+{
+    bool shown{false};
+    bool placed{false};
+    float x{0.f}, y{0.f}; // the window's pixels (M_Mousemove's)
+    float fullFor{0.f};   // seconds held at full tilt (vr_pad_cursor_accel)
+    bool aMouse{false};   // A's press went out as the left mouse button: its release does too
+    int moves{0}, clicks{0}, hides{0};
+};
+MenuPad menuPad;
+
+[[nodiscard]] bool menuPadOn()
+{
+    return vr_pad_cursor.value != 0.f && ui_mouse.value != 0.f && !vrActive();
+}
+} // namespace
+
+extern "C" int VR_MenuPadStick(float x, float y, float dt)
+{
+    if(!menuPadOn() || key_dest != key_menu || glwidth <= 0 || glheight <= 0)
+    {
+        return 0;
+    }
+    const float len = za::sqrt(x * x + y * y);
+    const float dead = za::clamp(vr_pad_cursor_deadzone.value, 0.f, 0.9f);
+    if(len <= dead)
+    {
+        menuPad.fullFor = 0.f;
+        return 1;
+    }
+    const float tilt = za::pow((za::min(len, 1.f) - dead) / (1.f - dead), za::max(vr_pad_cursor_curve.value, 1.f));
+    menuPad.fullFor = len > 0.95f ? menuPad.fullFor + dt : 0.f;
+    const float accel = 1.f + za::max(vr_pad_cursor_accel.value, 0.f) *
+                                  za::clamp(menuPad.fullFor / za::max(vr_pad_cursor_accel_time.value, 0.01f), 0.f, 1.f);
+    const float step = za::max(vr_pad_cursor_speed.value, 0.f) * static_cast<float>(glheight) * tilt * accel * dt;
+    if(!menuPad.placed)
+    {
+        menuPad.x = static_cast<float>(glx) + static_cast<float>(glwidth) * 0.5f;
+        menuPad.y = static_cast<float>(gly) + static_cast<float>(glheight) * 0.5f;
+        menuPad.placed = true;
+    }
+    menuPad.x = za::clamp(menuPad.x + x / len * step, static_cast<float>(glx), static_cast<float>(glx + glwidth - 1));
+    menuPad.y = za::clamp(menuPad.y + y / len * step, static_cast<float>(gly), static_cast<float>(gly + glheight - 1));
+    menuPad.shown = true;
+    menuPad.moves++;
+    M_Mousemove(static_cast<int>(menuPad.x), static_cast<int>(menuPad.y));
+    return 1;
+}
+
+extern "C" int VR_MenuPadKey(int key, int down)
+{
+    if(key == K_ABUTTON && !down && menuPad.aMouse)
+    {
+        menuPad.aMouse = false; // (wherever the click took the game: its release goes with it)
+        return K_MOUSE1;
+    }
+    if(key_dest != key_menu)
+    {
+        return key;
+    }
+    if(key == K_ABUTTON && down && menuPad.shown && menuPadOn())
+    {
+        if(menuPad.aMouse)
+        {
+            return -1; // (held: one click, no repeats)
+        }
+        menuPad.aMouse = true;
+        menuPad.clicks++;
+        M_Mousemove(static_cast<int>(menuPad.x), static_cast<int>(menuPad.y)); // (the menu under it now: a new one may have opened)
+        return K_MOUSE1;
+    }
+    if(down && key >= K_DPAD_UP && key <= K_DPAD_RIGHT)
+    {
+        VR_MenuPadHide();
+    }
+    return key;
+}
+
+extern "C" void VR_MenuPadHide(void)
+{
+    menuPad.hides += menuPad.shown ? 1 : 0;
+    menuPad.shown = false;
+    menuPad.fullFor = 0.f;
+}
+
+bool qvr::menuui::padCursor(float& x, float& y)
+{
+    x = menuPad.x;
+    y = menuPad.y;
+    return menuPad.shown && menuPadOn() && key_dest == key_menu;
+}
+
+void qvr::menuui::drawPadCursor()
+{
+    float x, y;
+    if(padCursor(x, y))
+    {
+        flatholster::drawCursorOnWindow({x - static_cast<float>(glx), y - static_cast<float>(gly)}, 1.f);
+    }
+}
+
+void qvr::menuui::padCursorReport()
+{
+    Con_Printf("menu pad cursor: %s at %.0f %.0f (window %d x %d), %d moves, %d clicks, %d hides, vr_pad_cursor %g\n",
+        menuPad.shown ? "shown" : "hidden", menuPad.x, menuPad.y, glwidth, glheight, menuPad.moves, menuPad.clicks,
+        menuPad.hides, vr_pad_cursor.value);
 }

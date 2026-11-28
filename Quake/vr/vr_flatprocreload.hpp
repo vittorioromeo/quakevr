@@ -26,6 +26,21 @@ void apply(hands::State& s);
 // of a two-handed grip (vr_twohand.cpp, vr_flatsight.cpp), the gun keeps its stance, and neither hand pushes the other
 // (vr_selfcollide.cpp, vr_view_hands.cpp pushOut): its way is drawn through the gun.
 [[nodiscard]] bool busy(int h);
+// The loading port of the gun in hand `g` the move sends while a trip reloads it (vr_client.cpp): from the gun hand of `s`
+// (position and turn) and the port as measured in that hand's frame, the very place the free hand aims the round at (so
+// the server's test, round against port, is the hands' relative placement: the player's motion, the view's sway, a turn
+// since the last render don't come between them). False: no trip on that gun (the port carried as for every gun).
+// How much hand `h`'s fingers take the grip a headset's hand has on a round from the pouch (0..1, eased; vr_view.cpp
+// updateFingerFrames: the grip squeezed, the index closing with it, wrapped round the round by vr_hand_fit as a headset's):
+// the free hand of a trip while it holds the round (the take to the insert), or of the key-pose lock with its pair.
+[[nodiscard]] float gripShare(int h);
+// The view, each hand as it is drawn (vr_view_hands.cpp setupHand, before drawHand): noteDrawn keeps the gun hand's game
+// pose `s` and its drawn pose; attachDrawn moves the free hand of a trip, from the carry to the insert (eased in and out),
+// onto the gun as drawn: the game's free hand relative to the game's gun hand, put on the drawn gun hand (the drawn gun
+// sways off the game's on the move; the pair, aimed in the game's frame, then goes into the drawn port too). Drawn only.
+void noteDrawn(const hands::State& s, int hand, const glm::vec3& pos, const glm::vec3& rot);
+void attachDrawn(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot);
+[[nodiscard]] bool portNow(const hands::State& s, int g, glm::vec3& port);
 // The key-pose lock (vr_flat_prl_lock, prlfix: to tune the poses) holding a taped pair in the free hand: that hand and the
 // pair's size (vr_view.cpp prlPair draws it); false: no pair to draw.
 [[nodiscard]] bool lockPair(int& hand, float& scale);
