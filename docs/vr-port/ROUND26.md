@@ -6073,6 +6073,36 @@ Brush").
   Scripts: worktree `scratch/qcb_*` (not committed): `qcb_q.sh` (backup/install/launch/restore), `qcb_mkcfg.py`,
   `qcb_parse.py`, `qcb_q2.cfg` (the profile A/B).
 
+## flatmisc3: flat holster/pouch leg-bob sliders, crouched jabs stop on the floor, his 11-28 values promoted (branch agent/flatmisc3, 2026-11-28)
+
+His words 2026-11-28, items 2, 7, 8.
+- **Holster bob (2)**: flat-screen only, `vr_flat_holster_bob_h` / `_v` (0..1, default 1 = as before; Tunables > Flatscreen >
+  Looks, "Holster Bob Horizontal / Vertical"): the share of the legs' move of the hip holsters (`onTheThigh`,
+  `vr_holster_leg_follow`) and the ammo pouch (`onBothThighs`, `vr_ammo_pouch_leg_follow`) kept, world xy and z apart
+  (vr_body.cpp `flatLegMove`); a hip holster's plate turns with the thigh by the larger of the two. With a headset: all of
+  it. The body's own bob (vr_flat_body_bob) is untouched. `vr_flat_holster_bob_report` (Debug > Debug Views: Print Holster
+  Leg Bob): how far the legs carry each now, across and up and down. Walking at 1 1: hips up to ~1.5 across, ~2 up and down;
+  the pouch ~0.2 / ~0.4.
+- **Jabs into the floor (7)**: `handOffWall` (vr_flatplay.cpp) held an empty hand off walls only (`pointWallDepth` skips
+  floors and ceilings), so a jab aimed down while crouched (to `jabThrough` past the floor) went in. A punch or a shove now
+  uses `handpose::pointSurfaceDepth` (any surface; a hand at rest still walls only): it stops on the floor
+  `vr_flat_punch_wall_margin` (-0.5) in, at once, and QC's world blow lands (`melee event: punch ... a wall`). The fist
+  ends where it stops, pulled back along its way to the shoulder (so a little off the crosshair, as at a wall).
+- **Promoted (8)**: source his `ironwail.cfg` (14:42) exec'd over the test baseline, `vr_propose_defaults` against this
+  branch's defaults, and his `tunables.cfg`.
+  - `weapons.txt` (weapons_data.py promote): spear (slot 57) and Crystal Lance (slot 55) hip / shoulder / upper holster
+    offsets (31 keys); nailgun (slot 3) `mnt_y` -1.48 -> -0.0636.
+  - `vr_agrunt_dazzle_dual` 0 -> 1 (dual wielders shield their eyes with the left gun's hand; the dazzle test sets it itself).
+  - Already defaults: `vr_flat_visor_boot_glitch` 2, `vr_agrunt_poses` (every key in `shipped[]`), `vr_agrunt_ik_stretch`.
+  - Skipped: personal (handedness, comfort, height, xr runtime, motion button, spectator/window view, notes, toolgun,
+    volume, alwaysrun, autosave list, tutorial_started, graphics/flat block: fov, gamma, contrast, crosshair, hudstyle,
+    scr_*, sensitivity, viewsize, host_maxfps, vid_borderless, vr_gore_dents, vr_flat_taa), studio/tool state
+    (armour/texture studio, grip editor), the test baseline's own (vr_backend mock, vr_fixed_frames, vr_mock_fast,
+    vr_log_flush_frames, vr_gameplayfix_*, vr_pickup_scale), the old table's prop ids 72-80 (as promote1127), float noise
+    (`att2_pitch` -0.743 / 0.757 from the version-80 conversion).
+- **Tests**: new `flatholsterbob_test.sh` 14/0 (four walks: 1 1, 0 0, 1 0, 0 1; each of lhip, rhip, pouch), new
+  `flatpunchfloor_test.sh` 6/0 (crouched, 70 down: each jab's pose 1.9 into the floor, stops 0.4 in, the world blow; level
+  jabs meet nothing); flatfists_test 21/0. Scene `flat_holster_bob`.
 ## diskclean (2026-11-28)
 
 - Retired 18 checklist lines he ticked Pass (cl_retire_ticks.py, no voice notes) and removed 6 scenes nothing used any more:

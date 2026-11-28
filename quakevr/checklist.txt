@@ -41,6 +41,12 @@
 ## Takes
 ## Studios and debug tools
 
+[New: not yet sorted]
+Flat-screen: holster both guns and walk while looking at your belt: the hip holsters and the ammo pouch bob with the legs as before; Tunables > Flatscreen > Looks, Holster Bob Horizontal and Holster Bob Vertical at 0 keep them still on the belt, each way on its own. {test:flat_holster_bob}
+Flat-screen: both hands empty, crouch, look down at the floor and jab: the fists stop on the floor with a thud instead of going through it. {test:flat_fists}
+The spear and the Crystal Lance in the hip, shoulder and upper holsters sit as you set them (your offsets are now the defaults). {test:flat_spear}
+A grunt holding two guns, lit in the face by your lamp, shields its eyes with its left gun's hand (Dual Wielders Shield on by default now). {test:agrunt_flashblind}
+
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
