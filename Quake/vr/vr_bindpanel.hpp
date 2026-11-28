@@ -7,6 +7,9 @@
 // and aim by their binds), as key caps. One list for both places: over the holster menu and the weapon wheel it is the
 // gadget's image (gadget::renderBindPanel, drawn on the window as the holster menu is); in the main menu vr_menuui.cpp
 // draws the same rows in the menu's look, with Setup Bindings under them (setupBindings). vr_flat_bind_panel 0: none.
+// panelfix (his words 2026-11-28): also the hands' number keys (cycle, holster, drop: left / right), next ammo, attach /
+// detach, lie down; the main actions large, the rest smaller in two groups under small titles (Hands, More); in every
+// menu page where it fits, its bottom left corner at the menu's (keyboard and pad alike).
 
 #include "vr_gadget.hpp"
 
@@ -15,7 +18,7 @@
 namespace qvr::bindpanel
 {
 
-constexpr int maxRows = 16;
+constexpr int maxRows = 24;
 
 // The rows now (their texts valid until the next call): how many.
 int rows(gadget::BindPanelRow* out, int max);

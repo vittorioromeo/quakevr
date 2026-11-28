@@ -4933,6 +4933,46 @@ His flat notes 2026-11-28, items 4 and 11.
   falling corpse took the next jab and was thrown into it). vr_runsetup_test 88/0 (adds: every screen order a
   permutation; the melee row's order and kept values). vr_runlaunch_test 91/1: the failing check is Select Campaign's
   Arena Mode row under AD (campaign page; not touched here). flatmelee_test 12/0, flatmelee4 9/0, flatmelee6 9/0.
+## panelfix: the bindings reminder panels and the holster labels (branch agent/panelfix, 2026-11-28)
+
+His words (2026-11-28), items 1, 6, 9, 10, 12 of his flat-screen session.
+- **Every page** (9): the menus' panel (`vr_menuui.cpp` drawBindPanel) is drawn on every menu page where it fits, not only
+  the main menu. Its room goes from the panel's left edge to the page's leftmost text (the main menu's rows:
+  `M_Main_RowsExtent`; other pages `menu::contentLeft` / `contentLeftBelow`), from under the corner's buttons to above the
+  bottom corner's rows. Pages whose labels reach far left (VR Settings) leave no room, so the panel is not drawn there.
+  The Controller Bindings screen (m_bindsetup) never draws it.
+- **One anchor** (12): the panel's bottom left corner, for the keyboard and a pad alike. The pad's panel used to stand
+  under the column of corner buttons, while the keyboard's (too wide for that) moved to the canvas's left. Left margin:
+  20 menu units from the panel's edge (1). The panel used to touch the border (`l.left + 4`).
+- **Hover bug** (1): every corner hit test already checked both X and Y (`ToolbarLayout::hit`, `zoomHit`, `cornerRowAt`,
+  the flat Recording box, the version link). The panel was the problem: its room ended at `l.bottom - 24`, ignoring the
+  bottom corner's rows, so Setup Bindings sat over the OBS and Recording Settings rows and lit them. Its room now ends
+  `gap` above `menuui::cornerRowsTop()`, or above the flat Recording box. Those rows are also not lit while the mouse is
+  over Setup Bindings. Heights now count in true pixels: on a stretched canvas (Options: `l.k` 2) the letters are square
+  (`Draw_CharacterEx` keeps them so) and the rows are spaced to match.
+- **More rows, grouped** (10): `vr_bindpanel.cpp` has 20 rows (`maxRows` 24). The 9 main ones come first, drawn large:
+  fire, aim, reload, wheel, holster menu, grab, throw/drop, grenade, crouch. After them come smaller rows
+  (`BindPanelRow::minor`) in two groups under small titles (`BindPanelRow::header`):
+  - Hands: Cycle L / R (1 2), Holster L / R (4 5, `vr_flat_key_holster_*`), Drop L / R (6 7), Swap hands, Next ammo
+    (`vr_flat_key_ammo`), Attach / detach (`vr_flat_key_attach`).
+  - More: Force grab, Shove, Punch, Lie down (`vr_flat_key_prone`), Flashlight.
+
+  The menu draws the minor rows at 0.75 of the letters, each group's title with a rule. The gadget image over the MMB menu
+  and the flat wheel (`vr_gadget_holster.inc` bindRowsLayout) puts the main rows in its first column and the groups at 5 px
+  in the second. A pad's rows (its bound buttons) stay one group, all large.
+- **Holster titles** (6): `holsterTitleInk` goes from 0.55 to 0.8 of the label ink. This covers the MMB menu and the
+  weapon wheel, VR and flat.
+- **Report**: `vr_bindpanel_report`'s menu lines are now `bindpanel: menu panel drawn: N rows, letters, page <main|options|
+  keys|other>, corner hits H, obs row 0/1, clear C` and a `menu panel room ...` line. H is the hover test: of 15 spots over
+  Setup Bindings, how many the column, zoom, Recording, OBS or RenderDoc hit tests also take; it is measured while drawing,
+  in the menu's canvas. C is the gap from Setup Bindings's bottom to the corner rows' top. Rows print ` minor` and
+  ` group <title>`.
+- **Tests**: bindpanel_test 29/0. New checks: 20 rows; the new rows and their keys and groups; the panel drawn on the main
+  menu and on Options; with OBS's row (`vr_obs_mock 1`) corner hits 0 and clear >= 0; the keyboard's and the pad's Setup
+  Bindings at the same left and bottom. Also weaponwheel_test flat 21/0 and vr 26/0, flatholster_test 54/0,
+  flatmenu_esc 7/0. Screenshot: scratch/bindpanel/main.png (keyboard, Xbox pad, Options).
+- **MP / splitscreen**: client-side drawing only (key binds and cvars), nothing networked. Splitscreen: the panel reads
+  the one keyboard's binds; per-seat binds stay in BACKLOG section 3.
 ## mountoffs: the bayonet and dagger hang from the gun's mount; every gun's bayonet and dagger offsets (branch agent/mountoffs, 2026-11-28)
 
 His flat notes 2026-11-28 (7) the nailgun's bayonet didn't follow his moved mount, (17) global, weapon-independent bayonet

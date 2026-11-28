@@ -19,6 +19,9 @@ Flat-screen: open Tunables > Flatscreen > Procedural Reload, set Lock Pose (or u
 Flat-screen or VR: take a grenade from the back pouch (the wheel's BACK POUCH, or G flat), then pick a gun on that hand's wheel or EMPTY HAND: the grenade goes back (the rocket count +1) and the gun comes into the hand. {test:wheel_grenade}
 Flat-screen or VR: holding a grenade, pick the other kind on the wheel's BACK POUCH: it is swapped (cluster for grenade); arm one and pick EMPTY HAND: a dull knock and "The grenade is armed: throw it or drop it.", it stays in the hand. {test:wheel_grenade}
 Flat-screen: holding an unarmed grenade, open the MMB holster menu and press a holster button for that hand: the grenade goes back and the holster's weapon comes into the hand. {test:wheel_grenade}
+Flat-screen: open the menu and go through a few pages (main menu, Options, Controls): the bindings reminder shows bottom left on every page where it fits, a clear margin from the menu's left border, above the Recording and OBS buttons, and hovering Setup Bindings lights only Setup Bindings. {test:hub_start}
+Flat-screen: in the menu, the bindings reminder lists the main actions large, then smaller "Hands" (cycle 1/2, holster 4/5, drop 6/7, swap, next ammo, attach) and "More" (force grab, shove, punch, lie down, flashlight) groups; with a pad in use its panel sits in the same bottom-left corner as the keyboard's. {test:hub_start}
+Flat-screen: hold 1 (weapon wheel) and press MMB (holster menu): the reminder panel above shows the main actions in the left column and the Hands / More groups smaller on the right; the slots' holster titles read clearly (less faded than before). {test:weapon_wheel}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
