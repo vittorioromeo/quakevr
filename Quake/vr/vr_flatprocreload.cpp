@@ -29,7 +29,15 @@
 // seconds (a wall, the hand blocked), or nothing taken at the pouch within it (impulse 106, the reason printed and kept for
 // the report). The server puts a round still in the hand back in the reserve.
 //
-// vr_flat_proc_reload_debug 1 prints each step (flatprocreload: ...); vr_flatprocreload_report the state and counts;
+// On the move (prlmove, 2026-11-28): the hand aims the round at the port in the game's frame (the port measured in the
+// game's gun hand, the round's place in the hand the server's), the move sends that very port (portNow), and the server's
+// carry keeps the round in the hand through the body and the gun (QC VR_Carry_Follow): round against port is the hands'
+// relative placement, so running, jumping or sliding doesn't come between them. The drawn free hand rides the drawn gun
+// from the carry to the insert (attachDrawn: the drawn gun sways off its game pose), and its fingers take a headset's grip
+// on the round while it holds one (gripShare). Hand at Port: Forward / Right / Up nudge its place at the port.
+//
+// vr_flat_proc_reload_debug 1 prints each step (flatprocreload: ...), 3 the gaps on the way to the port (fprl_gap:);
+// vr_flatprocreload_report the state and counts;
 // vr_flat_prl_test_miss N stops the hand N units short of the port (the tests' blocked port).
 
 #include "vr_flatprocreload.hpp"

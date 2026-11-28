@@ -4937,3 +4937,41 @@ them back by using the usual weapon wheel or MMB buttons."
   EMPTY HAND and CLUSTER lit; CLUSTER swaps it, the rocket back; the nailgun's holster: the gun in the hand, the
   multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
   `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.
+
+## prlmove: the procedural reload works running, jumping, sliding; the hand grips the pair; Hand at Port offsets (branch agent/prlmove, 2026-11-28)
+
+His words (2026-11-28): "Procedural reload for the shotgun seems to fail if the player is running, jumping, sliding ...";
+then "the hand grabbing the shells doesn't use the same finger pose as VR" and "add 'hand at port' positional offsets".
+- **Why it failed** (measured: `vr_reload_debug 2` server distances, `vr_flat_proc_reload_debug 3` client gaps): every run
+  on the move (run, strafe, jump, slide, crouch) was cancelled by the failsafe with nothing loaded, three causes in turn:
+  (1) the server's carry (QC `VR_Carry_Follow`) swept the pair from where it was a frame ago through the torso
+  (`carrybody`) and the held gun's drawn hull: behind the moving player it stuck (25 units off the port) and the hand let
+  go of it (a pair dropped on the floor each trip); (2) the client measured the pair's place in the hand from the drawn
+  entity, interpolated a frame's walk behind (3.3 units off running): the hand put it beside the port; (3) the port was
+  measured in the drawn gun hand, which sways 1-4 units and 2-3 degrees off the game's on the move, while the server tests
+  in the game's frame. Turning alone worked.
+- **Fix**: the round of a procedural reload follows its hand exactly, through the body and the gun
+  (`VR_FlatReload_ProcHolds`, vr_flatreload.qc; flat-only, VR's carry unchanged; the stale `trace_allsolid` test now only
+  after `carrybody`). The pair's place in the hand is `held::placeInHand` (the server's own `.carry_offset`). The port is
+  measured in the game's gun hand (`State::placedFrom`, its turn) and the move sends the port from this frame's gun hand by
+  that measure (`flatprocreload::portNow`, vr_client.cpp): the very point the free hand aims at, so the server's test is
+  the hands' relative placement. The drawn free hand rides the drawn gun from the carry to the insert (`attachDrawn` /
+  `noteDrawn`, vr_view_hands.cpp setupHand; eased 0.12 s): the pair goes into the drawn port as well (drawn gap at the
+  seat within ~0.5 of the game's). The hand's target was already remade each frame from the gun's pose (`spotsOf`).
+- **Fingers**: the free hand holding the pair takes a headset's grip on it (`gripShare`, eased 0.08 s; vr_view.cpp
+  updateFingerFrames: the grip squeezed, the index closing with it, vr_hand_fit wrapping the pair), the flat hand's own
+  pose otherwise. Drawn curl at each seat 0.7-1.0 (open 0 at the pouch before the take).
+- **Hand at Port: Forward / Right / Up** (`vr_flat_prl_port_fwd/right/up`, 0, Tunables > Flatscreen > Procedural Reload,
+  -4..4 u): the hand and its pair at the port's mouth and in, in the gun hand's frame (right mirrored), on top of the
+  retarget, in the trip and the lock's keys 5-6. Past the port's reach (1.6 u) the pair no longer goes in.
+- **Debug**: `vr_flat_proc_reload_debug 3`: `fprl_gap:` each frame of the carry/insert (the drawn gun off the game's, the
+  pair's gap from the port drawn and in the game); "the round went in" lines add the fingers' curl and grip; the report's
+  lock line adds `grip` / `fingers`.
+- **Networking/splitscreen**: nothing new on the wire (the port was already in the move; the round's place is the server's);
+  the client state is the local player's (as the rest of vr_flatprocreload.cpp: agent/split will need it per seat).
+- **Tests**: flatprocreload_test.sh 51/0 (new: full reloads while running in a circle, jumping, sliding, crouch-strafing,
+  running at 60 and 144 fps: 4 trips of 2, none dropped, no failsafe, full; fingers closed at each seat; the lock's grip at
+  key 4 and none at key 3; Hand at Port Forward 1 / Up 2 moved the locked hand 2.22 units). flatreload_test 54/0.
+  reload_test 112/4: the 4 are BACKLOG section 1's known baseline failures (0/5 on 11-27), VR paths this doesn't touch.
+- **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
+  the pair); his eyes on the drawn pair at the port while running.
