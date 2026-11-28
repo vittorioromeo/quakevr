@@ -186,6 +186,69 @@ void() VR_FlatGrenade_PutBack =
     VR_FlatGrenade_Cancel("put back in the pouch");
 };
 
+// A hand grenade in a hand is not a carried prop to the weapon wheel, the holster menu and the holster keys (grenhold,
+// his words 2026-11-28: "make held grenades go back to the ammo if unlit, and make it possible to swap them or put them
+// back by using the usual weapon wheel or MMB buttons"). Before such a pick for `xHand` of self: an unarmed hand grenade
+// there goes back in the pouch (its rocket or multi-rocket back, as VR_HandGrenade_LetGo and G put it back), and TRUE
+// (go on with the pick: the hand is empty now); flat-screen play's trip to the pouch with that hand is called off. An
+// armed one, or a pouch full up of its ammo, can't go back: a dull knock on the pouch, a buzz in the hand and a word
+// (throw it or drop it: the wheel's DROP still drops it), and FALSE (the pick does nothing). No hand grenade: TRUE.
+float vr_hgren_stowed;         // (the tests) grenades the wheel, the holster menu or a key put back
+float vr_hgren_stow_refused;   // (the tests) put-backs refused: armed, or the pouch full
+float(float xHand) VR_HandGrenade_Stow =
+{
+    if(self.vr_flatgren_phase == VR_FLATGREN_FETCH && self.vr_flatgren_hand == xHand)
+    {
+        VR_FlatGrenade_Cancel("the trip to the pouch called off: a pick of the weapon wheel or the holster menu");
+        return TRUE;
+    }
+    entity g = VR_Carry_Held(self, xHand);
+    if(g == world || !g.vr_hgren)
+    {
+        return TRUE;
+    }
+    string why = string_null;
+    if(g.vr_hgren_armed)
+    {
+        why = "The grenade is armed: throw it or drop it.\n";
+    }
+    else if(VR_HandGrenade_Ammo(self, g) + 1 > VR_HandGrenade_MaxAmmo(self, g))
+    {
+        why = "The pouch is full: throw the grenade or drop it.\n";
+    }
+    if(why != string_null)
+    {
+        vr_hgren_stow_refused++;
+        sprint(self, why);
+        sound(self, VRGetHandChannel(xHand), "vr/pack_full.wav", 0.7, ATTN_NORM);
+        VR_HandGrenade_Haptic(self, xHand, 0.12, 30, 0.8);
+        dprint(sprintf("grenade: hand %g: not put back (%s)\n", xHand, g.vr_hgren_armed ? "armed" : "the pouch is full"));
+        return FALSE;
+    }
+    float flat = VR_FlatPlay(self);
+    VR_Hand_Release(self, xHand, "stow");
+    g.carry_player = world;
+    VR_HandGrenade_AmmoBack(self, g);
+    VR_HandGrenade_AmmoChanged(self);
+    VR_Carry_HoldGiven(self, xHand, world);
+    sound(self, VRGetHandChannel(xHand), "vr/grenade_pouch.wav", 0.6, ATTN_NORM);
+    VR_HandGrenade_Haptic(self, xHand, 0.08, 90, 0.6);
+    if(!flat)
+    {
+        VR_CollectFx_Note(g);
+        VR_CollectFx_Send(xHand, g, QVR_HS_GRENADE_POUCH); // (drawn going in: vr_collect_fx)
+    }
+    vr_hgren_stowed++;
+    dprint(sprintf("grenade: hand %s put back in the pouch by a pick for hand %g, %g %s\n", g.vr_hgren_multi ?
+        "multi-grenade" : "grenade", xHand, VR_HandGrenade_Ammo(self, g), g.vr_hgren_multi ? "multi-rockets" : "rockets"));
+    remove(g);
+    if(self.vr_flatgren_phase && self.vr_flatgren_hand == xHand)
+    {
+        VR_FlatGrenade_Cancel("put back in the pouch by a pick");
+    }
+    return TRUE;
+};
+
 // G (impulse 57): a grenade into a free hand, or the one held unarmed back.
 void() VR_FlatGrenade_Key =
 {
@@ -237,6 +300,27 @@ void(float xHand, float xMulti) VR_Wheel_Grenade =
     if(!self.ishuman || !cvar_hget(cvarh_vr_handgrenade))
     {
         dprint(sprintf("weapon wheel: hand %g, %s: no grenade pouch\n", xHand, kind));
+        return;
+    }
+    // (grenhold) A hand grenade already in the hand: the same kind goes back in the pouch (the hand empty); the other kind
+    // is swapped for it (back in the pouch, then this one taken). Armed: neither (VR_HandGrenade_Stow's refusal).
+    entity held = VR_Carry_Held(self, xHand);
+    if(held != world && held.vr_hgren)
+    {
+        float same = (held.vr_hgren_multi != 0) == (xMulti != 0);
+        if(!VR_HandGrenade_Stow(xHand))
+        {
+            return;
+        }
+        if(same)
+        {
+            dprint(sprintf("weapon wheel: hand %g, %s: the one held put back\n", xHand, kind));
+            return;
+        }
+        dprint(sprintf("weapon wheel: hand %g, %s: the one held put back, swapped\n", xHand, kind));
+    }
+    else if(!VR_HandGrenade_Stow(xHand)) // (flat-screen play's trip to the pouch with that hand: called off, another kind asked)
+    {
         return;
     }
     if((xMulti ? self.ammo_multi_rockets : self.ammo_rockets) < 1)
@@ -316,6 +400,12 @@ float(float xHand) VR_Wheel_TestHeld =
         r = r + 100 * p.vr_flatgren_phase;
     }
     return r;
+};
+
+// (vr_weaponwheel_test grenade, grenhold: the hand grenades put back by a pick, + 1000 times the put-backs refused.)
+float() VR_Wheel_TestStow =
+{
+    return vr_hgren_stowed + 1000 * vr_hgren_stow_refused;
 };
 
 // Where a flat throw (the throw key's, the quick grenade's) leaves and its way (his words 2026-11-23: thrown things

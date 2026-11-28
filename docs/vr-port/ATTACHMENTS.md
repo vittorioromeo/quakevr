@@ -10,9 +10,15 @@ agent/attach1's (posebake); this file holds the attachments' models and their me
   space (1 the bayonet). QC `vr_attach.qc`: the prop class of each kind (`VR_Attach_PropKind`: `vr_bayonet`) and what it
   adds to a weapon. A new kind: a row in `kinds[]` and `mountKeys[]`, its `attN_*` keys in `vr_weapons.inc` and the
   weapons.txt defaults, its prop, and its effect in QC.
-- **Which weapons take it, and where: per weapon in the Weapon Offsets data** (`att1_ok`, `att1_x/y/z`, `att1_pitch/yaw/roll`,
-  `att1_scale`: the mount table above, weapons.txt slots 1 and 2), edited in **Weapon Offsets > Attachments** (the
-  attachment drawn on the held weapon while the page is open, whether it has one or not: `menu::attachPreview`).
+- **Which weapons take it, and where: per weapon in the Weapon Offsets data** (`att1_ok`; the place, one hierarchy since
+  mountoffs, `attach::mount`: **gun -> its mount** (`mnt_x/y/z`, `mnt_pitch/yaw/roll`, `mnt_size`: the gun model's space,
+  the mount table below) **-> every gun's offset of the kind** (`vr_attach_bayonet_*`, `vr_attach_dagger_*`: x/y/z,
+  pitch/yaw/roll, scale, in the mount's units and axes; the dagger's default -2.79 0.339 -1.47 puts its grip behind the
+  socket) **-> the gun's own** (`attN_x/y/z`, `attN_pitch/yaw/roll`, `attN_scale`, the same units; 0 / 1 by default) **->
+  the kind's frame**. Moving or turning a gun's mount takes its bayonet and dagger along. Edited in **Weapon Offsets >
+  Attachments** (Bayonet Mount, Bayonet, Every Weapon's Bayonet, Dagger, Every Weapon's Dagger; the attachment drawn on
+  the held weapon while the page is open, whether it has one or not: `menu::attachPreview`). vr_wofs_version 81 converts
+  a config's old gun-space values (`takeMountOffsets81`).
 - **Part of the weapon's state.** The weapon's record (`vr_weaponinst.qc`) holds it: `.wi_attach`. Hands, holsters, props
   (dropped, thrown, stuck), the quick slot's copy refer to the record, so it goes everywhere the weapon goes with no code
   per path; saves keep the field; a level change carries it in **parm77** (3 bits per carried weapon; the engine's
@@ -124,9 +130,9 @@ mean), level. The bloody shotguns (MG3) are drawn as the shotguns: the same slot
 
 `quakevr/progs/bayonet_mount.mdl` (make_bayonet.py `build_mount`, the bayonet's skin): a short iron rail along under the
 barrel behind the socket and a ring round the socket's axis where the socket's back sits, in the bayonet's own space, so
-it is drawn at a gun's bayonet mount (`attach::railMount`: att1_*, moved and turned by the slot's `mnt_x/y/z`,
-`mnt_pitch/yaw/roll` in the bayonet's units and frame, `mnt_size` times the bayonet; Weapon Offsets > Attachments, "Bayonet
-Mount"). Drawn on every gun a bayonet fits by the one placement (`view::placeRail`, placeAttachment's): your hands'
+it is drawn at a gun's bayonet mount (`attach::railMount`: the slot's `mnt_x/y/z`, `mnt_pitch/yaw/roll` in the gun
+model's space, `mnt_size` the bayonet's size on it; Weapon Offsets > Attachments, "Bayonet Mount"; a map pickup maps its
+view gun's mount onto itself, `pickupRails`). Drawn on every gun a bayonet fits by the one placement (`view::placeRail`, placeAttachment's): your hands'
 (`entities.rail`), your holsters' (`holsterRail`), another player's (GunParts::Rail), and every other gun in the world
 (`setupWorldRails`: lying, a monster's, the map pickups: the nearest 32 within `vr_attach_mount_dist` 1500).
 `vr_attach_mount_show`: 1 always (default; the socket covers the rail when a bayonet is on, the ring sits just behind

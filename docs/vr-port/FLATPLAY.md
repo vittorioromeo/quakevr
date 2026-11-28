@@ -1515,7 +1515,10 @@ an item, a carried body, a stuck blade; vr_flatplay.cpp `fistsOnly`):
 - **The left button** throws a jab (the fire button's straight punch), each hand in turn, the right first (`pollJab`); held,
   the next follows `vr_flat_jab_repeat` (0.4 s) after the last one began, and never before it draws back (one hand at a
   time). A press while the guard below still eases out is thrown once it is down. `vr_flat_jab_alternate` 0: the left
-  button the right hand's punch, the right button the left's, as before.
+  button the right hand's punch, the right button the left's, as before. Each jab's fist goes along the crosshair's ray,
+  whichever hand throws it (since 2026-11-28, flatpunch): to `jabThrough` (8 units) past what the ray hits, never nearer
+  than the old throw's reach past the hand, at most as far as the arm reaches along the ray (`meleeAimPoint`'s `jabFrom`;
+  measured from where the hand really rests). The other fist punches keep `vr_flat_punch_aim`.
 - **The right button** held crosses the forearms before the face (`fistGuardPose`, eased in over
   `vr_flat_fist_guard_in_time` 0.1 s, out over `_out_time` 0.12 s): each fist `vr_flat_fist_guard_fwd` (13) ahead of the
   eye, `_up` (0) above it, `_cross` (3) past the middle onto the other side, the right one `_stagger` (1.5) further ahead,

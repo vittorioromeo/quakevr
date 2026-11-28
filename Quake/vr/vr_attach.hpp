@@ -40,7 +40,31 @@ struct KindInfo
 // Whether the kind strikes as a blade (it has a tip: the bayonet, the dagger): the gun stabs and sticks by its point.
 [[nodiscard]] bool strikes(int kind);
 
-// A weapon's mount for an attachment (its Weapon Offsets keys attN_*: the gun model's own space, frame 0).
+// A placement as Weapon Offsets keep one (mountoffs): a place, a turn (pitch up, yaw left, roll: view::mountBasis) and a
+// scale, in its parent's space.
+struct MountValues
+{
+    glm::vec3 pos{0.f};
+    glm::vec3 angles{0.f};
+    float scale{1.f};
+};
+// The gun's bayonet mount (mountoffs, his 2026-11-28: "the bayonet/dagger should be positioned where the mount is, and
+// then any bayonet offset should be applied on top of that"): its Weapon Offsets mnt_* keys, in the gun model's own space
+// (frame 0), its scale the bayonet's size on the gun (mnt_size). Every attachment hangs from it: gun -> this mount -> every
+// gun's offset of the kind (globalOffset: vr_attach_<kind>_*, in the mount's units and axes) -> the gun's own (attN_*,
+// in the same units and axes) -> the kind's frame. `slot` -1: none (zeros).
+[[nodiscard]] MountValues mountValues(int slot);
+[[nodiscard]] MountValues globalOffset(int kind);
+// A gun's values from before mountoffs (vr_wofs_version 81: att1_*/att2_* in the gun's space, mnt_* the drawn mount's move
+// from the bayonet's place in its units) as today's (mnt_* the mount on the gun, attN_* from it past the global offsets at
+// their defaults): the same bayonet and dagger, except that both now sit where an old moved mount put the mount.
+void convertToMountOffsets(MountValues& att1, MountValues& att2, MountValues& mnt);
+// The dagger's old (gun-space) default from today's: `att2` (today's att2_* defaults) put on `mnt` past the dagger's global
+// offset at its default (vr_wofs_version 81).
+void composeMountDefaults(const MountValues& mnt, MountValues& att2);
+
+// A weapon's mount for an attachment, in the gun model's own space (frame 0): its mount (mountValues), the kind's global
+// offset and its own Weapon Offsets keys attN_* (fits: attN_ok), composed.
 struct Mount
 {
     bool fits{false};
@@ -59,8 +83,8 @@ struct Mount
 [[nodiscard]] glm::vec3 onGun(const Mount& m, const glm::vec3& p);
 
 // The bayonet's mount drawn on a weapon a bayonet fits (bayomounts: progs/bayonet_mount.mdl, its origin the bayonet's):
-// at the gun's bayonet mount moved and turned by its Weapon Offsets mnt_* keys (in the bayonet's units and frame), sized
-// mnt_size times the bayonet. `model`: the gun's (a weapon slot's, or a map pickup's: pickupRails in vr_attach.cpp).
+// at the gun's mount (mountValues). `model`: the gun's (a weapon slot's, or a map pickup's: pickupRails in vr_attach.cpp,
+// the view gun's mount mapped onto the pickup).
 // False if no bayonet fits it (or vr_attach_mount_show 0).
 constexpr const char* railModel = "progs/bayonet_mount.mdl";
 [[nodiscard]] bool railMount(const qmodel_t* model, Mount& out);

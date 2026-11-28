@@ -1275,128 +1275,216 @@ struct FlatRecording
 };
 FlatRecording flatRecording;
 
-// wheelui (his words 2026-11-28): the flat bindings reminder in the main menu on a flat screen, left of its rows under the
-// corner's buttons (vr_bindpanel.cpp's rows: an action, its keys as caps), its letters as large as fit there (the corner
-// buttons' 8 at most), and Setup Bindings under it (bindpanel::setupBindings). Its button as last drawn (menu x and y),
-// for the click.
+// wheelui (his words 2026-11-28): the flat bindings reminder in the menus on a flat screen, left of the menu's rows under
+// the corner's buttons (vr_bindpanel.cpp's rows: an action, its keys as caps), its letters as large as fit there (the
+// corner buttons' 8 at most), and Setup Bindings under it (bindpanel::setupBindings). Its button as last drawn (menu x and
+// y), for the click.
+// panelfix (his words 2026-11-28): on every menu page where it fits (not only the main menu; never over the page's
+// content: left of its leftmost text), a margin from the panel's left edge, its bottom left corner at the bottom left
+// (keyboard and pad alike: the pad's used to hang under the corner's buttons), above the bottom corner's rows (the
+// Recording button, OBS's and RenderDoc's: Setup Bindings reached down over them and lit them), the minor rows smaller
+// under their groups' titles.
 struct BindPanelMenu
 {
     static constexpr float most = 8.f;  // the letters' size at most (menu units), and the least drawn
     static constexpr float least = 4.f;
-    static constexpr float gap = 8.f;   // from the corner's buttons above and the rows right of it
+    static constexpr float minor = 0.75f; // a minor row's letters, of the main rows'
+    static constexpr float gap = 8.f;   // from the corner's buttons above, the rows right of it, the corner's rows under it
+    static constexpr float margin = 20.f; // from the panel's left edge at least (menu x)
     static constexpr float glyph = 1.5f; // a pad button's glyph (bindpanel2), in letters
+    static constexpr float step = 1.6f;  // a row, in its letters
+    static constexpr float headerStep = 1.4f; // a group's title's row (in minor letters), and the space over it (in letters)
+    static constexpr float headerGap = 0.5f;
     static constexpr const char* button = "Setup Bindings";
     float x0{0.f}, x1{-1.f}, y0{0.f}, y1{-1.f};
     int frame{-10}; // host_framecount it was drawn in
+    int menu{m_none}; // the page it was drawn on
     int rows{0};    // (vr_bindpanel_report: menuui::bindPanelReport)
     float size{0.f};
     glm::vec4 room{0.f}; // x0, y0, x1, y1 (menu units)
+    const char* leftOut{"no menu drawn yet"}; // why it was not drawn (nullptr: drawn)
+    int cornerHits{0};   // the hover's hit test, as last drawn (drawBindPanel)
+    float bottom{0.f}, cornerTop{0.f}; // the canvas's bottom, the bottom corner's rows' top (menu y; the report's)
 };
 BindPanelMenu bindPanelMenu;
+
+[[nodiscard]] bool recordingAt(float x, float y); // (below: the Recording button)
 
 [[nodiscard]] bool bindPanelButtonAt(float x, float y)
 {
     const BindPanelMenu& b = bindPanelMenu;
-    return b.frame >= host_framecount - 1 && m_state == m_main && x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
+    return b.frame >= host_framecount - 1 && b.menu == m_state && key_dest == key_menu && x >= b.x0 && x <= b.x1 &&
+           y >= b.y0 && y <= b.y1;
+}
+
+// A row's letters `sz` large (true pixels: square on a stretched canvas, Draw_CharacterEx keeping them so), their middle
+// at menu y `yc`, from `x`; `tan`: the menus' tan.
+void drawBindText(float x, float yc, float sz, const char* text, bool tan)
+{
+    for(const char* c = text; *c; c++)
+    {
+        Draw_CharacterEx(x + static_cast<float>(c - text) * sz, yc - sz * 0.5f, sz, sz, tan ? (*c | 128) : *c);
+    }
+}
+
+// A key's cap (its letters `sz` large, a quarter letter inside each end) at `kx`, its middle at `yc`: its width.
+float drawBindCap(const Painter& p, float kx, float yc, float sz, const char* key)
+{
+    const float pad = sz * 0.25f;
+    const float w = static_cast<float>(ZA_STRLEN(key)) * sz + 2.f * pad;
+    p.rounded(kx, kx + w, yc, sz * 0.5f + 1.f, 1.5f, colors::boxBorder);
+    p.rounded(kx + 0.5f, kx + w - 0.5f, yc, sz * 0.5f + 0.5f, 1.f, colors::boxFill);
+    drawBindText(kx + pad, yc, sz, key, false);
+    return w;
 }
 
 void drawBindPanel(const Painter& p, const ToolbarLayout& l)
 {
     BindPanelMenu& b = bindPanelMenu;
-    if(menuui::inHeadset() || m_state != m_main || !bindpanel::inMainMenu() || l.row)
+    b.leftOut = "off";
+    if(menuui::inHeadset() || m_state == m_none || m_state == m_bindsetup || !bindpanel::inMainMenu())
     {
-        return;
+        return; // (the Controller Bindings screen is the bindings themselves)
     }
     gadget::BindPanelRow rows[bindpanel::maxRows];
     const int n = bindpanel::rows(rows, bindpanel::maxRows);
     if(n <= 0)
     {
+        b.leftOut = "no rows";
         return;
     }
-    // The room: from the canvas's left to the main menu's rows, from under the corner's buttons to the canvas's bottom
-    // (less the bottom corner's row and the build label).
-    float rowsLeft = 0.f, rowsRight = 0.f;
-    M_Main_RowsExtent(&rowsLeft, &rowsRight);
-    const float x1 = rowsLeft - BindPanelMenu::gap;
-    float x0 = l.x0; // (under the corner's buttons, from their left edge; from the canvas's left when that has more room)
-    const float y0 = l.buttonsBottom() + BindPanelMenu::gap, y1 = l.bottom - 24.f;
-    // In characters: the longest action and its keys' caps (each its letters and 2 a side, 1 apart).
-    float labelChars = 0.f, keyChars = 0.f;
+    // The room: from the panel's left (under the corner's buttons) to the page's leftmost text, from under the corner's
+    // buttons to over the bottom corner's rows (or a flat screen's Recording box) and the build label.
+    const float y0 = l.buttonsBottom() + BindPanelMenu::gap / l.k;
+    float x1 = 0.f;
+    if(m_state == m_main)
+    {
+        float rowsLeft = 0.f, rowsRight = 0.f;
+        M_Main_RowsExtent(&rowsLeft, &rowsRight);
+        x1 = rowsLeft - BindPanelMenu::gap;
+    }
+    else
+    {
+        x1 = za::fmin(menu::contentLeft(), menu::contentLeftBelow(y0)) - BindPanelMenu::gap;
+    }
+    float y1 = l.bottom - 24.f / l.k; // (the build label's line and a gap: true pixels)
+    if(menuui::active())
+    {
+        y1 = za::fmin(y1, menuui::cornerRowsTop() - BindPanelMenu::gap / l.k);
+    }
+    else if(!flatRecording.leftOut)
+    {
+        y1 = za::fmin(y1, flatRecording.y0 - BindPanelMenu::gap / l.k);
+    }
+    const float xMin = l.left + BindPanelMenu::margin;
+    const float x0 = xMin; // (the bottom left corner for every device: the pad's used to stand under the column alone)
+    // In letters: each size's longest action and its keys' caps (each its letters, a quarter letter a side, half a letter
+    // apart), the rows' and the groups' titles' height, Setup Bindings's (a letter over it, its own).
+    float labelMain = 0.f, keysMain = 0.f, labelMinor = 0.f, keysMinor = 0.f, tall = 0.f;
     for(int i = 0; i < n; i++)
     {
-        labelChars = za::fmax(labelChars, static_cast<float>(ZA_STRLEN(rows[i].action)) + 1.f);
+        const gadget::BindPanelRow& r = rows[i];
+        const float label = static_cast<float>(ZA_STRLEN(r.action)) + 1.f;
         float k = 0.f;
         for(int s = 0; s < 2; s++)
         {
-            const char* key = rows[i].keys[s];
-            k += rows[i].glyphs[s] ? BindPanelMenu::glyph + 0.5f : key[0] ? static_cast<float>(ZA_STRLEN(key)) + 1.f : 0.f;
+            const char* key = r.keys[s];
+            k += r.glyphs[s] ? BindPanelMenu::glyph + 0.5f : key[0] ? static_cast<float>(ZA_STRLEN(key)) + 1.f : 0.f;
         }
-        keyChars = za::fmax(keyChars, k);
+        float& labelOf = r.minor ? labelMinor : labelMain;
+        float& keysOf = r.minor ? keysMinor : keysMain;
+        labelOf = za::fmax(labelOf, label);
+        keysOf = za::fmax(keysOf, k);
+        const float sz = r.minor ? BindPanelMenu::minor : 1.f;
+        tall += BindPanelMenu::step * sz;
+        if(r.header[0])
+        {
+            tall += BindPanelMenu::headerGap + BindPanelMenu::headerStep * BindPanelMenu::minor;
+        }
     }
-    const float wide = labelChars + keyChars + 1.f, tall = static_cast<float>(n) * 1.6f + 3.2f; // (the button: 2 rows)
-    const auto fit = [&](float from) { return za::fmin(BindPanelMenu::most, za::fmin((x1 - from) / wide, (y1 - y0) / tall)); };
-    if(fit(x0) < BindPanelMenu::most)
-    {
-        x0 = l.left + ToolbarLayout::corner;
-    }
-    const float s = fit(x0);
+    const float wide = za::fmax(labelMain + keysMain, (labelMinor + keysMinor) * BindPanelMenu::minor) + 1.f;
+    tall += 1.f + 1.f; // (Setup Bindings: a letter over it, and its letters; 6 true pixels more: buttonH)
+    const float buttonH = 6.f;
+    // (Heights in true pixels: menu y times l.k on a stretched canvas, as the letters keep square.)
+    const float K = l.k;
+    const float s = za::fmin(BindPanelMenu::most, za::fmin((x1 - x0) / wide, ((y1 - y0) * K - buttonH) / tall));
+    b.room = {x0, y0, x1, y1};
+    b.bottom = l.bottom;
+    b.cornerTop = menuui::active() ? menuui::cornerRowsTop() : flatRecording.leftOut ? l.bottom : flatRecording.y0;
     if(s < BindPanelMenu::least)
     {
+        b.leftOut = "no room";
         return; // (no room: not drawn)
     }
+    b.leftOut = nullptr;
     b.frame = host_framecount;
+    b.menu = m_state;
     b.rows = n;
     b.size = s;
-    b.room = {x0, y0, x1, y1};
-    const float step = s * 1.6f;
+    // From the bottom: Setup Bindings's bottom at the room's.
+    float y = y1 - (tall * s + buttonH) / K; // (menu y)
     for(int i = 0; i < n; i++)
     {
-        const float y = y0 + static_cast<float>(i) * step;
-        for(const char* c = rows[i].action; *c; c++)
+        const gadget::BindPanelRow& r = rows[i];
+        const float sz = r.minor ? s * BindPanelMenu::minor : s;
+        if(r.header[0])
         {
-            Draw_CharacterEx(x0 + static_cast<float>(c - rows[i].action) * s, y, s, s, *c | 128);
+            // A group's title: small, a rule after it to the keys' end.
+            y += BindPanelMenu::headerGap * s / K;
+            const float hs = s * BindPanelMenu::minor, hc = y + hs * 0.5f / K;
+            drawBindText(x0, hc, hs, r.header, false);
+            const float rx0 = x0 + (static_cast<float>(ZA_STRLEN(r.header)) + 1.f) * hs;
+            const float rx1 = x0 + (labelMinor + keysMinor) * hs;
+            if(rx1 > rx0)
+            {
+                p.rect(rx0, rx1, hc, 0.5f, colors::boxBorder);
+            }
+            y += BindPanelMenu::headerStep * hs / K;
         }
-        float kx = x0 + labelChars * s;
+        const float yc = y + sz * 0.5f / K;
+        drawBindText(x0, yc, sz, r.action, true);
+        float kx = x0 + (r.minor ? labelMinor : labelMain) * sz;
         for(int slot = 0; slot < 2; slot++)
         {
-            const char* key = rows[i].keys[slot];
-            if(const void* g = rows[i].glyphs[slot])
+            const char* key = r.keys[slot];
+            if(const void* g = r.glyphs[slot])
             {
                 // A pad's button (bindpanel2): its glyph, square on the stretched canvas, centred on the row.
-                const float gw = BindPanelMenu::glyph * s, k = Draw_MenuStretch();
-                Draw_SubPic(kx, y + s * 0.5f - gw * 0.5f / k - gw * (1.f - 1.f / k) * 0.5f, gw, gw,
+                const float gw = BindPanelMenu::glyph * sz, k = Draw_MenuStretch();
+                Draw_SubPic(kx, yc - gw * 0.5f / k - gw * (1.f - 1.f / k) * 0.5f, gw, gw,
                     static_cast<qpic_t*>(const_cast<void*>(g)), 0.f, 0.f, 1.f, 1.f, nullptr, 1.f);
-                kx += gw + s * 0.5f;
+                kx += gw + sz * 0.5f;
                 continue;
             }
-            if(!key[0])
+            if(key[0])
             {
-                continue;
+                kx += drawBindCap(p, kx, yc, sz, key) + sz * 0.5f;
             }
-            const float w = static_cast<float>(ZA_STRLEN(key)) * s + 2.f;
-            p.rounded(kx - 1.f, kx + w - 1.f, y + s * 0.5f, s * 0.5f + 1.f, 1.5f, colors::boxBorder);
-            p.rounded(kx - 0.5f, kx + w - 1.5f, y + s * 0.5f, s * 0.5f + 0.5f, 1.f, colors::boxFill);
-            for(const char* c = key; *c; c++)
-            {
-                Draw_CharacterEx(kx + static_cast<float>(c - key) * s, y, s, s, *c);
-            }
-            kx += w + s * 0.5f;
         }
+        y += BindPanelMenu::step * sz / K;
     }
     // Setup Bindings: a button under the rows.
-    const float by = y0 + static_cast<float>(n) * step + s;
+    const float by = y + s / K;
     const float bw = static_cast<float>(ZA_STRLEN(BindPanelMenu::button)) * s + 8.f;
     b.x0 = x0;
     b.x1 = x0 + bw;
     b.y0 = by;
-    b.y1 = by + s + 6.f;
+    b.y1 = by + (s + buttonH) / K;
     const bool hot = flatMouse.moved && ui_mouse.value && bindPanelButtonAt(m_mousex, m_mousey);
-    const float yc = (b.y0 + b.y1) * 0.5f, half = (b.y1 - b.y0) * 0.5f;
+    const float yc = (b.y0 + b.y1) * 0.5f, half = (s + buttonH) * 0.5f; // (half: true pixels, as Painter takes it)
     p.rounded(b.x0, b.x1, yc, half, 3.f, hot ? colors::highlightEdge : colors::boxBorder);
     p.rounded(b.x0 + 1.f, b.x1 - 1.f, yc, half - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
-    for(const char* c = BindPanelMenu::button; *c; c++)
+    drawBindText(b.x0 + 4.f, yc, s, BindPanelMenu::button, !hot);
+    // The hover's hit test (vr_bindpanel_report; in this canvas: the menu's transform): spots over Setup Bindings (5
+    // across, 3 down) that a corner button or row would take too (the column's buttons, the zoom buttons, Recording, OBS's
+    // row, RenderDoc's): 0 when nothing else is under it.
+    b.cornerHits = 0;
+    for(int i = 0; i < 15; i++)
     {
-        Draw_CharacterEx(b.x0 + 4.f + static_cast<float>(c - BindPanelMenu::button) * s, yc - s * 0.5f, s, s, hot ? *c : (*c | 128));
+        const float hx = b.x0 + (b.x1 - b.x0) * static_cast<float>(i % 5) * 0.25f;
+        const float hy = b.y0 + (b.y1 - b.y0) * static_cast<float>(i / 5) * 0.5f;
+        b.cornerHits +=
+            toolAt(hx, hy) >= 0 || zoomAt(hx, hy) >= 0 || recordingAt(hx, hy) || obsBannerAt(hx, hy) || renderdocAt(hx, hy) ? 1 : 0;
     }
 }
 
@@ -1805,9 +1893,20 @@ namespace qvr::menuui
 void bindPanelReport()
 {
     const BindPanelMenu& b = bindPanelMenu;
-    Con_Printf("bindpanel: main menu panel %s: %d rows, letters %.2f, room %.0f %.0f .. %.0f %.0f, button %.0f %.0f .. %.0f %.0f\n",
-        b.frame >= host_framecount - 2 ? "drawn" : "not drawn", b.rows, b.size, b.room.x, b.room.y, b.room.z, b.room.w, b.x0,
-        b.y0, b.x1, b.y1);
+    const bool drawn = b.frame >= host_framecount - 2 && b.menu == m_state;
+    // panelfix: the page, the hover's hit test (spots over Setup Bindings a corner button or row takes too: 0 none), OBS's
+    // row shown, the canvas's bottom and the corner rows' top, Setup Bindings's bottom clear of them.
+    // (Two short lines: the console wraps long ones.)
+    Con_Printf("bindpanel: menu panel %s: %d rows, letters %.2f, page %s, corner hits %d, obs row %d, clear %.0f\n",
+        drawn ? "drawn" : "not drawn", b.rows, b.size,
+        m_state == m_main ? "main" : m_state == m_options ? "options" : m_state == m_keys ? "keys" : "other", b.cornerHits,
+        qvr::obs::banner().shown ? 1 : 0, b.cornerTop - b.y1);
+    Con_Printf("bindpanel: menu panel room %.0f %.0f .. %.0f %.0f, button %.0f %.0f .. %.0f %.0f, corner top %.0f\n",
+        b.room.x, b.room.y, b.room.z, b.room.w, b.x0, b.y0, b.x1, b.y1, b.cornerTop);
+    if(!drawn)
+    {
+        Con_Printf("bindpanel: menu panel left out: %s\n", b.leftOut ? b.leftOut : "not this page");
+    }
 }
 
 void zoom_f()
@@ -3691,7 +3790,8 @@ extern "C" void VR_MenuDrawOverlay()
         else
         {
             // The flat screen's: lit under the desktop mouse (the headset's laser lights them: pointTo).
-            const bool on = menuui::pointerOn(true);
+            // (Not under the bindings panel's Setup Bindings, should they ever meet: panelfix.)
+            const bool on = menuui::pointerOn(true) && !bindPanelButtonAt(m_mousex, m_mousey);
             tb().recordingHovered = on && recordingAt(m_mousex, m_mousey);
             tb().obsHovered = on && obsBannerAt(m_mousex, m_mousey);
             tb().renderdocHovered = on && renderdocAt(m_mousex, m_mousey);
@@ -3763,7 +3863,8 @@ extern "C" void VR_MenuDrawOverlay()
         // A flat screen's Recording button, bottom left, where the menu leaves room: lit under the mouse.
         placeFlatRecording(l);
         const FlatRecording& f = flatRecording;
-        tb().recordingHovered = flatRecordingShown() && recordingAt(m_mousex, m_mousey) && menuui::pointerOn(true);
+        tb().recordingHovered = flatRecordingShown() && recordingAt(m_mousex, m_mousey) && menuui::pointerOn(true) &&
+                                !bindPanelButtonAt(m_mousex, m_mousey);
         if(!f.leftOut)
         {
             const bool hot = tb().recordingHovered;

@@ -2005,30 +2005,30 @@ QVR_TUNABLE(vr_flat_prl_tilt_out_time, "0.2") // and seconds back
 QVR_TUNABLE(vr_flat_prl_tilt_pitch, "-20") // degrees the gun tilts (pitch, + muzzle down), mirrored for a gun in the left hand
 QVR_TUNABLE(vr_flat_prl_tilt_yaw, "60") // degrees it turns in towards the body (yaw)
 QVR_TUNABLE(vr_flat_prl_tilt_roll, "35") // degrees it rolls, its bottom (the port) towards the free hand
-QVR_TUNABLE(vr_flat_prl_gun_fwd, "-4") // units the gun moves forward while tilted
-QVR_TUNABLE(vr_flat_prl_gun_up, "3") // and up
-QVR_TUNABLE(vr_flat_prl_gun_in, "2") // and in towards the body's middle
+QVR_TUNABLE(vr_flat_prl_gun_fwd, "3") // units the gun moves forward while tilted
+QVR_TUNABLE(vr_flat_prl_gun_up, "0") // and up
+QVR_TUNABLE(vr_flat_prl_gun_in, "-1") // and in towards the body's middle
 QVR_TUNABLE(vr_flat_prl_approach, "0.5") // units before the port (out of its opening) the carried round comes to, before it is pushed in
 QVR_TUNABLE(vr_flat_prl_arc, "3") // units the hand's way bows up (and out) between the pouch and the gun
 QVR_TUNABLE(vr_flat_prl_ease, "1") // the hand's moves' ease: 0 linear, 1 smooth in and out (smoothstep)
-QVR_TUNABLE(vr_flat_prl_pouch_fwd, "1") // units the free hand stops off the pouch's middle, forward (body frame)
-QVR_TUNABLE(vr_flat_prl_pouch_right, "0") // and to the right (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_prl_pouch_fwd, "0") // units the free hand stops off the pouch's middle, forward (body frame)
+QVR_TUNABLE(vr_flat_prl_pouch_right, "0.5") // and to the right (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_prl_pouch_up, "1") // and up
-QVR_TUNABLE(vr_flat_prl_pouch_pitch, "60") // the free hand's turn at the pouch: degrees its fingers point down
-QVR_TUNABLE(vr_flat_prl_pouch_yaw, "1") // and degrees it turns in (mirrored for the left hand)
-QVR_TUNABLE(vr_flat_prl_pouch_roll, "0") // and degrees it rolls (mirrored)
-QVR_TUNABLE(vr_flat_prl_port_pitch, "-43") // the free hand's turn at the port, on the gun's: degrees pitch
-QVR_TUNABLE(vr_flat_prl_port_yaw, "0") // and yaw (mirrored for the left hand)
-QVR_TUNABLE(vr_flat_prl_port_roll, "0") // and roll (mirrored)
+QVR_TUNABLE(vr_flat_prl_pouch_pitch, "90") // the free hand's turn at the pouch: degrees its fingers point down
+QVR_TUNABLE(vr_flat_prl_pouch_yaw, "27") // and degrees it turns in (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_prl_pouch_roll, "5") // and degrees it rolls (mirrored)
+QVR_TUNABLE(vr_flat_prl_port_pitch, "-40") // the free hand's turn at the port, on the gun's: degrees pitch
+QVR_TUNABLE(vr_flat_prl_port_yaw, "59") // and yaw (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_prl_port_roll, "-9") // and roll (mirrored)
 QVR_TUNABLE(vr_flat_prl_failsafe, "0.6") // seconds after the round reaches the port without going in (a wall, a blocked hand) before the reload is cancelled (its round back in the pouch)
-QVR_TUNABLE(vr_flat_prl_giveup, "3") // the server's failsafe (QC): seconds with nothing taken or loaded before it cancels the reload
-QVR_TUNABLE(vr_flat_ammo_pouch_x, "0") // flat-screen play's ammo pouch (shown with vr_flat_proc_reload): units it sits forward of the headset's place
+QVR_TUNABLE(vr_flat_prl_giveup, "1.5") // the server's failsafe (QC): seconds with nothing taken or loaded before it cancels the reload
+QVR_TUNABLE(vr_flat_ammo_pouch_x, "-1") // flat-screen play's ammo pouch (shown with vr_flat_proc_reload): units it sits forward of the headset's place
 QVR_TUNABLE(vr_flat_ammo_pouch_y, "0") // and to the right
 QVR_TUNABLE(vr_flat_ammo_pouch_z, "0") // and up
 QVR_TUNABLE(vr_flat_ammo_pouch_pitch, "0") // and degrees it turns on the headset's turn (pitch)
 QVR_TUNABLE(vr_flat_ammo_pouch_yaw, "0") // (yaw)
 QVR_TUNABLE(vr_flat_ammo_pouch_roll, "0") // (roll)
-QVR_TUNABLE(vr_flat_ammo_pouch_scale, "1") // and its size (instead of vr_ammo_pouch_scale)
+QVR_TUNABLE(vr_flat_ammo_pouch_scale, "0.9") // and its size (instead of vr_ammo_pouch_scale)
 
 // Flatscreen > Force Grab (vr_flatfgrab.cpp; his note 2026-11-10)
 QVR_TUNABLE(vr_flat_fg_pose, "1") // E's hand turns its palm to the object and opens before the grab (0: the grab at once, no pose)
@@ -2998,3 +2998,9 @@ QVR_TUNABLE(vr_pad_cursor_curve, "2") // ... the tilt's response: speed times ti
 QVR_TUNABLE(vr_pad_cursor_deadzone, "0.2") // ... the stick's dead zone (its tilt, 0 .. 1)
 QVR_TUNABLE(vr_pad_holster_cursor_speed, "1.1") // flat play: the right stick on the holster menu's cursor: window heights a second at full tilt
 QVR_TUNABLE(vr_pad_wheel_deadzone, "0.5") // flat play: the right stick points at a weapon wheel slot past this tilt (back in the middle the last slot stays)
+QVR_TUNABLE(vr_agrunt_dazzle_face_fwd, "8") // ... where the shielding hand's grip goes from its eyes (its kind's own: its rig's head), in the grunt's units (times its arm's length against the grunt's): forward,
+QVR_TUNABLE(vr_agrunt_dazzle_face_left, "0.5") // ... to its left,
+QVR_TUNABLE(vr_agrunt_dazzle_face_up, "-0.5") // ... and up (the grunt: 11 0.5 21.5 from its origin, as before)
+QVR_TUNABLE(vr_agrunt_dazzle_bend, "0.9") // ... that grip within this share of its arm's reach from its shoulder (drawn towards it: a bent arm, its forearm across its face, never held out straight)
+QVR_TUNABLE(vr_agrunt_dazzle_elbow, "1") // ... its elbow's way: 0 the arm's usual (down and back), 1 out to its side (its forearm across its eyes)
+QVR_TUNABLE(vr_agrunt_dazzle_dual, "0") // ... holding two weapons: 1 it shields with its left one's hand (the weapon still held, pointing up and away; not fired while raised); 0 both weapons stay up

@@ -53,7 +53,8 @@ struct Mutator
     const char* id{nullptr};                 // vr_runpick_<id>, vr_run_<id>, the save line's key
     const char* label{nullptr};              // the screen's row
     Section section{Section::Mutators};
-    const char* options[maxOptions]{};       // the screen's cycle (value = index)
+    const char* options[maxOptions]{};       // the choices (value = index; saved picks keep these numbers)
+    const int* order{nullptr};               // the screen's order of the values (as many as the options); nullptr: theirs
     const char* tags[maxOptions]{};          // the run's summary ("Hard / Unleashed / Glass cannon"): each value's part,
                                              // nullptr or "": none
     int def{0};                              // vr_runpick_<id>'s default (vr_cvars.inc says the same)
