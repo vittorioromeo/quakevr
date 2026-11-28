@@ -5196,6 +5196,78 @@ then "the hand grabbing the shells doesn't use the same finger pose as VR" and "
   reload_test 112/4: the 4 are BACKLOG section 1's known baseline failures (0/5 on 11-27), VR paths this doesn't touch.
 - **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
   the pair); his eyes on the drawn pair at the port while running.
+
+## Enemy attributes; the elite (branch agent/elite, 2026-11-28)
+
+His ask: a system of special attributes on enemies like "infected", with an "elite" first: much faster fire, reaction,
+accuracy, harder to fight, 1.25x walking speed; set from the toolgun's Armed Humanoid page; coexisting with infection;
+synced in MP; recognisable by a dye through the weapon-colour system.
+
+- **The system** (`QC/vr_attrs_defs.qc`, `QC/vr_attrs.qc`): `.vr_attrs` bits (`VR_ATTR_INFECTED` 1, `VR_ATTR_ELITE` 2),
+  a table (name, factor per stat `VR_ATTR_ST_*`, look). `VR_Attr_Mult(e, stat)` is exactly 1 with no attribute (no
+  random number drawn), so nothing changes for ordinary monsters. Infected is its existing row (`.vr_mg3_infected`: the
+  bit derived from it, `VR_Attr_Set(e, VR_ATTR_INFECTED, 1)` gives the zombie's row): behaviour unchanged (toolgun
+  infected test 54/0). An infected elite rising loses the elite (bit and dye) with the armed layer.
+- **The elite's stats** (Tunables > Armed Humanoids > Elite, `vr_elite_*`): fire rate x3 (pause / 3), reaction x0.25,
+  accuracy x3, aggressiveness x1.5, steps x1.25 (`VR_AG_Speed`: run, strafe, back off), swings and punches 1.35x quicker
+  (`vr_ag_act_speed` may now pass 1: `VR_AGP_Speed` caps 3, every phase shorter), aim lag behind a moving target x0
+  (aims where you are), turning x1.5, health x1.5 (both given back on losing it), pains taken 0.35 (T_Damage skips
+  th_pain otherwise: no flinch). The knobs are the armed layer's, so the AI factors apply to armed humanoids only; pain
+  and health apply to any monster given the bit (`vr_attr_set`).
+- **The look**: `.vr_hum_look` + 8192 (`VR_HUM_LOOK_ELITE`, engine `humlook::eliteBit`): the clothes use humlook.txt's
+  new `elite` category rows (category 15; dark gold 0.95 0.70 0.18, strength 0.85, light 0.55-0.6) instead of the
+  weapon's, pulsing towards bright gold and brighter (`vr_elite_pulse` 0.3, `vr_elite_pulse_hz` 0.6; each on its own
+  phase); the worn pack keeps its weapon's colour (the elite pack row where the weapon has none). Texture Studio: Weapon
+  Category > Elite edits the rows. An elite with no weapon colour gets its kind's row (category 0) for the dye.
+- **MP / splitscreen**: the bit rides the existing look short (`QVR_SVC_HUMLOOK`), sent on change and with the spawn
+  state; an older client reads the same body look and ignores the bit: no `QVR_NET_VERSION` bump. Seats share the
+  client's entities: drawn the same.
+- **Who gets elites**: the toolgun's Armed Humanoid page (Elite: On/Off beside Infected With, `vr_toolgun_armed_elite`;
+  Reset/Clear put it back); "Elites in Hard and Nightmare" (Combat > Armed Grunts > AI Behaviour, `vr_elite_spawn`,
+  default 0, a server rule): each armed humanoid the map or a replacement spawns rolls `vr_elite_spawn_chance` 0.15
+  (never the tools', the arena's, deathmatch's); the Survival Arena: from wave `vr_elite_arena_wave` 4 each armed
+  humanoid is an elite with `vr_elite_arena_chance` 0.2, by a hash of wave and index (`VR_ARENA_EliteAt`: no draw from the
+  arena's own numbers, its plans and spots as before); a map's `vr_attrs` key (taken up with its gains at spawn).
+- **Debug**: `vr_attr_set <infected|elite> <0|1> [entity]` (nearest monster by default; Debug > Tools > Enemy
+  Attributes); `vr_humlook_info` prints the client's elites and each one's drawn clothes row.
+- **Tests**: `vr_agrunt_test 233` (52/0): each armed kind ordinary beside elite, every factor, 1.25x steps, health,
+  turning, look, swing, pains; infected too; back; a map key; the roll's rules; the arena rule. `vr_agrunt_test 234`:
+  the lineup screenshot (his review). `vr_toolgun_armed_elite_test` (18/0: every armed kind elite, elite+infected,
+  neither). `mp_test.py suite --only mp_elite` (9/0): B knows the elite and draws its dye; made ordinary, none.
+- **Open**: in the lineup screenshot (scratch/elite_lineup.png) the elite grunt and knight read dark gold, but the elite
+  enforcer (lightning) still looks like the stock green although `vr_humlook_info` gives it the elite row with a mask;
+  to look at (his eyes, the Texture Studio's Elite rows for the enforcer). The arena tests were not rerun (the rule only
+  touches waves 4+).
+## bayofix: flat V drives a two-handed gun's bayonet with both hands; the dagger placed on every new gun (branch agent/bayofix, 2026-11-28)
+
+Open from bayomounts: flat V with a bayonet on the GL, prox and RL (held in both hands once the off hand is free) was no
+stab; the dagger mounts on the new guns untuned. And embedfire2's open "stall" with the launchers.
+- **Why V missed** (measured: the server's blade line per frame): the thrust ran, but flatsight's pinToGrip pulls a
+  two-handed gun in to where the free arm reaches its foregrip (`reachPull`, gripKeep 0.92 of the arm): the launchers'
+  foregrips are far ahead, so the bayonet's point stopped ~10 units short of the grunt (y 288 against 298 one-handed).
+- **Fix** (vr_flatplay.cpp `bayonetDrive2H`, vr_flatsight.cpp pinToGrip / gripPull): while V thrusts a gun's bayonet or
+  dagger, the free arm's pull fades by the thrust's share times `vr_flat_thrust_2h_drive` (1; 0: as before; Tunables row
+  "Two-Handed Bayonet Drive"): both hands go out with the gun, the arms' IK stretch (vr_flat_thrust_arm_stretch, any
+  thrust) keeps the free hand on the grip. Not pole weapons (their grip slides along the pole) nor guns with no blade on.
+  The crosshair's rehearsed strike path (noteStrikePath via gripPull) uses the same share.
+- **The "stall"**: the script's `god` doesn't reach the server before it spawns; the launchers' blasts at the grunt (in
+  the hand and stuck) killed the player, and his death menu paused the game until the run's timeout. Tests 96 and 97 now
+  set FL_GODMODE on the player each case. One-handed launchers (an axe in the off hand) stab and fire stuck fine.
+- **The dagger on the new guns** (weapons.txt att2_x / att2_z, mount units, on top of the every-gun default): measured on
+  the models as drawn (`vr_attach_mdl_dump <gun> <file> 2` now writes the gun and that attachment placed on it, OBJ
+  objects gun / attach). His shotgun's dagger sits 0.2 mount units under the gun, its guard 0.45 behind the gun's front;
+  each new gun solved to the same with no vertex inside the gun: nailgun z -1.13 (it sank 1.9 units into the shroud), GL
+  x 0.75 z 0.15, prox x 0.75 z 0.1, RL x 1 z 1.11 (it hung 3 units under the nose), thunderbolt x 0.65 z -0.99 (2.2 into
+  the body), Plasma Gun x 0.5 z 0.62, burst rifle z 0.76 (its 5 #adv slots the same, not measured), laser rifle z -1.07,
+  revolver z -0.54. The lava nailgun, multi launchers and plasma-look thunderbolt inherit them (checked). Level (pitch 0).
+  Contact sheet (side and from below, the dagger orange): worktree `scratch/bayofix_sheet.png` (scratch bayofix_sheet.py,
+  bayofix_measure.py, bayofix_solve.py). His config keeps only the shotguns' att2 pitches: the new values reach him.
+- **Tests**: `vr_embed_test 96` attachguns 66/0 (no PENDING: the GL, prox and RL "held in both hands as V was pressed"
+  and stuck), attach_guns_check 32/32; `vr_embed_test 97` embedrate 69/0 (the GL, prox, RL added, two-handed;
+  `scratch1 10008; scratch2 1` runs those three one-handed: 21/0); menu attachtest 20/0 (its hierarchy checks expect the
+  new dagger offsets); flat 80 17/0, flat dagger 85 18/0.
+- **Open**: VR stabs with the launchers are hand-driven (not tested per gun). The #adv burst rifles' daggers copy the
+  burst rifle's.
 ## alwaysfail: the tests that failed every run of the flaky sweep (branch agent/alwaysfail, 2026-11-28)
 
 Tests and one test aid only, no gameplay change. Found on origin/next 2ea7ac94e (Release; the author's game running, so
@@ -5265,6 +5337,35 @@ Approved 2026-11-28 (beastarmour's open note: "a remote MP client draws no beast
   `beastmp_dedicated` hunt B before his notarget, so their living placement is compared on the listen run only;
   `vr_armour_on_drawn 0` (debug) is a listen host's comparison alone (a remote client always uses the drawn points).
 
+## visorboot: the flat visor HUD's boot-up sequence (branch agent/visorboot, 2026-11-28)
+
+His words: the boot should start with no panels, a boot sound, the panels fading in with a subtle glitch, then the
+scanline sweep, on every level transition, respawn and so on.
+- **What it does:** at every signon (the first start, `map`, `changelevel`, a loaded save, single player's respawn
+  `restart`: `VR_VisorSignon` from `CL_ParseUpdate`) and every respawn in place (coop/DM: health from 0 or less to
+  more, as before), with the flat visor up: dark (no panel drawn, `vr_flat_visor_boot_dark` 0.3 s), the power-up sound
+  starting (`vr/visor_boot.wav`, 1.05 s, made by `make_sounds.py visor_boot`, timed to the default steps; volume
+  `vr_flat_visor_boot_volume` 0.6), the whole panels (mounts) fading in over `vr_flat_visor_boot_fade` 0.5 s while
+  glitching (`vr_flat_visor_boot_glitch` 0.6: strongest at the fade's start, a third of it at its end; a per-panel
+  flicker of the alpha, on about half the frames bands of rows torn sideways up to 16 1080p pixels, colour fringes of
+  2.5 px: the layer shader's `Tear` uniform, the red and blue read either side), their contents still dark; then the
+  existing sweep (`vr_flat_visor_boot` 0.8 s, each panel in turn) fills them. Booted about 1.6 s after the signon.
+- **Settings:** `vr_flat_visor_boot_seq` 1 (VR Settings > Visor HUD Look > Visor Boot Sequence; 0: the sweep alone,
+  exactly as before); Tunables > Flatscreen > Visor Boot (dark, fade in, glitch, sound volume). The headset (VR) path
+  and its centre popup keep the old sweep (the sequence needs `visor::active()`).
+- **Debug:** Debug > Visor: Power On (now the whole sequence) and Visor: Power On, Traced (`vr_flat_visor_fx trace 1`:
+  every boot prints a `visorboot: boot N (<cause>) ...` verdict as it ends: frames dark and shown, fading, rises and
+  falls, glitching and its peak, sweeping, the time booted, sounds asked). `vr_flat_visor_report` has a `visor: boot
+  <phase> ...` line.
+- **Files:** vr_visor.cpp (startBoot, bootSound, bootPhase, traceBoot, panelFade, bootTear, the layer shader),
+  cl_parse.c, vr_api.h, vr_cvars.inc, vr_tunables(.inc, _rows.inc), vr_menu_rows/pages/debug.inc, make_sounds.py,
+  quakevr/sound/vr/visor_boot.wav, SOUNDS_OURS.md, scenario `flat_visor_boot`.
+- **Tests:** `visorboot_test.sh` (42 checks: the first start's report stepped through dark with nothing drawn, fading
+  in glitching, sweeping, booted; the traces of the first start, a changelevel, a death and `restart`, a coop map and a
+  coop respawn in place, the switch off); `visor_test.sh`'s boot step waits the whole sequence now (37/0).
+- **Open:** splitscreen: the visor has one state (no seats in it yet); when the seats come it moves into the seat's
+  state with the rest of the visor's. The sound counts as asked in the headless runs (no sound device there): its
+  level against the other UI sounds is his to judge (loudest 100 ms RMS 0.24 at volume 1, the tap-on's 0.37).
 
 ## blclean2: BACKLOG.md keeps only what still needs work (branch agent/blclean2, 2026-11-28)
 

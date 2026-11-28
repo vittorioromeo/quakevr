@@ -557,6 +557,55 @@ def respawn_if_dead(srv, c, ent):
     return alive(srv, ent)
 
 
+def elite(s):
+    """(elite, ROUND26) An armed grunt ahead of the players made an elite on the server (vr_attr_set elite 1, QC
+    vr_attrs.qc): the remote client B knows it as one (vr_humlook_info: its elites) and draws it with the elite dye (its
+    instance's clothes row: the table's elite colour, a mask); made ordinary again, B knows no elite."""
+    srv, a, b, ea, eb = join(s, level="vrtesthall", srv_first="developer 1",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90))
+    b.ent = eb
+    a.cmd("god; notarget")
+    b.cmd("god; notarget")
+    put_at(srv, b, eb, ARMED_B, 90)
+    since = srv.mark()
+    srv.cmd("vr_physics_spawn monster_vr_grunt %d 0" % ARMED_SPAWNS[0])
+    srv.wait(r"vr_physics_spawn: \d+ monster_vr_grunt at", 20, since, "an armed grunt ahead")
+    since = b.mark()  # (QC's bprint: the players' consoles, not the dedicated server's)
+    srv.cmd("vr_attr_set elite 1")
+    _, made = b.wait(r"vr_attr_set: .* now elite", 10, since, "the grunt made an elite")
+    s.note(made.strip())
+
+    def elites_on_b():
+        since = b.mark()
+        b.cmd("vr_humlook_info")
+        _, line = b.wait(r"humlook: \d+ rows", 10, since, "B's vr_humlook_info")
+        m = re.search(r"(\d+) elites", line)
+        return (int(m.group(1)) if m else -1), since
+
+    n, since = -1, 0
+    for _ in range(40):  # (the look reaches B reliably: a few frames)
+        n, since = elites_on_b()
+        if n >= 1:
+            break
+    s.check("B's client knows the elite (its look's elite bit)", n == 1, "%d elites known" % n)
+    row = b.find(r"client elite \d+ .*: clothes", since) if n >= 1 else None
+    line = row[1] if row else ""
+    m = re.search(r"clothes ([\d.]+) ([\d.]+) ([\d.]+) strength ([\d.]+) light ([\d.]+), mask (\w+)", line)
+    # (humlook.txt's elite row, dark gold 0.95 0.70 0.18, pulsing towards bright gold 1 0.85 0.35: each channel between)
+    ok = bool(m) and all(min(lo, hi) - 0.02 <= float(m.group(i + 1)) <= max(lo, hi) + 0.02
+                         for i, (lo, hi) in enumerate(((0.95, 1.0), (0.70, 0.85), (0.18, 0.35)))) and \
+        float(m.group(4)) > 0.5 and m.group(6) == "yes"
+    s.check("B draws it with the elite dye (dark gold, masked)", ok, line.strip() or "no client elite line")
+    since = b.mark()
+    srv.cmd("vr_attr_set elite 0")
+    b.wait(r"vr_attr_set: .* no longer elite", 10, since, "the grunt made ordinary")
+    for _ in range(40):
+        n, _ = elites_on_b()
+        if n == 0:
+            break
+    s.check("made ordinary, B knows no elite", n == 0, "%d elites known" % n)
+
+
 def armed(s):
     """(B12) Six armed humanoids ahead of B in vrtesthall: what his link carries down, by kind, with their poses outside
     his snapshot (vr_net_snapposes 0, as before) and in it; idle (both players notarget) and in combat (they shoot at
@@ -11116,6 +11165,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             bandwidth(s)
         elif test == "mp_armed":
             armed(s)
+        elif test == "mp_elite":
+            elite(s)
         elif test == "mp_retransmit":
             retransmit(s)
         elif test == "mp_version":
@@ -11323,6 +11374,7 @@ SUITE = [
     ("mp_coop_lag", (150, 0, 0.02)),
     ("mp_bandwidth", ()),
     ("mp_armed", ()),
+    ("mp_elite", ()),
     ("mp_retransmit", ()),
     ("mp_version", ()),
     ("mp_overflow", ()),

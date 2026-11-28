@@ -190,4 +190,5 @@ void(entity e) VR_HUM_Look =
         c = c2;
     }
     e.vr_hum_look = (c > 0 && e.vr_ag_kind < VR_AM_DGUARD) ? e.vr_ag_kind * 16 + c : 0; // (AD's armed knights: AD's skins as they are)
+    VR_Attr_Look(e); // (an elite's bit kept: vr_attrs.qc)
 };

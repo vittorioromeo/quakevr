@@ -2278,7 +2278,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // get mad unless of the same class (except for soldiers): VR_Provoke
     VR_Provoke(self, attacker);
 
-    if(self.th_pain)
+    // QVR: an elite shrugs most of its pains off (vr_attrs.qc, vr_elite_pain: the share it takes; none drawn without one)
+    if(self.th_pain && !VR_Attr_ShrugsPain(self))
     {
         self.th_pain (attacker, take);
     // nightmare mode monsters don't go into pain frames often

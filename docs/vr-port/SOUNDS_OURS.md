@@ -56,6 +56,7 @@ sound played by a constructed name may list only its table.
 |---|---|---|---|---|---|
 | `vr/gadget_click_off.wav`, `vr/gadget_click_on.wav` | 0.09 s | synthesised: `make_gadget_sounds.py` (via `make_flashlight.py`'s click, higher) | wrist gadget's side button (gear lights) | `vr_cvars.inc` cvar defaults; played by vr_gearlights.cpp | `vr_gear_lights_sound_on`, `vr_gear_lights_sound_off` |
 | `vr/gadget_tap.wav`, `vr/gadget_tap_on.wav` | 0.04-0.11 s | synthesised: `Misc/quakevr/make_sounds.py` | wrist gadget screen tap registering; bullet-time tap | vr_gadget.cpp:tapFeedback | `vr_bullettime_tap_sound` |
+| `vr/visor_boot.wav` | 1.05 s | synthesised: `Misc/quakevr/make_sounds.py` | flatscreen visor HUD booting (a hum rising, a whine charging, crackle, blips) | vr_visor.cpp:bootSound | `vr_flat_visor_boot_seq`, `vr_flat_visor_boot_volume` |
 | `vr/sync_beep.wav` | 0.25 s | synthesised: `Misc/quakevr/make_sounds.py` (1 kHz tone) | highlight log sync mark | vr_highlights.cpp:syncMark |  |
 
 ## Physics and debris

@@ -465,40 +465,39 @@ void serverWriteAll(sizebuf_t* msg)
 
 namespace
 {
-// vr_attach_mdl_dump <model> <file>: an alias model's frame 0 as the engine has it (made models too: AD's "#vr" guns), as
-// an OBJ (v x y z, f a b c): bayomounts measured the guns' mounts from these (scratch bm_measure.py).
-void mdlDump_f()
+// An alias model's frame 0 (a Quake pose model's), or nullptr with why not printed.
+[[nodiscard]] const aliashdr_t* dumpable(qmodel_t* model, const char* name)
 {
-    if(Cmd_Argc() < 3)
-    {
-        Con_Printf("vr_attach_mdl_dump <model> <file>\n");
-        return;
-    }
-    qmodel_t* const model = Mod_ForName(Cmd_Argv(1), false);
     if(!model || model->type != mod_alias)
     {
-        Con_Printf("mdl_dump: %s: no alias model\n", Cmd_Argv(1));
-        return;
+        Con_Printf("mdl_dump: %s: no alias model\n", name);
+        return nullptr;
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
     if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || hdr->numframes <= 0 || hdr->numverts <= 0)
     {
-        Con_Printf("mdl_dump: %s: not a Quake pose model\n", Cmd_Argv(1));
-        return;
-    }
-    FILE* f = fopen(Cmd_Argv(2), "w");
-    if(!f)
-    {
-        Con_Printf("mdl_dump: can't write %s\n", Cmd_Argv(2));
-        return;
+        Con_Printf("mdl_dump: %s: not a Quake pose model\n", name);
+        return nullptr;
     }
     mdldequant::prepare(model);
+    return hdr;
+}
+
+// `hdr`'s frame 0 written to `f` as an OBJ object `name` (its faces numbered from `first`, the OBJ's vertices before it),
+// each vertex through `at` (none: as the model has it). Returns how many vertices it wrote.
+int writeMesh(FILE* f, const aliashdr_t* hdr, const char* name, int first, const Mount* at)
+{
+    fprintf(f, "o %s\n", name);
     const int pose = hdr->frames[0].firstpose;
     const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
     for(int i = 0; i < hdr->numverts; i++)
     {
-        const glm::vec3 p = so + hs * mdldequant::poseVertex(hdr, pose, i);
+        glm::vec3 p = so + hs * mdldequant::poseVertex(hdr, pose, i);
+        if(at)
+        {
+            p = onGun(*at, p);
+        }
         fprintf(f, "v %.4f %.4f %.4f\n", static_cast<double>(p.x), static_cast<double>(p.y), static_cast<double>(p.z));
     }
     const auto* base = reinterpret_cast<const byte*>(hdr);
@@ -506,11 +505,51 @@ void mdlDump_f()
     const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
     for(int t = 0; t + 2 < hdr->numindexes; t += 3)
     {
-        fprintf(f, "f %d %d %d\n", desc[indexes[t]].vertindex + 1, desc[indexes[t + 1]].vertindex + 1,
-            desc[indexes[t + 2]].vertindex + 1);
+        fprintf(f, "f %d %d %d\n", first + desc[indexes[t]].vertindex + 1, first + desc[indexes[t + 1]].vertindex + 1,
+            first + desc[indexes[t + 2]].vertindex + 1);
+    }
+    return hdr->numverts;
+}
+
+// vr_attach_mdl_dump <model> <file> [kind]: an alias model's frame 0 as the engine has it (made models too: AD's "#vr" guns), as
+// an OBJ (v x y z, f a b c): bayomounts measured the guns' mounts from these (scratch bm_measure.py). With a kind (1 the
+// bayonet, 2 the dagger), a second object: that attachment placed on the gun as drawn (attach::mount, onGun: the gun's model
+// space), for measuring and drawing a gun's attachment (bayofix's contact sheet).
+void mdlDump_f()
+{
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_attach_mdl_dump <model> <file> [kind]\n");
+        return;
+    }
+    qmodel_t* const model = Mod_ForName(Cmd_Argv(1), false);
+    const aliashdr_t* const hdr = dumpable(model, Cmd_Argv(1));
+    if(!hdr)
+    {
+        return;
+    }
+    const int kind = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : None;
+    const KindInfo* const k = info(kind);
+    const Mount m = k ? mount(weapons::slotForModel(model), kind) : Mount{};
+    qmodel_t* const att = k && m.fits ? Mod_ForName(k->model, false) : nullptr;
+    const aliashdr_t* const ahdr = att ? dumpable(att, k->model) : nullptr;
+    if(kind != None && !ahdr)
+    {
+        Con_Printf("mdl_dump: %s: attachment %d doesn't fit it\n", Cmd_Argv(1), kind);
+    }
+    FILE* f = fopen(Cmd_Argv(2), "w");
+    if(!f)
+    {
+        Con_Printf("mdl_dump: can't write %s\n", Cmd_Argv(2));
+        return;
+    }
+    const int n = writeMesh(f, hdr, "gun", 0, nullptr);
+    if(ahdr)
+    {
+        (void)writeMesh(f, ahdr, "attach", n, &m);
     }
     fclose(f);
-    Con_Printf("mdl_dump: %s: %d vertices -> %s\n", Cmd_Argv(1), hdr->numverts, Cmd_Argv(2));
+    Con_Printf("mdl_dump: %s: %d vertices%s -> %s\n", Cmd_Argv(1), hdr->numverts, ahdr ? " and its attachment" : "", Cmd_Argv(2));
 }
 } // namespace
 

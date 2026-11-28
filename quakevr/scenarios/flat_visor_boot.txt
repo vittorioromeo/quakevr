@@ -1,0 +1,4 @@
+# flat_visor_boot: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen visor HUD: its boot sequence at every map start, changelevel, loaded save and respawn (vr_flat_visor_boot_seq; Tunables > Flatscreen > Visor Boot).
+title Flat-screen visor HUD: the boot-up sequence
+hint Play with -flatscreenmode. As the map starts no visor panel shows, a power-up sound plays, the panels fade in with a short glitch (flicker, rows torn sideways, colour fringes), then the scanline sweep fills them. Debug > Visor: Power On (Traced) replays it and prints its phases; die and respawn, take the exit, load a save: it boots each time. Visor Boot Sequence off (Visor HUD Look): the sweep alone, as before.
+map e1m1
