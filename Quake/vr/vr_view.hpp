@@ -105,6 +105,7 @@ struct GunParts
         Attach,   // its attachment (vr_attach.hpp: the bayonet), held or holstered
         PumpBody, // (mpopen) a held shotgun's auto pump stroking: the gun without its fore-end, and the fore-end slid back
         Pump,
+        Rail, // (bayomounts) the bayonet's mount on a gun a bayonet fits (placeRail)
         Count
     };
     ViewEntity part[Count];
@@ -309,6 +310,9 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 // hand's super shotgun's barrels as they drop open (else, holsterattach, `ssgOpen` > 0: a super shotgun not in your hands
 // drawn with its barrels that many degrees down: ssgCarry); false (hidden) if none, or it doesn't fit that gun.
 bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand, float ssgOpen = 0.f);
+// The bayonet's mount (bayomounts: attach::railMount) drawn on `gun` the same way, on every gun a bayonet fits, whatever
+// it carries (`kind`: its attachment; vr_attach_mount_show 2 hides it under one); false (hidden) if none fits.
+bool placeRail(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand, float ssgOpen = 0.f);
 // The attachment drawn on the gun in your `hand` last frame: its mount (its model's origin) and its tip (its striking point)
 // in the world; false if none is drawn there (the two-handed grip leaves a hand pulling one off alone: vr_twohand.cpp).
 [[nodiscard]] bool drawnAttachment(int hand, glm::vec3& mount, glm::vec3& tip);

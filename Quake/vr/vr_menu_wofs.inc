@@ -1127,7 +1127,8 @@ za::Vector<Item> pageWofsAttachments()
         header("Bayonet"),
         cycle("Bayonet Fits", weapons::cvar(slot, Key::Att1Ok), {{0.f, "No"}, {1.f, "Yes"}})
             .help("Whether a bayonet can be attached to this weapon (brought to its mount in VR, the Attach key in flat "
-                  "play). The shotgun and the super shotgun by default."),
+                  "play). By default the shotguns, the nailgun, the grenade, rocket and proximity launchers, the "
+                  "lightning gun, the Plasma Gun, the burst rifle, the laser rifle and the heavy revolver."),
         s("Bayonet Forward", Key::Att1X, -10.f, 60.f, 0.1f, "%+.1f").extend(-200.f, 200.f).help(moveHelp),
         s("Bayonet Left", Key::Att1Y, -10.f, 10.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(moveHelp),
         s("Bayonet Up", Key::Att1Z, -10.f, 20.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(moveHelp),
@@ -1137,6 +1138,25 @@ za::Vector<Item> pageWofsAttachments()
         s("Bayonet Scale", Key::Att1Scale, 0.5f, 4.f, 0.01f, "%.3f").extend(0.05f, 20.f)
             .help("How big the bayonet is drawn, times the weapon's own size: 1 / the weapon's Scale draws it at its real "
                   "size (the shotgun's 2.27, the super shotgun's 2.08).")
+    );
+    // bayomounts (his 2026-11-28): the bayonet's mount drawn on every weapon a bayonet fits, wherever the weapon is.
+    const char* mntMoveHelp = "Moves the bayonet's mount (the small lug and ring drawn where the bayonet goes) from the bayonet's "
+                              "own place on this weapon, in the bayonet's units: forward along its blade, left, up.";
+    const char* mntTurnHelp = "Turns the bayonet's mount about its place (degrees): Pitch up, Yaw left, Roll about the barrel.";
+    list.pushBackMultiple(
+        header("Bayonet Mount"),
+        cycle("Show Bayonet Mounts", vr_attach_mount_show, {{0.f, "Never"}, {1.f, "Always"}, {2.f, "Without an Attachment"}})
+            .help("The small lug and ring drawn under every weapon a bayonet fits, in your hands, holstered, lying, carried by "
+                  "monsters and as map pickups, so that you can see where a bayonet goes. Without an Attachment: hidden "
+                  "while a bayonet or a dagger is on it."),
+        s("Mount Forward", Key::MntX, -5.f, 5.f, 0.05f, "%+.2f").extend(-50.f, 50.f).help(mntMoveHelp),
+        s("Mount Left", Key::MntY, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f).help(mntMoveHelp),
+        s("Mount Up", Key::MntZ, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f).help(mntMoveHelp),
+        s("Mount Pitch (up)", Key::MntPitch, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(mntTurnHelp),
+        s("Mount Yaw (left)", Key::MntYaw, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(mntTurnHelp),
+        s("Mount Roll", Key::MntRoll, -180.f, 180.f, 0.5f, "%+.1f deg").help(mntTurnHelp),
+        s("Mount Size", Key::MntSize, 0.25f, 3.f, 0.01f, "%.2f").extend(0.05f, 10.f)
+            .help("How big the bayonet's mount is drawn, times the bayonet's own size on this weapon (1: made to fit it).")
     );
     // daggerattach (his 2026-11-27): the dagger put on as a bayonet, the same way; its own mount (kind 2: att2_*).
     const char* dgMoveHelp = "Moves the dagger's mount on this weapon (the weapon model's own units): forward along the barrel, "

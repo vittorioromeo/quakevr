@@ -123,7 +123,12 @@ qsocket_t *Loop_Connect (const char *host)
 	net->loopserver->sendMessageLength = 0;
 	net->loopserver->canSend = true;
 	if (seat > 0) // QVR: the seat's player's name, as a network player's connect request carries it (VR_CoopPickSlot)
+	{
 		CL_SeatName (seat, net->loopserver->qvrName, sizeof (net->loopserver->qvrName));
+		// split20: and a game key (next's mplows A11: a rejoin record needs one; a loopback seat's cannot be forged from
+		// the network): the seat's, so the same seat coming back gets his things again (vr_coopsave.cpp)
+		q_snprintf (net->loopserver->qvrKey, sizeof (net->loopserver->qvrKey), "local-seat%d", seat + 1);
+	}
 
 	net->loopclient->driverdata = (void *)net->loopserver;
 	net->loopserver->driverdata = (void *)net->loopclient;

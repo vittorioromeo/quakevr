@@ -538,7 +538,14 @@ za::Vector<Item> pageDebugProfiling()
         command("LRZ Probe: Behind the Scene", "vr_debug_lrz_probe -5")
             .help("vr_debug_lrz_probe -n: at point n one quad far behind the scene (the picture kept): killed where the "
                   "scene's own draws wrote the low-resolution depth."),
+        command("LRZ Probe: After Your Own Models", "vr_debug_lrz_probe 6")
+            .help("vr_debug_lrz_probe 6 / 7 / 8: the quads after your own models drawn first, after the world and brush "
+                  "models, or after opaque model batch vr_debug_alias_probe_at (vr_debug_alias_first and _count draw only "
+                  "some batches; vr_debug_alias_lrz changes their state: questperf2)."),
         command("LRZ Probe: Off", "vr_debug_lrz_probe 0").help("vr_debug_lrz_probe 0: no probe quads."),
+        command("Still Models' Set-up Check", "vr_alias_frame_cache 2")
+            .help("vr_alias_frame_cache 2: each model's instance data made anew and compared with the frame before's "
+                  "(vr_alias_frame_cache_stats); 1 kept while nothing it is made from changed; 0 off (the default)."),
         command("Hide Gibs, Heads and Limbs", "vr_debug_hide_models \"gib,h_,#limb\"")
             .help("vr_debug_hide_models <parts>: alias models whose name holds any of the comma-separated parts are not "
                   "drawn in the eyes (gib, h_ and #limb: the gore). A cost found by leaving things out (the Quest's GPU "
@@ -1085,6 +1092,11 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flatattach_report: the Attach key's (J) hand trip as drawn: its phase, putting on or taking off, the hands, "
                   "the attachment, the hand's share of the way and the slide's, and the presses, trips, impulses sent at once and "
                   "on arrival, cancels and the last one's reason."),
+        command("Flatscreen Procedural Reload Report", "vr_flatprocreload_report")
+            .help("vr_flatprocreload_report: the procedural reload as drawn (the shotgun one-handed, Settings: Procedural Reload): "
+                  "its phase (to the pouch, taking, carrying, pushing in, back), the hands, the server's bits, the round in the free "
+                  "hand, the gun's tilt and the port's distance from the round, and the trips, takes sent, rounds seated, cancels "
+                  "and the last one's reason."),
         command("Flatscreen Swim Report", "vr_flatswim_report")
             .help("vr_flatswim_report: the swimming strokes as drawn (swimming, the stroke's cycle, speed and mix of kinds), each "
                   "hand's share and take-over, and what vr_flatswim_probe measured since: each hand's path and palm."),
@@ -1099,6 +1111,8 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flat_fg_press: E's force grab, as the key presses it (the palm turns out first, then the grab)."),
         row(opt::vr_flat_reload_debug),
         row(opt::vr_flat_attach_debug),
+        row(opt::vr_flat_proc_reload_debug),
+        row(opt::vr_flat_prl_test_miss),
         command("Holster Menu Dump", "vr_flat_holster_menu_dump")
             .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "
                   "hand holds, and each button's place, whether it does something now and its impulse."),
@@ -1912,6 +1926,13 @@ za::Vector<Item> pageDebugTools()
         command("Bindings Screen Tests", "vr_bindsetup_detect_test; vr_bindsetup_test")
             .help("The detection table (profiles and gamepad types to pictures) and the screen's swap, pick and reset on "
                   "the binds (put back after): their verdict lines in the console."),
+        command("Reminder Panels: Next Controller", "vr_bindpanel_device next")
+            .help("vr_bindpanel_device next: the bindings reminder panels (above the weapon wheel, the main menu's) show the "
+                  "next controller's buttons and glyphs, as if it were connected (a pad's panel without a pad)."),
+        command("Reminder Panels: Detected Controller", "vr_bindpanel_device auto")
+            .help("vr_bindpanel_device auto: the reminder panels show the controller in use again."),
+        command("Reminder Panels Report", "vr_bindpanel_report")
+            .help("vr_bindpanel_report: the flat panel's rows (keys or a pad's glyphs) and the headset panel's callouts."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),

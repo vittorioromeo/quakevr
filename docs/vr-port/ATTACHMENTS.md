@@ -99,6 +99,39 @@ bayonet progs/bayonet.mdl
   progs/g_shot.mdl   21.6 0 34.86   0 0 0  2.9398
 ```
 
+bayomounts (2026-11-28) added, measured on the models as the engine draws them (`vr_attach_mdl_dump <model> <file>`: frame 0
+as an OBJ, AD's made `#vr` guns too; the underside on the barrel's line at the front, the socket's length clear behind;
+where a front lip is shorter than the socket, under the body's front):
+
+```
+  progs/v_nail.mdl        20.0 -1.48 2.14   0 0 0  2.0833   (lava nailgun: slot 11 inherits)
+  progs/v_rock.mdl        29.2 0 0.55       0 0 0  2.6316   (grenade launcher; multi grenade: slot 13 inherits)
+  progs/v_prox.mdl        29.2 0 0.58       0 0 0  2.6316
+  progs/v_rock2.mdl       50.6 0 -1.95      0 0 0  2.9412   (rocket launcher; multi rocket: slot 14 inherits)
+  progs/v_light.mdl       33.4 0 7.55       0 0 0  2.8571   (plasma-look lightning gun: slot 15 inherits)
+  progs/v_plasma.mdl#vr   30.3 0 2.62       0 0 0  2.8571   (AD's Plasma Gun)
+  progs/v_gruntgun.mdl    32.85 0 6.74      0 0 0  2.5641   (burst rifle; its #adv variants, slots 27-31, the same)
+  progs/v_enfrifle.mdl    40.6 0 4.28       0 0 0  2.5
+  progs/v_revolver.mdl    20.26 0 5.56      0 0 0  2.2222
+  pickups (vr_attach.cpp pickupRails): g_nail 13.33 -3 34.24 2.1315, g_rock 17.3 0 31.21 2.107, g_prox 17.4 0 27.97 2.1107,
+  g_rock2 21.9 0 28.39 2.249, g_light 20.3 0 34.63 3.0316
+```
+
+Their dagger mounts (att2): the bayonet's moved by (-2.79, 0.339, -1.47) bayonet units (the shotguns' two tuned ones'
+mean), level. The bloody shotguns (MG3) are drawn as the shotguns: the same slots, the same mounts.
+
+### The bayonet's mount (bayomounts)
+
+`quakevr/progs/bayonet_mount.mdl` (make_bayonet.py `build_mount`, the bayonet's skin): a short iron rail along under the
+barrel behind the socket and a ring round the socket's axis where the socket's back sits, in the bayonet's own space, so
+it is drawn at a gun's bayonet mount (`attach::railMount`: att1_*, moved and turned by the slot's `mnt_x/y/z`,
+`mnt_pitch/yaw/roll` in the bayonet's units and frame, `mnt_size` times the bayonet; Weapon Offsets > Attachments, "Bayonet
+Mount"). Drawn on every gun a bayonet fits by the one placement (`view::placeRail`, placeAttachment's): your hands'
+(`entities.rail`), your holsters' (`holsterRail`), another player's (GunParts::Rail), and every other gun in the world
+(`setupWorldRails`: lying, a monster's, the map pickups: the nearest 32 within `vr_attach_mount_dist` 1500).
+`vr_attach_mount_show`: 1 always (default; the socket covers the rail when a bayonet is on, the ring sits just behind
+it), 2 hidden while an attachment is on, 0 never. `vr_attach_report` lists them (`where=rail_*`).
+
 Notes for the system: the guns' fire animations move their front (up to 17 units over frames 1-8 on both view models):
 a mount that follows the gun's recoil wants the barrel's vertices' motion (or the frame's), not frame 0's fixed place.
 The shotgun's auto pump (`vr_pump_on_v_shot.mdl`) slides back from x 30.8, away from the socket. Only the blade's line

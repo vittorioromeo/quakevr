@@ -7,7 +7,7 @@
 AGENT=${1:-blendmodels}
 QT_NAME=flatmenu_esc
 source "$(dirname "$0")/qvrtest.sh"
-# (m_state: 1 the main menu, 9 Options: menu.h m_state_e, since the IPX page went)
+# (m_state: 1 the main menu, 9 Options: menu.h m_state_e)
 one() { # one <style>: the script's part for a layout, its lines tagged E<style>
     local s=$1
     echo "vr_menu_flat_vr_style $s; togglemenu; wait5; echo E$s main; vr_mock_key escape; wait5;" \

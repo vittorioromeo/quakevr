@@ -47,7 +47,7 @@ vr_fixed_frames_rate 144; wait4; echo flatxhair_test: turn1; vr_flat_xhair_turnt
 impulse 174; wait40; echo flatxhair_test: turn2; vr_flat_xhair_turntest 360 144 36; wait146; impulse 170; vr_fixed_frames_rate 72; \
 vr_flat_wall_tilt 4; tune vr_flat_wall_arm_keep 20; tune vr_flat_wall_fold 20; setpos 480 750 88; wait200; echo flatxhair_test: flush; $X; $FIRE; $X; screenshot; \
 vr_flat_wall_shot 0; wait20; echo flatxhair_test: flushold; $X; $FIRE; $X; vr_flat_wall_shot 1; vr_flat_wall_tilt 85; \
-setpos 480 -352 88; vr_flat_reload 1; wait40; $FIRE; impulse 55; wait12; echo flatxhair_test: reload; $X; \
+setpos 480 -352 88; vr_flat_reload 1; vr_flat_proc_reload 0; wait40; $FIRE; impulse 55; wait12; echo flatxhair_test: reload; $X; \
 tune_reset; echo flatxhair_test: end"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Clean -Out "$S/flatxhair_strip.png" -QuitOn "flatxhair_test: end" -Timeout 180 \
     -Filter "^flatxhair" -Script "$SCRIPT; toggleconsole; quit" > "$LOG" 2>&1

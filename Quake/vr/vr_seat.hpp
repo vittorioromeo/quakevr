@@ -129,6 +129,7 @@ enum class Part
     HolsterBody,   // vr_flatholster.cpp: the holster menu's picture of the seat's body
     BindPanel,     // vr_bindpanel.cpp: the bindings reminder's rows and image (the seat's own binds)
     BindSetup,     // vr_bindsetup.cpp: the Controller Bindings screen (the seat's own pad's binds)
+    FlatProcReload, // vr_flatprocreload.cpp: the flat procedural reload's trip and the gun's tilt
     Count
 };
 

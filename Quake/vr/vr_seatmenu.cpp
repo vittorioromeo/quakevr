@@ -779,6 +779,8 @@ struct BindTest
     int keyA = -1, keyB = -1;
     za::String bindA, bindB;
     za::String host[MAX_KEYS]; // seat 1's pad bindings as the test began
+    za::String panelBefore[bindpanel::maxRows]; // seat 2's panel rows before the swap
+    int panelCount = 0;
 } bindTest;
 
 bool bcheck(const bool ok, const char* what)
@@ -829,24 +831,37 @@ void bnext()
     bindTest.frames = 0;
 }
 
-// seat 2's bindings panel row for `command` (its pad layout's) names `key`; true when the layout has no such row
-[[nodiscard]] bool panelShows(const char* command, const int key)
+// seat `s`'s bindings panel rows (its own pad's buttons and their actions), as "button=action" texts: how many
+int panelRows(const int s, za::String (&out)[bindpanel::maxRows])
 {
-    int count = 0;
-    const PadAction* layout = padLayout(count);
-    const Scope in(at(1));
+    const Scope in(at(s));
     gadget::BindPanelRow r[bindpanel::maxRows];
     const int n = bindpanel::rows(r, bindpanel::maxRows);
-    for(int i = 0; i < count && i < n; i++)
+    for(int i = 0; i < n; i++)
     {
-        if(!ZA_STRCMP(layout[i].command, command))
+        out[i] = va("%s=%s", r[i].keys[0], r[i].action);
+    }
+    return n;
+}
+
+// seat 2's panel now against before the swap: the same rows but two, whose actions changed places
+[[nodiscard]] bool panelSwapped()
+{
+    za::String now[bindpanel::maxRows];
+    const int n = panelRows(1, now);
+    int diff[3] = {-1, -1, -1};
+    int d = 0;
+    for(int i = 0; i < n && n == bindTest.panelCount; i++)
+    {
+        if(!(now[i] == bindTest.panelBefore[i]))
         {
-            const char* name = Key_KeynumToFriendlyString(key);
-            return !ZA_STRCMP(r[i].keys[0], name) || !ZA_STRCMP(r[i].keys[1], name);
+            diff[za::min(d, 2)] = i;
+            d++;
         }
     }
-    Con_Printf("seat_bind_test: (no panel row for \"%s\")\n", command);
-    return true;
+    Con_Printf("seat_bind_test: panel %d rows (before %d), %d changed%s%s%s%s\n", n, bindTest.panelCount, d,
+        d > 0 ? ": " : "", d > 0 ? now[diff[0]].cStr() : "", d > 1 ? ", " : "", d > 1 ? now[diff[1]].cStr() : "");
+    return n > 0 && n == bindTest.panelCount && d == 2;
 }
 
 void bindEditStage()
@@ -903,6 +918,7 @@ void bindEditStage()
             Cbuf_AddText("screenshot\n"); // (seat 2's screen in its tile: run.sh -Out composes it)
             t.keyA = bindsetup::cursorKey();
             t.bindA = bindOf(1, t.keyA);
+            t.panelCount = panelRows(1, t.panelBefore);
             bpress(SDL_CONTROLLER_BUTTON_X);
             bnext();
             return;
@@ -933,7 +949,7 @@ void bindEditStage()
             }
             bcheck(changed == 0, va("seat 1's pad bindings unchanged (%d differ)", changed));
             bcheck(bindsSaved(1), "seat 2's bindings now its own (saved)");
-            bcheck(panelShows(t.bindA.cStr(), t.keyB), "seat 2's bindings panel shows the swap");
+            bcheck(panelSwapped(), "seat 2's bindings panel (its pad's buttons) shows the swap");
             bpress(SDL_CONTROLLER_BUTTON_B);
             bnext();
             return;

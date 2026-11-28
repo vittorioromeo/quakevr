@@ -1,0 +1,17 @@
+# attach_bayomounts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". bayomounts (ROUND26.md,
+# ATTACHMENTS.md): the bayonet's mount drawn on every gun a bayonet fits; bayonets on the nailgun, the launchers, the
+# lightning gun and more.
+title Bayonet mounts: every gun that takes a bayonet shows its mount; bayonets on the new guns
+cvar vr_embed 1
+cvar vr_embed_fire 1
+map vrtesthall
+god
+notarget
+give "Nailgun" main
+spawn "Grenade Launcher" 40 30
+spawn "Rocket Launcher" 40 50
+spawn "Thunderbolt" 40 70
+spawn "Bayonet" 40 -20
+spawn "Bayonet" 40 -35
+spawn "Ogre" 140 -60
+hint Look under the barrel of each gun, in your hand, holstered, lying and on the floor: a small iron rail and ring shows where a bayonet goes. Put a bayonet on the nailgun and each other gun (left hand to the mount; flat-screen: H, then J), stab the ogre, fire stuck. Weapon Offsets > Attachments, Bayonet Mount, moves and sizes the rail per gun.

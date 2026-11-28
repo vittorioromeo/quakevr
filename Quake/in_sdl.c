@@ -751,6 +751,13 @@ int IN_GetGamepadSdlType (void)
 #endif
 }
 
+// QVR: nonzero when a gamepad is connected and is the device last used (the bindings reminder panels show its buttons
+// then: vr/vr_bindpanel.cpp).
+int IN_GamepadLastUsed (void)
+{
+	return IN_SeatPad (CL_SeatIndex ()) != NULL && IN_GetLastActiveDeviceType () == KD_GAMEPAD; // (split20: the current seat's pad)
+}
+
 void IN_UseNextGamepad (int dir, qboolean allow_disable)
 {
 	int i, j, numiter, numdev;

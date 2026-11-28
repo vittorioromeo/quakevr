@@ -1,0 +1,11 @@
+# flat_proc_reload: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) procedural shotgun reload: the free hand between the ammo pouch and the port (docs/vr-port/FLATPLAY.md, "Reloading"; flatprocreload).
+title Flat-screen procedural reload: a shotgun in the right hand, the left empty, a second shotgun and a super shotgun to try, grunts to shoot at
+hint Play with -flatscreenmode (Desktop Screen Play > Procedural Reload on, the default). Fire, then R: the left hand goes to the ammo pouch on your belt (look down to see it), brings a taped pair to the shotgun's port underneath (the gun tilts to meet it) and back, two shells a trip, until it is full. Fire or shove mid-reload: it stops, the pair in the hand goes back in the pouch (the count stays). Timings and angles: Tunables > Flatscreen > Procedural Reload. Take the second shotgun in the left hand (dual): R reloads both at the hips, as before; the super shotgun too.
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Shotgun" 40 70
+spawn "Super Shotgun" 40 -70
+spawn "Grunt" 260 30
+spawn "Grunt" 260 -30

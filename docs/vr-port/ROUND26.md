@@ -4480,6 +4480,97 @@ static sentence" (65/65), and the `--screenshots` harness check (no switches, se
 
 Docs only. Removed (done, checked against this file): "vrtesthall pose scenes place monsters in a wall" (lanescene), "Flat keys in Options > Controls" (flatkeys2: Controls has the flat rows, two keys per action), refactor items 4 and 5, "AD crossbow knight armed" (adknights; the checklist Knights lines cover the look), "Blades embedded in props" (propblade; one checklist line added under Ragdolls and props for the VR check). Changed: Splitscreen (6e6f2af6e, split19); the 11-26 baseline list keeps only what still fails (agrunt 203, ragdoll_grab, teleporters fixed by basefix1/basefix2); Spear/Lance numbers (relit fixed, one recheck still owed); section 2 is "1.2 release prep"; section 9 "1.1 is out: now due", formatting held until agent/split merges; Multiplayer and Platforms shrunk to what is left; flaky lists marked "to recheck: overnight flaky sweep queued 2026-11-27"; new section 7 line: shots and debris on the drawn body. Kept (workers on them today): flashlight blinding, melee arcs on remote clients, menu_paths regeneration.
 
+
+## flakysweep: the flaky and random-run-to-run tests, 5 runs each (branch agent/flakysweep, 2026-11-27)
+
+Tests only, no gameplay change. Each case 5 times on 53413f848 (Release, 2 lanes, the author's game running). The agrunt, arena, nail, rv,
+recoil and rigstudio cases ran through a copy of the kit's `run_baseline.py` with every `sv_random_seed N;` stripped (unseeded); the
+suite tests (`run_test_suite.py --only`), the ragdoll/judo scripts and `stealth_tests.sh all` ran as they are (their scripts seed
+themselves; stealth's scenes use seed 1); `vr_systems_test 15` ran on vrtesthall unseeded.
+
+| test | 5 runs | action |
+|---|---|---|
+| nail_1, rv_1, ragdoll_grab, stealth (all scenes), judo, parry_pose, weapon_catch, dead_gear | 5/5 | off `test_flaky.txt` (judo, parry_pose, weapon_catch, dead_gear were not on it); backlog lines removed |
+| agrunt 47, 63, 72, 76, 86, 12, 92, 74; recoil | 5/5 | steady; backlog notes for 74 and recoil dropped |
+| agrunt_67 / agrunt_209 (grab table 90%) | 4/5 each | stay flaky |
+| agrunt_66 ("lying (as shipped)") | 4/5 | not on the list before: added |
+| agrunt_71 ("balance grunt: damage a second within 25%") | 3/5 | stays flaky |
+| agrunt_91 ("raggrab: 8/9 won", "9/10 won") | 3/5 | added |
+| agrunt_65 ("grab anywhere: an axe at its chest") | 1/5 | added |
+| arena_11 ("its humanoids hold its 5 tier-2 and tier-3 guns (4 hold one)") | 4/5 | added |
+| ragdoll_ragtest ("catch: NOT begun in 3.0 s"), ragdoll_guard ("guard stagger: guards its head") | 4/5 each | stay flaky |
+| vr_systems_test 15 (the blast's body never knocks the torch off) | 2/5 | stays a backlog line |
+| teleporters_chase ("chase dog at framed_sill32: never reached the north room ... try 3 of 3, seed 3") | 0/5 | real failure, same text each run |
+| reload ("a prop held in the other hand hits the barrels open and shut by its surface", 5/5; lying shell 4/5; pouch refund 4/5; SSG sights 2/5) | 0/5 | real failure |
+| agrunt_60 (agparry "weapon: parried 1, 0 damage (kept 5 of 20), still armed 1") | 0/5 | real failure (stays listed) |
+| agrunt_16 (drawn grip 2.73-2.76 off, limit 2.5) | 0/5 | real failure (known) |
+| agrunt_3 ("yank: your main hand Fist, the grunt holds Shotgun") | 0/5 | real failure |
+| rigstudio_posekeys (case 5, right elbow) | 0/5 | real failure (known) |
+
+No fix was made: none of the 0/5 cases is an obvious stale expectation. `test_flaky.txt` keeps teleporters_chase and agrunt_60 so
+`--allow-flaky` runs are not stopped by them. Work files: `scratch/flaky_*.sh`, `flaky_rb.py` (the unseeded copy), `flaky_{c,s,g,st}_r1..5`.
+## bayomounts: the bayonet's mount drawn on every gun that takes one; bayonets on 9 more guns (branch agent/bayomounts, 2026-11-28)
+
+His words 2026-11-28: a small mounting rail/hinge where the bayonet attaches, always visible (held, holstered, dropped,
+...), tunable size/offset/rotation; bayonets on the nailgun, thunderbolt, rocket/grenade/proximity launchers, bloody
+shotguns, AD plasma gun, enforcer laser rifle, grunt burst rifle, heavy revolver.
+- **The mount model**: `progs/bayonet_mount.mdl` (make_bayonet.py `build_mount`: an iron rail behind the socket and a
+  ring round the socket's axis just behind it, the bayonet's skin; bayonet units, origin the bayonet's). Drawn by
+  `view::placeRail` (placeAttachment's placement split into `placeOnMount`, shared) at `attach::railMount`: the gun's att1
+  mount moved/turned by Weapon Offsets `mnt_x/y/z/pitch/yaw/roll` (bayonet units and frame), `mnt_size` (weapons.txt
+  defaults 0 and 1). Sites: your hands (`entities.rail`, under the SSG's opening barrels), holsters (`holsterRail`), another
+  player's held and holstered guns (GunParts::Rail), and `setupWorldRails` for every other gun in the draw list (lying,
+  monsters', map pickups: Quake VR draws pickups as view models; `pickupRails` covers the g_*.mdl ones): the nearest 32
+  within `vr_attach_mount_dist` 1500. `vr_attach_mount_show` 1 always (default: "always visible"; the socket covers the
+  rail, the ring sits behind it, no clipping seen in the sheet), 2 hidden under an attachment, 0 never. Menu: Weapon
+  Offsets > Attachments, "Bayonet Mount" (Show, Forward/Left/Up, Pitch/Yaw/Roll, Size); menu_paths.txt regenerated,
+  vrcalibration 0 missing. The wheel/holster previews of the other workers get it where they use the hands'/holsters'
+  entities; a preview with its own ViewEntity needs a `placeRail` call next to its `placeAttachment`.
+- **New mounts** (ATTACHMENTS.md table; weapons.txt att1_*/att2_*): measured from the engine's own frame 0
+  (`vr_attach_mdl_dump`, scratch bm_auto.py: underside on the barrel line at the front, the socket clear behind). The GL,
+  prox and Plasma Gun's fronts are lips shorter than the socket: mounted under the body's front instead. Inherited by the
+  lava nailgun, multi grenade/rocket and plasma-look lightning gun; copied to the burst rifle's 5 #adv slots. Dagger (att2):
+  the bayonet's mount + (-2.79, 0.339, -1.47) bayonet units (the shotguns' mean), level: untuned. Bloody shotguns: the
+  shotguns' slots (nothing to add). QC: attach points use the hand's record-aware model (`VR_Attach_HandModel` =
+  AD_WeaponModel), so the Plasma Gun uses its own mount, not the lightning gun's.
+- **Tests**: `vr_embed_test 96` (flat, attachguns 57/0 + 3 PENDING): per gun J on/off/on, V sticks, fired stuck (grenades/
+  mines: the shot counted, their delayed blast not required); `attach_guns_check.py`: the mount drawn in the hand (with
+  the bayonet), holstered, dropped, on the 5 map pickups: 32/32. menu attachtest 15/0 (the "not the nailgun" check moved
+  to the super nailgun; the new guns fit), flat 80 17/0, VR 79 26/1 (the known "picked up by the hand" failure).
+  attach_test.sh runs 96. Contact sheet (ortho renders, scratch bm_sheet.py): worktree `scratch/bayomounts_sheet.png`.
+- **Open**: flat V with a bayonet on the GL, prox or RL: flat play takes them two-handed once the off hand is free ("2h
+  click"), and V two-handed is no bayonet thrust (PENDING in 96); VR stabs are hand-driven (not tested per gun in VR).
+  The rail on the nailgun's pickup sits under one barrel (y -3). Dagger mounts on the new guns untuned.
+## questperf2: the Quest's LRZ bisected to your leg holsters' batches; a still models' set-up cache measured (branch agent/questperf2, 2026-11-28)
+
+Brief: find what ends LRZ in the opaque entity pass (qlrz2: not found), and cache the alias set-up across frames.
+- **Tools** (Debug > Profiling, all off by default; r_alias.c, gl_rmain.c, vr_render.cpp): the opaque pass's alias batches
+  are numbered per eye; `vr_debug_alias_first` / `vr_debug_alias_count` draw only some (their set-up still runs);
+  `vr_debug_lrz_probe` 6 (after your own models drawn first), 7 (after the world and brush models), 8 (after batch
+  `vr_debug_alias_probe_at`); `vr_debug_alias_lrz` bits on the opaque batches: 2 no clip distance, 4 shaded by the
+  depth-only program, 8 no extra buffers/textures bound, 16 no depth pre-pass, 32 no motion draw buffers;
+  `vr_gl_alias_lazy_blend` 1: a batch sets the blended state (GL_BLEND on) only for skins with blended texels (0, the
+  default: every batch, as Ironwail).
+- **Traces** (Quest 3, this branch's release APK, the frozen e1m1 gib fight, 0.65 fixed, `vr_gl_opaque_noblend 1`,
+  ovrgpuprofiler -t, LRZ Pixels Killed per eye; 3 launches 00:20-00:58): no alias batch drawn (set-up kept) **alive**
+  1.79M / 1.83M; after batch 0 (the axe) alive 1.47M / 1.41M; after batch 2 (the first leg holster) left eye alive 1.52M,
+  right dead; after batch 3 (the second holster) and later dead; points 6, 7 and 3 dead. No one state keeps it (each
+  dead: bits 2, 4, 8, 16, 32 alone, 58, 4 + lazy blend, depth clamp off `vr_nearclip_held 0` alone or with 4 / lazy, lazy
+  alone, 16 + lazy); **all of them together** (62 + lazy) keep it at point 3: 1.16M / 0.37M. So not a framebuffer
+  switch, compute or a set-up side effect (the PC's `vr_gl_passes`: one bind for the eye's whole opaque pass), but the
+  holsters' draws in a state made of several of those parts. Next: bisect the 62 + lazy combination (pairs, then
+  triples) with `vr_debug_alias_probe_at 3`; scripts in the tree's scratch (qp2_trace.sh, qp2_mkcfg.py, qp2_lrz.py).
+  No GPU timing A/B: nothing that keeps LRZ is shippable yet (bit 4 draws the models unshaded).
+- **Still models' set-up across frames** (`vr_alias_frame_cache`, default 0; 2 the check, `vr_alias_frame_cache_stats`):
+  an entity's VR_AliasInstance kept while its model, frame, skin, alpha, effects, colormap and transform are the same bit
+  for bit and the dynamic lights too. The check (PC, `-glescompat`, Standalone), the lights' key ignored: the gib fight
+  live 10,524 of 15,556 differ, frozen 684 of 8,030 (the wounds' timer, float 43, every frame; the light direction with
+  the dynamic lights); with the key 0 kept: e1m1's and the hub's flickering lights change every frame. So the instance
+  data cannot be kept as made; a cache would need its light and wound parts made per frame (where its cost is). Not
+  measured on the headset; default off.
+- No default changed; the PC unchanged (every new path off). Tests: permdecal_test PASS; the probe, batch and cache cvars
+  smoke-run on the PC mock (`-glescompat`).
+- Headset: beta6 (1.2.0-beta6, progs 45a721f8) and his 31 autosaves and 3 saves put back after (checksums match).
 ## mplows: the MP review's remaining lows (branch agent/mplows, 2026-11-27)
 
 The last lows of the 2026-11-20 review (MP_PLAN.md "Review fixes"; the notes `mprev_A.md`/`mprev_C.md` were recovered
@@ -4581,6 +4672,43 @@ fade and invisibility, copied into the body's mirror).
   `attach_holster_check.py`: each holstered gun's bayonet drawn, gap <= 0.05), also run at the end of attach_test.sh.
 - Armed humanoids carry no holstered guns; bots and dead players' bodies draw through drawHolsteredParts (the same path).
 
+## wheelgrenade: the weapon wheel's BACK POUCH entry: a grenade from the back pouch in that hand (branch agent/wheelgrenade, 2026-11-28)
+
+His words (2026-11-28): a weapon-wheel button, VR and flat, that grabs a grenade from the back pouch in that hand; with both
+normal and cluster grenades, the button split in two horizontal halves to pick.
+- **Entry** (`vr_weaponwheel.cpp` listGrenades, in the holsters' provider after UNLOAD; shown while the pouch is on,
+  `vr_handgrenade`): a slot titled BACK POUCH with the pouch grenade's thumbnail (`progs/grenade.mdl`, the multi-grenade's
+  `progs/mervup.mdl`) and the count left as the ammo line (STAT_ROCKETS, STAT_QVR_AMMOMULTI). Rockets only: one whole
+  "grenade"; multi-rockets only: one whole "cluster"; both: the slot split into two stacked halves ("horizontal halves" read
+  as one above the other), GRENADE on top and CLUSTER below, each a compact half (`HolsterMenuSlot::compact`: thumbnail left,
+  name and count beside it); neither: one greyed "grenade" (kept, not hidden: the wheel's places never move with ammo).
+  `Choice::half` (1 top, 2 bottom; one place on the ring), keys `keyGrenade` -5 / `keyMultiGrenade` -6.
+- **Layout**: eleven places (EMPTY HAND, three right holsters, DROP, FLIP GRIP, UNLOAD, BACK POUCH, three left holsters).
+  Ten fit the old 280 x 282 circle; eleven need an oval (119 across, 134 up/down) on a 308 x 318 image (a search over radii,
+  sizes and which places are actions: the bottom pair must be actions; 1.5 px between neighbours at least, 2 px inside the
+  edges and the footer). The pixel size is kept: `vr_weaponwheel_size` / `vr_flat_wheel_size` are now the size of the first
+  280 x 282 pixels, so the wheel is 10 % wider and 13 % taller than before and its text the same size. The hit test runs on
+  the oval (angle of the hand's offset scaled by the radii; off the wheel past the oval 46 px out); a split place's half by
+  the cursor above or below its middle.
+- **Pick** (QC `VR_Wheel_Pick` -5 / -6 -> `VR_Wheel_Grenade`, vr_flatgrenade.qc): the pouch on, that kind in it, the hand
+  carrying nothing; its weapon put away first by the wheel's EMPTY HAND (`VR_Wheel_Pick -1`: too big, or no holster free,
+  and nothing happens). Flat: the quick grenade's own trip to the pouch with that hand (VR_FLATGREN_FETCH: armed, wound up,
+  thrown, and put back with G as ever). Headset: `VR_HandGrenade_Take` at once; the hand's grip is not held (the wheel is a
+  face button), so the grenade is held as a wheel's weapon is: `VR_Carry_HoldGiven` / `VR_Carry_GivenHeld` (vr_carry.qc)
+  keep it until the grip is pressed, then the grip holds it (the trigger arms it, letting go throws it). The kind:
+  `.vr_hgren_want` (vr_grenade.qc), read and cleared by the next `VR_HandGrenade_Take` (a grenade, or the proximity grenade
+  when the proximity launcher is in the other hand, as the pouch gives; the multi-grenade), cleared by G and the quick
+  grenade's end. The server accepts `vr_wheel_pick` slots -6 .. 5.
+- `give m <n>` (Host_Give_f) now gives multi-rockets outside the mission pack too (Quake VR's progs always carry them).
+- **Tests**: `weaponwheel_test.sh <agent> grenade` 10/0 (headset: the left hand's CLUSTER held without its grip, armed by
+  the trigger, thrown by the grip's press and release 2 frames after; the right hand's GRENADE holsters its nailgun) and
+  `flatgrenade` 11/0 (the right hand's shotgun holstered, LMB arms and throws, the left hand's GRENADE, G puts it back);
+  the existing modes vr 25/0 (step 23 aims the hand once: `vr_mock_hand_to` moves from the hand's last place, so sent every
+  frame it swung about the eleven-place DROP) and flat 21/0. pouchgren_test 15/0, flatitems_test 14/0. Scene
+  `wheel_grenade` (rockets 10, multi-rockets 5). `mp_test.py suite --only mp_weaponwheel` 6/3: B's step 1 "the shotgun
+  holstered" times out with both hands empty (the nailgun of impulse 156 never arrives at a coop client); not this branch's
+  (nothing here touches the give), passed 9/0 in round 25: to look at.
+- Screenshot for his review: `scratch/weaponwheel/wheel_grenade_split.png` (flat, the split entry, GRENADE lit).
 ## spearstart
 
 The spear is a fourth Starting melee weapon in Run Setup (vr_runpick_startmelee 3: Axe, Dagger, Nothing, Spear; appended last so saved picks keep their numbers; default stays the axe). A new game gives WID_SWORD with VR_ADMelee_Flags(VR_SWORDKIND_SPEAR) in the melee holster (parm13/parm27, HIP_IT_SWORD, as the dagger), flat and VR. Run Setup is the one place the starting melee weapon is offered; new game, levels, hub and respawn all go through VR_RunStartWeapon_NewParms. Icon: v_spear.mdl. Test: vr_runlaunch_test gained picks row S and a "the spear start" step (VR_Run_TestCheck checks a spear-kind sword in the melee holster, no axe): 91 passed, 1 failed; the failure is the existing "Arena Mode right under Arcane Dimensions" Select Campaign look check, untouched here.
@@ -4636,3 +4764,104 @@ with each button labelled by its binding, drag to swap, click for a list of ever
   section 29. The TODO in vr_bindsetup.hpp and BACKLOG section 3's line are gone.
 - **Tests**: new `Misc/quakevr/seat_bind_test.sh` (test 'vr_seat_bind_test', two runs: edit + restart) 14/0, vr_bindsetup_test 12/0, seat_menu_test.sh 62/0, split_join_test.sh 113/0; open failures: SPLITSCREEN.md
   section 29 (seat_play 62/1, seat_render 367/1, bindpanel 6/2).
+## flatprocreload: flat-screen procedural shotgun reload, the free hand between the ammo pouch and the port (branch agent/flatprocreload, 2026-11-28)
+
+His words 2026-11-28: "adding actual procedural reloading animations to flatscreen play, gated behind an option, on by
+default ... begin with the shotgun, only when held one handed". FLATPLAY.md "The procedural reload" has the design.
+- **Setting**: Desktop Screen Play > Procedural Reload (`vr_flat_proc_reload 1`, QVR_RULE: the host's value holds, no wire
+  change; the client follows the server's bits). Tunables > Flatscreen > Procedural Reload: every phase's time (reach 0.2,
+  grab 0.06, carry 0.22, insert 0.08, return 0.22 s; tilt in 0.15 / out 0.2 s), the ease, the arc (3 u), the port approach
+  (5 u), the gun's tilt (pitch -10, yaw 12, roll -35, mirrored for the left hand) and move (up 2, in 3), the hand's turn at
+  the pouch (pitch 60) and at the port (the gun's), the failsafes (client 0.6 s, server 3 s), and the flat pouch's own
+  offset / turn / size (`vr_flat_ammo_pouch_*`, 0 / 0 / 1: on the belt where the headset has it).
+- **Shared with VR** (note_reuse): the take is VR's `VR_Reload_Take` (a taped pair; a single shell for the last place, as
+  `VR_Reload_ManualInHand` is now true for a flat gun on its procedural reload), the load is VR's carry test
+  (`VR_Carry_HandFrame` -> `VR_Reload_HeldFrame` -> `VR_Reload_LoadInto`, the port's reach, sounds, haptics, collect fx),
+  the pouch is VR's (drawn, its zone and hotspot, its rounds) shown by `ammoPouchEnabled`; the return to the pouch is
+  `VR_Reload_Refund`. Flat-only: the hand's driving (vr_flatprocreload.cpp, the flatattach trip's shape: eased segments,
+  each from where the hand was drawn), impulses 99 (take at the pouch's hotspot) and 106 (cancel; 100-105 are FrikBot's),
+  the server's state (`.vr_flatrl` 16/32/64, `.vr_fprl_*`).
+- **Cancels**: the gun's fire button (server; a dry click too), the shove/bash impulses (server), a punch (client, impulse
+  106), the weapon or the free hand changing, the option off. The round in the hand is refunded (drawn into the pouch).
+- **Tests**: `Misc/quakevr/flatprocreload_test.sh` 17/0 (trips: R from empty, +2 a trip to 8 of 8, a trip 0.56 s, full in
+  2.26 s, 8 taken = 8 loaded, nothing lost; fire mid-carry; a shove mid-carry; `vr_flat_prl_test_miss 12`: the client's
+  failsafe; dual shotguns and the super shotgun: the timed trip). Timed-trip tests opt out (`vr_flat_proc_reload 0`):
+  flatreload_test.sh 54/0, flatxhair_test.sh's reload case 31/0; flatitems_test.sh 14/0 unchanged.
+- **Open**: his feel pass on the times and angles (frame strips in the report); at the default level view the pouch and
+  most of the hand's trip are below the screen (the gun tilts up into view, the hand comes up to its port): a look-down or
+  a raised flat pouch (`vr_flat_ammo_pouch_z`) may suit; the other guns and dual wielding next, as he said.
+## bindpanel2: the controller reminder panels: VR above the weapon wheel, a pad's glyphs in flat and the main menu (branch agent/bindpanel2, 2026-11-28)
+
+His words (2026-11-28): "In VR mode, it would be nice for the weapon wheel to have the same reminder panel, but with the
+current controllers image + labeled buttons" ... "Use the correct icons for the controller buttons in reminder panels that
+match the connected controller type." Phase 2 of ctrlbind.
+- **One data path**: `bindsetup::panelButtons(model, pictures, out, max)` (vr_bindsetup.hpp): the model's small pictures
+  (`_s`: a VR pair, the left hand first, or the pad) and each button as the Controller Bindings screen labels it (its anchor,
+  name, glyph file and loaded glyph, its binding's action name from the same action list, the fixed menu button marked),
+  from the same art table (vr_bindsetup_art.inc), keyFor and binds. vr_bindpanel.cpp reads only that; the gadget's bind
+  panel renderer (vr_gadget_holster.inc) draws both kinds on its one target.
+- **VR** (`vr_wheel_bind_panel` 1, default on): above the headset's weapon wheel (6 wheel pixels over its top, centred, the
+  wheel's scale, faded with it; drawn by flatholster::drawImage as the wheel is) a panel with the detected controllers'
+  name, both hands' pictures in the middle and each bound button (menu left out) as a callout on its hand's side: its glyph
+  and action, a leader line to the button, rows at their buttons' heights as far as they fit apart
+  (`gadget::BindPanelView` pictures/callouts; `calloutLayout`). Made in weaponwheel::render (`bindpanel::headsetImage`).
+- **Flat with a pad** (the device last used: `IN_GamepadLastUsed`, in_sdl.c) the rows over the holster menu / flat wheel and
+  the main menu's are the pad's bound buttons (Start left out): the action and the pad type's glyph (Kenney's Xbox / Switch,
+  our drawn PlayStation and generic ones) in place of a key cap (`BindPanelRow::glyphs`; the main menu draws them square on
+  the stretched canvas). Keyboard and mouse: unchanged. The main menu's Setup Bindings opens the screen for the panel's
+  device (the pad's), else Options > Controls (it used to ask bindsetup::detect, which in -flatscreenmode with the mock gave
+  the headset's controllers and opened the controller screen for a keyboard player).
+- **Debug**: `vr_bindpanel_device <model|auto|next>` forces the panels' controller (Debug > Tools > Controller Bindings:
+  Reminder Panels: Next / Detected Controller, Reminder Panels Report); `vr_bindpanel_report` prints the rows (with
+  `glyph "<file>"`), the headset panel's callouts and how often it was made, and the device.
+- **Loose ends**: `quakevr/gfx/vr/glyphs/README.txt` (Kenney Input Prompts 1.5A, CC0, via OpenGameArt; our drawn_* ones).
+  flatmenu_esc_test's two "togglemenu reopens Options" failures were stale, not ctrlbind's: m_options is 9 since 78c69e4ce
+  removed m_net (ctrlbind appended m_bindsetup at the end); the test now expects 9 (7/0).
+- **Tests**: bindpanel_test 18/0 (adds an Xbox pad's rows and glyphs, the main menu drawn with them, a PlayStation pad's drawn
+  glyphs, the headset panel for a Quest 3 and an Index: both pictures, every callout a glyph, no glyph missing);
+  weaponwheel_test vr 26/0 (new: the panel shown over the open wheel), flat 21/0; flatmenu_esc 7/0; menu paths 0 missing.
+  Screenshots: scratch/weaponwheel/wheel.png (the mock headset's wheel with the panel), scratch/bindpanel/main.png (the main
+  menu: keyboard, then an Xbox pad).
+- **Open**: the VR panel is not interactive (no Setup Bindings in it); a gamepad's panel in a headset is not used (a headset
+  shows its controllers). Splitscreen per-seat bindings stay in BACKLOG section 3.
+
+## ledgegrab: a ledge grab's catch takes the fall (branch agent/ledgegrab, 2026-11-28)
+
+The knight's ledge grab "pulled away" (BACKLOG 11, ROUND25 box3dup2). On origin/next (after b3dtune's gap-relative
+"pulled away") climb_test pull passed (knight 4/4 batched and alone), but its hands were still yanked off. Measured with
+the new load trace (knight, seeds 7-10, `vr_box3d_mesh_ghosts` 1/0, batched/alone; `ledge_load.py`):
+- Falling past the lip at 3.4-4.3 m/s (pelvis), its first hand's ball joint caught it late: its arms straightened as it
+  fell on, its holds taking 0.1-0.4 of their cap while its pelvis dropped 36 units and sped up to 5.5 m/s in 0.2 s, then
+  one hold took the rest at once, 0.7-1.1 of its cap (not past it long enough to slip: 2 frames of slipTime's 18), and
+  the hand was yanked 11-13 units off its hold (a forearm's joint can't hold a 230 kg body's jerk): "pulled away" 0.22-0.32 s
+  after the grab. The climb went on (its other hand, reaching again), so the test passed.
+- Pulled away: ghosts off 6 (batched) and 5 (alone) in 4 runs each; ghosts on 0 and 0 (their bodies stopped sooner
+  against the lip). The other hand's re-grabs, 20-30 units off as it pulled itself up, took 1.2-3.4 of the cap.
+- Not the cap (2.4 body weights, holdCap) and not Box3D: the joint's softness against a light forearm under a heavy pull.
+
+Fix (`vr_ragactive_hold.cpp` catchFrame, called while it hangs): from its first hold its muscles take its fall, a force up
+on every part (its support, as the pull's climbLift), stopping its whole body's fall (its parts' mass-weighted speed: the
+pelvis's alone swings on its arms) over 0.2 s, at most 2.5 body weights, till it falls slower than 0.5 m/s (0.4 s at
+most), then eased off over 0.15 s. Tried and dropped: catching its later falls too (swinging down off one hand, from 1.5 m/s):
+a hell knight then hung otherwise and was stuck at the lip going over (pull hknight seed 10 batched).
+`vr_ragdoll_env_hit` (the test tool) now also strikes the hand's own part: push takes the part whose box is nearest, and
+with the knight hanging higher its right shin, kicked up onto the lip beside the hand, was it (hit knight seeds 7, 9 held on).
+Debug: the `ragenv` trace line adds `vz` (the pelvis's, m/s) and each hold's cap; "holds on" says how fast it was falling;
+a `climb:` line "caught its fall (N m/s at its grab) in T s, its muscles taking B body weights at most"; endClimb's line
+the most the catch took; `ragenv: struck on its <bone>` (vr_debug_ragdoll). climb_test: `XFILTER` (more lines), `CLIMB_LOG`
+(each run's lines, under `== run <class> seed <n>`), and a "N pulled away" count on each line (information).
+`Misc/quakevr/ragdoll/ledge_load.py <log>`: per run each ledge hold's fall speed, distance, cap, load at most against it,
+frames at the cap, distance at most, how it let go. Scenario `knight_ledge`.
+
+| check (Release, merged origin/next ae1e445c1) | before (origin/next) | now |
+|---|---|---|
+| knight pull seeds 7-10, ghosts on/off x batched/alone (16) | 16/16; 11 holds pulled away (ghosts off), worst load 3.38 of the cap | 16/16; 0 pulled away, worst 1.92 (a re-grab 26 units off as it pulls) |
+| knight first grab | caught by one hold at 0.7-1.1 of its cap | its muscles 1.5-1.7 body weights for 0.04-0.32 s; holds at most 0.2-0.6 of the cap |
+| climb_test pull, all classes, seeds 7-10, batched (24) | 24/24 | 24/24 |
+| the same alone (TB_SLOW=1) (24) | knight 4/4 | 24/24 |
+| climb_test drop, hit, off, seeds 7-9, batched (54) | 18/18 (seed 7, hkclimb) | 54/54 (2 knight drops each had a hand pulled away, information) |
+| env_test (default cases) | | 18 lines, no NaN or crash; the hit case's hands let go "hit" |
+| scenario knight_ledge | | validate 0 missing, runall OK |
+
+Left: `ragdollPartNear` (any push or shot on a ragdoll) takes the part whose bounding box is nearest, so a point inside
+two boxes (a hand at the lip, a shin kicked up beside it) can take the wrong part: a box3d change, not done here.

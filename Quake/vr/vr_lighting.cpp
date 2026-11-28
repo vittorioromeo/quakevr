@@ -1731,6 +1731,16 @@ void eyeCacheStats_f()
         static_cast<double>(vr_shadow_setup_share.value), taken, checked, bad);
 }
 
+// vr_alias_frame_cache_stats (questperf2): the models' instance data since the last call (r_alias.c
+// R_AliasFrameInstance): kept from the frame before, made anew; while vr_alias_frame_cache 2, checked and differing.
+void frameCacheStats_f()
+{
+    int s[4] = {};
+    R_AliasFrameCacheStats(s, 4);
+    Con_Printf("vr_alias_frame_cache_stats (vr_alias_frame_cache %g): %d kept, %d made, %d checked, %d differ\n",
+        static_cast<double>(vr_alias_frame_cache.value), s[0], s[1], s[2], s[3]);
+}
+
 // vr_shadow_caster_stats: since the last call, the dynamic lights' world caster sets kept and collected
 // (vr_shadow_caster_cache, collectWorldCached).
 void casterStats_f()
@@ -3126,6 +3136,7 @@ void lighting::init()
     Cmd_AddCommand("vr_light_probe", lightProbe_f);
     Cmd_AddCommand("vr_shadow_layered_check", layeredCheck_f);
     Cmd_AddCommand("vr_alias_eye_cache_stats", eyeCacheStats_f);
+    Cmd_AddCommand("vr_alias_frame_cache_stats", frameCacheStats_f);
     Cmd_AddCommand("vr_alias_cull_stats", R_AliasCullStats);
     Cmd_AddCommand("vr_oit_stats", R_OITStats);
     Cmd_AddCommand("vr_shadow_caster_stats", casterStats_f);

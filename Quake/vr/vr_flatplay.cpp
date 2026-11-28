@@ -50,6 +50,7 @@
 #include "vr_flatgrenade.hpp"
 #include "vr_held.hpp"
 #include "vr_flatattach.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
 #include "vr_flatswim.hpp"
@@ -4131,6 +4132,7 @@ void init()
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
     flatattach::init(); // vr_flatattach_report (vr_flatattach.cpp)
+    flatprocreload::init(); // vr_flatprocreload_report (vr_flatprocreload.cpp)
     flatholster::init(); // +flatholsters, vr_flat_holster_menu_dump, vr_flatholster_test (vr_flatholster.cpp)
     bindpanel::init();   // vr_bindpanel_report, vr_bindpanel_setup (vr_bindpanel.cpp: wheelui)
     flatfgrab::init();  // vr_flat_fg_report, vr_flat_fg_press (vr_flatfgrab.cpp)
@@ -4210,6 +4212,7 @@ void frame()
         slidesound::frame(vr_slide.value != 0.f); // (a headset's slide, vr_slide: its scrape too)
         flatreload::frame(false);
         flatattach::frame(false);
+        flatprocreload::frame(false);
         flatholster::frame(false);
         flatfgrab::frame(false);
         flatgrenade::frame(false);
@@ -4226,6 +4229,7 @@ void frame()
     pollKeysFlat();
     flatreload::frame(true); // R, and each hand's trip to the hip as the server says (vr_flatreload.cpp)
     flatattach::frame(true); // J's trip: the free hand to the gun's mount, the impulse on arrival (vr_flatattach.cpp)
+    flatprocreload::frame(true); // the procedural reload: the free hand between the pouch and the gun's port (vr_flatprocreload.cpp)
     flatfgrab::frame(true);  // E's grab: each hand's palm turned out, the grab sent, held while it flies (vr_flatfgrab.cpp)
     flatgrenade::frame(true); // G, and the grenade's hand as the server says (vr_flatgrenade.cpp)
     flatswap::frame(true); // the hands' swap, sent as they meet (vr_flatswap.cpp)
@@ -5358,6 +5362,9 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     QVR_TRACY_CALL("flat pose: attach", flatattach::apply(s));
     // E's grab (its hand's palm turned to what it pulls) and a prop held up in a hand (vr_flatfgrab.cpp), over all of it.
     QVR_TRACY_CALL("flat pose: force grab", flatfgrab::apply(s, aim));
+    // The procedural reload (vr_flatprocreload.cpp): the gun tilted, the free hand between the pouch and the port, over the
+    // carry pose of the round it holds (the force grab's).
+    QVR_TRACY_CALL("flat pose: procedural reload", flatprocreload::apply(s));
     // The quick grenade's hand (vr_flatgrenade.cpp) and the hands' swap (vr_flatswap.cpp), over all of it.
     QVR_TRACY_CALL("flat pose: grenade", flatgrenade::apply(s));
     QVR_TRACY_CALL("flat pose: swap", flatswap::apply(s));
