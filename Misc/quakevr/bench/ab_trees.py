@@ -8,11 +8,14 @@ Results: kit/benchresults/<L>/<tree>/<scenario>/r<k>.json and ab.log; then bench
 import argparse, os, shutil, subprocess, sys, time
 
 TREE = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")).replace(os.sep, "/")
-KIT = "C:/OHWorkspace/qvr-kit"
 BASH = "C:/Program Files/Git/bin/bash.exe"
 PY = f"{TREE}/Misc/quakevr/bench/qvrbench.py"
 sys.path.insert(0, f"{TREE}/Misc/quakevr/bench")
+sys.path.insert(0, f"{TREE}/Misc/quakevr")
 import qvrbench  # noqa: E402
+import qvrtest  # noqa: E402
+
+KIT = qvrtest.KIT
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--label", required=True)
