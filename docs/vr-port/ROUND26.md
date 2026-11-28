@@ -6250,6 +6250,21 @@ His words 2026-11-28, items 2, 7, 8.
   bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
   renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
 
+## Armed ragdolls keep firing one-handed guns: research and prototype (branch agent/ragfire, 2026-11-28)
+
+His item 17 (fb1127n). Full notes: `RAGFIRE.md`. Verdict: feasible and cheap; prototype done behind `vr_agrunt_ragfire`
+0 (VR Settings > Armed Grunts > Loadout: "Fire While Down (Experimental)"); looks need a wrist drive (about a day).
+- A staggering, downed or held armed humanoid with a shotgun, nailgun, nail pistol, revolver, burst rifle or laser rifle
+  fires at its target from its gun as it lies: its gun arm reaches towards the target (new active-ragdoll drive
+  `ragactive::Aim`, QC `ragdollaim` = `ragdollguard`'s optional grip/strength), it fires while the gun points within
+  `vr_agrunt_ragfire_cone` 60 deg, the shot turned by at most `_steer` 30 and off by `_error` 5, every `_interval` 1.6 s
+  (nails `_nail_interval` 0.6), never with its muzzle in the floor or its line blocked; `_held` 1 fires in your hands too;
+  `_aim` 0.7 the arm's strength (tunables, Debug > Tunables "Ragfire").
+- Shared shot path: `VR_AG_ShootProp`, `EnemyFireBullets`, `VR_AGR_NativeShot` take a global `vr_ag_rf_dir` (no AI aim,
+  no convergence, no drawn-line turn); off, nothing changes.
+- Measured: a lying ragdoll's gun stays 36-59 deg off the player with the arm reach on (limp wrist, arm on the floor); a
+  shotgun lying muzzle down holds every shot (blocked). Next: drive the hand bone, then cut the steer to ~10 deg.
+- Test `vr_agrunt_test 237` (vr_armedgrunt_ragfire_test.qc): 5/0. Scene `agrunt_ragfire`.
 ## blcheck: BACKLOG items checked against the code and ROUND26 (branch agent/blcheck, 2026-11-28)
 
 Every open BACKLOG.md bullet (about 79) read against ROUND26/ROUND25 sections and the code (greps; no tests run: docs only).
