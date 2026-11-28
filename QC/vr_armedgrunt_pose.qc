@@ -2197,11 +2197,18 @@ void(entity g, entity pL) VR_AGP_LeftBlade =
 // vr_agrunt_pose_lod_frames server frames (a chainsaw's every other: its engine's loop is in its pose); posed the
 // first frame it is seen. vr_agp_lod_dt: the time since its last pose when it is posed (VR_AG_PropThink: its eases
 // move on by all the frames skipped).
+// ... (and the think's, VR_AG_ThinkLod): nothing its pose times under way (no attack, cast or shove, no aim, no weapon
+// being taken up, not a studio's or held still, not a ragdoll, not posed yet this frame, the same enemy as at its last
+// pose: a new one, posed at once).
+float(entity g, float still) VR_AGP_LodIdle =
+{
+    return !still && !vr_agp_quiet && g.health > 0 && !g.vr_ag_act && g.vr_ag_took_at <= 0 && !g.vr_agk_held &&
+        !g.vr_agk_live && g.vr_ag_aimw <= 0 && g.vr_agp_lod_pose < time && g.enemy == g.vr_agp_lod_en && !isragdoll(g);
+};
+
 float(entity g, float still) VR_AGP_Lod =
 {
-    float skip = cvar_hget(cvarh_vr_agrunt_pose_lod) && !still && !vr_agp_quiet && g.health > 0 && !g.vr_ag_act &&
-        g.vr_ag_took_at <= 0 && !g.vr_agk_held && !g.vr_agk_live && g.vr_ag_aimw <= 0 && g.vr_agp_rdy <= 0 &&
-        g.vr_agp_lod_pose < time && g.enemy == g.vr_agp_lod_en && !isragdoll(g);
+    float skip = (cvar_hget(cvarh_vr_agrunt_pose_lod) && g.vr_agp_rdy <= 0 && VR_AGP_LodIdle(g, still));
     if(skip)
     {
         // (an alert one, as before: its readiness eases up in its pose; a chainsaw's engine sounds from it)

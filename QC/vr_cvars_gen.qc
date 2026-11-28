@@ -338,6 +338,8 @@ float cvarh_vr_agrunt_take_bend_kneel;
 float cvarh_vr_agrunt_taunt;
 float cvarh_vr_agrunt_test;
 float cvarh_vr_agrunt_test_kind;
+float cvarh_vr_agrunt_think_lod;
+float cvarh_vr_agrunt_think_lod_frames;
 float cvarh_vr_agrunt_tug;
 float cvarh_vr_agrunt_tug_break_force;
 float cvarh_vr_agrunt_tug_break_impulse;
@@ -2627,6 +2629,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agrunt_taunt = VR_CVar_Make("vr_agrunt_taunt");
     cvarh_vr_agrunt_test = VR_CVar_Make("vr_agrunt_test");
     cvarh_vr_agrunt_test_kind = VR_CVar_Make("vr_agrunt_test_kind");
+    cvarh_vr_agrunt_think_lod = VR_CVar_Make("vr_agrunt_think_lod");
+    cvarh_vr_agrunt_think_lod_frames = VR_CVar_Make("vr_agrunt_think_lod_frames");
     cvarh_vr_agrunt_tug = VR_CVar_Make("vr_agrunt_tug");
     cvarh_vr_agrunt_tug_break_force = VR_CVar_Make("vr_agrunt_tug_break_force");
     cvarh_vr_agrunt_tug_break_impulse = VR_CVar_Make("vr_agrunt_tug_break_impulse");
