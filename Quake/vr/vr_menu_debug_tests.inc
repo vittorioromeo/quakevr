@@ -1031,8 +1031,9 @@ za::Vector<Item> pageDebugTests()
                   "steps, health, look, quicker swings, shrugged pains; infected too; the Hard/Nightmare roll and the "
                   "arena's wave rule (agtest: test 233 over: N passed, M failed)."),
         command("Elite Lineup (Screenshot)", "vr_agrunt_freeze 1; vr_agrunt_test 234")
-            .help("vr_agrunt_test 234: an ordinary and an elite grunt, enforcer and knight in a row ahead, held still, "
-                  "and a screenshot (Hold Still stays on: Debug > Tools > Texture Studio's to turn it off)."),
+            .help("vr_agrunt_test 234: an ordinary and an elite grunt, enforcer, knight and death knight in a row ahead, "
+                  "unarmoured, held still, a screenshot and each elite's dye checked (vr_humlook_dyetest) (Hold Still stays "
+                  "on: Debug > Tools > Texture Studio's to turn it off)."),
         command("Test: Melee Rules (Side-step, Arcs)", "vr_agrunt_test 212")
             .help("vr_agrunt_test 212 (vrtesthall): an armed sword's blow lands from ahead, a side-step out of its swing "
                   "dodges it; Show Melee Arcs shows each kind's rule. One agtest: line each."),
