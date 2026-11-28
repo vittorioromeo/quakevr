@@ -112,6 +112,7 @@ struct ProcState
     int dropped{0};              // carried rounds gone without the clip rising
     int cancels{0};
     const char* lastCancel{"-"};
+    float grip{0.f};             // the free hand's fingers on the round (gripShare), before its ease
 };
 
 ProcState ps;
@@ -188,6 +189,7 @@ constexpr int procBitBase = 16; // STAT_QVR_FLATRELOAD: 16 the off hand's gun, 3
 constexpr int procOnBit = 64;   // the procedural reload on: the pouch shown (QC VR_FLATRL_PROC_ON)
 constexpr float pi = 3.14159265f;
 constexpr float attachTime = 0.12f; // (s: the drawn free hand onto the drawn gun and off it, attachDrawn)
+constexpr float gripTime = 0.08f;   // (s: the free hand's fingers onto the round and off it, gripShare)
 
 [[nodiscard]] float timeOf(const Tunable& c, float least)
 {
@@ -431,9 +433,9 @@ void report_f()
     const bool drawn = lk.on && view::drawnHandPose(lk.free, fp, fr) && view::drawnHandPose(lk.gun, gp, gr);
     const glm::vec3 rel = drawn ? glm::transpose(held::axesFromAngles(&gr[0], true)) * (fp - gp) : glm::vec3{0.f};
     Con_Printf("flatprocreload: lock %s key %d (%s) %s %.2f %s; free hand %s from the gun hand %.2f %.2f %.2f turned %.1f %.1f %.1f; "
-               "tilt %.2f pair %d busy %d round gap %.2f\n",
+               "tilt %.2f pair %d busy %d round gap %.2f grip %.2f fingers %.2f\n",
         lk.on ? "on" : "off", lk.key, keyNames[lk.key], spotName(lk.from), lk.t, spotName(lk.to), handName(lk.free), rel.x, rel.y, rel.z,
-        fr.x, fr.y - gr.y, fr.z, ps.tilt, lk.pair ? 1 : 0, busy(lk.free) ? 1 : 0, ps.portGap);
+        fr.x, fr.y - gr.y, fr.z, ps.tilt, lk.pair ? 1 : 0, busy(lk.free) ? 1 : 0, ps.portGap, gripShare(lk.free), view::drawnGripCurl(lk.free));
 }
 
 [[nodiscard]] int lockKey()
@@ -555,8 +557,13 @@ struct Spots
     const glm::vec3 portRot =
         s.rot[g] + glm::vec3{vr_flat_prl_port_pitch.value, side * vr_flat_prl_port_yaw.value, side * vr_flat_prl_port_roll.value};
     sp.rot[SpotMouth] = sp.rot[SpotPort] = portRot;
-    sp.pos[SpotMouth] = handFor(sp.port + sp.face * za::max(vr_flat_prl_approach.value, vr_flat_prl_test_miss.value), portRot);
-    sp.pos[SpotPort] = handFor(sp.port + sp.face * za::max(0.f, vr_flat_prl_test_miss.value), portRot);
+    // And its place there nudged by vr_flat_prl_port_fwd / _right / _up in the gun hand's frame (forward, left, up; the right
+    // mirrored: the free hand is the off one for a gun in the main hand, side -1), the round with it (prlmove: his "hand at
+    // port" offsets).
+    const glm::vec3 nudge =
+        gunAxes * glm::vec3{vr_flat_prl_port_fwd.value, side * vr_flat_prl_port_right.value, vr_flat_prl_port_up.value};
+    sp.pos[SpotMouth] = handFor(sp.port + sp.face * za::max(vr_flat_prl_approach.value, vr_flat_prl_test_miss.value), portRot) + nudge;
+    sp.pos[SpotPort] = handFor(sp.port + sp.face * za::max(0.f, vr_flat_prl_test_miss.value), portRot) + nudge;
     return sp;
 }
 
@@ -701,6 +708,11 @@ void frame(bool on)
                                   : (t.phase == Phase::Carry || t.phase == Phase::Insert);
         const float rate = step / attachTime;
         dg.share = toPort ? za::min(1.f, dg.share + rate) : za::max(0.f, dg.share - rate);
+        // The free hand's fingers: a headset's grip on the round while it holds one (gripShare), eased in and out.
+        const bool holds = lk.on ? lk.pair
+                                 : (t.phase == Phase::Grab || t.phase == Phase::Carry || t.phase == Phase::Insert) && carriedEnt(t.free) > 0;
+        const float grip = step / gripTime;
+        ps.grip = holds ? za::min(1.f, ps.grip + grip) : za::max(0.f, ps.grip - grip);
     }
     const int bits = cl.stats[protocol::STAT_QVR_FLATRELOAD];
     int upHand = -1;
@@ -830,8 +842,9 @@ void frame(bool on)
                 (in ? ps.seated : ps.dropped)++;
                 if(debugOn())
                 {
-                    Con_Printf("flatprocreload: the round %s (%s %.2f s in; clip %d)\n", in ? "went in" : "left the hand",
-                        phaseName(t.phase), since, clipOf(t.gun));
+                    Con_Printf("flatprocreload: the round %s (%s %.2f s in; clip %d; fingers %.2f, grip %.2f)\n",
+                        in ? "went in" : "left the hand", phaseName(t.phase), since, clipOf(t.gun), view::drawnGripCurl(t.free),
+                        gripShare(t.free));
                 }
                 setPhase(Phase::Reach, in ? "seated: the next round" : "lost on the way: another");
             }
@@ -943,6 +956,12 @@ void apply(hands::State& s)
     ps.faceToFree = glm::length(toFree) > 1e-3f ? glm::dot(face, glm::normalize(toFree)) : 0.f;
     ps.portGap = t.roundKnown && carriedEnt(f) > 0 ? glm::distance(s.pos[f] + held::axesFromAngles(&s.rot[f][0], true) * t.roundIn, port)
                                                    : -1.f;
+}
+
+float gripShare(int h)
+{
+    const int f = lk.on ? lk.free : ps.trip.free;
+    return busy(h) && h == f ? geom::smooth01(ps.grip) : 0.f;
 }
 
 void noteDrawn(const hands::State& s, int hand, const glm::vec3& pos, const glm::vec3& rot)

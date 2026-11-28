@@ -179,10 +179,46 @@ check(bool(nx) and int(nx[0].group(2)) == 1 and bool(pv) and int(pv[0].group(2))
       (nx[0].group(2) if nx else "-", pv[0].group(2) if pv else "-"))
 check(bool(sc) and int(sc[0].group(2)) == 8 and sc[0].group(4) == "pouch" and sc[0].group(6) == "mouth" and int(sc[0].group(14)) == 1,
       "lock: scrub 0.5 is mid-carry with the pair (%s)" % (sc[0].group(0)[16:80] if sc else "none"))
+# prlmove: the free hand's fingers grip the pair (key 4) as a headset's hand does, open at the pouch without one (key 3); the
+# hand-at-port offsets (forward 1, up 2) move the locked hand at the port (key 6) by their length in the gun's frame.
+GRIP = re.compile(r"grip ([\d.]+) fingers (\S+)")
+gm = lambda m: GRIP.search(m.string)
+if all(len(bykey.get(k, [])) >= 2 for k in (3, 4)) and gm(bykey[3][1]) and gm(bykey[4][1]):
+    g3, f3 = float(gm(bykey[3][1]).group(1)), float(gm(bykey[3][1]).group(2))
+    g4, f4 = float(gm(bykey[4][1]).group(1)), float(gm(bykey[4][1]).group(2))
+    check(g3 == 0.0 and g4 == 1.0 and f4 > f3 + 0.2, "lock: the fingers grip the pair (key 4: grip %.2f, fingers %.2f) and not at the "
+          "pouch without it (key 3: grip %.2f, fingers %.2f)" % (g4, f4, g3, f3))
+else:
+    check(False, "lock: the fingers' grip reported at keys 3 and 4")
+pb = [m for lab, m in reps if lab == "port before"]
+pn = [m for lab, m in reps if lab == "port nudged"]
+moved = dist(rel(pn[0]), rel(pb[0])) if pb and pn else -1
+check(bool(pb) and bool(pn) and int(pn[0].group(2)) == 6 and 2.0 < moved < 2.5,
+      "lock: Hand at Port: Forward 1, Up 2 moved the hand at the port %.2f units (2.24)" % moved)
 check(any(l.startswith("flatprocreload: none -> return (the lock let go") for l in L) and
       any(l.startswith("flatprocreload: the off hand back in its pose") for l in L), "lock: let go, the hand back in its pose")
 check(not any(l.startswith("flat proc reload: start") for l in L) and not any(l.startswith("flatprocreload: impulse 99") for l in L),
       "lock: no reload ran, nothing taken from the pouch")
+
+# prlmove: full reloads on the move. Before: the pair, swept from where it was a frame ago, met the body and the gun's hull
+# and the hand let go of it (a pair lost a trip), and the hand aimed it from the drawn (swaying) gun and the interpolated
+# pair, 2-4 units beside the port the server tests: every run cancelled by the failsafe, nothing loaded.
+WENT = re.compile(r"^flatprocreload: the round went in .*fingers (\S+), grip ([\d.]+)")
+for run in ("mrun", "mjump", "mslide", "mcrouch", "mrun60", "mrun144"):
+    L = lines(run)
+    st = [m for m in map(START.match, L) if m]
+    ins = [int(m.group(2)) for m in map(IN.match, L) if m]
+    end = [m for m in map(END.match, L) if m]
+    lost = [l for l in L if l.startswith("flatprocreload: the round left the hand")]
+    fs = [l for l in L if l.startswith("flatprocreload: cancelled (failsafe") or
+          (l.startswith("flat proc reload: main hand cancelled") and "failsafe" in l)]
+    full = bool(end) and end[-1].group(2) == "done" and int(end[-1].group(6)) == int(end[-1].group(7))
+    check(not timed_out(run) and bool(st) and full and not lost and not fs and ins and all(n == 2 for n in ins),
+          "%s: a full reload on the move, every pair seated (%s), none dropped (%d), no failsafe (%d), %s" %
+          (run, ins, len(lost), len(fs), end[-1].group(0)[18:70] if end else "no end"))
+    fingers = [float(m.group(1)) for m in map(WENT.match, L) if m]
+    check(bool(fingers) and min(fingers) >= 0.6, "%s: the fingers closed on each pair as it went in (%s)" %
+          (run, ["%.2f" % f for f in fingers]))
 
 print(f"flatprocreload: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

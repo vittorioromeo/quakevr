@@ -30,6 +30,10 @@ void apply(hands::State& s);
 // (position and turn) and the port as measured in that hand's frame, the very place the free hand aims the round at (so
 // the server's test, round against port, is the hands' relative placement: the player's motion, the view's sway, a turn
 // since the last render don't come between them). False: no trip on that gun (the port carried as for every gun).
+// How much hand `h`'s fingers take the grip a headset's hand has on a round from the pouch (0..1, eased; vr_view.cpp
+// updateFingerFrames: the grip squeezed, the index closing with it, wrapped round the round by vr_hand_fit as a headset's):
+// the free hand of a trip while it holds the round (the take to the insert), or of the key-pose lock with its pair.
+[[nodiscard]] float gripShare(int h);
 // The view, each hand as it is drawn (vr_view_hands.cpp setupHand, before drawHand): noteDrawn keeps the gun hand's game
 // pose `s` and its drawn pose; attachDrawn moves the free hand of a trip, from the carry to the insert (eased in and out),
 // onto the gun as drawn: the game's free hand relative to the game's gun hand, put on the drawn gun hand (the drawn gun
