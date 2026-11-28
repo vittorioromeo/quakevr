@@ -6152,3 +6152,12 @@ to RT/LT/A; new `seat_padlabels_test.sh` 4/0, seat_bind 14/0, seat_menu 62/0, sp
 - Disk: moved to F:\QVR-Parked‚6-11-28\diskclean\: worktrees pcbase and unionmerge (3.3 GB, worktree prune), the kit base
   bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
   renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
+
+## split22: splitscreen: next merged again (24 commits), the Controller Bindings freeze fixed (branch agent/split, 2026-11-28)
+
+Next 118c6d6a2 merged with no conflicts. aglod's unseen test already counts every seat (each seat is a server client);
+the merge's new server and VM globals marked seat-shared (movers, qcexec_time, pointBonesCheck). The branch's own bug:
+split20's `bindsetup::pointerOn()` called itself (clang made it a loop), so the Controller Bindings screen froze the game
+on its first frame: the `vr_menu_pad_test` hang; now `menuui::pointerOn(true)`. Tests: flatpad_test.sh 4/0, seat_bind
+14/0, seat_menu 62/0, seat_play 63/0, seat_padlabels 4/0, seat_split21 6/0, split_join 113/0, seat_render 367/1 (the
+known anim ragdoll one-off), aglod_test 18/0. How to try it and what a merge into next needs: SPLITSCREEN.md section 31.
