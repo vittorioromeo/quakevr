@@ -9,6 +9,7 @@
 #include "vr_files.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_tunables.hpp"
 
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
@@ -18,6 +19,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <cstdio>
@@ -30,8 +32,10 @@ namespace
 // The table's names: the rows (QC VR_AM_* order) and the categories (QC VR_HUM_CAT_*; 0 none).
 constexpr const char* kindNames[] = {"grunt", "enforcer", "knight", "dknight"};
 constexpr const char* categoryNames[] = {
-    "none", "explosive", "energy", "flame", "poison", "shells", "nails", "melee", "own",
+    "none", "explosive", "energy", "flame", "poison", "shells", "nails", "melee", "own", "9", "10", "11", "12", "13", "14",
+    "elite", // (catElite: an elite's clothes, whatever it holds; vr_humlook.hpp eliteBit)
 };
+static_assert(countof(categoryNames) == maxCategories && catElite == maxCategories - 1);
 constexpr const char* partNames[] = {"clothes", "pack"};
 // The masks' keys: a kind's body, or a worn pack (any kind's).
 constexpr const char* keyNames[] = {"grunt", "enforcer", "knight", "dknight", "pack"};
@@ -558,8 +562,17 @@ void describe(int look)
     const int body = look & (partPack - 1);
     const int kind = body / maxCategories;
     const int cat = body % maxCategories;
-    Con_Printf("  look %d: %s %s %s", look, kind < static_cast<int>(countof(kindNames)) ? kindNames[kind] : "?",
-        cat < static_cast<int>(countof(categoryNames)) ? categoryNames[cat] : "?", partNames[part]);
+    const bool elite = (look & eliteBit) != 0;
+    Con_Printf("  look %d: %s %s %s%s", look, kind < static_cast<int>(countof(kindNames)) ? kindNames[kind] : "?",
+        cat < static_cast<int>(countof(categoryNames)) ? categoryNames[cat] : "?", partNames[part], elite ? " elite" : "");
+    if(elite && !part)
+    {
+        const Spec* e = kind < maxKinds ? spec(kind, catElite, 0) : nullptr;
+        Con_Printf(e && e->set ? ": elite colour %g %g %g strength %g light %g tint %g\n" : ": no elite row (as it is)\n",
+            e ? e->rgb[0] : 0.f, e ? e->rgb[1] : 0.f, e ? e->rgb[2] : 0.f, e ? e->strength : 0.f, e ? e->light : 0.f,
+            e ? e->tint : 0.f);
+        return;
+    }
     const Spec* s = kind < maxKinds && cat > 0 ? spec(kind, cat, part) : nullptr;
     if(!s || !s->set)
     {
@@ -574,8 +587,25 @@ void describe(int look)
 void info_f()
 {
     ensureLoaded();
-    Con_Printf("humlook: %d rows from %s, %d skins' masks, %d looks known by the client, vr_humlook %g\n", table.rows,
-        tableName(), static_cast<int>(skins.size()), numLooks, vr_humlook.value);
+    int elites = 0; // (the client's elites' bodies: the MP test reads it)
+    for(const unsigned short l : looks)
+    {
+        elites += (l & eliteBit) && !(l & partPack) ? 1 : 0;
+    }
+    Con_Printf("humlook: %d rows from %s, %d skins' masks, %d looks known by the client, %d elites, vr_humlook %g\n",
+        table.rows, tableName(), static_cast<int>(skins.size()), numLooks, elites, vr_humlook.value);
+    // The client's first elite as it is drawn: its instance's clothes row (the elite dye, pulsing), a remote client's too.
+    for(int i = 0; i < static_cast<int>(looks.size()) && cl_entities && i < cl_max_edicts; i++)
+    {
+        if((looks[static_cast<za::SizeT>(i)] & eliteBit) && !(looks[static_cast<za::SizeT>(i)] & partPack) && cl_entities[i].model)
+        {
+            float rows[4][4];
+            instanceRows(&cl_entities[i], rows);
+            Con_Printf("  client elite %d: clothes %.2f %.2f %.2f strength %.2f light %.2f, mask %s\n", i, rows[0][0], rows[0][1],
+                rows[0][2], rows[0][3], rows[2][0], rows[3][0] > 0.f ? "yes" : "no");
+            break;
+        }
+    }
     for(const Skin& s : skins)
     {
         int count[4] = {};
@@ -648,7 +678,8 @@ constexpr const char* tableHead =
     "# A row: <type> <category> <part> r g b strength light tint\n"
     "#   type      grunt, enforcer, knight, dknight (the armed monsters' rows, QC VR_AM_*)\n"
     "#   category  explosive (rockets, grenades), energy (lightning, plasma, lasers), flame, poison; the others (shells, nails,\n"
-    "#             melee, the monster's own gun) have no row: as today\n"
+    "#             melee, the monster's own gun) have no row: as today; elite: an elite's clothes whatever it holds (its pack\n"
+    "#             keeps its weapon's colour, else the elite pack row; QC vr_attrs.qc), its lightness pulsing (vr_elite_pulse)\n"
     "#   part      clothes (its body's masked texels), pack (its worn backpack, and a pack in its body's skin)\n"
     "# Which texels: humlook_masks.txt (their palette rows; a few painted by hand). Faces and flesh are never changed.\n"
     "#   r g b     the colour (0..1) the texels are dyed: each keeps its own lightness (its shading), in that colour\n"
@@ -961,8 +992,57 @@ void parseEvent()
     }
 }
 
+// vr_attr_set <attribute> <0|1> [entity]: an enemy attribute (QC vr_attrs.qc's table: infected, elite, or its bit) given
+// or taken on that entity, or on the monster nearest the first player (Debug > Tools > Enemy Attributes).
+namespace
+{
+void attrSet_f()
+{
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_attr_set <attribute> <0|1> [entity]: infected, elite (QC vr_attrs.qc), on the nearest monster or that one\n");
+        return;
+    }
+    if(!sv.active)
+    {
+        Con_Printf("vr_attr_set: no game running here\n");
+        return;
+    }
+    const progs::ServerVm vm;
+    const func_t count = progs::findFunction("VR_Attr_UiCount"), name = progs::findFunction("VR_Attr_UiName"),
+                 cmd = progs::findFunction("VR_Attr_Cmd");
+    if(!count || !name || !cmd)
+    {
+        Con_Printf("vr_attr_set: not in this game's QC\n");
+        return;
+    }
+    int bit = 0;
+    const int n = static_cast<int>(progs::qcFloat(count));
+    for(int i = 0; i < n && i < 16 && !bit; i++)
+    {
+        char text[32];
+        progs::qcText(text, sizeof(text), name, static_cast<float>(i));
+        bit = !q_strcasecmp(text, Cmd_Argv(1)) ? 1 << i : 0;
+    }
+    bit = bit ? bit : atoi(Cmd_Argv(1));
+    if(bit <= 0)
+    {
+        Con_Printf("vr_attr_set: no attribute \"%s\"\n", Cmd_Argv(1));
+        return;
+    }
+    edict_t* e = Cmd_Argc() > 3 ? progs::edictAt(atoi(Cmd_Argv(3))) : nullptr;
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+    G_FLOAT(OFS_PARM0) = static_cast<float>(bit);
+    G_FLOAT(OFS_PARM1) = atof(Cmd_Argv(2)) != 0.0 ? 1.f : 0.f;
+    G_INT(OFS_PARM2) = e ? EDICT_TO_PROG(e) : 0;
+    PR_ExecuteProgram(cmd);
+}
+} // namespace
+
 void registerCommands()
 {
+    Cmd_AddCommand("vr_attr_set", attrSet_f);
     Cmd_AddCommand("vr_humlook_reload", [] {
         reload();
         Con_Printf("humlook: %d rows from %s, masks from %s\n", table.rows, tableName(), masksName());
@@ -986,10 +1066,17 @@ void instanceRows(const entity_t* e, float rows[4][4])
     }
     const int part = key == keyPack ? 1 : 0;
     const int body = look & (partPack - 1);
-    const Spec* clothes = part ? nullptr : spec(body / maxCategories, body % maxCategories, 0);
+    const bool elite = (look & eliteBit) != 0;
+    // (an elite: its clothes the elite row's; its pack its weapon's colour, else the elite row's pack)
+    const Spec* clothes = part ? nullptr : spec(body / maxCategories, elite ? catElite : body % maxCategories, 0);
     const Spec* pack = spec(body / maxCategories, body % maxCategories, 1);
     clothes = clothes && clothes->set ? clothes : nullptr;
     pack = pack && pack->set ? pack : nullptr;
+    if(elite && !pack)
+    {
+        pack = spec(body / maxCategories, catElite, 1);
+        pack = pack && pack->set ? pack : nullptr;
+    }
     const bool overlay = studioOverlay();
     if(!clothes && !pack && !overlay && !studioCursorOn())
     {
@@ -1009,6 +1096,13 @@ void instanceRows(const entity_t* e, float rows[4][4])
         rows[0][3] = clothes->strength;
         rows[2][0] = clothes->light;
         rows[2][1] = clothes->tint;
+        if(elite && vr_elite_pulse.value > 0.f)
+        {
+            // (the elite's pulse: its lightness up and down, each one on its own phase by its number)
+            const float phase = static_cast<float>(cl.time) * vr_elite_pulse_hz.value * 6.2831853f +
+                                static_cast<float>(e - cl_entities) * 1.7f;
+            rows[2][0] = clothes->light * (1.f + za::clamp(vr_elite_pulse.value, 0.f, 1.f) * za::sin(phase));
+        }
     }
     if(pack)
     {

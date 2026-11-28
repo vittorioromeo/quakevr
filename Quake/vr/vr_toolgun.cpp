@@ -2046,7 +2046,7 @@ void reset_f()
 void armedDefaults()
 {
     for(cvar_t* cv : {&vr_toolgun_armed_kind, &vr_toolgun_armed_weapon, &vr_toolgun_armed_weapon2, &vr_toolgun_armed_armor,
-            &vr_toolgun_armed_pieces, &vr_toolgun_armed_infected})
+            &vr_toolgun_armed_pieces, &vr_toolgun_armed_infected, &vr_toolgun_armed_elite})
     {
         Cvar_SetQuick(cv, cv->default_string ? cv->default_string : "0");
     }
@@ -2129,6 +2129,64 @@ void armedInfectedTest_f()
     armedDefaults();
     Con_Printf("toolgun infected test: the choice back to %g\n", vr_toolgun_armed_infected.value);
     qvr::testkit::verdict("toolgun infected test", passed, failed + (vr_toolgun_armed_infected.value != 0.f ? 1 : 0));
+}
+
+// vr_toolgun_armed_elite_test: the Armed Humanoid page's Elite and Infected With together on what it spawns (ROUND26.md,
+// "elite"): each armed kind elite alone, elite and infected (the first outcome), neither, spawned ahead of the player as
+// the spawn tool does (spawnChoice) and looked at by QC (VR_Attr_TestOne: its bits, its infection's row, its look's
+// elite bit, its stats), the choices back to their defaults. Ends on "toolgun elite test: N passed, M failed".
+void armedEliteTest_f()
+{
+    int passed = 0, failed = 0;
+    armedRefresh();
+    const func_t one = sv.active ? [] { const progs::ServerVm vm; return findFunction("VR_Attr_TestOne"); }() : 0;
+    if(!sv.active || !armedCat.valid || armedCat.kindCount < 2 || armedCat.infectCount < 2 || !one)
+    {
+        Con_Printf("toolgun elite test: FAIL: a game with the armed monsters' table and the tests' QC\n");
+        qvr::testkit::verdict("toolgun elite test", passed, 1);
+        return;
+    }
+    glm::vec3 at{0.f}, angles{0.f};
+    {
+        const progs::ServerVm vm;
+        const edict_t* player = progs::playerEdict();
+        const float yaw = glm::radians(player->v.angles[1]);
+        at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 200.f, player->v.origin[1] + za::sin(yaw) * 200.f, player->v.origin[2] + 8.f};
+        angles = glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f};
+    }
+    constexpr int combos[3][2] = {{1, 0}, {1, 1}, {0, 0}}; // (elite, infected row)
+    for(int kind = 0; kind < armedCat.kindCount; kind++)
+    {
+        Cvar_SetValueQuick(&vr_toolgun_armed_kind, static_cast<float>(kind));
+        Cvar_SetValueQuick(&vr_toolgun_armed_weapon, -1.f); // (its fists: the quickest spawn)
+        Cvar_SetValueQuick(&vr_toolgun_armed_weapon2, 0.f);
+        toolgun::armed::choose();
+        for(const auto& c : combos)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_armed_elite, static_cast<float>(c[0]));
+            Cvar_SetValueQuick(&vr_toolgun_armed_infected, static_cast<float>(c[1]));
+            edict_t* e = spawnChoice(tg.sel, at, angles);
+            const progs::ServerVm vm;
+            bool ok = false;
+            if(e)
+            {
+                pr_global_struct->time = qcvm->time;
+                pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
+                G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+                G_FLOAT(OFS_PARM1) = static_cast<float>(c[0]);
+                G_FLOAT(OFS_PARM2) = static_cast<float>(c[1]);
+                PR_ExecuteProgram(one);
+                ok = G_FLOAT(OFS_RETURN) != 0.f;
+            }
+            Con_Printf("toolgun elite test: %s: %s elite %d infected %d\n", ok ? "PASS" : "FAIL", armedCat.kinds[kind].name, c[0], c[1]);
+            (ok ? passed : failed)++;
+        }
+    }
+    armedDefaults();
+    Con_Printf("toolgun elite test: the choices back to elite %g, infected %g\n", vr_toolgun_armed_elite.value,
+        vr_toolgun_armed_infected.value);
+    qvr::testkit::verdict("toolgun elite test", passed,
+        failed + (vr_toolgun_armed_elite.value != 0.f || vr_toolgun_armed_infected.value != 0.f ? 1 : 0));
 }
 
 // The armour test's beasts (ROUND26.md, "toolbeast"): the Monsters page's Armour and Pieces (vr_toolgun_beast_armor,
@@ -2543,6 +2601,7 @@ void qvr::toolgun::registerCommands()
     Cmd_AddCommand("vr_toolgun_armed_clear", armedClear_f);
     Cmd_AddCommand("vr_toolgun_armed_armor_test", armedArmourTest_f);
     Cmd_AddCommand("vr_toolgun_armed_infected_test", armedInfectedTest_f);
+    Cmd_AddCommand("vr_toolgun_armed_elite_test", armedEliteTest_f);
     Cmd_AddCommand("vr_toolgun_menu", menu_f);
     Cmd_AddCommand("vr_toolgun_next", next_f);
     Cmd_AddCommand("vr_toolgun_unfreeze_all", unfreezeAll_f);

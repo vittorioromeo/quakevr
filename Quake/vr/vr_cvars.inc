@@ -3725,6 +3725,7 @@ QVR_CVAR(vr_agtune_test, "0", CVAR_NONE)             // the QC tests of the arme
 QVR_CVAR(vr_agrunt_speed, "1", CVAR_ARCHIVE | QVR_RULE)          // Movement Speed: every step they take times this (running, closing in, backing off, strafing); 1 as before
 QVR_CVAR(vr_agrunt_speed_back, "1", CVAR_ARCHIVE | QVR_RULE)     // Backpedal Speed: the part of a step backwards of their facing times this too (on top of vr_agrunt_speed)
 QVR_CVAR(vr_agrunt_speed_strafe, "1", CVAR_ARCHIVE | QVR_RULE)   // Strafe Speed: the part of a step sideways of their facing times this too (on top of vr_agrunt_speed)
+QVR_CVAR(vr_elite_spawn, "0", CVAR_ARCHIVE | QVR_RULE)          // Elites in Hard and Nightmare: 1 an armed humanoid spawned by the map may be an elite (vr_elite_spawn_chance; QC vr_attrs.qc)
 QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE | QVR_RULE)    // units: an unarmed one with you this near fights with its fists rather than going for a weapon lying further than 64 from it; 0 off (as before)
 QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE | QVR_RULE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
 QVR_CVAR(vr_agrunt_strafe_turn, "60", CVAR_ARCHIVE | QVR_RULE)   // degrees: armed humanoids moving sideways turn their pelvis and legs this far toward the way they go (at 80 u/s; scaled by sideways speed, eased; backing off: never flipped), the spine turning back so the chest and gun stay aimed; 0 none
@@ -4694,6 +4695,7 @@ QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's 
 QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
 QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
 QVR_CVAR(vr_toolgun_armed_infected, "0", CVAR_ARCHIVE)  // ... what it is infected with: a row of QC's VR_INFECT_ROWS (0 none; killed, it bursts and rises as that monster)
+QVR_CVAR(vr_toolgun_armed_elite, "0", CVAR_ARCHIVE)  // ... 1: an elite (QC vr_attrs.qc: much faster fire, reaction, aim and melee, 1.25x steps, shrugs pains; its own dye)
 QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
 QVR_CVAR(vr_toolgun_beast_armor, "5", CVAR_ARCHIVE)     // the spawn panel's Monsters page: a beast's armour (the rottweiler, ogre, scrag, fiend: VR_AgArmor_Toolgun's 0-4 as vr_toolgun_armed_armor; 5 as the skill rolls, the skill's roll held otherwise)
 QVR_CVAR(vr_toolgun_beast_pieces, "1", CVAR_ARCHIVE)    // ... its pieces: 0 the core (its cuirass group and its helmet), 1 all its pieces, 2 random (the core and some of the rest)
