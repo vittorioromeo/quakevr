@@ -98,6 +98,7 @@ struct Trip
     Offsets from;                // the key's start
     Offsets last;                // the hands as applied last
     bool takeSent{false};        // impulse 99 went for this key
+    double takeAt{-1e9};
     bool actionSent{false};      // the key's open / close impulse went
     bool hadItem{false};         // an item was in the hand since the take
     bool atPort{false};          // the insert's push done: waiting for the item to go in
@@ -914,10 +915,17 @@ void frame(bool on)
     switch(key->action)
     {
         case Action::Take:
+            // (Sent again every 0.1 s while nothing comes: the server may see the hand at another hotspot for a frame, its
+            // place sent with the move; seen once sliding at 60 fps, reloadsys's matrix.)
+            if(t.takeSent && carried == 0 && vr_gametime - t.takeAt >= 0.1)
+            {
+                t.takeSent = false;
+            }
             if(!t.takeSent && hands::current().hotspot[t.free] == body::HS_AMMO_POUCH && carried == 0)
             {
                 Cbuf_InsertText("impulse 99\n");
                 t.takeSent = true;
+                t.takeAt = vr_gametime;
                 ps.takes++;
                 if(debugOn())
                 {

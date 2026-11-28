@@ -7,10 +7,10 @@
 # vr_flat_proc_reload_debug 2, at 72 and 144 frames a second), and the key-pose lock (vr_flat_prl_lock N: key N of the
 # gun's reload) holds each key, follows an edit live (vr_reloadsys_set), steps next/previous, scrubs and lets go. prlmove:
 # full reloads while running, jumping, sliding, crouch-strafing (and at 60 / 144 fps) seat every pair with no failsafe, the
-# free hand's fingers closed on each pair. reloadsys: the super shotgun broken open (or already open), a pair (one shell for
-# one place) into its chambers, closed by the end's flick; the matrix ("almost always succeed"): both guns, standing,
+# free hand's fingers closed on each pair. reloadsys: the super shotgun already open, or broken open by the reload, a pair
+# into its chambers, closed by the end's flick; the matrix ("almost always succeed"): both guns, standing,
 # running, jumping, crouching, sliding, at 60 and 144 fps: every round seated, no failsafe, full. base: all but the matrix;
-# matrix: the matrix alone; all (the default): both. Each run ends on its own verdict line (-QuitOn);
+# matrix: the matrix alone (matrix-sg, matrix-ssg: one gun's); all (the default): both. Each run ends on its own verdict line (-QuitOn);
 # flatprocreload_check.py checks the logs and prints "flatprocreload: N passed, M failed".
 AGENT=${1:?agent}
 MODE=${2:-all}
@@ -28,13 +28,13 @@ SG="impulse 154; wait20"
 EMPTY="+attack; wait300; -attack; wait10" # the shotgun's clip fired empty (its shots 0.5 s apart)
 SSG="impulse 155; give s 50; wait20"
 SSGEMPTY="+attack; wait3; -attack; wait150; +attack; wait3; -attack; wait30" # both barrels fired (it breaks open by itself)
-SSGONE="+attack; wait3; -attack; wait150" # one barrel fired, one live
+SSGSHUT="vr_flat_ssg_break_delay 3; wait40; +attack; wait3; -attack; wait60" # fired (both barrels), R before it breaks open by itself
 J="+jump; wait3; -jump; wait30"
 C="+flatcrouch; wait40; -flatcrouch; wait30"
 MQ="^flat proc reload: main hand (done|cancelled)"
 SQ="^flat proc reload: main hand: the super shotgun closed|^flat proc reload: main hand cancelled"
 
-if [ "$MODE" != "matrix" ]; then
+case "$MODE" in matrix*) ;; *)
 # R with the clip empty: trips of 2 to full, the server's "done (full)" ends it; the gun traced each frame (continuity).
 run trips "^flat proc reload: main hand done" "$BASE; vr_flat_proc_reload_debug 2; $SG; $EMPTY; vr_flatprocreload_report; $R"
 # The same at 144 frames a second: the path's continuity doesn't hang on the frame rate.
@@ -71,13 +71,17 @@ run blocked "^flat proc reload: main hand cancelled" "$BASE; vr_flat_prl_test_mi
 run dual "^flat reload: main hand done" "$BASE; impulse 174; wait5; $SG; +attack; +offhandattack; wait300; -attack; -offhandattack; wait10; $R"
 # The super shotgun fired empty (broken open by itself): a pair into its chambers, closed by the end's flick (impulse 108).
 run ssg "$SQ" "$BASE; $SSG; $SSGEMPTY; $R"
-# One barrel fired: the reload's flick breaks it open (impulse 107) keeping the live shell, one shell in, closed.
-run ssg1 "$SQ" "$BASE; $SSG; $SSGONE; $R"
-fi
+# Fired and R at once (its own break 3 s off): the reload's flick breaks it open (impulse 107), the pair in, closed.
+run ssgshut "$SQ" "$BASE; $SSG; $SSGSHUT; $R"
+;; esac
 
+GUNS="sg ssg"
+[ "$MODE" = matrix-sg ] && GUNS=sg
+[ "$MODE" = matrix-ssg ] && GUNS=ssg
 if [ "$MODE" != "base" ]; then
-# reloadsys's matrix: both guns, standing, running in a circle, jumping, crouch-strafing, sliding, at 60 and 144 fps.
-for GUN in sg ssg; do
+# reloadsys's matrix: both guns, standing, running in a circle, jumping, crouch-strafing, sliding, at 60 and 144 fps
+# (matrix-sg / matrix-ssg: one gun's, each under 13 minutes).
+for GUN in $GUNS; do
     if [ $GUN = sg ]; then GIVE="$SG; $EMPTY"; Q="$MQ"; else GIVE="$SSG; $SSGEMPTY"; Q="$SQ"; fi
     for FPS in 60 144; do
         PRE="vr_fixed_frames_rate $FPS; $BASE; $GIVE"

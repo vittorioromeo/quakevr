@@ -228,10 +228,10 @@ def base_checks():
 
 
     # reloadsys: the super shotgun. ssg: fired empty (broken open by itself), a pair into its chambers, closed by the end's flick;
-    # ssg1: one barrel fired, broken open by the reload's flick with the live shell kept, one shell in, closed. Nothing lost.
+    # ssgshut: R before it broke open by itself: broken open by the reload's flick (impulse 107), the pair in, closed. Nothing lost.
     OPEN = re.compile(r"^flat proc reload: main hand: the super shotgun broken open: clip (\d+) of (\d+)")
     CLOSED = re.compile(r"^flat proc reload: main hand: the super shotgun closed \((.*)\): clip (\d+)")
-    for run, n in (("ssg", 2), ("ssg1", 1)):
+    for run, n in (("ssg", 2), ("ssgshut", 2)):
         L = lines(run)
         st = [m for m in map(START.match, L) if m]
         ins = [int(m.group(2)) for m in map(IN.match, L) if m]
@@ -243,8 +243,8 @@ def base_checks():
               "%s: the super shotgun's procedural reload: %d in (%s), full (%s)" % (run, n, ins, end[-1].group(0)[18:70] if end else "no end"))
         check(bool(cl) and "flick" in cl[0].group(1) and int(cl[0].group(2)) == 2, "%s: closed by the end's flick, 2 in (%s)" %
               (run, cl[0].group(0)[35:] if cl else "not closed"))
-        if run == "ssg1":
-            check(bool(op) and int(op[0].group(1)) == 1, "ssg1: broken open by the reload's flick, the live shell kept (%s)" %
+        if run == "ssgshut":
+            check(bool(op) and int(op[0].group(1)) == 0, "ssgshut: broken open by the reload's flick (%s)" %
                   (op[0].group(0)[35:] if op else "not opened"))
         if st and end:
             b = int(st[0].group(4)) + int(st[0].group(6))
@@ -255,7 +255,8 @@ def base_checks():
 # reloadsys's matrix ("almost always succeed"): both guns, standing, running, jumping, crouch-strafing, sliding, at 60 and 144
 # fps: started, every round taken went in (none dropped), no failsafe, the gun full (the super shotgun closed too).
 def matrix_checks():
-    for gun in ("sg", "ssg"):
+    guns = ("sg",) if MODE == "matrix-sg" else ("ssg",) if MODE == "matrix-ssg" else ("sg", "ssg")
+    for gun in guns:
         for fps in (60, 144):
             for stance in ("stand", "run", "jump", "crouch", "slide"):
                 run = "x_%s_%s_%d" % (gun, stance, fps)
@@ -273,7 +274,7 @@ def matrix_checks():
                       "%s: full, every round seated (%d taken, %s in), none dropped (%d), no failsafe (%d)%s" %
                       (run, sum(takes), ins, len(lost), len(fs), "" if shut else ", NOT CLOSED"))
 
-if MODE != "matrix":
+if not MODE.startswith("matrix"):
     base_checks()
 if MODE != "base":
     matrix_checks()
