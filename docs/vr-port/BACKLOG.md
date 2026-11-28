@@ -20,7 +20,7 @@ Open on 2026-11-28 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Rope slide**: one elbow snap ~10 frames in (elbow IK). ROUND25.md "flatfb1124b".
 - **Dog wedged against a wall**: it can stay standing wedged with the wiggle off. ROUND25.md "wallglue".
 - **Flat: no low or sideways swing, so no flat leg sweeps** (his call 2026-11-24: not now).
-- **Splitscreen**: agent/split (6e6f2af6e, split19, SPLITSCREEN.md) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next if it still shows.
+- **Splitscreen**: agent/split (split22, SPLITSCREEN.md section 31) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next if it still shows; seat_render_test's anim run fails every time now (the ragdoll drawn by both seats in 13-15 of 16 frames, `vr_seatrender.cpp` AnimDead).
 - **Quest**: cold start compiles 100 GL programs, 29-35 s; LRZ in the opaque entity pass is dead after your leg holsters' batches; `vr_debug_alias_lrz 62` plus `vr_gl_alias_lazy_blend 1` together keep it: next, bisect that combination (ROUND26 "questperf2"); CPU-bound big fights (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
   hip1m1 (questopt, 2026-11-28, his perf recording): CPU-bound at 24 ms a frame in its fights (GPU 11.4): QuakeC 7.5 ms
   (worn packs' anchors fixed; the rest unprofiled on the headset: `vr_qcprofile` + `profile_qc` in a hip1m1 fight next),
