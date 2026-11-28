@@ -268,6 +268,8 @@ void writeDrawnGear(sizebuf_t* buf, const VrDrawnGear& g, const glm::vec3& origi
     {
         MSG_WriteByte(buf, g.pouchKind);
         MSG_WriteByte(buf, g.pouchCount);
+        MSG_WriteByte(buf, g.pouchKind2);
+        MSG_WriteByte(buf, g.pouchCount2);
     }
 }
 
@@ -295,6 +297,8 @@ VrDrawnGear readDrawnGear(const glm::vec3& origin, float bodyYaw, const VrDrawnH
     {
         g.pouchKind = static_cast<za::U8>(MSG_ReadByte());
         g.pouchCount = static_cast<za::U8>(MSG_ReadByte());
+        g.pouchKind2 = static_cast<za::U8>(MSG_ReadByte());
+        g.pouchCount2 = static_cast<za::U8>(MSG_ReadByte());
     }
     return g;
 }

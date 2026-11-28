@@ -1,0 +1,12 @@
+# ammomags: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The ammo follows the rounds loaded
+# (ROUND26.md "ammomags"): immersive reloading, every ammo, the nailgun in the main hand, the launchers to take.
+title Immersive reloading: the magazine or round loaded sets the ammo; the pouch split in two halves
+map vrtesthall
+god
+notarget
+cvar vr_reload_mode 3
+cmd impulse 9
+give "Nailgun" main
+spawn "Rocket Launcher" 40 70
+spawn "Grenade Launcher" 40 -70
+hint No ammo button on the gun. The pouch is split: plain magazines on its right half, lava ones on its left. Take a lava one from the left, seat it: lava nails. The rocket launcher with rockets in won't take a multi-rocket (a dull tap) until it is empty.

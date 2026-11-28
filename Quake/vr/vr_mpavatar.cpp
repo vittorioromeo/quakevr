@@ -1139,7 +1139,7 @@ void setupHands(int slot, int e, const Avatar& a, const glm::vec3& origin, const
     // your gadget's code (syncfix2).
     const view::ViewEntity& ammoPouch = d.gear[VrDrawnGear::ammoPouch];
     d.pouchItems = view::posePouchItems(ammoPouch, (a.gear.shown & (1 << VrDrawnGear::ammoPouch)) != 0, a.gear.pouchKind,
-        a.gear.pouchCount, d.pouchItem);
+        a.gear.pouchCount, a.gear.pouchKind2, a.gear.pouchCount2, d.pouchItem);
     const view::ViewEntity& gadgetEnt = d.gear[VrDrawnGear::gadget];
     if(!doll && gadgetEnt.visible && gadgetEnt.ent.model && !(a.gear.shown & VrDrawnGear::solveBit))
     {

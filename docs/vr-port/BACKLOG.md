@@ -145,7 +145,6 @@ Open on 2026-11-28 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **The dagger's flight, next patch** (his note vrtesthall 2026-11-16 00:38): fine for 1.1; the tunables shipped
   (ROUND25 "The dagger's own point-first settling"); left: tune the values, refine its point-first settling, "the dagger is much like an arrow" (Debug > Tunables > Dagger Settling: its own strength, time, angle,
   tumble and spin damping, times the swords'; vr_box3d_step.cpp pointAlign).
-- **Ammo type follows the loaded magazine** (2026-10-16): a lava-nail magazine fires lava nails.
 - **One model per gun, not one per ammo type** (2026-11-16, his words): "rather than having different models for the
   ammo types, we should be able to adjust one single model: add attachments, change parts or textures; maintaining two
   separate sets of models with different rules is annoying and causes issues." (Today `v_lava`, `v_lava2`,
@@ -226,7 +225,24 @@ Each verified by an unchanged physics hash, the melee tests and `vr_menu_path_ch
 ## 11. Performance and parked
 
 - **Open from 2026-11-28 (blcheck):**
-  - **Mixed ammo loads in launchers** (his request): placeholder; the ammomags worker adds its notes here (see also "Ammo type follows the loaded magazine", section 8).
+  - **Mixed ammo loads in launchers** (his words 2026-11-28, fb1127n item 18; researched by ammomags, ROUND26.md "ammomags"):
+    blocked for now (his decision): with immersive reloading a launcher's tube takes the other kind only once empty
+    (vr_reload.qc `VR_Reload_GunTakesAid`). What mixed rockets/grenades in one tube would need (about 1-2 days, not small):
+    - **Bookkeeping:** today a gun has one clip count (`.wi_clip` on its weapon record) and one kind (its
+      `QVR_WPNFLAG_USE_SECONDARY_AMMO`). Mixed needs each round's kind in tube order: a bitmask on the record (the
+      launchers hold 4-5: `.wi_clipkinds`, bit i the i-th round from the muzzle), pushed at `VR_Reload_LoadInto`, popped
+      per shot. Saves come free (records are entities: a new field is saved), old saves read 0 (all basic).
+    - **Firing order:** loaded at the muzzle, the last in is the first out (LIFO). `W_AttackImpl_Fire` would pick
+      `W_FireRocket`/`W_FireMultiRocket` (`W_FireGrenade`/`W_FireMultiGrenade`) by the top bit instead of the flag, the
+      flag then following the next round (its model and `currentammo` with it: the HUD's tile, the ammo screen's kind).
+    - **Every path that refunds or moves rounds by kind:** `VRTryUnloadWeapon`, the holster/level-end refunds, the
+      launcher's eject, flat play's unload and procedural reload (`vr_flatreload.qc`), the gun lying as a prop
+      (`VR_Reload_IntoProp`), `VR_FlatReload_CycleIn`: each would refund per kind from the mask, not the clip as one kind.
+    - **HUD and look:** the ammo screen and the wrist gadget show one count; mixed wants "2 + 1" or the next round's kind;
+      the gun's model flips per shot (v_rock2/v_multi2: see "One model per gun", section 8, which would make that a part
+      swap). MP: the gun look's flags carry the next kind; a mask byte in `VrGunLook` only if remotes draw the rounds.
+    - **Flat play's N:** would choose what the next procedural reload pushes; the tube need not be emptied.
+    - **Tests:** load 2 rockets + 1 multi, fire 3 (multi first), unload/eject/holster refunds per kind, save/load mid-tube.
   - **`vr_menu_pad_test` hangs on agent/split** (seen by the splitscreen work): fix before agent/split merges, if not fixed by then.
   - **Scenes `agrunt_dual_guns` and `armour_beasts` are unused by the checklist now** (still named by a test or doc): keep, rename or retire them; check the checklist and the tests that name them first.
 

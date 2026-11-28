@@ -65,6 +65,10 @@ Hold the nail pistol and press the new small button on its inner side (under the
 With immersive reloading, switch the nail pistol to lava nails: the plain magazine drops out and the pouch gives red lava magazines with glowing nails in their window; seat one and fire. {test:nplava}
 Flat-screen: hold the nail pistol and press N: it switches to its lava nails (its lava look), R loads a lava magazine, N again goes back to nails. {test:nplava}
 Fire While Down, now with the wrist (VR Settings > Armed Grunts > Loadout, on in this scene): shove the revolver and nail pistol holders onto their backs; lying there they should raise and turn the gun hand towards you so the shots visibly leave along the drawn gun (turned at most 10 degrees), still swaying like a struggling body rather than a turret. Judge the look and rate; on their front they can't bring the gun round yet. {test:agrunt_ragfire}
+Immersive reloading, a nailgun in hand: it has no ammo button, and the ammo pouch is split in two, plain magazines in its right half and lava ones in its left; take a lava one from the left and seat it, and the gun fires lava nails (and takes its lava look). {test:ammomags}
+Immersive reloading, the rocket launcher with rockets in it: a multi-rocket from the pouch's left half won't go in (a dull tap); fire it empty and the multi-rocket loads, then it fires multi-rockets. The grenade launcher the same. {test:ammomags}
+Reloading on Hip Holsters or Off: the multi-ammo guns show their ammo button again and it switches the ammo as before; the pouch is not split. {test:ammomags}
+Flat-screen: with the procedural reload on, the nailgun shows no ammo button; N still switches its ammo and the next reload loads the new kind. {test:ammomags}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

@@ -2292,6 +2292,8 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_FLATUNLOADFULL, f.vr_flatrl_full); // the holster menu's UNLOAD greyed, that ammo full up (vr_flatholster.cpp)
     stat(STAT_QVR_POUCHKIND, f.vr_pouch_kind);
     stat(STAT_QVR_POUCHCOUNT, f.vr_pouch_count);
+    stat(STAT_QVR_POUCHKIND2, f.vr_pouch_kind2); // (ammomags: its left half)
+    stat(STAT_QVR_POUCHCOUNT2, f.vr_pouch_count2);
     stat(STAT_QVR_AMMOLAVA, f.ammo_lava_nails); // Rogue's ammo: the flat-screen visor's ammo grid
     stat(STAT_QVR_AMMOMULTI, f.ammo_multi_rockets);
     stat(STAT_QVR_AMMOPLASMA, f.ammo_plasma);
@@ -2641,6 +2643,7 @@ void writeGunLooks(sizebuf_t* msg, edict_t* ent, const VrDrawnHolsters& holsters
     // (as VR_CalcStats' STAT_QVR_RELOADMODE for him, and the client's magazinesShown, ssgBreaks)
     const int mode = vr_holster_mode.value != 0.f ? 0 : flat ? (vr_flat_reload.value != 0.f ? 2 : 0) : reloadModeBest();
     const int magOut = static_cast<int>(fieldFloatOr(ent, f.vr_mag_out, 0.f));
+    const int ammoMag = static_cast<int>(fieldFloatOr(ent, f.vr_ammomag, 0.f)); // (ammomags: QC VR_Reload_AmmoByMag's hands)
     const auto clipOf = [&](edict_t* r) { return r ? CLAMP(0, static_cast<int>(fieldFloatOr(r, f.wi_clip, 0.f)), 255) : 0; };
     for(int h = 0; h < 2; h++)
     {
@@ -2654,7 +2657,7 @@ void writeGunLooks(sizebuf_t* msg, edict_t* ent, const VrDrawnHolsters& holsters
         if(vrProgs && (inst || flags || rv))
         {
             l.bits |= VrGunLook::gunBit | ((magOut & (main ? 2 : 1)) ? VrGunLook::magOutBit : 0) |
-                      (rv ? VrGunLook::revolverBit : 0);
+                      (rv ? VrGunLook::revolverBit : 0) | ((ammoMag & (main ? 2 : 1)) ? VrGunLook::ammoByMagBit : 0);
             l.flags = static_cast<za::U16>(flags & 0xFFFF);
             l.clip = static_cast<za::U8>(clipOf(inst));
             l.clipSize = static_cast<za::U8>(CLAMP(0, static_cast<int>(fieldFloatOr(ent, main ? f.weaponclipsize : f.weaponclipsize2, 0.f)), 255));
@@ -2801,6 +2804,8 @@ void writeAvatars()
             // (what his ammo pouch holds, the server's word: your STAT_QVR_POUCHKIND and _POUCHCOUNT's fields, syncfix2)
             gear.pouchKind = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_kind, 0.f)), 0, 255));
             gear.pouchCount = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_count, 0.f)), 0, 255));
+            gear.pouchKind2 = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_kind2, 0.f)), 0, 255));
+            gear.pouchCount2 = static_cast<za::U8>(za::clamp(static_cast<int>(fieldFloatOr(ent, f.vr_pouch_count2, 0.f)), 0, 255));
         }
         const VrBodyPose& wroteBody = m ? m->move.body : body; // (the yaw as the client reads it back: writeBodyPose)
         writeDrawnGear(&tmp, gear, origin, wroteBody.valid ? wroteBody.yaw : 0.f, hands);
