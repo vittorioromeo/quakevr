@@ -6604,3 +6604,31 @@ His words (kit `scratch/fb1127n/words_1128b.md` item 18; his decision 11-28: mix
 - Open: the Quest A/B (vr_qcexec_time, both cvars); a scene where chasers of an unreachable foe later reach him (a door
   opening mid-chase) to time the reach on/off; exactness of the end polygon could be had by choosing the island's
   polygon by its true distance (closestPointOnPoly over the island: ~0.3 ms an island, not done).
+
+## qc2cpp: our QuakeC compiled to C++ and built into the engine, proven identical (branch agent/qc2cpp, 2026-11-28)
+
+QuakeC stays the source (the switch waits for splitscreen: docs/vr-port/QC_TO_CPP.md section 5). FTEQCC's C++ backend
+(`-cppout <dir>`, Tools/fteqcc/qcc_cpp.c + cpp.patch, the repo's fteqcc64.exe rebuilt: progs.dat byte-identical with
+and without the flag) writes the compiled QuakeC as C++ (one `qc_<qcfile>.cpp` per QuakeC file, `qc_funcs.h`,
+`qc_table.cpp` with the progs hash and the function and field tables, `qc_sources.txt`). `QVR_QC_CPP=1 bash build.sh
+<tree>` (or `/p:QvrQcCpp=1`) generates it into build/qccpp (a build output, never committed) and links it in;
+`vr_qc_cpp 1` then runs every server QuakeC call as C++ on the VM's own memory (0, the default: the interpreter;
+`vr_qc_cpp_info`, Debug > Profiling). Normal builds are unchanged (vr_qccpp.cpp is a stub).
+- Binding: the C++ runs only for the progs it came from (sizes, the statements' and functions' hash, field and
+  function names). Fixed here: the engine's own fields come after the progs' (PR_MergeEngineFieldDefs) and builtins
+  are renumbered by name at load, so builtins' numbers are out of the hash.
+- Build: the generated files were added once per existing ClCompile metadata batch (a `%(...)` in the target's
+  ItemGroup: each file 9 times, all recompiled every build, ~15 min); now added once and extended in place, from the
+  generator's list (no stale file compiled), with stable names: a QuakeC edit recompiles its own file(s).
+- `QVR_QC_CPP_RUN=<0|1>` in the environment sets vr_qc_cpp at start (a whole test suite in C++).
+- Proof: Misc/quakevr/qc_cpp_compare.py (every QuakeC field's hash over all edicts at 3-4 checkpoints, the `profile`
+  total; real-clock fields vr_posetime and the hands' motion history mh_* left out: they differ between two
+  interpreter runs too, `--control`): e1m1, combat_48, hip1m1 (69 woken, skill 2), arena_wave6, bots_dm4, saveload
+  equal before and after merging origin/next, except saveload in C++ after the merge: 1 run of 3 equal, the other
+  two differ only in stl_light after the load (the client's light reading, clientlight; same profile total; the
+  interpreter against itself 3 of 3 equal): open, suspected client reconnect timing (QC_TO_CPP.md section 4). The run_baseline suite in C++ against 0 was not run (budget):
+  next step, e.g. `QVR_QC_CPP_RUN=1 python <kit>/scratch/refactor/run_baseline.py <tree> --groups agrunt,console,scripts
+  --jobs 2` and the same with 0.
+- Speed (PC, no LTO, low-impact runs beside his game; before next's combined instructions): QuakeC's time a frame with
+  builtins, 0/1 interleaved: hip1m1 fight 2.00 -> 1.76 ms (x1.13), combat_48 2.13 -> 1.86 ms (x1.15). Quest not
+  measured. The readable pass (QC_TO_CPP.md section 5) is where more comes from.

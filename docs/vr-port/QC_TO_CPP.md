@@ -109,8 +109,11 @@ readable rewrite (section 5) must keep by hand.
   arena_wave6, bots_dm4 (3 bots), saveload: every QuakeC field's hash over every edict at 3-4 checkpoints 300 frames
   apart, and the `profile` total (up to 122 M statements), equal between `vr_qc_cpp 0` and `1`. Left out: fields fed
   from the real clock (`vr_posetime`, the hands' motion history `mh_*`), which differ between two interpreter runs
-  too (`--control`). One saveload run differed in `stl_light` after the load (the client's light reading); the rerun
-  and the control matched.
+  too (`--control`). **Open:** saveload in C++ matched 1 run of 3; the other two differed in one field only,
+  `stl_light` after the load (the stealth light, read from the client's own measurement, `clientlight`, which the
+  client takes every 0.1 s of `cl.time`), with the same profile total; the interpreter against itself matched 3 of 3.
+  Suspect: the client's reconnect after the load lands on another frame relative to the server (timing), not a
+  QuakeC difference; to check: print `clientlight` per frame after the load in both modes.
 - **Whole suites in C++:** `QVR_QC_CPP_RUN=1` in the environment starts the game with `vr_qc_cpp 1` (every test
   launcher passes its environment on), e.g. `QVR_QC_CPP_RUN=1 python <kit>/scratch/refactor/run_baseline.py ...`.
 - **Speed** (PC, Release without LTO, low-impact runs beside his game, so rough): `vr_qcexec_time` (QuakeC's time a
