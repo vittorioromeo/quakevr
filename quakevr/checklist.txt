@@ -22,6 +22,8 @@ Flat-screen: holding an unarmed grenade, open the MMB holster menu and press a h
 Flat-screen: open the menu and go through a few pages (main menu, Options, Controls): the bindings reminder shows bottom left on every page where it fits, a clear margin from the menu's left border, above the Recording and OBS buttons, and hovering Setup Bindings lights only Setup Bindings. {test:hub_start}
 Flat-screen: in the menu, the bindings reminder lists the main actions large, then smaller "Hands" (cycle 1/2, holster 4/5, drop 6/7, swap, next ammo, attach) and "More" (force grab, shove, punch, lie down, flashlight) groups; with a pad in use its panel sits in the same bottom-left corner as the keyboard's. {test:hub_start}
 Flat-screen: hold 1 (weapon wheel) and press MMB (holster menu): the reminder panel above shows the main actions in the left column and the Hands / More groups smaller on the right; the slots' holster titles read clearly (less faded than before). {test:weapon_wheel}
+Flat-screen: with both hands empty, jab with the left button at a grunt that is off to one side: each fist, left and right, should travel to whatever the crosshair is on and hit it. {test:flat_fists}
+Flat-screen or VR: in Run Setup, the Starting melee weapon row should read Axe, Dagger, Spear, Nothing (Nothing last, like the gun row), and a pick you saved before should still be the same weapon. {test:run_setup_newgame}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
