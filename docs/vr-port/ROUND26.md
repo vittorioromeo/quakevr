@@ -5264,3 +5264,14 @@ Approved 2026-11-28 (beastarmour's open note: "a remote MP client draws no beast
 - **Open:** a remote client's armour follows its own clock (as its drawing of the body, no kick); the beasts of
   `beastmp_dedicated` hunt B before his notarget, so their living placement is compared on the listen run only;
   `vr_armour_on_drawn 0` (debug) is a listen host's comparison alone (a remote client always uses the drawn points).
+
+
+## blclean2: BACKLOG.md keeps only what still needs work (branch agent/blclean2, 2026-11-28)
+
+Docs only; 331 -> about 260 lines. Removed or rewritten:
+- Section 1 rewritten as one list: the three "baseline" lists, "AD-only tests", "Random run to run", "Stale list", "Baseline 2026-11-12/13" folded into "Real failures" and "Flaky" (only failures still seen on 11-27/28).
+- Removed as fixed: agrunt 3 and agrunt 60 (alwaysfail), reload's lying shell, pouch refund, fist-alone barrel hit and SSG sights, agrunt 12/47/63/72/74/76/86/92, nail_1, rv_1, ragdoll_grab, judo, parry_pose, weapon_catch, dead_gear, stealth, recoil (flakysweep), agrunt 213, stealth props_round, mp_coopbots one-off ("don't chase").
+- Added from alwaysfail: `vr_agarmor_look_check`'s 26 failures.
+- Section 3: "Hotkeys for the remaining VR interactions" removed (audit done, FLATPLAY.md "Hotkeys"); "Procedural reloads" cut to the guns beyond the one-handed shotgun (flatprocreload).
+- Section 9: item 2 "Ironwail extraction" removed (iwextract; what is left stays inside Ironwail's functions); the check says melee tests, not the eval.
+- Kept, tightened: the rest of section 1, sections 2, 4-8, 10, 11 (each still open; none found implemented).
