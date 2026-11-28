@@ -25,14 +25,14 @@
 namespace qvr::reloadsys
 {
 
-// What the free hand carries (later phases: magazines, rockets and grenades, a revolver's cylinder rounds).
+// What the free hand carries (later phases: magazines).
 enum class Item : int
 {
     Shell,
     Pair,
     Magazine,
-    Rocket,
-    Cylinder,
+    Rocket,   // a launcher's round (reloadmuzzle): a rocket, a grenade, a proximity grenade, the multi-rounds
+    Cylinder, // the heavy revolver's slugs (reloadmuzzle): a taped pair, or one for one empty chamber
     Count
 };
 // Where it goes on the gun.
@@ -41,8 +41,8 @@ enum class Dest : int
     Port,
     Chamber,
     Receiver,
-    Muzzle,
-    CylinderSlot,
+    Muzzle,       // a launcher's (reloadmuzzle): the round's butt there, its axis put on the barrel's, nose out
+    CylinderSlot, // the revolver's swung-out cylinder (reloadmuzzle): the first empty chambers' mouths, along the bore
     Count
 };
 // Where a key takes the free hand.

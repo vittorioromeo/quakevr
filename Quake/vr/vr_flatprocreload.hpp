@@ -42,8 +42,9 @@ void noteDrawn(const hands::State& s, int hand, const glm::vec3& pos, const glm:
 void attachDrawn(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot);
 [[nodiscard]] bool portNow(const hands::State& s, int g, glm::vec3& port);
 // The key-pose lock (vr_flat_prl_lock, prlfix: to tune the poses) holding a taped pair in the free hand: that hand and the
-// pair's size (vr_view.cpp prlPair draws it); false: no pair to draw.
-[[nodiscard]] bool lockPair(int& hand, float& scale);
+// pair's size (vr_view.cpp prlPair draws it) and its model (reloadmuzzle: the launcher's round, the revolver's slugs: the
+// gun's item); false: no pair to draw.
+[[nodiscard]] bool lockPair(int& hand, float& scale, const char*& model, int& skin);
 // Where that pair is for the hand drawn at `handPos` turned `handRot` (hands::State angles), and its model's axes (forward,
 // left, up): as it sat in the hand at the last real take (a default before one).
 [[nodiscard]] glm::vec3 lockPairPlace(const glm::vec3& handPos, const glm::vec3& handRot, glm::mat3& axes);

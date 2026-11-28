@@ -1145,9 +1145,14 @@ void(float xHand) VR_Revolver_HandFrame =
     }
     if(self.ishuman && self.health > 0 && VR_Reload_ManualInHand(self, xHand))
     {
-        VR_Revolver_ReloadFrame(xHand, h, r);
+        // (Flat-screen play's procedural reload, reloadmuzzle: its keys open and close it, impulses 107 / 108; no flick, push
+        // or button of the drawn gun's.)
+        if(!VR_FlatPlay(self))
+        {
+            VR_Revolver_ReloadFrame(xHand, h, r);
+        }
     }
-    else if(r.wi_rv_open && !VR_FlatReload_Busy(self, xHand) &&
+    else if(r.wi_rv_open && !VR_FlatReload_Busy(self, xHand) && self.vr_fprl_closeh != xHand + 1 &&
             !(VR_FlatReload_RevolverOpens(xHand) && VRGetEntWeaponClip(self, xHand) <= 0))
     {
         // (No longer loaded by hand: home. Flat-screen play's swings out fired empty, until the reload, and for its trip.)

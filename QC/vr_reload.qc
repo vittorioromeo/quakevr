@@ -1410,7 +1410,8 @@ void() VR_Reload_PlayerFrame =
             hand = h ? VRGetOtherHand(near) : near;
         }
         float aid = VR_Reload_KindOf(VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand));
-        if(aid >= 0 && self.ishuman && VR_Reload_Immersive())
+        // (Flat-screen play's procedural reload of that gun too, reloadmuzzle: the pouch shows a launcher's rounds.)
+        if(aid >= 0 && self.ishuman && (VR_Reload_Immersive() || VR_FlatReload_ProcIn(self, hand)))
         {
             self.vr_pouch_aid = aid;
             self.vr_pouch_wid = vr_reload_kind_wid;
@@ -2465,8 +2466,8 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
     float leniency = VR_Reload_PortRadiusIn(self, gunHand) + VR_Reload_MagRadius(r.vr_ammo_wid);
     if(cvar_hget(cvarh_vr_reload_debug) >= 2)
     {
-        dprint(sprintf("reload: a held round %.1f units from the port (leniency %g): at %v, the port %v\n", d,
-            leniency, VR_Reload_RoundRef(r), port));
+        dprint(sprintf("reload: a held round %.1f units from the port (leniency %g): at %v, the port %v (its origin %v, the hand %v)\n", d,
+            leniency, VR_Reload_RoundRef(r), port, r.origin, VRGetEntHandPos(self, xHand)));
     }
     // (Well away, or vr_reload_reinsert_time gone since it came out or knocked one out: a magazine just out, or that knocked
     // one out, may seat; the author: even kept close it goes in after a moment, never at once.)

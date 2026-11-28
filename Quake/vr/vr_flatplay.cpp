@@ -5391,6 +5391,10 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         }
     }
     QVR_TRACY_CALL("flat pose: shove smoothing", smoothShove(s, aim));
+    if(vr_flat_proc_reload_debug.value >= 5.f)
+    {
+        Con_Printf("fprl_pose: %.2f %.2f %.2f\n", s.pos[HAND_OFF].x, s.pos[HAND_OFF].y, s.pos[HAND_OFF].z);
+    }
     probeMelee(s, aim, eye, viewUp);
     traceHandZ = s.pos[HAND_MAIN].z;
     traceHand = s.pos[HAND_MAIN];

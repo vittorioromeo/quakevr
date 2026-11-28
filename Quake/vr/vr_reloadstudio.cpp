@@ -568,8 +568,8 @@ void drawWindow()
     }
     if(shown)
     {
-        const char* guns[8];
-        const int n = za::min(reloadsys::count(), 8);
+        const char* guns[16];
+        const int n = za::min(reloadsys::count(), 16);
         for(int i = 0; i < n; i++)
         {
             guns[i] = reloadsys::at(i).gun;
@@ -582,7 +582,18 @@ void drawWindow()
         ImGui::SameLine();
         if(ImGui::Button("Hold This Gun"))
         {
-            Cbuf_AddText(cur().weapon == WID_SUPER_SHOTGUN ? "impulse 155\n" : "impulse 154\n");
+            // (The test give: impulse 150 + its weapon ID, loaded, in the main hand; past 19, vr_test_give_wid's impulse 149.)
+            char cmd[64];
+            const int w = cur().weapon;
+            if(w < 20)
+            {
+                q_snprintf(cmd, sizeof(cmd), "impulse %d\n", 150 + w);
+            }
+            else
+            {
+                q_snprintf(cmd, sizeof(cmd), "vr_test_give_wid %d; impulse 149\n", w);
+            }
+            Cbuf_AddText(cmd);
         }
         ImGui::SameLine();
         const bool unsaved = reloadsys::revision() != reloadsys::savedRevision();

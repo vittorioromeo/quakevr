@@ -3216,7 +3216,9 @@ void setupPrlPair(const hands::State& s)
     view::ViewEntity& ve = entities.prlPair;
     int hand = HAND_OFF;
     float size = 1.f;
-    qmodel_t* const model = flatprocreload::lockPair(hand, size) ? view::viewModel("progs/vr_shell_pair.mdl") : nullptr;
+    const char* name = nullptr;
+    int skin = 0;
+    qmodel_t* const model = flatprocreload::lockPair(hand, size, name, skin) && name ? view::viewModel(name) : nullptr;
     if(!model)
     {
         ve.visible = false;
@@ -3227,6 +3229,7 @@ void setupPrlPair(const hands::State& s)
     glm::mat3 axes;
     const glm::vec3 at = flatprocreload::lockPairPlace(pos, rot, axes);
     place(ve, model, at, aliasAngles(axes[0], axes[2]), 0, false);
+    ve.ent.skinnum = skin; // (reloadmuzzle: the revolver's blue slugs)
     ve.scale = glm::vec3{CLAMP(0.25f, size, 4.f)};
     ve.visible = true;
 }
