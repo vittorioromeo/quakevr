@@ -425,12 +425,18 @@
   </Target>
   <Target Name="QvrQcCppSources" BeforeTargets="ClCompile" AfterTargets="QvrQcCppGenerate" Condition="'$(QvrQcCpp)'=='1'">
     <MakeDir Directories="$(IntDir)qccpp" />
+    <!-- (two steps: added with a marker, then each marked item's own metadata extended. A %(...) in the adding
+         ItemGroup would batch over every existing ClCompile item's metadata and add each file once per batch: 9
+         copies with different options, all compiled every build) -->
     <ItemGroup>
       <ClCompile Include="$(QvrQcCppDir)*.cpp">
+        <QvrQcCppItem>1</QvrQcCppItem>
+      </ClCompile>
+      <ClCompile Condition="'%(ClCompile.QvrQcCppItem)'=='1'">
         <CompileAs>CompileAsCpp</CompileAs>
-        <AdditionalOptions>/clang:-std=c++23 -Wno-overriding-option -Wno-unused-command-line-argument /clang:-ffp-contract=off %(AdditionalOptions)</AdditionalOptions>
+        <AdditionalOptions>/clang:-std=c++23 -Wno-overriding-option -Wno-unused-command-line-argument /clang:-ffp-contract=off %(ClCompile.AdditionalOptions)</AdditionalOptions>
         <LanguageStandard_C></LanguageStandard_C>
-        <AdditionalIncludeDirectories>..\..\Quake\vr\qccpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+        <AdditionalIncludeDirectories>..\..\Quake\vr\qccpp;%(ClCompile.AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
         <PrecompiledHeader>NotUsing</PrecompiledHeader>
         <ForcedIncludeFiles></ForcedIncludeFiles>
         <ExceptionHandling>false</ExceptionHandling>

@@ -50,16 +50,27 @@ const QCppProgs *boundProgs ()
 	if (!vm->progs)
 		return nullptr;
 	const char *why = nullptr;
+	char sizes[160];
 	if (vm->progs->numstatements != p.numstatements || vm->progs->numfunctions != p.numfunctions ||
-		(unsigned)vm->progs->numglobals != p.numglobals || vm->progs->numfielddefs != p.numfields)
-		why = "the sizes differ";
+		(unsigned)vm->progs->numglobals != p.numglobals || vm->progs->numfielddefs < p.numfields) // (the engine's own
+		// fields are added after the progs' ones: PR_MergeEngineFieldDefs)
+	{
+		q_snprintf (sizes, sizeof (sizes), "the sizes differ: progs.dat %d/%d/%d/%d, C++ %d/%d/%u/%d statements/functions/globals/fields",
+					vm->progs->numstatements, vm->progs->numfunctions, vm->progs->numglobals, vm->progs->numfielddefs,
+					p.numstatements, p.numfunctions, p.numglobals, p.numfields);
+		why = sizes;
+	}
 	else
 	{
 		unsigned h = 2166136261u;
 		for (int i = 0; i < p.numstatements; i++)
 			h = fnv (h, &vm->statements[i], sizeof (dstatement_t));
 		for (int i = 0; i < p.numfunctions; i++)
-			h = fnv (h, &vm->functions[i].first_statement, sizeof (int));
+		{
+			// (a builtin's number counts as 0: PR_LoadProgs renumbers builtins by name, vr_builtins.cpp too)
+			const int fs = vm->functions[i].first_statement > 0 ? vm->functions[i].first_statement : 0;
+			h = fnv (h, &fs, sizeof (int));
+		}
 		if (h != p.hash)
 			why = "the code differs";
 		for (int i = 0; !why && i < p.numfields; i++)
