@@ -19,13 +19,15 @@
 #   greyed with an empty pouch, whole with rockets, split GRENADE / CLUSTER with multi-rockets too; CLUSTER into the first
 #   hand (flat: the right, its shotgun holstered; headset: the empty left, held without its grip), armed, thrown (the count
 #   stays down); GRENADE into the other hand (its gun holstered); flat: G puts it back. One screenshot (the split entry).
+#   (flatpos) vr_weaponwheel_test flatpos (flatmenu3): the left wheel two-handed (the left hand on the right's shotgun)
+#   opens where it opens with both hands empty; one screenshot (the two-handed spot).
 # Two screenshots (the lit slot; off the wheel) composed into -Out.
 AGENT=${1:?agent}
 MODE=${2:-vr}
 KIT=C:/OHWorkspace/qvr-kit
 S=C:/OHWorkspace/qvr-agents/$AGENT/scratch/weaponwheel
 mkdir -p "$S"
-if [ "$MODE" = "flat" ] || [ "$MODE" = "flatgrenade" ]; then
+if [ "$MODE" = "flat" ] || [ "$MODE" = "flatgrenade" ] || [ "$MODE" = "flatpos" ]; then
     OUT=${3:-$S/wheel_$MODE.png}
     SCRIPT="vr_flat_holsters 1; vr_flat_wheel 1; map vrtesthall; wait60; god; notarget; developer 1; impulse 154; wait5; impulse 176; wait10; vr_weaponwheel_test $MODE"
     EXTRA="-ExtraArgs -flatscreenmode"

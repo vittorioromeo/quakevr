@@ -6106,3 +6106,78 @@ at 380 u/s at an ogre 0.15-0.62 (nothing or a stagger; it is never toppled: its 
   `sv_random_seed 1;map vrragtriggers;wait30;god;vr_agrunt_test 236` -QuitOn "test 236 over".
 - Open: `vr_kdtrig_test 44` (the thrown trials) is confounded: its corpse is killed between you and the target, and the
   kill push throws it into the target before the fling (down then, counted "stands"). Not changed.
+## flatmenu3: the holster menu on TAB with the level bar, its BACK POUCH, legible pad glyphs, the off hand's wheel (branch agent/flatmenu3, 2026-11-28)
+
+His words 2026-11-28 (items 3-6 of the afternoon's flat-screen notes).
+- **Off hand's wheel** (3: "When both hands are holding the same weapon, the weapon wheel for the off-hand appears near the
+  edge of the screen"): an empty hand steadying the other hand's weapon (flat play's two-handed hold) is drawn on the gun,
+  but the game's hand hangs behind the eye, so its projection was the fallback or anywhere on the window as the look went.
+  `flatHandOnWindow` (vr_weaponwheel.cpp) now places such a hand's wheel at `restSpot` (0.33 W, 0.80 H, the right hand's
+  mirrored), measured where the left wheel opens with both hands empty at a level look; the same spot is the off-view
+  fallback (was 0.28, 0.68). Rule: that hand empty (WID_FIST), the other holding a weapon, not holding a thing.
+- **TAB** (4): `vr_flat_key_holster_menu` "mouse3 TAB LTHUMB" (both keyboard slots and the pad's); MMB keeps it (nothing
+  clashed). In flat play TAB is now a flat key (VR_FlatKeyOwned: its +showscores bind is not run); in VR, the console and
+  the menus TAB is as before. Configs are sparse since 218, so a player who never changed the key gets TAB.
+- **Level bar** (4): under the open menu, `vr_flat_holster_menu_levelbar` (1; VR Settings, under Holster Menu Size): a
+  gadget image (`gadget::renderLevelBar`, vr_gadget_holster.inc: the menu's face, frame, corner ticks, palette and font)
+  480 x 25 menu pixels at the menu's scale, at the window's bottom (2 % margin): the level's name and map (Sbar's), then
+  KILLS, SECRETS, SKILL, TIME (cl.time). Deathmatch: everyone's frags, the most first, yours lit, then TIME (the
+  scoreboard TAB showed there); the full ranking stays on `+showscores` (a pad's right stick click with its alt
+  modifier, padflat's default) and on dying. The menu is a little smaller (`vr_flat_holster_menu_size` 0.58, was 0.62)
+  and the bindings panel + menu are centred in the room above the bar; all of it is fitted to the window's height.
+- **BACK POUCH in the menu** (5): over the hands, GRENADE (left) and CLUSTER (right), each a compact slot (thumbnail, count)
+  between its L and R buttons (`pouch g l` .. `pouch c r`), "BACK POUCH" over them (`HolsterMenuView::caption`). Both kinds
+  always shown while the pouch is on (greyed with none left, lit while that kind is in a hand), so nothing moves. A press
+  is the wheel's own pick: `weaponwheel::pickPouch` (vr_wheel_pick -5 / -6, QC VR_Wheel_Grenade: take, swap the kind,
+  put back, armed refused); lit by `weaponwheel::pouchKind` (the wheel's rule, shared). Off with `vr_handgrenade` 0.
+- **Pad glyphs** (6): `padGlyph` (vr_gadget_holster.inc) draws a button glyph 1.3x its place round the same middle on a
+  dark plate, dimmed to 0.6 (the screen's glow makes whitish cores and halos from near-white strokes: the white caps'
+  black letters drowned): the bindings panel's rows (holster menu, flat wheel) and the VR wheel's controller callouts. The
+  main menu's panel (vr_menuui.cpp) draws its glyph 1.3x on a dark rounded plate (no glow there; not dimmed). Row heights,
+  advances and places unchanged.
+- **Tests**: flatholster_test 61/0 (new: the pouch's four buttons lit; R GRENADE takes one, R CLUSTER swaps it, again puts it
+  back; TAB held by vr_mock_key opens the menu, the level bar's name and KILLS, no scoreboard, the menu above the bar; let
+  go closes it); `weaponwheel_test.sh <agent> flatpos` 2/0 (new: the left wheel two-handed at 317 432 and with both hands
+  empty at 316 438 on 960 x 540). weaponwheel_test flat 21/0, flatgrenade 16/0, vr 26/0, grenade 15/0; bindpanel_test 37/0;
+  flatkeybind_test 31/0. Fixed on the way: the flat wheel test's `flatKey` sent the whole cvar ("1 LSHOULDER") to
+  vr_mock_key, which then did nothing (one key name now).
+- Screenshots for his review (worktree scratch): flatmenu3_menu_tab.png (TAB: menu, pouch, bar), flatmenu3_glyphs_before_after.png
+  (left before, right after: the holster menu's panel with an Xbox pad, the main menu's), flatmenu3_offwheel.png.
+## flatmisc3: flat holster/pouch leg-bob sliders, crouched jabs stop on the floor, his 11-28 values promoted (branch agent/flatmisc3, 2026-11-28)
+
+His words 2026-11-28, items 2, 7, 8.
+- **Holster bob (2)**: flat-screen only, `vr_flat_holster_bob_h` / `_v` (0..1, default 1 = as before; Tunables > Flatscreen >
+  Looks, "Holster Bob Horizontal / Vertical"): the share of the legs' move of the hip holsters (`onTheThigh`,
+  `vr_holster_leg_follow`) and the ammo pouch (`onBothThighs`, `vr_ammo_pouch_leg_follow`) kept, world xy and z apart
+  (vr_body.cpp `flatLegMove`); a hip holster's plate turns with the thigh by the larger of the two. With a headset: all of
+  it. The body's own bob (vr_flat_body_bob) is untouched. `vr_flat_holster_bob_report` (Debug > Debug Views: Print Holster
+  Leg Bob): how far the legs carry each now, across and up and down. Walking at 1 1: hips up to ~1.5 across, ~2 up and down;
+  the pouch ~0.2 / ~0.4.
+- **Jabs into the floor (7)**: `handOffWall` (vr_flatplay.cpp) held an empty hand off walls only (`pointWallDepth` skips
+  floors and ceilings), so a jab aimed down while crouched (to `jabThrough` past the floor) went in. A punch or a shove now
+  uses `handpose::pointSurfaceDepth` (any surface; a hand at rest still walls only): it stops on the floor
+  `vr_flat_punch_wall_margin` (-0.5) in, at once, and QC's world blow lands (`melee event: punch ... a wall`). The fist
+  ends where it stops, pulled back along its way to the shoulder (so a little off the crosshair, as at a wall).
+- **Promoted (8)**: source his `ironwail.cfg` (14:42) exec'd over the test baseline, `vr_propose_defaults` against this
+  branch's defaults, and his `tunables.cfg`.
+  - `weapons.txt` (weapons_data.py promote): spear (slot 57) and Crystal Lance (slot 55) hip / shoulder / upper holster
+    offsets (31 keys); nailgun (slot 3) `mnt_y` -1.48 -> -0.0636.
+  - `vr_agrunt_dazzle_dual` 0 -> 1 (dual wielders shield their eyes with the left gun's hand; the dazzle test sets it itself).
+  - Already defaults: `vr_flat_visor_boot_glitch` 2, `vr_agrunt_poses` (every key in `shipped[]`), `vr_agrunt_ik_stretch`.
+  - Skipped: personal (handedness, comfort, height, xr runtime, motion button, spectator/window view, notes, toolgun,
+    volume, alwaysrun, autosave list, tutorial_started, graphics/flat block: fov, gamma, contrast, crosshair, hudstyle,
+    scr_*, sensitivity, viewsize, host_maxfps, vid_borderless, vr_gore_dents, vr_flat_taa), studio/tool state
+    (armour/texture studio, grip editor), the test baseline's own (vr_backend mock, vr_fixed_frames, vr_mock_fast,
+    vr_log_flush_frames, vr_gameplayfix_*, vr_pickup_scale), the old table's prop ids 72-80 (as promote1127), float noise
+    (`att2_pitch` -0.743 / 0.757 from the version-80 conversion).
+- **Tests**: new `flatholsterbob_test.sh` 14/0 (four walks: 1 1, 0 0, 1 0, 0 1; each of lhip, rhip, pouch), new
+  `flatpunchfloor_test.sh` 6/0 (crouched, 70 down: each jab's pose 1.9 into the floor, stops 0.4 in, the world blow; level
+  jabs meet nothing); flatfists_test 21/0. Scene `flat_holster_bob`.
+## diskclean (2026-11-28)
+
+- Retired 18 checklist lines he ticked Pass (cl_retire_ticks.py, no voice notes) and removed 6 scenes nothing used any more:
+  agrunt_flashblind, armour_lineup, elite_pair, flat_proc_reload, run_setup_newgame, tutorial_ladder (agrunt_dual_guns and
+  armour_beasts kept: a QC test comment / test_numbers.txt / ARMED_MONSTERS.md still name them). checklist_tests_check 97/0.
+- Disk: moved to F:\QVR-Parked‚6-11-28\diskclean\: worktrees pcbase and unionmerge (3.3 GB, worktree prune), the kit base
+  bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
+  renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.

@@ -4694,7 +4694,12 @@ void handOffWall(hands::State& s, int h, const glm::vec3& root, float dt)
     const float punchMargin = za::clamp(vr_flat_punch_wall_margin.value, -handMarginMax, handMarginMax);
     const float margin = acting ? za::max(0.f, punchMargin) : za::clamp(vr_flat_wall_margin.value, 0.f, handMarginMax) + handRoom;
     const float bite = acting ? za::max(0.f, -punchMargin) : 0.f;
-    const auto depthAt = [&](float t) { return handpose::pointWallDepth(s.head, s.pos[h] + way * t, margin); };
+    // (A punch or a shove stops on the floor and a ceiling as on a wall: crouched and aiming down, a jab went through the
+    // floor, his words 2026-11-28; a hand at rest only walls, as before.)
+    const auto depthOf = [acting](const glm::vec3& eye, const glm::vec3& p, float m) {
+        return acting ? handpose::pointSurfaceDepth(eye, p, m) : handpose::pointWallDepth(eye, p, m);
+    };
+    const auto depthAt = [&](float t) { return depthOf(s.head, s.pos[h] + way * t, margin); };
     float need = 0.f;
     fs.wallDepth[h] = depthAt(0.f);
     if(fs.wallDepth[h] > 0.f)
@@ -4726,7 +4731,7 @@ void handOffWall(hands::State& s, int h, const glm::vec3& root, float dt)
     {
         Con_Printf("flatwall: %s hand t %.3f %s in %.2f back %.2f now %.2f\n", h == HAND_MAIN ? "main" : "off", vr_gametime,
             punching(h) ? "punch" : shoving(h) ? "shove" : "rest", fs.wallDepth[h], fs.wallBack[h],
-            handpose::pointWallDepth(s.head, s.pos[h], 0.f));
+            depthOf(s.head, s.pos[h], 0.f));
     }
 }
 } // namespace

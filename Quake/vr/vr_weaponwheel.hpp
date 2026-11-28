@@ -73,6 +73,17 @@ constexpr int keyFlip = -4;
 // pouch: the entry split in two halves, the grenade on top.
 constexpr int keyGrenade = -5;
 constexpr int keyMultiGrenade = -6;
+// One kind of the back pouch's grenades for hand `hand` (0 the left): the pouch on (vr_handgrenade), how many are left,
+// and whether a pick does something (some left, or that kind in the hand: picked, it goes back; the other kind in the
+// hand: swapped). The wheel's BACK POUCH and the holster menu's (flatmenu3) read it; pickPouch sends the wheel's pick.
+struct PouchKind
+{
+    bool on{false};
+    int left{0};
+    bool usable{false};
+};
+[[nodiscard]] PouchKind pouchKind(int hand, bool multi);
+void pickPouch(int hand, bool multi);
 
 struct Provider
 {

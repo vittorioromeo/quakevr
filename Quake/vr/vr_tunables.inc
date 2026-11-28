@@ -2642,6 +2642,8 @@ QVR_TUNABLE(vr_flat_ads_sway_up, "0.3") // and their up and down sway and the tu
 QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1); no breathing sighted, so at rest the sights stay exact
 QVR_TUNABLE(vr_flat_bob_fwd, "1") // the drawn body, arms and gun bob forward and back on a walk, in step with it, along the view's forward, pitch included (0..3; 1: 0.6 units each way at a run); 0 none. Separate from vr_flat_bob
 QVR_TUNABLE(vr_flat_ads_bob_fwd, "0.15") // sighted, this share of it (0..1)
+QVR_TUNABLE(vr_flat_holster_bob_h, "1") // the hip holsters and the ammo pouch keep this share of the legs' move across (walking: their sway with the thighs, vr_holster_leg_follow / vr_ammo_pouch_leg_follow) (0..1; 1: all, as with a headset; 0: none)
+QVR_TUNABLE(vr_flat_holster_bob_v, "1") // and this share of it up and down (0..1)
 QVR_TUNABLE(vr_flat_ads_recoil, "0.1") // aiming down the sights, a shot's drawn recoil (back, rise, turn) is kept at this share (0..1; 1: as hipfire)
 QVR_TUNABLE(vr_flat_turnlag, "2") // the drawn hands trail a turn and catch up (-10..10, at most vr_flat_turnlag_cap degrees each): "weapon inertia"; 0 the hands locked to the view; negative they lead the turn instead (GoldenEye's "turn with the camera")
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
@@ -3002,7 +3004,7 @@ QVR_TUNABLE(vr_agrunt_dazzle_face_left, "0.5") // ... to its left,
 QVR_TUNABLE(vr_agrunt_dazzle_face_up, "-0.5") // ... and up (the grunt: 11 0.5 21.5 from its origin, as before)
 QVR_TUNABLE(vr_agrunt_dazzle_bend, "0.9") // ... that grip within this share of its arm's reach from its shoulder (drawn towards it: a bent arm, its forearm across its face, never held out straight)
 QVR_TUNABLE(vr_agrunt_dazzle_elbow, "1") // ... its elbow's way: 0 the arm's usual (down and back), 1 out to its side (its forearm across its eyes)
-QVR_TUNABLE(vr_agrunt_dazzle_dual, "0") // ... holding two weapons: 1 it shields with its left one's hand (the weapon still held, pointing up and away; not fired while raised); 0 both weapons stay up
+QVR_TUNABLE(vr_agrunt_dazzle_dual, "1") // ... holding two weapons: 1 it shields with its left one's hand (the weapon still held, pointing up and away; not fired while raised); 0 both weapons stay up
 
 // Armed Humanoids > Elite (QC vr_attrs.qc; ROUND26.md, "elite"): an elite's factors on the armed humanoids' knobs, its
 // gains, who gets one, its dye's pulse (the engine's vr_humlook.cpp; its colour: humlook.txt's "elite" rows)
