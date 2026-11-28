@@ -403,7 +403,7 @@ void(float xHand) W_FireRevolver =
 
     self.effects = self.effects | EF_MUZZLEFLASH;
     self.punchangle_x = -4;
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp; slot 38's Recoil, Flash)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp; slot 38's Recoil, Flash)
     VRGunHaptic(xHand, 0.16, 50, 1);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 
@@ -1187,10 +1187,12 @@ void(float xHand) VR_Revolver_HandFrame =
 };
 
 // Every player frame (client.qc PlayerPreThink, self the player).
+// (A revolver stuck in a body by its bayonet, the hand on it: its frame on it, vr_propfire.qc; embedfire2: its cocked hammer
+// was let down at once, the hand's weapon the fist, and it never fired.)
 void() VR_Revolver_PlayerFrame =
 {
-    VR_Revolver_HandFrame(cVR_MainHand);
-    VR_Revolver_HandFrame(cVR_OffHand);
+    VR_PropFire_With(cVR_MainHand, VR_Revolver_HandFrame);
+    VR_PropFire_With(cVR_OffHand, VR_Revolver_HandFrame);
 };
 
 /*QUAKED weapon_revolver (0 .5 .8) (-16 -16 0) (16 16 32)

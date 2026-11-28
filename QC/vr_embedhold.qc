@@ -204,13 +204,17 @@ void(entity e, entity p) VR_Embed_FlatPull =
         // embedfire: a weapon that fires where it is stuck (the Crystal Lance; vr_propfire.qc): its fire button is its trigger
         // (held: charged, let go charged: fired, as in the hand), and a tap pulls it: let go within vr_flat_embed_fire_tap s of
         // its press, nothing fired since. (A button held from before the hold, the charge it brought in: no tap.)
+        // embedfire2 (his flat note 2026-11-28: the revolver didn't fire stuck): a click of a gun a shot a pull (the revolver,
+        // the nail pistol) is no tap: a shot on the press's own frame or the one before (the trigger's frame may run first)
+        // counts as fired since, and a press while the gun still cycles (its refire, as in the hand: nothing) is no tap.
         if(fresh)
         {
-            e.vr_hold_flatpress = time;
+            float cycling = ((fresh & 2) && time < p.attack_finished) || ((fresh & 1) && time < p.offhand_attack_finished);
+            e.vr_hold_flatpress = cycling ? 0 : time;
         }
         float released = e.vr_hold_flatfire & ~fire;
         float tapped = released && e.vr_hold_flatpress > 0 && time - e.vr_hold_flatpress <= max(0.01, cvar_hget(cvarh_vr_flat_embed_fire_tap)) &&
-                       e.vr_pfire_shot < e.vr_hold_flatpress;
+                       e.vr_pfire_shot < e.vr_hold_flatpress - frametime * 1.5;
         fresh = tapped ? released : 0;
     }
     e.vr_hold_flatfire = fire;
