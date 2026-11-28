@@ -60,13 +60,14 @@ BEVEL = 0.12             # (vr_agarmor.cpp plateBevelUv)
 GREYS, BROWNS = list(range(0, 13)), list(range(16, 23))  # (no white; the dark browns: rust, grime, leather)
 OLIVES = list(range(49, 60))  # (the palette's olive row, its darks: with the sage row an olive drab)
 MAROONS = list(range(150, 158))  # (the pink row's dark end: with the pure reds and the red-browns a deep brick, held back)
-TIER_COLOURS = {1: list(range(176, 192)) + OLIVES + GREYS + BROWNS, 2: BROWNS + list(range(29, 32)) + list(range(198, 208)) + GREYS, 3: list(range(64, 80)) + list(range(96, 104)) + MAROONS[-3:] + GREYS + BROWNS}
+TIER_COLOURS = {1: list(range(176, 192)) + OLIVES + GREYS + BROWNS, 2: list(range(16, 32)) + list(range(201, 208)) + GREYS, 3: list(range(64, 80)) + list(range(96, 104)) + MAROONS[-3:] + GREYS + BROWNS}
 
 # The paint, full colour (armourstyle, ROUND26.md: his "after": muted, darker, dirty, still three types at a glance). A dull
 # painted metal: a military olive drab (the sage and olive rows' texels side by side), a mustard ochre (the tan row's top and
 # the yellow row's darks), a deep brick red (the pure reds' darks and the red-browns), and still three hues told apart in the
 # dark (vr_agarmor_look_check's hue distance). sRGB, 0..255. Each tier stays near its own rows of Quake's palette.
-PAINT = {1: (72, 96, 62), 2: (146, 128, 30), 3: (114, 30, 26)}
+PAINT = {1: (70, 88, 50), 2: (138, 108, 38), 3: (114, 26, 26)}
+PAIR_SPREAD = {1: 0.2, 2: 1.0, 3: 1.0}  # (to_palette: green's pairs may be far apart: the sage and olive rows' texels together its olive drab)
 DARK_STEEL = (60, 56, 50)  # the metal under chipped paint at the edges: dull, never a bright line
 RUST = {1: (62, 56, 34), 2: (100, 72, 28), 3: (80, 30, 24)}  # (each near its own hue: an accent, and no tier's plates turn another's colour)
 GRIME = (26, 22, 18)
@@ -663,9 +664,8 @@ class PairQuantiser:
     little for pairs far apart (no black and white for a grey), in a distance where hue counts for more than brightness (the
     red-green and green-blue differences too); the pair's second where the noise is under its share of the mix."""
 
-    SPREAD = 1.0  # (how much a pair's own distance counts against it)
-
-    def __init__(self, table, ids):
+    def __init__(self, table, ids, spread=1.0):
+        self.spread = spread  # (how much a pair's own distance counts against it)
         self.ids = np.asarray(ids)
         t = self.feature(np.asarray(table, dtype=float))
         a, b = np.triu_indices(len(t))
@@ -681,7 +681,7 @@ class PairQuantiser:
     def row(self, colours, noise):
         c = self.feature(colours)[:, None, :] - self.p[None]
         t = np.clip((c * self.d[None]).sum(axis=2) / self.dd[None], 0.0, 1.0)
-        err = ((c - t[..., None] * self.d[None]) ** 2).sum(axis=2) + self.SPREAD * self.dd[None] * t * (1.0 - t)
+        err = ((c - t[..., None] * self.d[None]) ** 2).sum(axis=2) + self.spread * self.dd[None] * t * (1.0 - t)
         best = err.argmin(axis=1)
         n = np.arange(len(colours))
         return np.where(noise < t[n, best], self.ids[self.b[best]], self.ids[self.a[best]])
@@ -706,7 +706,7 @@ def to_palette(img, armor, emblem):
     small = small + grain
     pick = white(SKIN_W, SKIN_H, 420 + armor)
     idx = np.zeros((SKIN_H, SKIN_W), dtype=np.uint8)
-    plain, reds = PairQuantiser(table, np.asarray(allowed)), PairQuantiser(red_table, red_allowed)
+    plain, reds = PairQuantiser(table, np.asarray(allowed), PAIR_SPREAD[armor]), PairQuantiser(red_table, red_allowed)
     for y in range(SKIN_H):
         idx[y] = plain.row(small[y], pick[y])
         if red_texels[y].any():
