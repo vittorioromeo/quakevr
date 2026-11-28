@@ -1208,6 +1208,8 @@ void() VR_AttachMPTest_Frame =
 // checks the marks' reports (attach_guns_check.py). Ends `attachguns: N passed, M failed`.
 float VR_ATG_COUNT = 9;
 entity vr_atg_pks[5]; // the pickups (removed at the end)
+float vr_atg_2h;      // the gun held in both hands as V was pressed (bayofix: the GL, prox and RL are, in flat play)
+string vr_atg_model;  // its model then (the hand's is the prop's once it is stuck)
 
 float(float i) VR_ATG_Wid =
 {
@@ -1297,24 +1299,24 @@ void() VR_ATG_Frame =
     else if(vr_at_s == 5 && u > 0.6)
     {
         vr_at_health = vr_et_m != world ? vr_et_m.health : 0;
+        vr_atg_2h = VRGet2HAiming(p);
+        vr_atg_model = what;
         localcmd("vr_flat_punch v\n");
         VR_AT_To(6);
     }
     else if(vr_at_s == 6 && (w != world || u > 0.9))
     {
         float hurt = vr_et_m != world ? vr_at_health - vr_et_m.health : 0;
+        // (The GL, the prox launcher and the RL are held in both hands in flat play once the off hand is free: V drives
+        // them forward with both, flatplay::bayonetDrive2H; bayofix.)
         float wid6 = VR_ATG_Wid(vr_atg_i);
-        string line6 = sprintf("%s: V thrusts its bayonet in: hurt %g, stuck by its point, the hand drives it", what, hurt);
-        if(w == world && (wid6 == WID_GRENADE_LAUNCHER || wid6 == WID_PROXIMITY_GUN || wid6 == WID_ROCKET_LAUNCHER))
+        if(wid6 == WID_GRENADE_LAUNCHER || wid6 == WID_PROXIMITY_GUN || wid6 == WID_ROCKET_LAUNCHER)
         {
-            // (open, bayomounts: flat play takes these heavy guns two-handed as soon as the off hand is free ("2h click"),
-            // and V two-handed is no bayonet thrust: not counted until flat V thrusts a two-handed bayonet gun)
-            dprint(sprintf("attachguns: PENDING %s (two-handed in flat play)\n", line6));
+            VR_Test_Check(vr_atg_2h, sprintf("%s: held in both hands as V was pressed", vr_atg_model));
         }
-        else
-        {
-            VR_Test_Check(w != world && hurt > 0 && VR_PropFire_Held(p, h) == w, line6);
-        }
+        VR_Test_Check(w != world && hurt > 0 && VR_PropFire_Held(p, h) == w,
+            sprintf("%s: V thrusts its bayonet in%s: hurt %g, stuck by its point, the hand drives it", vr_atg_model,
+                vr_atg_2h ? " (two-handed)" : "", hurt));
         vr_at_w = w;
         VR_AT_To(w != world ? 7 : 10);
     }
