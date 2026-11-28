@@ -5197,6 +5197,47 @@ then "the hand grabbing the shells doesn't use the same finger pose as VR" and "
 - **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
   the pair); his eyes on the drawn pair at the port while running.
 
+## Enemy attributes; the elite (branch agent/elite, 2026-11-28)
+
+His ask: a system of special attributes on enemies like "infected", with an "elite" first: much faster fire, reaction,
+accuracy, harder to fight, 1.25x walking speed; set from the toolgun's Armed Humanoid page; coexisting with infection;
+synced in MP; recognisable by a dye through the weapon-colour system.
+
+- **The system** (`QC/vr_attrs_defs.qc`, `QC/vr_attrs.qc`): `.vr_attrs` bits (`VR_ATTR_INFECTED` 1, `VR_ATTR_ELITE` 2),
+  a table (name, factor per stat `VR_ATTR_ST_*`, look). `VR_Attr_Mult(e, stat)` is exactly 1 with no attribute (no
+  random number drawn), so nothing changes for ordinary monsters. Infected is its existing row (`.vr_mg3_infected`: the
+  bit derived from it, `VR_Attr_Set(e, VR_ATTR_INFECTED, 1)` gives the zombie's row): behaviour unchanged (toolgun
+  infected test 54/0). An infected elite rising loses the elite (bit and dye) with the armed layer.
+- **The elite's stats** (Tunables > Armed Humanoids > Elite, `vr_elite_*`): fire rate x3 (pause / 3), reaction x0.25,
+  accuracy x3, aggressiveness x1.5, steps x1.25 (`VR_AG_Speed`: run, strafe, back off), swings and punches 1.35x quicker
+  (`vr_ag_act_speed` may now pass 1: `VR_AGP_Speed` caps 3, every phase shorter), aim lag behind a moving target x0
+  (aims where you are), turning x1.5, health x1.5 (both given back on losing it), pains taken 0.35 (T_Damage skips
+  th_pain otherwise: no flinch). The knobs are the armed layer's, so the AI factors apply to armed humanoids only; pain
+  and health apply to any monster given the bit (`vr_attr_set`).
+- **The look**: `.vr_hum_look` + 8192 (`VR_HUM_LOOK_ELITE`, engine `humlook::eliteBit`): the clothes use humlook.txt's
+  new `elite` category rows (category 15; dark gold 0.95 0.70 0.18, strength 0.85, light 0.55-0.6) instead of the
+  weapon's, pulsing towards bright gold and brighter (`vr_elite_pulse` 0.3, `vr_elite_pulse_hz` 0.6; each on its own
+  phase); the worn pack keeps its weapon's colour (the elite pack row where the weapon has none). Texture Studio: Weapon
+  Category > Elite edits the rows. An elite with no weapon colour gets its kind's row (category 0) for the dye.
+- **MP / splitscreen**: the bit rides the existing look short (`QVR_SVC_HUMLOOK`), sent on change and with the spawn
+  state; an older client reads the same body look and ignores the bit: no `QVR_NET_VERSION` bump. Seats share the
+  client's entities: drawn the same.
+- **Who gets elites**: the toolgun's Armed Humanoid page (Elite: On/Off beside Infected With, `vr_toolgun_armed_elite`;
+  Reset/Clear put it back); "Elites in Hard and Nightmare" (Combat > Armed Grunts > AI Behaviour, `vr_elite_spawn`,
+  default 0, a server rule): each armed humanoid the map or a replacement spawns rolls `vr_elite_spawn_chance` 0.15
+  (never the tools', the arena's, deathmatch's); the Survival Arena: from wave `vr_elite_arena_wave` 4 each armed
+  humanoid is an elite with `vr_elite_arena_chance` 0.2, by a hash of wave and index (`VR_ARENA_EliteAt`: no draw from the
+  arena's own numbers, its plans and spots as before); a map's `vr_attrs` key (taken up with its gains at spawn).
+- **Debug**: `vr_attr_set <infected|elite> <0|1> [entity]` (nearest monster by default; Debug > Tools > Enemy
+  Attributes); `vr_humlook_info` prints the client's elites and each one's drawn clothes row.
+- **Tests**: `vr_agrunt_test 233` (52/0): each armed kind ordinary beside elite, every factor, 1.25x steps, health,
+  turning, look, swing, pains; infected too; back; a map key; the roll's rules; the arena rule. `vr_agrunt_test 234`:
+  the lineup screenshot (his review). `vr_toolgun_armed_elite_test` (18/0: every armed kind elite, elite+infected,
+  neither). `mp_test.py suite --only mp_elite` (9/0): B knows the elite and draws its dye; made ordinary, none.
+- **Open**: in the lineup screenshot (scratch/elite_lineup.png) the elite grunt and knight read dark gold, but the elite
+  enforcer (lightning) still looks like the stock green although `vr_humlook_info` gives it the elite row with a mask;
+  to look at (his eyes, the Texture Studio's Elite rows for the enforcer). The arena tests were not rerun (the rule only
+  touches waves 4+).
 ## bayofix: flat V drives a two-handed gun's bayonet with both hands; the dagger placed on every new gun (branch agent/bayofix, 2026-11-28)
 
 Open from bayomounts: flat V with a bayonet on the GL, prox and RL (held in both hands once the off hand is free) was no

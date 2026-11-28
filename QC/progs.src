@@ -36,6 +36,7 @@ dwell/dw_defs.qc
 vr_ad_mondefs.qc
 // Armed grunts: their fields and hooks (ai.qc, combat.qc and the grunt's file call them; vr_armedgrunt.qc defines them).
 vr_armedgrunt_defs.qc
+vr_attrs_defs.qc // enemy attributes (infected, elite): the field, the bits, the hooks (vr_attrs.qc defines them)
 vr_armedgrunt_shot_defs.qc
 // Monsters see and aim at a leaning player's visible parts (ai.qc's visible(), the CheckAttacks, vr_aimcone.qc).
 vr_leanaim.qc
@@ -614,6 +615,7 @@ vr_propimpact_test.qc
 // Armed grunts (after every weapon they fire and the grunt's own frames) and their test (vr_agrunt_test).
 vr_rigseq.qc
 vr_armedmon.qc
+vr_attrs.qc // enemy attributes: the table, their stats, the elite's gains and look, who gets them (ROUND26 "elite")
 vr_armedgrunt_ai.qc
 vr_armedgrunt.qc
 vr_ogre_friends.qc // ogres mind their friends (with the armed humanoids' VR_AI_FriendCare)
@@ -666,6 +668,7 @@ vr_armedgrunt_blade_test.qc // test 77: blade on blade
 vr_armedgrunt_extent_test.qc // test 214: a held weapon's drawn extent follows its transform tuned mid-map
 vr_ownclash_test.qc // vr_clash_test: your two weapons clashing
 vr_armedgrunt_dazzle_test.qc // test 232: armed humanoids blinded by the flashlight
+vr_attrs_test.qc // tests 233, 234: enemy attributes (the elite's stats, look, roll, arena rule; the lineup); the toolgun's
 vr_dirparry_test.qc // test 78: the directional parry
 vr_armedgrunt_preparry_test.qc
 vr_armedgrunt_bugs_test.qc

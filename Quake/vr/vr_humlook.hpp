@@ -27,6 +27,11 @@ namespace qvr::humlook
 inline constexpr int maxKinds = 8;       // armed monster rows (QC VR_AM_*: grunt, enforcer, knight, death knight)
 inline constexpr int maxCategories = 16; // weapon categories (QC VR_HUM_CAT_*; 0 none)
 inline constexpr int partPack = 4096;    // a look's part bit: its worn backpack (else its body)
+// A look's elite bit (QC vr_attrs.qc VR_HUM_LOOK_ELITE; ROUND26.md, "elite"): its clothes dyed by the table's "elite"
+// row (category catElite) instead of its weapon's, pulsing (vr_elite_pulse); its pack keeps its weapon's colour (the
+// elite's pack row where the weapon has none). Sent with the look (QVR_SVC_HUMLOOK's short): an older client ignores it.
+inline constexpr int eliteBit = 8192;
+inline constexpr int catElite = 15;
 inline constexpr int numKeys = 5;        // the masks' keys: the four kinds' bodies, then a worn pack
 inline constexpr int keyPack = 4;
 

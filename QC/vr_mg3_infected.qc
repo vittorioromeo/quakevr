@@ -222,6 +222,9 @@ void() MG3_Infected_DropWeapon =
         VR_AgArmor_Shed(self, self.health);
         self.vr_ag = 0;
         self.vr_agr = 0;
+        // (an elite's too: what rises is an ordinary zombie or fiend, without the elite's dye; vr_attrs.qc)
+        self.vr_attrs = self.vr_attrs - (self.vr_attrs & VR_ATTR_ELITE);
+        self.vr_hum_look = self.vr_hum_look - (self.vr_hum_look & VR_HUM_LOOK_ELITE);
         vr_mg3_infected_drops++;
     }
     else if(self.classname == "monster_army")
