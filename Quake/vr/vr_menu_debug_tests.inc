@@ -1245,6 +1245,13 @@ za::Vector<Item> pageDebugTests()
             .help("A loaded rocket launcher into the off hand and 40 rockets (impulse 158: the grenade launcher, 159 the "
                   "proximity launcher): empty it, then load it at the muzzle."),
         command("Eject the Off Hand's Magazine", "vr_reload_test 6; impulse 125").help("As its B/Y does."),
+        command("Ammo Follows the Magazine Test", "vr_reload_test 51; impulse 125")
+            .help("Immersive reloading (ammomags): a gun's ammo switch refused, the pouch in halves (plain right, lava or "
+                  "multi left), a lava magazine seated makes the nailgun fire lava nails, the launchers take the other kind "
+                  "only once empty; the simple mode and flat play keep the switch (\"ammomags: N passed, M failed\")."),
+        command("Empty Nailgun in the Off Hand (Pouch Halves)", "vr_reload_test 52; impulse 125")
+            .help("An empty nailgun in the off hand, 50 nails and 30 lava nails, immersive reloading: take a plain magazine "
+                  "from the pouch's right half or a lava one from its left and seat it."),
         command("Empty the Off Hand's Gun", "vr_reload_test 5; impulse 125")
             .help("Its magazine back into your ammo (to load it again)."),
         command("Take a Shell (Main Hand)", "vr_reload_test 1; impulse 125")
@@ -1403,7 +1410,7 @@ za::Vector<Item> pageDebugTests()
         command("Nail Pistol Lava Nails Test", "vr_np_test 8")
             .help("A nail pistol with nails and lava nails: its ammo button (flat play: N) switches it to its lava nails and "
                   "its lava look; three lava nails fired into a box (the lava nails used, the nailguns' lava damage ratio); "
-                  "back to nails; with immersive reloading the switch ejects the magazine and the lava one is skin 1 "
+                  "back to nails; with immersive reloading the button is refused, the pouch in halves, a lava magazine seated fires lava "
                   "(\"nplava: N passed, M failed\")."),
         command("Nail Pistol Aim Test", "vr_np_test 5")
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "

@@ -6461,3 +6461,39 @@ speed). His reloads.txt values are untouched (no frame change forced a conversio
   hand's input curls settle (vr_view_hands.cpp updateGrasp). The super nailgun's take differs 4.5 units (the gun posed
   differently at the take: not found). The lock draws the super shotgun shut and the revolver's cylinder in (the real reload
   opens them), so their carry isn't compared. No frame strips were made (budget).
+## ammomags: with immersive reloading the magazine or round loaded sets the ammo; the pouch in two halves; no mixed loads (branch agent/ammomags, 2026-11-28)
+
+His words (kit `scratch/fb1127n/words_1128b.md` item 18; his decision 11-28: mixed loads stay blocked, research in BACKLOG).
+- **What the player sees** (headset, immersive reloading for that gun): the nailgun, super nailgun, thunderbolt, nail pistol
+  and the launchers loaded at the muzzle (vr_reload_front) fire the kind of magazine or round loaded in them. Their ammo
+  buttons are not drawn (VR and flat-screen play's procedural reload); the button press and N are refused in the headset
+  (QC `ToggleSecondaryAmmo`: "ammo switch: refused, the rounds loaded set the ammo"). Holding such a gun, the ammo pouch is
+  split: the basic kind on its right half, the other (lava nails, plasma, multi-rockets, multi-grenades) on its left; the
+  hand's half picks what it takes, and a gun dipped into the pouch to reload takes the half its well is over. Up to two a
+  half (magazines in the six-layout's outer columns, grenades in the five-layout's outer slots, rockets standing nose up);
+  the counter shows "left | right". Seating a magazine of the other kind (or loading the other kind into an empty
+  launcher) switches the gun: its flag, model and HUD ammo (`VR_Reload_TakeKind`). Box magazines swap whole (the old one
+  must be out first, as before); a launcher's tube with rounds in refuses the other kind: a dull tap and "refused: no mixed
+  loads" (`VR_Reload_GunTakesAid`, `vr_reload_mixed`). The simple and off reload modes keep the buttons and the switch as
+  before; flat play keeps N (its switch ejects/refunds, the next reload loads the new kind: unchanged).
+- **Code:** QC `vr_reload.qc` (`VR_Reload_AmmoByMag`, `_KindAid`, `_GunTakesAid`, `_TakeKind`, `_PouchLeftHalf`; the
+  pouch's kind by the hand's half in `VR_Reload_PouchKind` and `VR_Reload_PouchFrame`; `VR_Reload_PlayerFrame` writes
+  `.vr_pouch_kind2/.vr_pouch_count2` (the left half; 0 none) and `.vr_ammomag` (hands whose guns follow their rounds));
+  `weapons.qc` `ToggleSecondaryAmmo`. Engine: stats `STAT_QVR_POUCHKIND2/_POUCHCOUNT2`, fields in vr_fields.inc; the
+  avatar's gear carries the left half (2 bytes) and the gun look a bit `VrGunLook::ammoByMagBit` (64) from `.vr_ammomag`
+  (QVR_NET_VERSION 50); `vr_pouchitems.cpp` `layoutSplit`/`layoutRocketsStanding`, `posed(..., kind2, variant2, left2)`;
+  `vr_view.cpp` `ammoFollowsRoundsHere` (this client's settings: the gun's `vr_reload_mode_<gun>` else `vr_reload_mode`
+  3, `vr_holster_mode` 0, the launchers with `vr_reload_front`; flat play: STAT_QVR_FLATRELOAD's 64) and
+  `ammoButtonHidden` (another player's gun by his look's bit), used by `setupButton`, `idleAttachments` (holstered and
+  lying guns: this client's settings) and `drawGunParts`. Mock: `vr_mock_hand_to <hand> ammopouch [<left units>]`.
+- **Tests:** `vr_reload_test 51` (QC/vr_ammomags_test.qc; Debug > Tests > Reloading "Ammo Follows the Magazine Test"):
+  24/0. `Misc/quakevr/ammomags_test.sh` (51 plus the mock's end to end 52-55: left half's lava magazine taken and seated,
+  its trigger held: lava nails fly; right half: a plain magazine): PASS (5 parts). `vr_reload_test 50` (ammoswitch: its
+  headset leg now expects the refusal) 36/0; `vr_np_test 8` (nplava: its immersive leg the refusal and the halves) 15/0;
+  `mp_test.py suite --only mp_wpnsync` 18/0 (A draws B's nail pistol without its button under his immersive reloading,
+  with it at `vr_reload_mode_npistol 0`). Scenario `ammomags`. Pictures for his review: worktree
+  `scratch/ammomags_pouch_nail.png`, `_rl.png`, `_gl.png` (from in front: the image's left is the player's right).
+- **Open:** a split pouch has no per-magazine reach (`vr_reload_pouch_mag_slots` off for it: the rounds' row and the
+  well's side), and the debug ports' magazine dots and the mock's `pouchmag` follow the whole pouch's layout. Holstered
+  and lying guns hide their buttons by this client's settings (another player's holstered guns draw no buttons anyway).
+  Mixed loads: BACKLOG section 11 (bookkeeping, LIFO firing, refunds, HUD, MP; about 1-2 days).

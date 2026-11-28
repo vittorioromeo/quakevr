@@ -1388,7 +1388,7 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n"
                    "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> nearestmodel <model name part> [<units over it>]\n"
-                   "       vr_mock_hand_to <main|off> ammopouch\n"
+                   "       vr_mock_hand_to <main|off> ammopouch [<left units>]\n"
                    "       vr_mock_hand_to <main|off> pouchport [<units above>]\n"
                    "       vr_mock_hand_to <main|off> pouchmag <slot> [<up> [<left> [<out>]]]\n"
                    "       vr_mock_hand_to <main|off> holster <0..5>\n"
