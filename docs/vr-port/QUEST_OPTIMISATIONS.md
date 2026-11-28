@@ -334,3 +334,13 @@ the lean sight (0.26). Builtins are ~half of it: the hot QuakeC left is natively
 | A chaser's path search by `findPathQvr` (Detour's A* step for step: the open list keeps each node's place, a new node's place read from its link); in hip1m1's fight 1,676 of 1,678 searches are exhaustive (the foe unreachable) (qcbuiltins2) | `vr_qc_builtin_fast` (2 compares) | PC navsteer 0.25 -> 0.21 ms a frame (2 runs each, -7..-23%); pathbench 1.07-1.18x; 0 differed. Quest not measured |
 | agpose's gun vertices from one frame setup (`hitmodel::vertexPoints`), the hand's two unused calls skipped (qcbuiltins2) | `vr_qc_builtin_fast` | PC agpose 0.21 -> 0.16 ms a frame (2 runs each, -11..-29%); vr_agpose_native 2 PASS exact (30,683 poses). Quest not measured |
 | Far, unseen, quiet armed humanoids' whole weapon think (scans, parry, pose) once in 4 frames; every frame the frame anything could notice (seen, near, something moving near the weapon, an attack, aim or parry) (aglod) | `vr_agrunt_think_lod` (cvar, default 1) | The same game: same seed, LOD on and off, 12 scene/seed pairs (hip1m1, combat_48, 48 behind him, arena waves): identical damage, hits, shots, kills and game hash. Quest `quakec` scope (12+12 interleaved blocks) 2.995 -> 2.960 ms, CPU busy 9.25 -> 9.14 (noise); PC 0.940 -> 0.915. Small: qcnative made quiet frames cheap already |
+
+## Whole frame (questframe, 2026-11-28)
+
+| Change | Where | Quest 3 A/B (interleaved, medians) | Default |
+|---|---|---|---|
+| A crowd's monster thinks spread over frames (`vr_think_spread` 12, `_frames` 4) | sv_phys.c, vr_physics.cpp | hip1m1 69 woken: late 10.2 -> 1.4%, busy p90 17.5 -> 12.6 ms, period p90 23.0 -> 17.1 | on |
+| S_Update's sound paint left to the pool's mix while it leads (`snd_mixasync_lead` 0.6) | snd_dma.c | hub: main-thread sound 0.67 -> 0.05 ms, busy p90 10.3 -> 8.6, period p90 16.2 -> 14.7 | on |
+
+Per scene (unworn, his config, 72 Hz): hub GPU 10.9 at dynres 0.80 (GPU by design); e1m1, arena, the campaigns' starts
+paced by the runtime (CPU 5.6-7.1, GPU 6.2-6.8); the 69-monster fight CPU spikes (QuakeC's 10 Hz burst). ROUND26 "questframe".

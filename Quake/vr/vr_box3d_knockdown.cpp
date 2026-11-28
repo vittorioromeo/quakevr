@@ -794,6 +794,27 @@ bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold)
     return true;
 }
 
+bool ragdollAim(edict_t* ent, const glm::vec3& at, const glm::vec3& grip, float hold, float strength)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp || !rp->rig || !activeLiving(ent))
+    {
+        return false;
+    }
+    RagdollBodies& r = *rp;
+    ragactive::State& a = r.active;
+    if(a.on && (a.death.on || ragactive::climbing(a) || ragactive::swimming(a)))
+    {
+        return false; // (its hands busy)
+    }
+    if(!a.on)
+    {
+        beginLiving(r, ent); // (lying: its arms alone, by their reaches, as the guard's)
+    }
+    ragactive::aim(a, glmv(world->toM(at)), glmv(world->toM(grip)), qcvm->time, hold, strength);
+    return true;
+}
+
 namespace
 {
 // What `ent` stood on and the world's floor below, for its stagger: a monster held on a lip by its box's edge is set

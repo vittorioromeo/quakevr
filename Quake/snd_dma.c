@@ -34,6 +34,7 @@ static void S_Play (void);
 static void S_PlayVol (void);
 static void S_SoundList (void);
 static void S_Update_ (void);
+static void GetSoundtime (void); // QVR: (S_MixLeftToPool)
 void S_StopAllSounds (qboolean clear);
 static void S_StopAllSoundsC (void);
 
@@ -146,6 +147,11 @@ static	cvar_t	_snd_mixahead = {"_snd_mixahead", "0.1", CVAR_ARCHIVE};
 // QVR: the mix-ahead painted on the game's thread pool while the screen updates (S_MixKick: R_RenderScene's S_ExtraUpdate
 // was it), joined before anything else touches the sound (S_MixJoin); 0: in R_RenderScene on the main thread, as it was
 cvar_t		snd_mixasync = {"snd_mixasync", "1", CVAR_NONE};
+// QVR: S_Update's own paint left to the pool's mix while what is painted leads the device by at least this share of the
+// mix-ahead (questframe, 2026-11-28): with both painting, whichever paint crossed the spatial audio's next frame took its
+// reverb's convolution (~2 ms on the Quest), so every other one landed on the main thread (the hub: 2.1-3.4 ms every
+// 3-10 frames). 0: S_Update paints too, as it did; a lead under it (a long frame) still paints there.
+cvar_t		snd_mixasync_lead = {"snd_mixasync_lead", "0.6", CVAR_NONE};
 
 // QVR: the pool's mix (S_MixKick .. S_MixJoin) and the mix-ahead's margin, since start-up or `snd_mixstats reset`.
 // Written by S_Update_ on either thread (never both at once: the main thread joins first); read on the main thread.
@@ -159,8 +165,10 @@ typedef struct
 	int		paints;		// S_Update_ calls that painted
 	int		underruns;	// ... that found the device past what was painted (it played old samples: a glitch)
 	int		minlead;	// sample pairs painted ahead of the device at a paint's start, the least (-1: none yet)
+	int		lefttopool;	// S_Update paints left to the pool's mix (snd_mixasync_lead)
+	int		lastkicks;	// kicks at the last S_Update (a mix ran on the pool since: the pool works)
 } sndmixstats_t;
-static sndmixstats_t	snd_mixstats = {false, 0, 0, 0.0, 0.0, 0, 0, -1};
+static sndmixstats_t	snd_mixstats = {false, 0, 0, 0.0, 0.0, 0, 0, -1, 0, 0};
 // QVR: snd_mixstats: the joins that found a mix posted, by where (S_MixJoin's __FILE__ and __LINE__)
 typedef struct
 {
@@ -179,10 +187,12 @@ static void S_MixStats_f (void)
 	int i;
 	S_MixJoin ();
 	Con_Printf ("snd_mixstats: async %g, %d mixes posted (%.3f ms each on the pool), joins %.4f ms each (%d waited), "
-		"%d paints, %d underruns, least lead %.1f ms (mixahead %g)\n", snd_mixasync.value, snd_mixstats.kicks,
+		"%d paints, %d underruns, least lead %.1f ms (mixahead %g), %d main paints left to the pool (snd_mixasync_lead %g)\n",
+		snd_mixasync.value, snd_mixstats.kicks,
 		snd_mixstats.kicks ? snd_mixstats.jobms / snd_mixstats.kicks : 0.0,
 		snd_mixstats.kicks ? snd_mixstats.waitms / snd_mixstats.kicks : 0.0, snd_mixstats.waits, snd_mixstats.paints,
-		snd_mixstats.underruns, snd_mixstats.minlead >= 0 ? snd_mixstats.minlead / rate : -1.0, _snd_mixahead.value);
+		snd_mixstats.underruns, snd_mixstats.minlead >= 0 ? snd_mixstats.minlead / rate : -1.0, _snd_mixahead.value,
+		snd_mixstats.lefttopool, snd_mixasync_lead.value);
 	for (i = 0; i < SND_JOINSITES && snd_joinsites[i].file; i++)
 	{
 		const sndjoinsite_t *s = &snd_joinsites[i];
@@ -191,7 +201,7 @@ static void S_MixStats_f (void)
 	}
 	if (Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "reset"))
 	{
-		sndmixstats_t fresh = {false, 0, 0, 0.0, 0.0, 0, 0, -1};
+		sndmixstats_t fresh = {false, 0, 0, 0.0, 0.0, 0, 0, -1, 0, 0};
 		snd_mixstats = fresh;
 		memset (snd_joinsites, 0, sizeof (snd_joinsites));
 	}
@@ -282,6 +292,7 @@ void S_Init (void)
 	Cvar_RegisterVariable(&snd_show);
 	Cvar_RegisterVariable(&_snd_mixahead);
 	Cvar_RegisterVariable(&snd_mixasync); // QVR
+	Cvar_RegisterVariable(&snd_mixasync_lead); // QVR
 	Cmd_AddCommand("snd_mixstats", S_MixStats_f); // QVR
 	Cmd_AddCommand("snd_cutoffs", S_Cutoffs_f); // QVR: the sounds cut off by others
 	Cvar_RegisterVariable(&sndspeed);
@@ -1079,6 +1090,30 @@ S_Update
 Called once each time through the main loop
 ============
 */
+// QVR: whether S_Update leaves its paint to the pool's mix (snd_mixasync_lead): a mix ran on the pool since the last
+// S_Update (one is posted every screen update) and what is painted leads the device by the share of the mix-ahead
+static qboolean S_MixLeftToPool (void)
+{
+	const int kicked = snd_mixstats.kicks != snd_mixstats.lastkicks;
+	int lead;
+	snd_mixstats.lastkicks = snd_mixstats.kicks;
+	if (!kicked || !snd_mixasync.value || snd_mixasync_lead.value <= 0.f || snd_noextraupdate.value || !shm)
+		return false;
+	SNDDMA_LockBuffer ();
+	if (!shm->buffer)
+	{
+		SNDDMA_Submit ();
+		return false;
+	}
+	GetSoundtime ();
+	SNDDMA_Submit ();
+	lead = paintedtime - soundtime;
+	if (lead < (int) (snd_mixasync_lead.value * _snd_mixahead.value * shm->speed))
+		return false;
+	snd_mixstats.lefttopool++;
+	return true;
+}
+
 void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 {
 	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
@@ -1196,7 +1231,8 @@ void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 //	BGM_Update();	// moved to the main loop just before S_Update ()
 
 // mix some sound
-	S_Update_();
+	if (!S_MixLeftToPool ()) // QVR: the pool's mix paints it (snd_mixasync_lead)
+		S_Update_();
 }
 
 /*
