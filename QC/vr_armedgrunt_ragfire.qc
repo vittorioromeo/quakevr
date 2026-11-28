@@ -22,6 +22,9 @@ float vr_ag_rf_fired;   // every shot fired as a ragdoll (the tests)
 float vr_ag_rf_blocked; // ... held back: its muzzle or its line blocked (the tests)
 float vr_ag_rf_asked;   // ... times one was due and its gun pointed within the cone (the tests)
 float VR_AG_RF_AIM_HOLD = 0.3; // s: each ragdollaim's hold (asked every frame: it eases out this long after the last)
+float VR_AG_RF_CORR_RATE = 3;  // 1/s: its aim's turn for its gun's line off its arm's, learnt this fast
+float VR_AG_RF_CORR_MOST = 0.6; // ... at most this (a unit vector's length: about 35 degrees)
+.vector vr_ag_rf_corr;         // that turn now (VR_AG_RagFire; cleared with each new ragdoll)
 
 // A gun it may fire as a ragdoll: one-handed and ranged, never big, explosive or a stream (his list: the shotgun, the
 // nailgun, the nail pistol, the revolver; the grunt's and the enforcer's own guns with them). Not the flare gun (it sets
@@ -73,20 +76,12 @@ void(entity g, entity p) VR_AG_RagFire =
     {
         g.vr_ag_rf_since = g.vr_kd_since; // (a new ragdoll: its first shot an interval on)
         g.vr_ag_rf_next = time + VR_AG_RagFireInterval(p);
+        g.vr_ag_rf_corr = '0 0 0';
     }
     entity oldself = self;
     self = g;
     vector at = VR_AG_AimPoint(); // (its target's chest, as its standing shots')
     self = oldself;
-    float reach = cvar_hget(cvarh_vr_agrunt_ragfire_aim);
-    if(reach > 0)
-    {
-        ragdollaim(g, at, VR_AG_RF_AIM_HOLD, p.origin, min(1, reach));
-    }
-    if(time < g.vr_ag_rf_next)
-    {
-        return;
-    }
     VR_AG_DrawnFrame(p); // (its gun as drawn on the ragdoll's hand: vr_ag_df_fw)
     vector fw = normalize(vr_ag_df_fw);
     vector m = weaponmuzzle(p);
@@ -95,10 +90,35 @@ void(entity g, entity p) VR_AG_RagFire =
         m = p.origin + fw * 16;
     }
     vector to = normalize(at - m);
+    float reach = cvar_hget(cvarh_vr_agrunt_ragfire_aim);
+    float aimed = 0;
+    if(reach > 0)
+    {
+        // Its arm reaches along the way to its target turned by what its gun is still off (its wrist's turn in its hand:
+        // the gun is not along the forearm), learnt as it goes: the gun's own line brought onto the target.
+        vector corr = g.vr_ag_rf_corr + (to - fw) * min(1, VR_AG_RF_CORR_RATE * frametime);
+        if(vlen(corr) > VR_AG_RF_CORR_MOST)
+        {
+            corr = normalize(corr) * VR_AG_RF_CORR_MOST;
+        }
+        g.vr_ag_rf_corr = corr;
+        vector want = normalize(to + corr);
+        aimed = ragdollaim(g, m + want * vlen(at - m), VR_AG_RF_AIM_HOLD, p.origin, min(1, reach));
+    }
+    if(time < g.vr_ag_rf_next)
+    {
+        return;
+    }
     float c = fw * to;
     float ang = atan2(vlen(to - fw * c), c) * 57.29578;
     if(ang > cvar_hget(cvarh_vr_agrunt_ragfire_cone))
     {
+        if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
+        {
+            VR_AG_Log(sprintf("ragfire: %s pointing %.0f deg off its target (arm reach %s), grip %v muzzle %v fw %v",
+                p.netname, ang, aimed ? "on" : "not driven", p.origin, m, fw));
+        }
+        g.vr_ag_rf_next = time + 0.25; // (looked at again soon: its arm swinging round)
         return; // (pointing away: its arm still swinging round, or it can't)
     }
     vr_ag_rf_asked = vr_ag_rf_asked + 1;

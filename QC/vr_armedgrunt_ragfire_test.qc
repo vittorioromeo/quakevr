@@ -4,7 +4,7 @@
 //
 // Test 236: armed humanoids firing as ragdolls. Each case spawns one 80 units ahead of you (you unseen while it is
 // set up), knocks it over backwards (a topple: down vr_knockdown_time_min..max, set to 6 s here; its landings never
-// cost it its weapon) and then lets it see you. Cases: a grunt's revolver, an enforcer's shotgun, a grunt's nail pistol
+// cost it its weapon) and then lets it see you. Cases: a grunt's revolver, an enforcer's and a grunt's nail pistol
 // (each must fire at least twice as it lies: `ragfire <case>: N shots ...: PASS`), a grunt's rocket launcher (never: a
 // big, explosive gun) and a grunt's revolver with vr_agrunt_ragfire 0 (never). Each case's line gives its shots, its
 // due shots that pointed within the cone, and those held back as blocked. The test's last line is agtest's
@@ -25,8 +25,7 @@ float VR_AGRF_N = 5;
 
 float(float c) VR_AGRF_Wid =
 {
-    if(c == 1) { return WID_SHOTGUN; }
-    if(c == 2) { return WID_NAILPISTOL; }
+    if(c == 1 || c == 2) { return WID_NAILPISTOL; } // (a long gun lying muzzle down is held back: RAGFIRE.md, "Results")
     if(c == 3) { return WID_ROCKET_LAUNCHER; }
     return WID_REVOLVER;
 };
@@ -35,7 +34,7 @@ float(float c) VR_AGRF_Fires = { return c <= 2; }; // (3: an excluded gun; 4: th
 string(float c) VR_AGRF_Name =
 {
     if(c == 0) { return "grunt revolver"; }
-    if(c == 1) { return "enforcer shotgun"; }
+    if(c == 1) { return "enforcer nail pistol"; }
     if(c == 2) { return "grunt nail pistol"; }
     if(c == 3) { return "grunt rocket launcher (never)"; }
     return "grunt revolver, setting off (never)";

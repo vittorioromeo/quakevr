@@ -2299,6 +2299,11 @@ void aimFrame(State& s, const Parts& p, const Context& c)
     r.goal = shoulder + to * (0.95f * limbLength(s, p, arm));
     r.weight = za::max(r.weight * (1.f - w), w);
     r.strength = za::max(r.strength, za::clamp(a.strength, 0.f, 1.f));
+    if(vr_debug_ragdoll.value >= 2.f)
+    {
+        Con_Printf("ragaim: arm %d mode %d weight %.2f strength %.2f hand %.2f m from its goal, base %.2f\n", arm,
+            static_cast<int>(s.mode), r.weight, r.strength, glm::length(limbEnd(s, p, arm) - r.goal), s.base);
+    }
 }
 
 // A living one's fall (drive(): a shove's knockdown, a stagger gone over, a throw; fallFrame's arms bracing): another
@@ -2777,7 +2782,8 @@ void envReaches(EnvWork& wk, State& s, const Parts& p, const Context& c, za::Arr
         const float rate = h.want > h.weight ? 0.1f : 0.25f;
         h.weight += (h.want - h.weight) * (1.f - za::exp(-c.dt / rate));
         h.weight = h.want == 0.f && h.weight < 0.01f ? 0.f : h.weight;
-        if(h.weight > 0.f && limbWhole(s, p, arm))
+        // (An armed one's aimed gun arm, vr_agrunt_ragfire: aimFrame's reach, not this one's.)
+        if(h.weight > 0.f && limbWhole(s, p, arm) && !(s.aim.on && s.aim.arm == arm))
         {
             apply(arm, h.goal, h.weight, h.strength * za::max(vr_ragdoll_active_env_arms.value, 0.f));
         }
@@ -2799,7 +2805,7 @@ void envReaches(EnvWork& wk, State& s, const Parts& p, const Context& c, za::Arr
     for(int limb = 0; limb < limbCount; limb++)
     {
         const uint8_t bit = static_cast<uint8_t>(1u << limb);
-        if(!(e.reached & bit) || (reached & bit))
+        if(!(e.reached & bit) || (reached & bit) || (s.aim.on && s.aim.arm == limb))
         {
             continue;
         }
