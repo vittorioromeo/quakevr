@@ -283,6 +283,29 @@ void measureRound(Trip& t)
     }
 }
 
+// vr_flat_proc_reload_debug 2: the gun as drawn last frame, each frame of the reload (its hand and its model's origin from
+// the camera, in the camera's frame: forward, right, up; its hand's turn): the prlfix jolt's measurement, read by
+// flatprocreload_check.py's continuity check.
+void traceGun()
+{
+    const int g = ps.tiltHand;
+    glm::vec3 hp, hr, wo;
+    if(!view::drawnHandPose(g, hp, hr) || !view::drawnWeaponOrigin(g, wo))
+    {
+        return;
+    }
+    const hands::State& cur = hands::current();
+    glm::vec3 f, r, u;
+    hands::angleVectors(cur.headAngles, f, r, u);
+    const glm::vec3 a = hp - cur.head;
+    const glm::vec3 b = wo - cur.head;
+    Con_Printf("fprl_trace: %.4f %s %.3f tilt %.3f hand %.2f %.2f %.2f rot %.1f %.1f %.1f gun %.2f %.2f %.2f dist %.2f head %.2f %.2f %.2f "
+               "look %.2f %.2f\n",
+        vr_gametime, phaseName(ps.trip.phase), ps.trip.t, ps.tilt, glm::dot(a, f), glm::dot(a, r), glm::dot(a, u), hr.x,
+        hr.y - cur.headAngles.y, hr.z, glm::dot(b, f), glm::dot(b, r), glm::dot(b, u), glm::length(b), cur.head.x - cur.playerOrigin.x,
+        cur.head.y - cur.playerOrigin.y, cur.head.z - cur.playerOrigin.z, cur.headAngles.x, cur.headAngles.y);
+}
+
 void report_f()
 {
     const Trip& t = ps.trip;
@@ -368,6 +391,10 @@ void frame(bool on)
     if(up)
     {
         ps.tiltHand = t.gun;
+    }
+    if(vr_flat_proc_reload_debug.value >= 2.f && (t.phase != Phase::None || ps.tilt > 0.f) && dt > 0.0)
+    {
+        traceGun(); // (as drawn last frame: before this frame's step)
     }
     ps.tilt = up ? za::min(1.f, ps.tilt + step / timeOf(vr_flat_prl_tilt_in_time, 0.02f))
                  : za::max(0.f, ps.tilt - step / timeOf(vr_flat_prl_tilt_out_time, 0.02f));
