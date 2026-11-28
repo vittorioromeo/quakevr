@@ -1095,6 +1095,33 @@ extern "C" void VR_TemporalMotionWrites(int on)
     state.writes = want;
 }
 
+namespace qvr::temporal
+{
+
+bool beginOwnMotion()
+{
+    if(!state.eyeActive || state.writes)
+    {
+        return false;
+    }
+    const GLuint bound = GL_BoundDrawFramebuffer();
+    if(!bound || (bound != state.sceneFbo && bound != state.compositeFbo))
+    {
+        return false;
+    }
+    static constexpr GLenum motionOnly[2] = {GL_NONE, GL_COLOR_ATTACHMENT1};
+    GL_DrawBuffersFunc(2, motionOnly);
+    return true;
+}
+
+void endOwnMotion()
+{
+    static constexpr GLenum colour[1] = {GL_COLOR_ATTACHMENT0};
+    GL_DrawBuffersFunc(1, colour);
+}
+
+} // namespace qvr::temporal
+
 // The draws that follow (VR particles, heat haze) mark their pixels reactive: stencil bit 4.
 extern "C" void VR_TemporalReactive(int on)
 {

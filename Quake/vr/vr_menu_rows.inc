@@ -4852,6 +4852,10 @@ QVR_TOGGLE(vr_xr_spacewarp, "SpaceWarp",
     "Quest standalone: the game draws every other frame and the headset makes up the ones between from the motion "
     "of what it drew (Application SpaceWarp): twice the time for each frame, smoother in big fights. Moving things "
     "can wobble at their edges. Off by default while it is new; the menus and the console show at the full rate.")
+QVR_SLIDER(vr_fov_reduce, "FOV Reduction", 0.f, 30.f, 5.f, "%.0f%%", noExt,
+    "Draws a narrower view than the headset's lenses show: the edges beyond it stay black, and the game draws that "
+    "many percent fewer pixels across and down at the same sharpness (10%: about a fifth fewer). A performance "
+    "option: most noticeable at the far edges of your vision.")
 QVR_TOGGLE(vr_xr_foveation_dynamic, "Quest Foveation: Dynamic",
     "On: the headset uses less foveation than Quest Foveation's level while the graphics have room to spare, and "
     "up to that level when they are busy.")

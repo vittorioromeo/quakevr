@@ -2123,7 +2123,8 @@ public:
                 continue;
             }
             frame.eyes[eye].pose.position.x += eye == 0 ? -halfIpd : halfIpd;
-            frame.eyes[eye].fov = Fov{};
+            const Fov f{};
+            frame.eyes[eye].fov = {reducedFovAngle(f.left), reducedFovAngle(f.right), reducedFovAngle(f.up), reducedFovAngle(f.down)};
         }
         // vr_mock_gaze "right up" (degrees from the head's forward): a tracked gaze (vr_foveated_gaze).
         frame.gaze = Pose{};
