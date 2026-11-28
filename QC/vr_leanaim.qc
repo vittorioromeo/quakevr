@@ -42,9 +42,17 @@ float(entity m, entity t, vector eye) VR_Lean_Scan =
     float seen = 0;
     float total = 0;
     float bestw = 0;
+    float share = cvar_hget(cvarh_vr_qc_scan_share);
     for(float i = 0; i < VR_LEAN_POINTS; i++)
     {
-        vector p = playerbodypoint(t, i);
+        // (vr_qc_scan_share: the first point's shape read again for the rest: the tracelines between change nothing of him;
+        // 2: each read again compared with a fresh one)
+        vector q = (i > 0 && share == 2) ? playerbodypoint(t, i + 16) : '0 0 0';
+        vector p = playerbodypoint(t, (i > 0 && share == 1) ? i + 16 : i);
+        if(i > 0 && share == 2)
+        {
+            VR_ScanShare_Check(q != p);
+        }
         if(p == '0 0 0')
         {
             return 0;

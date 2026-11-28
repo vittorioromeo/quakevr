@@ -141,6 +141,8 @@ Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bo
 Armour skins restyled toward your "after" image: muted olive, ochre and brick-red plates under grime, chipped and rusted edges, blood and dirt specks, dark gaps between the rows; check each type still reads at a glance next to the bare grunt, and on enforcers, knights and the armoured beasts too. {test:armour_lineup}
 Take the flashlight and shine it straight in an armed knight's or death knight's face: it raises its free forearm across its eyes with the elbow out to its side, not a fist held up like a punch; armed grunts shield as before. {test:arena_gunknights}
 In Tunables > Flashlight Dazzle turn Dual Wielders Shield on, then shine the flashlight in a dual-wielding grunt's face: it raises its left gun, still held and pointing up, in front of its eyes and fires only its right one; with it off both guns stay up. {test:agrunt_dual_guns}
+Throw a crate or a weapon hard at an armed grunt's gun: it still knocks the gun out of its hand, and shooting a gun out of a grunt's hand with nails still works as before. {test:grunts_to_throw}
+Lean out from behind a wall with grunts beyond it: they still spot you after a short delay and shoot at the part of you that shows, as before. {test:grunts_to_throw}
 
 [7. Armoured beasts]
 ## Armour on the body
