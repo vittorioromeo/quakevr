@@ -818,6 +818,8 @@ void(entity g, entity p) VR_AGP_Pose; // (vr_armedgrunt_pose.qc: the pose, its a
 float(entity g, float still) VR_AGP_Lod;      // (... its level of detail: TRUE skips it this frame)
 nosave float vr_agp_lod_dt;                       // (... posed after skipped frames: the time since its last pose; else 0)
 void(entity g, entity p) VR_AGP_LodCarry;
+float(entity g, float still) VR_AG_ThinkLod; // (vr_armedgrunt_guard.qc: the whole weapon think's level of detail)
+float(entity g) VR_AG_ThinkLodKeep;
 void() VR_AGP_Attack;
 void(entity g) VR_AGP_Spawn;
 
@@ -927,7 +929,7 @@ void() VR_AG_PropThink =
         // The second weapon: placed with the first (VR_AGP_Pose: both hands); a blow or a throw on it, the first slot's
         // rules (swapped there and back).
         self.nextthink = time;
-        if(!g.vr_ag_tug_pl)
+        if(!g.vr_ag_tug_pl && !VR_AG_ThinkLod(g, VR_AG_Still(g))) // (far, unseen, quiet: skipped with the first's)
         {
             VR_AG_Swap(g);
             float struck = VR_AG_WeaponStruck(g, self);
@@ -982,7 +984,9 @@ void() VR_AG_PropThink =
     {
         return;
     }
-    if(!still && VR_AG_WeaponStruck(g, self)) // (a hard blow or a throw on the weapon itself: vr_armedgrunt_play.qc)
+    // (far, unseen, nothing near or under way: its scans, parry and pose once every vr_agrunt_think_lod_frames)
+    float lod = VR_AG_ThinkLod(g, still);
+    if(!still && !lod && VR_AG_WeaponStruck(g, self)) // (a hard blow or a throw on the weapon itself: vr_armedgrunt_play.qc)
     {
         return;
     }
@@ -990,8 +994,19 @@ void() VR_AG_PropThink =
     {
         return;
     }
-    VR_AGPar_Frame(g); // (a melee blow coming: its parry raised: vr_armedgrunt_parry.qc)
-    if(VR_AGP_Lod(g, still))
+    if(!lod || time - vr_melee_begun_last < 1.5)
+    {
+        VR_AGPar_Frame(g); // (a melee blow coming: its parry raised: vr_armedgrunt_parry.qc)
+        if(lod)
+        {
+            lod = VR_AG_ThinkLodKeep(g); // (a monster's blow coming: the frame whole)
+        }
+    }
+    if(lod)
+    {
+        VR_AGP_LodCarry(g, self);
+    }
+    else if(VR_AGP_Lod(g, still))
     {
         VR_AGP_LodCarry(g, self); // (unseen, far, idle: posed once every vr_agrunt_pose_lod_frames)
     }

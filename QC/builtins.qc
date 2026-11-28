@@ -426,6 +426,10 @@ float(entity e, float reset) thinkcost = #0;
 // order) with only those moving at minspeed units/s or more (any speed for 0), never a player, a monster or a pusher:
 // what flies. The armed grunts' scans for shots and thrown things at their weapons (a quiet frame: nothing to loop).
 entity(vector org, float rad, float minspeed) findradiusmoving = #0;
+// float movernear(vector org, float rad): 1 when findradiusmoving(org, rad, 0) could find something (a mover of this
+// server frame's or the last's within rad now), 0 when nothing moves within rad: no search, the engine's movers' lists.
+// The armed humanoids' think LOD (VR_AG_ThinkLod: a far, unseen one's weapon scans skipped only then).
+float(vector org, float rad) movernear = #0;
 // vector turnrpy(vector d, vector c, vector s): d turned about x by the roll, y by the pitch, z by the yaw whose cosines
 // are c and sines s (x roll, y pitch, z yaw): VR_AGP_TurnDir's steps, each the float operation QC's would be.
 vector(vector d, vector c, vector s) turnrpy = #0;

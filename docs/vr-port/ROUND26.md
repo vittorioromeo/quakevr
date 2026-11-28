@@ -5911,6 +5911,65 @@ Brush").
 - Headset: beta6 put back (APK 9261565a, progs a0bfe11a), his 31 autosaves and 3 saves restored (35 sums match). Scripts:
   worktree `scratch/qn_*` (not committed).
 
+## aglod: far, unseen armed humanoids' weapon think runs less often, the game the same (branch agent/aglod, 2026-11-28)
+
+- **What**: an armed humanoid no player can see runs its weapon's whole think (the shot, throw and strike scans
+  `VR_AG_WeaponStruck`, the parry frame `VR_AGPar_Frame`, the pose) once every `vr_agrunt_think_lod_frames` (tunable, 4)
+  server frames, its weapons carried along by its move between (`VR_AGP_LodCarry`); idle or alert alike (the pose LOD
+  alone posed alert ones every other frame). QC `VR_AG_ThinkLod` (vr_armedgrunt_guard.qc), decided once a frame for both
+  weapons; `VR_AG_PropThink` asks it before the scans.
+- **Every frame whenever anything could notice** (each asked every frame): unseenfar (farther than
+  `vr_agrunt_pose_lod_near` 384 from every client's eyes and, for each, outside his 80-degree view or out of his PVS:
+  every multiplayer player and splitscreen seat is a client; the spectator window and the flat third-person camera draw
+  from his head, the flat fly camera is a debug view: posed stale there as with the pose LOD); nothing moving near either
+  weapon (`movernear`, below); no attack, cast, shove, aim (`vr_ag_aim`, set from the frame it raises its gun; the shot
+  places the gun fresh itself, `VR_AG_SetHand`), weapon taken up, new enemy, tug, fall, flame stream, shot roll due,
+  chainsaw; its parry and guard idle (no blow seen in 0.35 s, no parry up, guard idle, no raise read, the preventive
+  check not due: its timer keeps its phase). A monster's melee begun in 1.5 s: the parry frame runs anyway, and if it
+  finds a blow the frame runs whole. On such frames the skipped steps would write nothing (agstruck's and agparry's
+  quiet answers): only the weapon's place, unseen, differs.
+- **No tunnelling**: `movernear(org, rad)` (builtin; vr_findradius.cpp `VR_FindRadius_MoverNear`) answers whether
+  `findradiusmoving(org, rad, 0)` could find anything, from a list of the movers linked (or their origin stored) this
+  server frame or the last while moving (velocity not zero; not a player, monster or pusher), each tested as findradius
+  tests it, where it is now: no grid search. Asked every frame at each weapon with the shot scan's first-look radius
+  (128 + 192), so a nail is seen the frame it comes within 320 units of the grip, ~80 units more than one frame's flight
+  of a 2000 u/s nail needs to meet the weapon's 192-unit line; the scans then run as before. A mover made this frame
+  that has not moved yet stands where it was made (a player's shot: at his gun, farther than the near distance).
+- **Balance: the same game, frame for frame** (`Misc/quakevr/aglod_balance.py`, vr_agrunt_test 235's census: 30 s
+  from the fight's start, his health set to 100000, damage taken, frames hit, armed humanoids' shots, kills, skipped
+  thinks, a hash of every monster's place, health, frame and enemy and his health). LOD off against on, same seed:
+
+| scene (seeds 7, 11, 23) | damage taken (off = on) | frames hit | shots | kills | skipped thinks (on) | game hash |
+|---|---|---|---|---|---|---|
+| hip1m1, all 69 woken (questopt2's scene; none reached him in 30 s) | 0 / 0 / 0 | 0 | 0 | 0 | 47,420 / 48,515 / 47,515 | equal in all 3 |
+| combat_48 (bench: 48 mixed in front of him) | 2050 / 1359 / 1067 | 248 / 176 / 118 | 33 / 18 / 34 | 6 / 17 / 20 | 0 / 0 / 16 | equal in all 3 |
+| behind48 (the same 48 from 480 units, behind him) | 1550 / 1750 / 1068 | 160 / 206 / 122 | 4 / 10 / 25 | 13 / 14 / 20 | 59 / 224 / 0 | equal in all 3 |
+| arena waves from 3 | 218 / 221 / 245 | 30 / 27 / 35 | 0 | 0 | 0 | equal in all 3 |
+
+  Test 228 (aglod_test.sh) gains a 4th run with the think LOD off and a trace of the game alone (its place, frame, turn,
+  state, shots, his health; the old trace also holds the weapon's place): equal in all four runs, every trial.
+  Nothing visible changes but the weapon's place on frames no player can see: no checklist line.
+- **Switch**: `vr_agrunt_think_lod` (cvar, default 1; Debug > the armed humanoids' rows "Far Unseen Weapon Thinks Less
+  Often"); 0 every frame, as before.
+- **Gain: small** (hip1m1 scene above, interleaved ABBA blocks in one launch, medians; the cvar switched per block):
+
+| | LOD off | LOD on | |
+|---|---|---|---|
+| Quest 3, release APK (2 launches, 12+12 blocks of 432 frames): `quakec` scope (vr_profile, no function profiler) | 2.995 ms | 2.960 ms | -0.035 (-1.2%) |
+| Quest 3: CPU busy a frame | 9.25 | 9.14 | within the fight's noise (+-0.3) |
+| PC Release, fast mode (4+4 blocks of 720): `quakec` scope | 0.940 ms | 0.915 ms | -0.025 (-2.7%) |
+| PC, profile_qc: `VR_AG_WeaponStruck` / `VR_AGPar_Frame` incl. (calls a frame) | 0.097 (79) / 0.076 (58) | 0.070 (53) / 0.067 (39) | the decision `VR_AG_ThinkLod` +0.042 eats most of it |
+
+  Why so little: qcnative already made a quiet frame's scans and parry cheap (agstruck, agparry), and in this scene the
+  far, unseen ones are idle (woken, then they lose him), already posed once in 8 by the pose LOD: the think LOD skips
+  only their scans and parry (~22 of ~40 a frame). Alert ones far and unseen (the pose every 4th frame instead of
+  every 2nd) were rare in every fight measured: hunters close in, come into view, or something flies near them.
+  ab_trees.py was not used: the A/B is a cvar in one build, interleaved within a launch (no build-to-build noise).
+- **Default on**: nothing a player could notice changes (the same game with the same seed in every scene), and it
+  pays a little on crowded maps. Off costs nothing either: his call if he'd rather not carry it.
+- **Tests**: aglod_test.sh 18/0 (test 228's 4 runs + 229); aglod_balance.py 12 pairs same, 0 differ.
+- Headset: my APK and test progs for the two launches, then beta6 put back (APK 9261565a, progs a0bfe11a) and his 31
+  autosaves restored (32 sums match); lock released. Scripts: worktree `scratch/aglod_*` (not committed).
 ## qcvm: QuakeC's interpreter on the Quest and PC: the loop's own calls and returns; what the loop costs there (branch agent/qcvm, 2026-11-28)
 
 - **Found first**: the brief's steps 1-2 (computed-goto dispatch with the switch kept for other compilers; the runaway

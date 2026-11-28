@@ -458,6 +458,7 @@ QVR_TUNABLE(vr_agrunt_pose_lod, "1") // armed humanoids: one no player can see (
 QVR_TUNABLE(vr_agrunt_pose_lod_frames, "8") // ... server frames: posed once in this many (2: every other, as before 1.1.1; an alert one's or a chainsaw's at most 2: its engine's sound is in its pose); 0 or 1 every frame, no LOD
 QVR_TUNABLE(vr_agrunt_pose_lod_near, "384") // ... units: always posed within this of a player's eyes
 QVR_TUNABLE(vr_agrunt_pose_lod_cone, "80") // ... degrees: in a player's view within this of where he looks (a headset's widest corner ~60-65 and a margin); unseenfar
+QVR_TUNABLE(vr_agrunt_think_lod_frames, "4") // vr_agrunt_think_lod: a far, unseen, quiet armed humanoid's weapon think runs once in this many server frames (alert ones too: the pose's own LOD poses those every other frame); 0 or 1 every frame
 QVR_TUNABLE(vr_worn_backpack_lod_near, "1500") // a worn backpack farther than this from every player and outside each one's view (vr_agrunt_pose_lod_cone) is not placed on its wearer that frame (placed again as it comes near or into view); 0 always placed
 QVR_TUNABLE(vr_ragdoll_per_frame, "4") // the most new ragdolls made in one server frame (0.7 ms each: a rocket into a crowd, a mass kill); the rest wait for the next frames, oldest death first, playing their death frames meanwhile; knockdowns at once; 0: no limit
 QVR_TUNABLE(vr_ragdoll_sleep_skip, "1") // a ragdoll asleep and unchanged is not written again each step (box3d writeRagdoll: only its message time moves on); 0 written every step (the A/B and determinism check)

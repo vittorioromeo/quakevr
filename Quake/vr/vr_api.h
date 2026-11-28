@@ -487,6 +487,7 @@ edict_t *VR_FindRadiusMoving (const float *org, float rad, float minSpeed); // Q
 void VR_FindRadius_Dirty (edict_t *ed);		// the engine changed the edict's origin, size or solid, or unlinked it
 void VR_FindRadius_Linked (edict_t *ed);	// SV_LinkEdict: its abs box set, about to go into the grid
 void VR_FindRadius_Reset (void);			// SV_ClearWorld: nothing linked
+int VR_FindRadius_MoverNear (const float *org, float rad); // QC movernear: a mover within rad (this frame's or the last's movers)
 int VR_MonsterFrozen (struct edict_s *ent);	// SV_Physics, past the clients: a living monster frozen (vr_freeze_monsters): skipped
 void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is sent
 int VR_ServerMusicTrack (int mapTrack);	// SV_SendServerinfo: the CD track (QC vr_music_track, set by target_vr_music; else the map's)

@@ -1675,6 +1675,7 @@ void() VR_AGTest_Frame =
     else if(t == 202) { VR_AGIT_Frame(); } // (the impact rule: vr_armedgrunt_impact_test.qc)
     else if(t == 226 || t == 227) { VR_AGLOD_Frame(t); } // (the armed grunts' cost by state: vr_armedgrunt_lod_test.qc)
     else if(t == 228) { VR_AGLOD_WakeFrame(); } // (a far, unseen one wakes and fights as before: vr_armedgrunt_lod_test.qc)
+    else if(t == 235) { VR_AGLOD_CensusFrame(); } // (a fight's census, the think LOD on against off: vr_armedgrunt_lod_test.qc)
     else if(t == 231) { VR_AGAP_Frame(); } // (AD's knights' own pose kind: hands on the weapon in every key: vr_armedgrunt_adpose_test.qc)
     else if(t == 230) { VR_AGSP_Frame(); } // (an armed grunt with the spear: vr_armedgrunt_spear_test.qc)
     else if(t == 229) { VR_AGLOD_PackFrame(); } // (a worn pack's LOD as its wearer leaves his PVS: vr_armedgrunt_lod_test.qc)

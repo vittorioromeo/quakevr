@@ -157,6 +157,68 @@ void dirty(Tracking& t, int e)
     s = stateDirty | stateListed;
 }
 
+// The movers (QC movernear, agent aglod): every edict linked, or its origin, size or solid stored, in this server frame
+// or the last while it was moving (velocity not zero; never a player, a monster or a pusher: findradiusmoving's movers),
+// each listed once a frame. Whatever moves is linked by its physics each frame it moves (SV_PushEntity, the noclip
+// step), so this frame's list and the last's hold every mover findradiusmoving could find, read where it is now; one
+// made this frame that has not moved yet stands where it was made (a shot at its shooter's gun) and is listed from its
+// first move.
+struct Movers
+{
+    za::Vector<int> now, last; // this frame's, the last's
+    za::Vector<double> at;     // [max_edicts] the server time it was listed this frame (-1: not this frame)
+    auto members() { return mem::list(now, last, at); }
+};
+mem::Cache<Movers> movers{"findradius movers", mem::Never};
+double moversFrame = -1.; // Movers::now's server time
+int moversTurns = 0;      // frames turned since the lists began: under 2, the last frame's list is not whole
+
+// The movers' lists for the server's frame now (a new frame: this one's becomes the last's).
+[[nodiscard]] Movers* moversNow()
+{
+    if(!sv.qcvm.edicts || sv.qcvm.max_edicts <= 0)
+    {
+        return nullptr;
+    }
+    Movers& m = movers;
+    if(static_cast<int>(m.at.size()) != sv.qcvm.max_edicts)
+    {
+        m.at.assign(static_cast<za::SizeT>(sv.qcvm.max_edicts), -1.);
+        m.now.clear();
+        m.last.clear();
+        moversFrame = sv.qcvm.time;
+        moversTurns = 0;
+    }
+    if(moversFrame != sv.qcvm.time)
+    {
+        m.last.clear();
+        for(int e : m.now)
+        {
+            m.last.pushBack(e);
+        }
+        m.now.clear();
+        moversFrame = sv.qcvm.time;
+        moversTurns = za::min(moversTurns + 1, 2);
+    }
+    return &m;
+}
+
+void moverNote(int e, const edict_t* ent)
+{
+    if(e <= 0 || ent->free || DotProduct(ent->v.velocity, ent->v.velocity) <= 0.f ||
+       ((int)ent->v.flags & (FL_CLIENT | FL_MONSTER)) || static_cast<int>(ent->v.movetype) == static_cast<int>(MOVETYPE_PUSH))
+    {
+        return;
+    }
+    Movers* m = moversNow();
+    if(!m || e >= static_cast<int>(m->at.size()) || m->at[static_cast<za::SizeT>(e)] == sv.qcvm.time)
+    {
+        return;
+    }
+    m->at[static_cast<za::SizeT>(e)] = sv.qcvm.time;
+    m->now.pushBack(e);
+}
+
 // The walk's test of one edict (Quake's PF_findradius, as it was: the same expressions, so the same roundings).
 [[nodiscard]] inline bool inRadius(const edict_t* ent, const float* org, float rad)
 {
@@ -388,6 +450,40 @@ extern "C" edict_t* VR_FindRadiusMoving(const float* org, float rad, float minSp
     return VR_FindRadius(org, rad);
 }
 
+// QC movernear: whether findradiusmoving(org, rad, 0) could find anything, from the movers' lists alone (the same test
+// on each listed edict, no search): false only when none of this frame's or the last's movers is within `rad` now.
+// True whenever the lists can't tell (just begun, a map loading). The armed humanoids' think LOD (QC VR_AG_ThinkLod):
+// a far, unseen one's weapon scans skipped on a frame only when nothing moves near it.
+extern "C" int VR_FindRadius_MoverNear(const float* org, float rad)
+{
+    Movers* m = moversNow();
+    if(!m || moversTurns < 2 || qcvm != &sv.qcvm)
+    {
+        return 1;
+    }
+    const float r2 = rad * rad;
+    moverSpeed = 0.f;
+    bool near = false;
+    const za::Vector<int>* both[2] = {&m->now, &m->last};
+    for(const za::Vector<int>* list : both)
+    {
+        for(int e : *list)
+        {
+            if(e < sv.qcvm.num_edicts && wanted(edictAt(e), org, r2))
+            {
+                near = true;
+                break;
+            }
+        }
+        if(near)
+        {
+            break;
+        }
+    }
+    moverSpeed = -1.f;
+    return near ? 1 : 0;
+}
+
 extern "C" void VR_FindRadius_Dirty(edict_t* ed)
 {
     const int e = serverEdictNumber(ed);
@@ -406,6 +502,7 @@ extern "C" void VR_FindRadius_Linked(edict_t* ed)
     {
         return;
     }
+    moverNote(e, ed);
     unsigned char& s = t->state[static_cast<za::SizeT>(e)];
     if(ed->v.solid != solidNot)
     {
@@ -428,6 +525,8 @@ extern "C" void VR_FindRadius_Reset()
     if(sv.qcvm.edicts && sv.qcvm.max_edicts > 0)
     {
         resetAll(tracking);
+        Movers& m = movers;
+        m.at.clear(); // (the movers' lists begin again: movernear can't tell for two frames)
     }
 }
 
@@ -445,6 +544,7 @@ void markDirty(int e)
     if(t && e < static_cast<int>(t->state.size()))
     {
         dirty(*t, e);
+        moverNote(e, edictAt(e));
     }
 }
 
