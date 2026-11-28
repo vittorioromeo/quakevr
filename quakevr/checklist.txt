@@ -22,6 +22,9 @@ Flat-screen: in the menu, the bindings reminder lists the main actions large, th
 Flat-screen: hold 1 (weapon wheel) and press MMB (holster menu): the reminder panel above shows the main actions in the left column and the Hands / More groups smaller on the right; the slots' holster titles read clearly (less faded than before). {test:weapon_wheel}
 Flat-screen: with both hands empty, jab with the left button at a grunt that is off to one side: each fist, left and right, should travel to whatever the crosshair is on and hit it. {test:flat_fists}
 Flat-screen or VR: in Run Setup, the Starting melee weapon row should read Axe, Dagger, Spear, Nothing (Nothing last, like the gun row), and a pick you saved before should still be the same weapon. {test:run_setup_newgame}
+Flat-screen: empty the shotgun, then press R while running, strafing, jumping, sliding and crouch-walking: every pair goes into the loading port at the bottom and the gun fills, with no reload cancelled or shell dropped. {test:flat_proc_reload}
+Flat-screen: during the procedural reload, look at the reloading hand: its fingers close round the taped pair from the pouch to the port, as in VR, and open again on the way back. {test:flat_proc_reload}
+Flat-screen: in Tunables > Flatscreen > Procedural Reload, lock the pose at the port's mouth or inserted and move Hand at Port: Forward / Right / Up: the hand and its pair move along the gun. {test:flat_proc_reload}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
