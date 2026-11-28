@@ -1381,6 +1381,14 @@ void PF_findradiusmoving()
     G_INT(OFS_RETURN) = EDICT_TO_PROG(VR_FindRadiusMoving(G_VECTOR(OFS_PARM0), G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2)));
 }
 
+// float movernear(vector org, float rad): 1 when findradiusmoving(org, rad, 0) could find something (a mover of this
+// frame's or the last's within rad now; or the lists can't tell yet), 0 when nothing moves within rad
+// (VR_FindRadius_MoverNear: no search). The armed humanoids' think LOD (QC VR_AG_ThinkLod).
+void PF_movernear()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(VR_FindRadius_MoverNear(G_VECTOR(OFS_PARM0), G_FLOAT(OFS_PARM1)));
+}
+
 // float thinkcost(entity e, float reset): the QC statements e's thinks ran since its last reset (SV_RunThink; counted
 // like `profile`'s, deterministic), then zeroed if `reset`. The armed grunts' census (QC vr_armedgrunt_lod_test.qc).
 void PF_thinkcost()
