@@ -480,6 +480,14 @@ struct Shapes
 };
 mem::Cache<Shapes> shapes{"hit model drawn shapes", mem::MapChange | mem::ModelReload};
 
+// vr_hitmodel_points_subset 2's check (drawnVertexPoints: the vertices alone against the whole shape's)
+struct PointsCheck
+{
+    int compared{0};
+    int differed{0};
+};
+PointsCheck pointsCheck;
+
 // d (drawnOf's lerp of the bytes) as the renderer draws it: its vertices from animsmooth::serverPoints, carried as a
 // skinned body (`shaped`) so the hierarchy is refit to them once a making (skinBoundsOf). Quake's blend now: d unchanged.
 void shapeOf(edict_t* ent, Drawn& d)
@@ -1367,9 +1375,49 @@ float drawnScale(edict_t* ent)
 bool drawnVertexPoints(edict_t* ent, const int* verts, int n, glm::vec3* out)
 {
     Drawn d;
-    if(!drawnOf(ent, d))
+    // (vr_hitmodel_points_subset: the drawn shape's vertices asked for alone, animsmooth::serverPoints on just them: the
+    // same values as shapeOf's whole body, which a body out of view made again every frame for 3 anchors: a worn pack's
+    // place, agarmor::packWhere; questopt: ~16 us a wearer on the PC, hip1m1's 23 wearers 3+ ms a frame on the Quest)
+    const bool subset = vr_hitmodel_points_subset.value != 0.f;
+    if(!drawnOf(ent, d, true, !subset))
     {
         return false;
+    }
+    if(subset && !d.skinned && !checkNoLerp && vr_hitmodel_drawn.value != 0.f && d.num > 0)
+    {
+        animsmooth::ServerLerp l;
+        l.pose0 = d.pose0;
+        l.pose1 = d.pose1;
+        l.pose2 = d.pose2;
+        l.blend = d.blend;
+        l.span0 = d.span0;
+        l.span1 = d.span1;
+        if(animsmooth::serverPoints(const_cast<qmodel_t*>(modelOf(ent)), l, out, n, verts))
+        {
+            for(int i = 0; i < n; i++)
+            {
+                out[i] = d.A * out[i] + d.b;
+            }
+            if(vr_hitmodel_points_subset.value == 2.f) // the check: the whole shape's too, compared bit for bit
+            {
+                Drawn whole;
+                bool same = drawnOf(ent, whole) && whole.mesh == d.mesh;
+                const Verts wv = vertsOf(whole);
+                for(int i = 0; same && i < n; i++)
+                {
+                    const glm::vec3 w = wv.at(whole, verts[i], 0.f);
+                    same = !ZA_MEMCMP(&w, &out[i], sizeof(w));
+                }
+                pointsCheck.compared++;
+                pointsCheck.differed += same ? 0 : 1;
+                if(pointsCheck.compared % 2000 == 0)
+                {
+                    Con_Printf("vr_hitmodel_points_subset check: %d compared, %d differed\n", pointsCheck.compared,
+                        pointsCheck.differed);
+                }
+            }
+            return true;
+        }
     }
     const Verts vs = vertsOf(d);
     for(int i = 0; i < n; i++)

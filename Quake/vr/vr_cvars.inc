@@ -2396,6 +2396,8 @@ QVR_CVAR(vr_gl_quake_dlights, "0", CVAR_ARCHIVE)
 // restored texel blocks gathered into a copy of the lightmap and uploaded once per band of 16 rows; 0 one upload per
 // surface, as C5b (the A/B). The same picture.
 QVR_CVAR(vr_gl_world_dlmap_batch, "1", CVAR_NONE)
+QVR_CVAR(vr_gl_world_dlmap_reach, "1", CVAR_NONE) // (questopt) a surface's lights whose sphere misses its texels' box are left out of its sums (they add nothing: exact); 0 every light collectWorld paired with it summed, as before
+QVR_CVAR(vr_gl_world_dlmap_keep, "0", CVAR_NONE) // (questopt; off: no surface kept in hip1m1, its lights change every frame) 1: a surface lit by the same lights as last frame keeps its block (vr_dlightmap.cpp); 0 every lit surface made again every frame; 2 the check (made again, compared: vr_gl_world_dlmap_info)
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them

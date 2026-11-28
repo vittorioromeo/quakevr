@@ -579,6 +579,8 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_gl_quake_dlights),
         row(opt::vr_gl_world_dlmap),
         row(opt::vr_gl_world_dlmap_batch),
+        row(opt::vr_gl_world_dlmap_reach),
+        row(opt::vr_gl_world_dlmap_keep),
         command("Print Dynamic Lightmap Info (Quest)", "vr_gl_world_dlmap_info")
             .help("vr_gl_world_dlmap_info: whether the dynamic lights are in the lightmap this frame, how many lights and "
                   "texel blocks, and the CPU time of the last build."),

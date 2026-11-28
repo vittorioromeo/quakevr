@@ -47,6 +47,8 @@ Flat-screen: take the nailgun (or the thunderbolt) in one hand, fire a few shots
 Flat-screen: the same with the super nailgun (its magazine goes in on its side) and the nail pistol (up into its grip); fire one empty first: no eject, its empty magazine already dropped, the new one goes straight in. {test:flat_proc_reload}
 Flat-screen: reload a magazine gun while running, jumping, crouching and sliding: the magazine still goes in every time; fire mid-reload: it stops and the magazine goes back in the pouch. {test:flat_proc_reload}
 Flat-screen: Debug > Tools > Flatscreen: Reload Studio lists the nailgun, super nailgun, thunderbolt and nail pistol; Hold This Gun on each, lock the carry and insert keys: the gun's magazine is in the free hand, and the tilts can be tuned and saved. {test:flat_proc_reload}
+On the Quest, play Scourge of Armagon's first map with the flashlight on, into its first fights: it should run smoother than before, and the flashlight's light on the walls should look exactly the same. {test:campaign_music}
+On the Quest, in Scourge of Armagon's first map, toggle Debug > Profiling and Memory > Lightmap Lights Only Where They Reach Off and On while the flashlight lights a wall: no visible change in the light. {test:campaign_music}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
