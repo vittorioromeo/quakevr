@@ -53,6 +53,8 @@ Flat-screen or VR: the pad's button glyphs in the holster menu's bindings panel,
 Flat-screen: open the Dazzle Studio (Debug > Tools, or Tunables > Armed Humanoids > Flashlight Dazzle): a grunt stands ahead shielding its eyes; click the Hand, Elbow or Gun Arm dot and drag the gizmo, or move the sliders: the pose follows at once; try each kind and Two Weapons (E turns the left revolver in the hand), Live to see the hand rise, then Save and shine your flashlight at a real grunt of that kind: it shields the way you set. {test:dazzlestudio}
 Flat-screen or VR: kill or knock down a grunt standing right beside another, and drop a body onto one from about head height: the other should at most stagger, never fall over. {test:grunts_to_throw}
 Flat-screen or VR: shove a grunt hard into the other grunt, and throw or swing a body into a grunt fast: both should go down; thrown at the ogre it only staggers or shrugs it off. {test:grunts_to_throw}
+Flat-screen or VR: an elite armed humanoid now glows soft gold round its outline (its armour too) and stands out in dim light; its armour plates have gold-trimmed edges while their faces keep their green, yellow or red. Check the glow reads as subtle but clear and the armour tier is still easy to tell. {test:elite_marker}
+Flat-screen or VR: Run Setup has an All Elites mutator (Enemies group, and on Arena Mode's screen): with it on, every armed humanoid in the campaign or the arena spawns as a gold elite. {test:run_allelites}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
