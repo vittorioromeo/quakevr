@@ -18,6 +18,8 @@ Flat-screen or VR: put a bayonet on the nailgun, the launchers, the lightning gu
 Flat-screen: V with a bayonet on the grenade, proximity or rocket launcher: flat play holds them two-handed once the other hand is free, and V does not stab with the bayonet then (known; the other guns stab). {test:attach_bayomounts}
 Flat-screen or VR: the weapon wheel has a BACK POUCH entry after UNLOAD; with rockets and multi-rockets it is split, GRENADE on top and CLUSTER below with each one's count; letting go on a half puts that grenade in that hand (its gun holstered), and it arms and throws as a pouch grenade does. {test:wheel_grenade}
 Ragdoll climbs: knock a knight off a ledge so it falls past the lip: when it grabs the lip its fall is caught softly (no sudden jolt) and both hands stay on (no hand yanked off the lip), then it pulls itself up. {test:knight_ledge}
+Flat-screen: with the shotgun in one hand, fire it empty and press R: the gun tilts in and stays put for the whole reload, with no jolt backwards towards the camera when the pair comes into the hand or goes into the port. {test:flat_proc_reload}
+Flat-screen: open Tunables > Flatscreen > Procedural Reload, set Lock Pose (or use Next Key / Previous Key) and walk through the key poses (rest, gun tilted, hand at pouch, gripping the pair, at the port's mouth, inserted, returning); change a pose's sliders and see the held pose follow at once; set Lock Pose back to Off and R reloads as normal. {test:flat_proc_reload}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
