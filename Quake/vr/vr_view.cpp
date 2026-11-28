@@ -3204,6 +3204,28 @@ int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int c
 namespace
 {
 
+// Flat play's procedural reload locked at a key pose with a pair in the free hand (vr_flat_prl_lock: prlfix): the pair
+// drawn in it as a real take's sat (the server gives none: nothing is taken or loaded).
+void setupPrlPair(const hands::State& s)
+{
+    view::ViewEntity& ve = entities.prlPair;
+    int hand = HAND_OFF;
+    float size = 1.f;
+    qmodel_t* const model = flatprocreload::lockPair(hand, size) ? view::viewModel("progs/vr_shell_pair.mdl") : nullptr;
+    if(!model)
+    {
+        ve.visible = false;
+        return;
+    }
+    glm::vec3 pos = s.pos[hand], rot = s.rot[hand];
+    (void)view::drawnHandPose(hand, pos, rot); // (the hand as drawn this frame, else as posed)
+    glm::mat3 axes;
+    const glm::vec3 at = flatprocreload::lockPairPlace(pos, rot, axes);
+    place(ve, model, at, aliasAngles(axes[0], axes[2]), 0, false);
+    ve.scale = glm::vec3{CLAMP(0.25f, size, 4.f)};
+    ve.visible = true;
+}
+
 void setupAmmoPouch(const hands::State& s)
 {
     view::ViewEntity& ve = entities.ammoPouch;
@@ -4504,6 +4526,7 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(body, VR_DRAW_BODY), QVR_DRAW_RANGE(plate, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldron, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldronArm, VR_DRAW_BODY),
         QVR_DRAW_RANGE(gadget, VR_DRAW_WORN), QVR_DRAW_RANGE(gadgetStrap, VR_DRAW_WORN), QVR_DRAW_RANGE(flashlight, VR_DRAW_WORN),
         QVR_DRAW_RANGE(pouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouchItem, VR_DRAW_WORN),
+        QVR_DRAW_RANGE(prlPair, VR_DRAW_HELD),
         QVR_DRAW_RANGE(mag, VR_DRAW_HELD), QVR_DRAW_RANGE(magOut, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterMag, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldMag, VR_DRAW_LYING),
         QVR_DRAW_RANGE(well, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterWell, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldWell, VR_DRAW_LYING),
         QVR_DRAW_RANGE(pumpBody, VR_DRAW_HELD), QVR_DRAW_RANGE(pump, VR_DRAW_HELD), QVR_DRAW_RANGE(ssgFrame, VR_DRAW_HELD),
@@ -6327,6 +6350,7 @@ extern "C" void VR_SetupViewEntities()
         }
         setupPouch(s);
         setupAmmoPouch(s);
+        setupPrlPair(s);
     }
     {
         QVR_PROFILE("view blood shock smoke");

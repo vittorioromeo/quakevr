@@ -4880,3 +4880,32 @@ Ironwail's files: 25,391 -> 20,958 (hunks 3,246 -> 3,224). The table, file by fi
 | menu_shortcuts_test.py, menu_flat_panel_test.py | 14/0, 31/0 |
 | smoke: vr_campaign_hub, e1m1 (600 frames each) | no errors |
 | eval.sh | canary 37/42 (the preprocessed code is origin/next's: the same as there) |
+## prlfix: the procedural reload's gun without the jolt, and a key-pose lock to tune it (branch agent/prlfix, 2026-11-28)
+
+His words (2026-11-28): "a very annoying jolt on the gun after the tilt-in animation finishes ... jumps backwards towards
+the camera suddenly a few units, then goes back" and "add a way to lock the animation ... in those keyframes".
+- **The jolt** (measured: `vr_flat_proc_reload_debug 2` prints the gun as drawn each frame, `fprl_trace:`): three drivers
+  took the gun from the reload's own tilt. (1) The long gun's stance (flatsight: back towards the shoulder, in, up, the torso
+  turned) needs the free hand empty; a taped pair in it (`flatplay::holdsThing`) turned the stance off as the take came,
+  just after the tilt-in, and on again as the pair went in: the gun went ~5 units forward over the carry (half of it a
+  step: `stanceShare` drops at once) and snapped 4 units back towards the camera in one frame each trip. Now the
+  reloading hand counts as empty for the stance (`flatprocreload::busy`, vr_flatsight.cpp twoHandGun). (2) The body's
+  self-collision (vr_selfcollide.cpp `betweenHands`) pushed the gun with the free forearm crossing it mid-carry (0.5-0.8
+  unit dips, a step at the end): none between the hands while busy. (3) The free hand's press on the other gun
+  (vr_view_hands.cpp pushOut, `vr_hand_collide`), empty at the port after a pair went in: 0.45 units: not for the busy
+  hand. Over a whole reload at 72 fps: the most the gun moved in a frame held tilted 4.02 -> 0.09 units, the most its
+  per-frame move changed 4.13 -> 0.17 (60 fps 0.11 / 0.22, 144 fps 0.06 / 0.05); what's left is the tilt in and out.
+- **The lock** (`vr_flat_prl_lock`, not saved): 0 off; 1 rest, 2 the gun tilted, 3 the hand at the pouch, 4 gripping the
+  pair, 5 at the port's mouth, 6 inserted, 7 returning (half way back, the tilt as far out as it is then), 8 scrub
+  (`vr_flat_prl_scrub` 0..1 over one trip by the trip's own times). The shotgun (any gun) in one hand, the other empty, no R
+  needed; the pose is made each frame from the Tunables > Flatscreen > Procedural Reload values, so a slider shows at once
+  (the same places as a trip's: `spotsOf`, shared by the trip and the lock). `vr_flat_prl_lock_next` / `_prev` step the
+  keys 1-7 (bindable). Rows: Tunables > Flatscreen > Procedural Reload (at its top) and Debug (by the procedural reload's
+  print). The pair is drawn in the hand (vr_view.cpp `prlPair`, the QC's progs/vr_shell_pair.mdl) as it sat at the last real
+  take (a measured default before one); the server is told nothing: nothing taken or loaded. Off: the hand goes back from
+  where it was held (a Return) and the tilt eases out. `vr_flatprocreload_report` prints the lock's line.
+- **Tests**: flatprocreload_test.sh 37/0 (adds: the gun's continuity over a whole reload at 72 and 144 fps; the lock: each
+  key held, its tilt and pair, the port gaps 0.50 / 0.00, Hand at Pouch: Up followed live (4.00 units), next / previous,
+  the scrub, let go; the fire and melee cases now cancel at wait20: with his promoted times the first pair was already in
+  at wait30). flatreload_test.sh 54/0.
+- **Open**: the pair in the locked hand is drawn but only checked by numbers (his eyes: key 4 looking down, key 6).

@@ -7,6 +7,7 @@
 #include "vr_axestick.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_progs.hpp"
 #include "vr_physics.hpp"
@@ -4653,10 +4654,11 @@ void setupHand(const hands::State& s, int hand)
     }
 
     // A free hand pushed into the other hand's weapon stops at its surface (drawn only), held back a few centimetres at
-    // most: past that it passes into it until it is out again (vr_hand_collide).
+    // most: past that it passes into it until it is out again (vr_hand_collide). Not flat-screen play's procedural reload's
+    // hand (vr_flatprocreload.cpp): empty at the port after a round went in, it pushed the gun ~0.45 units, eased back (prlfix).
     pushOut(hand,
         own && gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand) &&
-            limbEase[hand].blend <= 0.f && embedPins[hand].weight <= 0.f,
+            limbEase[hand].blend <= 0.f && embedPins[hand].weight <= 0.f && !flatprocreload::busy(hand),
         pos, handRot, mirrored);
 
     // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a

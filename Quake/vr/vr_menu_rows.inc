@@ -6706,6 +6706,17 @@ QVR_TOGGLE(vr_flat_proc_reload_debug, "Flatscreen Procedural Reload Print",
 QVR_SLIDER(vr_flat_prl_test_miss, "Procedural Reload: Miss the Port", 0.f, 24.f, 1.f, "%.0f units", ext(0.f, 48.f),
     "vr_flat_prl_test_miss: a test aid: the procedural reload's hand stops this many units short of the shotgun's port, "
     "so its round never goes in and the failsafe cancels the reload (0: off).")
+QVR_CYCLE(vr_flat_prl_lock, "Procedural Reload: Lock Pose",
+    "vr_flat_prl_lock: to tune the procedural reload's poses, holds it at one key pose (the shotgun in one hand, the "
+    "other empty; no R needed): the gun at rest, tilted, the free hand at the pouch, gripping a taped pair, at the "
+    "port's mouth, the pair inserted, on its way back; Scrub holds the share of one trip set by Procedural Reload: "
+    "Scrub. The pose follows the Tunables > Flatscreen > Procedural Reload values as you change them. Next / Previous "
+    "Key (vr_flat_prl_lock_next / _prev, bindable) step through them. Off: the reload as normal.",
+    {0.f, "Off"}, {1.f, "Rest"}, {2.f, "Gun Tilted"}, {3.f, "Hand at Pouch"}, {4.f, "Gripping the Pair"},
+    {5.f, "At the Port's Mouth"}, {6.f, "Inserted"}, {7.f, "Returning"}, {8.f, "Scrub"})
+QVR_SLIDER(vr_flat_prl_scrub, "Procedural Reload: Scrub", 0.f, 1.f, 0.02f, "%.2f", noExt,
+    "vr_flat_prl_scrub: with Lock Pose on Scrub, the share of one trip held: 0 at rest, the reach and the gun's tilt, the "
+    "grab, the carry, the insert, the way back, 1 at rest again.")
 QVR_TOGGLE(vr_flat_holsters, "Holsters",
     "Playing on the desktop screen (-flatscreenmode): on (the default), you carry what a headset player does: six "
     "holsters and your two hands. The number keys pick no weapon (3 swaps your hands); hold the mouse wheel's button for "

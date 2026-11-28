@@ -8,6 +8,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_gadget.hpp"
 #include "vr_grasp.hpp"
 #include "vr_held.hpp"
@@ -600,6 +601,13 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
         if(holdsRound(k))
         {
             w *= held::roundPortEase(s, k);
+        }
+        // Flat-screen play's procedural reload (vr_flatprocreload.cpp): its free hand's way between the pouch and the port is
+        // drawn, its forearm across the gun; pushed by it, the gun dipped ~0.8 units and back mid-carry each trip and stepped
+        // at the end (prlfix 2026-11-28). The hands go through each other for the whole trip (it starts and ends at rest).
+        if(flatprocreload::busy(k))
+        {
+            return 0.f;
         }
     }
     return w;

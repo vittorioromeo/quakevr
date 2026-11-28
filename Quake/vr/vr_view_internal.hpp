@@ -367,6 +367,7 @@ struct Entities
     view::ViewEntity pouch;      // the grenade pouch at the small of the back (vr_handgrenade)
     view::ViewEntity ammoPouch;  // the ammo pouch on the front of the belt (vr_reload_mode 3)
     view::ViewEntity ammoPouchItem[pouchitems::most]; // and the rounds in it (setupAmmoPouchItems; vr_pouchitems.cpp)
+    view::ViewEntity prlPair; // the taped pair in the free hand while flat play's procedural reload is locked at a key pose (setupPrlPair)
     view::ViewEntity mag[2];                       // the magazines in the guns in the hands (setupMagazines),
     view::ViewEntity magOut[2];                    // one sliding out of them (not seated, not solid: MagSlide),
     view::ViewEntity holsterMag[HolsterCount];     // in the holstered ones,
@@ -448,7 +449,7 @@ template <typename F>
 decltype(auto) Entities::members(F&& f)
 {
     return f(weapon, weaponMorph, hand, holster, holsterSlot, body, plate, zip(pauldron, pauldronArm), gadget, gadgetStrap,
-        flashlight, pouch, ammoPouch, ammoPouchItem, mag, magOut, holsterMag, worldMag, well, holsterWell, worldWell, pumpBody, pump,
+        flashlight, pouch, ammoPouch, ammoPouchItem, prlPair, mag, magOut, holsterMag, worldMag, well, holsterWell, worldWell, pumpBody, pump,
         zip(ssgFrame, ssgBarrels), zip(holsterSsgFrame, holsterSsgBarrels), zip(worldSsgFrame, worldSsgBarrels),
         zip(rvFrame, rvCrane, rvCyl, rvShell), sawHandle, button, frontButton, holsterButton, worldButton,
         holsterFrontButton, worldFrontButton, ghost, ghostHand, muzzleFlash, enemyFlash, adBolt, attach, holsterAttach, worldAttach,
