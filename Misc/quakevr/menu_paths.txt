@@ -1158,6 +1158,7 @@ vr_agrunt_ai_retreat|1|Armed Grunts - AI Behaviour|Retreat Readiness|Advanced VR
 vr_agrunt_speed|1|Armed Grunts - AI Behaviour|Movement Speed|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Movement Speed
 vr_agrunt_speed_back|1|Armed Grunts - AI Behaviour|Backpedal Speed|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Backpedal Speed
 vr_agrunt_speed_strafe|1|Armed Grunts - AI Behaviour|Strafe Speed|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Strafe Speed
+vr_elite_spawn|1|Armed Grunts - AI Behaviour|Elites in Hard and Nightmare|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Elites in Hard and Nightmare
 vr_agrunt_mspace|1|Armed Grunts - AI Behaviour|Long Blades Keep Their Reach|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Long Blades Keep Their Reach
 vr_agrunt_mspace_reach|1|Armed Grunts - AI Behaviour|Reach Share|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Reach Share
 vr_agrunt_mspace_min|1|Armed Grunts - AI Behaviour|Shortest Standoff|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Shortest Standoff
@@ -4437,34 +4438,6 @@ vr_flat_rv_open_up|2|Tunables|Revolver Open: Up|Advanced VR Options > Debug > Tu
 vr_flat_rv_open_out|2|Tunables|Revolver Open: Out|Advanced VR Options > Debug > Tunables > Revolver Open: Out
 vr_flat_rv_open_in_time|2|Tunables|Revolver Open: In Time|Advanced VR Options > Debug > Tunables > Revolver Open: In Time
 vr_flat_rv_open_out_time|2|Tunables|Revolver Open: Out Time|Advanced VR Options > Debug > Tunables > Revolver Open: Out Time
-vr_flat_prl_reach_time|2|Tunables|Reach Time|Advanced VR Options > Debug > Tunables > Reach Time
-vr_flat_prl_grab_time|2|Tunables|Grab Time|Advanced VR Options > Debug > Tunables > Grab Time
-vr_flat_prl_carry_time|2|Tunables|Carry Time|Advanced VR Options > Debug > Tunables > Carry Time
-vr_flat_prl_insert_time|2|Tunables|Insert Time|Advanced VR Options > Debug > Tunables > Insert Time
-vr_flat_prl_return_time|2|Tunables|Return Time|Advanced VR Options > Debug > Tunables > Return Time
-vr_flat_prl_tilt_in_time|2|Tunables|Tilt In Time|Advanced VR Options > Debug > Tunables > Tilt In Time
-vr_flat_prl_tilt_out_time|2|Tunables|Tilt Out Time|Advanced VR Options > Debug > Tunables > Tilt Out Time
-vr_flat_prl_tilt_pitch|2|Tunables|Tilt: Pitch|Advanced VR Options > Debug > Tunables > Tilt: Pitch
-vr_flat_prl_tilt_yaw|2|Tunables|Tilt: Yaw|Advanced VR Options > Debug > Tunables > Tilt: Yaw
-vr_flat_prl_tilt_roll|2|Tunables|Tilt: Roll|Advanced VR Options > Debug > Tunables > Tilt: Roll
-vr_flat_prl_gun_fwd|2|Tunables|Gun: Forward|Advanced VR Options > Debug > Tunables > Gun: Forward
-vr_flat_prl_gun_up|2|Tunables|Gun: Up|Advanced VR Options > Debug > Tunables > Gun: Up
-vr_flat_prl_gun_in|2|Tunables|Gun: In|Advanced VR Options > Debug > Tunables > Gun: In
-vr_flat_prl_approach|2|Tunables|Port Approach|Advanced VR Options > Debug > Tunables > Port Approach
-vr_flat_prl_arc|2|Tunables|Arc|Advanced VR Options > Debug > Tunables > Arc
-vr_flat_prl_ease|2|Tunables|Ease|Advanced VR Options > Debug > Tunables > Ease
-vr_flat_prl_pouch_fwd|2|Tunables|Hand at Pouch: Forward|Advanced VR Options > Debug > Tunables > Hand at Pouch: Forward
-vr_flat_prl_pouch_right|2|Tunables|Hand at Pouch: Right|Advanced VR Options > Debug > Tunables > Hand at Pouch: Right
-vr_flat_prl_pouch_up|2|Tunables|Hand at Pouch: Up|Advanced VR Options > Debug > Tunables > Hand at Pouch: Up
-vr_flat_prl_pouch_pitch|2|Tunables|Hand at Pouch: Pitch|Advanced VR Options > Debug > Tunables > Hand at Pouch: Pitch
-vr_flat_prl_pouch_yaw|2|Tunables|Hand at Pouch: Yaw|Advanced VR Options > Debug > Tunables > Hand at Pouch: Yaw
-vr_flat_prl_pouch_roll|2|Tunables|Hand at Pouch: Roll|Advanced VR Options > Debug > Tunables > Hand at Pouch: Roll
-vr_flat_prl_port_pitch|2|Tunables|Hand at Port: Pitch|Advanced VR Options > Debug > Tunables > Hand at Port: Pitch
-vr_flat_prl_port_yaw|2|Tunables|Hand at Port: Yaw|Advanced VR Options > Debug > Tunables > Hand at Port: Yaw
-vr_flat_prl_port_roll|2|Tunables|Hand at Port: Roll|Advanced VR Options > Debug > Tunables > Hand at Port: Roll
-vr_flat_prl_port_fwd|2|Tunables|Hand at Port: Forward|Advanced VR Options > Debug > Tunables > Hand at Port: Forward
-vr_flat_prl_port_right|2|Tunables|Hand at Port: Right|Advanced VR Options > Debug > Tunables > Hand at Port: Right
-vr_flat_prl_port_up|2|Tunables|Hand at Port: Up|Advanced VR Options > Debug > Tunables > Hand at Port: Up
 vr_flat_prl_failsafe|2|Tunables|Failsafe Time|Advanced VR Options > Debug > Tunables > Failsafe Time
 vr_flat_prl_giveup|2|Tunables|Server Give-Up Time|Advanced VR Options > Debug > Tunables > Server Give-Up Time
 vr_flat_ammo_pouch_x|2|Tunables|Pouch: Forward|Advanced VR Options > Debug > Tunables > Pouch: Forward
@@ -4847,6 +4820,7 @@ vr_flat_thrust_yaw|2|Tunables|Thrust Yaw|Advanced VR Options > Debug > Tunables 
 vr_flat_thrust_dwell_time|2|Tunables|Thrust Hold|Advanced VR Options > Debug > Tunables > Thrust Hold
 vr_flat_thrust_back_time|2|Tunables|Thrust Recover Time|Advanced VR Options > Debug > Tunables > Thrust Recover Time
 vr_flat_thrust_off_slide|2|Tunables|Thrust Other Hand Slide|Advanced VR Options > Debug > Tunables > Thrust Other Hand Slide
+vr_flat_thrust_2h_drive|2|Tunables|Two-Handed Bayonet Drive|Advanced VR Options > Debug > Tunables > Two-Handed Bayonet Drive
 vr_flat_thrust_arm_stretch|2|Tunables|Thrust Arm Stretch|Advanced VR Options > Debug > Tunables > Thrust Arm Stretch
 vr_flat_thrust_blades|2|Tunables|Blade Thrust|Advanced VR Options > Debug > Tunables > Blade Thrust
 vr_flat_thrust_1h_reach|2|Tunables|Blade Thrust Reach|Advanced VR Options > Debug > Tunables > Blade Thrust Reach
@@ -5374,6 +5348,21 @@ vr_agrunt_dazzle_face_up|2|Tunables|Hand Up|Advanced VR Options > Debug > Tunabl
 vr_agrunt_dazzle_bend|2|Tunables|Arm Bend|Advanced VR Options > Debug > Tunables > Arm Bend
 vr_agrunt_dazzle_elbow|2|Tunables|Elbow Out|Advanced VR Options > Debug > Tunables > Elbow Out
 vr_agrunt_dazzle_dual|2|Tunables|Dual Wielders Shield|Advanced VR Options > Debug > Tunables > Dual Wielders Shield
+vr_elite_firerate|2|Tunables|Fire Rate|Advanced VR Options > Debug > Tunables > Fire Rate
+vr_elite_reaction|2|Tunables|Reaction Time|Advanced VR Options > Debug > Tunables > Reaction Time
+vr_elite_accuracy|2|Tunables|Accuracy|Advanced VR Options > Debug > Tunables > Accuracy
+vr_elite_aggression|2|Tunables|Aggressiveness|Advanced VR Options > Debug > Tunables > Aggressiveness
+vr_elite_speed|2|Tunables|Walking Speed|Advanced VR Options > Debug > Tunables > Walking Speed
+vr_elite_melee|2|Tunables|Melee Speed|Advanced VR Options > Debug > Tunables > Melee Speed
+vr_elite_pain|2|Tunables|Pains Taken|Advanced VR Options > Debug > Tunables > Pains Taken
+vr_elite_aimlag|2|Tunables|Aim Lag|Advanced VR Options > Debug > Tunables > Aim Lag
+vr_elite_turn|2|Tunables|Turning Speed|Advanced VR Options > Debug > Tunables > Turning Speed
+vr_elite_health|2|Tunables|Health|Advanced VR Options > Debug > Tunables > Health
+vr_elite_spawn_chance|2|Tunables|Hard and Nightmare Chance|Advanced VR Options > Debug > Tunables > Hard and Nightmare Chance
+vr_elite_arena_wave|2|Tunables|Arena: From Wave|Advanced VR Options > Debug > Tunables > Arena: From Wave
+vr_elite_arena_chance|2|Tunables|Arena: Chance|Advanced VR Options > Debug > Tunables > Arena: Chance
+vr_elite_pulse|2|Tunables|Dye Pulse|Advanced VR Options > Debug > Tunables > Dye Pulse
+vr_elite_pulse_hz|2|Tunables|Dye Pulse Rate|Advanced VR Options > Debug > Tunables > Dye Pulse Rate
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -5841,6 +5830,7 @@ vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Optio
 vr_flat_attach_debug|2|Debug - Reports|Flatscreen Attach Print|Advanced VR Options > Debug > Reports > Flatscreen Attach Print
 vr_flat_proc_reload_debug|2|Debug - Reports|Flatscreen Procedural Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Procedural Reload Print
 vr_flat_prl_test_miss|2|Debug - Reports|Procedural Reload: Miss the Port|Advanced VR Options > Debug > Reports > Procedural Reload: Miss the Port
+|2|Debug - Reports|Reload Studio|Advanced VR Options > Debug > Reports > Reload Studio
 vr_flat_prl_lock|2|Debug - Reports|Procedural Reload: Lock Pose|Advanced VR Options > Debug > Reports > Procedural Reload: Lock Pose
 |2|Debug - Reports|Procedural Reload: Next Key|Advanced VR Options > Debug > Reports > Procedural Reload: Next Key
 |2|Debug - Reports|Procedural Reload: Previous Key|Advanced VR Options > Debug > Reports > Procedural Reload: Previous Key
@@ -6058,6 +6048,9 @@ vr_obsrec_as_if|2|Debug - Reports|Clean Recording: Act As If OBS Records|Advance
 |2|Debug - Reports|Main Menu Lettering|Advanced VR Options > Debug > Reports > Main Menu Lettering
 |2|Debug - Reports|Reset This Page|Advanced VR Options > Debug > Reports > Reset This Page
 @page|2|Debug - Tools||Advanced VR Options > Debug > Tools
+|2|Debug - Tools|Make the Nearest Monster Elite|Advanced VR Options > Debug > Tools > Make the Nearest Monster Elite
+|2|Debug - Tools|Make the Nearest Monster Ordinary|Advanced VR Options > Debug > Tools > Make the Nearest Monster Ordinary
+|2|Debug - Tools|Infect the Nearest Monster|Advanced VR Options > Debug > Tools > Infect the Nearest Monster
 |2|Debug - Tools|Controller Bindings Screen|Advanced VR Options > Debug > Tools > Controller Bindings Screen
 |2|Debug - Tools|Print Controller Bindings|Advanced VR Options > Debug > Tools > Print Controller Bindings
 |2|Debug - Tools|Bindings Screen Tests|Advanced VR Options > Debug > Tools > Bindings Screen Tests
@@ -6461,6 +6454,8 @@ vr_struggle_force|2|Debug - Tests|Every Downed One Struggles|Advanced VR Options
 vr_enemy_melee_arc_debug|2|Debug - Tests|Log Melee Arc|Advanced VR Options > Debug > Tests > Log Melee Arc
 vr_enemy_melee_arc_show|2|Debug - Tests|Show Melee Arcs|Advanced VR Options > Debug > Tests > Show Melee Arcs
 |2|Debug - Tests|Melee Arcs Drawn|Advanced VR Options > Debug > Tests > Melee Arcs Drawn
+|2|Debug - Tests|Test: Elite Armed Humanoids|Advanced VR Options > Debug > Tests > Test: Elite Armed Humanoids
+|2|Debug - Tests|Elite Lineup (Screenshot)|Advanced VR Options > Debug > Tests > Elite Lineup (Screenshot)
 |2|Debug - Tests|Test: Melee Rules (Side-step, Arcs)|Advanced VR Options > Debug > Tests > Test: Melee Rules (Side-step, Arcs)
 |2|Debug - Tests|Melee Arc: Nearest Faces You|Advanced VR Options > Debug > Tests > Melee Arc: Nearest Faces You
 |2|Debug - Tests|Melee Arc: Nearest Faces Away|Advanced VR Options > Debug > Tests > Melee Arc: Nearest Faces Away
@@ -6855,6 +6850,7 @@ vr_ar_play_scale|2|Animation Recorder|Scale|Advanced VR Options > Debug > Animat
 |2|Debug - Automation & Self-Tests|Arena Presets: Format Test|Advanced VR Options > Debug > Automation & Self-Tests > Arena Presets: Format Test
 |2|Debug - Automation & Self-Tests|Arena Wave Editor: Click Through Test|Advanced VR Options > Debug > Automation & Self-Tests > Arena Wave Editor: Click Through Test
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Infection Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Infection Test
+|2|Debug - Automation & Self-Tests|Armed Humanoids: Elite Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Elite Test
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Preview Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Preview Test
 |2|Debug - Automation & Self-Tests|Jump to Wave 6|Advanced VR Options > Debug > Automation & Self-Tests > Jump to Wave 6
 |2|Debug - Automation & Self-Tests|Perk Card Panel Test|Advanced VR Options > Debug > Automation & Self-Tests > Perk Card Panel Test
