@@ -60,6 +60,9 @@ macro(qvr_android_target)
 	target_link_libraries(ironwail PRIVATE GLESv3 EGL android log)
 	# A missing symbol fails the link, not the app's start (dlopen).
 	target_link_options(ironwail PRIVATE "-Wl,--no-undefined")
+	# (Not here: -Wl,-Bsymbolic with -fno-semantic-interposition -fno-plt, which bind the library's own calls and
+	# globals inside it: PLT slots 7,330 -> 533, GOT data 6,066 -> 4, but no gain measured on the Quest 3, QuakeC
+	# or CPU busy, in two interleaved APK pairs: QUEST_OPTIMISATIONS.md, "QuakeC's interpreter" (qcvm, 2026-11-28).)
 	# The menus' giant file at -Os (C5g, QUEST_PLAN.md 6zr): the NDK's clang 18 took ~18 minutes on it at -O3 and more
 	# than 10 at -O1, 17 seconds at -Os; menu code, nothing a frame waits on.
 	# Not in ThinLTO either (QVR_ANDROID_LTO): its link-time optimisation would be the same slow pass.
