@@ -1,0 +1,39 @@
+--- a/engine/qclib/qccmain.c
++++ b/engine/qclib/qccmain.c
+@@ -1789,6 +1789,8 @@
+ 
+ static void QCC_PR_CRCMessages(unsigned short crc);
+ CompilerConstant_t *QCC_PR_CheckCompConstDefined(char *def);
++static QCC_dstatement32_t *qcc_cpp_statements;	//QVR: the 32-bit statements as written, for -cppout
++void QCC_CppGen_Maybe (const QCC_dstatement32_t *st, const dfunction_t *df);
+ static pbool QCC_WriteData (int crc)
+ {
+ 	QCC_def_t		*def;
+@@ -2559,6 +2561,7 @@
+ 				if (verbose >= VERBOSE_DEBUGSTATEMENTS)
+ 					externs->Printf("code: %s:%i: @%i %s %i %i %i\n", QCC_FileForStatement(i), statements[i].linenum, i, pr_opcodes[statements[i].op].name, statements32[i].a, statements32[i].b, statements32[i].c);
+ 			}
++			qcc_cpp_statements = statements32;	//QVR: -cppout (qcc_cpp.c)
+ 
+ 			if (progs.blockscompressed&1)
+ 			{
+@@ -2859,6 +2862,9 @@
+ 		externs->Sys_Error("structtype error");
+ 	}
+ 
++	QCC_CppGen_Maybe (qcc_cpp_statements, (const dfunction_t *)funcdata);	//QVR: -cppout <dir>: the progs as C++ (qcc_cpp.c)
++	qcc_cpp_statements = NULL;
++
+ 	progs.ofs_globals = SafeSeek (h, 0, SEEK_CUR);
+ 	progs.numglobals = numpr_globals;
+ 
+@@ -5104,7 +5110,8 @@
+ 		}
+ 		else if ( !strcmp(myargv[i], "-max_regs") || !strcmp(myargv[i], "-max_strings") || !strcmp(myargv[i], "-max_globals")
+ 		 || !strcmp(myargv[i], "-max_fields") || !strcmp(myargv[i], "-max_statements") || !strcmp(myargv[i], "-max_functions")
+-		  || !strcmp(myargv[i], "-max_types") || !strcmp(myargv[i], "-max_temps") || !strcmp(myargv[i], "-max_macros") )
++		  || !strcmp(myargv[i], "-max_types") || !strcmp(myargv[i], "-max_temps") || !strcmp(myargv[i], "-max_macros")
++		  || !strcmp(myargv[i], "-cppout") )	//QVR: -cppout <dir> (qcc_cpp.c)
+ 		{
+ 			if (++i == myargc)
+ 				QCC_PR_Warning(WARN_BADPARAMS, "cmdline", 0, "Missing value for %s arg", myargv[--i]);

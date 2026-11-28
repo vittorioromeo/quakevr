@@ -478,6 +478,9 @@ void VR_EdictIndex_Reset (void);			// everything read again at the next query (a
 void VR_EdictIndex_StringSlot (int slot, int stable); // a known string's slot (re)assigned: stable when its text is never changed (PR_AllocString)
 void VR_EdictIndex_Address (int ofs, int watched);	// OP_ADDRESS of a watched field (fieldwatch's value): its store to come
 void VR_EdictIndex_Stored (int ofs);		// OP_STOREP into ofs while some are pending (watchpending)
+qboolean VR_QCCpp_Run (func_t fnum);		// vr_qccpp.cpp: vr_qc_cpp 1 runs the outermost call fnum as C++ (true: ran)
+void VR_QCCpp_ProgsLoaded (void);			// PR_LoadProgs: check the built-in C++ against the new progs
+void VR_QCCpp_Init (void);
 void VR_EdictIndex_TopLevelDone (void);		// PR_ExecuteProgram, the server's outermost call returned
 int VR_EdictIndex_Find (int start, int field, const char *s);	// PF_Find: the next match after start (0: none), -1 to walk
 int VR_EdictIndex_FindFlags (int start, int field, int flags);	// PF_findflags: the same

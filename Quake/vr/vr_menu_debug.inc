@@ -516,6 +516,12 @@ za::Vector<Item> pageDebugProfiling()
         row(opt::vr_perf_record),
         row(opt::vr_alias_prepass_world),
         row(opt::vr_alias_batch_posed),
+        command("QuakeC as Built-in C++", "vr_qc_cpp 1;vr_qc_cpp_info")
+            .help("vr_qc_cpp 1: every server QuakeC call runs as the C++ FTEQCC wrote from the same QuakeC (an engine built "
+                  "with QvrQcCpp=1; docs/vr-port/QC_TO_CPP.md): the same results, faster. Ignored, with a console note, "
+                  "when the engine lacks it or progs.dat is not the one it came from."),
+        command("QuakeC in the Interpreter (Default)", "vr_qc_cpp 0;vr_qc_cpp_info")
+            .help("vr_qc_cpp 0: QuakeC runs in the interpreter (progs.dat), the default."),
         command("Add 3 Big Test Lights", "vr_test_dlights 3")
             .help("vr_test_dlights 3: three lasting dynamic lights as big as an explosion's (radius 350), in a row 160 units "
                   "ahead: the cost of big lights on a still scene (vr_test_dlights <count> <radius> <distance>; 0 removes "

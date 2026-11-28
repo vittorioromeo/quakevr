@@ -171,6 +171,22 @@ static inline int QCExec_Leave (qcvm_t *vm)
 }
 #undef QX_FAST_OK
 
+// The C++ QuakeC's calls and returns (vr_qccpp.cpp, qccpp/qccpp_rt.h): the same entry, exit and builtin call.
+void QCCpp_EnterFn (qcvm_t *vm, int fnum)
+{
+	QCExec_Enter (vm, vm->functions + fnum);
+}
+
+void QCCpp_LeaveFn (qcvm_t *vm)
+{
+	QCExec_Leave (vm);
+}
+
+void QCCpp_BuiltinFn (dfunction_t *f)
+{
+	QCExec_Builtin (f);
+}
+
 // vr_qcexec_stats (qcconv 2026-11-28): the server VM's dynamic opcode counts, the counts of each pair and triple of
 // opcodes run one after the other at consecutive statements (the candidates for a combined instruction: a fused pair
 // runs only when control falls through), and the calls (QuakeC, builtins by number, by argument count). While on, the
@@ -312,6 +328,8 @@ static void QCExec_Fuse (qcvm_t *vm)
 static qboolean QCExec_Run (func_t fnum)
 {
 	const int mode = qcexec_force >= 0 ? qcexec_force : (int)vr_qcexec.value;
+	if (qcexec_force < 0 && VR_QCCpp_Run (fnum)) // vr_qc_cpp 1: the C++ QuakeC ran it (vr_qccpp.cpp)
+		return true;
 	if (mode <= 0)
 		return false;
 	if (qcstats.on && qcvm == &sv.qcvm)
@@ -639,6 +657,7 @@ void VR_QCExec_Init (void)
 	Cvar_RegisterVariable (&vr_qcexec_fuse);
 	QCExec_FuseInit ();
 	Cvar_RegisterVariable (&vr_qcexec);
+	VR_QCCpp_Init (); // vr_qc_cpp
 	Cmd_AddCommand ("vr_qcexec_bench", QCExec_Bench_f);
 	Cmd_AddCommand ("vr_qcexec_run", QCExec_Run_f);
 	Cmd_AddCommand ("vr_qcexec_time", QCExec_Time_f);
