@@ -2491,6 +2491,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gamecode", progs::gameCode_f);
     Cmd_AddCommand("vr_forcegrab_grid_stats", progs::forcegrabGridStats_f);
     Cmd_AddCommand("vr_agpose_compare", progs::agposeCompare_f);
+    Cmd_AddCommand("vr_agthink_compare", progs::agthinkCompare_f);
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
     Cmd_AddCommand("vr_test_handcontact", physics::testHandContact_f);
