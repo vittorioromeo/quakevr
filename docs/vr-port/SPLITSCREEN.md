@@ -1380,7 +1380,7 @@ between players becomes part of the per-player state."
   goes through the seat's own flat keys, seat 1's unchanged, restored after a restart. `split_join_test`'s holster menu by
   pad is padflat's L3.
 
-## 31. Split22 (2026-11-28): next merged (58 commits), the Controller Bindings freeze fixed
+## 31. Split22 (2026-11-28): next merged (66 commits), the Controller Bindings freeze fixed
 
 His words: "Please bring splitscreen up to speed with next, I'll give it another round of testing, and if it looks good
 we can merge it into next."
@@ -1388,7 +1388,7 @@ we can merge it into next."
 ### How to try it (for him)
 
 1. **Start it**: `C:\OHWorkspace\qvr-kit\scratch\play_splitscreen.ps1` in PowerShell (`-Window` for a window): this tree's
-   Release exe, rebuilt today with next 705fcf179 in it. Your quakevr folder's `progs.dat` from next is fine (the branch's
+   Release exe, rebuilt today with next 5ce1a1542 in it. Your quakevr folder's `progs.dat` from next is fine (the branch's
    only QuakeC change is split12's deathmatch obituary line). Two pads; Multiplayer > Splitscreen, A on the second pad.
 2. **Controller Bindings** (the freeze): Player 1 from Options, Player 2 from Start > Controller Bindings: the screen opens
    and stays live (on this branch it froze the whole game on its first frame since split20). Player 1's mouse hovers
@@ -1406,8 +1406,8 @@ we can merge it into next."
 
 ### What changed
 
-- **The merge**: 58 commits in three goes (next 118c6d6a2: aglod, qcvm, qcjit, qcbuiltins, cltidy2, diskclean; next
-  22927c839: flatmenu3, flatmisc3, dazzlestudio, his tweaks; next 705fcf179: elite2, ragknock, blcheck). Conflicts in vr_flatholster.cpp (flatmenu3's pouch
+- **The merge**: 66 commits in four goes (next 118c6d6a2: aglod, qcvm, qcjit, qcbuiltins, cltidy2, diskclean; next
+  22927c839: flatmenu3, flatmisc3, dazzlestudio, his tweaks; next 705fcf179: elite2, ragknock, blcheck; next 5ce1a1542: ragfire). Conflicts in vr_flatholster.cpp (flatmenu3's pouch
   buttons and level bar) and vr_flatplay.cpp (flatmisc3's wall probe): next's lines through the seat's `st()` / `fs()`;
   next's other new lines on the old globals (vr_flatholster.cpp's test and report `st`, vr_weaponwheel.cpp `ws`) too.
 - **Made each seat's**: the level bar's text (vr_flatholster.cpp `levelBarText`, made once a frame) is remade for each
@@ -1432,7 +1432,7 @@ we can merge it into next."
 
 ### Merging into next
 
-agent/split holds next 705fcf179 whole: while next stays there the merge is clean. Each later next commit that touches
+agent/split holds next 5ce1a1542 whole: while next stays there the merge is clean. Each later next commit that touches
 the client (keys.c, in_sdl.c, menu.c, vr_bindsetup.cpp, vr_flat*.cpp, vr_view*.cpp, the visor, the toolgun) may
 conflict, and any new client file-scope state it adds fails the seat_state check until it is a seat's or marked
 `// seat-shared: <why>`. Once merged, every worker's build runs that check, and BACKLOG section 9.1's clang-format pass
