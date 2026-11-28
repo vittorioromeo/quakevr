@@ -2439,6 +2439,7 @@ QVR_TUNABLE(vr_flat_thrust_yaw, "0") // and in towards the middle (degrees; nega
 QVR_TUNABLE(vr_flat_thrust_dwell_time, "0.08") // seconds held out
 QVR_TUNABLE(vr_flat_thrust_back_time, "0.25") // seconds back to the spear pose
 QVR_TUNABLE(vr_flat_thrust_off_slide, "2") // thrust out, the other hand rides with the pole, sliding back along it this far at the full reach (units; 0 carried all the way, the thrust's reach: stays put)
+QVR_TUNABLE(vr_flat_thrust_2h_drive, "1") // a gun held in two hands thrust with its bayonet (V): this share of the free arm's reach no longer pulls it back while it goes out, both hands drive it forward (0: the free arm's reach holds it back, as before)
 QVR_TUNABLE(vr_flat_thrust_arm_stretch, "1.35") // the arms' IK may stretch to this (times their length; vr_body_arm_stretch when not thrusting) as the thrust goes out, so the other hand keeps on the pole
 // The one-handed thrust (flatthrust, his decision 2026-11-24): V with a blade stuck in by its point (weapons.txt embed 1).
 QVR_TUNABLE(vr_flat_thrust_blades, "1") // flatscreen: V with a stabbing blade (a sword, a dagger) thrusts it as the spear does (0: V swings it as its fire button does)

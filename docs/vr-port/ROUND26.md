@@ -5196,6 +5196,37 @@ then "the hand grabbing the shells doesn't use the same finger pose as VR" and "
   reload_test 112/4: the 4 are BACKLOG section 1's known baseline failures (0/5 on 11-27), VR paths this doesn't touch.
 - **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
   the pair); his eyes on the drawn pair at the port while running.
+
+## bayofix: flat V drives a two-handed gun's bayonet with both hands; the dagger placed on every new gun (branch agent/bayofix, 2026-11-28)
+
+Open from bayomounts: flat V with a bayonet on the GL, prox and RL (held in both hands once the off hand is free) was no
+stab; the dagger mounts on the new guns untuned. And embedfire2's open "stall" with the launchers.
+- **Why V missed** (measured: the server's blade line per frame): the thrust ran, but flatsight's pinToGrip pulls a
+  two-handed gun in to where the free arm reaches its foregrip (`reachPull`, gripKeep 0.92 of the arm): the launchers'
+  foregrips are far ahead, so the bayonet's point stopped ~10 units short of the grunt (y 288 against 298 one-handed).
+- **Fix** (vr_flatplay.cpp `bayonetDrive2H`, vr_flatsight.cpp pinToGrip / gripPull): while V thrusts a gun's bayonet or
+  dagger, the free arm's pull fades by the thrust's share times `vr_flat_thrust_2h_drive` (1; 0: as before; Tunables row
+  "Two-Handed Bayonet Drive"): both hands go out with the gun, the arms' IK stretch (vr_flat_thrust_arm_stretch, any
+  thrust) keeps the free hand on the grip. Not pole weapons (their grip slides along the pole) nor guns with no blade on.
+  The crosshair's rehearsed strike path (noteStrikePath via gripPull) uses the same share.
+- **The "stall"**: the script's `god` doesn't reach the server before it spawns; the launchers' blasts at the grunt (in
+  the hand and stuck) killed the player, and his death menu paused the game until the run's timeout. Tests 96 and 97 now
+  set FL_GODMODE on the player each case. One-handed launchers (an axe in the off hand) stab and fire stuck fine.
+- **The dagger on the new guns** (weapons.txt att2_x / att2_z, mount units, on top of the every-gun default): measured on
+  the models as drawn (`vr_attach_mdl_dump <gun> <file> 2` now writes the gun and that attachment placed on it, OBJ
+  objects gun / attach). His shotgun's dagger sits 0.2 mount units under the gun, its guard 0.45 behind the gun's front;
+  each new gun solved to the same with no vertex inside the gun: nailgun z -1.13 (it sank 1.9 units into the shroud), GL
+  x 0.75 z 0.15, prox x 0.75 z 0.1, RL x 1 z 1.11 (it hung 3 units under the nose), thunderbolt x 0.65 z -0.99 (2.2 into
+  the body), Plasma Gun x 0.5 z 0.62, burst rifle z 0.76 (its 5 #adv slots the same, not measured), laser rifle z -1.07,
+  revolver z -0.54. The lava nailgun, multi launchers and plasma-look thunderbolt inherit them (checked). Level (pitch 0).
+  Contact sheet (side and from below, the dagger orange): worktree `scratch/bayofix_sheet.png` (scratch bayofix_sheet.py,
+  bayofix_measure.py, bayofix_solve.py). His config keeps only the shotguns' att2 pitches: the new values reach him.
+- **Tests**: `vr_embed_test 96` attachguns 66/0 (no PENDING: the GL, prox and RL "held in both hands as V was pressed"
+  and stuck), attach_guns_check 32/32; `vr_embed_test 97` embedrate 69/0 (the GL, prox, RL added, two-handed;
+  `scratch1 10008; scratch2 1` runs those three one-handed: 21/0); menu attachtest 20/0 (its hierarchy checks expect the
+  new dagger offsets); flat 80 17/0, flat dagger 85 18/0.
+- **Open**: VR stabs with the launchers are hand-driven (not tested per gun). The #adv burst rifles' daggers copy the
+  burst rifle's.
 ## alwaysfail: the tests that failed every run of the flaky sweep (branch agent/alwaysfail, 2026-11-28)
 
 Tests and one test aid only, no gameplay change. Found on origin/next 2ea7ac94e (Release; the author's game running, so
