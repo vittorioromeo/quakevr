@@ -5271,6 +5271,53 @@ then "the hand grabbing the shells doesn't use the same finger pose as VR" and "
 - **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
   the pair); his eyes on the drawn pair at the port while running.
 
+## reloadsys: keyframed procedural reloads, the Reload Studio, the super shotgun (branch agent/reloadsys, 2026-11-28)
+
+His words (2026-11-28 night, kit `scratch/fb1127n/reload_words_1128.md`): a keyframe-based system for every reloadable
+weapon, tweakable per keyframe in a new ImGui studio; "the reloads almost always succeed"; the hand's target worked out
+backwards from where the shell must be. Phase 1: the system, the studio, the shotgun moved onto it, the super shotgun.
+- **The data** (`Quake/vr/vr_reloadsys.hpp/.cpp`; `quakevr/data/reloads.txt`, `vr_reload_file`; built-ins in the code where
+  the file has no entry). Per gun (`reload shotgun|supershotgun { ... }`): `item` (shell, pair, magazine, rocket, cylinder),
+  `dest` (port, chamber, receiver, muzzle, cylinder), `item_rot` (the item's turn at its destination in the gun's frame),
+  `loop a b` (keys a..b, from 1, repeat until full), then `key "<name>" { ... }`: `time`, `gun_time` (0: the key's),
+  `ease` (linear, smooth, in, out), `hand` (rest, pouch, mouth, dest, hold), `hand_ofs` / `hand_rot` (rest and pouch: the
+  body's frame; mouth and dest: the item's offset and turn on its destination, the gun's frame), `arc`, `approach` (mouth:
+  out of the opening), `gun_rot` (pitch + muzzle down, yaw in, roll) / `gun_ofs` (forward, in, up), `action` (none, take,
+  insert, open, close, eject), `if` (always, closed, opened, loaded), `finish 1` (the end: played when the reload is over or
+  cancelled). The free hand's values mirror by its side, the gun's by its hand's (as the tunables did). Magazines,
+  rockets, the revolver's cylinder (later phases) fit: their item, destination (receiver, muzzle, cylinder slots), an eject
+  action. `vr_reloadsys_set <gun> <key|-> <field> <values>`, `_save`, `_reload`, `_list`.
+- **Playback** (`vr_flatprocreload.cpp`, rewritten on the data): each key moves the free hand and the gun hand's pose from
+  where each was drawn last over its times and ease; Take (impulse 99 at the pouch's hotspot, the key waits for the item),
+  Insert (waits at its end for VR's port test, then its failsafe), Open / Close (impulses 107 / 108); the item going in
+  goes on after the insert's key at once; the loop while the server's bit is up, then the finish keys. **Backwards solve**
+  (`target`): the item's destination pose (the port measured on the gun's game pose, `item_rot` and the key's turn on the
+  gun's frame), the item's place in the hand (`held::placeInHand`, the server's), so the hand = destination * grip^-1, every
+  frame. No hand-gun or hand-body collision while busy (prlfix's, kept). The shotgun's built-ins are his promoted tunables:
+  `item_rot` -38.17 / -43.74 / 51.87 baked from his hand at the port (pitch -40, yaw 59, roll -9 on the gun's) at a level
+  view (the same look there; looking up or down the item now keeps its turn on the gun, the old angles' sum didn't).
+- **Retired**: 28 tunables `vr_flat_prl_{reach,grab,carry,insert,return,tilt_in,tilt_out}_time`, `_tilt_*`, `_gun_*`,
+  `_approach`, `_arc`, `_ease`, `_pouch_*`, `_port_*` (in the data now; a saved value of them is an unknown command).
+  Kept: `vr_flat_prl_failsafe`, `_giveup`, `_test_miss`, `vr_flat_ammo_pouch_*`. **The lock generalised**:
+  `vr_flat_prl_lock N` holds key N's end pose (any gun's), -1 the scrub (`vr_flat_prl_scrub` over one pass of the keys);
+  next / previous step them.
+- **The super shotgun** (QC `VR_FlatReload_ProcWanted`: with `vr_flat_ssg_break`; not the Widowmaker): keys present, break
+  open (if closed: impulse 107, `VR_FlatReload_ProcOpen`: VR's `VR_Reload_SsgBreak`, its spent shells out, live ones kept
+  by `vr_ssg_keep_live`), reach, grip (VR's take: a pair, a single shell for one place), carry, insert (VR's chambers
+  test), reach again (loop), then return (if loaded: a flick up), close (impulse 108, `VR_FlatReload_ProcClose`: VR's
+  `VR_Reload_SsgClose`; a second later by itself if that never comes). The flat break's silent close skips a gun its
+  reload holds open. Its poses are a start for his tuning (tilt 25 / 35 / -30, the item's turn the shotgun's).
+- **The Reload Studio** (`vr_reloadstudio.cpp`; `vr_reloadstudio [open|close|toggle|test]`; Debug > Tools > Flatscreen:
+  Reload Studio, Tunables > Flatscreen > Procedural Reload): Gun (Hold This Gun: impulse 154 / 155), unsaved / saved,
+  Save / Revert / Reset Gun; Timeline: Play / Pause (the scrub looping, Speed), < > (step and lock), Lock Key, Unlock,
+  Reload (R) (a real one), Scrub; the readout: the item's gap to its destination now and at the last insert's end, and the
+  real reloads' seated / dropped / cancelled / failsafes; Reload: Item, Destination, Item Turn, Loop Keys; Keys: the list
+  (click locks it), Add (a copy after), Remove, Up, Down; Key: Name, Time, Gun Time, Ease, Action, Condition, Reload's End,
+  the free hand's Target, Offset, Turn, Arc, Approach, the gun hand's Tilt and Move; the gizmo on the free hand (Off / Move
+  / Rotate, vr_gizmo.hpp's, in the key's frame) while its key is locked.
+- **Tests**: `flatprocreload_test.sh questi base` 53/0 before the ssgshut change (trips, cont144, lock on the 6 keys,
+  mrun/jump/slide/crouch/60/144, fire, melee, blocked, dual, ssg; ssgshut alone: opened by 107, 2 in, closed). The matrix
+  ("almost always succeed", `matrix-sg` / `matrix-ssg`): see the report's numbers below. `vr_reloadstudio test`.
 ## Enemy attributes; the elite (branch agent/elite, 2026-11-28)
 
 His ask: a system of special attributes on enemies like "infected", with an "elite" first: much faster fire, reaction,

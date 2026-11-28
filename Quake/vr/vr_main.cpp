@@ -18,6 +18,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_armourdata.hpp"
 #include "vr_armourstudio.hpp"
+#include "vr_reloadstudio.hpp"
 #include "vr_humlook.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_mapstyle.hpp"
@@ -2618,6 +2619,7 @@ extern "C" void VR_Shutdown()
 {
     waveeditor::shutdown();
     armourstudio::windowShutdown(); // (its ImGui window closed, the input grab given back)
+    reloadstudio::shutdown(); // (likewise)
     weaponstudio::shutdown(); // (its window closed, its preview humanoid let go)
     rigstudio::shutdown(); // (the studio closed: its settings put back; ImGui let go, the GL context still there)
     doom::shutdown(); // Doom's settings saved, qvr_doom.dll unloaded
@@ -2798,6 +2800,7 @@ extern "C" void VR_BeginFrame()
         flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
         ragtool::clientFrame(); // -ragtool: the ragdoll tool started once the game is up (vr_ragtool.cpp)
         armourstudio::windowFrame(); // vr_armourstudio_window: its ImGui window (first: it closes when another tool opens)
+        reloadstudio::frame(); // vr_reloadstudio: the procedural reloads' keyframes (vr_reloadstudio.cpp; closes when another tool opens)
         rigstudio::clientFrame(); // vr_rigstudio: its ImGui frame and windows (vr_rigstudio.cpp; nothing while closed)
         waveeditor::clientFrame(); // vr_waveeditor: likewise (never both: it won't open with the studio's up)
         weaponstudio::clientFrame(); // vr_weaponstudio: likewise (flat screen: its own window; never with the other two)
