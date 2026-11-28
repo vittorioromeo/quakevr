@@ -26,11 +26,17 @@ and `QC/build.sh` on Windows). It is FTEQCC with a few speed patches: on Quake V
   listing and the compile log, checked on our QC. The binary is stamped with the upstream revision
   (`git-6729-f937b9d88`, 2026-06-04) on purpose: FTEQCC writes its version string into `progs.dat`, so a different
   stamp would change the output.
-- **Built with** VS 2022 clang-cl from `engine/qclib`:
+- **The C++ backend, `-cppout <dir>` (2026-11-28, `qcc_cpp.c` + `cpp.patch`):** after writing progs.dat, also writes
+  the same compiled QuakeC as C++ into `<dir>` (one `.cpp` per QuakeC file, `qc_funcs.h`, `qc_table.cpp` with the
+  progs hash; docs/vr-port/QC_TO_CPP.md). The Visual Studio build runs it with `/p:QvrQcCpp=1` (or `QVR_QC_CPP=1`).
+  progs.dat is byte-identical with and without the flag, and to the binary before it.
+- **Built with** `build_fteqcc.sh <qclib dir> <out exe>` (VS 2026 clang-cl; the patched source plus `cpp.patch` and
+  `qcc_cpp.c`). Before the C++ backend, VS 2022 clang-cl from `engine/qclib`:
   `clang-cl /O2 /w /DNDEBUG /D_CRT_SECURE_NO_WARNINGS /DNO_ZLIB /DSVNREVISION=git-6729-f937b9d88 /DSVNDATE=2026-06-04
   qcctui.c comprout.c hash.c qcc_cmdlib.c qcc_pr_comp.c qcc_pr_lex.c qccmain.c qcd_main.c decomp.c packager.c
   /Fe:fteqcc64.exe /link /OPT:REF /OPT:ICF`
-- SHA-256: `b1d7613c7f0459945e78425c70309873fa8947a400f36fbae2f3647b1f3df875` (before `fte32.patch`:
+- SHA-256: `78f8c0856fa9eec78a6a52601cb2a029234bde62295cc76324d49b56cbb3e99b` (with `-cppout`; before it:
+  `b1d7613c7f0459945e78425c70309873fa8947a400f36fbae2f3647b1f3df875`; before `fte32.patch`:
   `923ac7474c35fa8552ad3ac4ddab98662e76f9acdb0567ce916feaf9acaa5a48`)
 
 FTEQCC is GPL-2.0-or-later (the fteqw repository's license); its source is at the link above.
