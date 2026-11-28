@@ -22,8 +22,12 @@
 #include "DetourNavMesh.h"
 #include "DetourNavMeshBuilder.h"
 #include "DetourNavMeshQuery.h"
+#include "DetourNode.h"
 #include "Recast.h"
 
+#include "Zancle/Algorithm/LowerBound.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/Unique.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
@@ -47,6 +51,9 @@
 
 namespace qvr::nav
 {
+void pathbench_f(); // (vr_nav_pathbench: by the chasers' path search, below)
+void sharestats_f(); // (vr_nav_sharestats: by chaseSearch, below)
+
 namespace
 {
 
@@ -67,6 +74,7 @@ constexpr unsigned short flagWalk = 1, flagBlocked = 2, flagDrop = 4, flagLift =
 constexpr int maxPath = 256;    // polygons in a monster's path
 constexpr int maxCorners = 6;   // a path's straight corners looked at a step
 constexpr int queryNodes = 4096; // Detour's search nodes per query
+
 constexpr za::SizeT maxClasses = 32; // size classes a map can have
 
 // Recast is y-up: Quake's (x, y, z) is Recast's (x, z, -y) (a turn, so the windings keep their sense).
@@ -191,6 +199,20 @@ struct ObstacleTile
     double ms = 0.0;
 };
 
+// navshare: an unreachable foe's search, kept for the chasers after (chaseSearch). A partial search goes through every
+// polygon the walker can reach (its island) and ends at the one nearest the foe; any chaser starting on that island
+// heads there too, found by a short search to that polygon instead of going through the whole island again.
+constexpr int shareSlots = 32;
+struct ShareIsland
+{
+    const dtQueryFilter* filt = nullptr;
+    dtPolyRef end = 0, best = 0; // the foe's polygon (unreachable), the island's polygon nearest it
+    float endPt[3]{};            // the foe's point the search went for (Recast's space)
+    za::U32 gen = 0;             // the class's gen it was made in
+    double at = -1e30;           // when (server time)
+    za::Vector<dtPolyRef> reach; // the island's polygons, sorted
+};
+
 // One size class: its monsters' radius (half width) and height, its navmesh and query.
 struct NavClass
 {
@@ -210,6 +232,11 @@ struct NavClass
     za::SizeT bytes = 0;
     za::Vector<dtPolyRef> blocked; // polygons a door or lift stands on (flagBlocked)
     za::Vector<dtPolyRef> boarding; // polygons lift links start from, never blocked (refreshMovers' scratch)
+    // navshare: bumped whenever what a walker can reach may have changed (the doors' and lifts' blocked polygons, the
+    // teleporters' open state, a tile rebuilt or the mesh made again): the shared searches and the backoff key on it.
+    za::U32 gen = 1;
+    za::U64 flagSum = 0;
+    ShareIsland share[shareSlots];
     // The job's results, taken at its join: the mesh and its query, the cache file's data (its tiles' count, checksum).
     dtNavMesh* jobMesh = nullptr;
     dtNavMeshQuery* jobQuery = nullptr;
@@ -241,6 +268,15 @@ struct Agent
     int cls = -1;
     int goal = 0;
     double repathAt = 0.0;
+    // navshare's backoff: while its foe stays unreachable (the same foe polygon, the class's gen unchanged) each repath
+    // waits twice as long as the last, up to vr_nav_unreach_backoff_max; repathBase is when the plain interval ends (a
+    // sight check there), healthAt its health at the search (hurt: at once).
+    int unreachStreak = 0;
+    za::U32 unreachGen = 0;
+    dtPolyRef unreachEnd = 0;
+    double repathBase = 0.0;
+    float healthAt = 0.f;
+    bool sightChecked = false;
     glm::vec3 goalAt{0.f};    // the goal's feet when the path was found
     float endRc[3]{};         // the path's end (Recast's space)
     za::Vector<dtPolyRef> path;
@@ -1925,6 +1961,7 @@ void joinClass(NavClass& c)
     // (The job made the mesh, its query and the file's data: only the file's write is left here.)
     c.mesh = c.jobMesh;
     c.query = c.jobQuery;
+    ++c.gen; // (navshare: a new mesh)
     c.jobMesh = nullptr;
     c.jobQuery = nullptr;
     c.failed = !c.query;
@@ -2130,6 +2167,8 @@ void refreshMovers()
         }
         // Teleporter links closed (flagBlocked) while their trigger is shut: one waiting to be fired (a targetname),
         // as Quake's teleport_touch has it (portals::teleporterOpen).
+        // (navshare: what a walker can reach, summed: the blocked polygons and the teleporters' state; a change bumps gen.)
+        za::U64 sum = diskcache::fnv(diskcache::fnvStart, c.blocked.data(), c.blocked.size() * sizeof(dtPolyRef));
         const dtNavMesh& cm = *c.mesh;
         for(int t = 0; t < cm.getMaxTiles(); ++t)
         {
@@ -2144,9 +2183,15 @@ void refreshMovers()
                 const za::SizeT gi = static_cast<za::SizeT>(con.userId) - 1;
                 const edict_t* trig = gi < state.geo.gates.size() ? progs::edictAt(state.geo.gates[gi].trigger) : nullptr;
                 const bool open = trig && portals::teleporterOpen(trig);
+                sum = diskcache::fnv(sum, &open, sizeof(open));
                 (void)c.mesh->setPolyFlags(cm.getPolyRefBase(tile) | static_cast<dtPolyRef>(con.poly),
                     open ? flagWalk | flagTele : flagWalk | flagTele | flagBlocked);
             }
+        }
+        if(sum != c.flagSum)
+        {
+            c.flagSum = sum;
+            ++c.gen;
         }
     }
 }
@@ -2420,6 +2465,7 @@ void restoreTile(NavClass& c, za::SizeT ti)
 {
     za::Vector<unsigned char>& orig = c.original[ti];
     const int x = static_cast<int>(ti) % c.tilesX, y = static_cast<int>(ti) / c.tilesX;
+    ++c.gen; // (navshare: the tile's polygons made again)
     if(const dtTileRef old = c.mesh->getTileRefAt(x, y, 0))
     {
         (void)c.mesh->removeTile(old, nullptr, nullptr);
@@ -2513,6 +2559,7 @@ void runObstacleBatch(NavClass& c)
 void applyObstacleBatch(NavClass& c, int ci)
 {
     const auto t0 = za::Clock::nowNanoseconds();
+    ++c.gen; // (navshare: the tiles' polygons made again)
     for(ObstacleTile& t : c.obsTiles)
     {
         if(const dtTileRef old = c.mesh->getTileRefAt(t.x, t.y, 0))
@@ -3315,6 +3362,8 @@ void init()
 {
     Cmd_AddCommand("vr_nav_info", info_f);
     Cmd_AddCommand("vr_nav_hash", hash_f);
+    Cmd_AddCommand("vr_nav_pathbench", pathbench_f);
+    Cmd_AddCommand("vr_nav_sharestats", sharestats_f);
     Cmd_AddCommand("vr_nav_cliptest", cliptest_f);
     Cmd_AddCommand("vr_nav_toptest", toptest_f);
     Cmd_AddCommand("vr_nav_links", links_f);
@@ -4440,6 +4489,303 @@ void planToDraw(const NavClass& c, Agent& a, const float* startPt, int from)
     }
 }
 
+// A chaser's path search (steer's repath). vr_qc_builtin_fast (qcbuiltins2): Detour's search done by findPathQvr (QVR,
+// DetourNavMeshQuery.cpp), the same results bit for bit, faster: an unreachable foe (a shut door, a ledge) makes each
+// search go through every polygon it can reach (~1,000 nodes in hip1m1's fight), and Detour's open list searched itself
+// linearly for each node it updated. 0: Detour's findPath (the A/B); 2: both, compared (path, count, status).
+struct PathCheck
+{
+    int compared = 0, differed = 0;
+};
+PathCheck pathCheck;
+
+// vr_nav_pathbench: the last searches' inputs, replayed by both ways (a ring).
+struct PathAsk
+{
+    int cls = -1;
+    bool noLinks = false;
+    dtPolyRef start = 0, end = 0;
+    float startPt[3]{}, endPt[3]{};
+};
+constexpr int pathAsks = 64;
+struct PathBench
+{
+    PathAsk asks[pathAsks];
+    int next = 0, count = 0;
+};
+PathBench pathBench;
+
+dtStatus searchPath(const NavClass& c, int cls, dtPolyRef startRef, dtPolyRef endRef, const float* startPt,
+    const float* endPt, const dtQueryFilter& filt, dtPolyRef* out, int* n)
+{
+    PathAsk& ask = pathBench.asks[pathBench.next];
+    ask.cls = cls;
+    ask.noLinks = &filt == &filterNoLinks;
+    ask.start = startRef;
+    ask.end = endRef;
+    ZA_MEMCPY(ask.startPt, startPt, sizeof(ask.startPt));
+    ZA_MEMCPY(ask.endPt, endPt, sizeof(ask.endPt));
+    pathBench.next = (pathBench.next + 1) % pathAsks;
+    pathBench.count = za::min(pathBench.count + 1, pathAsks);
+    const float fast = vr_qc_builtin_fast.value;
+    if(fast == 0.f)
+    {
+        return c.query->findPath(startRef, endRef, startPt, endPt, &filt, out, n, maxPath);
+    }
+    const dtStatus status = c.query->findPathQvr(startRef, endRef, startPt, endPt, &filt, out, n, maxPath);
+    if(fast >= 2.f)
+    {
+        dtPolyRef ref[maxPath];
+        int rn = 0;
+        const dtStatus refStatus = c.query->findPath(startRef, endRef, startPt, endPt, &filt, ref, &rn, maxPath);
+        ++pathCheck.compared;
+        if(refStatus != status || rn != *n || ZA_MEMCMP(ref, out, sizeof(dtPolyRef) * static_cast<za::SizeT>(rn)) != 0)
+        {
+            ++pathCheck.differed;
+        }
+        if(pathCheck.compared % 500 == 0)
+        {
+            Con_Printf("vr_qc_builtin_fast paths check: %d compared, %d differed\n", pathCheck.compared, pathCheck.differed);
+        }
+    }
+    return status;
+}
+
+// navshare (vr_nav_share; vr_nav_sharestats): the chasers' searches, counted and timed; the repaths' causes.
+enum RepathWhy
+{
+    repathNew,     // no path yet, another class or goal, another approach slot
+    repathTimer,   // its interval (vr_nav_repath, or the backoff's) ran out
+    repathMoved,   // its foe moved vr_nav_repath_move from where the path led
+    repathOff,     // it stands on none of its path's polygons
+    repathMesh,    // backoff ended past its plain interval: the class's gen changed (a door, a lift, a tile)
+    repathHurt,    // backoff ended past its plain interval: it was hurt
+    repathSight,   // backoff ended past its plain interval: it no longer sees its foe
+    repathWhys
+};
+constexpr const char* repathWhyNames[repathWhys] = {"new", "timer", "moved", "off path", "mesh", "hurt", "sight"};
+struct ShareStats
+{
+    int full = 0, shared = 0, fellBack = 0, kept = 0, partial = 0;
+    double fullUs = 0.0, sharedUs = 0.0;
+    int compared = 0, sameEnd = 0, samePath = 0;
+    int nearer = 0, farther = 0;                       // another end: the shared one nearer the foe, or farther
+    float endGapSum = 0.f, endGapMax = 0.f, fartherSum = 0.f;
+    int why[repathWhys]{};
+    int backedOff = 0; // repaths whose interval was lengthened
+    int frame0 = 0;
+};
+ShareStats shareStats;
+
+// A chaser's search (steer's repath), vr_nav_share 1: an unreachable foe's search (partial: it went through the whole
+// island) is kept as its island and the island's polygon nearest the foe (ShareIsland); a chaser after it starting on
+// that island, for the same foe polygon and point (within vr_nav_repath_move, the move a path is already allowed to lag
+// by) and the class's gen unchanged, searches only to that polygon: a search that ends there instead of exhausting the
+// island. It heads to the same polygon (the island's nearest to the foe), by the cheapest way there; its own exhaustive
+// search could differ only in ties of which polygon is nearest (a polygon's place in a search is the middle of the
+// edge it was first reached by, so near-equal polygons can swap) and in the way to it between equal-cost corridors
+// (vr_nav_share 2 compares both). If that polygon can't be reached from its start (a one-way drop between), its own
+// full search runs. 0: every chaser's own full search (as before).
+dtStatus chaseSearch(NavClass& c, int cls, dtPolyRef startRef, dtPolyRef endRef, const float* startPt, const float* endPt,
+    const dtQueryFilter& filt, dtPolyRef* out, int* n)
+{
+    const float mode = vr_nav_share.value;
+    const double t0 = Sys_DoubleTime();
+    const double now = sv.qcvm.time;
+    if(mode != 0.f)
+    {
+        const float tol = za::max(vr_nav_repath_move.value, 0.f);
+        const double maxAge = 4.0 * static_cast<double>(za::max(vr_nav_repath.value, 0.05f));
+        for(ShareIsland& s : c.share)
+        {
+            if(s.filt != &filt || s.end != endRef || s.gen != c.gen || now - s.at > maxAge || now < s.at ||
+                dtVdist(s.endPt, endPt) > tol)
+            {
+                continue;
+            }
+            const dtPolyRef* it = za::lowerBound(s.reach.data(), s.reach.data() + s.reach.size(), startRef);
+            if(it == s.reach.data() + s.reach.size() || *it != startRef)
+            {
+                continue;
+            }
+            dtStatus status = DT_SUCCESS;
+            if(startRef == s.best)
+            {
+                out[0] = startRef;
+                *n = 1;
+            }
+            else
+            {
+                // (Aimed at the point of that polygon nearest the foe, where its path ends anyway: a heuristic that
+                // leads straight there, so the search stays near the way.)
+                float bestPt[3];
+                (void)c.query->closestPointOnPoly(s.best, endPt, bestPt, nullptr);
+                status = searchPath(c, cls, startRef, s.best, startPt, bestPt, filt, out, n);
+            }
+            if(*n > 0 && out[*n - 1] == s.best)
+            {
+                ++shareStats.shared;
+                shareStats.sharedUs += (Sys_DoubleTime() - t0) * 1e6;
+                if(mode >= 2.f)
+                {
+                    dtPolyRef ref[maxPath];
+                    int rn = 0;
+                    (void)searchPath(c, cls, startRef, endRef, startPt, endPt, filt, ref, &rn);
+                    ++shareStats.compared;
+                    const bool sameEnd = rn > 0 && ref[rn - 1] == out[*n - 1];
+                    shareStats.sameEnd += sameEnd ? 1 : 0;
+                    if(!sameEnd && rn > 0)
+                    {
+                        // (Where each heads: the point of its end polygon nearest the foe's point.)
+                        float own[3], mine[3];
+                        (void)c.query->closestPointOnPoly(ref[rn - 1], endPt, own, nullptr);
+                        (void)c.query->closestPointOnPoly(out[*n - 1], endPt, mine, nullptr);
+                        const float gap = dtVdist(own, mine);
+                        shareStats.endGapSum += gap;
+                        shareStats.endGapMax = za::max(shareStats.endGapMax, gap);
+                        const float d = dtVdist(mine, endPt) - dtVdist(own, endPt);
+                        shareStats.nearer += d < -0.01f ? 1 : 0;
+                        shareStats.farther += d > 0.01f ? 1 : 0;
+                        shareStats.fartherSum += za::max(d, 0.f);
+                    }
+                    shareStats.samePath += sameEnd && rn == *n &&
+                                                   ZA_MEMCMP(ref, out, sizeof(dtPolyRef) * static_cast<za::SizeT>(rn)) == 0
+                                               ? 1
+                                               : 0;
+                }
+                return (status & ~DT_STATUS_DETAIL_MASK) | DT_PARTIAL_RESULT;
+            }
+            ++shareStats.fellBack;
+            break;
+        }
+    }
+    const dtStatus status = searchPath(c, cls, startRef, endRef, startPt, endPt, filt, out, n);
+    const bool partial = dtStatusDetail(status, DT_PARTIAL_RESULT) && *n > 0;
+    shareStats.partial += partial ? 1 : 0;
+    // Exhaustive (partial, the pool not run out): every node the search made is a polygon of the island.
+    if(mode != 0.f && partial && !dtStatusDetail(status, DT_OUT_OF_NODES) && out[*n - 1] != endRef)
+    {
+        ShareIsland* slot = &c.share[0];
+        for(ShareIsland& s : c.share)
+        {
+            if(s.at < slot->at)
+            {
+                slot = &s;
+            }
+        }
+        const dtNodePool& pool = *c.query->getNodePool();
+        slot->reach.clear();
+        for(int i = 1; i <= pool.getNodeCount(); ++i)
+        {
+            slot->reach.pushBack(pool.getNodeAtIdx(static_cast<unsigned>(i))->id);
+        }
+        za::quickSort(slot->reach.data(), slot->reach.data() + slot->reach.size());
+        slot->reach.resize(static_cast<za::SizeT>(za::unique(slot->reach.data(), slot->reach.data() + slot->reach.size()) -
+                                                  slot->reach.data()));
+        slot->filt = &filt;
+        slot->end = endRef;
+        slot->best = out[*n - 1];
+        ZA_MEMCPY(slot->endPt, endPt, sizeof(slot->endPt));
+        slot->gen = c.gen;
+        slot->at = now;
+        ++shareStats.kept;
+    }
+    ++shareStats.full;
+    shareStats.fullUs += (Sys_DoubleTime() - t0) * 1e6;
+    return status;
+}
+
+// vr_nav_sharestats [reset]: the chasers' searches since the last reset (navshare): how many a frame, full or shared,
+// their time, the repaths' causes, and with vr_nav_share 2 how often a shared result matched the chaser's own search.
+void sharestats_f()
+{
+    ShareStats& s = shareStats;
+    const double frames = static_cast<double>(za::max(host_framecount - s.frame0, 1));
+    const double searches = static_cast<double>(s.full + s.shared);
+    Con_Printf("vr_nav_sharestats: %.0f frames, %.2f searches a frame (%d full, %d of them partial; %d shared, %d fell "
+               "back; %d islands kept); full %.1f us each, shared %.1f us each; %.4f ms a frame\n",
+        frames, searches / frames, s.full, s.partial, s.shared, s.fellBack, s.kept,
+        s.fullUs / static_cast<double>(za::max(s.full, 1)), s.sharedUs / static_cast<double>(za::max(s.shared, 1)),
+        (s.fullUs + s.sharedUs) / 1000.0 / frames);
+    Con_Printf("vr_nav_sharestats: repaths by cause:");
+    for(int i = 0; i < repathWhys; ++i)
+    {
+        Con_Printf(" %s %d", repathWhyNames[i], s.why[i]);
+    }
+    Con_Printf("; %d intervals backed off\n", s.backedOff);
+    if(s.compared > 0)
+    {
+        const int other = za::max(s.compared - s.sameEnd, 1);
+        Con_Printf("vr_nav_sharestats: shared vs own: %d compared, %d same end polygon, %d same path; another end: "
+                   "%.1f units apart (max %.1f), %d nearer the foe, %d farther (by %.1f units)\n",
+            s.compared, s.sameEnd, s.samePath, static_cast<double>(s.endGapSum) / other, static_cast<double>(s.endGapMax),
+            s.nearer, s.farther, static_cast<double>(s.fartherSum) / za::max(s.farther, 1));
+    }
+    Con_Printf("vr_nav_sharestats: classes' gen:");
+    for(const NavClass& c : state.classes)
+    {
+        Con_Printf(" %u", c.gen);
+    }
+    Con_Printf("\n");
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
+    {
+        s = ShareStats{};
+        s.frame0 = host_framecount;
+        Con_Printf("vr_nav_sharestats: reset\n");
+    }
+}
+
+// vr_nav_pathbench [times]: the last 64 chasers' path searches (as the mesh is now) run `times` times each (default 20)
+// by Detour's findPath and by findPathQvr: the time a search each way and whether every result matched (a timing aid
+// with no game noise; vr_qc_builtin_fast's A/B).
+void pathbench_f()
+{
+    if(!state.ready || pathBench.count == 0)
+    {
+        Con_Printf("vr_nav_pathbench: no searches yet (a map with chasing walkers)\n");
+        return;
+    }
+    const int times = Cmd_Argc() > 1 ? za::max(Q_atoi(Cmd_Argv(1)), 1) : 20;
+    double ms[2] = {0.0, 0.0};
+    int ran = 0, differed = 0, partial = 0;
+    long long nodes = 0;
+    for(int k = 0; k < pathBench.count; ++k)
+    {
+        const PathAsk& ask = pathBench.asks[k];
+        NavClass* c = readyClass(ask.cls);
+        if(!c || !c->mesh->isValidPolyRef(ask.start) || !c->mesh->isValidPolyRef(ask.end))
+        {
+            continue;
+        }
+        const dtQueryFilter& filt = ask.noLinks ? filterNoLinks : filter;
+        dtPolyRef out[2][maxPath];
+        int n[2] = {0, 0};
+        dtStatus status[2] = {0, 0};
+        for(int way = 0; way < 2; ++way)
+        {
+            const double t0 = Sys_DoubleTime();
+            for(int r = 0; r < times; ++r)
+            {
+                status[way] = way == 0 ? c->query->findPath(ask.start, ask.end, ask.startPt, ask.endPt, &filt, out[0], &n[0], maxPath)
+                                       : c->query->findPathQvr(ask.start, ask.end, ask.startPt, ask.endPt, &filt, out[1], &n[1], maxPath);
+            }
+            ms[way] += (Sys_DoubleTime() - t0) * 1000.0;
+        }
+        nodes += c->query->getNodePool()->getNodeCount();
+        partial += dtStatusDetail(status[0], DT_PARTIAL_RESULT) ? 1 : 0;
+        differed += status[0] != status[1] || n[0] != n[1] ||
+                            ZA_MEMCMP(out[0], out[1], sizeof(dtPolyRef) * static_cast<za::SizeT>(n[0])) != 0
+                        ? 1
+                        : 0;
+        ++ran;
+    }
+    const double per = static_cast<double>(za::max(ran * times, 1));
+    Con_Printf("vr_nav_pathbench: %d searches x %d (%d partial, %.0f nodes each): findPath %.1f us, findPathQvr %.1f us "
+               "(%.2fx); %d differed\n",
+        ran, times, partial, static_cast<double>(nodes) / static_cast<double>(za::max(ran, 1)), ms[0] * 1000.0 / per,
+        ms[1] * 1000.0 / per, ms[1] > 0.0 ? ms[0] / ms[1] : 0.0, differed);
+}
+
 float steer(edict_t* ent, edict_t* goal)
 {
     if(vr_nav.value == 0.f || !sv.active || !state.ready || !ent || !goal || !walker(ent))
@@ -4494,10 +4840,45 @@ float steer(edict_t* ent, edict_t* goal)
         ++state.fallbacks;
         return -1.f;
     }
-    bool repath = a.cls != cls || a.goal != goalNum || a.path.empty() || now >= a.repathAt || a.slot != slotBefore ||
-                  glm::length(goalPos - a.goalAt) > vr_nav_repath_move.value;
+    int why = a.cls != cls || a.goal != goalNum || a.path.empty() || a.slot != slotBefore ? repathNew
+              : glm::length(goalPos - a.goalAt) > vr_nav_repath_move.value             ? repathMoved
+              : now >= a.repathAt                                                      ? repathTimer
+                                                                                       : -1;
+    // navshare's backoff ended at once: the mesh changed (a door opened, a lift moved), it was hurt, or (once its plain
+    // interval is over) it no longer sees its foe. It is back on its plain interval: it repaths now if that is over,
+    // else when it ends (never sooner than without the backoff).
+    if(why < 0 && a.unreachStreak > 0)
+    {
+        int cut = -1;
+        if(c->gen != a.unreachGen)
+        {
+            cut = repathMesh;
+        }
+        else if(ent->v.health < a.healthAt)
+        {
+            cut = repathHurt;
+        }
+        else if(now >= a.repathBase && !a.sightChecked)
+        {
+            a.sightChecked = true;
+            vec3_t eye, to;
+            VectorAdd(ent->v.origin, ent->v.view_ofs, eye);
+            VectorAdd(goal->v.origin, goal->v.view_ofs, to);
+            if(SV_Move(eye, vec3_origin, vec3_origin, to, MOVE_NOMONSTERS, ent).fraction < 1.f)
+            {
+                cut = repathSight;
+            }
+        }
+        if(cut >= 0)
+        {
+            a.unreachStreak = 0;
+            a.unreachEnd = 0;
+            a.repathAt = a.repathBase;
+            why = now >= a.repathBase ? cut : -1;
+        }
+    }
     int from = 0;
-    if(!repath)
+    if(why < 0)
     {
         from = -1;
         for(za::SizeT i = 0; i < a.path.size(); ++i)
@@ -4508,11 +4889,12 @@ float steer(edict_t* ent, edict_t* goal)
                 break;
             }
         }
-        repath = from < 0;
+        why = from < 0 ? repathOff : -1;
         from = za::max(from, 0);
     }
-    if(repath)
+    if(why >= 0)
     {
+        ++shareStats.why[why];
         const float goalExt[3] = {64.f, 96.f, 64.f};
         dtPolyRef endRef = 0;
         float endPt[3];
@@ -4525,7 +4907,7 @@ float steer(edict_t* ent, edict_t* goal)
         }
         dtPolyRef buf[maxPath];
         int n = 0;
-        (void)c->query->findPath(startRef, endRef, startPt, endPt, &filt, buf, &n, maxPath);
+        (void)chaseSearch(*c, cls, startRef, endRef, startPt, endPt, filt, buf, &n);
         a.path.clear();
         a.path.emplaceBackRange(buf, static_cast<za::SizeT>(n));
         a.partial = n > 0 && buf[n - 1] != endRef;
@@ -4539,7 +4921,28 @@ float steer(edict_t* ent, edict_t* goal)
         a.goalAt = goalPos;
         // Staggered: each monster's interval a little longer or shorter by its number.
         const float jitter = 0.75f + 0.5f * static_cast<float>((num * 37) % 64) / 64.f;
-        a.repathAt = now + static_cast<double>(za::max(vr_nav_repath.value, 0.05f) * jitter);
+        const float base = za::max(vr_nav_repath.value, 0.05f) * jitter;
+        a.repathBase = now + static_cast<double>(base);
+        a.repathAt = a.repathBase;
+        // navshare's backoff: the same unreachable foe polygon again, the mesh unchanged: twice the last wait (up to
+        // vr_nav_unreach_backoff_max; never under the plain interval). Anything else starts it again.
+        const float backoffMax = vr_nav_unreach_backoff_max.value;
+        if(a.partial && backoffMax > base)
+        {
+            a.unreachStreak = a.unreachEnd == endRef && a.unreachGen == c->gen ? za::min(a.unreachStreak + 1, 8) : 0;
+            a.unreachEnd = endRef;
+            a.unreachGen = c->gen;
+            a.healthAt = ent->v.health;
+            a.sightChecked = false;
+            const float wait = za::min(base * static_cast<float>(1 << a.unreachStreak), backoffMax);
+            a.repathAt = now + static_cast<double>(wait);
+            shareStats.backedOff += a.unreachStreak > 0 ? 1 : 0;
+        }
+        else
+        {
+            a.unreachStreak = 0;
+            a.unreachEnd = 0;
+        }
         from = 0;
         ++state.paths;
     }

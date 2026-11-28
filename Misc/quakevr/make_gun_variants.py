@@ -117,6 +117,29 @@ def skin_indices(png, base_skin, w, h):
 
 # ----------------------------------------------------------------------------- build
 
+# A variant's ammo's loose magazine: another skin of the gun's magazine prop (QC vr_reload.qc VR_Reload_MakeRound: a lava
+# nails' or plasma magazine skin 1), kept here so a prop exported again from its .blend (one skin) gets it back.
+# (variant, prop, skin index, source PNG on the prop's skin layout); the prop's other skins are kept.
+PROP_SKINS = (
+    ("v_nailpistol_lava", "vr_mag_npistol", 1, "Misc/quakevr/src_models/blend/vr_mag_npistol/vr_mag_npistol_skin1.png"),
+)
+
+
+def prop_skin_outs(var):
+    outs = []
+    for v, prop, k, rel in PROP_SKINS:
+        if v != var:
+            continue
+        path = os.path.join(PROGS, prop + ".mdl")
+        m = mdlmod.Model.read(path)
+        if len(m.skins) < k:
+            raise SystemExit("gun_variants: REFUSED: %s has %d skins, skin %d needs those before it" % (prop, len(m.skins), k))
+        skin = [0, b"", [skin_indices(os.path.join(ROOT, rel), m.skins[0][2][0], m.h[13], m.h[14])]]
+        m.skins = m.skins[:k] + [skin] + m.skins[k + 1:]
+        outs.append((path, m.to_bytes()))
+    return outs
+
+
 def build(check):
     written, differ = 0, []
     for var, base, png in variants():
@@ -140,6 +163,7 @@ def build(check):
             if os.path.exists(norm):
                 with open(norm, "rb") as f:
                     outs.append((os.path.join(PROGS, prefix + var + ".mdl_0_norm.png"), f.read()))
+        outs += prop_skin_outs(var)
         for path, data in outs:
             old = open(path, "rb").read() if os.path.exists(path) else None
             if old == data:

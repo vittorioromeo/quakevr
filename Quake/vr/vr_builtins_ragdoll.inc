@@ -79,9 +79,22 @@ void PF_ragdolldrown()
 
 // float ragdollguard(entity e, vector at, float hold): a living monster's ragdoll guarding its head from a blow coming
 // from `at` (units) for `hold` s (vr_ragdoll_active_guard; QC VR_Guard_Raise). 0: it can't.
+// (Optional `grip`, `strength`: an aim instead, QC ragdollaim (vr_agrunt_ragfire): the arm whose hand is nearest `grip`
+// reaching towards `at`, box3d::ragdollAim; the builtins' table is full. Optional `barrel` after them: the gun's line as
+// drawn on its hand, its wrist turned onto `at`.)
 void PF_ragdollguard()
 {
     const float* at = G_VECTOR(OFS_PARM1);
+    if(qcvm->argc > 4)
+    {
+        const float* grip = G_VECTOR(OFS_PARM3);
+        const glm::vec3 barrel = qcvm->argc > 5 ? geom::vec(G_VECTOR(OFS_PARM5)) : glm::vec3{0.f};
+        G_FLOAT(OFS_RETURN) = box3d::ragdollAim(G_EDICT(OFS_PARM0), geom::vec(at), geom::vec(grip), G_FLOAT(OFS_PARM2),
+                                  G_FLOAT(OFS_PARM4), barrel)
+                                  ? 1.f
+                                  : 0.f;
+        return;
+    }
     G_FLOAT(OFS_RETURN) = box3d::ragdollGuard(G_EDICT(OFS_PARM0), geom::vec(at), G_FLOAT(OFS_PARM2)) ? 1.f : 0.f;
 }
 

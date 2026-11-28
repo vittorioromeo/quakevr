@@ -37,5 +37,8 @@ bool lookAt(const glm::vec3& pos, const glm::vec3& target);
 // What the drawn hands are posed from (flatplay viewIsHisOwn, bodyRide, drawnOffset).
 [[nodiscard]] glm::vec3 eyeOrg();
 [[nodiscard]] glm::vec3 eyeAngles();
+// Another tool's camera took the drawn view this frame, after VR_FlatFlycamView kept his eye (the Reload Studio's orbit,
+// reloadstudio2): his hands and body are posed from that eye as with the fly camera on, so what is drawn is his own pose.
+void borrowView();
 
 } // namespace qvr::flycam

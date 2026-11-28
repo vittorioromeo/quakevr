@@ -427,8 +427,9 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
 {
     static constexpr modelmeta::Id pairs[][2] = {{modelmeta::Id::VNail, modelmeta::Id::VLava},
         {modelmeta::Id::VNail2, modelmeta::Id::VLava2}, {modelmeta::Id::VRock, modelmeta::Id::VMulti},
-        {modelmeta::Id::VRock2, modelmeta::Id::VMulti2}, {modelmeta::Id::VLight, modelmeta::Id::VPlasma}};
-    static constexpr int kinds[] = {0, 0, 1, 1, 2}; // lava, multi-rockets, plasma
+        {modelmeta::Id::VRock2, modelmeta::Id::VMulti2}, {modelmeta::Id::VLight, modelmeta::Id::VPlasma},
+        {modelmeta::Id::VNailPistol, modelmeta::Id::VNailPistolLava}};
+    static constexpr int kinds[] = {0, 0, 1, 1, 2, 0}; // lava, multi-rockets, plasma (the nail pistol's lava: nplava)
     if(!a || !b)
     {
         return -1;

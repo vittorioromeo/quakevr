@@ -3108,6 +3108,24 @@ void followDrawnHands(const hands::State& drawn)
     }
 }
 
+void followHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return;
+    }
+    Held& hd = holding[hand];
+    if(!hd.baseSet || !hd.drawn || hd.ent == both.ent || !valid(hd.ent, hd.model))
+    {
+        return;
+    }
+    // (As followDrawnHands: the hand it was placed on to this one, one rigid move.)
+    const glm::mat3 turn = held::axesFromAngles(&rot[0], true) * glm::transpose(hd.baseHandAxes);
+    hd.lastPos = pos + turn * (hd.basePos - hd.baseHandPos);
+    hd.lastRot = turn * hd.baseRot;
+    place(cl_entities[hd.ent], hd.lastPos, hd.lastRot, true);
+}
+
 bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
 {
     if(hand < 0 || hand > 1)

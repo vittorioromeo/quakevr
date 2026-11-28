@@ -2519,11 +2519,14 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
         src = vr_agr_native_from; // QVR: a dual wielder's own gun, from its muzzle (vr_armedrepl.qc VR_AGR_NativeShot)
     }
     if(!VR_AI_ShotReady(src)) { return; }
-    if(self.vr_ai_gate > 0)
+    if(vr_ag_rf_dir != '0 0 0')
+        dir = vr_ag_rf_dir; // QVR: an armed one firing as a ragdoll, its gun's own line (vr_armedgrunt_ragfire.qc)
+    else if(self.vr_ai_gate > 0)
         dir = normalize(VR_AI_Point(self.enemy.origin + self.enemy.view_ofs) - VR_AI_Vector(self.enemy.velocity) * 0.2 - src);
     else
         dir = VR_Crate_ShotAim(src, dir, self.enemy);
-    dir = VR_AimCone_Bend(dir, VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
+    if(vr_ag_rf_dir == '0 0 0')
+        dir = VR_AimCone_Bend(dir, VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
     spread = spread * (1 + vr_fire_spread_extra); // VR: an armed humanoid's own gun, its accuracy (vr_armedrepl.qc VR_AGR_NativeShot)
@@ -4629,6 +4632,14 @@ void(float xHand) ToggleSecondaryAmmo =
         {
             dprint("ammo switch: refused, the Crystal Lance has no other ammo\n"); // (flatlance_test.sh)
         }
+        return;
+    }
+
+    // ammomags: immersive reloading in the headset: the rounds loaded set the ammo (vr_reload.qc VR_Reload_AmmoByMag; its
+    // button hidden): the other kind's magazine or round from the pouch's left half goes in instead.
+    if(VR_Reload_AmmoByMag(self, xHand))
+    {
+        dprint("ammo switch: refused, the rounds loaded set the ammo (immersive reloading)\n"); // (vr_ammomags_test.qc)
         return;
     }
 

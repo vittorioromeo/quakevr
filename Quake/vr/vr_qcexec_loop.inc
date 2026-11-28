@@ -22,13 +22,24 @@ static void QX_FUNC (func_t fnum)
 #if QX_GOTO
 #define QX_LABEL(op) [op] = &&qx_##op,
 #define QX_TRACED(op) [op] = &&qx_trace,
-	static const void *const fast[OP_BITOR + 1] = { QX_OPS (QX_LABEL) }; // statics-ok: label addresses exist only inside the function (computed goto)
-	static const void *const traced[OP_BITOR + 1] = { QX_OPS (QX_TRACED) }; // statics-ok: as above
+#if QX_FUSE // the combined instructions too (vr_qcexec.c, QX_FUSED; the statements are vm->qx_fused's)
+#define QX_FLABEL(name, first, second) [QXF_##name] = &&qxf_##name,
+#define QX_FTRACED(name, first, second) [QXF_##name] = &&qx_trace,
+#define QX_NDISP QXF_COUNT
+	static const void *const fast[QX_NDISP] = { QX_OPS (QX_LABEL) QX_FUSED (QX_FLABEL) }; // statics-ok: label addresses exist only inside the function (computed goto)
+	static const void *const traced[QX_NDISP] = { QX_OPS (QX_TRACED) QX_FUSED (QX_FTRACED) }; // statics-ok: as above
+#undef QX_FLABEL
+#undef QX_FTRACED
+#else
+#define QX_NDISP (OP_BITOR + 1)
+	static const void *const fast[QX_NDISP] = { QX_OPS (QX_LABEL) }; // statics-ok: label addresses exist only inside the function (computed goto)
+	static const void *const traced[QX_NDISP] = { QX_OPS (QX_TRACED) }; // statics-ok: as above
+#endif
 #undef QX_LABEL
 #undef QX_TRACED
 	const void *const *disp;
 #define QX_CASE(op) qx_##op:
-#define QX_DISPATCH() do { const unsigned op_ = st->op; if (op_ > OP_BITOR) goto qx_badop; goto *disp[op_]; } while (0)
+#define QX_DISPATCH() do { const unsigned op_ = st->op; if (op_ >= QX_NDISP) goto qx_badop; goto *disp[op_]; } while (0)
 #define QX_SETTRACE() (disp = vm->trace ? traced : fast)
 #define QX_BADOP_TRACE() do { if (disp == traced) PR_PrintStatement (st); } while (0)
 #else
@@ -47,6 +58,49 @@ static void QX_FUNC (func_t fnum)
 #define QX_B ((eval_t *)&glob[st->b])
 #define QX_C ((eval_t *)&glob[st->c])
 #define QX_ABC eval_t *const a = QX_A, *const b = QX_B, *const c = QX_C; (void)a; (void)b; (void)c
+// The bodies of the opcodes a combined instruction starts with (QX_FUSE; the single handlers below use them too).
+#define QX_DO_BIN(field, expr) { QX_ABC; c->field = (expr); }
+#define QX_DO_ADD_F QX_DO_BIN (_float, a->_float + b->_float)
+#define QX_DO_SUB_F QX_DO_BIN (_float, a->_float - b->_float)
+#define QX_DO_MUL_F QX_DO_BIN (_float, a->_float * b->_float)
+#define QX_DO_GE QX_DO_BIN (_float, a->_float >= b->_float)
+#define QX_DO_LE QX_DO_BIN (_float, a->_float <= b->_float)
+#define QX_DO_GT QX_DO_BIN (_float, a->_float > b->_float)
+#define QX_DO_LT QX_DO_BIN (_float, a->_float < b->_float)
+#define QX_DO_AND QX_DO_BIN (_float, a->_float && b->_float)
+#define QX_DO_OR QX_DO_BIN (_float, a->_float || b->_float)
+#define QX_DO_NOT_F QX_DO_BIN (_float, !a->_float)
+#define QX_DO_EQ_F QX_DO_BIN (_float, a->_float == b->_float)
+#define QX_DO_EQ_E QX_DO_BIN (_float, a->_int == b->_int)
+#define QX_DO_NE_F QX_DO_BIN (_float, a->_float != b->_float)
+#define QX_DO_NE_E QX_DO_BIN (_float, a->_int != b->_int)
+#define QX_DO_STORE_F { QX_ABC; b->_int = a->_int; }
+#define QX_DO_STORE_V { QX_ABC; b->vector[0] = a->vector[0]; b->vector[1] = a->vector[1]; b->vector[2] = a->vector[2]; }
+#define QX_DO_LOAD_F { QX_ABC; \
+		ed = (edict_t *)(edb + a->edict); \
+		c->_int = ((eval_t *)((int *)&ed->v + b->_int))->_int; }
+#define QX_DO_LOAD_V { QX_ABC; \
+		ed = (edict_t *)(edb + a->edict); \
+		ptr = (eval_t *)((int *)&ed->v + b->_int); \
+		c->vector[0] = ptr->vector[0]; \
+		c->vector[1] = ptr->vector[1]; \
+		c->vector[2] = ptr->vector[2]; }
+#define QX_DO_ADDRESS { QX_ABC; \
+		ed = (edict_t *)(edb + a->edict); \
+		if (ed == (edict_t *)edb && sv.state == ss_active) \
+		{ \
+			QX_RUNAWAY (); \
+			vm->xstatement = QX_IDX (st); \
+			PR_RunError("assignment to world entity"); \
+		} \
+		c->_int = (byte *)((int *)&ed->v + b->_int) - edb; \
+		if (vm->fieldwatch && (unsigned)b->_int < (unsigned)vm->fieldwatch_n && vm->fieldwatch[b->_int]) \
+		{ \
+			QX_RUNAWAY (); /* (it leaves the VM) */ \
+			VR_EdictIndex_Address (c->_int, vm->fieldwatch[b->_int]); /* QVR: the edict index follows the store */ \
+		} }
+#define QX_DO_IFNOT { if (!QX_A->_int) QX_JUMP (st->b); }
+#define QX_DO_IF { if (QX_A->_int) QX_JUMP (st->b); }
 #if QX_FASTCALL // calls and returns by the loop's own entry and exit (vr_qcexec.c, QCExec_Enter)
 #define QX_ENTERF(f) QCExec_Enter (vm, f)
 #define QX_LEAVEF() QCExec_Leave (vm)
@@ -74,7 +128,11 @@ static void QX_FUNC (func_t fnum)
 		vm = qcvm;
 		glob = vm->globals;
 		edb = (byte *)vm->edicts;
+#if QX_FUSE
+		stbase = vm->qx_fused; // (QCExec_Run made it)
+#else
 		stbase = vm->statements;
+#endif
 		st = stbase + first;
 		off = 1 - first; // the first statement is the 1st
 	}
@@ -86,10 +144,18 @@ static void QX_FUNC (func_t fnum)
 
 qx_trace:
 	QX_RUNAWAY ();
+#if QX_FUSE // traced: the original statement, run alone
+	PR_PrintStatement (vm->statements + QX_IDX (st));
+	goto *fast[vm->statements[QX_IDX (st)].op];
+#else
 	PR_PrintStatement (st);
 	goto *fast[st->op];
+#endif
 #else
 qx_dispatch:
+#if QX_STATS
+	QCExec_Stat (QX_IDX (st), st->op);
+#endif
 	if (tracing)
 	{
 		QX_RUNAWAY ();
@@ -99,27 +165,21 @@ qx_dispatch:
 	{
 #endif
 
-	QX_CASE (OP_ADD_F) { QX_ABC;
-		c->_float = a->_float + b->_float;
-	} QX_NEXT ();
+	QX_CASE (OP_ADD_F) QX_DO_ADD_F QX_NEXT ();
 	QX_CASE (OP_ADD_V) { QX_ABC;
 		c->vector[0] = a->vector[0] + b->vector[0];
 		c->vector[1] = a->vector[1] + b->vector[1];
 		c->vector[2] = a->vector[2] + b->vector[2];
 	} QX_NEXT ();
 
-	QX_CASE (OP_SUB_F) { QX_ABC;
-		c->_float = a->_float - b->_float;
-	} QX_NEXT ();
+	QX_CASE (OP_SUB_F) QX_DO_SUB_F QX_NEXT ();
 	QX_CASE (OP_SUB_V) { QX_ABC;
 		c->vector[0] = a->vector[0] - b->vector[0];
 		c->vector[1] = a->vector[1] - b->vector[1];
 		c->vector[2] = a->vector[2] - b->vector[2];
 	} QX_NEXT ();
 
-	QX_CASE (OP_MUL_F) { QX_ABC;
-		c->_float = a->_float * b->_float;
-	} QX_NEXT ();
+	QX_CASE (OP_MUL_F) QX_DO_MUL_F QX_NEXT ();
 	QX_CASE (OP_MUL_V) { QX_ABC;
 		c->_float = a->vector[0] * b->vector[0] +
 			    a->vector[1] * b->vector[1] +
@@ -148,28 +208,14 @@ qx_dispatch:
 		c->_float = (int)a->_float | (int)b->_float;
 	} QX_NEXT ();
 
-	QX_CASE (OP_GE) { QX_ABC;
-		c->_float = a->_float >= b->_float;
-	} QX_NEXT ();
-	QX_CASE (OP_LE) { QX_ABC;
-		c->_float = a->_float <= b->_float;
-	} QX_NEXT ();
-	QX_CASE (OP_GT) { QX_ABC;
-		c->_float = a->_float > b->_float;
-	} QX_NEXT ();
-	QX_CASE (OP_LT) { QX_ABC;
-		c->_float = a->_float < b->_float;
-	} QX_NEXT ();
-	QX_CASE (OP_AND) { QX_ABC;
-		c->_float = a->_float && b->_float;
-	} QX_NEXT ();
-	QX_CASE (OP_OR) { QX_ABC;
-		c->_float = a->_float || b->_float;
-	} QX_NEXT ();
+	QX_CASE (OP_GE) QX_DO_GE QX_NEXT ();
+	QX_CASE (OP_LE) QX_DO_LE QX_NEXT ();
+	QX_CASE (OP_GT) QX_DO_GT QX_NEXT ();
+	QX_CASE (OP_LT) QX_DO_LT QX_NEXT ();
+	QX_CASE (OP_AND) QX_DO_AND QX_NEXT ();
+	QX_CASE (OP_OR) QX_DO_OR QX_NEXT ();
 
-	QX_CASE (OP_NOT_F) { QX_ABC;
-		c->_float = !a->_float;
-	} QX_NEXT ();
+	QX_CASE (OP_NOT_F) QX_DO_NOT_F QX_NEXT ();
 	QX_CASE (OP_NOT_V) { QX_ABC;
 		c->_float = !a->vector[0] && !a->vector[1] && !a->vector[2];
 	} QX_NEXT ();
@@ -183,9 +229,7 @@ qx_dispatch:
 		c->_float = ((edict_t *)(edb + a->edict) == vm->edicts);
 	} QX_NEXT ();
 
-	QX_CASE (OP_EQ_F) { QX_ABC;
-		c->_float = a->_float == b->_float;
-	} QX_NEXT ();
+	QX_CASE (OP_EQ_F) QX_DO_EQ_F QX_NEXT ();
 	QX_CASE (OP_EQ_V) { QX_ABC;
 		c->_float = (a->vector[0] == b->vector[0]) &&
 			    (a->vector[1] == b->vector[1]) &&
@@ -194,16 +238,12 @@ qx_dispatch:
 	QX_CASE (OP_EQ_S) { QX_ABC;
 		c->_float = !strcmp(PR_GetString(a->string), PR_GetString(b->string));
 	} QX_NEXT ();
-	QX_CASE (OP_EQ_E) { QX_ABC;
-		c->_float = a->_int == b->_int;
-	} QX_NEXT ();
+	QX_CASE (OP_EQ_E) QX_DO_EQ_E QX_NEXT ();
 	QX_CASE (OP_EQ_FNC) { QX_ABC;
 		c->_float = a->function == b->function;
 	} QX_NEXT ();
 
-	QX_CASE (OP_NE_F) { QX_ABC;
-		c->_float = a->_float != b->_float;
-	} QX_NEXT ();
+	QX_CASE (OP_NE_F) QX_DO_NE_F QX_NEXT ();
 	QX_CASE (OP_NE_V) { QX_ABC;
 		c->_float = (a->vector[0] != b->vector[0]) ||
 			    (a->vector[1] != b->vector[1]) ||
@@ -212,9 +252,7 @@ qx_dispatch:
 	QX_CASE (OP_NE_S) { QX_ABC;
 		c->_float = strcmp(PR_GetString(a->string), PR_GetString(b->string));
 	} QX_NEXT ();
-	QX_CASE (OP_NE_E) { QX_ABC;
-		c->_float = a->_int != b->_int;
-	} QX_NEXT ();
+	QX_CASE (OP_NE_E) QX_DO_NE_E QX_NEXT ();
 	QX_CASE (OP_NE_FNC) { QX_ABC;
 		c->_float = a->function != b->function;
 	} QX_NEXT ();
@@ -224,14 +262,8 @@ qx_dispatch:
 	QX_CASE (OP_STORE_FLD)	// integers
 	QX_CASE (OP_STORE_S)
 	QX_CASE (OP_STORE_FNC)	// pointers
-	{ QX_ABC;
-		b->_int = a->_int;
-	} QX_NEXT ();
-	QX_CASE (OP_STORE_V) { QX_ABC;
-		b->vector[0] = a->vector[0];
-		b->vector[1] = a->vector[1];
-		b->vector[2] = a->vector[2];
-	} QX_NEXT ();
+		QX_DO_STORE_F QX_NEXT ();
+	QX_CASE (OP_STORE_V) QX_DO_STORE_V QX_NEXT ();
 
 	QX_CASE (OP_STOREP_F)
 	QX_CASE (OP_STOREP_ENT)
@@ -259,58 +291,20 @@ qx_dispatch:
 		}
 	} QX_NEXT ();
 
-	QX_CASE (OP_ADDRESS) { QX_ABC;
-		ed = (edict_t *)(edb + a->edict);
-#ifdef PARANOID
-		NUM_FOR_EDICT(ed);	// Make sure it's in range
-#endif
-		if (ed == (edict_t *)edb && sv.state == ss_active)
-		{
-			QX_RUNAWAY ();
-			vm->xstatement = QX_IDX (st);
-			PR_RunError("assignment to world entity");
-		}
-		c->_int = (byte *)((int *)&ed->v + b->_int) - edb;
-		if (vm->fieldwatch && (unsigned)b->_int < (unsigned)vm->fieldwatch_n && vm->fieldwatch[b->_int])
-		{
-			QX_RUNAWAY (); // (it leaves the VM)
-			VR_EdictIndex_Address (c->_int, vm->fieldwatch[b->_int]); // QVR: the edict index follows the store
-		}
-	} QX_NEXT ();
+	QX_CASE (OP_ADDRESS) QX_DO_ADDRESS QX_NEXT ();
 
 	QX_CASE (OP_LOAD_F)
 	QX_CASE (OP_LOAD_FLD)
 	QX_CASE (OP_LOAD_ENT)
 	QX_CASE (OP_LOAD_S)
 	QX_CASE (OP_LOAD_FNC)
-	{ QX_ABC;
-		ed = (edict_t *)(edb + a->edict);
-#ifdef PARANOID
-		NUM_FOR_EDICT(ed);	// Make sure it's in range
-#endif
-		c->_int = ((eval_t *)((int *)&ed->v + b->_int))->_int;
-	} QX_NEXT ();
+		QX_DO_LOAD_F QX_NEXT ();
 
-	QX_CASE (OP_LOAD_V) { QX_ABC;
-		ed = (edict_t *)(edb + a->edict);
-#ifdef PARANOID
-		NUM_FOR_EDICT(ed);	// Make sure it's in range
-#endif
-		ptr = (eval_t *)((int *)&ed->v + b->_int);
-		c->vector[0] = ptr->vector[0];
-		c->vector[1] = ptr->vector[1];
-		c->vector[2] = ptr->vector[2];
-	} QX_NEXT ();
+	QX_CASE (OP_LOAD_V) QX_DO_LOAD_V QX_NEXT ();
 
-	QX_CASE (OP_IFNOT)
-		if (!QX_A->_int)
-			QX_JUMP (st->b);
-		QX_NEXT ();
+	QX_CASE (OP_IFNOT) QX_DO_IFNOT QX_NEXT ();
 
-	QX_CASE (OP_IF)
-		if (QX_A->_int)
-			QX_JUMP (st->b);
-		QX_NEXT ();
+	QX_CASE (OP_IF) QX_DO_IF QX_NEXT ();
 
 	QX_CASE (OP_GOTO)
 		QX_JUMP (st->a);
@@ -335,8 +329,18 @@ qx_dispatch:
 		if (!QX_A->function)
 			PR_RunError("NULL function");
 		newf = &vm->functions[QX_A->function];
+#if QX_STATS
+		QCExec_StatCall (newf, vm->argc);
+#endif
 		if (newf->first_statement < 0)
 		{ // Built-in function
+#if QX_FASTCALL && !defined(QVR_TRACY)
+			// the common case straight from here (qcconv): no extension to check, no profiler timing it; else as before
+			const int bi = -newf->first_statement;
+			if (bi < vm->numbuiltins && !vm->builtin_ext[bi] && !qcprof.active && !vr_profile_fine)
+				vm->builtins[bi] ();
+			else
+#endif
 			QCExec_Builtin (newf);
 			vm = qcvm; // (a builtin may run anything)
 			glob = vm->globals;
@@ -391,12 +395,41 @@ qx_dispatch:
 	}
 #endif
 
+#if QX_FUSE // a combined instruction: its first statement, then straight into the second's handler (no dispatch)
+#define QX_FHANDLER(name, first, second) qxf_##name: QX_DO_##first ++st; goto qx_##second;
+	QX_FUSED (QX_FHANDLER)
+#undef QX_FHANDLER
+#endif
+
 qx_badop:
 	QX_RUNAWAY ();
 	QX_BADOP_TRACE ();
 	vm->xstatement = QX_IDX (st);
 	PR_RunError("Bad opcode %i", st->op);
 
+#undef QX_DO_BIN
+#undef QX_DO_ADD_F
+#undef QX_DO_SUB_F
+#undef QX_DO_MUL_F
+#undef QX_DO_GE
+#undef QX_DO_LE
+#undef QX_DO_GT
+#undef QX_DO_LT
+#undef QX_DO_AND
+#undef QX_DO_OR
+#undef QX_DO_NOT_F
+#undef QX_DO_EQ_F
+#undef QX_DO_EQ_E
+#undef QX_DO_NE_F
+#undef QX_DO_NE_E
+#undef QX_DO_STORE_F
+#undef QX_DO_STORE_V
+#undef QX_DO_LOAD_F
+#undef QX_DO_LOAD_V
+#undef QX_DO_ADDRESS
+#undef QX_DO_IFNOT
+#undef QX_DO_IF
+#undef QX_NDISP
 #undef QX_CASE
 #undef QX_DISPATCH
 #undef QX_SETTRACE

@@ -11,7 +11,7 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 ## 1. Open bugs and failing tests
 
 Open on 2026-11-28 (notes in ROUND26.md; the named ROUND25.md sections for older ones):
-- **weaponwheel_test flat and toolgun_panel_test fail on next** (seen by pcperf 2026-11-28 on origin/next 55c516c65 alone): the flat wheel test times out at "the tap's cycle" (wheel hand -1); the toolgun panel test's "X/A + stick press: not back to Brush" (the cycle stays on Remove).
+- **toolgun_panel_test fails on next** (seen by pcperf 2026-11-28 on origin/next 55c516c65 alone): "X/A + stick press: not back to Brush" (the cycle stays on Remove). (The flat weaponwheel_test failure is fixed: flatmenu3 ran it 21/0.)
 - **Lance pull-out flake**: `flatlance_test` section 5 lost the Lance once in 10 flat runs (2026-11-26: the hand empty after a shaft hit on a touching ogre, cause unknown). Lean aim is not wired for Copper, rogue eel/lavaman or AD's own checkattack. ROUND26 "lancepull"; ROUND25.md "lance4", "flatembed".
 - **VR embed test 24 and test 33 case 46 still fail** (ROUND25.md "embedregress"): 24's mock axe swing is aimed by the old pitch 0 (the axe ships 15.5); 33 case 46: a dead grunt held by the handle doesn't come to the hand (the ragdoll handle-hold motor).
 - **Embedded blades**: real heavy monsters, saves, level change and multiplayer unproven (tests 14-20 written); the handle hold's off-hand pose isn't probed and a stab's gap now moves the body to the hand (keep as slack if that reads wrong; ROUND25.md "embedgrip"); `vr_embed_test` 7 had 2 more failures in one run with the hold on.
@@ -23,9 +23,11 @@ Open on 2026-11-28 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Splitscreen**: agent/split (6e6f2af6e, split19, SPLITSCREEN.md) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next if it still shows.
 - **Quest**: cold start compiles 100 GL programs, 29-35 s; LRZ in the opaque entity pass is dead after your leg holsters' batches; `vr_debug_alias_lrz 62` plus `vr_gl_alias_lazy_blend 1` together keep it: next, bisect that combination (ROUND26 "questperf2"); CPU-bound big fights (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
   hip1m1 (questopt, 2026-11-28, his perf recording): CPU-bound at 24 ms a frame in its fights (GPU 11.4): QuakeC 7.5 ms
-  (worn packs' anchors fixed; the rest unprofiled on the headset: `vr_qcprofile` + `profile_qc` in a hip1m1 fight next),
-  the flashlight's lightmap light 4-5 ms (now ~1.6), models 2 ms, sound spikes 2.5 ms; the unworn headset still pauses
-  ("xr user absent") despite `-unattended`.
+  (profiled on the headset and cut since: questopt2, qcnative, aglod, qcbuiltins, qcvm), the flashlight's lightmap light
+  4-5 ms (now ~1.6), models 2 ms, sound spikes 2.5 ms (not reached). Left: the props' think (2.7 ms: a native port of
+  `VR_AG_PropThink`'s scans and parry frame), `agpose`, `limbpiece` for wearers in view, `navsteer`'s Detour queries
+  (ROUND26 "questopt2" Open). The unworn headset's pauses are the Quest runtime's, not the game's (a proximity-sensor
+  device setting: his call).
 - **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26; no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
 - **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
 - **Real failures, alone, steady** (ROUND26 "flakysweep", "alwaysfail", "alwaysfail2", "godfallout"): flat tests failing with or without god (godfallout): `flat_ammo_key` 2 ("the toolgun in hand: N sent nothing", "the shotgun: N sent, nothing changed"), `flatslide` 4 (lean: "a shot across the leant head hits him"; keys: 3 swaps, R reloads, mouse 4 force-grabs), `flatthrow` 1 ("the client sent the cancel for the main hand's left button"), `flatvisuals` 2 ("dot: 1 red pixels added"; "dead, Immersive": the camera 2.3 from the head's eyes, run to run), `flatwall` a 1 ("the others: the ironsight waits", since 11-26); `attach_test` vr_embed_test 79 and 84 (VR) 3 and 2 failures on origin/next b0756f0fd, with or without god: "picked up by the hand: the same record", the stuck super shotgun "broken open by its B", "the off hand's round goes in"; agrunt 65 1/5 ("grab anywhere: an axe at its chest", parry raised 0.12, disarmed 1); agrunt 91 3/5 ("raggrab: 8/9 won").
@@ -48,7 +50,7 @@ Open on 2026-11-28 (notes in ROUND26.md; the named ROUND25.md sections for older
 
 ## 3. Flat-screen (FLATPLAY.md)
 
-- **Procedural reloads beyond the one-handed shotgun** (2026-11-05; the shotgun's shipped: ROUND26 "flatprocreload", "prlfix", "prlmove"): the other guns' reload motions.
+- **Procedural reloads: what is left** (2026-11-05; shipped for the shotgun, the super shotgun, the magazine guns and nailguns, the launchers and the heavy revolver: ROUND26 "flatprocreload", "prlfix", "prlmove", "reloadsys", "reloadmags", "reloadmuzzle"): any gun still without a reload motion in the Reload Studio (check its list); the drawn rocket meets the port a hand's width past the rocket launcher's muzzle (reloadmuzzle "Open").
 - **Recorded motions for flat melee and reloads** (2026-11-05): phase 1 recorder shipped (ROUND24.md, "Animation
   recorder, phase 1"); phase 2 after he records.
 - **Left-handed mode** (2026-11-05): the mouse buttons' routing by hand (`flatplay::routeFire`) mirrored.
@@ -110,7 +112,7 @@ Open on 2026-11-28 (notes in ROUND26.md; the named ROUND25.md sections for older
 
 - **The enforcer's real backpack** (2026-11-02): today a lift zone baked in vrenforcer.mdl (ARMED_MONSTERS.md, "Open
   items moved from BACKLOG.md").
-- **AD's humanoids armed, then their worn packs** (2026-11-02; same section).
+- **AD's humanoids armed, then their worn packs** (2026-11-02; same section): the death guard and crossbow knight are armed (ROUND26 "adknights"); left: AD's other humanoids, and his look at the knights' packs and holds in VR.
 - **Crouching and crawling** (2026-11-05): a design study. A shot leg cripples, both legs crawl while still fighting
   (unarmed: retreat); generic for every humanoid, IK and aim right in any stance; leaning at corners and ledges.
 - **Gremlins armed** (2026-11-02): Armagon's gremlin already steals and fires the player's gun; check its rig first.
@@ -140,10 +142,9 @@ Open on 2026-11-28 (notes in ROUND26.md; the named ROUND25.md sections for older
 
 ## 8. Weapons, content and art
 
-- **The dagger's flight, next patch** (his note vrtesthall 2026-11-16 00:38): fine for 1.1; refine its point-first
-  settling, "the dagger is much like an arrow" (Debug > Tunables > Dagger Settling: its own strength, time, angle,
+- **The dagger's flight, next patch** (his note vrtesthall 2026-11-16 00:38): fine for 1.1; the tunables shipped
+  (ROUND25 "The dagger's own point-first settling"); left: tune the values, refine its point-first settling, "the dagger is much like an arrow" (Debug > Tunables > Dagger Settling: its own strength, time, angle,
   tumble and spin damping, times the swords'; vr_box3d_step.cpp pointAlign).
-- **Ammo type follows the loaded magazine** (2026-10-16): a lava-nail magazine fires lava nails.
 - **One model per gun, not one per ammo type** (2026-11-16, his words): "rather than having different models for the
   ammo types, we should be able to adjust one single model: add attachments, change parts or textures; maintaining two
   separate sets of models with different rules is annoying and causes issues." (Today `v_lava`, `v_lava2`,
@@ -222,6 +223,28 @@ Each verified by an unchanged physics hash, the melee tests and `vr_menu_path_ch
     headless map-change crash, f67ccf0); CI that compiles every shader with glslang.
 
 ## 11. Performance and parked
+
+- **Open from 2026-11-28 (blcheck):**
+  - **Mixed ammo loads in launchers** (his words 2026-11-28, fb1127n item 18; researched by ammomags, ROUND26.md "ammomags"):
+    blocked for now (his decision): with immersive reloading a launcher's tube takes the other kind only once empty
+    (vr_reload.qc `VR_Reload_GunTakesAid`). What mixed rockets/grenades in one tube would need (about 1-2 days, not small):
+    - **Bookkeeping:** today a gun has one clip count (`.wi_clip` on its weapon record) and one kind (its
+      `QVR_WPNFLAG_USE_SECONDARY_AMMO`). Mixed needs each round's kind in tube order: a bitmask on the record (the
+      launchers hold 4-5: `.wi_clipkinds`, bit i the i-th round from the muzzle), pushed at `VR_Reload_LoadInto`, popped
+      per shot. Saves come free (records are entities: a new field is saved), old saves read 0 (all basic).
+    - **Firing order:** loaded at the muzzle, the last in is the first out (LIFO). `W_AttackImpl_Fire` would pick
+      `W_FireRocket`/`W_FireMultiRocket` (`W_FireGrenade`/`W_FireMultiGrenade`) by the top bit instead of the flag, the
+      flag then following the next round (its model and `currentammo` with it: the HUD's tile, the ammo screen's kind).
+    - **Every path that refunds or moves rounds by kind:** `VRTryUnloadWeapon`, the holster/level-end refunds, the
+      launcher's eject, flat play's unload and procedural reload (`vr_flatreload.qc`), the gun lying as a prop
+      (`VR_Reload_IntoProp`), `VR_FlatReload_CycleIn`: each would refund per kind from the mask, not the clip as one kind.
+    - **HUD and look:** the ammo screen and the wrist gadget show one count; mixed wants "2 + 1" or the next round's kind;
+      the gun's model flips per shot (v_rock2/v_multi2: see "One model per gun", section 8, which would make that a part
+      swap). MP: the gun look's flags carry the next kind; a mask byte in `VrGunLook` only if remotes draw the rounds.
+    - **Flat play's N:** would choose what the next procedural reload pushes; the tube need not be emptied.
+    - **Tests:** load 2 rockets + 1 multi, fire 3 (multi first), unload/eject/holster refunds per kind, save/load mid-tube.
+  - **`vr_menu_pad_test` hangs on agent/split** (seen by the splitscreen work): fix before agent/split merges, if not fixed by then.
+  - **Scenes `agrunt_dual_guns` and `armour_beasts` are unused by the checklist now** (still named by a test or doc): keep, rename or retire them; check the checklist and the tests that name them first.
 
 - **Armoured beasts' draw cost** (ROUND26.md "pcperf", 2026-11-28): 16 armoured beasts cost +0.77 ms CPU and +0.34 ms
   GPU over 11-27 after the relink fix: each armour piece is its own alias entity (1960 alias draws a frame in

@@ -217,6 +217,8 @@ constexpr LoadPort loadPorts[] = {
         {&vr_reload_port_revolver_x, &vr_reload_port_revolver_y, &vr_reload_port_revolver_z}, &vr_reload_port_revolver_radius, false},
     {modelmeta::Id::VNailPistol, {-0.6237f, 0.f, -2.934f},
         {&vr_reload_port_npistol_x, &vr_reload_port_npistol_y, &vr_reload_port_npistol_z}, &vr_reload_port_npistol_radius, true},
+    {modelmeta::Id::VNailPistolLava, {-0.6237f, 0.f, -2.934f}, // (its lava nails' look, nplava)
+        {&vr_reload_port_npistol_x, &vr_reload_port_npistol_y, &vr_reload_port_npistol_z}, &vr_reload_port_npistol_radius, true},
     // AD support: AD's Plasma Gun: its cell's well on its inner side (vr_adweapons.cpp plasmaSeat; vr_view.cpp magMounts).
     {modelmeta::Id::AdVrPlasma, {11.6f, 2.1f, 4.5f},
         {&vr_reload_port_adplasma_x, &vr_reload_port_adplasma_y, &vr_reload_port_adplasma_z}, &vr_reload_port_adplasma_radius,
@@ -304,6 +306,13 @@ inline mem::Cache<MagShapeCache> magShapeCache{"magazine shapes", mem::GameDirCh
 // reloading (the server's mode as it applies, STAT_QVR_RELOADMODE 3), or flat-screen play whatever its reload (his words
 // 2026-11-10: "Gun magazines should always be shown in flatscreen mode"; vr_flatreload.qc ejects them, empty).
 [[nodiscard]] bool magazinesShown();
+// ammomags (QC vr_reload.qc VR_Reload_AmmoByMag): whether this client's settings make the gun `model` (the nailguns, the
+// launchers, the thunderbolt, the nail pistol, either look) fire the kind of round loaded in it: immersive reloading for
+// it in the headset (its vr_reload_mode_<gun>, else vr_reload_mode, 3; the launchers with vr_reload_front), or flat-screen
+// play's procedural reload. Its ammo button is then not drawn (ammoButtonHidden: `look` another player's gun's, by his
+// look's VrGunLook::ammoByMagBit; null, by this client's).
+[[nodiscard]] bool ammoFollowsRoundsHere(const qmodel_t* model);
+[[nodiscard]] bool ammoButtonHidden(const qmodel_t* model, const VrGunLook* look);
 [[nodiscard]] glm::vec3 magShapeCentre(const MagMount& mount); // its box's middle (the round's origin as it comes out)
 constexpr int weaponFlagNoMag = 16; // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc)
 constexpr int weaponFlagRevGrip = 8192; // QC's QVR_WPNFLAG_REVGRIP (vr_defs.qc): held reversed, blade down
@@ -498,6 +507,9 @@ void forEachEntity(F&& f)
 }
 
 [[nodiscard]] bool isHandModel(const qmodel_t* model);
+// Flat play's procedural reload locked at a key (the Reload Studio): its item placed on `hand` as drawn at (`pos`, `rot`),
+// before that hand's grasp (vr_view.cpp; reloadstudio2). False: the lock draws no item in that hand.
+bool placePrlItem(int hand, const glm::vec3& pos, const glm::vec3& rot);
 [[nodiscard]] qmodel_t* precachedModel(int index);
 
 // Mod_ForName(name, false) for the view entities' own models, asked for every frame: the model found for the
@@ -1106,7 +1118,8 @@ void pressWeaponButtons(const hands::State& s);
 void setupButton(int hand);
 void setupFrontButton(int hand);
 // (view::posePouchItems: yours and another player's, syncfix2)
-int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int count, view::ViewEntity (&out)[pouchitems::most]);
+int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int count, int kind2, int count2,
+    view::ViewEntity (&out)[pouchitems::most]);
 } // namespace view_detail
 
 using namespace ::view_detail;

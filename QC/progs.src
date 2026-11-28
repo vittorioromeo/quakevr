@@ -67,6 +67,7 @@ vr_grenade.qc
 vr_reload.qc
 vr_revgrip.qc
 vr_reload_test.qc
+qcconv_test.qc
 vr_debris.qc
 vr_bayonet.qc
 // Weapon attachments (the bayonet on the shotguns): after the bayonet's prop and the carrying it uses.
@@ -149,6 +150,7 @@ vr_flatreload.qc
 vr_flatholster.qc
 // A holstered gun keeps its rounds, every path (vr_reload_test 49): after vr_flatholster.qc's keys and wheel pick.
 vr_holsterammo_test.qc
+vr_ammomags_test.qc // the ammo follows the rounds loaded (vr_reload_test 51-54; ammomags)
 // Flat-screen play's quick grenade (G) and unified throw/drop (B): after vr_grenade.qc's pouch grenade and vr_flatreload.qc.
 vr_flatgrenade.qc
 // Flat-screen play's Grab / Pull (H): uses every available empty hand to grab props, crates, ragdolls and gibs.
@@ -627,6 +629,7 @@ vr_armedgrunt_shot.qc
 vr_ownclash.qc // weapon clash: your own two weapons meeting; the weapon-on-weapon material table (after VR_AG_SegDist)
 vr_armedgrunt_parry.qc
 vr_armedgrunt_guard.qc // its guard: the preventive and wind-up parries (vr_agrunt_preparry, vr_agrunt_windup_parry)
+vr_armedgrunt_ragfire.qc // firing as a ragdoll (vr_agrunt_ragfire, a prototype: staggering, down or held)
 vr_dirparry.qc // the directional parry: a blow's line, your weapon held across it
 vr_playerdisarm.qc // the player disarmed: monsters' shots and blows on your weapon, by the armed humanoids' rules; VR_Player_Disarm
 vr_playerdisarm_grab.qc // another player's weapon taken by a grab and a pull (MP B10)
@@ -685,6 +688,7 @@ vr_armedgrunt_second_test.qc
 vr_ogre_friends_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
+vr_armedgrunt_ragfire_test.qc // vr_agrunt_test 237: firing as a ragdoll (vr_agrunt_ragfire)
 vr_armedknight_test.qc
 vr_footstep_test.qc
 vr_armedgrunt_range_test.qc
@@ -711,6 +715,7 @@ vr_armedgrunt_reach_test.qc
 vr_armedgrunt_guard_test.qc
 vr_armedgrunt_adpose_test.qc
 vr_nailpistol_test.qc
+vr_nplava_test.qc // the nail pistol's lava nails (vr_np_test 8; nplava)
 vr_magslide_test.qc
 vr_nail_test.qc
 vr_flaregun_test.qc

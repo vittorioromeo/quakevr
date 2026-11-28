@@ -1,0 +1,22 @@
+# flat_proc_reload: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) procedural shotgun reload: the free hand between the ammo pouch and the port (docs/vr-port/FLATPLAY.md, "Reloading"; flatprocreload).
+title Flat-screen procedural reload: a shotgun in the right hand, the left empty, a second shotgun, a super shotgun and the magazine guns (nailgun, super nailgun, thunderbolt, nail pistol) to try, grunts to shoot at
+hint Play with -flatscreenmode (Desktop Screen Play > Procedural Reload on, the default). Fire, then R: the left hand goes to the ammo pouch on your belt (look down to see it), brings a taped pair to the shotgun's port underneath (the gun tilts to meet it) and back, two shells a trip, until it is full. Fire or shove mid-reload: it stops, the pair in the hand goes back in the pouch (the count stays). Timings and angles: Tunables > Flatscreen > Procedural Reload. Take the second shotgun in the left hand (dual): R reloads both at the hips, as before. The magazine guns: R lets the magazine out (empty ones drop by themselves), the left hand brings a fresh one from the pouch up into the well (under the nailgun and the thunderbolt, the super nailgun's side, the nail pistol's grip). The launchers (grenade, rocket): the muzzle turns up to the left hand, which pushes the rounds in one at a time. The heavy revolver: a flick swings the cylinder out, the spent shells drop, taped pairs go into the empty chambers, a flick closes it. Tune them in Debug > Tools > Flatscreen: Reload Studio.
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Shotgun" 40 70
+spawn "Super Shotgun" 40 -70
+spawn "Grunt" 260 30
+spawn "Grunt" 260 -30
+spawn "Nailgun" 40 140
+spawn "Super Nailgun" 40 -140
+spawn "Thunderbolt" 80 140
+spawn "Nail Pistol" 80 -140
+cmd give n 100
+cmd give c 60
+spawn "Grenade Launcher" 120 140
+spawn "Rocket Launcher" 120 -140
+spawn "Heavy Revolver" 120 70
+cmd give r 40
+cmd give s 50

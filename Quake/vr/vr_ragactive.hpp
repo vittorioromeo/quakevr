@@ -501,6 +501,22 @@ struct Guard
     glm::vec3 threat{0.f}; // world, metres: where the blow comes from
 };
 
+// An armed one's gun arm aimed at its target while it is a ragdoll (vr_agrunt_ragfire, a prototype; QC VR_AG_RagFire,
+// docs/vr-port/RAGFIRE.md): the arm whose hand is nearest `grip` reaching from its shoulder along the way to `target`.
+struct Aim
+{
+    bool on{false};
+    int arm{-1};                      // the arm it reached with last frame (-1 none yet)
+    double from{0.0}, until{0.0};
+    glm::vec3 target{0.f}, grip{0.f}; // world, metres
+    float strength{0.f};
+    // Its wrist (ragfire2): the gun's barrel as drawn on its hand (world, unit; zero: not given, no wrist), learnt in the
+    // hand bone's axes (`local`, eased: the gun is fixed in its hand), and the hand bone turned so it points at `target`.
+    glm::vec3 barrel{0.f}, local{0.f};
+    int hand{-1};      // the aimed arm's hand bone this frame (-1 none: no wrist in the rig, or cut)
+    float weight{0.f}; // the aim's ease this frame (aimFrame's)
+};
+
 // ---- Struggling in the hands (vr_struggle; vr_ragstruggle.cpp; docs/vr-port/STRUGGLE.md) ----
 // A living knockdown a player's hand holds (lifted, dragged, held by the head, the legs or an arm) fights the hold: a
 // layer of behaviours, each giving its limbs' reaches, its torso's and head's bends and their strengths, blended by
@@ -670,6 +686,8 @@ struct State
     Climb climb;
     // Its head guarded from a blow (vr_ragdoll_active_guard).
     Guard guard;
+    // Its gun arm aimed (vr_agrunt_ragfire).
+    Aim aim;
     // Struggling in a player's hands (vr_struggle).
     Struggle struggle;
     // Its shoulders' cones widened while it struggles (vr_struggle_arm_reach: its hands over its head; the rig's 85
@@ -827,6 +845,11 @@ bool beginClimb(State& s, const Parts& p, const Context& c);
 // A living one (its drive begun: a stagger, a fall, a get-up, or one begun for this) guards its head from a blow coming
 // from `threat` (world, metres) for `hold` s: its arms' reaches up before its face over whatever leads them.
 void guard(State& s, const glm::vec3& threat, double now, float hold);
+// A living armed one (its drive begun) aims the arm whose hand is nearest `grip` at `target` (world, metres) for `hold`
+// s at `strength` (0..1; vr_agrunt_ragfire's prototype): that arm's reach over whatever leads it, under a guard.
+// `barrel` (world, unit; zero: none): the gun's line as drawn on the hand now; its wrist turns the hand so it meets `target`.
+void aim(State& s, const glm::vec3& target, const glm::vec3& grip, double now, float hold, float strength,
+    const glm::vec3& barrel);
 
 // A mark of blood due on the hand holding a stump (Dismember::bloodDue, one taken): the hand's end (world, metres) and
 // the way to the stump. False: none due.

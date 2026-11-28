@@ -247,6 +247,28 @@ void(float xWid, float xFromSec, float xFlat) VR_AmmoSwitch_CheckMagGun =
     VR_AmmoSwitch_ClearMags();
 };
 
+// ammomags: in the headset with immersive reloading the rounds loaded set the ammo (vr_reload.qc VR_Reload_AmmoByMag):
+// the switch refused, nothing ejected, its flags and clip as they were.
+void(float xWid, float xFromSec) VR_AmmoSwitch_CheckRefused =
+{
+    float oldFlags = xFromSec ? QVR_WPNFLAG_USE_SECONDARY_AMMO : 0;
+    float full = WeaponIdToBaseClipSize(xWid);
+    VR_AmmoSwitch_ClearMags();
+    VRGiveEntWeapon(self, cVR_MainHand, xWid, oldFlags, full);
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    if(!VR_Reload_AmmoByMag(self, cVR_MainHand))
+    {
+        return; // (no other ammo in this game: no switch at all)
+    }
+    ToggleSecondaryAmmo(cVR_MainHand);
+    float f = VRGetEntWeaponFlags(self, cVR_MainHand);
+    VR_Test_Check(find(world, classname, VR_RELOAD_MAGCLASS) == world && (f & QVR_WPNFLAG_USE_SECONDARY_AMMO) == oldFlags &&
+        !(f & QVR_WPNFLAG_NOMAG) && VRGetEntWeaponClip(self, cVR_MainHand) == full,
+        sprintf("VR %s (%s): immersive reloading refuses the switch, the rounds loaded set the ammo (flags %g, clip %g)",
+        WeaponIdToWeaponName(xWid), xFromSec ? "alt" : "own", f, VRGetEntWeaponClip(self, cVR_MainHand)));
+    VR_AmmoSwitch_ClearMags();
+};
+
 void() VR_AmmoSwitch_Test =
 {
     VR_Test_BeginFlags("ammoswitch_test", VR_TEST_LOUD);
@@ -276,6 +298,14 @@ void() VR_AmmoSwitch_Test =
         self.vr_flatscreen = flat;
         for(float fromSec = 0; fromSec <= 1; fromSec++)
         {
+            if(!flat)
+            {
+                // (ammomags: the headset's immersive reloading: no switch, the magazine loaded sets the ammo.)
+                VR_AmmoSwitch_CheckRefused(WID_NAILGUN, fromSec);
+                VR_AmmoSwitch_CheckRefused(WID_SUPER_NAILGUN, fromSec);
+                VR_AmmoSwitch_CheckRefused(WID_LIGHTNING, fromSec);
+                continue;
+            }
             VR_AmmoSwitch_CheckMagGun(WID_NAILGUN, fromSec, flat);
             VR_AmmoSwitch_CheckMagGun(WID_SUPER_NAILGUN, fromSec, flat);
             VR_AmmoSwitch_CheckMagGun(WID_LIGHTNING, fromSec, flat);

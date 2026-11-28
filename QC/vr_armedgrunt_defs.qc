@@ -224,6 +224,13 @@ float vr_map_content_seed; // the map's content seed (engine: srvrandom::mapSeed
 float vr_agr_hold;         // > 0: spawns now are never replaced (the training dummies: vr_dummy_types.qc; the tools: VR_Test_Spawn, the engine's progs::ToolSpawn)
 float vr_agr_native_fire;  // a native gun's bullets being fired (VR_AG_DamageScale: the monster's own damage)
 vector vr_agr_native_from; // ... from this muzzle (a gun in each hand: its own; '0 0 0' the monster's own place, EnemyFireBullets)
+// Firing as a ragdoll (vr_agrunt_ragfire, a prototype: vr_armedgrunt_ragfire.qc): the shot under way's line, chosen from
+// its gun as it lies ('0 0 0' none: the AI's own aim). VR_AG_ShootProp, EnemyFireBullets and VR_AGR_NativeShot take it.
+vector vr_ag_rf_dir;
+.float vr_ag_rf_next;      // its next shot as a ragdoll no sooner than this (0: its first not yet timed)
+.float vr_ag_rf_since;     // the knockdown it timed it from (its .vr_kd_since)
+.float vr_ag_rf_shots;     // its shots as a ragdoll (the tests)
+void(entity g, entity p) VR_AG_RagFire;
 float vr_agr_shots_grunt;  // grunts' shots (rounds; a shotgun blast one), the native guns' among them (the tests)
 float vr_agr_shots_enf;    // enforcers' lasers, ...
 float vr_agr_pl_hits;      // monsters' hits on players (VR_AG_DamageScale: the tests)

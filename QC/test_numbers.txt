@@ -249,6 +249,7 @@ vr_agrunt_test   85       vr_armedgrunt_muzzle_test.qc     dual guns: each shot 
 vr_agrunt_test   77       vr_armedgrunt_blade_test.qc      your blow on a melee weapon's blade away from its hand: sparks, the clang, no damage; a strong one staggers it
 vr_agrunt_test   78       vr_dirparry_test.qc              the directional parry: its overhead or side swing parried by your weapon held across it; stock monsters by the lines their frames gives way (vr_dirparry)
 vr_agrunt_test   88       vr_armedgrunt_ragweapon_test.qc  the held weapon on an active ragdoll's hand
+vr_agrunt_test   237      vr_armedgrunt_ragfire_test.qc    firing as a ragdoll (vr_agrunt_ragfire): one-handed guns fire, a launcher and the setting off never
 vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves up close
 vr_agrunt_test   18       vr_armedgrunt_reach_test.qc      melee spacing: a long blade's standoff from its reach, its blows landing (vr_agrunt_mspace)
 vr_agrunt_test   90       vr_armedgrunt_guard_test.qc      an unarmed enforcer's guard in game as the Pose Studio holds its Aim key
@@ -312,6 +313,7 @@ vr_np_test       4        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAdd
 vr_np_test       5        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
 vr_np_test       6        vr_nailpistol_test.qc            (VR_NPT_EmptyShow: empty and loaded guns holstered and lying)
 vr_np_test       7        vr_nailpistol_test.qc            haste on every gun: nailgun, lightning, shotgun 1.4x faster; nail pistol, revolver, flare gun full auto (nphaste)
+vr_np_test       8        vr_nailpistol_test.qc            its lava nails (vr_nplava_test.qc VR_NPL_Begin): button/N switch, lava shots and damage, lava magazine (nplava)
 
 vr_pickup_test   1        vr_pickup_test.qc                (VR_PickupTest_Row)
 vr_pickup_test   2        vr_pickup_test.qc                (VR_PickupTest_Take)
@@ -366,6 +368,7 @@ vr_reload_test   44       vr_reload_test.qc                (VR_Reload_TestPouchC
 vr_reload_test   45-48    vr_reload_test.qc                (VR_Reload_TestStartGun)
 vr_reload_test   49       vr_reload_test.qc                a holstered gun keeps its rounds, every path and reload mode (VR_HolsterAmmo_Test, vr_holsterammo_test.qc)
 vr_reload_test   50       vr_reload_test.qc                switching ammo type ejects old magazine before flags/model flip, flat and VR (VR_AmmoSwitch_Test, vr_holsterammo_test.qc)
+vr_reload_test   51-55    vr_reload_test.qc                the ammo follows the rounds loaded: switch refused, pouch halves, lava magazine fires lava, no mixed launcher loads, simple/flat keep the switch; 52-55 the mock's end to end (VR_AmmoMags_Test, vr_ammomags_test.qc; ammomags)
 
 vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)
