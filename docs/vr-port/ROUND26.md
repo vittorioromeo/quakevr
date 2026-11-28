@@ -5965,3 +5965,17 @@ Brush").
   call, 35 candidates a search, nothing found) is now most of agstruck.
 - Headset: beta6 put back (APK 9261565a, progs a0bfe11a), his 31 autosaves and 3 saves restored (35 sums match). Scripts:
   worktree `scratch/qn_*` (not committed).
+
+## split21: splitscreen: next merged again (178 commits), the features of 11-27/28 each player's own (branch agent/split, 2026-11-28)
+
+On agent/split only (never into next). Next e0a95f557 merged: 11 files in conflict (36 hunks), next's side kept through the
+seats' accessors. Made each seat's: the flat procedural reload's whole client state (trip, port, items' places, drawn
+gun, key-pose lock: `seat::Part::FlatProcReload`), the attachment report (`seat::Part::AttachSeen`), the holster menu's
+body cache, the pad's holster cursor, and a seat 2-4's own gamepad buttons for the flat keys (`seat_flatkey N <cvar>
+<button>`, saved; its Controller Bindings screen no longer changes Player 1's pad). Fixed: seats 2-4 never ran the
+procedural reload's or the J key's trip (`flatplay::seatFrame`). Shared on purpose: reloads.txt and the Reload Studio's
+window, the menu's pad cursor (seat 1's menus), attachment offsets, elites' looks, the mixer. Left: split11's pad layout
+labels (join screen) still show the old d-pad holster menu. Details, how to try it: SPLITSCREEN.md section 30.
+Tests: new `Misc/quakevr/seat_split21_test.sh` 6/0 (two seats reloading at once, seat 2's grenade, seat 2's visor boot);
+seat_bind_test.sh 14/0, seat_play_test.sh 63/0, split_join_test.sh 113/0, seat_menu_test.sh 62/0, seat_render_test.sh
+367/1 (the anim ragdoll's 15 of 16 frames: split20's known one-off).

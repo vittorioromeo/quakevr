@@ -1292,3 +1292,84 @@ player to rebind their own controller binds with the newly added screens."
   vr_bindsetup_detect_test 57/0. Earlier failures gone: seat_render's anim ragdoll 15/16 (one run; 16/16 since),
   bindpanel's main-menu half (the run stalled after togglemenu in one low-impact run; next's bindpanel_test passes whole
   now, so it was not run on next).
+
+## 30. Split21 (2026-11-28): next merged (178 commits), the features of 11-27/28 each player's own
+
+His words: "After you've finished all the work, bring the splitscreen branch up to speed with next, and verify that the
+newly added features/changes properly interact with splitscreen features and that there is any shared gameplay state
+between players becomes part of the per-player state."
+
+### How to try it (for him)
+
+1. **Start it**: `C:\OHWorkspace\qvr-kit\scratch\play_splitscreen.ps1` in PowerShell (add `-Window` for a window). It starts
+   this tree's Release exe (rebuilt today); use a `progs.dat` built from next today or later. Two pads; Multiplayer >
+   Splitscreen, A on the second pad, Start.
+2. **Both reloading at once** (Options: Flatscreen > procedural reload on, the default): both players take the shotgun,
+   fire a shot or two, and press reload together (R on the keyboard, X on the second pad). Each player's off hand goes to
+   his own pouch and into his own gun; neither hand stalls. Then the super shotgun, the nailguns (magazines), the grenade
+   launcher and the heavy revolver (AD) the same way.
+3. **The attach key**: both hold a gun with an attachment slot and a bayonet carried; J (keyboard) and LB+Back's layer
+   (pad: Attach) in each tile: each player's free hand travels to his own gun's mount.
+4. **A grenade in one hand**: Player 2 holds LB or RB (his wheel), picks BACK POUCH: his off hand holds the grenade, Player
+   1's hands don't; EMPTY HAND puts it back.
+5. **The visor**: Player 2 joins while Player 1 plays: only Player 2's visor runs its boot sequence; Player 1's HUD stays up.
+6. **His own controller buttons**: Player 2: Start > Controller Bindings, swap two buttons where one is a flat-play action
+   (X Reload with B Crouch, say): only Player 2's pad changes; Player 1's pad (and the keyboard) keep theirs. Quit and
+   restart: Player 2's swap is still his (`seat_flatkey 2 ...` lines in the config).
+7. **The holster menu by pad**: L3 held (padflat's layout; it was the d-pad up on this branch before): the right stick moves
+   that player's own cursor.
+
+### What changed
+
+- **The merge**: 178 commits (next e0a95f557), 11 conflicting files (36 hunks): in_sdl.c (the menu's gamepad cursor is
+  seat 1's full menu's; a seat 2-4 pad's seat menu keeps the emulated arrows; the right stick on the wheel and holster
+  menu first, then split11's toolgun panel cursor), keys.c (padflat's alt layer and flat-key-owned buttons through the
+  seat's keys and binds), vr_beastarmour.cpp (next's drawn log beside the seat's pieces), vr_bindsetup.cpp (padflat's
+  flat keys on the screen, the seat's binds; the test's globals through `scr()` and `Key_Seat()`), vr_flatplay.cpp and
+  vr_flatsight.cpp (flatpunch and bayofix through `fs()` and `st()`), vr_flatprocreload.cpp (next's whole rewrite, made
+  per seat again), vr_panel.cpp (the pad cursor drawn after the seats' tiles), vr_toolgun_panel.cpp (the elite button),
+  vr_view_hands.cpp (prlfix's push), vr_visor.cpp (the boot sequence through `state()`). Next's other new lines that used
+  the old globals (vr_weaponwheel.cpp's test `ws`, vr_toolgun.cpp `tg`, vr_view.cpp `entities`, vr_flatholster.cpp
+  `bodyPreview`, vr_flatmove.cpp `keybindings`) too; vr_humlook.cpp's local `cl` renamed (the seat's `cl` is a macro).
+- **A real bug the new test found**: seats 2-4 never ran the flat procedural reload's trip nor the J key's trip
+  (`flatplay::seatFrame` lacked `flatprocreload::frame` and `flatattach::frame`): Player 2's R started the server's
+  reload, his hand never moved, and the server cancelled it 1.5 s later (failsafe). Both run in the seat's frame now.
+- **Made each seat's**:
+  - `seat::Part::FlatProcReload` now holds all of the procedural reload's client state (vr_flatprocreload.cpp
+    `SeatState`): the trip and its state machine, the port it measures and sends, the items' measured places by weapon,
+    the drawn gun the free hand rides, the key-pose lock (vr_flat_prl_lock) and its counts; reloads.txt's keys
+    (vr_reloadsys.cpp) stay shared tuning.
+  - `seat::Part::AttachSeen` (new): the attachments the seat drew last frame (vr_attach_report: "yours" are that seat's
+    hands; with two tiles both seats' hands were listed as yours). The hands' drawn attachments were each seat's since
+    split17 (`AttachDrawn`).
+  - The holster menu's body picture cache (vr_flatholster.cpp pcperf's `bodyDrawn`: one cache for both seats' bodies, so a
+    seat's picture could be kept from the other's body): in the seat's `BodyPreview`.
+  - The pad's right stick on the holster menu's cursor (vr_flatplay.cpp padflat's `padHolsterCursor`): the seat's
+    `SeatFlat::padCursor`.
+  - **The flat keys' gamepad buttons** (padflat, `vr_flat_key_*`'s pad slot): a seat 2-4's own once its player changes one
+    on his Controller Bindings screen (vr_flatmove.cpp `SeatPadKeys`: `flatKeyNums` gives the seat's button in place of
+    the cvar's; `writeKeys` stores it instead of changing the cvar). Before, Player 2 swapping X and B changed the cvars,
+    so Player 1's pad too. Saved as `seat_flatkey N <cvar> <button>` after the seat's `seat_bind` lines (Key_SeatWriteBindings);
+    `seat_unbindall N` empties them (the cvars' again).
+- **Already each seat's** (checked): the visor's boot sequence (in the seat's visor `State`), flatpunch's jabs and guard and
+  flat V's thrust (`FlatState`), flatattachanim's trip (`FlatAttach`, now also run), the weapon wheel's lit slots and
+  `flatholster::handGrenade` (the seat's `cl.stats`), `vr_wheel_pick` (the seat's own `cls` and held commands), the
+  bindings panels (`BindPanel`), the Controller Bindings screen (`BindSetup`), the beasts' drawn armour (`BeastArmour`).
+- **Shared on purpose**: the menu's gamepad cursor (vr_menuui.cpp `menuPad`: seat 1's full menu; seats 2-4 step their seat
+  menus), the Reload Studio's window (one debug tool, as the Armour Studio, editing the shared reloads.txt; the lock it
+  drives is the current seat's), reloads.txt, the attachment offsets (CVAR_ARCHIVE), the elites' looks
+  (vr_humlook.cpp: by entity number, the same server for every seat), the beast armour's drawn log (a test report), the
+  sound mixer and its own-voice reverb share (muffled: one listener), the renderer's caches, the server's native think
+  (vr_builtins_agthink.inc), test state. 18 new statics marked seat-shared.
+- **Left**: split11's pad layout table (vr_seat.cpp `padDefaults`, shown on the join screen and the seat menu's Controls
+  page) still names the d-pad up as the holster menu: on padflat's buttons the flat keys run instead (L3 holster menu,
+  d-pad flashlight / grenade / throw / force grab), so the labels there are stale. Dazzle, embedfire and the beasts'
+  breaks are the server's (per player already).
+- **seat_state**: 3,674 allowlisted, 570 marked seat-shared.
+- **Tests**: new `Misc/quakevr/seat_split21_test.sh` (`vr_seat_split21_test`): seat 2 joins by a mock pad: its visor boots
+  while seat 1's stays up; both seats fire and press R in one frame: each seat's off hand on its own trip, each counted
+  once, none cancelled, each player's shells down by its own round; seat 2 BACK POUCH: its off hand holds a grenade,
+  seat 1's none. 6/0 (before the seatFrame fix: seat 2 trips 0, timed out). `seat_bind_test` now reads a button's action
+  as the screen shows it (the flat key that has it, else the bind): its swap of A (+jump) with R3 (vr_flat_key_punch)
+  goes through the seat's own flat keys, seat 1's unchanged, restored after a restart. `split_join_test`'s holster menu by
+  pad is padflat's L3.
