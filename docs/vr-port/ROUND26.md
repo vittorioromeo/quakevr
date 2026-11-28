@@ -4909,3 +4909,36 @@ the camera suddenly a few units, then goes back" and "add a way to lock the anim
   the scrub, let go; the fire and melee cases now cancel at wait20: with his promoted times the first pair was already in
   at wait30). flatreload_test.sh 54/0.
 - **Open**: the pair in the locked hand is drawn but only checked by numbers (his eyes: key 4 looking down, key 6).
+## The dazzled humanoids' shield: a forearm across the eyes for every kind, dual wielders too (branch agent/dazzlepose, 2026-11-28)
+
+His notes (2026-11-28): the grunts' shield looks great, the other humanoids' needs work (a general solution: the forearm
+across the face by the IK); dual wielders don't shield (an option to try). Follows "flashblind" above.
+- **Where the hand goes** (`VR_AGP_ShieldAt`, QC vr_armedgrunt_dazzle.qc): from its kind's own eyes (`vr_am_eye`, a new row
+  value in vr_armedmon.qc: its rig's head bone, 0.41 up from its base; the grunt's `'3 0 22'` as before; also the dazzle's
+  eyes, `VR_AG_DazzleEye`, no longer the grunt's fitted), forward / left / up by `vr_agrunt_dazzle_face_fwd/_left/_up`
+  (8, 0.5, -0.5, the grunt's units times its arm against the grunt's 15.2), then drawn towards its left shoulder to within
+  `vr_agrunt_dazzle_bend` (0.9) of its arm's reach: a bent arm, never one held out straight (the enforcer's and the death
+  knight's wide shoulders had it straight). The grunt's place is unchanged (11 0.5 21.5). Replaces `_hand_fwd/_left/_up`
+  (the grunt's body fitted per kind; his cfg had none).
+- **Its elbow** (`VR_AG_SHIELD_POLE` '0.3 1 -0.45': out to its side, a little down and forward) times
+  `vr_agrunt_dazzle_elbow` (1) and the shield's ease: `vr_agp_shpole`, laid on the left elbow's pole after the body's turns
+  and sent as the body's poles (`VR_AGP_BODY`, no torso turn when alone: the existing pose message, so every client and MP
+  draws it; nothing per seat). QC and the engine's agpose both (`vr_agpose_native 2`: 0 mismatches over test 232). The
+  forearm then comes in across the eyes; with the old elbow (`_elbow 0`) the knights' forearms pointed at you like a punch
+  held up (test 232 measured 56..65 degrees off across; now 4..39). The grunts' pictures with 0 and 1 are near alike.
+- **Palm**: still the arm IK's Point goal, a fist turned with its forearm (no wrist roll to turn a palm out: a new goal
+  or flag in the pose message; not done).
+- **Dual wielders** (`vr_agrunt_dazzle_dual`, 0 by default; Tunables > Flashlight Dazzle > Dual Wielders Shield): its left
+  weapon's grip goes to the same place, the weapon still held, turned to point up and out to its left, its top back; while
+  raised (`VR_AG_ShieldingLeft`: its shield over half) its left gun doesn't fire (vr_armedgrunt.qc's second-gun shots); the
+  right one fires on, its aim worse as any dazzled one's.
+- **Tunables** (Flashlight Dazzle): Hand Forward / Left / Up (from its eyes), Arm Bend, Elbow Out, Dual Wielders Shield.
+  menu_paths.txt regenerated (it also picked up the flat reload rows next had not listed).
+- **Pose Studio**: there is no Shield key (the shield is laid on after the keys' hand poses). Not added: the place is now
+  measured per kind from its head and shoulder, the Tunables sliders move it live for every kind, and a key would need a new
+  pose class in agpose, QC and the studio; worth it only if one kind still needs its own hand-placed tweak.
+- **Test** `vr_agrunt_test 232` (23/0; `vr_agpose_native` 0 and 2 too): each kind's drawn forearm (the client's solved
+  arm: `weapondrawnpose(g, side, 57 / 58 / 59)` its shoulder, elbow, grip, world, `hitreact::drawnArm`) within 4 units of
+  its eyes' line to the lens, under 50 degrees off square across it and off level; a dual wielder (two revolvers): with the
+  option its left hand up before its eyes, the gun pointing up, not fired (its forearm within 6.5: below its grip), without
+  it no shield. `scratch1 232`: nearer (64 units), a screenshot of each kind and of the dual wielder, for his review.
