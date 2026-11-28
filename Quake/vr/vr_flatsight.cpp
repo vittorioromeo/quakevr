@@ -1861,7 +1861,7 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
         st.lookFar = soft >= 1.f;
     }
     // E: a force grab takes the free hand off the gun to turn its palm out (vr_flatfgrab.cpp), and back on after.
-    const bool reaching = (st.helping >= 0 && (flatfgrab::busy(st.helping) || flatattach::busy(st.helping) || flatprocreload::busy(st.helping))) || (st.helping == HAND_OFF && glm::length(reach) > 0.f);
+    const bool reaching = (st.helping >= 0 && (flatfgrab::busy(st.helping) || flatattach::busy(st.helping) || (flatprocreload::busy(st.helping) && !flatprocreload::freesForGrip(st.helping)))) || (st.helping == HAND_OFF && glm::length(reach) > 0.f);
     // The hands' swap (vr_flatswap.cpp; his words 2026-11-12: "The rocket launcher is the only one where it looks good. Please
     // look at what the rocket launcher does, and use the same logic for other similar 2H weapons"): the rocket launcher's free
     // hand is on a real grip, which the swap blocks until the weapon has changed hands (flatswap::gripBlocked), so it lets go
