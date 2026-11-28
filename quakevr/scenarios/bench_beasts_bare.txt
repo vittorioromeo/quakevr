@@ -1,0 +1,34 @@
+# Benchmark scene (Misc/quakevr/bench/qvrbench.py, BENCHMARKS.md): not a checklist test; places only.
+# Control for bench_beasts_armour: the same 16 beasts, no armour (vr_agarmor_beasts 0).
+title Benchmark: 16 bare beasts, ten of them ogres (control)
+map vrtesthall
+god
+cvar vr_agarmor_beasts 0
+cvar vr_agarmor_skill0 1
+cvar vr_agarmor_skill1 1
+cvar vr_agarmor_skill2 1
+cvar vr_agarmor_skill3 1
+cvar vr_agarmor_skill0_type 3
+cvar vr_agarmor_skill1_type 3
+cvar vr_agarmor_skill2_type 3
+cvar vr_agarmor_skill3_type 3
+cvar vr_agarmor_skill0_pieces 10
+cvar vr_agarmor_skill1_pieces 10
+cvar vr_agarmor_skill2_pieces 10
+cvar vr_agarmor_skill3_pieces 10
+spawn monster_ogre 300 -200
+spawn monster_ogre 300 -100
+spawn monster_ogre 300 0
+spawn monster_ogre 300 100
+spawn monster_ogre 300 200
+spawn monster_ogre 400 -200
+spawn monster_ogre 400 -100
+spawn monster_ogre 400 0
+spawn monster_ogre 400 100
+spawn monster_ogre 400 200
+spawn monster_dog 220 -60
+spawn monster_dog 220 60
+spawn monster_wizard 260 -150 60
+spawn monster_wizard 260 150 60
+spawn monster_demon1 350 -260
+spawn monster_demon1 350 260
