@@ -11,10 +11,8 @@
 Flat-screen or VR: point the switched-on flashlight straight at an armed grunt's face from a few metres; after a moment it raises its free hand in front of its eyes (a shotgun goes into one hand) and its shots spray wider, and it lowers the hand a second or two after the beam leaves its face. Check the hand looks like it shields the eyes and nothing happens with the beam off to the side or at its back. {test:agrunt_flashblind}
 Flat-screen or VR: Options > Controller Bindings shows your controller (the name says "detected") with each button labelled by its binding; drag a label onto another and the two bindings swap, click one and pick an action from the list (typing searches it), then Reset to Defaults puts the shipped ones back. {test:hub_start}
 Flat-screen or VR: step through the controller pictures with the arrows beside the name (Quest 3, Quest 2, Quest Pro, Rift, Index, Vive, WMR, Steam Frame, Xbox, PlayStation, Switch Pro, generic pad) and say which pictures, labels or glyphs need work. {test:hub_start}
-Quest, Debug > Profiling: turn on "Still Models' Set-up Check" in the gib fight, then off; nothing should look different and the game should not hitch. {test:quest_gibfight}
 Flat-screen: with a gamepad as the last device used, the main menu's bindings panel and the one over the holster menu and the weapon wheel list the pad's buttons with that pad's icons (Xbox, PlayStation, Switch) and what each does; touch the keyboard or mouse and the keys come back. Setup Bindings then opens the controller screen for the pad. {test:hub_start}
 Ragdoll climbs: knock a knight off a ledge so it falls past the lip: when it grabs the lip its fall is caught softly (no sudden jolt) and both hands stay on (no hand yanked off the lip), then it pulls itself up. {test:knight_ledge}
-Flat-screen: with the shotgun in one hand, fire it empty and press R: the gun tilts in and stays put for the whole reload, with no jolt backwards towards the camera when the pair comes into the hand or goes into the port. {test:flat_proc_reload}
 Flat-screen: open Tunables > Flatscreen > Procedural Reload, set Lock Pose (or use Next Key / Previous Key) and walk through the key poses (rest, gun tilted, hand at pouch, gripping the pair, at the port's mouth, inserted, returning); change a pose's sliders and see the held pose follow at once; set Lock Pose back to Off and R reloads as normal. {test:flat_proc_reload}
 Flat-screen or VR: take a grenade from the back pouch (the wheel's BACK POUCH, or G flat), then pick a gun on that hand's wheel or EMPTY HAND: the grenade goes back (the rocket count +1) and the gun comes into the hand. {test:wheel_grenade}
 Flat-screen or VR: holding a grenade, pick the other kind on the wheel's BACK POUCH: it is swapped (cluster for grenade); arm one and pick EMPTY HAND: a dull knock and "The grenade is armed: throw it or drop it.", it stays in the hand. {test:wheel_grenade}
@@ -24,6 +22,9 @@ Flat-screen: in the menu, the bindings reminder lists the main actions large, th
 Flat-screen: hold 1 (weapon wheel) and press MMB (holster menu): the reminder panel above shows the main actions in the left column and the Hands / More groups smaller on the right; the slots' holster titles read clearly (less faded than before). {test:weapon_wheel}
 Flat-screen: with both hands empty, jab with the left button at a grunt that is off to one side: each fist, left and right, should travel to whatever the crosshair is on and hit it. {test:flat_fists}
 Flat-screen or VR: in Run Setup, the Starting melee weapon row should read Axe, Dagger, Spear, Nothing (Nothing last, like the gun row), and a pick you saved before should still be the same weapon. {test:run_setup_newgame}
+Flat-screen: empty the shotgun, then press R while running, strafing, jumping, sliding and crouch-walking: every pair goes into the loading port at the bottom and the gun fills, with no reload cancelled or shell dropped. {test:flat_proc_reload}
+Flat-screen: during the procedural reload, look at the reloading hand: its fingers close round the taped pair from the pouch to the port, as in VR, and open again on the way back. {test:flat_proc_reload}
+Flat-screen: in Tunables > Flatscreen > Procedural Reload, lock the pose at the port's mouth or inserted and move Hand at Port: Forward / Right / Up: the hand and its pair move along the gun. {test:flat_proc_reload}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -51,9 +52,6 @@ Flat-screen or VR: start once with -glsafe; the game starts, vr_glsafe_status li
 Play Dwell's d1m1 and Quoth's kellbase1 up close: brick walls, door frames and pillar panels have depth (Setup's reliefs), no shimmering or wrong-way lighting; if in doubt turn Generated Companion Maps (VR Settings > Graphics) off and load the next map. {test:hub_start}
 ## Loading and collision cache
 ## Quest performance and options
-On the Quest, VR Settings > Scaling: turn SpaceWarp on and play the hub, a gib fight and the terrace for a minute each: motion looks as smooth as at 72 Hz, no stutter at smooth or snap turns or when opening and closing the menu (it shows at the full rate), no smearing of the world while walking; look for wobbling edges on your hands, the gun and moving monsters, and judder on head-fixed text. Say where you still feel stutter (it decides which GPU or CPU fix comes next). {test:quest_gibfight}
-On the Quest, Quest Foveation: High (Top) blurs the top of the view (sky, ceilings) more than High while the lower middle stays sharp, at least as smooth as High, and Show Foveation's pattern sits lower; Shift (advanced) at -15 and +15 moves the sharp middle down and up, no crash when changing it. {test:quest_foveation}
-On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution of Eternity: each plays its own soundtrack, not Quake's. {test:campaign_music}
 
 [2. Flat screen]
 ## Grab, hold and push

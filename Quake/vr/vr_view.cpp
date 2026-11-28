@@ -177,12 +177,17 @@ void updateFingerFrames()
         const float fistShare = flatplay::active() && !holder && !flatGrips ? flatplay::fistShare(hand) : 0.f;
         fist.gripValue = za::fmax(fist.gripValue, fistShare);
         fist.triggerValue = za::fmax(fist.triggerValue, fistShare);
-        const HandInput& in = holder || flatGrips ? holding : fistShare > 0.f ? fist : input.hands[hand];
+        // (Flat-screen play's procedural reload, prlmove: its free hand holding the round grips it as a headset's hand does,
+        // the grip squeezed (blended in by its share), the index closing with it: vr_flatprocreload.cpp gripShare.)
+        const float roundShare = flatplay::active() && !holder && !flatGrips ? flatprocreload::gripShare(hand) : 0.f;
+        HandInput onRound = fistShare > 0.f ? fist : input.hands[hand];
+        onRound.gripValue = za::fmax(onRound.gripValue, roundShare);
+        const HandInput& in = holder || flatGrips ? holding : roundShare > 0.f ? onRound : fistShare > 0.f ? fist : input.hands[hand];
         // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
         // the torch, a body (an enemy, a limb, a tug's weapon: holdsBody).
         const bool holdsOther = posingHotspot ? !holder
                                               : twohand::drawnHelping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand) ||
-                                                    holdsBody(hand);
+                                                    holdsBody(hand) || roundShare > 0.f;
         // (Flatscreen swimming, an empty hand: open for the stroke, its fingers together and the palm cupped, the thumb
         // along the index: vr_flat_swim_cup's curl, its share of the stroke; vr_flatswim.cpp.)
         const float swimOpen = flatplay::active() && !holder && !flatGrips ? flatswim::openShare(hand) : 0.f;
