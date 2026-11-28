@@ -4852,6 +4852,10 @@ QVR_TOGGLE(vr_xr_spacewarp, "SpaceWarp",
     "Quest standalone: the game draws every other frame and the headset makes up the ones between from the motion "
     "of what it drew (Application SpaceWarp): twice the time for each frame, smoother in big fights. Moving things "
     "can wobble at their edges. Off by default while it is new; the menus and the console show at the full rate.")
+QVR_SLIDER(vr_fov_reduce, "FOV Reduction", 0.f, 30.f, 5.f, "%.0f%%", noExt,
+    "Draws a narrower view than the headset's lenses show: the edges beyond it stay black, and the game draws that "
+    "many percent fewer pixels across and down at the same sharpness (10%: about a fifth fewer). A performance "
+    "option: most noticeable at the far edges of your vision.")
 QVR_TOGGLE(vr_xr_foveation_dynamic, "Quest Foveation: Dynamic",
     "On: the headset uses less foveation than Quest Foveation's level while the graphics have room to spare, and "
     "up to that level when they are busy.")
@@ -6695,28 +6699,27 @@ QVR_TOGGLE(vr_flat_autoreload, "Auto Reload",
     "Playing on the desktop screen with Reloading on: a gun whose clip runs empty reloads by itself, if your ammo has "
     "rounds for it. Off (the default): only R reloads (vr_flat_autoreload).")
 QVR_TOGGLE(vr_flat_proc_reload, "Procedural Reload",
-    "Playing on the desktop screen: the shotgun held in one hand, the other empty, reloads as in a headset: the free hand "
-    "takes taped pairs of shells from the ammo pouch on your belt (shown) and pushes them into the shotgun's port, the "
-    "gun tilted to meet it, until it is full. Firing or a quick melee stops it (a pair in the hand goes back in the "
-    "pouch). Dual wielding and the other guns reload at the hip as before. Off: the shotgun too. The host's setting "
-    "holds in multiplayer (vr_flat_proc_reload; its timings: Tunables > Flatscreen > Procedural Reload).")
+    "Playing on the desktop screen: the shotgun or the super shotgun held in one hand, the other empty, reloads as in a "
+    "headset: the free hand takes taped pairs of shells from the ammo pouch on your belt (shown) and pushes them into the "
+    "shotgun's port (the super shotgun broken open first, its chambers), the gun tilted to meet it, until it is full. "
+    "Firing or a quick melee stops it (a pair in the hand goes back in the pouch). Dual wielding and the other guns "
+    "reload at the hip as before. Off: these too. The host's setting holds in multiplayer (vr_flat_proc_reload; its "
+    "keyframes: the Reload Studio, Debug > Tools).")
 QVR_TOGGLE(vr_flat_proc_reload_debug, "Flatscreen Procedural Reload Print",
     "vr_flat_proc_reload_debug: the flat-screen procedural reload's hand printed step by step (to the pouch, the take, "
     "the carry, the round seated, back; a cancel and why).")
 QVR_SLIDER(vr_flat_prl_test_miss, "Procedural Reload: Miss the Port", 0.f, 24.f, 1.f, "%.0f units", ext(0.f, 48.f),
     "vr_flat_prl_test_miss: a test aid: the procedural reload's hand stops this many units short of the shotgun's port, "
     "so its round never goes in and the failsafe cancels the reload (0: off).")
-QVR_CYCLE(vr_flat_prl_lock, "Procedural Reload: Lock Pose",
-    "vr_flat_prl_lock: to tune the procedural reload's poses, holds it at one key pose (the shotgun in one hand, the "
-    "other empty; no R needed): the gun at rest, tilted, the free hand at the pouch, gripping a taped pair, at the "
-    "port's mouth, the pair inserted, on its way back; Scrub holds the share of one trip set by Procedural Reload: "
-    "Scrub. The pose follows the Tunables > Flatscreen > Procedural Reload values as you change them. Next / Previous "
-    "Key (vr_flat_prl_lock_next / _prev, bindable) step through them. Off: the reload as normal.",
-    {0.f, "Off"}, {1.f, "Rest"}, {2.f, "Gun Tilted"}, {3.f, "Hand at Pouch"}, {4.f, "Gripping the Pair"},
-    {5.f, "At the Port's Mouth"}, {6.f, "Inserted"}, {7.f, "Returning"}, {8.f, "Scrub"})
+QVR_SLIDER(vr_flat_prl_lock, "Procedural Reload: Lock Pose", -1.f, 24.f, 1.f, "%.0f", noExt,
+    "vr_flat_prl_lock: to tune the procedural reload's poses, holds it at one keyframe's pose (a gun with a procedural "
+    "reload in one hand, the other empty; no R needed): N the end of key N of its reload (the Reload Studio lists them), "
+    "-1 the share of one pass through its keys set by Procedural Reload: Scrub, 0 off (the reload as normal). The pose "
+    "follows the keyframes as you edit them. Next / Previous Key (vr_flat_prl_lock_next / _prev, bindable) step through "
+    "them.")
 QVR_SLIDER(vr_flat_prl_scrub, "Procedural Reload: Scrub", 0.f, 1.f, 0.02f, "%.2f", noExt,
-    "vr_flat_prl_scrub: with Lock Pose on Scrub, the share of one trip held: 0 at rest, the reach and the gun's tilt, the "
-    "grab, the carry, the insert, the way back, 1 at rest again.")
+    "vr_flat_prl_scrub: with Lock Pose -1, the share of one pass through the reload's keys held (each key its time; the "
+    "loop's keys once): 0 at its start, 1 at its end.")
 QVR_TOGGLE(vr_flat_holsters, "Holsters",
     "Playing on the desktop screen (-flatscreenmode): on (the default), you carry what a headset player does: six "
     "holsters and your two hands. The number keys pick no weapon (3 swaps your hands); hold the mouse wheel's button for "
@@ -6872,6 +6875,10 @@ QVR_SLIDER(vr_flat_visor_low_health, "Visor Low Health", 0.f, 100.f, 1.f, "%.0f"
 QVR_SLIDER(vr_flat_visor_boot, "Visor Power On", 0.f, 3.f, 0.1f, "%.1f s", noExt,
     "At a spawn, a respawn and a new map the visor's panels power on with a sweep this long. 0: at once "
     "(vr_flat_visor_boot).")
+QVR_TOGGLE(vr_flat_visor_boot_seq, "Visor Boot Sequence",
+    "At a spawn, a respawn, a new map and a loaded save the visor boots: no panels at first, a power-up sound, the "
+    "panels fading in with a short glitch, then the power-on sweep. Off: the sweep alone. Its times: Debug > Tunables "
+    "> Visor Boot (vr_flat_visor_boot_seq).")
 QVR_TOGGLE(vr_flat_visor_log, "Visor Messages",
     "The console's messages (pickups, a door's text) in the visor's low panel, its last three short lines, instead of "
     "the screen's top left (vr_flat_visor_log).")

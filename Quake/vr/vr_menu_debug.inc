@@ -1070,7 +1070,11 @@ za::Vector<Item> pageDebugReports()
             .help("toggle vr_flat_visor_cache: 1 (the default) the visor's panels and layer drawn again only when what they show "
                   "changes, over the mounts' rectangles alone; 0 every frame over the whole view, as before (vr_profile: the cost)."),
         command("Visor: Power On", "vr_flat_visor_fx boot")
-            .help("vr_flat_visor_fx boot: the visor's panels power on again with their sweep, as at a spawn."),
+            .help("vr_flat_visor_fx boot: the visor powers on again as at a spawn: its boot sequence (vr_flat_visor_boot_seq: "
+                  "dark, the power-up sound, the panels fading in glitching) and the sweep."),
+        command("Visor: Power On, Traced", "vr_flat_visor_fx trace 1; vr_flat_visor_fx boot")
+            .help("vr_flat_visor_fx trace 1, then boot: every boot from now prints its phases in the console as it ends "
+                  "(\"visorboot: ...\": frames dark, fading, glitching, sweeping, the sound; vr_flat_visor_fx trace 0 stops)."),
         command("Visor: Centre Message", "vr_flat_visor_fx center \"You need the gold key\"")
             .help("vr_flat_visor_fx center <text>: a centre print as the game's (\\n a new line), in the visor's centre "
                   "message panel (vr_flat_visor_centerprint) or over the view."),
@@ -1109,11 +1113,15 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_attach_debug),
         row(opt::vr_flat_proc_reload_debug),
         row(opt::vr_flat_prl_test_miss),
+        command("Reload Studio", "vr_reloadstudio")
+            .help("vr_reloadstudio: the procedural reloads' keyframes in an ImGui window over play (flat screen): pick a gun, "
+                  "play, pause, step or scrub its keys, edit each key's times, ease, the gun's tilt, the free hand's offset and "
+                  "turn (sliders or the gizmo on the hand), Save to quakevr/data/reloads.txt."),
         row(opt::vr_flat_prl_lock),
         command("Procedural Reload: Next Key", "vr_flat_prl_lock_next")
-            .help("vr_flat_prl_lock_next: holds the procedural reload at its next key pose (Lock Pose; from off, Rest)."),
+            .help("vr_flat_prl_lock_next: holds the procedural reload at its next keyframe's pose (Lock Pose; from off, the first)."),
         command("Procedural Reload: Previous Key", "vr_flat_prl_lock_prev")
-            .help("vr_flat_prl_lock_prev: holds the procedural reload at its previous key pose (Lock Pose)."),
+            .help("vr_flat_prl_lock_prev: holds the procedural reload at its previous keyframe's pose (Lock Pose)."),
         row(opt::vr_flat_prl_scrub),
         command("Holster Menu Dump", "vr_flat_holster_menu_dump")
             .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "

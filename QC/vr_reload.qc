@@ -1884,6 +1884,9 @@ void(entity p, float xHand) VR_Reload_SsgSetToggled =
 // Set by flat-screen play's break (VR_FlatReload_EjectNow): its spent shells leave once the gun is drawn fully open and
 // vr_flat_ssg_eject_delay after (the clients' wait, QVR_EJECT_AFTER_OPEN; his words 2026-11-10).
 float vr_ssg_eject_after_open;
+// Set by flat-screen play's procedural reload's break (VR_FlatReload_ProcOpen, reloadsys): the live shells stay in their
+// chambers (one fired: the spent one out, one shell to load), only the spent ones out.
+float vr_ssg_keep_live;
 
 // The super shotgun in `xHand` of `p` breaks open (`xHow`: what did it, for the log): its spent shells thrown out (the
 // clients' casings, vr_shells.cpp), its live ones too, as rounds lying about to take again; open, empty, until closed.
@@ -1892,8 +1895,10 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgBreak =
     float f = VRGetEntWeaponFlags(p, xHand);
     float spent = VR_Reload_SsgSpentOf(f);
     float live = VRGetEntWeaponClip(p, xHand);
+    float kept = vr_ssg_keep_live ? live : 0; // (VR_FlatReload_ProcOpen: kept in)
+    live = live - kept;
     VRSetEntWeaponFlags(p, xHand, (f - (f & QVR_WPNFLAG_SSG_SPENT)) | QVR_WPNFLAG_SSG_OPEN);
-    VRSetEntWeaponClip(p, xHand, 0);
+    VRSetEntWeaponClip(p, xHand, kept);
     VR_Reload_AmmoChanged(p);
     VR_Reload_SsgSetToggled(p, xHand);
     VR_Reload_Sound(p, VRGetGunChannel(xHand), "vr/reload_ssg_open.wav", 1);

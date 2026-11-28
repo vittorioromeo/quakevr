@@ -717,6 +717,10 @@ QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 // and depth, and it shows a made-up frame between the game's (the game at half the display's rate). The eyes go
 // through the post-process path then (the motion target needs the scene's own targets). Off by default (first beta).
 QVR_CVAR(vr_xr_spacewarp, "0", CVAR_ARCHIVE)
+// FOV reduction (questvis; vr_backend_openxr_frame.cpp, vr_main.cpp scaledEyeSize): the rendered field of view shrunk by
+// this many percent of each edge's tangent (0..30), the eyes drawn with as many fewer pixels a side (the same sharpness);
+// the compositor shows black beyond. Any OpenXR headset; 0 off.
+QVR_CVAR(vr_fov_reduce, "0", CVAR_ARCHIVE)
 // vr_spacewarp_test (tests, Debug > Profiling): 1 makes SpaceWarp's motion vectors and depth every frame into the
 // game's own images without a runtime that has it (the PC, the mock headset); vr_spacewarp_probe reads them.
 QVR_CVAR(vr_spacewarp_test, "0", CVAR_NONE)
@@ -4779,8 +4783,9 @@ QVR_CVAR(vr_flat_revolver_eject, "1", CVAR_ARCHIVE)     // the same: the revolve
 QVR_CVAR(vr_flat_autoreload, "0", CVAR_ARCHIVE | QVR_PREF)        // flat-screen play: 1: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0 (default since 2026-11-09, his call): only R reloads
 QVR_CVAR(vr_flat_proc_reload, "1", CVAR_ARCHIVE | QVR_RULE)       // flat-screen play (flatprocreload, his words 2026-11-28): 1: the shotgun held in one hand, the other empty, reloads as a headset does: the free hand takes taped pairs from the ammo pouch (shown) to its port until it is full (vr_flatprocreload.cpp, QC vr_flatreload.qc; Tunables > Flatscreen > Procedural Reload); 0: the timed trip to the hip (vr_flat_reload_*). Dual wielding and other guns: the timed trip either way. The host's value holds (the server decides, the client follows its bit)
 QVR_CVAR(vr_flat_proc_reload_debug, "0", CVAR_NONE)  // 1: the flat-screen procedural reload's hand printed step by step (flatprocreload: ...; vr_flatprocreload.cpp); 2: and the gun as drawn each frame (fprl_trace: ...)
-QVR_CVAR(vr_flat_prl_lock, "0", CVAR_NONE)           // the procedural reload held at a key pose to tune it (prlfix): 1 rest, 2 the gun tilted, 3 the hand at the pouch, 4 gripping the pair, 5 at the port's mouth, 6 inserted, 7 returning, 8 scrub (vr_flat_prl_scrub); 0 off
-QVR_CVAR(vr_flat_prl_scrub, "0", CVAR_NONE)          // with vr_flat_prl_lock 8: the share of one trip held (0 rest .. 1 back at rest)
+QVR_CVAR(vr_flat_prl_lock, "0", CVAR_NONE)           // the procedural reload held at a keyframe's pose to tune it (prlfix; reloadsys: any key): N the end of key N of the gun's reload (vr_reloadsys.hpp), -1 the scrub (vr_flat_prl_scrub), 0 off
+QVR_CVAR(vr_flat_prl_scrub, "0", CVAR_NONE)          // with vr_flat_prl_lock -1: the share of one pass through the reload's keys held (0 its start .. 1 its end)
+QVR_CVAR(vr_reload_file, "data/reloads.txt", CVAR_NONE) // debug (vr_reloadsys.cpp): the procedural reloads' keyframes' file under quakevr/ (the tests' own)
 QVR_CVAR(vr_flat_prl_test_miss, "0", CVAR_NONE)      // the tests' blocked port: units the procedural reload's hand stops short of the port (out of its opening), so the round never goes in and the failsafe cancels
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
@@ -4903,6 +4908,7 @@ QVR_CVAR(vr_flat_visor_fog, "1", CVAR_ARCHIVE)          // under water the visor
 QVR_CVAR(vr_flat_visor_fog_clear, "1.5", CVAR_ARCHIVE)  // seconds the visor's fog takes to clear after surfacing (0.2..10)
 QVR_CVAR(vr_flat_visor_low_health, "25", CVAR_ARCHIVE)  // health at or under which the health panel pulses red (faster and stronger at half of it; 0 never)
 QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels' power-on sweep at a spawn, a respawn and a new map (0: none)
+QVR_CVAR(vr_flat_visor_boot_seq, "1", CVAR_ARCHIVE)     // 1: the visor boots at a spawn, a respawn, a new map and a loaded save: no panels, a power-up sound, the panels fading in with a glitch, then the sweep (its times: Debug > Tunables > Visor Boot); 0: the sweep alone, as before
 QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
 QVR_CVAR(vr_flat_visor_autohide_log, "1", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
 QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (top middle: its width, the text shrinking or growing with it; 0.3 .. 2, shrunk to fit between the top corners' panels)

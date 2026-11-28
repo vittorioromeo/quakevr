@@ -93,6 +93,11 @@ struct State
     // Flatscreen play's model FOV (flatplay::modelFov): what is drawn on or leaves the player's own models, so it stays on
     // them. Nothing outside the mode, or with it off.
     bool flatModelFov{false};
+    // Its own motion (temporal AA's and SpaceWarp's motion vectors): the world transform from where its vertices are now to
+    // where they were drawn a frame ago (a hand-held screen's). Without it a depth-writing draw takes the camera's motion,
+    // as if fixed in the world: SpaceWarp's made-up frames left the wrist gadget's screen behind its moving hand. Only
+    // opaque, depth-writing draws (a translucent one's depth is not the scene's: ignored there).
+    const glm::mat4* prevFromNow{nullptr};
 };
 
 // Triangles (three vertices each), transformed by `mvp` to clip space. No culling. They are copied into the frame's

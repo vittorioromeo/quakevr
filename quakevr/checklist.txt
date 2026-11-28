@@ -36,6 +36,13 @@ Flat-screen or VR: the toolgun's Armed Humanoid page has Elite: On/Off beside In
 Flat-screen or VR: Combat > Armed Grunts > AI Behaviour > Elites in Hard and Nightmare on, a map on Hard: about one armed humanoid in seven is an elite; off, none. {test:elite_pair}
 Flat-screen or VR: the Survival Arena from wave 4 sends some elites among the armed humanoids (about one in five). {test:arena_run}
 Flat-screen or VR: in co-op, an elite the host makes (vr_attr_set elite 1) shows its dark gold dye on the other player's screen too. {test:mp_coop_bot}
+Flat-screen: the visor HUD boots at every map start, level change, loaded save and respawn: no panels at first, a power-up sound, the panels fading in with a short subtle glitch, then the scanline sweep; check the timing and the glitch's strength feel right (Debug > Tunables > Visor Boot) and the sound's level against the other UI sounds. {test:flat_visor_boot}
+Flat-screen: open the Reload Studio (Debug > Tools, or vr_reloadstudio) with the shotgun in your right hand and the left empty; click the keys in the list: the hands hold each key's pose (the gun tilted, the hand at the pouch, the pair at the port's mouth, in the port); drag the gizmo on the hand or a slider and the pose follows at once; Play shows the whole reload; Save, then R for a real reload with your change. {test:flat_proc_reload}
+Flat-screen: fire the super shotgun empty, then R: it is already broken open, your left hand brings a taped pair from the belt pouch into both barrels and the gun flicks up shut; fire one barrel only, then R: it flicks open (the spent shell out, the live one kept), one shell goes in, it flicks shut. {test:flat_proc_reload}
+Flat-screen: reload the shotgun and the super shotgun while running in circles, jumping, crouching and sliding: every pair goes in, the reload never gives up half way. {test:flat_proc_reload}
+Quest standalone, SpaceWarp on (VR Settings > Scaling): walk, strafe and turn round the hub and in a fight; the black floating squares should be gone, and the wrist gadget's screen should stay on the gadget when you move your hand. {test:quest_gibfight}
+Quest standalone, Render Scale 0.6: open the menu; the menu should be as sharp as at scale 1 while the world behind it stays at its own resolution (no frame-rate drop when the menu opens). {test:hub_start}
+Quest standalone, VR Settings > Scaling > FOV Reduction 10 and 20: the far edges of the view go black, the rest looks the same, and the game should run lighter. {test:quest_foveation}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
