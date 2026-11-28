@@ -1070,7 +1070,11 @@ za::Vector<Item> pageDebugReports()
             .help("toggle vr_flat_visor_cache: 1 (the default) the visor's panels and layer drawn again only when what they show "
                   "changes, over the mounts' rectangles alone; 0 every frame over the whole view, as before (vr_profile: the cost)."),
         command("Visor: Power On", "vr_flat_visor_fx boot")
-            .help("vr_flat_visor_fx boot: the visor's panels power on again with their sweep, as at a spawn."),
+            .help("vr_flat_visor_fx boot: the visor powers on again as at a spawn: its boot sequence (vr_flat_visor_boot_seq: "
+                  "dark, the power-up sound, the panels fading in glitching) and the sweep."),
+        command("Visor: Power On, Traced", "vr_flat_visor_fx trace 1; vr_flat_visor_fx boot")
+            .help("vr_flat_visor_fx trace 1, then boot: every boot from now prints its phases in the console as it ends "
+                  "(\"visorboot: ...\": frames dark, fading, glitching, sweeping, the sound; vr_flat_visor_fx trace 0 stops)."),
         command("Visor: Centre Message", "vr_flat_visor_fx center \"You need the gold key\"")
             .help("vr_flat_visor_fx center <text>: a centre print as the game's (\\n a new line), in the visor's centre "
                   "message panel (vr_flat_visor_centerprint) or over the view."),

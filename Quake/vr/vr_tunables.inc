@@ -2068,6 +2068,11 @@ QVR_TUNABLE(vr_flat_swap_2h_attach_time, "0.1") // then the seconds the hands ta
 QVR_TUNABLE(vr_flat_swap_look, "1") // 1: a long gun's free hand drawn on its hotspot (the shotguns, the nailguns, AD's guns: no real grip ahead of the trigger hand) lets go and takes it again at the pace the rocket launcher's real grip does (flatsight's gripEase) through the hand swap; 0: it stayed on through the release and came back at the slow look pace after (before 2026-11-12)
 QVR_TUNABLE(vr_flat_swap_2h_all, "1") // 1: every weapon held alone with the other hand empty (on its grip or beside it) takes the release, pass and attach; 0: only a gun whose two-hand grip the free hand holds (before 2026-11-11: the rocket launcher's kind)
 QVR_TUNABLE(vr_flat_swap_things, "1") // 1: what a hand carries (a prop, a gib, a torch, a ragdoll's limb) changes hands with the rest; 0: a carried thing swaps nothing, as before
+// Flatscreen > Visor Boot (vr_visor.cpp; vr_flat_visor_boot_seq; visorboot 2026-11-28). Then the sweep: vr_flat_visor_boot.
+QVR_TUNABLE(vr_flat_visor_boot_dark, "0.3") // seconds with no panels at all as the boot starts (its sound starting)
+QVR_TUNABLE(vr_flat_visor_boot_fade, "0.5") // then the seconds the panels take to fade in, glitching
+QVR_TUNABLE(vr_flat_visor_boot_glitch, "0.6") // the fade's glitch: flicker, tearing and colour fringes (0 none .. 2)
+QVR_TUNABLE(vr_flat_visor_boot_volume, "0.6") // the boot's power-up sound (vr/visor_boot.wav; 0: silent)
 
 // Flatscreen > Quick Grenade (vr_flatgrenade.cpp, QC vr_flatgrenade.qc; vr_flat_key_grenade). Places off the hand's
 // shoulder as shares of the arm's reach: forward, out at the hand's own side, down (or up); angles Quake's (pitch down +).
