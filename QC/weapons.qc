@@ -4932,8 +4932,8 @@ void() ImpulseCommands =
         return;
     }
     // Flatscreen play's procedural reload (vr_flatprocreload.cpp drives the free hand; vr_flatreload.qc): 99 the free hand
-    // at the ammo pouch takes a round, 100 cancels (a punch, the client's failsafe). Nobody else's impulses.
-    if((self.impulse == 99 || self.impulse == 100) && VR_FlatPlay(self))
+    // at the ammo pouch takes a round, 106 cancels (100-105 are the bots') (a punch, the client's failsafe). Nobody else's impulses.
+    if((self.impulse == 99 || self.impulse == 106) && VR_FlatPlay(self))
     {
         if(self.impulse == 99)
         {
@@ -4941,7 +4941,7 @@ void() ImpulseCommands =
         }
         else
         {
-            VR_FlatReload_ProcCancelAll("the client's cancel (a punch, or its failsafe)");
+            VR_FlatReload_ProcCancelAll("the client's cancel");
         }
         self.impulse = 0;
         return;

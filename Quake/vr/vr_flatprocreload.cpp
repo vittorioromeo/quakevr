@@ -24,9 +24,9 @@
 // (vr_flat_prl_tilt_*, mirrored for the left hand) and moves it in (vr_flat_prl_gun_*) to present its port, eased in and
 // out (vr_flat_prl_tilt_in_time / _out_time). The arm's IK turns the wrist and forearm with the hand.
 //
-// Cancels: a shot of the gun's hand (the server cancels it too: its fire button), a punch or shove (impulse 100; the shove's
+// Cancels: a shot of the gun's hand (the server cancels it too: its fire button), a punch or shove (impulse 106; the shove's
 // and bash's impulses cancel it on the server), the failsafe: a round at the port not seated within vr_flat_prl_failsafe
-// seconds (a wall, the hand blocked), or nothing taken at the pouch within it (impulse 100, the reason printed and kept for
+// seconds (a wall, the hand blocked), or nothing taken at the pouch within it (impulse 106, the reason printed and kept for
 // the report). The server puts a round still in the hand back in the reserve.
 //
 // vr_flat_proc_reload_debug 1 prints each step (flatprocreload: ...); vr_flatprocreload_report the state and counts;
@@ -233,11 +233,11 @@ void cancel(const char* why, bool tellServer)
     ps.lastCancel = why;
     if(tellServer)
     {
-        Cbuf_InsertText("impulse 100\n");
+        Cbuf_InsertText("impulse 106\n");
     }
     if(debugOn())
     {
-        Con_Printf("flatprocreload: cancelled (%s)%s\n", why, tellServer ? ": impulse 100" : "");
+        Con_Printf("flatprocreload: cancelled (%s)%s\n", why, tellServer ? ": impulse 106" : "");
     }
     if(t.phase != Phase::None && t.phase != Phase::Return)
     {

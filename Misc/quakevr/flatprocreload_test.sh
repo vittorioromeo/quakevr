@@ -22,6 +22,8 @@ EMPTY="+attack; wait300; -attack; wait10" # the shotgun's clip fired empty (its 
 run trips "^flat proc reload: main hand done" "$BASE; $SG; $EMPTY; vr_flatprocreload_report; $R"
 # A shot (a dry click: nothing in yet) while the first pair is carried: cancelled, the pair back in the pouch.
 run fire "^flatprocreload: the off hand back in its pose" "$BASE; $SG; $EMPTY; $R; wait30; vr_flatprocreload_report; +attack; wait2; -attack"
+# A quick melee (the shove's impulse, as mouse 5 sends it) while the pair is carried: cancelled, the pair back.
+run melee "^flat proc reload: main hand cancelled" "$BASE; $SG; $EMPTY; $R; wait30; impulse 54"
 # The port out of reach (the hand stops 12 units short): the client's failsafe cancels, the pair back in the pouch.
 run blocked "^flat proc reload: main hand cancelled" "$BASE; vr_flat_prl_test_miss 12; $SG; $EMPTY; $R"
 # A shotgun in each hand: the timed trip to the hip for both.

@@ -19,12 +19,19 @@ def check(ok, what):
 
 
 def lines(run):
+    # The console wraps long lines: a line that doesn't start one of ours goes back onto the one before.
     p = os.path.join(D, run + ".log")
-    return open(p, encoding="utf-8", errors="replace").read().splitlines() if os.path.exists(p) else []
+    out = []
+    for l in (open(p, encoding="utf-8", errors="replace").read().splitlines() if os.path.exists(p) else []):
+        if out and not re.match(r"^(flat|fprl_test|exit=)", l):
+            out[-1] += l
+        else:
+            out.append(l)
+    return out
 
 
 def timed_out(run):
-    return any("fprl_test: %s timed out" % run in l for l in lines(run))
+    return any(l.startswith("fprl_test: %s timed out" % run) for l in lines(run))
 
 
 START = re.compile(r"^flat proc reload: start (\w+) hand \((.*)\): weapon (\d+), clip (\d+) of (\d+), storage (\d+)")
@@ -67,6 +74,17 @@ if st and end:
     b = int(st[0].group(4)) + int(st[0].group(6))
     a = int(end[-1].group(6)) + int(end[-1].group(8))
     check(a == b, "fire: no shell lost (clip + storage %d before, %d after)" % (b, a))
+
+# melee: the shove's impulse cancels; the pair back.
+L = lines("melee")
+st = [m for m in map(START.match, L) if m]
+end = [m for m in map(END.match, L) if m]
+check(not timed_out("melee") and bool(end) and end[-1].group(2) == "cancelled" and "quick melee" in end[-1].group(3),
+      "melee: a quick melee cancelled it (%s)" % (end[-1].group(3) if end else "no end"))
+if st and end:
+    b = int(st[0].group(4)) + int(st[0].group(6))
+    a = int(end[-1].group(6)) + int(end[-1].group(8))
+    check(a == b, "melee: no shell lost (clip + storage %d before, %d after)" % (b, a))
 
 # blocked: the client's failsafe, the pair back.
 L = lines("blocked")

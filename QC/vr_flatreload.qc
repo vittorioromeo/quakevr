@@ -436,7 +436,7 @@ void(float xHand, float xDone) VR_FlatReload_Stop =
 // the free hand: to the ammo pouch (shown in flat-screen play while bit 64 is up), where impulse 99 takes a taped pair
 // by VR's own take (VR_Reload_Take, as a headset's grip there), to the gun's loading port, where the carried pair goes
 // in by VR's own path (VR_Carry_HandFrame's VR_Reload_HeldFrame: the port's reach), and back, until the gun is full.
-// Cancelled by a shot of the gun (or a dry click), a quick melee (the shove and bash impulses), impulse 100 (the client's:
+// Cancelled by a shot of the gun (or a dry click), a quick melee (the shove and bash impulses), impulse 106 (the client's:
 // a punch, its failsafe when a round isn't seated in time), the weapon changing, the free hand taking something else:
 // a round in the free hand goes back into the reserve (nothing lost). The server's own failsafe: no progress (a take, a
 // round in) for vr_flat_prl_giveup seconds. Dual wielding and every other gun: the timed trip above.
@@ -530,7 +530,7 @@ void(float xHand, float xDone, string xWhy) VR_FlatReload_ProcStop =
         VR_FlatReload_Storage(xHand)));
 };
 
-// Every procedural reload of self cancelled (`xWhy`: a quick melee, the client's impulse 100).
+// Every procedural reload of self cancelled (`xWhy`: a quick melee, the client's impulse 106).
 void(string xWhy) VR_FlatReload_ProcCancelAll =
 {
     VR_FlatReload_ProcStop(cVR_MainHand, FALSE, xWhy);
