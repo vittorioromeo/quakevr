@@ -4909,3 +4909,32 @@ the camera suddenly a few units, then goes back" and "add a way to lock the anim
   the scrub, let go; the fire and melee cases now cancel at wait20: with his promoted times the first pair was already in
   at wait30). flatreload_test.sh 54/0.
 - **Open**: the pair in the locked hand is drawn but only checked by numbers (his eyes: key 4 looking down, key 6).
+## embedfire2: a gun stuck in an enemy by its bayonet fires exactly as in the hand (branch agent/embedfire, 2026-11-28)
+
+His flat notes 2026-11-28 (8, 15, 16): the stuck nailgun fired slower, one barrel, no frames, no flash or sparks; the
+stuck thunderbolt's start sound again and again; the burst rifle and the revolver didn't fire stuck.
+- **Causes**: the prop path (vr_propfire.qc) ran only the trigger frame on the stuck gun. Its End called
+  W_SetCurrentAmmoFor, whose player_run ended the firing frames' think every frame, and that think (player_nail*,
+  player_light*, player_shot*) ran on the empty hand (the fist: no ammo, so it stopped). So one nail per 0.2 s refire, one
+  barrel, the thunderbolt restarting (lstart) every 0.1 s. The revolver's hammer and the burst rifle's burst are per-frame
+  hand code (VR_Revolver_HandFrame, VR_EnemyGuns_Frame) that saw the fist: the cocked hammer was let down every frame,
+  bursts cut. Every gun called `weaponfired(self, hand)`, so the flash, sparks and smoke went to the empty hand
+  (VR_WeaponFired, which routes them to the prop, was never called). The thunderbolt's beam was the player's: the client
+  drew it from the empty hand and ended it at once (vr_client.cpp VR_BeamGone). In flat play a quick click of a stuck
+  revolver counted as a tap and pulled it out (its shot came a frame before the hold saw the press).
+- **Fix**: `VR_PropFire_With(hand, fn)` runs `fn` with the hand's weapon fields, frame, place and muzzle taken from the
+  stuck gun (Begin .. End). It wraps the firing frames' think (player.qc doThinkArgFn/doThink2ArgFn), the revolver's
+  frame and the burst frame. Begin/End also swap the hand's weaponframe with the prop's `.frame`, so the frames are drawn
+  on the stuck gun. End restores the ammo mirror without player_run. The prop's trigger frame runs the hand's whole fire
+  frame (weapons.qc `W_HandFireFrame`: the thunderbolt's stream, the Widowmaker's spin, the lava nailgun's let-go). All 24
+  `weaponfired(self, hand)` calls are now `VR_WeaponFired(hand)`. The thunderbolt's beam takes the prop as its entity
+  while one fires. Flat tap (vr_embedhold.qc VR_Embed_FlatPull): a shot on the press's frame or the one before counts as
+  fired, and a press while the gun still cycles is no tap.
+- **Test**: `vr_embed_test 97` (flat, embedrate; `scratch1 <first + 1000*last>` runs a few guns): shotgun, SSG, nailgun,
+  thunderbolt, AD Plasma Gun, burst rifle, laser rifle and revolver, each fired 1.55 s in the hand, then stuck by V in a
+  fresh grunt and fired as long. Shots (VR_WeaponFired) within 5%, all from the prop, frame changes as in the hand, the
+  thunderbolt's start sound once, the grunt hurt.
+- **Open**: GL, prox and RL are not in 97: flat V doesn't stick them (test 96's PENDING). With the off hand busy (a carried
+  bayonet or an axe, so flat doesn't take them two-handed), the run stalled after the V (no more output until the
+  timeout). Not looked into. Casings (ejectcasings) still come from the hand. A stuck gun let go mid-animation keeps its
+  last frame. Multiplayer: the prop's `.frame` and the beam entity go out as ordinary entity state; nothing per seat.
