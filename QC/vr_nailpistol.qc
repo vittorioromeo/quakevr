@@ -212,7 +212,7 @@ void(float xHand) W_FireNailPistol =
 
     self.effects = self.effects | EF_MUZZLEFLASH;
     self.punchangle_x = -1;
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp; slot 36's Recoil, Flash)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp; slot 36's Recoil, Flash)
     VRGunHaptic(xHand, 0.06, 160, 0.85);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 

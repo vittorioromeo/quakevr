@@ -4909,6 +4909,35 @@ the camera suddenly a few units, then goes back" and "add a way to lock the anim
   the scrub, let go; the fire and melee cases now cancel at wait20: with his promoted times the first pair was already in
   at wait30). flatreload_test.sh 54/0.
 - **Open**: the pair in the locked hand is drawn but only checked by numbers (his eyes: key 4 looking down, key 6).
+## embedfire2: a gun stuck in an enemy by its bayonet fires exactly as in the hand (branch agent/embedfire, 2026-11-28)
+
+His flat notes 2026-11-28 (8, 15, 16): the stuck nailgun fired slower, one barrel, no frames, no flash or sparks; the
+stuck thunderbolt's start sound again and again; the burst rifle and the revolver didn't fire stuck.
+- **Causes**: the prop path (vr_propfire.qc) ran only the trigger frame on the stuck gun. Its End called
+  W_SetCurrentAmmoFor, whose player_run ended the firing frames' think every frame, and that think (player_nail*,
+  player_light*, player_shot*) ran on the empty hand (the fist: no ammo, so it stopped). So one nail per 0.2 s refire, one
+  barrel, the thunderbolt restarting (lstart) every 0.1 s. The revolver's hammer and the burst rifle's burst are per-frame
+  hand code (VR_Revolver_HandFrame, VR_EnemyGuns_Frame) that saw the fist: the cocked hammer was let down every frame,
+  bursts cut. Every gun called `weaponfired(self, hand)`, so the flash, sparks and smoke went to the empty hand
+  (VR_WeaponFired, which routes them to the prop, was never called). The thunderbolt's beam was the player's: the client
+  drew it from the empty hand and ended it at once (vr_client.cpp VR_BeamGone). In flat play a quick click of a stuck
+  revolver counted as a tap and pulled it out (its shot came a frame before the hold saw the press).
+- **Fix**: `VR_PropFire_With(hand, fn)` runs `fn` with the hand's weapon fields, frame, place and muzzle taken from the
+  stuck gun (Begin .. End). It wraps the firing frames' think (player.qc doThinkArgFn/doThink2ArgFn), the revolver's
+  frame and the burst frame. Begin/End also swap the hand's weaponframe with the prop's `.frame`, so the frames are drawn
+  on the stuck gun. End restores the ammo mirror without player_run. The prop's trigger frame runs the hand's whole fire
+  frame (weapons.qc `W_HandFireFrame`: the thunderbolt's stream, the Widowmaker's spin, the lava nailgun's let-go). All 24
+  `weaponfired(self, hand)` calls are now `VR_WeaponFired(hand)`. The thunderbolt's beam takes the prop as its entity
+  while one fires. Flat tap (vr_embedhold.qc VR_Embed_FlatPull): a shot on the press's frame or the one before counts as
+  fired, and a press while the gun still cycles is no tap.
+- **Test**: `vr_embed_test 97` (flat, embedrate; `scratch1 <first + 1000*last>` runs a few guns): shotgun, SSG, nailgun,
+  thunderbolt, AD Plasma Gun, burst rifle, laser rifle and revolver, each fired 1.55 s in the hand, then stuck by V in a
+  fresh grunt and fired as long. Shots (VR_WeaponFired) within 5%, all from the prop, frame changes as in the hand, the
+  thunderbolt's start sound once, the grunt hurt.
+- **Open**: GL, prox and RL are not in 97: flat V doesn't stick them (test 96's PENDING). With the off hand busy (a carried
+  bayonet or an axe, so flat doesn't take them two-handed), the run stalled after the V (no more output until the
+  timeout). Not looked into. Casings (ejectcasings) still come from the hand. A stuck gun let go mid-animation keeps its
+  last frame. Multiplayer: the prop's `.frame` and the beam entity go out as ordinary entity state; nothing per seat.
 
 ## padflat: a flat-screen gamepad's default layout, its stick on the wheel and holster menu, a stick cursor in the menus (branch agent/padflat, 2026-11-28)
 
@@ -5114,6 +5143,22 @@ them back by using the usual weapon wheel or MMB buttons."
   multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
   `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.
 
+## panelsize: the menu's bindings reminder easier to read (branch agent/panelsize, 2026-11-28)
+
+His words: "Binding reminder is a bit too small in the menu now, please make it easier to read."
+- The menu panel (`vr_menuui.cpp` drawBindPanel) now picks one column or two, whichever gives larger letters. With twenty
+  rows one column was height-limited (7.9 units for the main rows, minor 5.9). Two columns (the main rows and Setup
+  Bindings left, the Hands / More groups right, bottom aligned) reach 8.9 main and 7.6 minor on the main menu (Options 8.5);
+  a pad's 15 rows stay one column (9.9). Minor rows are 0.85 of the main ones (was 0.75). The 20-unit margin and the
+  clearance above the corner rows are unchanged.
+- `vr_menu_bind_panel_scale` (default 1.5, archived): the letters' limit is 8 menu units times it (0.5 .. 3); the panel still
+  shrinks to fit its room, so the main menu is room-limited (width: the rows' left) at the default.
+- The menu canvas is in menu units, independent of the window's resolution, so 720p / 1080p / 1440p / 4K lay out alike;
+  `vid_restart` in the headless run did not change the canvas. The layout is checked on the main menu (keyboard, OBS
+  row, pad) and on Options (stretched canvas).
+- Report: new `bindpanel: menu panel extent L T .. R B, columns N` line. Tests: bindpanel_test 37/0 (new: extent inside the
+  room x4, letters >= 8, scale 0.5 smaller, columns 2 / 1). Screenshot: scratch/bindpanel/main.png (keyboard, pad, Options).
+- MP / splitscreen: client-side drawing only.
 ## prlmove: the procedural reload works running, jumping, sliding; the hand grips the pair; Hand at Port offsets (branch agent/prlmove, 2026-11-28)
 
 His words (2026-11-28): "Procedural reload for the shotgun seems to fail if the player is running, jumping, sliding ...";
@@ -5172,3 +5217,50 @@ low-impact runs).
 - **Not run 3x**: the reload test (two full runs, about 15 min each, plus the fist case alone); runlaunch once.
 - **Open**: teleporters_chase's sill-32 dog (AI/nav: why it no longer slides to the sill-16 gate, since about 11-14), agrunt
   16, rigstudio_posekeys 5, the armour look check's 26.
+
+## beastmp: remote multiplayer clients draw the beasts' armour (branch agent/beastmp, 2026-11-28)
+
+Approved 2026-11-28 (beastarmour's open note: "a remote MP client draws no beast pieces").
+- **Cause:** not the wire. The server already sends every armoured entity's type, worn mask and wear (QVR_SVC_ARMOR, the
+  humanoids' message: beasts included). The client's `beastarmour::relinkEntity` placed the pieces from the *server's*
+  edict (`ready(ent)`, `place(ent, ...)`: the hit model's body), so it returned at once without a server (`!sv.active`): a
+  remote client drew no piece, no leather. Second, latent: a piece armour.txt shapes has its debris model named
+  "<piece>#tweak" in the server's precache list; a client that had not yet read beastarmour.txt (a remote one joining)
+  could not make it (`makeTweaked` looked only at kinds already read and resolved).
+- **Now:** without a server edict for the entity the pieces sit on the client's own drawing of the body (`ClientBody`,
+  vr_beastarmour.cpp): animated, its drawn lerp (`hitmodel::clientLerp`) and the shader's points for the anchors
+  (`animsmooth::drawnPoints`, as a listen host's armour since armourrebuild) through the renderer's drawn matrix
+  (`render::drawnEntityMatrix`: place, turn, scale, network scale and offset); a corpse or knocked-down beast, the ragdoll
+  the server sent (QVR_SVC_RAGPOSE) skinned as drawn (`ragdoll::skinnedVertices(num, ..., drawn)`: each vertex on its own
+  body, as the drawn skin and the host's hit model have it; per-part `drawnPart` was tried first: the ogre's chest and
+  right forearm pieces came out 3.6-4.7 units off, their anchors' vertices carried by other bodies). The rest is shared with
+  the listen path (`fitPlaced`, `restPlaced`, `junctionBonesBy` taking a placer): pieces, parts with their own bits (shins,
+  the scrag's back half and tail segments), the leather junctions, the wear skins by the server's wear bits, the Armour
+  Studio's ghost. Breaks need nothing new: the mask shrinks, the debris is a server entity with the piece's model.
+  `makeTweaked` reads beastarmour.txt and resolves the piece's kind first.
+- **Whose armour.txt:** each client's own (decision). As the humanoids' MP path (each machine makes the shells from its
+  armour.txt): the shipped file is the same on every install, so everyone sees his promoted tweaks; the server's file
+  decides what a shot hits (the server's placements); a player's own Armour Studio edits stay a local look; no wire bytes.
+  A remote client with a different armour.txt sees its own shapes on bodies that are hit as the server's.
+- **Wire:** unchanged, no QVR_NET_VERSION bump.
+- **Debug:** `vr_beastarmour_drawn` (Debug > Tests "Beast Armour Drawn Here"): each armoured beast drawn last frame, the
+  server's mask, pieces drawn at each wear, leather, the pieces' mean on the body, "server-body" / "client-body" /
+  "client-ragdoll", and the debris in view; `vr_beastarmour_drawn compare` (a listen host) places each beast's pieces both
+  ways for a frame and prints how far apart. Debug > Tests also has "Beast Armour in Multiplayer: Armoured Ogre and Scrag"
+  (`vr_agarmor_test 25`) and "... Break a Part of Each" (26).
+- **Tests:** `mp_test.py beastmp` 19/0 (in the suite): a listen host A on vrtesthall, B remote; the server's QC
+  (`vr_agarmor_test 25`-`27`, test_numbers.txt) dresses an ogre (12 pieces, mask 4095) and a scrag (13, 32575) in yellow:
+  A and B draw every piece and the leather (B "client-body"); B's armour on each body within 0.68 / 0.91 units of A's
+  (pieces' mean, idling; clocks a tick apart); the host placing them B's way off his own by 0.000 units, 0.04 degrees at
+  most; 26 breaks the ogre's left shin and the scrag's tail3 and wears the ogre's breastplate: B drops just those (11 /
+  12), draws the breastplate at two thirds, sees the 2 debris; 27 kills both: B draws the corpses' pieces on the sent
+  ragdolls, 0.66 / 0.09 units from A's once settled (host compare 0.11 units, 0.57 degrees: the drawn pose between the last
+  two steps against the hit model's latest). `beastmp_dedicated` 17/0 (not in the suite): a dedicated server, the beasts
+  dressed before B joins (the "#tweak" debris models in his precache list, the armour in the joining client's state), A and
+  B both remote, the corpses within 0.01 / 0.00 units of each other. `vr_agarmor_test 15` 71/0, `21` 30/0.
+- **Files:** vr_beastarmour.cpp (ClientBody, placeClient, fitPlaced/restPlaced, junctionBonesBy, relinkBody, the report,
+  makeTweaked), vr_agarmor.cpp (beginRelink every frame), vr_menu_debug_tests.inc, QC vr_beastarmour_test.qc
+  (VR_BMP_Frame), vr_agarmor_test.qc, mp_test.py (beastmp), scenario `mp_coop_beasts`.
+- **Open:** a remote client's armour follows its own clock (as its drawing of the body, no kick); the beasts of
+  `beastmp_dedicated` hunt B before his notarget, so their living placement is compared on the listen run only;
+  `vr_armour_on_drawn 0` (debug) is a listen host's comparison alone (a remote client always uses the drawn points).

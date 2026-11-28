@@ -1103,4 +1103,64 @@ void(float req) VR_TTK_Frame =
     vr_ttk_busy = FALSE;
     VR_Test_Verdict();
 };
+// beastmp (ROUND26.md): the beasts' armour on a remote client (mp_test.py beastmp; Debug > Tests). Helpers, no verdict of
+// their own (the MP test's): `vr_agarmor_test 25` an ogre and a scrag ahead of the player in full yellow, calm (the player
+// notarget), at their own health; 26 the ogre's left shin (bit 10) and the scrag's tail3 (bit 13) broken (their debris
+// made) and the ogre's breastplate (bit 0) worn to two thirds; 27 both killed (their corpses, ragdolls, keep the rest).
+// Each prints "beastmp: <beast> mask M pieces N wear W/W2 debris D" (N: the pieces a client draws for that mask).
+entity vr_bmp_ogre, vr_bmp_scrag;
+
+float(entity e) VR_BMP_Pieces =
+{
+    float b, n = 0;
+    for(b = 0; b < VR_AR_SLOTS; b++)
+    {
+        n = n + (VR_AgArmor_On(e, b) ? ragdollbone(e, [3, b, 0], QVR_ARMOR_BEAST) : 0);
+    }
+    return n;
+};
+
+void(entity e, string what) VR_BMP_Say =
+{
+    bprint(sprintf("beastmp: %s mask %g pieces %g wear %g/%g debris %g health %g\n", what, e.vr_ar_mask, VR_BMP_Pieces(e),
+        e.vr_ar_wear, e.vr_ar_wear2, vr_ar_debris_made, e.health));
+};
+
+void(entity e) VR_BMP_Kill =
+{
+    e.health = 2;
+    float type = e.vr_ar_type;
+    e.vr_ar_type = 0; // (the killing blow past its plates)
+    T_Damage(e, world, world, 5);
+    e.vr_ar_type = type;
+};
+
+void(float req) VR_BMP_Frame =
+{
+    entity p = VR_Player();
+    if(req == 25)
+    {
+        p.flags = p.flags | FL_NOTARGET;
+        vr_bmp_ogre = VR_BAT_SpawnOwn(p, 1, -40, 170, 0);
+        vr_bmp_scrag = VR_BAT_SpawnOwn(p, 2, 40, 150, 0);
+        VR_AgArmor_Give(vr_bmp_ogre, 2, 1023);
+        VR_AgArmor_Give(vr_bmp_scrag, 2, 1023);
+    }
+    else if(req == 26 && vr_bmp_ogre && vr_bmp_scrag)
+    {
+        VR_AgArmor_Break(vr_bmp_ogre, 10);
+        VR_AgArmor_Break(vr_bmp_scrag, 13);
+        vr_bmp_ogre.vr_ar_wear = VR_AgArmor_Bit(0);
+    }
+    else if(req == 27 && vr_bmp_ogre && vr_bmp_scrag)
+    {
+        VR_BMP_Kill(vr_bmp_ogre);
+        VR_BMP_Kill(vr_bmp_scrag);
+    }
+    if(vr_bmp_ogre && vr_bmp_scrag)
+    {
+        VR_BMP_Say(vr_bmp_ogre, "ogre");
+        VR_BMP_Say(vr_bmp_scrag, "scrag");
+    }
+};
 #endif

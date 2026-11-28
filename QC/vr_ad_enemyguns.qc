@@ -1915,7 +1915,7 @@ float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinish
     else                                 { VR_ADGun_FirePlasma(xHand, xWeapon); }
     if(!stream)
     {
-        weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+        VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     }
     float next = VR_ADGun_Value(xWeapon, stream ? "rate" : "refire");
     *xOutAttackFinished = time + RuneApplyHell(max(0.05, next), self);

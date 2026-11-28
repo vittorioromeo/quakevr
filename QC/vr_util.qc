@@ -114,11 +114,19 @@ vector(float xHand) VRGetWeaponFireRotFwd =
 entity vr_fire_prop;
 
 // weaponfired (its muzzle flash, the client's shot effects) for the shot of `xHand`: on the prop a player's hand fires
-// (vr_fire_prop), else on the hand's weapon.
+// (vr_fire_prop), else on the hand's weapon. Every gun's shot calls it (embedfire2: they called weaponfired on the hand, so a
+// stuck gun's shots had no flash, sparks or smoke: the empty hand has no gun to draw them on).
+float vr_wfired_shots;     // (the tests: a player's shots, and those from a weapon prop: vr_attach_test.qc embedrate)
+float vr_wfired_propshots;
 void(float xHand) VR_WeaponFired =
 {
+    if(self.flags & FL_CLIENT)
+    {
+        vr_wfired_shots++;
+    }
     if(vr_fire_prop != world && (self.flags & FL_CLIENT))
     {
+        vr_wfired_propshots++;
         weaponfired(vr_fire_prop, -1);
         return;
     }

@@ -71,8 +71,9 @@ vector vr_pfire_pos;
 vector vr_pfire_rot;
 vector vr_pfire_shotrot;
 vector vr_pfire_muzzle;
+float  vr_pfire_wframe;
 
-void(entity xP, float xHand, vector xPos, vector xRot, vector xShotRot, vector xMuzzle) VR_PropFire_SetHandPlace =
+void(entity xP,float xHand, vector xPos, vector xRot, vector xShotRot, vector xMuzzle) VR_PropFire_SetHandPlace =
 {
     if(xHand == cVR_OffHand)
     {
@@ -90,7 +91,9 @@ void(entity xP, float xHand, vector xPos, vector xRot, vector xShotRot, vector x
     }
 };
 
-// The hand of self takes the prop `w` on for its trigger frame: its weapon, where it is and where it points.
+// The hand of self takes the prop `w` on for its trigger frame (or its firing frames' think, or a gun's own frame: its
+// burst, its hammer; VR_PropFire_With): its weapon, its frame (the prop's model's, drawn on it: the nailgun's barrels, the
+// shots' and the thunderbolt's frames), where it is and where it points.
 void(entity w, float xHand) VR_PropFire_Begin =
 {
     entity p = self;
@@ -103,9 +106,11 @@ void(entity w, float xHand) VR_PropFire_Begin =
     vr_pfire_rot = VRGetHandRot(xHand);
     vr_pfire_shotrot = xHand == cVR_OffHand ? p.offshotrot : p.shotrot;
     vr_pfire_muzzle = VRGetMuzzlePos(xHand);
+    vr_pfire_wframe = VRGetWeaponFrame(xHand);
     *wp = w.weapon;
     *fp = w.weaponflags;
     VRSetEntWeaponInst(p, xHand, w.weaponinst);
+    VRSetWeaponFrame(xHand, w.frame);
     vector m = VR_PropFire_Muzzle(w);
     vector a = vectoangles(vr_pfire_dir);
     a_x = -a_x; // (a view's pitch, as the hands')
@@ -119,11 +124,40 @@ void(entity w, float xHand) VR_PropFire_End =
     entity p = self;
     vr_fire_prop = world;
     w.weaponflags = VRGetEntWeaponFlags(p, xHand); // (what the frame did to it stays with it: a super shotgun's spent shells, opened)
+    w.frame = VRGetWeaponFrame(xHand);             // (and its frame: drawn on the prop)
     *VRGetEntWeaponPtr(p, xHand) = vr_pfire_wid;
     *VRGetEntWeaponFlagsPtr(p, xHand) = vr_pfire_flags;
     VRSetEntWeaponInst(p, xHand, vr_pfire_inst);
+    VRSetWeaponFrame(xHand, vr_pfire_wframe);
     VR_PropFire_SetHandPlace(p, xHand, vr_pfire_pos, vr_pfire_rot, vr_pfire_shotrot, vr_pfire_muzzle);
-    W_SetCurrentAmmoFor(xHand);
+    // The hand's ammo mirror and the HUD's counters back (the prop's while the hand drives it: VR_PropFire_HudCounter). Not
+    // W_SetCurrentAmmoFor: its player_run ended the firing frames' think every frame (embedfire2, his flat note 2026-11-28:
+    // the stuck nailgun fired slower, one barrel only, the thunderbolt's start sound again and again).
+    if(xHand == cVR_OffHand)
+    {
+        p.currentammo2 = WeaponIdToAmmoId(vr_pfire_wid, vr_pfire_flags);
+    }
+    else
+    {
+        p.currentammo = WeaponIdToAmmoId(vr_pfire_wid, vr_pfire_flags);
+    }
+    updateAmmoCounters();
+};
+
+// `xFn` for `xHand` of self, run on the weapon prop the hand drives (VR_PropFire_Held: taken on, VR_PropFire_Begin .. End)
+// if it drives one, else on the hand's own weapon: the firing frames' think (player.qc doThinkArgFn), a gun's own frame (the
+// revolver's hammer, the burst rifle's burst), so the stuck gun fires as in the hand (embedfire2).
+void(float xHand, void(float) xFn) VR_PropFire_With =
+{
+    entity w = (self.flags & FL_CLIENT) ? VR_PropFire_Held(self, xHand) : world;
+    if(w == world)
+    {
+        xFn(xHand);
+        return;
+    }
+    VR_PropFire_Begin(w, xHand);
+    xFn(xHand);
+    VR_PropFire_End(w, xHand);
 };
 
 // The HUD (his flat note 2026-11-27: "when the shotgun is in the embedded state, the HUD stops displaying the ammo count"):
@@ -193,14 +227,9 @@ float(float xHand) VR_PropFire_Frame =
     {
         return FALSE;
     }
-    if((!deathmatch && time < self.vr_readytime) || time < VRGetAttackFinished(xHand))
-    {
-        return TRUE;
-    }
-    float pressed = VRGetFireButtonPressed(xHand); // (the hand is on the prop: no force grab, no reload trip, no throw)
     float was = VRGetAttackFinished(xHand);
     VR_PropFire_Begin(w, xHand);
-    W_TriggerFrame(xHand, pressed);
+    W_HandFireFrame(xHand, TRUE); // (as in the hand: the stream drawn, the spin, the refire, the trigger)
     VR_PropFire_End(w, xHand);
     vr_pfire_frames++;
     if(VRGetAttackFinished(xHand) != was)
