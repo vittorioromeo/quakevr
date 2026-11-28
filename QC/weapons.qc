@@ -4635,6 +4635,14 @@ void(float xHand) ToggleSecondaryAmmo =
         return;
     }
 
+    // ammomags: immersive reloading in the headset: the rounds loaded set the ammo (vr_reload.qc VR_Reload_AmmoByMag; its
+    // button hidden): the other kind's magazine or round from the pouch's left half goes in instead.
+    if(VR_Reload_AmmoByMag(self, xHand))
+    {
+        dprint("ammo switch: refused, the rounds loaded set the ammo (immersive reloading)\n"); // (vr_ammomags_test.qc)
+        return;
+    }
+
     // vr_ammo_switch_empty_hand: pressable only with the other hand empty (nothing held at all): not akimbo.
     if(cvar_hget(cvarh_vr_ammo_switch_empty_hand) && !VRIsHandEmpty(self, VRGetOtherHand(xHand)))
     {

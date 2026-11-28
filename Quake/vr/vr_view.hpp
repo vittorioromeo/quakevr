@@ -175,7 +175,8 @@ void printOwnLooks(int ent);
 void netGear(VrDrawnGear& out);
 // The rounds in an ammo pouch `pouch` (placed this frame or not) holding `kind` (STAT_QVR_POUCHKIND's), `count` left:
 // yours (setupAmmoPouchItems) and another player's in his copy's pouch (syncfix2), one code -> how many placed in `out`.
-int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, ViewEntity (&out)[pouchitems::most]);
+int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, int kind2, int count2,
+    ViewEntity (&out)[pouchitems::most]);
 // A hand's model (the jointed hand's, the old hand's: also the fists' weapon model, an empty holster's).
 [[nodiscard]] bool handModel(const qmodel_t* model);
 // VrDrawnGear::model's model (1 the sheath, 2 the gadget, 3 its strap, 4 the grenade pouch, 5 the ammo pouch), or nullptr.

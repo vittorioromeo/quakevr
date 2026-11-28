@@ -83,6 +83,9 @@
 .float vr_pouch_slug;    // (shells for the heavy revolver: its blue slugs, the pouch's kind 1 + 8; FALSE the shotguns' red)
 .float vr_pouch_kind;
 .float vr_pouch_count;
+.float vr_pouch_kind2;  // (ammomags: the pouch's left half, the other kind of a gun whose ammo follows its rounds; 0 none)
+.float vr_pouch_count2;
+.float vr_ammomag;      // (ammomags: the hands whose guns' ammo follows the rounds loaded: 1 off, 2 main; their buttons hidden)
 .float vr_ammo_smoke;    // a spent thunderbolt cell (or lava nails' magazine): when it stops smoking (vr_reload_battery_smoke_time; 0 not smoking)
 .float vr_ammo_puffs;    // and the wisps it has given off, since (for the log)
 .float vr_ammo_smoke_from;
@@ -283,6 +286,99 @@ float(entity p, float xHand) VR_Reload_AmmoFor =
         return -1;
     }
     return WeaponIdToAmmoId(w, VRGetEntWeaponFlags(p, xHand));
+};
+
+// ----------------------------------------------------------------------------
+// The ammo follows the rounds loaded (ammomags, his words 2026-11-28, kit fb1127n words_1128b item 18): with immersive
+// reloading in the headset, a gun with two ammo kinds (the nailguns' lava nails, the launchers' multi-rounds, the
+// thunderbolt's plasma, the nail pistol's lava nails) fires the kind of magazine or round loaded in it: no ammo button
+// (ToggleSecondaryAmmo refuses; the engine hides the buttons: vr_view.cpp ammoButtonHidden), the pouch split in two
+// halves (the basic kind on its right, the other on its left: VR_Reload_PouchKind, VR_Reload_PlayerFrame), and no mixed
+// loads: a launcher's tube takes the other kind only once empty (VR_Reload_GunTakesAid). Flat-screen play keeps N
+// (VR_FlatReload_AmmoSwitch); the simple and off reload modes keep the buttons.
+
+void(float xHand) W_SetCurrentAmmoFor; // (weapons.qc)
+float(float xHand) VR_HasOtherAmmo;    // (weapons.qc: its button's other ammo is in this game)
+
+// Whether the gun `p` holds in `xHand` fires the kind of round loaded in it (above): a player's in the headset, loaded by
+// hand (immersive), with another ammo in this game.
+float(entity p, float xHand) VR_Reload_AmmoByMag =
+{
+    if(!p.ishuman || VR_FlatPlay(p) || !VR_Reload_ManualInHand(p, xHand))
+    {
+        return FALSE;
+    }
+    entity was = self;
+    self = p;
+    float other = VR_HasOtherAmmo(xHand);
+    self = was;
+    return other;
+};
+
+// The ammo of the gun in `xHand` of `p` with its basic kind (`xAdvanced` FALSE) or its other one.
+float(entity p, float xHand, float xAdvanced) VR_Reload_KindAid =
+{
+    float f = VRGetEntWeaponFlags(p, xHand);
+    f = f - (f & QVR_WPNFLAG_USE_SECONDARY_AMMO);
+    return WeaponIdToAmmoId(VRGetEntWeapon(p, xHand), xAdvanced ? f | QVR_WPNFLAG_USE_SECONDARY_AMMO : f);
+};
+
+// Whether the gun in `xHand` of `p` takes rounds of `xAid` (a magazine's: its gun's, checked by the callers): its own
+// kind; with VR_Reload_AmmoByMag its other kind too, a magazine gun's whole (none in: its callers), a launcher's tube only
+// while it is empty (no mixed loads: `vr_reload_mixed` TRUE when refused for that).
+float vr_reload_mixed;
+float(entity p, float xHand, float xAid) VR_Reload_GunTakesAid =
+{
+    vr_reload_mixed = FALSE;
+    float own = VR_Reload_AmmoFor(p, xHand);
+    if(own < 0)
+    {
+        return FALSE;
+    }
+    if(own == xAid)
+    {
+        return TRUE;
+    }
+    if(!VR_Reload_AmmoByMag(p, xHand) || (VR_Reload_KindAid(p, xHand, FALSE) != xAid && VR_Reload_KindAid(p, xHand, TRUE) != xAid))
+    {
+        return FALSE;
+    }
+    if(!VR_Reload_UsesMag(VRGetEntWeapon(p, xHand)) && VRGetEntWeaponClip(p, xHand) > 0)
+    {
+        vr_reload_mixed = TRUE; // (rounds of the other kind in its tube: fire or eject them first)
+        return FALSE;
+    }
+    return TRUE;
+};
+
+void(string xWhat) VR_Reload_Log;
+
+// The gun in `xHand` of self takes the kind of the round `xAid` just going in (VR_Reload_SeatMagInto, VR_Reload_LoadInto):
+// its ammo flag set to that kind, its model and the HUD's ammo with it (as the ammo button did).
+void(float xHand, float xAid) VR_Reload_TakeKind =
+{
+    if(VR_Reload_AmmoFor(self, xHand) == xAid || !VR_Reload_AmmoByMag(self, xHand))
+    {
+        return;
+    }
+    float adv = VR_Reload_KindAid(self, xHand, TRUE) == xAid;
+    if(!adv && VR_Reload_KindAid(self, xHand, FALSE) != xAid)
+    {
+        return;
+    }
+    float f = VRGetEntWeaponFlags(self, xHand);
+    f = f - (f & QVR_WPNFLAG_USE_SECONDARY_AMMO);
+    VRSetEntWeaponFlags(self, xHand, adv ? f | QVR_WPNFLAG_USE_SECONDARY_AMMO : f);
+    W_SetCurrentAmmoFor(xHand);
+    VR_Reload_Log(sprintf("hand %g's gun takes the round's kind: it fires %s now", xHand, adv ? "its other ammo" :
+        "its own ammo")); // (vr_ammomags_test.qc)
+};
+
+// Whether `xPoint` is in the left half of the ammo pouch of `p` (its +y: the other kinds' half), else its right (the basic
+// kind's).
+float(entity p, vector xPoint) VR_Reload_PouchLeftHalf =
+{
+    return (xPoint - p.ammopouchpos) * p.ammopouchy > 0;
 };
 
 // The magazine attached to the gun in `xHand` of `p`, as the client draws it (the engine's .magbox*: a box, its middle and
@@ -1123,6 +1219,7 @@ void(float xGunHand, entity r, float xHeld) VR_Reload_SeatMagInto =
     float gunHand = xGunHand;
     float xHand = VRGetOtherHand(gunHand);
     VR_Reload_MagOutRelease(self, gunHand, "a new one seated"); // (the last one still sliding out: gone first)
+    VR_Reload_TakeKind(gunHand, r.vr_ammo_aid); // (ammomags: a lava nails' magazine makes it fire lava nails)
     // (AD support: a fuller cell than the Plasma Gun holds, a thunderbolt's: it takes its own, the rest back to the pouch.)
     float over = r.vr_ammo_count - VR_ClipSizeIn(self, gunHand);
     if(over > 0)
@@ -1298,7 +1395,7 @@ vector(entity r) VR_Reload_MagRef =
 float(entity p, float xHand, entity r) VR_Reload_MagFits =
 {
     return r.vr_ammo_wid && VRGetEntWeapon(p, xHand) == r.vr_ammo_wid &&
-           VR_Reload_AmmoFor(p, xHand) == r.vr_ammo_aid;
+           VR_Reload_GunTakesAid(p, xHand, r.vr_ammo_aid);
 };
 
 // The magazine `r` in `xHand` of self, its top at the well of the gun in the other hand: seated if the gun has none. A
@@ -1402,6 +1499,7 @@ void() VR_Reload_PlayerFrame =
     }
     // (A gun brought to the pouch to reload there first: the pouch shows its rounds. VR_Reload_PouchFrame.)
     float near = corded ? -1 : VR_Reload_PouchNearHand();
+    float split = -1; // (ammomags: the hand whose gun's two kinds split the pouch in halves; -1 none)
     for(float h = 0; h < 2 && !corded; h++)
     {
         float hand = h ? cVR_OffHand : cVR_MainHand;
@@ -1409,7 +1507,13 @@ void() VR_Reload_PlayerFrame =
         {
             hand = h ? VRGetOtherHand(near) : near;
         }
-        float aid = VR_Reload_KindOf(VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand));
+        float f = VRGetEntWeaponFlags(self, hand);
+        float byMag = VR_Reload_AmmoByMag(self, hand);
+        if(byMag)
+        {
+            f = f - (f & QVR_WPNFLAG_USE_SECONDARY_AMMO); // (the right half's: its basic kind)
+        }
+        float aid = VR_Reload_KindOf(VRGetEntWeapon(self, hand), f);
         // (Flat-screen play's procedural reload of that gun too, reloadmuzzle: the pouch shows a launcher's rounds.)
         if(aid >= 0 && self.ishuman && (VR_Reload_Immersive() || VR_FlatReload_ProcIn(self, hand)))
         {
@@ -1417,6 +1521,7 @@ void() VR_Reload_PlayerFrame =
             self.vr_pouch_wid = vr_reload_kind_wid;
             self.vr_pouch_front = vr_reload_kind_front;
             self.vr_pouch_slug = vr_reload_kind_slug;
+            split = byMag ? hand : -1;
             break;
         }
     }
@@ -1446,6 +1551,18 @@ void() VR_Reload_PlayerFrame =
         self.vr_pouch_kind = self.vr_pouch_kind + 8; // (the clients draw them glowing, or the multi-rounds: skin 1)
     }
     self.vr_pouch_count = VR_AmmoUtil_GetAmmoCountByAmmoId(self, self.vr_pouch_aid);
+    // ammomags: a gun with two kinds held, its ammo following the rounds loaded: the pouch's left half shows its other kind
+    // (STAT_QVR_POUCHKIND2, _POUCHCOUNT2: the same kind with its 8, the lava nails', plasma's, the multi-rounds' look;
+    // 0 none: the whole pouch the one kind). Which hands' guns follow their rounds (1 off, 2 main): their buttons hidden
+    // on the others' clients (vr_server.cpp writeGunLooks).
+    self.vr_pouch_kind2 = 0;
+    self.vr_pouch_count2 = 0;
+    if(split >= 0 && !(self.vr_pouch_kind & 8))
+    {
+        self.vr_pouch_kind2 = self.vr_pouch_kind + 8;
+        self.vr_pouch_count2 = VR_AmmoUtil_GetAmmoCountByAmmoId(self, VR_Reload_KindAid(self, split, TRUE));
+    }
+    self.vr_ammomag = (VR_Reload_AmmoByMag(self, cVR_OffHand) ? 1 : 0) + (VR_Reload_AmmoByMag(self, cVR_MainHand) ? 2 : 0);
 };
 
 // What `xHand` of self takes from the pouch: the round for the gun in the other hand if the pouch has its ammo, else the
@@ -1453,7 +1570,17 @@ void() VR_Reload_PlayerFrame =
 float(float xHand) VR_Reload_PouchKind =
 {
     float other = VRGetOtherHand(xHand);
-    float aid = VR_Reload_KindOf(VRGetEntWeapon(self, other), VRGetEntWeaponFlags(self, other));
+    float f = VRGetEntWeaponFlags(self, other);
+    if(VR_Reload_AmmoByMag(self, other))
+    {
+        // (ammomags: the pouch in two halves, the basic kind on its right, the other on its left: the hand's half.)
+        f = f - (f & QVR_WPNFLAG_USE_SECONDARY_AMMO);
+        if(VR_Reload_PouchLeftHalf(self, VRGetEntHandPos(self, xHand)))
+        {
+            f = f | QVR_WPNFLAG_USE_SECONDARY_AMMO;
+        }
+    }
+    float aid = VR_Reload_KindOf(VRGetEntWeapon(self, other), f);
     if(aid >= 0) // (held by its handle or carried anywhere on it)
     {
         return aid;
@@ -2387,6 +2514,7 @@ float(float xGunHand, entity r, float xHeld) VR_Reload_LoadInto =
         }
         return FALSE;
     }
+    VR_Reload_TakeKind(gunHand, r.vr_ammo_aid); // (ammomags: a multi-rocket into an empty launcher: it fires them now)
     float n = min(r.vr_ammo_count, room);
     VRSetEntWeaponClip(self, gunHand, clip + n);
     r.vr_ammo_count = r.vr_ammo_count - n;
@@ -2446,12 +2574,17 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
         return FALSE;
     }
     float gunHand = VRGetOtherHand(xHand);
-    if(VR_Reload_AmmoFor(self, gunHand) != r.vr_ammo_aid)
+    float mixed = FALSE; // (ammomags: the other kind at a launcher with rounds in: a dull tap at its muzzle, below)
+    if(!VR_Reload_GunTakesAid(self, gunHand, r.vr_ammo_aid))
     {
-        r.vr_ammo_full = FALSE;
-        return FALSE;
+        if(!vr_reload_mixed)
+        {
+            r.vr_ammo_full = FALSE;
+            return FALSE;
+        }
+        mixed = TRUE;
     }
-    if(r.vr_ammo_wid && !VR_Reload_MagFits(self, gunHand, r))
+    if(r.vr_ammo_wid && !mixed && !VR_Reload_MagFits(self, gunHand, r))
     {
         r.vr_ammo_full = FALSE;
         return FALSE;
@@ -2480,6 +2613,19 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
     if(d > leniency)
     {
         r.vr_ammo_full = FALSE;
+        return FALSE;
+    }
+    if(mixed)
+    {
+        if(!r.vr_ammo_full)
+        {
+            // (No mixed loads, his words: the tube emptied first. Once as it comes within the muzzle's range.)
+            r.vr_ammo_full = TRUE;
+            VR_Reload_Haptic(self, xHand, 0.06, 40, 0.6);
+            VR_Reload_Sound(self, VRGetGunChannel(gunHand), "vr/reload_blocked.wav", 1);
+            VR_Reload_Log(sprintf("%s refused: no mixed loads, the gun holds %g of its other kind (fire or eject them first)",
+                VR_Reload_Desc(r), VRGetEntWeaponClip(self, gunHand))); // (vr_ammomags_test.qc)
+        }
         return FALSE;
     }
     if(r.vr_ammo_fresh)
@@ -2530,7 +2676,7 @@ vector(entity r) VR_Reload_RoundAxis =
 // magazine's feed end up the well; never sideways).
 float(float xGunHand, entity r) VR_Reload_LooseFits =
 {
-    if(VR_Reload_AmmoFor(self, xGunHand) != r.vr_ammo_aid)
+    if(!VR_Reload_GunTakesAid(self, xGunHand, r.vr_ammo_aid)) // (ammomags: either kind; a launcher's tube not mixed)
     {
         return FALSE;
     }
@@ -2883,7 +3029,8 @@ float(entity p, float xHand, vector xPoint) VR_Reload_PouchMagDist =
     vr_pouch_mag_slot = -1;
     float w = VRGetEntWeapon(p, xHand);
     float aid = VR_Reload_AmmoFor(p, xHand);
-    if(!cvar_hget(cvarh_vr_reload_pouch_mag_slots) || !VR_Reload_UsesMag(w) || aid < 0 || p.ammopouchz == '0 0 0')
+    if(!cvar_hget(cvarh_vr_reload_pouch_mag_slots) || !VR_Reload_UsesMag(w) || aid < 0 || p.ammopouchz == '0 0 0' ||
+       VR_Reload_AmmoByMag(p, xHand)) // (ammomags: a pouch in halves: its rounds' row, the half by the well's side)
     {
         return -1;
     }
@@ -3019,6 +3166,12 @@ void(float xHand) VR_Reload_PouchFrame =
     if((ssg && !VR_Reload_SsgIsOpen(self, xHand)) || (!mag && room <= 0))
     {
         return; // (shut, or full: nothing)
+    }
+    if(mag && VR_Reload_AmmoByMag(self, xHand))
+    {
+        // (ammomags: the pouch in halves: the kind of the half its well is over, the basic on the right.)
+        aid = VR_Reload_KindAid(self, xHand, VR_Reload_PouchLeftHalf(self, VR_HAND_FIELD(self, xHand, loadportpos,
+            offloadportpos)));
     }
     float most = cvar_hget(ssg ? cvarh_vr_reload_pouch_sshot_angle :
         (slot >= 0 ? cvarh_vr_reload_pouch_mag_angle : cvarh_vr_reload_pouch_angle));

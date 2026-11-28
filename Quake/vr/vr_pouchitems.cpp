@@ -283,7 +283,7 @@ int layoutShells(bool variant, int left, Item (&out)[most])
     return n;
 }
 
-int layoutMags(int kind, bool variant, int left, Item (&out)[most])
+int layoutMags(int kind, bool variant, int left, Item (&out)[most], int shown = -1)
 {
     const MagFoot& f = footFor(kind);
     qmodel_t* const model = view::viewModel(f.model);
@@ -291,7 +291,7 @@ int layoutMags(int kind, bool variant, int left, Item (&out)[most])
     {
         return 0;
     }
-    const int n = magsShown(kind, left);
+    const int n = shown >= 0 ? shown : magsShown(kind, left); // (`shown`: that many slots, whatever is left: layoutSplit)
     const Shape& sh = shapes[frameFor(kind, left)];
     const float ds = heldSize(model);
     for(int j = 0; j < n; j++)
@@ -414,6 +414,103 @@ int layoutRockets(bool variant, int left, Item (&out)[most])
         it.p1 = glm::vec3{model->maxs[0] - 1.97f, 0.f, 0.f};
     }
     return n;
+}
+
+// --- ammomags: the pouch in two halves ------------------------------------------------------------------------------
+
+// Rockets in a half (they don't fit lying across one): up to two standing nose up, in the grenades' back and front slots
+// of that half (the right -y, the left +y), their feet on its floor.
+int layoutRocketsStanding(bool variant, int left, bool leftHalf, Item* out)
+{
+    qmodel_t* const model = view::viewModel("progs/vr_round_rocket.mdl");
+    if(!model)
+    {
+        return 0;
+    }
+    const int n = za::min(left, 2);
+    const Shape& sh = shapes[6];
+    const float ds = heldSize(model);
+    const float r = za::max(za::max(-model->mins[1], model->maxs[1]), za::max(-model->mins[2], model->maxs[2])) * ds;
+    const float d = 2.f * r + rocketGap;
+    const float cx = innerCentreX(sh.depth);
+    const float pitch = za::min(sh.halfW * 0.93f * inner - r - 0.15f, d * 1.45f);
+    const float dx = za::sqrt(za::max(0.f, d * d - pitch * pitch * 0.25f));
+    const float side = leftHalf ? 1.f : -1.f;
+    for(int j = 0; j < n; j++)
+    {
+        const glm::vec2 at = j == 0 ? glm::vec2{cx - dx * 0.5f, side * pitch} : glm::vec2{cx + dx * 0.5f, side * pitch * 0.5f};
+        Item& it = out[j];
+        it = Item{};
+        it.model = model;
+        it.skin = variant ? 1 : 0;
+        const glm::mat3 spin = aboutZ(grenadeSpin[j + (leftHalf ? 2 : 0)]);
+        it.axes = glm::mat3{glm::vec3{0.f, 0.f, 1.f}, spin * glm::vec3{0.f, -1.f, 0.f}, spin * glm::vec3{1.f, 0.f, 0.f}};
+        it.size = ds;
+        it.at = glm::vec3{at.x, at.y, sh.floor - model->mins[0] * ds};
+        it.pivot = glm::vec3{at.x, at.y, sh.floor};
+        it.height = (model->maxs[0] - model->mins[0]) * ds;
+        it.gain = 0.8f + 0.2f * frac(static_cast<float>(j) * 0.618f + 0.3f);
+        it.radius = r;
+        it.p0 = glm::vec3{model->mins[0] + r / ds, 0.f, 0.f};
+        it.p1 = glm::vec3{model->maxs[0] - 1.97f, 0.f, 0.f};
+    }
+    return n;
+}
+
+// A gun with two ammo kinds whose ammo follows the rounds loaded (QC vr_reload.qc VR_Reload_AmmoByMag): `kind` (its
+// basic, `left` of them) in the pouch's right half, `kind2` (its other, `variant2` its look, `left2`) in its left, up to
+// two a half and the middle left clear: the magazines in the six-magazine layout's outer columns (the back row's and the
+// front row's), the grenades in the five-grenade layout's outer back and front slots, the rockets standing
+// (layoutRocketsStanding). Shells (one kind) as ever.
+int layoutSplit(int kind, bool variant, int left, int kind2, bool variant2, int left2, Item (&out)[most])
+{
+    Item tmp[most];
+    int n = 0;
+    const auto take = [&](int from) { out[n++] = tmp[from]; };
+    switch(kind & 7)
+    {
+        case 2:
+        case 3:
+        case 4:
+        {
+            const int each = magRounds(kind);
+            for(int h = 0; h < 2; h++)
+            {
+                const int k = h ? kind2 : kind;
+                const int got = h ? left2 : left;
+                const int shown = za::min(2, (za::max(got, 0) + each - 1) / each);
+                if(shown <= 0 || layoutMags(k, h ? variant2 : variant, got, tmp, 6) < 6)
+                {
+                    continue;
+                }
+                for(int s = 0; s < shown; s++)
+                {
+                    take(h ? (s ? 5 : 2) : (s ? 3 : 0)); // (col 0: -y, the right; col 2: the left)
+                    out[n - 1].rounds = za::clamp(got - s * each, 0, each);
+                }
+            }
+            return n;
+        }
+        case 6:
+        case 7:
+            for(int h = 0; h < 2; h++)
+            {
+                const int shown = za::min(2, za::max(h ? left2 : left, 0));
+                if(shown <= 0 || layoutGrenades(h ? kind2 : kind, h ? variant2 : variant, 5, tmp) < 5)
+                {
+                    continue;
+                }
+                for(int s = 0; s < shown; s++)
+                {
+                    take(h ? (s ? 4 : 2) : (s ? 3 : 0)); // (the back row's outer ones, then the front pair's: -y right)
+                }
+            }
+            return n;
+        case 5:
+            n = layoutRocketsStanding(variant, za::max(left, 0), false, out);
+            return n + layoutRocketsStanding(variant2, za::max(left2, 0), true, out + n);
+        default: return layout(kind, variant, left, out);
+    }
 }
 
 // --- vr_ammo_pouch_layout: every kind's layouts, 1 to the most, checked ------------------------------------------
@@ -1356,9 +1453,10 @@ glm::vec3 wobble()
         softClamp(s.z, wobbleAmpUp * strength)};
 }
 
-int posed(int kind, bool variant, int left, Item (&out)[most])
+int posed(int kind, bool variant, int left, Item (&out)[most], int kind2, bool variant2, int left2)
 {
-    const int n = layout(kind, variant, left, out);
+    const bool split = left2 >= 0; // (ammomags: the pouch in halves)
+    const int n = split ? layoutSplit(kind, variant, left, kind2, variant2, left2, out) : layout(kind, variant, left, out);
     const Wobble& w = wobbleState;
     const float strength = za::clamp(vr_ammo_pouch_wobble.value, 0.f, 3.f);
     if(n <= 0 || !w.valid || strength <= 0.f)
@@ -1370,7 +1468,7 @@ int posed(int kind, bool variant, int left, Item (&out)[most])
         const glm::vec3 x = s / w.k;
         return glm::vec3{softClamp(x.x, a), softClamp(x.y, a), softClamp(x.z, u)};
     };
-    const int frame = frameFor(kind, left);
+    const int frame = frameFor(kind, left + (split ? left2 : 0));
     const float reach = reachAt(strength);
     if(!sameRest(out, n, frame, reach))
     {

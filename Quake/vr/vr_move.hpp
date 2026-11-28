@@ -110,6 +110,7 @@ struct VrGunLook
     static constexpr za::U8 magOutBit = 8;     // its magazine sliding out (QC .vr_mag_out)
     static constexpr za::U8 ssgBreaksBit = 16; // the super shotgun breaks open (drawn open by its flag)
     static constexpr za::U8 revolverBit = 32;  // a heavy revolver's state follows (QC .vr_rv_hud nonzero)
+    static constexpr za::U8 ammoByMagBit = 64; // its ammo follows the rounds loaded (ammomags): its ammo button not drawn
     za::U8 bits{0};
     za::U16 flags{0};   // QC's weaponflags (QVR_WPNFLAG_*: no magazine, broken open, its chambers...)
     za::U8 clip{0};     // the rounds in it (its record's wi_clip)
@@ -162,12 +163,14 @@ struct VrDrawnGear
     // your STAT_QVR_POUCHKIND and _POUCHCOUNT carry), its rounds drawn in his pouch by your pouch's code.
     za::U8 pouchKind{0};
     za::U8 pouchCount{0};
+    za::U8 pouchKind2{0};  // (ammomags: its left half's, a gun's other kind: STAT_QVR_POUCHKIND2, _POUCHCOUNT2; 0 none)
+    za::U8 pouchCount2{0};
     // The hand whose wrist wears the gadget (0 off, 1 main: VrMove::drawn's): the move sends the gadget and its straps
     // from that hand, the rest from the body (syncfix3: still while he walks or turns; the wire only).
     za::U8 wrist{0};
 };
 // Written as the shown and mirrored shorts, then each piece drawn: its model, frame, skin, scale, place (eighths from
-// `origin`), turn (16-bit): 17 B a piece; the ammo pouch's kind and count after it when it is drawn (2 B). syncfix3: the
+// `origin`), turn (16-bit): 17 B a piece; the ammo pouch's kind and count after it when it is drawn (2 B; ammomags: its left half's kind and count, 2 B more). syncfix3: the
 // wrist byte after the shorts, and each piece's place and turn from what wears it: the gadget and its straps from
 // `hands[wrist]` (its place, then turned by its yaw; its angles taken off), the rest from `origin` turned by `bodyYaw`
 // (writer and reader the same values: the avatar's hands and body as they are written and read).

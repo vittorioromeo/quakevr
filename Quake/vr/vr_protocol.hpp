@@ -247,6 +247,11 @@ enum Stat : int
     // (0 none). The hand itself is empty (STAT_QVR_WEAPON the fist); its HUD readouts follow the prop (flathud::hudWeapon),
     // whose clip is in STAT_QVR_WEAPONCLIP / 2 meanwhile (his flat note 2026-11-27: the ammo count went away).
     STAT_QVR_PROPHUD,
+    // ammomags: a gun whose ammo follows the rounds loaded (two kinds; immersive reloading): the pouch's left half shows its
+    // other kind (QC .vr_pouch_kind2: STAT_QVR_POUCHKIND's kind with its 8; 0 none, the whole pouch one kind) and how many
+    // of that ammo are left (.vr_pouch_count2); the right half STAT_QVR_POUCHKIND's.
+    STAT_QVR_POUCHKIND2,
+    STAT_QVR_POUCHCOUNT2,
     STAT_QVR_END
 
 };

@@ -71,7 +71,9 @@ void wobbleStep(const glm::vec3& origin, const glm::mat3& axes, float k);
 // The rounds as drawn now: layout's, each moved by the wobble: with vr_ammo_pouch_wobble_each each on its own spring
 // (its own frequency, damping and drive; a lying one also tilts), kept clear of the others and the walls; without, all
 // on the one spring (as one block).
-[[nodiscard]] int posed(int kind, bool variant, int left, Item (&out)[most]);
+// ammomags: `left2` 0 or more, the pouch in two halves: `kind` (a gun's basic kind) in its right half, `kind2` (its other,
+// `variant2` its look, `left2` of them) in its left, up to two a half (vr_pouchitems.cpp layoutSplit; rockets standing).
+[[nodiscard]] int posed(int kind, bool variant, int left, Item (&out)[most], int kind2 = 0, bool variant2 = false, int left2 = -1);
 
 void init(); // vr_ammo_pouch_layout
 

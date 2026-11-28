@@ -312,7 +312,8 @@ void setupButton(int hand)
     const view::ViewEntity& weapon = entities.weapon[hand];
     const int slot = weapons::slotForModel(weapon.ent.model);
 
-    if(!weapon.ent.model || slot < 0 || weapons::value(slot, Key::WpnButtonMode) == 0.f)
+    if(!weapon.ent.model || slot < 0 || weapons::value(slot, Key::WpnButtonMode) == 0.f ||
+       ammoButtonHidden(weapon.ent.model, nullptr)) // (ammomags: its ammo follows the rounds loaded)
     {
         ve.visible = false;
         return;

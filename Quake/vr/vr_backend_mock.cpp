@@ -518,7 +518,7 @@ void mockLook_f()
 // moved by that much (world units: lifting, swinging what it holds). "vr_mock_hand_to <main|off> nearest <classname>
 // [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it
 // (the server's: a local game); "nearestmodel <substring> [<units>]": the drawn one whose model's name holds it (a
-// remote client's too). "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "pouchport [<units>]": the hand's own
+// remote client's too). "vr_mock_hand_to <main|off> ammopouch [<left>]": at the ammo pouch (vr_reload_mode 3), `left` units to its left (ammomags' halves);"pouchport [<units>]": the hand's own
 // gun's load point on the pouch's rounds' top, units above them (pouch reloading); "pouchmag <slot> [<up> [<left>
 // [<out>]]]": on that magazine's top as drawn in the pouch, moved by those units; "holster <0..5>": at that holster's
 // point (body::Holster); "grenadepouch": at the grenade pouch (vr_handgrenade); "vr_mock_hand_to <main|off> lport
@@ -1059,6 +1059,11 @@ void handToAmmoOrLoadPort(int hand, bool ammoPouch, bool loadPortMid)
         if(zones::enabled() && zones::boxMiddle(st, zones::ZoneAmmoPouch, mid))
         {
             target = mid;
+        }
+        // (ammomags: "ammopouch <left>": moved that many units to the pouch's left, negative its right: its halves.)
+        if(glm::vec3 box[4]; Cmd_Argc() > 3 && view::ammoPouchRounds(box) && glm::length(box[2]) > 1e-6f)
+        {
+            target += glm::normalize(box[2]) * static_cast<float>(Q_atof(Cmd_Argv(3)));
         }
         Con_Printf("vr_mock_hand_to: the ammo pouch: %.1f %.1f %.1f\n", target.x, target.y, target.z);
     }
