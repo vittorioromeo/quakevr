@@ -272,6 +272,14 @@ void tunablesNodeRows(za::Vector<Item>& list, int node)
                 .help("vr_flat_prl_lock_prev: holds the procedural reload at its previous keyframe's pose (Lock Pose)."));
         list.pushBack(row(opt::vr_flat_prl_scrub));
     }
+    // Armed Humanoids > Flashlight Dazzle: the shield pose's per-kind tweaks (quakevr/data/dazzle.txt) in their studio.
+    if(n.name == za::StringView{"Flashlight Dazzle"})
+    {
+        list.pushBack(command("Dazzle Studio", "vr_dazzlestudio")
+                .help("vr_dazzlestudio: the shield pose tweaked per armed humanoid kind, one weapon and two (the hand, its elbow "
+                      "and forearm, the gun arm moved away) in an ImGui window over play with gizmos (flat screen); Save "
+                      "writes quakevr/data/dazzle.txt."));
+    }
     if(!n.ids.empty())
     {
         if(!n.children.empty())

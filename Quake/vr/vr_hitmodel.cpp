@@ -1365,6 +1365,16 @@ bool vertexPoint(edict_t* ent, int vert, glm::vec3& point)
     return true;
 }
 
+void vertexPoints(edict_t* ent, const int* verts, int n, const glm::vec3& fallback, glm::vec3* out)
+{
+    Drawn d;
+    const bool ok = drawnOf(ent, d, false);
+    for(int i = 0; i < n; ++i)
+    {
+        out[i] = ok && verts[i] >= 0 && verts[i] < d.mesh->numverts ? vertsOf(d).at(d, verts[i], 0.f) : fallback;
+    }
+}
+
 float drawnScale(edict_t* ent)
 {
     using namespace progs;

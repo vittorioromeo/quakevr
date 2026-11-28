@@ -560,7 +560,8 @@ def respawn_if_dead(srv, c, ent):
 def elite(s):
     """(elite, ROUND26) An armed grunt ahead of the players made an elite on the server (vr_attr_set elite 1, QC
     vr_attrs.qc): the remote client B knows it as one (vr_humlook_info: its elites) and draws it with the elite dye (its
-    instance's clothes row: the table's elite colour, a mask); made ordinary again, B knows no elite."""
+    instance's clothes row: the table's elite colour, a mask) and its marker (elite2: the instance's gold glow, vr_elite_glow);
+    made ordinary again, B knows no elite."""
     srv, a, b, ea, eb = join(s, level="vrtesthall", srv_first="developer 1",
                              first=lambda srv, a, ea: put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90))
     b.ent = eb
@@ -596,6 +597,10 @@ def elite(s):
                          for i, (lo, hi) in enumerate(((0.95, 1.0), (0.70, 0.85), (0.18, 0.35)))) and \
         float(m.group(4)) > 0.5 and m.group(6) == "yes"
     s.check("B draws it with the elite dye (dark gold, masked)", ok, line.strip() or "no client elite line")
+    # (elite2: the marker, vr_elite_glow 0.55 pulsing by vr_elite_pulse 0.3: its instance's glow between 0.38 and 0.72)
+    mk = re.search(r"marker ([\d.]+)", line)
+    s.check("B draws the elite marker (its instance's gold glow)", bool(mk) and float(mk.group(1)) > 0.2,
+            line.strip() or "no client elite line")
     since = b.mark()
     srv.cmd("vr_attr_set elite 0")
     b.wait(r"vr_attr_set: .* no longer elite", 10, since, "the grunt made ordinary")
@@ -3510,6 +3515,21 @@ def wpnsync(s, flat=""):
                           "A sees B's nailgun without its magazine")
     s.metric("mag_out_reports", n)
     s.check("A sees B's nailgun without its magazine", True, "A's %s; after %d reports" % (wa, n))
+
+    # (nplava) The nail pistol (WID 29) switched to its lava nails by its button (impulse 43: the weapon button's press):
+    # A draws B's gun in its lava look (progs/v_nailpistol_lava.mdl), and back.
+    srv.cmd("vr_test_give_wid 29")
+    b.cmd("impulse 149")
+    gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and str(w.get("model", "")).endswith("v_nailpistol.mdl"),
+              "A draws B's nail pistol")
+    b.cmd("impulse 43")
+    wa, wb, n = gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and "v_nailpistol_lava" in str(w.get("model")),
+                          "A draws B's nail pistol in its lava look")
+    s.metric("lava_look_reports", n)
+    s.check("A sees B's nail pistol switched to its lava nails (its lava look)", True, "A's %s; after %d reports" % (wa, n))
+    b.cmd("impulse 43")
+    gun_until(s, a, b, eb, 1, lambda w, o: look_same(w, o) and str(w.get("model", "")).endswith("v_nailpistol.mdl"),
+              "A sees B's nail pistol back on its nails")
 
     # The torch: B takes it in his off hand and lights it; A draws it where B does and lights its beam from it.
     b.cmd("vr_flashlight_give left")

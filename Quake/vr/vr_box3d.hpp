@@ -373,6 +373,9 @@ bool ragdollFlail(edict_t* ent, bool on);
 // A living monster's ragdoll (of the active classes) guarding its head from a blow coming from `at` (units) for `hold`
 // s: its arms up before its face (vr_ragdoll_active_guard; QC VR_Guard_Raise). False: it can't.
 bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
+// A living armed monster's ragdoll (of the active classes) aiming its gun arm (the hand nearest `grip`, units) at `at`
+// (units) for `hold` s at `strength` 0..1 (vr_agrunt_ragfire's prototype; QC VR_AG_RagFire). False: it can't.
+bool ragdollAim(edict_t* ent, const glm::vec3& at, const glm::vec3& grip, float hold, float strength);
 // `farther`: its travel's limit (4 m) times this (at least 1; a two-hand shove's hands, a running shove: QC VR_Bash_Hit).
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt = -1.f,
     bool sure = false, float farther = 1.f);

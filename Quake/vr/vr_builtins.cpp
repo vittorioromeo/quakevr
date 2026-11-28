@@ -31,6 +31,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_crates.hpp"
+#include "vr_dazzledata.hpp"
 #include "vr_debris.hpp"
 #include "vr_blowline.hpp"
 #include "vr_dirparryviz.hpp"
@@ -1186,6 +1187,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"pvsvisible", stealth::PF_pvsvisible},
     {"traceseethrough", stealth::PF_traceseethrough},
     {"clientlight", stealth::PF_clientlight},
+    {"dazzletweak", dazzledata::PF_dazzletweak},
     {"stealthprofile", stealth::PF_stealthprofile},
     {"meleerun", PF_meleerun},
     {"meleewristspeed", PF_meleewristspeed},

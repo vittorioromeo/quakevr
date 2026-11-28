@@ -69,6 +69,7 @@ typedef struct edict_s
 
 	float		freetime;		/* sv.time when the object was freed */
 	double		thinkcost;		/* QVR: QC statements its thinks ran (SV_RunThink; QC thinkcost: the armed grunts' census) */
+	unsigned char	thinkdefer;	/* QVR: server frames its due think has waited (vr_think_spread: VR_ThinkSpreadDefer) */
 	entvars_t	v;			/* C exported fields from progs */
 
 	/* other fields from progs come immediately after */

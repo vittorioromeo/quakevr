@@ -263,7 +263,8 @@ namespace
 // 81: every attachment hangs from the gun's mount (mountoffs: mnt_* the mount on the gun, att1_*/att2_* from it past the
 // global vr_attach_<kind>_* offsets): a config's own values converted, a moved mount taking its bayonet and dagger along
 // (takeMountOffsets81).
-constexpr int settingsVersion = 81;
+// 82: the nail pistol's lava look in slot 39, its ammo button shown on its inner side (takeNailPistolLava82).
+constexpr int settingsVersion = 82;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -1328,6 +1329,31 @@ void takeMountOffsets81()
     Con_DPrintf("Weapon settings: %d weapons' attachment values hung from their mounts\n", taken);
 }
 
+// 82 (nplava): the nail pistol's lava look takes slot 39 (unused before: a config archived its keys at the empty slot's
+// defaults), and its ammo button shows (slot 36: wpnbtnmode 1, on its inner side) where a config still holds the old
+// placeholder (mode 0, the anchor "-1.4 1.2 4.6", roll 0); a value set otherwise stays.
+void takeNailPistolLava82()
+{
+    resetSlot(39);
+    int taken = 0;
+    for(const Key key : {Key::WpnButtonMode, Key::WpnButtonRoll})
+    {
+        cvar_t& var = cvarAt(36, key);
+        if(fabsf(var.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+            taken++;
+        }
+    }
+    cvar_t& anchor = cvarAt(36, Key::WpnButtonAnchor);
+    if(!ZA_STRCMP(anchor.string, "-1.4 1.2 4.6"))
+    {
+        Cvar_SetQuick(&anchor, anchor.default_string);
+        taken++;
+    }
+    Con_DPrintf("Weapon settings: the nail pistol's lava look in slot 39, %d of its button's values taken\n", taken);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -1376,6 +1402,7 @@ constexpr Step steps[] = {
     {79, takeGunVariants79},
     {80, takeDaggerFrame80},
     {81, takeMountOffsets81},
+    {82, takeNailPistolLava82},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

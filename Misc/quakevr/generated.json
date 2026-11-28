@@ -1364,7 +1364,7 @@
   "source": "Misc/quakevr/models_src/widowmaker/widowmaker.blend"
  },
  "quakevr/progs/vragarmor.mdl": {
-  "sha256": "e3a89c7bf5bcd2d98fe136b1e291a72284b43bcc83f92dfade3a85c0c88c6d1c",
+  "sha256": "89645f34d499714a915aca531a0bb0afa182ec06c76c948ee9682e47d0a78bf6",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_0.png": {

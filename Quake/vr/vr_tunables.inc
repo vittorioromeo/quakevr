@@ -1530,6 +1530,18 @@ QVR_TUNABLE(vr_kdtrig_thrown_push, "2") // ... its push over and back (two hands
 QVR_TUNABLE(vr_kdtrig_thrown_speed, "160") // ... units/s a body of the monster's own weight topples it at (its momentum over the monster's weight at this: 1); a quarter of it the least that counts
 QVR_TUNABLE(vr_kdtrig_thrown_least, "0.05") // ... a weaker strike (that momentum share) does nothing; from it to 1 the topple's chance grows to its full (else a stagger back)
 QVR_TUNABLE(vr_kdtrig_thrown_window, "1.5") // ... s after a hand lets go it counts as thrown (held and swung: while a hand swings)
+QVR_TUNABLE(vr_ragknock, "1") // Ragdoll knocks (vr_box3d_step.cpp ragKnockStrike, QC VR_KdTrig_Bump; ROUND26.md, "ragknock"): 1 a body strikes by the parts that meet the monster, their momentum into it, in tiers (nothing, a stagger, down) against its weight and stance; 0 the old rule (the whole body's momentum, however it met it)
+QVR_TUNABLE(vr_ragknock_min_speed, "60") // ... units/s: the meeting parts slower into it (relative to it) only brush it
+QVR_TUNABLE(vr_ragknock_body, "0.6") // ... the share of the rest of the body's mass behind its pelvis or chest meeting it
+QVR_TUNABLE(vr_ragknock_limb, "0.15") // ... and behind limbs alone meeting it (an arm, a leg: loose joints carry little)
+QVR_TUNABLE(vr_ragknock_wait, "0.15") // ... s: one strike a meeting, its hardest within this long of their meeting (a hand or a foot first, the trunk behind); sooner when all of the body is in it or it strikes no longer
+QVR_TUNABLE(vr_ragknock_driven, "1.75") // ... a body a stagger's backpedal drives (shoved into it): all of its mass behind the parts, its strike times this
+QVR_TUNABLE(vr_ragknock_stagger, "0.35") // ... a strike under this (Thrown Bodies' strike: 1 a body of its weight at Speed) does nothing; from it a stagger
+QVR_TUNABLE(vr_ragknock_down, "0.9") // ... from this a toppleable one may go down: half the chance here, growing to its full at Sure (else a stagger)
+QVR_TUNABLE(vr_ragknock_sure, "1.5") // ... from this the full chance
+QVR_TUNABLE(vr_ragknock_air, "0.6") // ... a monster off the ground: its weight times this for the strike (easier)
+QVR_TUNABLE(vr_ragknock_low, "1.6") // ... a low, wide stance (its box's height under Low Ratio times its width: an ogre, a dog, a spider): its weight times this (harder)
+QVR_TUNABLE(vr_ragknock_low_ratio, "1.45") // ... height over width under which a stance is low (a grunt 1.75, an ogre 1.38)
 
 // Combat > Ragdoll Triggers - Wounded
 QVR_TUNABLE(vr_kdtrig_wounded, "0.25") // Wounded: the chance (Badly hurt, any hit may knock it down.)
@@ -2002,6 +2014,7 @@ QVR_TUNABLE(vr_flat_rv_open_out_time, "0.2") // flat-screen play: the revolver's
 // reloadsys, 2026-11-28): quakevr/data/reloads.txt (vr_reloadsys.hpp), edited by the Reload Studio.
 QVR_TUNABLE(vr_flat_prl_failsafe, "0.6") // seconds after the round reaches the port without going in (a wall, a blocked hand) before the reload is cancelled (its round back in the pouch)
 QVR_TUNABLE(vr_flat_prl_giveup, "1.5") // the server's failsafe (QC): seconds with nothing taken or loaded before it cancels the reload
+QVR_TUNABLE(vr_reload_speed, "1") // reloadstudio2 (his ask 2026-11-28): every procedural reload played this much faster (x its gun's own speed in reloads.txt; 0.5..3); never slows movement
 QVR_TUNABLE(vr_flat_ammo_pouch_x, "-1") // flat-screen play's ammo pouch (shown with vr_flat_proc_reload): units it sits forward of the headset's place
 QVR_TUNABLE(vr_flat_ammo_pouch_y, "0") // and to the right
 QVR_TUNABLE(vr_flat_ammo_pouch_z, "0") // and up
@@ -3011,3 +3024,14 @@ QVR_TUNABLE(vr_elite_arena_wave, "4") // the Survival Arena's waves from this on
 QVR_TUNABLE(vr_elite_arena_chance, "0.2") // ... each armed humanoid in them an elite with this chance
 QVR_TUNABLE(vr_elite_pulse, "0.3") // the elite dye's pulse: its dark gold glows this far towards bright gold and back, brighter by as much (0: steady)
 QVR_TUNABLE(vr_elite_pulse_hz, "0.6") // ... this many times a second
+// Armed ones firing as ragdolls (vr_agrunt_ragfire, a prototype; QC vr_armedgrunt_ragfire.qc; docs/vr-port/RAGFIRE.md).
+QVR_TUNABLE(vr_agrunt_ragfire_cone, "60") // degrees: it fires only while its gun points within this of its target (from the muzzle)
+QVR_TUNABLE(vr_agrunt_ragfire_steer, "30") // degrees: its shot turned from the gun's line towards its target by at most this (its wrist)
+QVR_TUNABLE(vr_agrunt_ragfire_interval, "1.6") // s: at least this between its shots (up to half again at random); its first this long after it became a ragdoll
+QVR_TUNABLE(vr_agrunt_ragfire_nail_interval, "0.6") // s: ... a nailgun's or the nail pistol's
+QVR_TUNABLE(vr_agrunt_ragfire_error, "5") // degrees: each shot's aim off at random by up to this, on top of its gun's spread
+QVR_TUNABLE(vr_agrunt_ragfire_aim, "0.7") // its gun arm's reach towards its target (0..1, the active ragdoll's arm strength; 0: no reach, it fires only when its gun happens to point near)
+QVR_TUNABLE(vr_agrunt_ragfire_held, "1") // 1: it fires held in your hands too (grab its gun to take it); 0 not while held
+QVR_TUNABLE(vr_elite_glow, "0.55") // the elite marker: a soft gold glow round an elite's outline and on its armour, unlit (seen in the dark); its strength (0: none). It pulses with the dye (vr_elite_pulse)
+QVR_TUNABLE(vr_elite_trim, "1") // an elite's armour plates drawn with a gold trim round their edges (make_agarmor.py's elite skins; the faces keep the tier's colour). 0: the tier's own trim
+QVR_TUNABLE(vr_elite_glow_fill, "0.12") // ... and this share of it over the whole body facing you, not its armour's plates (0: the outline alone)

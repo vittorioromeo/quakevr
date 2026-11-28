@@ -217,6 +217,8 @@ constexpr LoadPort loadPorts[] = {
         {&vr_reload_port_revolver_x, &vr_reload_port_revolver_y, &vr_reload_port_revolver_z}, &vr_reload_port_revolver_radius, false},
     {modelmeta::Id::VNailPistol, {-0.6237f, 0.f, -2.934f},
         {&vr_reload_port_npistol_x, &vr_reload_port_npistol_y, &vr_reload_port_npistol_z}, &vr_reload_port_npistol_radius, true},
+    {modelmeta::Id::VNailPistolLava, {-0.6237f, 0.f, -2.934f}, // (its lava nails' look, nplava)
+        {&vr_reload_port_npistol_x, &vr_reload_port_npistol_y, &vr_reload_port_npistol_z}, &vr_reload_port_npistol_radius, true},
     // AD support: AD's Plasma Gun: its cell's well on its inner side (vr_adweapons.cpp plasmaSeat; vr_view.cpp magMounts).
     {modelmeta::Id::AdVrPlasma, {11.6f, 2.1f, 4.5f},
         {&vr_reload_port_adplasma_x, &vr_reload_port_adplasma_y, &vr_reload_port_adplasma_z}, &vr_reload_port_adplasma_radius,
@@ -498,6 +500,9 @@ void forEachEntity(F&& f)
 }
 
 [[nodiscard]] bool isHandModel(const qmodel_t* model);
+// Flat play's procedural reload locked at a key (the Reload Studio): its item placed on `hand` as drawn at (`pos`, `rot`),
+// before that hand's grasp (vr_view.cpp; reloadstudio2). False: the lock draws no item in that hand.
+bool placePrlItem(int hand, const glm::vec3& pos, const glm::vec3& rot);
 [[nodiscard]] qmodel_t* precachedModel(int index);
 
 // Mod_ForName(name, false) for the view entities' own models, asked for every frame: the model found for the

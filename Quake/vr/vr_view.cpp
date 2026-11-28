@@ -180,7 +180,10 @@ void updateFingerFrames()
         // (Flat-screen play's procedural reload, prlmove: its free hand holding the round grips it as a headset's hand does,
         // the grip squeezed (blended in by its share), the index closing with it: vr_flatprocreload.cpp gripShare.)
         const float roundShare = flatplay::active() && !holder && !flatGrips ? flatprocreload::gripShare(hand) : 0.f;
-        HandInput onRound = fistShare > 0.f ? fist : input.hands[hand];
+        // (reloadstudio2: never the guard's fist under it: a real reload's hand holds the round as a prop, which opens the
+        // guard's fist (flatplay::fistShare: carryShare), while the Reload Studio's lock's hand holds none and kept the fist,
+        // so its fingers' solve started from another pose and wrapped the same item differently.)
+        HandInput onRound = input.hands[hand];
         onRound.gripValue = za::fmax(onRound.gripValue, roundShare);
         const HandInput& in = holder || flatGrips ? holding : roundShare > 0.f ? onRound : fistShare > 0.f ? fist : input.hands[hand];
         // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
@@ -264,6 +267,9 @@ constexpr MagMount magMounts[] = {
     // grip's lean, 12 degrees back): no receiver drawn (the grip is its well: `well` none).
     {modelmeta::Id::VNailPistol, "progs/vr_mag_on_v_nailpistol.mdl", "0.4678 0 2.2008", nullptr, {0.4678f, 0.f, 2.2008f},
         {-0.0669f, 0.f, -0.5072f}, QVR_WELL_OFFSETS(npistol), 3},
+    // (Its lava nails' look, nplava: the same gun in its lava skin, its seated magazine the lava one.)
+    {modelmeta::Id::VNailPistolLava, "progs/vr_mag_on_v_nailpistol_lava.mdl", "0.4678 0 2.2008", nullptr,
+        {0.4678f, 0.f, 2.2008f}, {-0.0669f, 0.f, -0.5072f}, QVR_WELL_OFFSETS(npistol), 3},
 };
 #undef QVR_WELL_OFFSETS
 } // namespace
@@ -3211,26 +3217,50 @@ namespace
 
 // Flat play's procedural reload locked at a key pose with a pair in the free hand (vr_flat_prl_lock: prlfix): the pair
 // drawn in it as a real take's sat (the server gives none: nothing is taken or loaded).
+int prlItemFrame = -1; // host_framecount the lock's item was last placed on its hand (placePrlItem)
+
+// (reloadstudio2: placed on the hand as drawn by setupHand, before the hand's grasp, placePrlItem; hidden here otherwise.)
 void setupPrlPair(const hands::State& s)
 {
+    (void)s;
     view::ViewEntity& ve = entities.prlPair;
     int hand = HAND_OFF;
     float size = 1.f;
-    qmodel_t* const model = flatprocreload::lockPair(hand, size) ? view::viewModel(flatprocreload::lockItemModel()) : nullptr;
-    if(!model)
+    if(!flatprocreload::lockPair(hand, size) || prlItemFrame != host_framecount)
     {
         ve.visible = false;
-        return;
     }
-    glm::vec3 pos = s.pos[hand], rot = s.rot[hand];
-    (void)view::drawnHandPose(hand, pos, rot); // (the hand as drawn this frame, else as posed)
+}
+
+} // namespace
+
+// The lock's item placed on `hand` as drawn (setupHand, before the hand's grasp, so it wraps it as a real reload's hand wraps
+// the item the server gave it; reloadstudio2): as a real take's sat in the hand (the server gives none: nothing is taken or
+// loaded). False: no item in that hand.
+bool placePrlItem(int hand, const glm::vec3& pos, const glm::vec3& rot)
+{
+    view::ViewEntity& ve = entities.prlPair;
+    int lockHand = HAND_OFF;
+    float size = 1.f;
+    qmodel_t* const model =
+        flatprocreload::lockPair(lockHand, size) && lockHand == hand ? view::viewModel(flatprocreload::lockItemModel()) : nullptr;
+    if(!model)
+    {
+        return false;
+    }
     glm::mat3 axes;
     const glm::vec3 at = flatprocreload::lockPairPlace(pos, rot, axes);
     place(ve, model, at, aliasAngles(axes[0], axes[2]), 0, false);
     ve.ent.skinnum = flatprocreload::lockItemSkin(); // (reloadmuzzle: the revolver's blue slugs)
+    ve.ent.frame = 0;
     ve.scale = glm::vec3{CLAMP(0.25f, size, 4.f)};
     ve.visible = true;
+    prlItemFrame = host_framecount;
+    return true;
 }
+
+namespace
+{
 
 void setupAmmoPouch(const hands::State& s)
 {
@@ -6432,7 +6462,35 @@ extern "C" void VR_SetupViewEntities()
             const glm::mat3 shaken = axes(shakenRot), steady = axes(s.visualRot[hand] + knockAngles[hand]);
             s.muzzle[hand] = s.pos[hand] + knockPos[hand] + steady * (glm::transpose(shaken) * (s.muzzle[hand] - shakenPos));
         }
-        else if(s.muzzleValid[hand])
+        if(flatplay::active() && (shakePos[hand] != glm::vec3{0.f} || shakeAngles[hand] != glm::vec3{0.f}))
+        {
+            // (reloadstudio2) Flat play: the loading port and the seated magazine's place too, as the muzzle: put back on the
+            // steady gun. Measured on the breathing, swaying gun against the steady hand (flatprocreload's measurePort), the
+            // procedural reload's hand was solved to a port that breathed with the looks' sway, and then carried on the drawn
+            // gun once more (attachDrawn): it drifted 0.2-0.3 units about the drawn port as the gun breathed.
+            const auto axes = [](const glm::vec3& angles) {
+                glm::vec3 f, r, u;
+                hands::angleVectors(angles, f, r, u);
+                return glm::mat3{f, r, u};
+            };
+            const glm::mat3 back = axes(s.visualRot[hand] + knockAngles[hand]) * glm::transpose(axes(shakenRot));
+            const glm::vec3 steadyPos = s.pos[hand] + knockPos[hand];
+            if(s.loadPortValid[hand])
+            {
+                s.loadPort[hand] = steadyPos + back * (s.loadPort[hand] - shakenPos);
+                s.loadPortAxis[hand] = back * s.loadPortAxis[hand];
+                s.loadPortFace[hand] = back * s.loadPortFace[hand];
+            }
+            if(s.magSeatValid[hand])
+            {
+                s.magSeat[hand][0] = steadyPos + back * (s.magSeat[hand][0] - shakenPos);
+                for(int i = 1; i < 4; i++)
+                {
+                    s.magSeat[hand][i] = back * s.magSeat[hand][i];
+                }
+            }
+        }
+        if(s.muzzleValid[hand] && shakePos[hand] == glm::vec3{0.f} && shakeAngles[hand] == glm::vec3{0.f})
         {
             // Nor held back on a prop (vr_box3d_press_back): the game's muzzle is the far end of a melee weapon's line
             // (QC VR_Blow_Points). Held back, it lagged the hand and then caught up at once as the press let go: a blow

@@ -309,6 +309,9 @@ za::Vector<Item> pageDebugViews()
         command("Print Navmesh Hash", "vr_nav_hash")
             .help("vr_nav_hash: one hash of the navmesh (its tiles, as doors, lifts and props left them) and one of the "
                   "monsters' paths, bit for bit: two runs of the same play print the same (determinism tests)."),
+        command("Time the Chasers' Path Searches", "vr_nav_pathbench 20")
+            .help("vr_nav_pathbench 20: the last 64 path searches of chasing monsters run 20 times each, by Detour's own way "
+                  "and by Quake VR's faster one (vr_qc_builtin_fast): the time a search each way and whether every result matched."),
         command("Crowd Stall Test (40 s)", "vr_nav_crowdtest 40")
             .help("vr_nav_crowdtest 40: every walker comes at you; each half second one moved under 8 units while over 128 "
                   "away is a stall, given its cause (a monster or a wall in the way, a ledge, in a wall, no chase...). The "
@@ -839,6 +842,11 @@ za::Vector<Item> pageDebugProfiling()
         header("Threads"),
         row(opt::vr_jobs_parallel),
         row(opt::snd_mixasync),
+        slider("Sound Paint Left to the Pool", snd_mixasync_lead, 0.f, 1.f, 0.1f, "%.1f")
+            .help("snd_mixasync_lead: the frame's own sound paint left to the pool's mix while the sound already painted "
+                  "leads the device by 60% of the mix-ahead or more (a long frame still paints at once): the spatial audio's "
+                  "reverb (~2 ms on the Quest) no longer lands on the main thread every few frames. 0: both paint, as "
+                  "before (the same sound). Sound Mix Stats counts the paints left to the pool."),
         command("Sound Mix Stats", "snd_mixstats reset")
             .help("snd_mixstats: the pool's mixes since the last press (their time, the main thread's waits for them and "
                   "where), the underruns (the device past what was painted: a glitch) and the least mix-ahead left."),
@@ -910,7 +918,16 @@ za::Vector<Item> pageDebugProfiling()
         toggle("QuakeC's Busiest Builtins, Faster", vr_qc_builtin_fast)
             .help("vr_qc_builtin_fast: faster native ways for the engine functions QuakeC calls most, the same results "
                   "(a worn backpack's place on a body out of view from the bones of the few vertices it rides, not the whole "
-                  "skeleton). Off: as before, to compare. 2 (console): both, compared bit for bit."),
+                  "skeleton; a chasing monster's path search without Detour's linear open-list search; an armed humanoid's gun "
+                  "vertices with its frame set up once). Off: as before, to compare. 2 (console): both, compared bit for bit."),
+        slider("Monsters' Thinks Spread over Frames", vr_think_spread, 0.f, 32.f, 1.f, "%.0f")
+            .help("vr_think_spread: a server frame runs at most 12 monsters' thinks; the rest wait a frame (each at most "
+                  "vr_think_spread_frames, 4) and run at that frame's time: a crowd woken together (a shot's noise) no "
+                  "longer thinks all on one frame every 0.1 s (hip1m1's 69: QuakeC 11-14 ms on every 7th frame on the Quest). "
+                  "0: every due think in its frame, as before."),
+        command("Monsters' Thinks a Frame", "vr_think_spread_stats reset")
+            .help("vr_think_spread_stats: the server frames since the last press: monsters' thinks a frame and their QuakeC "
+                  "statements (median, 90th percentile, most), the other thinks' statements, the thinks that waited."),
         toggle("Armed Humanoids: Far Unseen Weapon Thinks Less Often", vr_agrunt_think_lod)
             .help("vr_agrunt_think_lod: an armed humanoid no player can see, far, with nothing moving near its weapons and "
                   "no attack, aim or parry under way, runs its weapon's think (scans, parry, pose) once every "
@@ -1138,6 +1155,11 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_attach_debug),
         row(opt::vr_flat_proc_reload_debug),
         row(opt::vr_flat_prl_test_miss),
+        row(opt::vr_flat_prl_hold),
+        command("Procedural Reload: Pose Print", "vr_flatprocreload_pose")
+            .help("vr_flatprocreload_pose: the free hand and the item in it as drawn now (a real reload's or the Reload Studio's "
+                  "lock), in the gun hand's frame: the hand placed and drawn, the item, the grasp's palm move and the fingers' "
+                  "curls (fprl_pose: ...)."),
         command("Reload Studio", "vr_reloadstudio")
             .help("vr_reloadstudio: the procedural reloads' keyframes in an ImGui window over play (flat screen): pick a gun, "
                   "play, pause, step or scrub its keys, edit each key's times, ease, the gun's tilt, the free hand's offset and "
@@ -1936,6 +1958,12 @@ za::Vector<Item> pageDebugTools()
         open("Texture Studio", pageIndex(pageTextureStudio))
             .help("The armed humanoids' recolours by weapon: each row's colour, strength, lightness and tint, and which "
                   "texels they dye (palette rows, painted texels), live on a row lined up ahead; saved to quakevr/humlook.txt."),
+        command("Dazzle Studio (Flat Screen)", "vr_dazzlestudio")
+            .help("vr_dazzlestudio: the flashlight dazzle's shield pose tweaked per armed humanoid kind (one weapon, and two: "
+                  "the dual-wielding set) in an ImGui window: the kind stands ahead of you shielding its eyes (frozen, or "
+                  "its hand rising and falling), gizmos on its hand, elbow and gun hand (click a dot, or 1 2 3; W move, E "
+                  "turn), sliders, the right-button drag turns it; Save writes quakevr/data/dazzle.txt (all zero: the base "
+                  "pose). vr_dazzlestudio test ends on 'dazzlestudio: N passed, M failed'. Flat screen only."),
         header("Enemy Attributes"),
         command("Make the Nearest Monster Elite", "vr_attr_set elite 1")
             .help("vr_attr_set elite 1: the monster nearest you an elite (much faster fire, reaction, aim and swings, 1.25x "
@@ -1949,6 +1977,10 @@ za::Vector<Item> pageDebugTools()
             .help("vr_humlook_dyetest: each elite's clothes as drawn (its skin's masked texels through its dye) "
                   "against its stock skin, in the console: PASS when warmer, towards gold. Armour plates cover the dye "
                   "where they sit: Armour Studio or vr_agarmor_set <entity> 0 to see it bare."),
+        command("Check the Elites' Marker", "vr_humlook_glowtest")
+            .help("vr_humlook_glowtest: the elite marker as last drawn, in the console: each elite's body and armour plates "
+                  "glowing gold (and its plates the gold-trimmed skins), every ordinary armed humanoid's not (vr_elite_glow, "
+                  "vr_elite_trim)."),
         header("Controller Bindings"),
         command("Controller Bindings Screen", "menu_bindsetup")
             .help("menu_bindsetup [model]: the Controller Bindings screen for the controller in use (or a model's: quest3, "

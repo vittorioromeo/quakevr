@@ -164,6 +164,7 @@ vr_decap_test.qc
 vr_limbs.qc
 // Armour for armed humanoids (after vr_limbs.qc, vr_decap.qc: their cut and pop globals; vr_armedgrunt_defs.qc has its fields).
 vr_agarmor.qc
+vr_run_allelites.qc // the run's All Elites (after vr_agarmor.qc: the arena's held roll, vr_ar_hold_roll)
 vr_playerplates.qc
 // Teeth knocked out by a punch to the face (after vr_decap.qc: its head zone and blunt hardness).
 vr_teeth.qc
@@ -627,6 +628,7 @@ vr_armedgrunt_shot.qc
 vr_ownclash.qc // weapon clash: your own two weapons meeting; the weapon-on-weapon material table (after VR_AG_SegDist)
 vr_armedgrunt_parry.qc
 vr_armedgrunt_guard.qc // its guard: the preventive and wind-up parries (vr_agrunt_preparry, vr_agrunt_windup_parry)
+vr_armedgrunt_ragfire.qc // firing as a ragdoll (vr_agrunt_ragfire, a prototype: staggering, down or held)
 vr_dirparry.qc // the directional parry: a blow's line, your weapon held across it
 vr_playerdisarm.qc // the player disarmed: monsters' shots and blows on your weapon, by the armed humanoids' rules; VR_Player_Disarm
 vr_playerdisarm_grab.qc // another player's weapon taken by a grab and a pull (MP B10)
@@ -678,12 +680,14 @@ vr_armedgrunt_grab_test.qc
 vr_armedgrunt_impact_test.qc
 vr_ledgeshove_test.qc
 vr_ragthud_test.qc
+vr_ragknock_test.qc
 vr_armedgrunt_lod_test.qc // tests 226-229: the armed grunts' cost by state, a far one woken, a worn pack's LOD
 vr_armedgrunt_dualdisarm_test.qc
 vr_armedgrunt_second_test.qc
 vr_ogre_friends_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
+vr_armedgrunt_ragfire_test.qc // vr_agrunt_test 237: firing as a ragdoll (vr_agrunt_ragfire)
 vr_armedknight_test.qc
 vr_footstep_test.qc
 vr_armedgrunt_range_test.qc
@@ -710,6 +714,7 @@ vr_armedgrunt_reach_test.qc
 vr_armedgrunt_guard_test.qc
 vr_armedgrunt_adpose_test.qc
 vr_nailpistol_test.qc
+vr_nplava_test.qc // the nail pistol's lava nails (vr_np_test 8; nplava)
 vr_magslide_test.qc
 vr_nail_test.qc
 vr_flaregun_test.qc

@@ -3596,14 +3596,14 @@ weapon 36
     pitch "-6.85"
     roll "0.0"
     scale "0.45"
-    wpnbtn_av "-1.4 1.2 4.6"
+    wpnbtn_av "3.6 1.15 2.3" // (nplava: its lava nails' button on its inner side, on the frame under the slide)
     wpnbtn_pitch "0.0"
-    wpnbtn_roll "0.0"
+    wpnbtn_roll "-90.0"
     wpnbtn_x "0.0"
     wpnbtn_y "0.0"
     wpnbtn_yaw "0.0"
     wpnbtn_z "0.0"
-    wpnbtnmode "0.0"
+    wpnbtnmode "1"
     wpntxt_av "-1.4 1.2 4.6"
     wpntxt_pitch "0"
     wpntxt_roll "0.0"
@@ -3865,6 +3865,15 @@ weapon 38
     fx_gfx_wisp_alpha "0.26"
     fx_gfx_wisp_barrels "1"
     fx_gfx_mask "1275:AAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAw_________BAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgBAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg__h__BAAAAAAAAAAAAAAAAAAA"
+}
+
+// slot 39: progs/v_nailpistol_lava.mdl (vr_wofs_*_40): the nail pistol's lava-nail look, slot 36's model
+// (progs/v_nailpistol.mdl) in another skin (Quake/vr/vr_gunvariants.inc, one model per gun; nplava): every value slot
+// 36's, anchors and all; only a difference of its own here.
+weapon 39
+{
+    id "progs/v_nailpistol_lava.mdl"
+    inherit "37"
 }
 
 // slot 40: progs/w_dfurysword1.mdl#melee (vr_wofs_*_41)

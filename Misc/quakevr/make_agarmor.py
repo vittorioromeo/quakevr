@@ -98,6 +98,12 @@ TRIM_TINT = {1: 0.1, 2: 0.3, 3: 0.15}  # ... and this much towards TRIM_BROWN
 TRIM_BROWN = (92, 64, 26)
 TRIM_SHARE = 0.85         # the trim's strength over the paint (0: none)
 TRIM_REACH = 1.15         # the trim's width, of BEVEL (past the bevel onto the face)
+# An elite's plates (ROUND26.md, "elite2"; his ask 2026-11-28: a gold trim, the tier's colour still clearly read): skins 9..17, the
+# same nine with the trim a bright gold instead of the darker paint (the faces untouched: the tier's colour), its texels quantised
+# with the gold rows too (Quake's tan-gold and yellow rows' lighter half). vr_agarmor.cpp relink draws them on an elite (vr_elite_trim).
+ELITE_TRIM = (250, 200, 84)
+ELITE_TRIM_SHARE = 1.0
+ELITE_GOLDS = list(range(96, 108)) + list(range(192, 202))
 # The emblem: a rune (a ring, a stem and two arms raised; our own, not id's logo), dark red on green and yellow, near black on red. Its
 # texels quantised with the reds too (to_palette): no tier's own rows have a red.
 EMBLEM = {1: (118, 20, 14), 2: (124, 18, 12), 3: (30, 22, 16)}
@@ -557,17 +563,19 @@ def dents_of(level, seed):
     return shade, height
 
 
-def paint(lay, armor, level):
-    """A skin: tier `armor`, wear `level`; full colour, H x W x 3, 0..255."""
+def paint(lay, armor, level, elite=False):
+    """A skin: tier `armor`, wear `level` (an elite's: the trim gold); full colour, H x W x 3, 0..255."""
     base = np.asarray(PAINT[armor], dtype=float)
     img = base[None, None] * lay.tone
     # The paint's own mottling and fine grain.
     # (armourstyle, ROUND26.md: his "after": muted paint under heavy grime, chipped and rusted at the edges, blood and dirt
     # specks, baked occlusion, soft bevels, rivets as small dark and light dots: the bare grunt's skin's value and grit)
     img = img * (0.86 + 0.26 * lay.mottle)[..., None] * (0.92 + 0.16 * lay.grain)[..., None]
-    # The trim: the paint darker and browner, shaded as the plate is.
+    # The trim: the paint darker and browner, shaded as the plate is (an elite's: gold).
     trim_col = np.asarray(base, dtype=float) * TRIM_DARK * (1 - TRIM_TINT[armor]) + np.asarray(TRIM_BROWN, dtype=float) * TRIM_TINT[armor]
-    t = (lay.trim * TRIM_SHARE)[..., None]
+    if elite:
+        trim_col = np.asarray(ELITE_TRIM, dtype=float)
+    t = (lay.trim * (ELITE_TRIM_SHARE if elite else TRIM_SHARE))[..., None]
     img = img * (1 - t) + trim_col[None, None] * lay.tone * (0.9 + 0.2 * lay.mottle)[..., None] * t
     img = img * np.clip(lay.shade * (1.0 + lay.bev), 0.0, 1.5)[..., None]
     # The emblem, under the wear.
@@ -687,11 +695,11 @@ class PairQuantiser:
         return np.where(noise < t[n, best], self.ids[self.b[best]], self.ids[self.a[best]])
 
 
-def to_palette(img, armor, emblem):
+def to_palette(img, armor, emblem, trim=None):
     """The skin in 8 bits, the game's own size: each 2 x 2 texels' mean, a little irregular noise (the paint's grain, never a
     regular dither), the nearest colour of the tier's rows of the palette; leather and grime may use the browns and greys; the
     emblem's and the blood and dirt specks' texels (`emblem`: Layers.accent, full size) the reds too (EMBLEM_REDS on green and
-    yellow; SPECK_COLOURS on every tier)."""
+    yellow; SPECK_COLOURS on every tier); an elite's gold trim's texels (`trim`: Layers.trim, full size) the golds too."""
     pal = np.asarray(palette(), dtype=float)
     allowed = sorted(set(TIER_COLOURS[armor]))
     red_allowed = np.asarray(sorted(set(allowed + (EMBLEM_REDS if armor != 3 else []) + SPECK_COLOURS)))
@@ -711,6 +719,13 @@ def to_palette(img, armor, emblem):
         idx[y] = plain.row(small[y], pick[y])
         if red_texels[y].any():
             idx[y] = np.where(red_texels[y], reds.row(small[y], pick[y]), idx[y])
+    if trim is not None:
+        gold_allowed = np.asarray(sorted(set(ELITE_GOLDS + GREYS + BROWNS)))  # (not the tier's rows: no green or red speckle in the gold)
+        golds = PairQuantiser(pal[gold_allowed], gold_allowed)
+        gold_texels = (trim.reshape(SKIN_H, SCALE, SKIN_W, SCALE).mean(axis=(1, 3)) > 0.35) & ~red_texels
+        for y in range(SKIN_H):
+            if gold_texels[y].any():
+                idx[y] = np.where(gold_texels[y], golds.row(small[y], pick[y]), idx[y])
     # (the top-left texel black: the engine's Mod_FloodFillSkin floods the region of the top-left texel's colour with black unless
     # it's black already, which took the dark under-layer along the atlas's top out of its tiles)
     idx[0, 0] = 0
@@ -732,10 +747,13 @@ def build():
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "quakevr", "progs")
     lay = build()
-    # Nine skins: type - 1 + 3 x wear (0 whole, 1 at two thirds of its pool, 2 at a third: vr_agarmor.cpp relink).
+    # Nine skins: type - 1 + 3 x wear (0 whole, 1 at two thirds of its pool, 2 at a third: vr_agarmor.cpp relink); then the same
+    # nine with an elite's gold trim (9 + the same: elite2).
     images = [paint(lay, armor, level) for level in (0, 1, 2) for armor in (1, 2, 3)]
     armors = [armor for level in (0, 1, 2) for armor in (1, 2, 3)]
     skins = [to_palette(img, armor, lay.accent) for img, armor in zip(images, armors)]
+    elites = [paint(lay, armor, level, elite=True) for level in (0, 1, 2) for armor in (1, 2, 3)]
+    skins += [to_palette(img, armor, lay.accent, lay.trim) for img, armor in zip(elites, armors)]
     mesh = mdlgen.Mesh(SKIN_W, SKIN_H, REGIONS)
     mesh.box((0.0, 0.0, 0.0), (1.0, 1.0, 1.0), "whole")  # (a placeholder: only the skins are used)
     path = os.path.join(out, "vragarmor.mdl")

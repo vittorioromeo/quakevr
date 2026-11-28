@@ -113,6 +113,7 @@ struct Reload
     Dest dest{Dest::Port};
     glm::vec3 itemRot{0.f}; // degrees: the item's turn at its destination in the gun's frame
     int loopFrom{-1}, loopTo{-1};
+    float speed{1.f};       // the whole reload played this much faster (the file's `speed`; times vr_reload_speed; reloadstudio2)
     int keyCount{0};
     Key keys[maxKeys];
 };
@@ -146,6 +147,11 @@ void touched();
 // A key's gun time (its own, else the key's), at least 0.02 s; its hand time at least 0.02 s.
 [[nodiscard]] float handTime(const Key& k);
 [[nodiscard]] float gunTime(const Key& k);
+// How much faster than its keys' times reload `r` plays (his ask 2026-11-28): its own `speed` times the global
+// vr_reload_speed, each held to minSpeed..maxSpeed (1 and 1: the keys' times). Movement is never slowed by a reload.
+inline constexpr float minSpeed = 0.5f;
+inline constexpr float maxSpeed = 3.f;
+[[nodiscard]] float playSpeed(const Reload& r);
 // The key after `i` (the loop back while `looping`, the first `finish` key once not; skipping keys whose condition fails by
 // `cond(c)`); -1: the end.
 template<class F>

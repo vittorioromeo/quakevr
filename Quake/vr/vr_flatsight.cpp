@@ -1861,7 +1861,7 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
         st.lookFar = soft >= 1.f;
     }
     // E: a force grab takes the free hand off the gun to turn its palm out (vr_flatfgrab.cpp), and back on after.
-    const bool reaching = (st.helping >= 0 && (flatfgrab::busy(st.helping) || flatattach::busy(st.helping) || flatprocreload::busy(st.helping))) || (st.helping == HAND_OFF && glm::length(reach) > 0.f);
+    const bool reaching = (st.helping >= 0 && (flatfgrab::busy(st.helping) || flatattach::busy(st.helping) || (flatprocreload::busy(st.helping) && !flatprocreload::freesForGrip(st.helping)))) || (st.helping == HAND_OFF && glm::length(reach) > 0.f);
     // The hands' swap (vr_flatswap.cpp; his words 2026-11-12: "The rocket launcher is the only one where it looks good. Please
     // look at what the rocket launcher does, and use the same logic for other similar 2H weapons"): the rocket launcher's free
     // hand is on a real grip, which the swap blocks until the weapon has changed hands (flatswap::gripBlocked), so it lets go
@@ -2141,7 +2141,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // 2026-11-10) never goes to the grip: the gun is held one-handed (emptyHand: no stance either), as dual wielding.
     st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatplay::shoving(st.helping) &&
                     !flatreload::busy(st.holding) && !flatgrenade::letsGo(st.holding, st.helping) && !flatswap::gripBlocked() &&
-                    !flatfgrab::busy(st.helping) && !flatattach::busy(st.helping) && !flatprocreload::busy(st.helping) && !flatplay::holdsThing(st.helping) &&
+                    !flatfgrab::busy(st.helping) && !flatattach::busy(st.helping) && (!flatprocreload::busy(st.helping) || flatprocreload::freesForGrip(st.helping)) &&
+                    !flatplay::holdsThing(st.helping) &&
                     flatplay::bladeShare(st.holding) <= 0.f && // (the guard's blade grip takes it: flatplay::bladePin)
                     !flatswim::freesHand(); // (swimming: the free hand swims, vr_flatswim.cpp)
     // A grip no pose carries the free hand to (a melee weapon's hs1 up the handle: the axe's, Mjolnir's, the super axe's;
