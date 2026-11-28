@@ -1,0 +1,7 @@
+// quakevr/data/dazzle.txt -- the flashlight dazzle's shield pose tweaked per armed humanoid kind (vr_dazzledata.hpp;
+// written by the Dazzle Studio, vr_dazzlestudio). Laid on the base pose (QC VR_AGP_Shield); a field left out is zero,
+// all zero is the base pose exactly. `<kind> <single|dual> <field> <values>`: kinds grunt enforcer knight deathknight
+// deathguard crossbowknight; single: one weapon (or none), dual: two (vr_agrunt_dazzle_dual's shield). Fields:
+// hand (the shielding hand moved: forward, left, up in its body, units), hand_turn (two weapons: the left one turned
+// in that hand, pitch yaw roll degrees), elbow (added to its elbow's way '0.3 1 -0.45'), twist (degrees: the elbow
+// turned about the shoulder-to-hand line), gun (the gun hand moved away while it shields: forward, left, up).

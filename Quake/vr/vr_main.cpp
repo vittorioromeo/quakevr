@@ -19,6 +19,8 @@
 #include "vr_armourdata.hpp"
 #include "vr_armourstudio.hpp"
 #include "vr_reloadstudio.hpp"
+#include "vr_dazzledata.hpp"
+#include "vr_dazzlestudio.hpp"
 #include "vr_humlook.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_mapstyle.hpp"
@@ -2337,6 +2339,8 @@ extern "C" void VR_Init()
     agarmor::init();   // the armed humanoids' armour shells (vr_agarmor.cpp): vr_agarmor_info, _check, _rebuild, _set
     armourdata::init();   // the armour's hand tweaks, quakevr/data/armour.txt (vr_armourdata.cpp): read; vr_armour_reload, _print
     armourstudio::init(); // the Armour Studio (vr_armourstudio.cpp): vr_armourstudio, _close, _save, _undo, _reset_*; vr_armour_test
+    dazzledata::init();   // the dazzle shield's per-kind tweaks, quakevr/data/dazzle.txt (vr_dazzledata.cpp): vr_dazzle_load, _save
+    dazzlestudio::init(); // the Dazzle Studio (vr_dazzlestudio.cpp): vr_dazzlestudio [open|close|toggle|test]
     VR_RegisterPackStatus();
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
@@ -2621,6 +2625,7 @@ extern "C" void VR_Shutdown()
     waveeditor::shutdown();
     armourstudio::windowShutdown(); // (its ImGui window closed, the input grab given back)
     reloadstudio::shutdown(); // (likewise)
+    dazzlestudio::shutdown(); // (likewise; its subject removed)
     weaponstudio::shutdown(); // (its window closed, its preview humanoid let go)
     rigstudio::shutdown(); // (the studio closed: its settings put back; ImGui let go, the GL context still there)
     doom::shutdown(); // Doom's settings saved, qvr_doom.dll unloaded
@@ -2802,6 +2807,7 @@ extern "C" void VR_BeginFrame()
         ragtool::clientFrame(); // -ragtool: the ragdoll tool started once the game is up (vr_ragtool.cpp)
         armourstudio::windowFrame(); // vr_armourstudio_window: its ImGui window (first: it closes when another tool opens)
         reloadstudio::frame(); // vr_reloadstudio: the procedural reloads' keyframes (vr_reloadstudio.cpp; closes when another tool opens)
+        dazzlestudio::frame(); // vr_dazzlestudio: the dazzle shield's per-kind tweaks (vr_dazzlestudio.cpp; likewise)
         rigstudio::clientFrame(); // vr_rigstudio: its ImGui frame and windows (vr_rigstudio.cpp; nothing while closed)
         waveeditor::clientFrame(); // vr_waveeditor: likewise (never both: it won't open with the studio's up)
         weaponstudio::clientFrame(); // vr_weaponstudio: likewise (flat screen: its own window; never with the other two)
