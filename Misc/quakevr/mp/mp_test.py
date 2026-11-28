@@ -4330,21 +4330,24 @@ def beast_drawn(inst):
     beasts = {}
     for line in inst.lines[since:]:
         m = re.match(r"beastarmour drawn: ent=(\d+) model=(\S+) type=(\d+) mask=(\d+) pieces=(\d+) whole=(\d+) worn=(\d+) "
-                     r"worst=(\d+) leather=(\d+) (\S+)", line.strip())
+                     r"worst=(\d+) leather=(\d+) at=(\S+) (\S+)", line.strip())
         if m:
             model = m.group(2).split("#")[0]
             beasts[model] = dict(ent=int(m.group(1)), type=int(m.group(3)), mask=int(m.group(4)), pieces=int(m.group(5)),
                                  whole=int(m.group(6)), worn=int(m.group(7)), worst=int(m.group(8)),
-                                 leather=int(m.group(9)), body=m.group(10))
+                                 leather=int(m.group(9)), at=[float(x) for x in m.group(10).split(",")],
+                                 body=m.group(11))
     return beasts, debris
 
 
-def beastmp_said(srv, since, req):
-    """The server's QC vr_agarmor_test `req` (25-27) -> {"ogre": {mask, pieces, wear}, "scrag": {...}} as it printed it."""
+def beastmp_said(srv, reader, req):
+    """The server's QC vr_agarmor_test `req` (25-27) -> {"ogre": {mask, pieces, wear}, "scrag": {...}} as it printed it
+    (bprint: to the players, `reader` one of them)."""
+    since = reader.mark()
     srv.cmd("vr_agarmor_test %d" % req)
-    srv.wait(r"beastmp: scrag mask", 30, since, "the server's vr_agarmor_test %d" % req)
+    reader.wait(r"beastmp: scrag mask", 30, since, "the server's vr_agarmor_test %d" % req)
     said = {}
-    for line in srv.lines[since:]:
+    for line in reader.lines[since:]:
         m = re.search(r"beastmp: (ogre|scrag) mask (\d+) pieces (\d+) wear (\d+)/(\d+) debris (\d+)", line)
         if m:
             said[m.group(1)] = dict(mask=int(m.group(2)), pieces=int(m.group(3)), wear=int(m.group(4)),
@@ -4366,6 +4369,38 @@ def beastmp_until(viewers, said, ok, tries=40):
     return got
 
 
+BEAST_AT_ALIVE = 3.0  # units: where B draws a living beast's armour (its pieces' mean) against A's (clocks a tick apart, idling)
+BEAST_AT_DEAD = 1.0   # ... a settled corpse's
+
+
+def beast_gap(got, a, b, model):
+    """The distance between viewers a's and b's drawn armour of `model` (their pieces' mean), or 1e9."""
+    pa, pb = got[a.name][0].get(model, {}).get("at"), got[b.name][0].get(model, {}).get("at")
+    return math.dist(pa, pb) if pa and pb else 1e9
+
+
+BEAST_SAME_UNITS = 0.05  # the host placing his beasts' pieces a remote client's way: off his own by this at most (units) ...
+BEAST_SAME_DEGREES = 0.5  # ... turned this at most
+BEAST_SAME_RAG_UNITS = 0.25  # (a corpse: the client's way draws it between its last two steps, his hit model at the latest:
+BEAST_SAME_RAG_DEGREES = 2.0  # a ragdoll still settling moves a little between them)
+
+
+def beast_compare(inst):
+    """inst (a listen host) places each beast's pieces both ways for a frame (vr_beastarmour_drawn compare) ->
+    {model: (mean, most, degrees, how)}."""
+    since = inst.mark()
+    inst.cmd("vr_beastarmour_drawn compare")
+    inst.wait(r"beastarmour compare: ", 10, since, "%s's compare" % inst.name)
+    inst.quiet(r"^beastarmour compare: ", 0.3, 5)
+    out = {}
+    for line in inst.lines[since:]:
+        m = re.search(r"beastarmour compare: ent=\d+ model=(\S+) \d+ pieces .*: mean ([\d.]+), most ([\d.]+) units, turned "
+                      r"([\d.]+) degrees at most \((\w+)\)", line)
+        if m:
+            out[m.group(1).split("#")[0]] = (float(m.group(2)), float(m.group(3)), float(m.group(4)), m.group(5))
+    return out
+
+
 def beastmp(s, listen=True):
     """(beastmp, ROUND26.md) A remote client draws the beasts' armour as the host does: the server's QC (vr_agarmor_test 25)
     puts an ogre and a scrag in full yellow armour before A; B (a remote client: no server of his own, his own drawing of
@@ -4373,9 +4408,17 @@ def beastmp(s, listen=True):
     26 breaks the ogre's left shin and the scrag's third tail segment (parts breaking alone) and wears the ogre's breastplate
     to two thirds: B drops exactly those pieces, draws the breastplate at its wear and sees the debris; 27 kills both: their
     corpses (ragdolls, sent as QVR_SVC_RAGPOSE) keep their pieces at B. `listen`: A hosts (A draws the server's bodies);
-    else a dedicated server, A and B both remote."""
-    srv, a, b, ea, eb = join(s, listen=listen, level="vrtesthall", srv_first="developer 1",
-                             first=lambda srv, a, ea: put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90))
+    else a dedicated server, A and B both remote, the beasts dressed before B joins (the shaped pieces' debris models,
+    "#tweak", in his precache list; their armour in the state a joining client is sent). Each step also where B draws each
+    beast's armour (its pieces' mean) against A."""
+    pre = {}
+
+    def first(srv, a, ea):
+        put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90)
+        if not listen:
+            pre.update(beastmp_said(srv, a, 25))
+
+    srv, a, b, ea, eb = join(s, listen=listen, level="vrtesthall", srv_first="developer 1", first=first)
     a.cmd("god; notarget")
     b.cmd("god; notarget")
     put_at(srv, b, eb, ARMED_B, 90)
@@ -4386,7 +4429,27 @@ def beastmp(s, listen=True):
         return all(BEAST_MODELS[k] in beasts and beasts[BEAST_MODELS[k]]["mask"] == said[k]["mask"] and
                    beasts[BEAST_MODELS[k]]["pieces"] == said[k]["pieces"] for k in said)
 
-    said = beastmp_said(srv, srv.mark(), 25)
+    def same_check(what, how, units, degrees):
+        if not listen:
+            return
+        cmp_ = {}
+        for _ in range(20):
+            cmp_ = beast_compare(a)
+            if all(m in cmp_ and cmp_[m][3] == how for m in BEAST_MODELS.values()):
+                break
+        s.metric("beastmp_same_" + what.split()[0], cmp_)
+        s.check("%s: A (the host) places every piece a remote client's way (his client's data alone: %s) where he draws it: off "
+                "%.2f units, %.1f degrees at most" % (what, how, units, degrees),
+                all(m in cmp_ and cmp_[m][3] == how and cmp_[m][1] <= units and cmp_[m][2] <= degrees
+                    for m in BEAST_MODELS.values()), "%s" % cmp_)
+
+    def placed_check(got, bound, what):
+        gaps = {k: beast_gap(got, a, b, m) for k, m in BEAST_MODELS.items()}
+        s.metric("beastmp_gap_" + what.split()[0], gaps)
+        s.check("%s: B draws each beast's armour where A does (its pieces' mean on the body, within %.1f units)" % (what, bound),
+                all(g <= bound for g in gaps.values()), ", ".join("%s %.2f" % kv for kv in gaps.items()))
+
+    said = pre or beastmp_said(srv, a, 25)
     s.check("the server dressed an ogre and a scrag in full yellow (vr_agarmor_test 25)",
             set(said) == {"ogre", "scrag"} and all(v["pieces"] > 0 for v in said.values()), "%s" % said)
     if set(said) != {"ogre", "scrag"}:
@@ -4402,9 +4465,13 @@ def beastmp(s, listen=True):
                 d.get("pieces") == said[k]["pieces"] and d.get("mask") == said[k]["mask"] and d.get("leather") == 1 and
                 d.get("body") == body and d.get("whole") == d.get("pieces"), "%s" % d)
     s.metric("beastmp_drawn", {n: {k: got[n][0].get(m, {}).get("pieces") for k, m in BEAST_MODELS.items()} for n in got})
+    if listen:
+        # (a dedicated server's beasts are dressed before B joins and can take B for their enemy before his notarget: they
+        # hunt him, A and B sample them a moment apart in other frames; the corpses' check below holds for both)
+        placed_check(got, BEAST_AT_ALIVE, "alive, idling")
+    same_check("alive, idling", "animated", BEAST_SAME_UNITS, BEAST_SAME_DEGREES)
 
-    since = srv.mark()
-    said2 = beastmp_said(srv, since, 26)
+    said2 = beastmp_said(srv, a, 26)
     broke = said2.get("ogre", {}).get("debris", 0) - said["ogre"]["debris"]
     s.check("the server broke the ogre's left shin and the scrag's tail3 (2 pieces fewer, 2 debris), the ogre's breastplate worn",
             said2["ogre"]["pieces"] == said["ogre"]["pieces"] - 1 and said2["scrag"]["pieces"] == said["scrag"]["pieces"] - 1 and
@@ -4421,13 +4488,25 @@ def beastmp(s, listen=True):
                 "seen" % (v.name, said2["ogre"]["pieces"], said2["ogre"]["mask"], said2["scrag"]["pieces"], said2["scrag"]["mask"]),
                 broken_all(beasts, debris, said2), "ogre %s; scrag %s; debris %d" % (o, c, debris))
 
-    since = srv.mark()
-    said3 = beastmp_said(srv, since, 27)
-    got = beastmp_until(viewers, said3, drawn_all)
+    said3 = beastmp_said(srv, a, 27)
+    def settled(beasts, debris, said):
+        return drawn_all(beasts, debris, said) and all(beasts[m]["body"] in ("server-body", "client-ragdoll")
+                                                       for m in BEAST_MODELS.values())
+
+    got = beastmp_until(viewers, said3, settled)
+    # (their ragdolls settle: A's and B's drawings of them the same once still)
+    for _ in range(40):
+        if all(beast_gap(got, a, b, m) <= BEAST_AT_DEAD for m in BEAST_MODELS.values()):
+            break
+        time.sleep(0.25)
+        got = beastmp_until(viewers, said3, settled, 1)
     for v in viewers:
         beasts, debris = got[v.name]
-        s.check("%s: both killed, their corpses keep their pieces (ogre %d, scrag %d)" % (v.name, said3["ogre"]["pieces"],
-                said3["scrag"]["pieces"]), drawn_all(beasts, debris, said3), "%s" % beasts)
+        s.check("%s: both killed, their corpses keep their pieces (ogre %d, scrag %d)%s" % (v.name, said3["ogre"]["pieces"],
+                said3["scrag"]["pieces"], ", on the ragdolls the server sent" if v in remote else ""),
+                settled(beasts, debris, said3), "%s" % beasts)
+    placed_check(got, BEAST_AT_DEAD, "corpses settled")
+    same_check("corpses settled", "ragdoll", BEAST_SAME_RAG_UNITS, BEAST_SAME_RAG_DEGREES)
 
 
 def coopbots(s):

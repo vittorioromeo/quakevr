@@ -16,6 +16,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_lines.hpp"
 #include "vr_mdldequant.hpp"
+#include "vr_mem.hpp"
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rigpose.hpp"
@@ -1049,7 +1050,8 @@ bool place(edict_t* ent, const Slot& s, Placed& out, const hitmodel::DrawnLerp* 
 // A remote client's beast (multiplayer: no server edict to read; ROUND26.md, "beastmp"): the body as this client draws
 // it, from its own data alone. Animated: its drawn lerp (clientLerp), the shader's points for it (animsmooth::drawnPoints,
 // as a listen host's armour) through the renderer's drawn matrix; a ragdoll: the pose the server sent (QVR_SVC_RAGPOSE),
-// its bone's part as drawn (ragdoll::drawnPart).
+// its mesh skinned as drawn (ragdoll::skinnedVertices: each vertex on its own body, as the drawn skin and a host's
+// hit model have it).
 struct ClientBody
 {
     const entity_t* e{nullptr};
@@ -1059,14 +1061,26 @@ struct ClientBody
     bool rag{false};
     float matrix[16]{};
     float scale{1.f};
+    const glm::vec3* ragVerts{nullptr};
+    int ragCount{0};
 };
+
+// The ragdoll's skinned vertices for the beast relinked now (clientBody's; the next beast's replace them).
+struct ClientRagScratch
+{
+    za::Vector<glm::vec3> pos;
+    auto members() { return mem::list(pos); }
+};
+mem::Scratch<ClientRagScratch> clientRagScratch{"beast armour client ragdolls"};
 
 [[nodiscard]] ClientBody clientBody(entity_t* e, int num)
 {
     ClientBody b;
     b.e = e;
     b.num = num;
-    b.rag = ragdoll::published(num);
+    b.rag = ragdoll::published(num) && ragdoll::skinnedVertices(num, clientRagScratch.pos, nullptr, true);
+    b.ragVerts = b.rag ? clientRagScratch.pos.data() : nullptr;
+    b.ragCount = b.rag ? static_cast<int>(clientRagScratch.pos.size()) : 0;
     b.animated = !b.rag && hitmodel::clientLerp(e, b.lerp);
     if(!b.animated)
     {
@@ -1092,17 +1106,15 @@ bool placeClient(const ClientBody& b, const Slot& s, Placed& out)
     glm::vec3 posed[maxAnchors];
     if(b.rag)
     {
-        glm::quat rot{1.f, 0.f, 0.f, 0.f};
-        glm::vec3 pos{0.f};
-        float scale = 1.f;
-        if(ragdoll::drawnPart(b.num, s.boneIndex, rot, pos, scale))
+        bool all = true;
+        for(int i = 0; i < s.numAnchors && all; i++)
         {
-            // (each anchor rides its bone rigidly: p = rot (scale p_rest) + pos)
-            for(int i = 0; i < s.numAnchors; i++)
-            {
-                posed[i] = rot * (s.rest[i] * scale) + pos;
-            }
-            fitPlaced(s, posed, za::clamp(scale, 0.05f, 20.f), out);
+            all = s.anchor[i] >= 0 && s.anchor[i] < b.ragCount;
+            posed[i] = all ? b.ragVerts[s.anchor[i]] : glm::vec3{0.f};
+        }
+        if(all)
+        {
+            fitPlaced(s, posed, b.scale, out);
             return true;
         }
     }
@@ -1895,11 +1907,21 @@ struct DrawnBeast
     int drawn{0};          // pieces and parts drawn
     int levels[3]{};       // ... at each wear (whole, two thirds, a third)
     int leather{0};        // its junctions' leather drawn
+    bool rag{false};       // (a remote client's: drawn on the ragdoll the server sent)
+    // Its drawn pieces' middles summed, in the body's own frame (its drawn place and turn): their mean, where the armour is
+    // drawn on it (two games comparing: whatever its move between their samples)
+    glm::vec3 at{0.f};
+    glm::vec3 place{0.f};
+    glm::mat3 turn{1.f};
 };
 struct DrawnLog
 {
     DrawnBeast beast[maxLeather];
     int count{0};
+    // vr_beastarmour_drawn compare (a listen host): the next frame each beast's pieces placed both ways, the server's body
+    // as drawn and a remote client's way (placeClient, from the client's data alone), how far apart printed
+    bool compare{false};
+    bool comparing{false}; // (this frame's relink)
 };
 DrawnLog drawnLog;
 
@@ -1907,6 +1929,11 @@ void relinkBody(entity_t* e, int num, int type, int pieces, int wear, edict_t* e
 
 void drawnReport_f()
 {
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "compare"))
+    {
+        drawnLog.compare = true;
+        return;
+    }
     int total = 0, debris = 0;
     for(int i = 0; i < drawnLog.count; i++)
     {
@@ -1924,9 +1951,11 @@ void drawnReport_f()
     {
         const DrawnBeast& b = drawnLog.beast[i];
         const entity_t* e = b.num > 0 && b.num < cl_max_edicts ? &cl_entities[b.num] : nullptr;
-        Con_Printf("beastarmour drawn: ent=%d model=%s type=%d mask=%d pieces=%d whole=%d worn=%d worst=%d leather=%d %s\n", b.num,
-            e && e->model ? e->model->name : "-", b.type, b.pieces, b.drawn, b.levels[0], b.levels[1], b.levels[2], b.leather,
-            b.local ? "server-body" : "client-body");
+        const glm::vec3 at = b.drawn > 0 ? b.at / static_cast<float>(b.drawn) : glm::vec3{0.f};
+        Con_Printf("beastarmour drawn: ent=%d model=%s type=%d mask=%d pieces=%d whole=%d worn=%d worst=%d leather=%d at=%.2f,%.2f,%.2f %s\n",
+            b.num, e && e->model ? e->model->name : "-", b.type, b.pieces, b.drawn, b.levels[0], b.levels[1], b.levels[2], b.leather,
+            static_cast<double>(at.x), static_cast<double>(at.y), static_cast<double>(at.z),
+            b.local ? "server-body" : b.rag ? "client-ragdoll" : "client-body");
     }
 }
 } // namespace
@@ -1937,6 +1966,8 @@ void beginRelink()
     numPiecesDrawn = 0;
     numLeather = 0;
     drawnLog.count = 0;
+    drawnLog.comparing = drawnLog.compare;
+    drawnLog.compare = false;
 }
 
 void relinkEntity(entity_t* e, int num, int type, int pieces, int wear)
@@ -1972,13 +2003,20 @@ void relinkBody(entity_t* e, int num, int type, int pieces, int wear, edict_t* e
     // the server's frames: the pieces move with the drawn body, in slow motion too (ROUND26.md, "doglerp").
     hitmodel::DrawnLerp drawnLerp;
     const hitmodel::DrawnLerp* lerp = local && hitmodel::clientLerp(e, drawnLerp) ? &drawnLerp : nullptr;
-    const ClientBody body = local ? ClientBody{} : clientBody(e, num);
+    const bool compare = local && drawnLog.comparing;
+    const ClientBody body = local && !compare ? ClientBody{} : clientBody(e, num);
+    float offSum = 0.f, offMost = 0.f, turnMost = 0.f;
+    int offCount = 0;
     const auto placeFn = [&](const Slot& s, Placed& pl) { return local ? place(ent, s, pl, lerp) : placeClient(body, s, pl); };
     const bool sample = local && hitCheck.num == num && cl.time != hitCheck.lastTime; // (vr_drawnhits_check: once a frame)
     DrawnBeast* log = drawnLog.count < maxLeather ? &drawnLog.beast[drawnLog.count++] : nullptr;
     if(log)
     {
         *log = DrawnBeast{num, type, pieces, wear, local};
+        log->rag = body.rag;
+        glm::vec3 angles{0.f};
+        render::drawnPlace(*e, log->place, angles);
+        log->turn = glm::transpose(held::axesFromAngles(&angles[0], false));
     }
     if(sample)
     {
@@ -2000,6 +2038,19 @@ void relinkBody(entity_t* e, int num, int type, int pieces, int wear, edict_t* e
         {
             hitSample(ent, *k, s, pl, pieces, lerp);
         }
+        if(Placed pc; compare && placeClient(body, s, pc))
+        {
+            const float off = glm::distance(pc.origin, pl.origin);
+            const glm::mat3 d = glm::transpose(pc.axes) * pl.axes;
+            turnMost = za::max(turnMost, glm::degrees(glm::acos(za::clamp((d[0][0] + d[1][1] + d[2][2] - 1.f) * 0.5f, -1.f, 1.f))));
+            offSum += off;
+            offMost = za::max(offMost, off);
+            offCount++;
+            if(off > 0.5f)
+            {
+                Con_Printf("beastarmour compare: ent=%d piece %d (bone %s %d) off %.2f\n", num, i, s.bone, s.boneIndex, static_cast<double>(off));
+            }
+        }
         qmodel_t* m = Mod_ForName(s.drawn, false);
         if(!m)
         {
@@ -2015,6 +2066,7 @@ void relinkBody(entity_t* e, int num, int type, int pieces, int wear, edict_t* e
         {
             log->drawn++;
             log->levels[level]++;
+            log->at += log->turn * (pl.origin - log->place);
         }
         entity_t& a = ents[numEnts++];
         a = *e;
@@ -2031,6 +2083,13 @@ void relinkBody(entity_t* e, int num, int type, int pieces, int wear, edict_t* e
         }
         held::anglesFromAxes(pl.axes, a.angles, false);
         cl_visedicts[cl_numvisedicts++] = &a;
+    }
+    if(compare)
+    {
+        Con_Printf("beastarmour compare: ent=%d model=%s %d pieces placed a remote client's way off the host's: mean %.3f, most %.3f "
+                   "units, turned %.2f degrees at most (%s)\n", num, e->model->name, offCount,
+            static_cast<double>(offCount ? offSum / static_cast<float>(offCount) : 0.f), static_cast<double>(offMost),
+            static_cast<double>(turnMost), body.rag ? "ragdoll" : body.animated ? "animated" : "standing");
     }
     // Its junctions' leather: an entity at the body's place, its bones the pieces' (junctionBones).
     if(k->numJunctions > 0 && !k->lp.empty() && vr_beastarmour_leather.value != 0.f && numLeather < maxLeather && cl_numvisedicts < MAX_VISEDICTS)
