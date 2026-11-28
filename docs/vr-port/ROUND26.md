@@ -5114,6 +5114,22 @@ them back by using the usual weapon wheel or MMB buttons."
   multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
   `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.
 
+## panelsize: the menu's bindings reminder easier to read (branch agent/panelsize, 2026-11-28)
+
+His words: "Binding reminder is a bit too small in the menu now, please make it easier to read."
+- The menu panel (`vr_menuui.cpp` drawBindPanel) now picks one column or two, whichever gives larger letters. With twenty
+  rows one column was height-limited (7.9 units for the main rows, minor 5.9). Two columns (the main rows and Setup
+  Bindings left, the Hands / More groups right, bottom aligned) reach 8.9 main and 7.6 minor on the main menu (Options 8.5);
+  a pad's 15 rows stay one column (9.9). Minor rows are 0.85 of the main ones (was 0.75). The 20-unit margin and the
+  clearance above the corner rows are unchanged.
+- `vr_menu_bind_panel_scale` (default 1.5, archived): the letters' limit is 8 menu units times it (0.5 .. 3); the panel still
+  shrinks to fit its room, so the main menu is room-limited (width: the rows' left) at the default.
+- The menu canvas is in menu units, independent of the window's resolution, so 720p / 1080p / 1440p / 4K lay out alike;
+  `vid_restart` in the headless run did not change the canvas. The layout is checked on the main menu (keyboard, OBS
+  row, pad) and on Options (stretched canvas).
+- Report: new `bindpanel: menu panel extent L T .. R B, columns N` line. Tests: bindpanel_test 37/0 (new: extent inside the
+  room x4, letters >= 8, scale 0.5 smaller, columns 2 / 1). Screenshot: scratch/bindpanel/main.png (keyboard, pad, Options).
+- MP / splitscreen: client-side drawing only.
 ## prlmove: the procedural reload works running, jumping, sliding; the hand grips the pair; Hand at Port offsets (branch agent/prlmove, 2026-11-28)
 
 His words (2026-11-28): "Procedural reload for the shotgun seems to fail if the player is running, jumping, sliding ...";
