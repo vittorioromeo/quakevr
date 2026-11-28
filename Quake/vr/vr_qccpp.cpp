@@ -29,6 +29,7 @@ struct
 	bool checked;			// the match was checked since the last progs load
 } qccpp;
 
+#ifdef QVR_QC_CPP
 unsigned fnv (unsigned h, const void *p, za::SizeT n)
 {
 	const unsigned char *c = static_cast<const unsigned char *> (p);
@@ -36,6 +37,7 @@ unsigned fnv (unsigned h, const void *p, za::SizeT n)
 		h = (h ^ c[i]) * 16777619u;
 	return h;
 }
+#endif
 
 // The generated progs when the server's loaded progs is the one it came from (checked once per load), else nullptr.
 const QCppProgs *boundProgs ()
