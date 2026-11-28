@@ -6431,6 +6431,13 @@ QVR_TOGGLE(vr_gl_world_dlmap, "Dynamic Lights in the Lightmap (Quest)",
 QVR_TOGGLE(vr_gl_world_dlmap_batch, "Batch Lightmap Uploads (Quest)",
     "vr_gl_world_dlmap_batch: with Dynamic Lights in the Lightmap, the frame's changed lightmap texels sent in "
     "one upload per band of 16 rows (On), or one upload per surface (Off, as before). The same picture.")
+QVR_TOGGLE(vr_gl_world_dlmap_reach, "Lightmap Lights Only Where They Reach (Quest)",
+    "vr_gl_world_dlmap_reach: with Dynamic Lights in the Lightmap, a surface's light summed only from the lights that "
+    "reach its texels (On; the same picture), not every light whose sphere crosses its plane somewhere (Off, as before).")
+QVR_TOGGLE(vr_gl_world_dlmap_keep, "Keep Unchanged Lightmap Light (Quest)",
+    "vr_gl_world_dlmap_keep: with Dynamic Lights in the Lightmap, a surface lit by the same lights as the frame before "
+    "keeps the light it has (not summed nor sent again: the same picture, bit for bit). Off: every lit surface made "
+    "again every frame, as before. (2, by console: the check, made again and compared: vr_gl_world_dlmap_info)")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "
