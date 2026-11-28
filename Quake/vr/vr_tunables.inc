@@ -458,6 +458,7 @@ QVR_TUNABLE(vr_agrunt_pose_lod, "1") // armed humanoids: one no player can see (
 QVR_TUNABLE(vr_agrunt_pose_lod_frames, "8") // ... server frames: posed once in this many (2: every other, as before 1.1.1; an alert one's or a chainsaw's at most 2: its engine's sound is in its pose); 0 or 1 every frame, no LOD
 QVR_TUNABLE(vr_agrunt_pose_lod_near, "384") // ... units: always posed within this of a player's eyes
 QVR_TUNABLE(vr_agrunt_pose_lod_cone, "80") // ... degrees: in a player's view within this of where he looks (a headset's widest corner ~60-65 and a margin); unseenfar
+QVR_TUNABLE(vr_agrunt_think_lod_frames, "4") // vr_agrunt_think_lod: a far, unseen, quiet armed humanoid's weapon think runs once in this many server frames (alert ones too: the pose's own LOD poses those every other frame); 0 or 1 every frame
 QVR_TUNABLE(vr_worn_backpack_lod_near, "1500") // a worn backpack farther than this from every player and outside each one's view (vr_agrunt_pose_lod_cone) is not placed on its wearer that frame (placed again as it comes near or into view); 0 always placed
 QVR_TUNABLE(vr_ragdoll_per_frame, "4") // the most new ragdolls made in one server frame (0.7 ms each: a rocket into a crowd, a mass kill); the rest wait for the next frames, oldest death first, playing their death frames meanwhile; knockdowns at once; 0: no limit
 QVR_TUNABLE(vr_ragdoll_sleep_skip, "1") // a ragdoll asleep and unchanged is not written again each step (box3d writeRagdoll: only its message time moves on); 0 written every step (the A/B and determinism check)
@@ -2047,7 +2048,7 @@ QVR_TUNABLE(vr_flat_swap_things, "1") // 1: what a hand carries (a prop, a gib, 
 // Flatscreen > Visor Boot (vr_visor.cpp; vr_flat_visor_boot_seq; visorboot 2026-11-28). Then the sweep: vr_flat_visor_boot.
 QVR_TUNABLE(vr_flat_visor_boot_dark, "0.3") // seconds with no panels at all as the boot starts (its sound starting)
 QVR_TUNABLE(vr_flat_visor_boot_fade, "0.5") // then the seconds the panels take to fade in, glitching
-QVR_TUNABLE(vr_flat_visor_boot_glitch, "0.6") // the fade's glitch: flicker, tearing and colour fringes (0 none .. 2)
+QVR_TUNABLE(vr_flat_visor_boot_glitch, "2") // the fade's glitch: flicker, tearing and colour fringes (0 none .. 2)
 QVR_TUNABLE(vr_flat_visor_boot_volume, "0.6") // the boot's power-up sound (vr/visor_boot.wav; 0: silent)
 
 // Flatscreen > Quick Grenade (vr_flatgrenade.cpp, QC vr_flatgrenade.qc; vr_flat_key_grenade). Places off the hand's
@@ -2989,7 +2990,7 @@ QVR_TUNABLE(vr_agrunt_dazzle_face_left, "0.5") // ... to its left,
 QVR_TUNABLE(vr_agrunt_dazzle_face_up, "-0.5") // ... and up (the grunt: 11 0.5 21.5 from its origin, as before)
 QVR_TUNABLE(vr_agrunt_dazzle_bend, "0.9") // ... that grip within this share of its arm's reach from its shoulder (drawn towards it: a bent arm, its forearm across its face, never held out straight)
 QVR_TUNABLE(vr_agrunt_dazzle_elbow, "1") // ... its elbow's way: 0 the arm's usual (down and back), 1 out to its side (its forearm across its eyes)
-QVR_TUNABLE(vr_agrunt_dazzle_dual, "0") // ... holding two weapons: 1 it shields with its left one's hand (the weapon still held, pointing up and away; not fired while raised); 0 both weapons stay up
+QVR_TUNABLE(vr_agrunt_dazzle_dual, "1") // ... holding two weapons: 1 it shields with its left one's hand (the weapon still held, pointing up and away; not fired while raised); 0 both weapons stay up
 
 // Armed Humanoids > Elite (QC vr_attrs.qc; ROUND26.md, "elite"): an elite's factors on the armed humanoids' knobs, its
 // gains, who gets one, its dye's pulse (the engine's vr_humlook.cpp; its colour: humlook.txt's "elite" rows)

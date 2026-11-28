@@ -58,8 +58,14 @@ struct Spline
 // numBones of them.
 void along(const ragdoll::Rig& rig, const int poses[4], const Spline& s, uint32_t alone, Rigid* out);
 // ... with the bones' keys from `keys` ([pose * numBones + bone]; nullptr: key()'s).
-void along(const ragdoll::Rig& rig, const Rigid* keys, const int poses[4], const Spline& s, uint32_t alone, Rigid* out);
+// `want` (bits; every overload): only these bones made (`out`'s others untouched); it must hold each wanted bone's
+// parents up to the root (wantWithParents): a bone's place is its parent's as made here.
+void along(const ragdoll::Rig& rig, const Rigid* keys, const int poses[4], const Spline& s, uint32_t alone, Rigid* out,
+    uint32_t want = ~0u);
 // ... with the keys by slot: `keys[i][bone]` bone's key in the i-th of the four poses (a caller's own, made already).
-void alongSlots(const ragdoll::Rig& rig, const Rigid (*keys)[ragdoll::maxBones], const Spline& s, uint32_t alone, Rigid* out);
+void alongSlots(const ragdoll::Rig& rig, const Rigid (*keys)[ragdoll::maxBones], const Spline& s, uint32_t alone, Rigid* out,
+    uint32_t want = ~0u);
+// `want` with every parent of its bones, up to their roots (qcbuiltins: a few vertices' bones made alone).
+[[nodiscard]] uint32_t wantWithParents(const ragdoll::Rig& rig, uint32_t want);
 
 } // namespace qvr::rigpose

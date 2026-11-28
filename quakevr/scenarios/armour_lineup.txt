@@ -1,9 +1,0 @@
-# armour_lineup: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The armour skins' look (ROUND26.md,
-# "armourstyle"; make_agarmor.py): a bare grunt, then grunts in full green, yellow and red sets, three quarters on, down
-# e1m1's first lit hall (vr_agarmor_test 24, temp1 0 the grunts; you notarget).
-title Armour skins: a bare grunt and green, yellow and red armoured grunts side by side
-map e1m1
-notarget
-cmd temp1 0
-cmd vr_agarmor_test 24
-hint Walk down the hall to them: muted olive, ochre and brick-red plates under grime, chipped and rusted at the edges, specks of blood and dirt, dark gaps between the rows. Each type still plain at a glance, and close to the bare grunt's look.

@@ -93,6 +93,17 @@ The switch build lands near the goto one in game (0.18-0.41 ms). The saving, 0.0
 the frame, as step 0 predicted; frame totals move less than their run-to-run noise (single runs see 20-150 ms hitches
 from the spawns, which dominate the averages).
 
+### The loop's own calls and the Quest (branch agent/qcvm, 2026-11-28)
+
+- Calls and returns by the loop (`QCExec_Enter`/`QCExec_Leave`, `QX_FASTCALL`): PR_EnterFunction's and
+  PR_LeaveFunction's work with the VM in a register, the locals by memcpy, a parameter at a time; vr_qcprofile, Tracy
+  builds and a stack at either end take those functions as before. `vr_qcexec` 3 is the goto loop with the old calls.
+- `vr_qcexec_time [label|stop]`: QuakeC's time and statements a frame since the last call (Debug > Profiling).
+- hip1m1's 69-monster fight, QuakeC a frame (builtins included): PC 0.977 (0) / 0.886 (3) / 0.838 (1) ms; Quest 3
+  2.99 / 2.96 / 2.83 ms. The goto dispatch itself does nothing measurable on the Quest's fight (its microbenchmark:
+  1.7x on branchy code, nothing on float-latency loops); the interpreter is ~0.3 ms of the Quest's 2.8 ms. Numbers and
+  checks: ROUND26.md "qcvm".
+
 ## Not done (steps 3-4) and what would pay more
 
 - Pre-decoded statements (a handler pointer and operand pointers per statement, built at progs load, the original

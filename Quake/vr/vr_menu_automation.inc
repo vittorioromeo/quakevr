@@ -987,6 +987,9 @@ za::Vector<Item> pageDebugAutomation()
         command("QuakeC Loop Bench", "vr_qcexec_bench")
             .help("vr_qcexec_bench: times a QuakeC math function in each loop (in a map) and checks they agree; the "
                   "result in the console."),
+        command("QuakeC Time a Frame", "vr_qcexec_time")
+            .help("vr_qcexec_time [label|stop]: QuakeC's time and statements a frame since the last press (the first "
+                  "starts it; stop ends it), with the QuakeC Loop in use: the loops' A/B in a fight."),
         command("Thread Pool Split Bench", "vr_jobs_bench")
             .help("vr_jobs_bench [reps]: a small shared-out loop (2 to 21 items of 0 to 50 microseconds) timed on the "
                   "caller alone and split between threads, the workers asleep between calls: where splitting pays "

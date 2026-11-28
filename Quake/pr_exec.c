@@ -430,6 +430,8 @@ void PR_ExecuteProgram (func_t fnum)
 		VR_BroadcastQCRun ();
 	if (qcvm->depth == 0) // QVR: vr_qcprofile
 		QCProf_Latch ();
+	const qboolean timed = qcexec_time.on && qcvm->depth == 0; // QVR: vr_qcexec_time (vr/vr_qcexec.c)
+	const unsigned long long t0 = timed ? QCPROF_TICKS () : 0;
 	if ((vr_profile_on || vr_perf_recording) && !vr_profile_inqc) // QVR: profile, the perf recorder (the rest in PR_ExecuteProgramRun)
 	{
 		vr_profile_inqc = 1;
@@ -440,6 +442,8 @@ void PR_ExecuteProgram (func_t fnum)
 	}
 	else
 		PR_ExecuteProgramRun (fnum);
+	if (timed)
+		qcexec_time.ticks += QCPROF_TICKS () - t0;
 	if (outer_sv && sv.qcvm.watchpending) // QVR: the edict index reads the edicts of OP_ADDRESSes never stored into
 		VR_EdictIndex_TopLevelDone ();
 }

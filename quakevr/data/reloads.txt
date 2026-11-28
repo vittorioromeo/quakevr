@@ -17,7 +17,7 @@ reload shotgun
         ease smooth
         hand pouch
         hand_ofs 0 0.5 1
-        hand_rot 90 27 5
+        hand_rot 67.5 27 5
         arc 0
         approach 0
         gun_rot -20 60 69
@@ -49,7 +49,7 @@ reload shotgun
         ease smooth
         hand mouth
         hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_rot -37.5 46.5 -92.5
         arc 3
         approach 0.5
         gun_rot -20 60 69
@@ -65,7 +65,7 @@ reload shotgun
         ease smooth
         hand dest
         hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_rot -37.5 46 -97.5
         arc 0
         approach 0
         gun_rot -20 60 69
@@ -81,7 +81,7 @@ reload shotgun
         ease smooth
         hand pouch
         hand_ofs 0 0.5 1
-        hand_rot 90 27 5
+        hand_rot 75.5 26.5 0.5
         arc 3
         approach 0
         gun_rot -20 60 69
@@ -124,7 +124,7 @@ reload supershotgun
         hand_rot 0 0 0
         arc 0
         approach 0
-        gun_rot 25 35 -30
+        gun_rot 25 16.5 -30
         gun_ofs 2 -1 -1
         action none
         if always
@@ -140,7 +140,7 @@ reload supershotgun
         hand_rot 0 0 0
         arc 0
         approach 0
-        gun_rot 43 35 -30
+        gun_rot 25 16.5 -30
         gun_ofs 2 -1 -1
         action open
         if closed
@@ -153,10 +153,10 @@ reload supershotgun
         ease smooth
         hand pouch
         hand_ofs 0 0.5 1
-        hand_rot 90 27 5
+        hand_rot 67.6479 3.39843 -21.9407
         arc 0
         approach 0
-        gun_rot 25 35 -30
+        gun_rot 25 16.5 -30
         gun_ofs 2 -1 -1
         action none
         if always
@@ -172,7 +172,7 @@ reload supershotgun
         hand_rot 90 27 5
         arc 0
         approach 0
-        gun_rot 25 35 -30
+        gun_rot 25 16.5 -30
         gun_ofs 2 -1 -1
         action take
         if always
@@ -184,11 +184,11 @@ reload supershotgun
         gun_time 0
         ease smooth
         hand mouth
-        hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_ofs 0.206828 -0.123914 0.0754469
+        hand_rot 24.7514 24.7767 177.277
         arc 3
         approach 0.8
-        gun_rot 25 35 -30
+        gun_rot 25 16.5 -30
         gun_ofs 2 -1 -1
         action none
         if always
@@ -201,10 +201,10 @@ reload supershotgun
         ease smooth
         hand dest
         hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_rot 26.4483 38.7644 -175.898
         arc 0
         approach 0
-        gun_rot 25 35 -30
+        gun_rot 25 16.5 -30
         gun_ofs 2 -1 -1
         action insert
         if always
@@ -217,10 +217,10 @@ reload supershotgun
         ease smooth
         hand pouch
         hand_ofs 0 0.5 1
-        hand_rot 90 27 5
+        hand_rot 58.4369 -2.1722e-06 -22
         arc 3
         approach 0
-        gun_rot 25 35 -30
+        gun_rot 25 16.5 -30
         gun_ofs 2 -1 -1
         action none
         if always
@@ -276,7 +276,7 @@ reload nailgun
         hand_rot 0 0 0
         arc 0
         approach 0
-        gun_rot -15 45 60
+        gun_rot -24.5 15 60
         gun_ofs 3 -1 -2
         action none
         if always
@@ -292,7 +292,7 @@ reload nailgun
         hand_rot 0 0 0
         arc 0
         approach 0
-        gun_rot -3 45 70
+        gun_rot -24.5 15 70
         gun_ofs 3 -1 -2
         action eject
         if closed
@@ -305,10 +305,10 @@ reload nailgun
         ease smooth
         hand pouch
         hand_ofs 0 0.5 1
-        hand_rot 90 27 5
+        hand_rot 104 180 158
         arc 0
         approach 0
-        gun_rot -15 45 60
+        gun_rot -24.5 15 60
         gun_ofs 3 -1 -2
         action none
         if always
@@ -321,10 +321,10 @@ reload nailgun
         ease smooth
         hand pouch
         hand_ofs 0 0.5 1
-        hand_rot 90 27 5
+        hand_rot 66.5 27 5
         arc 0
         approach 0
-        gun_rot -15 45 60
+        gun_rot -24.5 15 60
         gun_ofs 3 -1 -2
         action take
         if always
@@ -332,15 +332,15 @@ reload nailgun
     }
     key "carry"
     {
-        time 0.26
+        time 0.14
         gun_time 0
         ease smooth
-        hand mouth
-        hand_ofs 0 0 0
-        hand_rot 0 0 0
-        arc 3
-        approach 4
-        gun_rot -15 45 60
+        hand dest
+        hand_ofs 0.394261 -0.489106 -2.87205
+        hand_rot -25.4922 23.2767 0
+        arc 0
+        approach 0
+        gun_rot -24.5 15 60.5
         gun_ofs 3 -1 -2
         action none
         if always
@@ -348,15 +348,15 @@ reload nailgun
     }
     key "insert"
     {
-        time 0.1
+        time 0.17
         gun_time 0
         ease smooth
         hand dest
         hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_rot -25.4922 23.2767 0
         arc 0
         approach 0
-        gun_rot -15 45 60
+        gun_rot -24.5 15 60.5
         gun_ofs 3 -1 -2
         action insert
         if always
@@ -396,7 +396,7 @@ reload supernailgun
         hand_rot 0 0 0
         arc 0
         approach 0
-        gun_rot -10 40 -10
+        gun_rot -10 17 -25
         gun_ofs 3 -1 -1
         action none
         if always
@@ -412,7 +412,7 @@ reload supernailgun
         hand_rot 0 0 0
         arc 0
         approach 0
-        gun_rot -10 40 -35
+        gun_rot -10 19.5 -44.5
         gun_ofs 3 -1 -1
         action eject
         if closed
@@ -428,7 +428,7 @@ reload supernailgun
         hand_rot 90 27 5
         arc 0
         approach 0
-        gun_rot -10 40 -10
+        gun_rot -10 17 -25
         gun_ofs 3 -1 -1
         action none
         if always
@@ -444,7 +444,7 @@ reload supernailgun
         hand_rot 90 27 5
         arc 0
         approach 0
-        gun_rot -10 40 -10
+        gun_rot -10 17 -25
         gun_ofs 3 -1 -1
         action take
         if always
@@ -456,11 +456,11 @@ reload supernailgun
         gun_time 0
         ease smooth
         hand mouth
-        hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_ofs -0.456995 1.68078 -0.366203
+        hand_rot -32.4719 9.05839 -4.89232
         arc 3
         approach 4
-        gun_rot -10 40 -10
+        gun_rot -10 17 -25
         gun_ofs 3 -1 -1
         action none
         if always
@@ -473,10 +473,10 @@ reload supernailgun
         ease smooth
         hand dest
         hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_rot -38.0834 0 -0
         arc 0
         approach 0
-        gun_rot -10 40 -10
+        gun_rot -10 17 -25
         gun_ofs 3 -1 -1
         action insert
         if always
@@ -576,8 +576,8 @@ reload thunderbolt
         gun_time 0
         ease smooth
         hand mouth
-        hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_ofs 0.200536 -0.965969 0.929465
+        hand_rot -28.2726 0 -0
         arc 3
         approach 4
         gun_rot -15 45 55
@@ -592,8 +592,8 @@ reload thunderbolt
         gun_time 0
         ease smooth
         hand dest
-        hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_ofs 0.477639 0.501701 -1.37649
+        hand_rot -30.1658 0 -0
         arc 0
         approach 0
         gun_rot -15 45 55
@@ -696,8 +696,8 @@ reload nailpistol
         gun_time 0
         ease smooth
         hand mouth
-        hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_ofs 0.532692 -0.499604 0.847093
+        hand_rot -27.952 0 -0
         arc 3
         approach 3
         gun_rot -35 30 45
@@ -712,8 +712,8 @@ reload nailpistol
         gun_time 0
         ease smooth
         hand dest
-        hand_ofs 0 0 0
-        hand_rot 0 0 0
+        hand_ofs 0.0519804 1.49012e-08 -0.0500754
+        hand_rot -19.0448 0 -0
         arc 0
         approach 0
         gun_rot -35 30 45

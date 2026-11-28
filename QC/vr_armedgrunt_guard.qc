@@ -412,3 +412,89 @@ string(entity g) VR_AGG_Label =
     }
     return "";
 };
+
+// ----------------------------------------------------------------------------
+// The weapon think's level of detail (vr_agrunt_think_lod; agent aglod, ROUND26 "aglod")
+// ----------------------------------------------------------------------------
+
+.float vr_aglod_t;  // VR_AG_ThinkLod: the server time it last decided at,
+.float vr_aglod_on; // ... its answer then (both weapons' thinks ask it: the first decides for the frame),
+.float vr_aglod_n;  // ... the frames its weapon think has skipped since its last whole one
+float vr_aglod_skips; // weapon thinks skipped since the map began (vr_agrunt_test 235's census)
+
+// TRUE when `g`'s weapon think skips this frame (VR_AG_PropThink, both weapons): the shot, throw and strike scans on its
+// weapons, its parry frame and its pose; its weapons carried along by its move (VR_AGP_LodCarry). Once every
+// vr_agrunt_think_lod_frames frames it runs whole, and every frame while anything could notice:
+// - a player near or looking: unseenfar (farther than vr_agrunt_pose_lod_near from every player's eyes, and for each
+//   outside his view or out of his PVS; every client, so every multiplayer player and splitscreen seat), asked each
+//   frame: the frame it is seen it is posed;
+// - anything moving near a weapon (movernear: the engine's movers of this frame and the last, where they are now; the
+//   shot scan's first look, findradiusmoving 128 + reach round the grip, could find nothing). Asked every frame, so a
+//   nail can't pass a skipped frame: the frame it comes within the first look's radius (320 units: ~80 more than a
+//   frame's flight of a 2000 u/s nail needs to meet the weapon's line, 192 at most from its grip) the scans run as
+//   before;
+// - its attack, cast or shove, an aim raised (vr_ag_aim from the frame it raises its gun: the shot's muzzle placed
+//   fresh), a weapon taken up, a new enemy, a tug, a fall, a flame stream, a shot's roll due, a chainsaw (its engine's
+//   sound is in its pose);
+// - its parry or guard doing anything: a blow seen in 0.35 s, a parry up, the guard raised, reacting or recovering, a
+//   raise read, the preventive check due (its timer keeps its phase). (A monster's melee begun in 1.5 s: the parry frame
+//   runs anyway, VR_AG_PropThink.)
+// What such a frame would do is nothing but placing the weapon where nobody sees it: skipped, the game the same.
+float(entity g, float still) VR_AG_ThinkLod =
+{
+    if(g.vr_aglod_t == time)
+    {
+        return g.vr_aglod_on;
+    }
+    g.vr_aglod_t = time;
+    float n = floor(cvar_hget(cvarh_vr_agrunt_think_lod_frames));
+    entity p = g.vr_ag_prop;
+    entity p2 = g.vr_ag_prop2;
+    float on = (cvar_hget(cvarh_vr_agrunt_think_lod) && n >= 2 && g.vr_aglod_n < n - 1 && p != world);
+    if(on)
+    {
+        on = (VR_AGP_LodIdle(g, still) && g.vr_ag_aim == '0 0 0' && !g.vr_ag_tug_pl && !g.vr_knockdown &&
+            !g.vr_adgun_stream && p.weapon != WID_CHAINSAW && !p.vr_ags_pend &&
+            (!p2 || (p2.weapon != WID_CHAINSAW && !p2.vr_ags_pend)));
+    }
+    if(on)
+    {
+        on = (g.vr_agpar_w == 0 && g.vr_agpar_since == 0 && time - g.vr_agpar_seen >= 0.35 && g.vr_agg_state == VR_AGG_IDLE &&
+            !g.vr_agg_wup0 && !g.vr_agg_wup1 && !g.vr_agg_wread0 && !g.vr_agg_wread1 &&
+            !(cvar_hget(cvarh_vr_agrunt_preparry) && time >= g.vr_agg_next));
+    }
+    if(on)
+    {
+        on = unseenfar(g, cvar_hget(cvarh_vr_agrunt_pose_lod_near), p);
+    }
+    if(on)
+    {
+        on = (!movernear(p.origin, 128 + VR_AG_LINE_REACH) && (!p2 || !movernear(p2.origin, 128 + VR_AG_LINE_REACH)));
+    }
+    g.vr_aglod_on = on;
+    if(on)
+    {
+        g.vr_aglod_n = g.vr_aglod_n + 1;
+        vr_aglod_skips = vr_aglod_skips + 1;
+        g.vr_agp_lod_skip = g.vr_agp_lod_skip + 1; // (its pose's LOD counts it: VR_AGP_Lod's cadence, its eases' time)
+    }
+    else
+    {
+        g.vr_aglod_n = 0;
+    }
+    return on;
+};
+
+// VR_AG_PropThink: a skipped frame's parry frame run after all (a monster's melee begun in 1.5 s). FALSE when it found
+// something to do: the rest of the frame whole (posed now).
+float(entity g) VR_AG_ThinkLodKeep =
+{
+    if(!g.vr_agpar_w && !g.vr_agpar_since && g.vr_agg_state == VR_AGG_IDLE)
+    {
+        return TRUE;
+    }
+    g.vr_aglod_on = FALSE;
+    g.vr_aglod_n = 0;
+    g.vr_agp_lod_skip = max(0, g.vr_agp_lod_skip - 1);
+    return FALSE;
+};

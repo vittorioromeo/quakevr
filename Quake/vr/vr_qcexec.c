@@ -76,22 +76,85 @@ static QX_NOINLINE void QCExec_Builtin (dfunction_t *newf)
 	VR_TracyQCEnd();
 }
 
+// The loop's own entry into a QuakeC function and return from it (QX_FASTCALL; qcvm 2026-11-28): PR_EnterFunction's
+// and PR_LeaveFunction's work with the VM in a register (their every qcvm-> is a reload: their stores through the
+// globals may alias it), the locals saved and put back by memcpy, each parameter copied in one go. The same state
+// after, in the same order. Anything off the common path goes to those functions as it is: vr_qcprofile (latched per
+// outermost call: the same for a call and its return), a Tracy build, a stack at either end (their errors).
+#if defined(QVR_TRACY)
+#define QX_FAST_OK() 0
+#else
+#define QX_FAST_OK() (!qcprof.active)
+#endif
+
+static inline int QCExec_Enter (qcvm_t *vm, dfunction_t *f)
+{
+	int *const g = (int *)vm->globals;
+	const int c = f->locals, depth = vm->depth, used = vm->localstack_used, np = f->numparms;
+	int i, o = f->parm_start;
+	if (!QX_FAST_OK () || depth + 1 >= MAX_STACK_DEPTH || used + c > LOCALSTACK_SIZE)
+		return PR_EnterFunction (f);
+	vm->stack[depth].s = vm->xstatement;
+	vm->stack[depth].f = vm->xfunction;
+	vm->depth = depth + 1;
+	memcpy (vm->localstack + used, g + o, (size_t)c * sizeof (int)); // save off the locals the function steps on
+	vm->localstack_used = used + c;
+	for (i = 0; i < np; i++) // copy the parameters (OFS_PARM0's slots are 3 apart; the locals far above them)
+	{
+		const int n = f->parm_size[i];
+		const int *const src = g + OFS_PARM0 + i * 3;
+		if (n == 1)
+			g[o] = src[0];
+		else if (n == 3)
+			g[o] = src[0], g[o + 1] = src[1], g[o + 2] = src[2];
+		else
+			memcpy (g + o, src, (size_t)n * sizeof (int));
+		o += n;
+	}
+	vm->xfunction = f;
+	return f->first_statement - 1; // offset the s++
+}
+
+static inline int QCExec_Leave (qcvm_t *vm)
+{
+	dfunction_t *const f = vm->xfunction;
+	const int depth = vm->depth, used = vm->localstack_used - f->locals;
+	if (!QX_FAST_OK () || depth <= 0 || used < 0)
+		return PR_LeaveFunction ();
+	vm->localstack_used = used;
+	memcpy ((int *)vm->globals + f->parm_start, vm->localstack + used, (size_t)f->locals * sizeof (int));
+	vm->depth = depth - 1;
+	vm->xfunction = vm->stack[depth - 1].f;
+	return vm->stack[depth - 1].s;
+}
+#undef QX_FAST_OK
+
 #if QX_HAVE_GOTO
 #define QX_GOTO 1
+#define QX_FASTCALL 1
 #define QX_FUNC QCExec_RunGoto
+#include "vr_qcexec_loop.inc"
+#undef QX_FASTCALL
+#undef QX_FUNC
+#define QX_FASTCALL 0
+#define QX_FUNC QCExec_RunGotoOldCalls
 #include "vr_qcexec_loop.inc"
 #include "vr_api.h"
 #undef QX_GOTO
+#undef QX_FASTCALL
 #undef QX_FUNC
 #endif
 
 #define QX_GOTO 0
+#define QX_FASTCALL 1
 #define QX_FUNC QCExec_RunSwitch
 #include "vr_qcexec_loop.inc"
 #undef QX_GOTO
+#undef QX_FASTCALL
 #undef QX_FUNC
 
-// PR_ExecuteProgramRun's hook: true when this file's loop ran the call.
+// PR_ExecuteProgramRun's hook: true when this file's loop ran the call. vr_qcexec 1 goto, 2 switch, 3 goto with the
+// calls and returns through PR_EnterFunction/PR_LeaveFunction (the loop before QX_FASTCALL: the A/B).
 static qboolean QCExec_Run (func_t fnum)
 {
 	const int mode = qcexec_force >= 0 ? qcexec_force : (int)vr_qcexec.value;
@@ -103,9 +166,52 @@ static qboolean QCExec_Run (func_t fnum)
 		QCExec_RunGoto (fnum);
 		return true;
 	}
+	if (mode == 3)
+	{
+		QCExec_RunGotoOldCalls (fnum);
+		return true;
+	}
 #endif
 	QCExec_RunSwitch (fnum);
 	return true;
+}
+
+// vr_qcexec_time [label|stop]: QuakeC's time a frame (every outermost call into a VM, builtins included: vr_profile's
+// "quakec") and its statements a frame since the last call, printed and started again; the first call starts it,
+// "stop" ends it. One clock read either side of each outermost call while on (the A/B of the loops, QC_VM.md).
+static struct
+{
+	int on;
+	unsigned long long ticks, tsc0;
+	double time0, instr0;
+	int frame0;
+} qcexec_time;
+
+static void QCExec_TimeReset (void)
+{
+	qcexec_time.ticks = 0;
+	qcexec_time.tsc0 = QCPROF_TICKS ();
+	qcexec_time.time0 = Sys_DoubleTime ();
+	qcexec_time.instr0 = sv.qcvm.instr_total;
+	qcexec_time.frame0 = host_framecount;
+}
+
+static void QCExec_Time_f (void)
+{
+	const char *label = Cmd_Argc () > 1 ? Cmd_Argv (1) : "";
+	if (qcexec_time.on && strcmp (label, "stop") != 0)
+	{
+		const double secs = Sys_DoubleTime () - qcexec_time.time0;
+		const unsigned long long ticks = QCPROF_TICKS () - qcexec_time.tsc0;
+		const double tickms = ticks ? secs * 1000.0 / (double)ticks : 0.0;
+		const int frames = q_max (1, host_framecount - qcexec_time.frame0);
+		const double ms = qcexec_time.ticks * tickms / frames, stmts = (sv.qcvm.instr_total - qcexec_time.instr0) / frames;
+		Con_Printf ("vr_qcexec_time %s: loop %d, %d frames, QuakeC %.4f ms a frame, %.0f statements a frame (%.2f ns "
+			"each with builtins), %.3f ms a frame in all\n", label, (int)vr_qcexec.value, frames, ms, stmts,
+			stmts > 0 ? ms * 1e6 / stmts : 0.0, secs * 1000.0 / frames);
+	}
+	qcexec_time.on = strcmp (label, "stop") != 0;
+	QCExec_TimeReset ();
 }
 
 dfunction_t *VR_ED_FindFunction (const char *fn_name); // (pr_edict.c)
@@ -128,8 +234,8 @@ static void QCExec_Bench_f (void)
 	const int calls = Cmd_Argc () > 2 ? q_max (1, Q_atoi (Cmd_Argv (2))) : 20000;
 	float args[8] = {1.0001f, 2500.5f, 0, 0, 0, 0, 0, 0};
 	int nargs = Cmd_Argc () > 3 ? q_min (8, Cmd_Argc () - 3) : 2;
-	double best[3] = {1e30, 1e30, 1e30}, stmts[3] = {0, 0, 0};
-	int ret[3][3], i, k, round, mode, equal = 1;
+	double best[4] = {1e30, 1e30, 1e30, 1e30}, stmts[4] = {0, 0, 0, 0};
+	int ret[4][3], i, k, round, mode, equal = 1;
 	dfunction_t *f;
 
 	if (!sv.active)
@@ -152,7 +258,7 @@ static void QCExec_Bench_f (void)
 	PR_ExecuteProgramRun ((func_t)(f - qcvm->functions));
 	for (round = 0; round < 7; round++)
 	{
-		for (mode = 0; mode < 3; mode++)
+		for (mode = 0; mode < 4; mode++)
 		{
 			const double p0 = QCExec_TotalProfile ();
 			double t0, t;
@@ -171,14 +277,15 @@ static void QCExec_Bench_f (void)
 			for (i = 0; i < 3; i++)
 				ret[mode][i] = ((int *)qcvm->globals)[OFS_RETURN + i];
 		}
-		for (mode = 1; mode < 3; mode++)
+		for (mode = 1; mode < 4; mode++)
 			equal &= !memcmp (ret[mode], ret[0], sizeof (ret[0])) && stmts[mode] == stmts[0];
 	}
 	Con_Printf ("vr_qcexec_bench: %s x%d, %.0f statements a call: original %.1f ns/call, goto %.1f (%.2fx), switch %.1f "
-		"(%.2fx); results and counts %s\n", name, calls, stmts[0], best[0] * 1e9 / calls, best[1] * 1e9 / calls,
-		best[0] / best[1], best[2] * 1e9 / calls, best[0] / best[2], equal ? "equal" : "DIFFER");
+		"(%.2fx), goto with the old calls %.1f (%.2fx); results and counts %s\n", name, calls, stmts[0],
+		best[0] * 1e9 / calls, best[1] * 1e9 / calls, best[0] / best[1], best[2] * 1e9 / calls, best[0] / best[2],
+		best[3] * 1e9 / calls, best[0] / best[3], equal ? "equal" : "DIFFER");
 	if (!equal)
-		for (mode = 0; mode < 3; mode++)
+		for (mode = 0; mode < 4; mode++)
 			Con_Printf ("vr_qcexec_bench: loop %d: %.3f statements a call, returned %08x %08x %08x\n", mode, stmts[mode],
 				ret[mode][0], ret[mode][1], ret[mode][2]);
 	PR_SwitchQCVM (NULL);
@@ -251,4 +358,5 @@ void VR_QCExec_Init (void)
 	Cvar_RegisterVariable (&vr_qcexec);
 	Cmd_AddCommand ("vr_qcexec_bench", QCExec_Bench_f);
 	Cmd_AddCommand ("vr_qcexec_run", QCExec_Run_f);
+	Cmd_AddCommand ("vr_qcexec_time", QCExec_Time_f);
 }

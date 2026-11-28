@@ -5982,3 +5982,173 @@ seat_bind_test.sh 14/0, seat_play_test.sh 63/0, split_join_test.sh 113/0, seat_m
 Labels (splitlabels, same branch): the join screen's layout and the seat menu's Controls page show each button's real
 action for the seat (its flat key, else its bind; Back the alt layer, its buttons on the Controls page), `padDefaults` cut
 to RT/LT/A; new `seat_padlabels_test.sh` 4/0, seat_bind 14/0, seat_menu 62/0, split_join 113/0, seat_split21 6/0.
+## aglod: far, unseen armed humanoids' weapon think runs less often, the game the same (branch agent/aglod, 2026-11-28)
+
+- **What**: an armed humanoid no player can see runs its weapon's whole think (the shot, throw and strike scans
+  `VR_AG_WeaponStruck`, the parry frame `VR_AGPar_Frame`, the pose) once every `vr_agrunt_think_lod_frames` (tunable, 4)
+  server frames, its weapons carried along by its move between (`VR_AGP_LodCarry`); idle or alert alike (the pose LOD
+  alone posed alert ones every other frame). QC `VR_AG_ThinkLod` (vr_armedgrunt_guard.qc), decided once a frame for both
+  weapons; `VR_AG_PropThink` asks it before the scans.
+- **Every frame whenever anything could notice** (each asked every frame): unseenfar (farther than
+  `vr_agrunt_pose_lod_near` 384 from every client's eyes and, for each, outside his 80-degree view or out of his PVS:
+  every multiplayer player and splitscreen seat is a client; the spectator window and the flat third-person camera draw
+  from his head, the flat fly camera is a debug view: posed stale there as with the pose LOD); nothing moving near either
+  weapon (`movernear`, below); no attack, cast, shove, aim (`vr_ag_aim`, set from the frame it raises its gun; the shot
+  places the gun fresh itself, `VR_AG_SetHand`), weapon taken up, new enemy, tug, fall, flame stream, shot roll due,
+  chainsaw; its parry and guard idle (no blow seen in 0.35 s, no parry up, guard idle, no raise read, the preventive
+  check not due: its timer keeps its phase). A monster's melee begun in 1.5 s: the parry frame runs anyway, and if it
+  finds a blow the frame runs whole. On such frames the skipped steps would write nothing (agstruck's and agparry's
+  quiet answers): only the weapon's place, unseen, differs.
+- **No tunnelling**: `movernear(org, rad)` (builtin; vr_findradius.cpp `VR_FindRadius_MoverNear`) answers whether
+  `findradiusmoving(org, rad, 0)` could find anything, from a list of the movers linked (or their origin stored) this
+  server frame or the last while moving (velocity not zero; not a player, monster or pusher), each tested as findradius
+  tests it, where it is now: no grid search. Asked every frame at each weapon with the shot scan's first-look radius
+  (128 + 192), so a nail is seen the frame it comes within 320 units of the grip, ~80 units more than one frame's flight
+  of a 2000 u/s nail needs to meet the weapon's 192-unit line; the scans then run as before. A mover made this frame
+  that has not moved yet stands where it was made (a player's shot: at his gun, farther than the near distance).
+- **Balance: the same game, frame for frame** (`Misc/quakevr/aglod_balance.py`, vr_agrunt_test 235's census: 30 s
+  from the fight's start, his health set to 100000, damage taken, frames hit, armed humanoids' shots, kills, skipped
+  thinks, a hash of every monster's place, health, frame and enemy and his health). LOD off against on, same seed:
+
+| scene (seeds 7, 11, 23) | damage taken (off = on) | frames hit | shots | kills | skipped thinks (on) | game hash |
+|---|---|---|---|---|---|---|
+| hip1m1, all 69 woken (questopt2's scene; none reached him in 30 s) | 0 / 0 / 0 | 0 | 0 | 0 | 47,420 / 48,515 / 47,515 | equal in all 3 |
+| combat_48 (bench: 48 mixed in front of him) | 2050 / 1359 / 1067 | 248 / 176 / 118 | 33 / 18 / 34 | 6 / 17 / 20 | 0 / 0 / 16 | equal in all 3 |
+| behind48 (the same 48 from 480 units, behind him) | 1550 / 1750 / 1068 | 160 / 206 / 122 | 4 / 10 / 25 | 13 / 14 / 20 | 59 / 224 / 0 | equal in all 3 |
+| arena waves from 3 | 218 / 221 / 245 | 30 / 27 / 35 | 0 | 0 | 0 | equal in all 3 |
+
+  Test 228 (aglod_test.sh) gains a 4th run with the think LOD off and a trace of the game alone (its place, frame, turn,
+  state, shots, his health; the old trace also holds the weapon's place): equal in all four runs, every trial.
+  Nothing visible changes but the weapon's place on frames no player can see: no checklist line.
+- **Switch**: `vr_agrunt_think_lod` (cvar, default 1; Debug > the armed humanoids' rows "Far Unseen Weapon Thinks Less
+  Often"); 0 every frame, as before.
+- **Gain: small** (hip1m1 scene above, interleaved ABBA blocks in one launch, medians; the cvar switched per block):
+
+| | LOD off | LOD on | |
+|---|---|---|---|
+| Quest 3, release APK (2 launches, 12+12 blocks of 432 frames): `quakec` scope (vr_profile, no function profiler) | 2.995 ms | 2.960 ms | -0.035 (-1.2%) |
+| Quest 3: CPU busy a frame | 9.25 | 9.14 | within the fight's noise (+-0.3) |
+| PC Release, fast mode (4+4 blocks of 720): `quakec` scope | 0.940 ms | 0.915 ms | -0.025 (-2.7%) |
+| PC, profile_qc: `VR_AG_WeaponStruck` / `VR_AGPar_Frame` incl. (calls a frame) | 0.097 (79) / 0.076 (58) | 0.070 (53) / 0.067 (39) | the decision `VR_AG_ThinkLod` +0.042 eats most of it |
+
+  Why so little: qcnative already made a quiet frame's scans and parry cheap (agstruck, agparry), and in this scene the
+  far, unseen ones are idle (woken, then they lose him), already posed once in 8 by the pose LOD: the think LOD skips
+  only their scans and parry (~22 of ~40 a frame). Alert ones far and unseen (the pose every 4th frame instead of
+  every 2nd) were rare in every fight measured: hunters close in, come into view, or something flies near them.
+  ab_trees.py was not used: the A/B is a cvar in one build, interleaved within a launch (no build-to-build noise).
+- **Default on**: nothing a player could notice changes (the same game with the same seed in every scene), and it
+  pays a little on crowded maps. Off costs nothing either: his call if he'd rather not carry it.
+- **Tests**: aglod_test.sh 18/0 (test 228's 4 runs + 229); aglod_balance.py 12 pairs same, 0 differ.
+- Headset: my APK and test progs for the two launches, then beta6 put back (APK 9261565a, progs a0bfe11a) and his 31
+  autosaves restored (32 sums match); lock released. Scripts: worktree `scratch/aglod_*` (not committed).
+## qcvm: QuakeC's interpreter on the Quest and PC: the loop's own calls and returns; what the loop costs there (branch agent/qcvm, 2026-11-28)
+
+- **Found first**: the brief's steps 1-2 (computed-goto dispatch with the switch kept for other compilers; the runaway
+  count and profile accounting off the per-statement path, kept exact) were already in: `vr_qcexec` 1 since 2026-10-15
+  (QC_VM.md, `vr/vr_qcexec_loop.inc`, built for clang/gcc: the NDK's clang and clang-cl both get the goto loop). Never
+  measured on the Quest until now.
+- **What changed** (`vr/vr_qcexec.c`, `QCExec_Enter`/`QCExec_Leave`, `QX_FASTCALL` in the loop): a QuakeC call and its
+  return are done by the loop itself instead of PR_EnterFunction/PR_LeaveFunction: the VM in a register (their every
+  `qcvm->` was a reload, as their stores through the globals may alias it), the locals saved and put back by memcpy, each
+  parameter copied in one go; the same state in the same order. vr_qcprofile, a Tracy build, a stack at either end:
+  those functions as before (their errors). `vr_qcexec` 3 (Debug > Profiling "QuakeC Loop": "Goto, Old Calls") is the
+  loop with the old calls: the A/B. `vr_qcexec_bench` times all four loops.
+- **Tool**: `vr_qcexec_time [label|stop]` (Debug > Profiling "QuakeC Time a Frame"): QuakeC's time a frame (every
+  outermost call, builtins included: vr_profile's "quakec"), statements a frame and ns a statement since the last call.
+- **Same behaviour**: the seeded hip1m1 fight (69 monsters, 2,670 frames, 232,773,678 statements): every function's
+  statement count equal for loops 0, 1, 2 and 3 (1,364 functions). vr_bench_statehash is not repeatable on this scene
+  (the same loop twice gives different hashes), so it is no check here. `vr_qcexec_bench`: results and counts equal for
+  the four loops on PC and the Quest. Agrunt group (kit run_baseline, 222 cases): 220 PASS, agrunt_65 5/1 and
+  agrunt_71 8/2 (both on test_flaky.txt).
+- **Measured** (interleaved blocks in one run, medians; ns a statement is QuakeC's time over its statements, builtins
+  included: the fights' statement counts drift 87-105 k a frame, so it is the fairer number):
+
+| change | PC hip1m1 fight (LTO, exclusive, 4x720 frames) | PC combat_48 scene | Quest 3 hip1m1 fight (release APK, 2 launches, 4-6x432 frames) |
+|---|---|---|---|
+| original loop (`vr_qcexec 0`) | 0.977 ms, 12.17 ns | 12.35 ns | 2.99 ms, 33.1 ns |
+| goto dispatch, implicit count (October; `3`) | 0.886 ms (-9%), 10.97 ns | 11.14 ns (-10%) | 2.96 ms, 33.2 ns (-0%, within noise) |
+| + the loop's own calls (`1`, the default) | **0.838 ms (-5% on 3)**, 10.44 ns | 10.72 ns (-4%) | **2.83 ms (-4% on 3)**, 31.9 ns (-3.1 to -4.6% in all 4 launches) |
+| the same with the switch (`2`) | 0.836 ms, 10.41 ns | 10.61 ns | |
+| Android link: `-Bsymbolic`, `-fno-semantic-interposition`, `-fno-plt` (APK B against A, `vr_qcexec 1`) | (PC: none needed) | | 31.73 -> 31.52 ns, 32.28 -> 32.31: none; CPU busy 8.92 -> 8.90, 9.19 -> 9.06: noise. Not kept |
+
+  Quest CPU busy (vr_profile, same blocks) moved within its +-0.3 ms noise. The microbenchmark on the Quest
+  (`vr_qcexec_bench`, ns a call, original / goto / switch / goto old calls): ad_mathlib_fast_pow 344 / 202 / 325 / 220
+  (1.70x), pow(1.5, 7.25) 660 / 666 / 739 / 681, sqrt 471 / 483 / 519 / 496: the goto loop helps branchy code there,
+  not latency-bound float loops (fdiv chains); 2.3-4.3 ns a statement in all.
+- **Why the VM can't give more on the Quest**: ~89 k statements a frame at ~3 ns is ~0.3 ms of the fight's 2.8 ms of
+  QuakeC; the rest is the builtins' native work (PC profile: agpose, navsteer, limbpiece, agstruck, traceline ~1 ms of
+  it; ~3,500 builtin calls a frame, cvar_hget 1,276, min/max 850). The PLT/GOT question settled too: the release
+  `libquakevr.so` has 7,330 PLT slots and 6,066 GOT data entries for its own symbols (B: 533 and 4) and binding them
+  measured nothing (the Quest's cores predict the stubs and keep the GOT cached). Pre-decoded statements and
+  superinstructions (QC_VM.md's steps 3-4) would cut part of the 0.3 ms: not done. The next QuakeC gains are the
+  builtins' own work (qcnative's list: agpose, limbpiece, navsteer, findradiusmoving).
+- Headset: beta6 put back (APK 9261565a, progs a0bfe11a), his 31 autosaves and 3 saves restored (35 sums match).
+  Scripts: worktree `scratch/qcvm_*` (not committed): `qcvm_q.sh` (backup/install/launch/restore), `qcvm_mkcfg.py`
+  (the scenes), `qcvm_parse.py`, `qcvm_hash.sh`.
+## qcjit: is a QuakeC JIT or AOT worth it on the Quest and PC? (research; branch agent/qcjit, 2026-11-28)
+
+- Research and a doc only, no engine change: `docs/vr-port/QC_JIT.md` (existing work, libraries, platforms' JIT rules,
+  AOT design, gain estimate, sources).
+- Measured (PC, hip1m1 fight of questopt2: 69 woken, 720 frames): 96,700 QC statements a frame; the 25 hottest functions
+  run 55% of them; `vr_qcprofile` QuakeC 1.81 ms of which builtins ~1.0. Our progs: 24,910 functions, 822 k statements,
+  4,340 fields (17 KB edicts), vanilla opcodes. The interpreted part is ~0.5-0.6 ms PC / ~1.4 ms Quest, at ~5-6 ns a
+  statement on PC against vr_qcexec's 1.1-1.5 ns dispatch-bound: calls, builtin marshalling and memory dominate, which
+  native code doesn't remove (DarkPlaces' QcNat.hs progs-to-C found "the performance was the same").
+- No maintained QuakeC JIT for x86-64/arm64 exists (FTE's pr_x86.c: x86-32, off); Quake3e's arm64 QVM JIT (GPLv2+) is the
+  reference for executable memory. Android/Horizon allow app JIT (`appdomain self:process execmem`); Meta's policies are
+  silent. Libraries that fit the licence: sljit (BSD-2), AsmJit (zlib), MIR (MIT, no Windows), DynASM, libtcc; not
+  lightning (LGPLv3), LLVM/Cranelift (Apache-2.0), libgccjit (GPLv3).
+- Recommendation: no JIT. Finish the interpreter (qcvm) and the hand ports first; spike a profile-guided AOT of our own
+  progs' hottest functions (qc2c.py, hash-gated, `vr_qc_aot` 0/1/2 compare) only if > ~1 ms of interpreted QuakeC is
+  left on the Quest. Expected AOT gain ~0.4-0.7 ms Quest, ~0.15-0.3 ms PC.
+
+## qcbuiltins: the builtins QuakeC calls most, profiled natively; the worn packs' limbpiece 2.5-3x faster (branch agent/qcbuiltins, 2026-11-28)
+
+- **Scene**: questopt2's hip1m1 fight (skill 2, god, all 69 woken: 40 armed humanoids, 29 worn packs). Quest 3: a release
+  APK of this branch with the test progs, unattended; PC: Release, mock headset (low-impact runs: his game was open, so
+  PC ms are relative). simpleperf was not tried (release APK, not profileable); the native breakdown came from temporary
+  section timers on PC (`za::Clock` around the builtins' parts; not committed).
+- **Profile** (`profile_qc` builtins, ms a frame; per call in brackets):
+
+| builtin | calls/frame | Quest before | Quest after | PC before | PC after | where its time goes (PC timers) |
+|---|---|---|---|---|---|---|
+| `agpose` | 38-41 | 0.68 (16.7 us) | same | 0.37-0.43 (9.4-11 us) | same | spread: model vertices 10 a pose (0.2 us each), keys 1.7 us, arms 1.6 us, its QuakeC calls 2.1 us |
+| `limbpiece` (worn packs, 4 calls a wearer) | 116 | **0.43-0.47 (3.7-4.0 us)** | **0.20 (1.6 us)** | **0.27-0.31 (2.4-2.6 us)** | **0.095-0.099 (0.83 us)** | wornPackAll 10 us a wearer: the anchors' skeleton rebuild for the whole rig (animsmooth::serverPoints, rebuildRows) |
+| `navsteer` | 12.7 | 0.47 (36 us) | | 0.32-0.34 (26 us) | | repaths 147 us each (1.4 a frame: Detour findPath), refreshMovers 8 us a call averaged, start poly 2 us, straight path 1 us |
+| `agstruck` | 82 | 0.34 | | 0.17-0.19 | | its findradiusmoving (qcnative) |
+| `traceline` | 63-72 | 0.17 | | 0.14 | | |
+| `cvar_hget` | 1,150-1,330 | 0.10-0.12 (0.09 us) | | 0.03 | | |
+| `movetogoal`, `walkmove`, `find`, `playerbodypoint`, `findradius` | 5-270 | | | 0.03-0.07 each | | |
+
+- **Change** (`vr_qc_builtin_fast`, cvar, default 1; Debug > Armed Humanoids rows "QuakeC's Busiest Builtins, Faster"; 0 as
+  before, the A/B; 2 both, compared bit for bit, `vr_qc_builtin_fast point bones check: N compared, M differed` every
+  2,000): a worn pack's three anchors on a body out of view (agarmor::packWhere -> hitmodel::drawnVertexPoints ->
+  animsmooth::serverPoints, questopt's subset path) rebuilt the whole rig's rows (rigpose::along's rotation per bone:
+  atan2/sin/cos/sqrt, twice with the swing) for three vertices. Now only those vertices' bones and their parents
+  (`rigpose::wantWithParents`; `want` masks on rigpose::along/alongSlots, animsmooth's swings/rebuildRows); the swing's
+  stillness test reads the other bones' keys only while every wanted bone stays still (all still: nothing swings). The
+  whole-body callers (hitmodel's shape, the draw) pass every bone, as before.
+- **Exact**: PC fight, 44,000 anchor sets compared over 1,440 frames, 0 differed.
+- **Measured**: Quest QuakeC a frame (`vr_qcexec_time`, 2 launches, 6+6 interleaved blocks of 432 frames each, medians):
+  **2.93 -> 2.63 ms (-0.30 ms, -10%)**, 33.0 -> 30.0 ns a statement; CPU busy 9.07 -> 9.00 (within its +-0.3 noise).
+  Quest profiler: limbpiece 0.47/0.43 -> 0.20/0.20 ms. PC profiler: limbpiece 0.28/0.27 -> 0.099/0.095 ms.
+- **Tests**: animsmooth_test 9/0; `vr_wornpack_test 1` (developer 1) 24/1, the same 24/1 with `vr_qc_builtin_fast 0`
+  ("gibbed: its pack comes off": not this change; its verdict prints only with developer 1).
+- **Not done** (by size): `agpose` (16.7 us Quest, spread thin over many small steps: no single lever); `navsteer`'s repaths
+  (Detour A* 147 us PC each; exact speedups would need a path cache keyed on start/end polys and points: rarely equal
+  between monsters); refreshMovers' periodic whole-mesh pass (the lift boarding list rebuilt from every tile each tick:
+  cacheable per tile generation); findradiusmoving (already per grid). A try that skinned an armed humanoid's three
+  anchor vertices alone (drawnpose) measured nothing in this scene (its wearers out of view are not on the authored rig)
+  and was dropped.
+- Headset: beta6 put back (1.2.0-beta6, progs a0bfe11a), his 31 autosaves and 3 top-level saves restored (35 sums match).
+  Scripts: worktree `scratch/qcb_*` (not committed): `qcb_q.sh` (backup/install/launch/restore), `qcb_mkcfg.py`,
+  `qcb_parse.py`, `qcb_q2.cfg` (the profile A/B).
+
+## diskclean (2026-11-28)
+
+- Retired 18 checklist lines he ticked Pass (cl_retire_ticks.py, no voice notes) and removed 6 scenes nothing used any more:
+  agrunt_flashblind, armour_lineup, elite_pair, flat_proc_reload, run_setup_newgame, tutorial_ladder (agrunt_dual_guns and
+  armour_beasts kept: a QC test comment / test_numbers.txt / ARMED_MONSTERS.md still name them). checklist_tests_check 97/0.
+- Disk: moved to F:\QVR-Parked‚6-11-28\diskclean\: worktrees pcbase and unionmerge (3.3 GB, worktree prune), the kit base
+  bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
+  renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
