@@ -47,8 +47,7 @@ def main():
     d.text((W + 8, 4), f"{gun}: game (a real reload held at the key's end)", fill=(255, 255, 255))
     for row, key in enumerate(keys):
         y = LABEL + row * (H + LABEL)
-        note = " (both held 6 u out of the port, so the round waits)" if "insert" in names[key].lower() else ""
-        d.text((8, y + 4), f"key {key}: {names[key]}{note}", fill=(255, 220, 120))
+        d.text((8, y + 4), f"key {key}: {names[key]}", fill=(255, 220, 120))
         for col, side in enumerate(("lock", "game")):
             f = cells.get((key, side))
             if f:

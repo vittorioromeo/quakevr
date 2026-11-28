@@ -1258,7 +1258,7 @@ void startPoseTest()
 
 constexpr const char* stripName = "reloadstudio_strip";
 constexpr int stripShotFrames = 4; // frames after a screenshot is asked for before the scene changes
-constexpr float stripMiss = 6.f;   // units an insert's key is held out of the port (vr_flat_prl_test_miss), as the pose test's
+constexpr float stripNoPort = -1000.f; // a port radius no round is ever within (the game's carry and insert reach their ends)
 
 struct Strip
 {
@@ -1268,15 +1268,53 @@ struct Strip
     int frames{0};
     int settled{0};
     int shot{-1}; // frames since the screenshot was asked for (-1: not yet)
+    cvar_t* port{nullptr}; // the gun's port radius (QC VR_Reload_PortRadius's vr_reload_port_<gun>_radius), while blocked
+    float portWas{0.f};
     testkit::Tally tally;
 };
 Strip sp;
+
+// The gun's port radius cvar (QC VR_Reload_PortRadius: the stock guns').
+[[nodiscard]] cvar_t* portRadiusVar(int weapon)
+{
+    const char* name = weapon == WID_SUPER_SHOTGUN      ? "vr_reload_port_sshot_radius"
+                       : weapon == WID_NAILGUN          ? "vr_reload_port_nail_radius"
+                       : weapon == WID_SUPER_NAILGUN    ? "vr_reload_port_snail_radius"
+                       : weapon == WID_LIGHTNING        ? "vr_reload_port_light_radius"
+                       : weapon == WID_NAILPISTOL       ? "vr_reload_port_npistol_radius"
+                       : weapon == WID_REVOLVER         ? "vr_reload_port_revolver_radius"
+                       : weapon == WID_GRENADE_LAUNCHER ? "vr_reload_port_gl_radius"
+                       : weapon == WID_PROXIMITY_GUN    ? "vr_reload_port_prox_radius"
+                       : weapon == WID_ROCKET_LAUNCHER  ? "vr_reload_port_rl_radius"
+                                                        : "vr_reload_port_shot_radius";
+    return Cvar_FindVar(name);
+}
+
+// The game's port blocked (`on`: the round never goes in, so the carry and the insert are held at their ends as the lock
+// shows them, not cut short as the round goes in on the way) or as it was.
+void stripBlockPort(bool on, int weapon)
+{
+    if(on && !sp.port)
+    {
+        sp.port = portRadiusVar(weapon);
+        sp.portWas = sp.port ? sp.port->value : 0.f;
+        if(sp.port)
+        {
+            Cvar_SetValueQuick(sp.port, stripNoPort);
+        }
+    }
+    else if(!on && sp.port)
+    {
+        Cvar_SetValueQuick(sp.port, sp.portWas);
+        sp.port = nullptr;
+    }
+}
 
 void stripVerdict()
 {
     Cvar_SetValueQuick(&vr_flat_prl_lock, 0.f);
     Cvar_SetValueQuick(&vr_flat_prl_hold, 0.f);
-    Cvar_SetValueQuick(&vr_flat_prl_test_miss, 0.f);
+    stripBlockPort(false, 0);
     sp.on = false;
     win.hideUi = false;
     closeWindow();
@@ -1317,9 +1355,9 @@ void stripFrame()
         sp.frames = 0;
         sp.settled = 0;
         sp.shot = -1;
-        // (An insert's key held out of the port by stripMiss, in both, so the game's round waits at its end.)
-        const bool insert = sp.key < r.keyCount && r.keys[sp.key].action == reloadsys::Action::Insert;
-        Cvar_SetValueQuick(&vr_flat_prl_test_miss, insert ? stripMiss : 0.f);
+        // (The game's port blocked from the take to the insert: the round waits at each key's end, seated after.)
+        const int take = reloadsys::takeKey(r), insert = reloadsys::insertKey(r);
+        stripBlockPort(sp.step == 3 && take >= 0 && sp.key > take && sp.key <= insert, r.weapon);
     };
     switch(sp.step)
     {
