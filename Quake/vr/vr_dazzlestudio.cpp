@@ -119,6 +119,8 @@ struct Window
     int step{0};
     int stepFrames{0};
     int still{0};
+    bool shots{false}; // (test shots: screenshots on the way)
+    int shotAt{0};
     char fileWas[64]{};
     glm::vec3 prev[TargetCount]{glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}}; // last frame's (settled)
     glm::vec3 base[TargetCount]{glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}}; // with no tweaks
@@ -495,8 +497,10 @@ bool editVec(const char* label, glm::vec3& v, float speed, const char* tip)
 
 void drawWindow(const Pose& p)
 {
-    ImGui::SetNextWindowSize(ImVec2(460.f, 640.f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 480.f, 20.f), ImGuiCond_FirstUseEver);
+    // (narrow, at the right: the subject stands in the middle of the view)
+    const ImVec2 display = ImGui::GetIO().DisplaySize;
+    ImGui::SetNextWindowSize(ImVec2(380.f, za::min(680.f, display.y - 30.f)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(display.x - 390.f, 15.f), ImGuiCond_FirstUseEver);
     bool keep = true;
     const bool shown = ImGui::Begin("Dazzle Studio", &keep, ImGuiWindowFlags_NoSavedSettings);
     if(!keep)
@@ -712,6 +716,33 @@ void testVerdict()
     return ok && win.still >= frames;
 }
 
+// `vr_dazzlestudio test shots`: a screenshot of the window and the gizmo on target `target` (his review), then on once it
+// is taken (a few frames).
+[[nodiscard]] bool shot(int target, bool rotate)
+{
+    if(!win.shots)
+    {
+        return true;
+    }
+    if(win.shotAt == 0)
+    {
+        win.target = target;
+        win.rotate = rotate;
+        win.shotAt = win.stepFrames;
+        return false;
+    }
+    if(win.stepFrames == win.shotAt + 3)
+    {
+        Cbuf_AddText("screenshot\n"); // (the gizmo moved there and drawn first)
+    }
+    if(win.stepFrames < win.shotAt + 8)
+    {
+        return false;
+    }
+    win.shotAt = 0;
+    return true;
+}
+
 [[nodiscard]] bool near3(const glm::vec3& a, const glm::vec3& b, float within)
 {
     return glm::distance(a, b) < within;
@@ -742,7 +773,7 @@ void testFrame()
     switch(win.step)
     {
         case 1: // a frozen shotgun grunt, zero tweaks: shielding, settled
-            if(settled(p, 20, 0))
+            if(settled(p, 20, 0) && shot(TargetHand, false))
             {
                 t.check(win.open && imgui::wanted(), testName, "the window open, ImGui wanted");
                 t.check(vr_agrunt_freeze.value != 0.f, testName, "the armed humanoids held still");
@@ -773,7 +804,7 @@ void testFrame()
             }
             break;
         case 3: // the gun hand moved away (to its right), the shield's hand back
-            if(settled(p, 10, 0))
+            if(settled(p, 10, 0) && shot(TargetGun, false))
             {
                 const glm::vec3 d = p.at[TargetGun] - win.base[TargetGun];
                 const float right = -glm::dot(d, toWorld(p.yaw, glm::vec3{0.f, 1.f, 0.f}));
@@ -787,7 +818,7 @@ void testFrame()
             }
             break;
         case 4: // the elbow lower
-            if(settled(p, 10, 0))
+            if(settled(p, 10, 0) && shot(TargetElbow, false))
             {
                 const float down = win.base[TargetElbow].z - p.at[TargetElbow].z;
                 t.check(down > 1.f, testName, va("the elbow lower by its way's tweak (%.2f units)", down));
@@ -850,7 +881,7 @@ void testFrame()
             }
             break;
         case 8:
-            if(settled(p, 10, 1))
+            if(settled(p, 10, 1) && shot(TargetHand, true))
             {
                 const glm::vec3 want = win.dualBase + glm::vec3{0.f, 0.f, 2.f};
                 t.check(near3(p.at[TargetHand], want, 0.02f), testName,
@@ -860,7 +891,7 @@ void testFrame()
                 const progs::ServerVm vm;
                 t.check(progs::edictAt(subject) == nullptr, testName, "closed: the subject gone");
                 t.check(vr_agrunt_freeze.value == 0.f, testName, "closed: the armed humanoids free again");
-                next();
+                testVerdict(); // (now: the window's frame no longer runs)
             }
             break;
         default: testVerdict(); break;
@@ -870,6 +901,8 @@ void testFrame()
 void startTest()
 {
     win.tally.reset();
+    win.shots = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "shots");
+    win.shotAt = 0;
     q_strlcpy(win.fileWas, vr_dazzle_file.string, sizeof(win.fileWas));
     Cvar_Set("vr_dazzle_file", testFile);
     dazzledata::clear();

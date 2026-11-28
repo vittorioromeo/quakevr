@@ -3094,6 +3094,7 @@ vr_agrunt_pose_lod|2|Tunables|Armed Pose LOD|Advanced VR Options > Debug > Tunab
 vr_agrunt_pose_lod_frames|2|Tunables|Armed Pose LOD: Frames|Advanced VR Options > Debug > Tunables > Armed Pose LOD: Frames
 vr_agrunt_pose_lod_near|2|Tunables|Armed Pose LOD: Near|Advanced VR Options > Debug > Tunables > Armed Pose LOD: Near
 vr_agrunt_pose_lod_cone|2|Tunables|Armed Pose LOD: View Cone|Advanced VR Options > Debug > Tunables > Armed Pose LOD: View Cone
+vr_agrunt_think_lod_frames|2|Tunables|Armed Think LOD: Frames|Advanced VR Options > Debug > Tunables > Armed Think LOD: Frames
 vr_worn_backpack_lod_near|2|Tunables|Worn Pack LOD: Near|Advanced VR Options > Debug > Tunables > Worn Pack LOD: Near
 vr_ragdoll_per_frame|2|Tunables|New Ragdolls per Frame|Advanced VR Options > Debug > Tunables > New Ragdolls per Frame
 vr_ragdoll_sleep_skip|2|Tunables|Skip Sleeping|Advanced VR Options > Debug > Tunables > Skip Sleeping
@@ -4292,6 +4293,8 @@ vr_image_cache_mb|2|Tunables|Decoded Image Cache|Advanced VR Options > Debug > T
 vr_anim_smooth_rig_error|2|Tunables|Limb Fit Limit|Advanced VR Options > Debug > Tunables > Limb Fit Limit
 vr_anim_smooth_rebuild_error|2|Tunables|Rebuild Fit Limit|Advanced VR Options > Debug > Tunables > Rebuild Fit Limit
 vr_anim_smooth_rebuild_blend|2|Tunables|Rebuild Joints From Two Bones|Advanced VR Options > Debug > Tunables > Rebuild Joints From Two Bones
+vr_hitmodel_points_subset|2|Tunables|Fast Anchor Points|Advanced VR Options > Debug > Tunables > Fast Anchor Points
+vr_qc_scan_share|2|Tunables|Shared QuakeC Scans|Advanced VR Options > Debug > Tunables > Shared QuakeC Scans
 vr_hitmodel_drawn|2|Tunables|Shots Meet The Drawn Body|Advanced VR Options > Debug > Tunables > Shots Meet The Drawn Body
 vr_armour_on_drawn|2|Tunables|Beast Armour On The Drawn Body|Advanced VR Options > Debug > Tunables > Beast Armour On The Drawn Body
 vr_gore_streams_chance|2|Tunables|Stream Chance|Advanced VR Options > Debug > Tunables > Stream Chance
@@ -5624,6 +5627,8 @@ vr_gl_world_lit_reuse|2|Debug - Profiling and Memory|Fast Lit Textures' Walk (Qu
 vr_gl_quake_dlights|2|Debug - Profiling and Memory|Quake-Style Dynamic Lights (Quest)|Advanced VR Options > Debug > Profiling and Memory > Quake-Style Dynamic Lights (Quest)
 vr_gl_world_dlmap|2|Debug - Profiling and Memory|Dynamic Lights in the Lightmap (Quest)|Advanced VR Options > Debug > Profiling and Memory > Dynamic Lights in the Lightmap (Quest)
 vr_gl_world_dlmap_batch|2|Debug - Profiling and Memory|Batch Lightmap Uploads (Quest)|Advanced VR Options > Debug > Profiling and Memory > Batch Lightmap Uploads (Quest)
+vr_gl_world_dlmap_reach|2|Debug - Profiling and Memory|Lightmap Lights Only Where They Reach (Quest)|Advanced VR Options > Debug > Profiling and Memory > Lightmap Lights Only Where They Reach (Quest)
+vr_gl_world_dlmap_keep|2|Debug - Profiling and Memory|Keep Unchanged Lightmap Light (Quest)|Advanced VR Options > Debug > Profiling and Memory > Keep Unchanged Lightmap Light (Quest)
 |2|Debug - Profiling and Memory|Print Dynamic Lightmap Info (Quest)|Advanced VR Options > Debug > Profiling and Memory > Print Dynamic Lightmap Info (Quest)
 |2|Debug - Profiling and Memory|Capture Frame (RenderDoc)|Advanced VR Options > Debug > Profiling and Memory > Capture Frame (RenderDoc)
 vr_renderdoc_delay|2|Debug - Profiling and Memory|Capture Delay|Advanced VR Options > Debug > Profiling and Memory > Capture Delay
@@ -5751,6 +5756,9 @@ vr_box3d_mesh_ghosts|2|Debug - Profiling and Memory|Physics Mesh Ghost Handling|
 vr_agarms_warm|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Warm Start|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Warm Start
 vr_agarms_fast|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Grip Slide Bisected|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Grip Slide Bisected
 vr_agpose_native|2|Debug - Profiling and Memory|Armed Humanoids: Pose in the Engine|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Pose in the Engine
+vr_qc_native_think|2|Debug - Profiling and Memory|Armed Humanoids: Quiet Weapon Checks in the Engine|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Quiet Weapon Checks in the Engine
+vr_qc_builtin_fast|2|Debug - Profiling and Memory|QuakeC's Busiest Builtins, Faster|Advanced VR Options > Debug > Profiling and Memory > QuakeC's Busiest Builtins, Faster
+vr_agrunt_think_lod|2|Debug - Profiling and Memory|Armed Humanoids: Far Unseen Weapon Thinks Less Often|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Far Unseen Weapon Thinks Less Often
 vr_agposesend|2|Debug - Profiling and Memory|Armed Humanoids: Pose Message in One Builtin|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Pose Message in One Builtin
 vr_agarms_jobs|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Solves on Job Threads|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Solves on Job Threads
 |2|Debug - Profiling and Memory|Armed Humanoids: Arms' Solve Time|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Solve Time
@@ -6050,9 +6058,11 @@ vr_obsrec_as_if|2|Debug - Reports|Clean Recording: Act As If OBS Records|Advance
 |2|Debug - Reports|Main Menu Lettering|Advanced VR Options > Debug > Reports > Main Menu Lettering
 |2|Debug - Reports|Reset This Page|Advanced VR Options > Debug > Reports > Reset This Page
 @page|2|Debug - Tools||Advanced VR Options > Debug > Tools
+|2|Debug - Tools|Dazzle Studio (Flat Screen)|Advanced VR Options > Debug > Tools > Dazzle Studio (Flat Screen)
 |2|Debug - Tools|Make the Nearest Monster Elite|Advanced VR Options > Debug > Tools > Make the Nearest Monster Elite
 |2|Debug - Tools|Make the Nearest Monster Ordinary|Advanced VR Options > Debug > Tools > Make the Nearest Monster Ordinary
 |2|Debug - Tools|Infect the Nearest Monster|Advanced VR Options > Debug > Tools > Infect the Nearest Monster
+|2|Debug - Tools|Check the Elites' Dye|Advanced VR Options > Debug > Tools > Check the Elites' Dye
 |2|Debug - Tools|Controller Bindings Screen|Advanced VR Options > Debug > Tools > Controller Bindings Screen
 |2|Debug - Tools|Print Controller Bindings|Advanced VR Options > Debug > Tools > Print Controller Bindings
 |2|Debug - Tools|Bindings Screen Tests|Advanced VR Options > Debug > Tools > Bindings Screen Tests
@@ -6325,6 +6335,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Armour Studio: ImGui Window Test (Flat Screen)|Advanced VR Options > Debug > Tests > Armour Studio: ImGui Window Test (Flat Screen)
 |2|Debug - Tests|Armour Studio: Window Handle (Gizmo) Test (Flat Screen)|Advanced VR Options > Debug > Tests > Armour Studio: Window Handle (Gizmo) Test (Flat Screen)
 |2|Debug - Tests|Armour Studio: Your Clone's Armour Test|Advanced VR Options > Debug > Tests > Armour Studio: Your Clone's Armour Test
+|2|Debug - Tests|Dazzle Studio: Test (Flat Screen)|Advanced VR Options > Debug > Tests > Dazzle Studio: Test (Flat Screen)
 |2|Debug - Tests|Armour Tweaks: Data File Test|Advanced VR Options > Debug > Tests > Armour Tweaks: Data File Test
 |2|Debug - Tests|Armour Plates: Pop-through Check|Advanced VR Options > Debug > Tests > Armour Plates: Pop-through Check
 |2|Debug - Tests|Armour Plates: Broken Halves Check|Advanced VR Options > Debug > Tests > Armour Plates: Broken Halves Check
@@ -7185,6 +7196,7 @@ vr_decap_poptest_dist|2|Debug - Automation & Self-Tests|Test Range|Advanced VR O
 vr_walltorch_debug|2|Debug - Automation & Self-Tests|Torch Flames to Console|Advanced VR Options > Debug > Automation & Self-Tests > Torch Flames to Console
 |2|Debug - Automation & Self-Tests|Tracy Pool Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Tracy Pool Self-Test
 |2|Debug - Automation & Self-Tests|QuakeC Loop Bench|Advanced VR Options > Debug > Automation & Self-Tests > QuakeC Loop Bench
+|2|Debug - Automation & Self-Tests|QuakeC Time a Frame|Advanced VR Options > Debug > Automation & Self-Tests > QuakeC Time a Frame
 |2|Debug - Automation & Self-Tests|Thread Pool Split Bench|Advanced VR Options > Debug > Automation & Self-Tests > Thread Pool Split Bench
 |2|Debug - Automation & Self-Tests|Thread Pool Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Thread Pool Self-Test
 |2|Debug - Automation & Self-Tests|Particles on Threads Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Particles on Threads Self-Test
