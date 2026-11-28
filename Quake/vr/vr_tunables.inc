@@ -2004,9 +2004,9 @@ QVR_TUNABLE(vr_flat_prl_tilt_in_time, "0.17") // seconds the gun's hand takes to
 QVR_TUNABLE(vr_flat_prl_tilt_out_time, "0.2") // and seconds back
 QVR_TUNABLE(vr_flat_prl_tilt_pitch, "-20") // degrees the gun tilts (pitch, + muzzle down), mirrored for a gun in the left hand
 QVR_TUNABLE(vr_flat_prl_tilt_yaw, "60") // degrees it turns in towards the body (yaw)
-QVR_TUNABLE(vr_flat_prl_tilt_roll, "35") // degrees it rolls, its bottom (the port) towards the free hand
+QVR_TUNABLE(vr_flat_prl_tilt_roll, "69") // degrees it rolls, its bottom (the port) towards the free hand
 QVR_TUNABLE(vr_flat_prl_gun_fwd, "3") // units the gun moves forward while tilted
-QVR_TUNABLE(vr_flat_prl_gun_up, "0") // and up
+QVR_TUNABLE(vr_flat_prl_gun_up, "-2.5") // and up
 QVR_TUNABLE(vr_flat_prl_gun_in, "-1") // and in towards the body's middle
 QVR_TUNABLE(vr_flat_prl_approach, "0.5") // units before the port (out of its opening) the carried round comes to, before it is pushed in
 QVR_TUNABLE(vr_flat_prl_arc, "3") // units the hand's way bows up (and out) between the pouch and the gun
@@ -2020,6 +2020,9 @@ QVR_TUNABLE(vr_flat_prl_pouch_roll, "5") // and degrees it rolls (mirrored)
 QVR_TUNABLE(vr_flat_prl_port_pitch, "-40") // the free hand's turn at the port, on the gun's: degrees pitch
 QVR_TUNABLE(vr_flat_prl_port_yaw, "59") // and yaw (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_prl_port_roll, "-9") // and roll (mirrored)
+QVR_TUNABLE(vr_flat_prl_port_fwd, "0") // units the free hand sits off its place at the port (the round at the port), forward along the gun (its hand's frame)
+QVR_TUNABLE(vr_flat_prl_port_right, "0") // and to the gun's right (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_prl_port_up, "0") // and up from the gun
 QVR_TUNABLE(vr_flat_prl_failsafe, "0.6") // seconds after the round reaches the port without going in (a wall, a blocked hand) before the reload is cancelled (its round back in the pouch)
 QVR_TUNABLE(vr_flat_prl_giveup, "1.5") // the server's failsafe (QC): seconds with nothing taken or loaded before it cancels the reload
 QVR_TUNABLE(vr_flat_ammo_pouch_x, "-1") // flat-screen play's ammo pouch (shown with vr_flat_proc_reload): units it sits forward of the headset's place

@@ -163,7 +163,11 @@ or bash, the weapon changing, the free hand taking something else cancel it; a r
 (`VR_FlatReload_ProcPutBack`). Failsafes: the client cancels (impulse 106) when a round at the port isn't seated within
 `vr_flat_prl_failsafe` or the pouch gives nothing; the server when nothing is taken or loaded for `vr_flat_prl_giveup`.
 Dual wielding and every other gun: the timed trip. Timings, eases, angles: Tunables > Flatscreen > Procedural Reload.
-Test: `Misc/quakevr/flatprocreload_test.sh`.
+On the move (prlmove): the round is aimed at the port in the game's frame and the move sends that same port
+(`flatprocreload::portNow`); the server's carry keeps the round in the hand through the body and the gun
+(`VR_FlatReload_ProcHolds`), so running, jumping and sliding don't matter. The drawn free hand rides the drawn gun from the
+carry to the insert; its fingers grip the pair as a headset's do (`gripShare`). Hand at Port: Forward / Right / Up
+(`vr_flat_prl_port_fwd/right/up`, 0) nudge the hand and its pair at the port. Test: `Misc/quakevr/flatprocreload_test.sh`.
 
 **The guns' own parts** (his words 2026-11-10; `QC/vr_flatreload.qc`, VR's immersive functions reused: the same sounds,
 casings and physical magazines, with their caps on rounds lying about). Desktop Screen Play's toggles, Tunables >

@@ -462,6 +462,20 @@ float(entity p, float xHand) VR_FlatReload_ProcIn =
     return VR_FlatPlay(p) && (p.vr_flatrl & VR_FlatReload_ProcBit(xHand)) != 0;
 };
 
+// Whether `xBox` is the round in the free hand of a procedural reload of `p` (vr_carry.qc VR_Carry_Follow: it goes through
+// the body, as the hand does: vr_flatprocreload.cpp).
+float(entity p, entity xBox) VR_FlatReload_ProcHolds =
+{
+    for(float h = 0; h < 2; h++)
+    {
+        if(VR_FlatReload_ProcIn(p, h) && VR_Carry_Held(p, VRGetOtherHand(h)) == xBox)
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
 // Whether the gun in `xHand` of self reloads procedurally now: the option on, the shotgun held by its handle in that hand,
 // the other empty (nothing in it, not climbing), not stuck by its bayonet, and it can take rounds (VR_FlatReload_Can).
 float(float xHand) VR_FlatReload_ProcWanted =
