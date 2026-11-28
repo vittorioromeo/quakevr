@@ -718,6 +718,51 @@ def scenarios():
     add("menu_preview_e1m1", ["perf1114", "features"], "the VR settings open over E1M1 with Live Preview (the game runs)",
         "e1m1", "menu_open_e1m1 with ui_live_preview 1: the game keeps running under the menu (monsters asleep).",
         setup=["ui_live_preview 1", "menu_vr"], warm=60)
+    # ---- the PC profiling round of 2026-11-28 (group `pcperf`; ROUND26.md "pcperf"): the features of 11-27/28 in
+    # numbers: armoured beasts (pieces on the drawn body, the ogre's skeleton rebuild, shots on the drawn shape), the
+    # flashlight's dazzle on an armed crowd, guns lying about with their bayonet mounts, the weapon wheel and the flat
+    # holster menu open (their thumbnails). Each with its control (the feature off) for its cost by difference.
+    flat_gun = ["impulse 9", "wait", "impulse 2", "wait"]
+    lamp = ["vr_flashlight 1", "vr_flashlight_give left", "wait", "vr_flashlight_toggle",
+            "vr_mock_hand off -0.2 1.3 -0.35 0 0 0"]
+    add("armour_beasts16", ["pcperf", "armed", "combat"], "16 beasts in full armour (10 ogres) hunting you, your shotgun",
+        "vrtesthall", "bench_beasts_armour: 10 ogres, 2 rottweilers, 2 scrags, 2 fiends in full armour, hostile; the "
+        "player's shotgun on the nearest every 50 frames: pieces on the drawn body, the rebuild, shots, breaks, debris.",
+        scene="bench_beasts_armour", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("armour_beasts16_bare", ["pcperf", "control"], "control: armour_beasts16's beasts bare",
+        "vrtesthall", "bench_beasts_bare: the same 16 beasts without armour (vr_agarmor_beasts 0).",
+        scene="bench_beasts_bare", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("armour_beasts16_flat", ["pcperf", "flat"], "armour_beasts16 in flat mode", "vrtesthall",
+        "armour_beasts16 on the flat screen: the view's shotgun at whatever is ahead.", scene="bench_beasts_armour",
+        hostile=True, flat=True, setup=flat_gun, warm=60, load_wait=240, body=shoot_every(50))
+    add("dazzle_armed16", ["pcperf", "armed", "lights"], "armed_mix16 with your flashlight in their faces",
+        "vrtesthall", "bench_armed_mix16, hostile, the flashlight on in the off hand pointed ahead (their dazzle: the "
+        "beam's checks and lines, the shield pose), the player's shotgun on the nearest every 50 frames.",
+        scene="bench_armed_mix16", hostile=True, setup=lamp + gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("dazzle_armed16_off", ["pcperf", "control"], "control: dazzle_armed16 with vr_agrunt_dazzle 0", "vrtesthall",
+        "dazzle_armed16 with the dazzle off (the lamp still on): the dazzle's cost by difference.",
+        scene="bench_armed_mix16", hostile=True, setup=["vr_agrunt_dazzle 0"] + lamp + gun(4), warm=60, load_wait=240,
+        body=shoot_every(50))
+    add("dazzle_armed16_flat", ["pcperf", "flat"], "dazzle_armed16 in flat mode", "vrtesthall",
+        "dazzle_armed16 on the flat screen: the flashlight on, the view's shotgun at whatever is ahead.",
+        scene="bench_armed_mix16", hostile=True, flat=True, setup=["vr_flashlight 1", "vr_flashlight_toggle"] + flat_gun,
+        warm=60, load_wait=240, body=shoot_every(50))
+    kill_all = waits(60) + ["vr_test_monsters 3"] + waits(240)
+    add("rails_dropped32", ["pcperf", "armed"], "armed_mix32 all killed: 32 guns lying ahead with their mounts",
+        "vrtesthall", "bench_armed_mix32, every one killed at once in the set-up (vr_test_monsters 3) and settled: the "
+        "guns lying ahead (their bayonet mounts, setupWorldRails; attachments), the corpses.",
+        scene="bench_armed_mix32", setup=kill_all, warm=60, load_wait=240)
+    add("rails_dropped32_off", ["pcperf", "control"], "control: rails_dropped32 with vr_attach_mount_dist 0",
+        "vrtesthall", "rails_dropped32 with no lying gun's mount drawn: the mounts' cost by difference.",
+        scene="bench_armed_mix32", setup=["vr_attach_mount_dist 0"] + kill_all, warm=60, load_wait=240)
+    add("wheel_open_e1m1", ["pcperf", "features"], "the weapon wheel held open over E1M1, every weapon", "e1m1",
+        "idle_e1m1 with every weapon (impulse 9) and the weapon wheel held open in the main hand (vr_weaponwheel 1): "
+        "its slots, thumbnails, labels and the bindings panel.",
+        setup=["impulse 9", "wait", "vr_weaponwheel 1", "vr_mock_button main secondary 1"], warm=60)
+    add("holster_menu_open_flat", ["pcperf", "flat", "features"], "the flat holster menu held open over E1M1", "e1m1",
+        "idle_e1m1_flat with every weapon and the holster menu (the wheel's button, +flatholsters) held open: its "
+        "thumbnails, the body preview, the bindings panel.", flat=True,
+        setup=["impulse 9", "wait", "+flatholsters"], warm=60)
     for n in ("idle_e1m1", "fight_ad_tears", "fight_ad_sepulcher", "play_ad_tfuma_fight", "armed_16", "crowd_ad_40",
               "combined", "particles_dense", "explosions_storm", "gore_blast_crowd_32", "lights_32", "flashlight_e1m1",
               "tanks_fields", "water_range_surface", "lava_e1m7"):

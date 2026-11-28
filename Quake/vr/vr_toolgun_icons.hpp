@@ -37,6 +37,14 @@ struct Framing
 // seen along `toViewer` (the picture's up the world's up), framed to fit. False: nothing to draw.
 bool drawMesh(const za::Vector<glm::vec3>& verts, const za::Vector<unsigned>& tris, const glm::vec3& toViewer, int width,
     int height, gfx::Picture& picture, Framing& framing);
+// The last drawMesh's size: its triangles and picture (vr_flatholster_dump).
+struct MeshStats
+{
+    int triangles{0};
+    int width{0};
+    int height{0};
+};
+[[nodiscard]] MeshStats lastMeshStats();
 
 // In the 2D pass (the panel's image is drawn): up to `budget` of the thumbnails asked for made.
 void makePending(int budget);

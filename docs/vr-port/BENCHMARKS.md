@@ -203,6 +203,24 @@ Group `gpu` (the GPU benchmark, "GPU benchmark" below) also takes `idle_e1m1`, `
 `play_ad_tfuma_fight`, `armed_16`, `crowd_ad_40`, `combined`, `particles_dense`, `explosions_storm`,
 `gore_blast_crowd_32`, `lights_32`, `flashlight_e1m1`, `tanks_fields`, `water_range_surface`, `lava_e1m7`.
 
+Group `pcperf` (the PC profiling round of 2026-11-28, ROUND26.md "pcperf"): each feature of 11-27/28 with its control.
+`armour_beasts16` (scene `bench_beasts_armour`: 10 ogres, 2 rottweilers, 2 scrags, 2 fiends in full armour, hostile, the
+shotgun every 50 frames), `_bare` (scene `bench_beasts_bare`: the same, no armour), `_flat`; `dazzle_armed16`
+(`bench_armed_mix16` with the flashlight in their faces), `_off` (`vr_agrunt_dazzle 0`), `_flat`; `rails_dropped32`
+(`bench_armed_mix32` all killed in the set-up: the guns lying with their bayonet mounts), `_off` (`vr_attach_mount_dist
+0`); `wheel_open_e1m1` (the weapon wheel held open, every weapon), `holster_menu_open_flat` (the flat holster menu held
+open: its body preview).
+
+**Flat scenarios and flat play:** the `flat` scenarios set `vr_enabled 0`; flat-screen play itself (`flatplay::active`:
+the holster menu, the flat body, the flat hands' systems) needs the `-flatscreenmode` start argument, which `bench.sh`
+does not pass (`holster_menu_open_flat` then shows no menu). `Misc/quakevr/bench/ab_trees.py` passes it.
+
+**A/B of two trees** (`Misc/quakevr/bench/ab_trees.py --label L --scenarios ... --trees old,new`): the same scenarios on
+two kit trees (an older commit: `new_agent.sh <name> <commit>`, then `build.sh <name> --lto`), interleaved by scenario
+and repeat, each run exclusive and paced, after waiting for the machine to be idle (other workers' builds made `core`
+read 15-25% slower with 100-500 ms hitches on 2026-11-28: `--exclusive` keeps other games out, not compiles). Then
+`bench.sh compare L/old L/new`.
+
 ### Tours of complex custom maps
 
 `tour_<map>`: the spawn and five pickups spread over the map (`bsp_waypoints.py`: every n-th item or weapon in the

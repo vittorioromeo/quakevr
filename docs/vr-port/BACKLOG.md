@@ -11,6 +11,7 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 ## 1. Open bugs and failing tests
 
 Open on 2026-11-28 (notes in ROUND26.md; the named ROUND25.md sections for older ones):
+- **weaponwheel_test flat and toolgun_panel_test fail on next** (seen by pcperf 2026-11-28 on origin/next 55c516c65 alone): the flat wheel test times out at "the tap's cycle" (wheel hand -1); the toolgun panel test's "X/A + stick press: not back to Brush" (the cycle stays on Remove).
 - **Lance pull-out flake**: `flatlance_test` section 5 lost the Lance once in 10 flat runs (2026-11-26: the hand empty after a shaft hit on a touching ogre, cause unknown). Lean aim is not wired for Copper, rogue eel/lavaman or AD's own checkattack. ROUND26 "lancepull"; ROUND25.md "lance4", "flatembed".
 - **VR embed test 24 and test 33 case 46 still fail** (ROUND25.md "embedregress"): 24's mock axe swing is aimed by the old pitch 0 (the axe ships 15.5); 33 case 46: a dead grunt held by the handle doesn't come to the hand (the ragdoll handle-hold motor).
 - **Embedded blades**: real heavy monsters, saves, level change and multiplayer unproven (tests 14-20 written); the handle hold's off-hand pose isn't probed and a stab's gap now moves the body to the hand (keep as slack if that reads wrong; ROUND25.md "embedgrip"); `vr_embed_test` 7 had 2 more failures in one run with the hold on.
@@ -221,6 +222,19 @@ Each verified by an unchanged physics hash, the melee tests and `vr_menu_path_ch
     headless map-change crash, f67ccf0); CI that compiles every shader with glslang.
 
 ## 11. Performance and parked
+
+- **Armoured beasts' draw cost** (ROUND26.md "pcperf", 2026-11-28): 16 armoured beasts cost +0.77 ms CPU and +0.34 ms
+  GPU over 11-27 after the relink fix: each armour piece is its own alias entity (1960 alias draws a frame in
+  `armour_beasts16`, +546 since the split plates, tail segments and shins), with shadows; broken plates' debris flying
+  (`box3d before step` 0.17 ms). Next: batch a beast's pieces into one draw (one entity, the pieces as bones, as the
+  leather already is), and a cheaper touch for armour debris if it needs none. The rigid fit's Jacobi (0.6 us a piece)
+  could warm-start from last frame's turn.
+- **bench.sh flat scenarios skip flat play** (pcperf): they set `vr_enabled 0` without `-flatscreenmode`, so the holster
+  menu, flat body and flat hands' systems never run; the kit's bench.sh could pass `-ExtraArgs -flatscreenmode` for
+  `flat` scenarios (`Misc/quakevr/bench/ab_trees.py` does), then old flat baselines need re-recording.
+- **Timing runs while other workers build** (pcperf): `run.sh --exclusive` waits for other games, not compiles; on
+  2026-11-28 builds made `core` read 15-25% slower with 100-500 ms hitches. Kit idea: exclusive also waits for an idle
+  CPU (ab_trees.py's wait), or builds wait for exclusive runs.
 
 - **Frame drops close to active-ragdoll enemies** (tester "Joyeuse", Discord, 2026-11-18, a lower-end PC): melee range
   against active ragdolls drops the frame rate and makes melee hard. Profile a melee fight with 2-4 active ragdolls

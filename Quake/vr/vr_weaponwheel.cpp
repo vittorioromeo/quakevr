@@ -24,6 +24,7 @@
 #include "vr_gadget.hpp"
 #include "vr_gfx.hpp"
 #include "vr_main.hpp"
+#include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_renderdoc.hpp"
@@ -1795,6 +1796,7 @@ void render()
     {
         return;
     }
+    QVR_PROFILE("weapon wheel");
     gadget::HolsterMenuSlot slots[maxChoices]{};
     gadget::HolsterMenuButton buttons[maxChoices]{};
     int slotCount = 0, buttonCount = 0;
