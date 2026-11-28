@@ -679,6 +679,13 @@ za::Vector<Item> pageDebugProfiling()
                   "report (Time QuakeC Functions on), in the console; then all are zeroed. Press it, do the thing, press "
                   "it again."),
         row(opt::vr_qcexec),
+        row(opt::vr_qcexec_fuse),
+        command("QuakeC Opcode Stats Start", "vr_qcexec_stats start")
+            .help("vr_qcexec_stats start: counts the server QuakeC's opcodes, the pairs and triples run one after the "
+                  "other and the calls (a slower loop while on); QuakeC Opcode Stats prints them."),
+        command("QuakeC Opcode Stats", "vr_qcexec_stats dump 30")
+            .help("vr_qcexec_stats dump 30: the 30 most run opcodes, pairs, triples and builtins since Start, in the "
+                  "console (stop ends the count; hash prints a hash of every function's statement count)."),
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
