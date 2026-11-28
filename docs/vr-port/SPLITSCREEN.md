@@ -1274,9 +1274,21 @@ player to rebind their own controller binds with the newly added screens."
   with RTHUMB's punch; seat 2's two swapped, seat 1's pad bindings unchanged, saved, seat 2's panel shows Jump on RTHUMB;
   B back, B shut; `writeconfig seatbind_test`. Then a restart that execs it: the saved bindings read, seat 2 joins with
   exactly those two buttons swapped against a fresh join's copy.
-- **Results**: seat_bind_test.sh 14/0, seat_menu_test.sh 62/0, split_join_test.sh 113/0, weaponwheel_test 25/0,
-  vr_bindsetup_test 12/0, vr_bindsetup_detect_test 57/0. Failing, not chased (budget): seat_play_test.sh 62/1 (seat 2 back in
-  his old slot comes back with fresh parms, health 100 and nails 0, not his 70 and 50: likely next's QC parms change,
-  unchecked), seat_render_test.sh 367/1 (the anim run's ragdoll alike 15 of 16 frames, wants 16), bindpanel_test.sh 6/2
-  (its main-menu half: the run's frames stop a few frames after togglemenu on vrtesthall and the run times out; the
-  in-game rows pass; unchecked whether next does the same in the kit's low-impact mode).
+- **Merged twice more** (the same day): next's bindpanel2 (the reminder panels as the controller's pictures and
+  buttons, the VR wheel's panel), the flat procedural reload and iwextract (Ironwail's VR functions moved into
+  `Quake/vr/iw/*.c`). bindpanel2: a pad seat's panel rows are next's controller rows (`controllerRows`: each bound button,
+  its glyph and action) for the seat's own pad (`flatDevice`: a seat 2-4 always its pad's model) and the seat's binds
+  (bindsetup's `bindingOf` reads `Key_Seat()`); the rows' texts and the panel's image are the seat's (`BindPanel`), the
+  headset's panel and the device override seat-shared (VR plays one seat). `IN_GamepadLastUsed` reads the current seat's
+  pad. The flat procedural reload's trip and tilt are each seat's (`seat::Part::FlatProcReload`). iwextract: the moved
+  variables' allowlist lines and split20's marks follow them into `Quake/vr/iw/` (84 lines re-pathed).
+- **The rejoin fix** (seat_play_test's "back with his things"): next's mplows A11 keeps a leaver's record only with his
+  game key, and a seat's loopback connection had none, so seat 2 rejoined with fresh parms (health 100, nails 0). A seat's
+  loopback server side now carries `local-seat<N>` as its key (net_loop.c; it cannot come from the network).
+- **seat_state**: 3,677 -> 3,674 allowlisted.
+- **Results** (after the last merge, next 5f1e2e0b7): seat_bind_test.sh 14/0 (its panel check: seat 2's rows before and
+  after the swap, exactly two changed), seat_play_test.sh 63/0, seat_menu_test.sh 62/0, split_join_test.sh 113/0,
+  seat_render_test.sh 368/0, weaponwheel_test 26/0, bindpanel_test.sh 18/0, vr_bindsetup_test 12/0,
+  vr_bindsetup_detect_test 57/0. Earlier failures gone: seat_render's anim ragdoll 15/16 (one run; 16/16 since),
+  bindpanel's main-menu half (the run stalled after togglemenu in one low-impact run; next's bindpanel_test passes whole
+  now, so it was not run on next).

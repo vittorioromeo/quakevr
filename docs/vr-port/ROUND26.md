@@ -4762,8 +4762,9 @@ with each button labelled by its binding, drag to swap, click for a list of ever
   `Key_SeatWriteBindings`, `bindsEdited`), keys.c (writes them), vr_bindpanel.cpp (per-seat rows and image, pad rows),
   in_sdl.c (`IN_GetGamepadSdlType`: the current seat's pad). Merge details and what became per-seat: SPLITSCREEN.md
   section 29. The TODO in vr_bindsetup.hpp and BACKLOG section 3's line are gone.
-- **Tests**: new `Misc/quakevr/seat_bind_test.sh` (test 'vr_seat_bind_test', two runs: edit + restart) 14/0, vr_bindsetup_test 12/0, seat_menu_test.sh 62/0, split_join_test.sh 113/0; open failures: SPLITSCREEN.md
-  section 29 (seat_play 62/1, seat_render 367/1, bindpanel 6/2).
+- **Tests**: new `Misc/quakevr/seat_bind_test.sh` (test 'vr_seat_bind_test', two runs: edit + restart) 14/0, vr_bindsetup_test 12/0, seat_menu_test.sh 62/0, split_join_test.sh 113/0; then after merging next twice more (bindpanel2, flat procedural reload, iwextract): seat_bind 14/0, seat_play
+  63/0 (the seat's loopback key for next's rejoin records), seat_menu 62/0, split_join 113/0, seat_render 368/0,
+  weaponwheel 26/0, bindpanel 18/0. SPLITSCREEN.md section 29.
 ## flatprocreload: flat-screen procedural shotgun reload, the free hand between the ammo pouch and the port (branch agent/flatprocreload, 2026-11-28)
 
 His words 2026-11-28: "adding actual procedural reloading animations to flatscreen play, gated behind an option, on by
