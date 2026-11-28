@@ -30,7 +30,12 @@
 #include "vr_bindpanel.hpp"
 #include "vr_bindsetup.hpp"
 #include "vr_engine.hpp"
+#include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
+#include "vr_flatholster.hpp"
+#include "vr_flatplay.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_testkit.hpp"
+#include "vr_visor.hpp"
 
 #include <SDL.h>
 
@@ -804,9 +809,25 @@ void bpress(const int button)
     return (Key_GetDeviceMaskForKeynum(k) & KDM_GAMEPAD) != 0;
 }
 
+// What seat s's button k does as its Controller Bindings screen shows it (flatscreen play, padflat): the flat key that
+// has it (the seat's own buttons: split21's seat_flatkey), else its bind.
 [[nodiscard]] const char* bindOf(const int s, const int k)
 {
-    const char* b = k >= 0 ? Key_SeatOf(s)->bindings[k] : nullptr;
+    if(k < 0)
+    {
+        return "";
+    }
+    {
+        const Scope as{at(s)};
+        for(const cvar_t* c : flatplay::keyCvars())
+        {
+            if(flatplay::keyIs(*c, k))
+            {
+                return c->name;
+            }
+        }
+    }
+    const char* b = Key_SeatOf(s)->bindings[k];
     return b ? b : "";
 }
 
@@ -1066,8 +1087,203 @@ void bindTestFrame()
     }
 }
 
+// ---- split21: vr_seat_split21_test (Misc/quakevr/seat_split21_test.sh) ------------------------------------------------
+// The features of 11-27/28 each seat's own, flatscreen coop e1m1, seat 2 joined by a mock pad: its visor boots on its own
+// (seat 1's stays up); both seats fire a shot and press R in the same frame: each its own procedural reload (its free hand,
+// its trip counted once in its own state, a round seated in each); seat 2 takes a grenade from its back pouch into its off
+// hand (vr_wheel_pick through its own connection): its hand holds it, seat 1's hands none. Verdict "seat_split21_test: N
+// passed, M failed".
+namespace
+{
+struct Split21Test
+{
+    testkit::Tally tally;
+    bool on = false;
+    int stage = 0;
+    int frames = 0;
+    float shells[2] = {0.f, 0.f}; // each seat's player's shells as R went down (the pouch's rounds come out of them)
+} split21Test; // seat-shared: a test's own state
+
+[[nodiscard]] float shellsOf(const int s)
+{
+    const edict_t* e = seatPlayer(s);
+    return e ? e->v.ammo_shells : -1.f;
+}
+
+bool scheck(const bool ok, const char* what)
+{
+    if(split21Test.tally.check(ok, "seat_split21_test", what))
+    {
+        Con_Printf("seat_split21_test: PASS %s\n", what);
+    }
+    return ok;
+}
+
+void snext()
+{
+    split21Test.stage++;
+    split21Test.frames = 0;
+}
+
+void sfinish()
+{
+    Cbuf_AddText("seat 1 -attack; seat 2 -attack\n");
+    if(plays(1))
+    {
+        Cbuf_AddText("seat_leave 2\n");
+    }
+    IN_MockPad(seatPad, false);
+    split21Test.on = false;
+    split21Test.tally.verdict("seat_split21_test");
+}
+
+[[nodiscard]] bool bootedIn(const int s)
+{
+    const Scope in(at(s));
+    return visor::active() && visor::booted();
+}
+
+[[nodiscard]] flatprocreload::Status reloadOf(const int s)
+{
+    const Scope in(at(s));
+    return flatprocreload::status();
+}
+
+[[nodiscard]] bool freeHandBusy(const int s)
+{
+    const Scope in(at(s));
+    return flatprocreload::busy(HAND_OFF);
+}
+
+[[nodiscard]] int grenadeIn(const int s, const int hand)
+{
+    const Scope in(at(s));
+    return flatholster::handGrenade(hand);
+}
+
+constexpr int shotFrames = 36; // a shotgun's shot fired and its trigger let go (half a second at 72)
+
+void split21Stage()
+{
+    Split21Test& t = split21Test;
+    switch(t.stage)
+    {
+        case 0:
+            if(!sv.active || !signedOn(0) || !bootedIn(0))
+            {
+                return; // (seat 1's visor up first)
+            }
+            Cbuf_AddText("vr_flat_holsters 0; vr_flat_autoreload 0; vr_flat_proc_reload 1; seat 1 god; seat 1 notarget\n");
+            IN_MockPad(seatPad, true);
+            Cbuf_AddText(va("seat_join %d\n", seatPad));
+            snext();
+            return;
+        case 1:
+            if(!signedOn(1))
+            {
+                return;
+            }
+            scheck(!bootedIn(1) && bootedIn(0), "seat 2 joined: its visor boots on its own, seat 1's stays up");
+            Cbuf_AddText("seat 2 god; seat 2 notarget; seat 1 impulse 154; seat 2 impulse 154\n"); // (the shotguns)
+            snext();
+            return;
+        case 2:
+            if(!bootedIn(1))
+            {
+                return;
+            }
+            scheck(bootedIn(0), "seat 2's visor booted (seat 1's up all along)");
+            Cbuf_AddText("seat 1 +attack; seat 2 +attack\n");
+            snext();
+            return;
+        case 3:
+            if(t.frames < shotFrames)
+            {
+                return;
+            }
+            t.shells[0] = shellsOf(0);
+            t.shells[1] = shellsOf(1);
+            Cbuf_AddText("seat 1 -attack; seat 2 -attack; seat 1 vr_mock_key r down; seat 2 vr_mock_key r down\n");
+            snext();
+            return;
+        case 4:
+            if(t.frames < 3)
+            {
+                return;
+            }
+            Cbuf_AddText("seat 1 vr_mock_key r up; seat 2 vr_mock_key r up\n");
+            snext();
+            return;
+        case 5:
+            if(!reloadOf(0).tripOn || !reloadOf(1).tripOn)
+            {
+                return;
+            }
+            scheck(freeHandBusy(0) && freeHandBusy(1), "both seats reload at once: each seat's off hand on its own trip");
+            snext();
+            return;
+        case 6:
+        {
+            const flatprocreload::Status a = reloadOf(0), b = reloadOf(1);
+            if(a.tripOn || b.tripOn)
+            {
+                return;
+            }
+            scheck(a.trips == 1 && b.trips == 1 && a.cancels == 0 && b.cancels == 0,
+                va("each seat counted its own trip, none cancelled (seat 1 %d/%d, seat 2 %d/%d)", a.trips, a.cancels, b.trips, b.cancels));
+            const float took0 = t.shells[0] - shellsOf(0), took1 = t.shells[1] - shellsOf(1);
+            scheck(took0 >= 1.f && took1 >= 1.f, va("each seat's player took its own rounds from its pouch (seat 1 %.0f, seat 2 %.0f)",
+                                                     static_cast<double>(took0), static_cast<double>(took1)));
+            Cbuf_AddText("seat 2 give r 10; seat 2 cmd vr_wheel_pick 0 -5\n"); // (BACK POUCH into seat 2's off hand)
+            snext();
+            return;
+        }
+        case 7:
+            if(grenadeIn(1, HAND_OFF) <= 0)
+            {
+                return;
+            }
+            scheck(grenadeIn(0, HAND_OFF) == 0 && grenadeIn(0, HAND_MAIN) == 0,
+                va("seat 2 holds a grenade (kind %d), seat 1's hands none", grenadeIn(1, HAND_OFF)));
+            sfinish();
+            return;
+        default: sfinish(); return;
+    }
+}
+
+void split21Test_f()
+{
+    split21Test = Split21Test{};
+    split21Test.on = true;
+    Con_Printf("seat_split21_test: started (it runs once the map is up)\n");
+}
+} // namespace
+
+void split21TestFrame()
+{
+    Split21Test& t = split21Test;
+    if(!t.on)
+    {
+        return;
+    }
+    if(++t.frames > stageFrames)
+    {
+        for(int s = 0; s < 2; s++)
+        {
+            const flatprocreload::Status r = reloadOf(s);
+            Con_Printf("seat_split21_test: seat %d: reload trips %d on %d seated %d cancels %d (%s); off hand grenade %d\n", s + 1,
+                r.trips, r.tripOn ? 1 : 0, r.seated, r.cancels, r.lastCancel, grenadeIn(s, HAND_OFF));
+        }
+        scheck(false, va("timed out (stage %d)", t.stage));
+        sfinish();
+        return;
+    }
+    split21Stage();
+}
+
 void registerMenuCommands()
 {
+    Cmd_AddCommand("vr_seat_split21_test", split21Test_f);
     Cvar_RegisterVariable(&scr_splitmenu);
     Cvar_RegisterVariable(&scr_splitpause);
     Cmd_AddCommand("seat_menu", menuCommand_f);

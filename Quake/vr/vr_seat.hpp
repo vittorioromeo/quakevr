@@ -267,5 +267,6 @@ void bindsEdited();
 [[nodiscard]] bool bindsSaved(int s);
 // split20 (vr_seatmenu.cpp): vr_seat_bind_test, its per-frame step (menuTestFrame's).
 void bindTestFrame();
+void split21TestFrame(); // split21 (vr_seatmenu.cpp): vr_seat_split21_test's per-frame step
 
 } // namespace qvr::seat

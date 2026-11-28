@@ -4317,6 +4317,8 @@ void seatFrame()
     pollKeys();
     pollKeysFlat();
     flatreload::frame(true);
+    flatattach::frame(true);     // split21: the seat's J trip (its own seat::Part::FlatAttach; seat 2's never ran)
+    flatprocreload::frame(true); // split21: the seat's procedural reload (seat::Part::FlatProcReload)
     flatfgrab::frame(true);
     flatgrenade::frame(true);
     flatswap::frame(true);

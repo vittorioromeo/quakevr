@@ -17,6 +17,8 @@
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "vr_flatholster.hpp"
+#include "vr_cvars.hpp"
+#include "vr_flatplay.hpp"
 
 #include "vr_engine.hpp"
 #include "vr_api.h"
@@ -534,14 +536,17 @@ void jstage()
         case 12:
         {
             jcheck(!M_Splitscreen_Open() && key_dest == key_game, "its Start goes back to the game");
-            // split11: a controller seat's flat-play layout (seat::padLayout) where seat 1's copy leaves a button free
-            const seatkeys_t* k = Key_SeatOf(lastPad + 1);
-            const char* up = k->bindings[K_DPAD_UP];
-            const char* x = k->bindings[K_XBUTTON];
-            jcheck(up && !ZA_STRCMP(up, "+flatholsters") && x && x[0],
-                va("seat %d's pad has the holster menu (d-pad up: %s) and reload (X: %s)", lastPad + 2, up ? up : "-", x ? x : "-"));
-            // the holster menu (the weapon wheel) by the pad: d-pad up held, the look stick pushed right
-            IN_MockPadButton(lastPad, SDL_CONTROLLER_BUTTON_DPAD_UP, true);
+            // split21: a controller seat's flat-play layout is next's padflat (its flat keys' gamepad buttons, FLATPLAY.md
+            // "A gamepad"): the holster menu on L3, reload on X, as the seat reads them
+            {
+                const Scope in(at(lastPad + 1));
+                const bool menuL3 = flatplay::keyIs(vr_flat_key_holster_menu, K_LTHUMB);
+                const bool reloadX = flatplay::keyIs(vr_flat_key_reload, K_XBUTTON);
+                jcheck(menuL3 && reloadX, va("seat %d's pad has the holster menu (L3: %d) and reload (X: %d)", lastPad + 2,
+                                             menuL3 ? 1 : 0, reloadX ? 1 : 0));
+            }
+            // the holster menu (the weapon wheel) by the pad: L3 held, the look stick pushed right
+            IN_MockPadButton(lastPad, SDL_CONTROLLER_BUTTON_LEFTSTICK, true);
             t.wait = 8;
             jnext();
             return;
@@ -563,11 +568,11 @@ void jstage()
                 const Scope in(at(lastPad + 1));
                 const float moved = flatholster::cursorFromMiddleX();
                 jcheck(flatholster::open() && moved > 20.f && fabsf(cl.viewangles[YAW] - t.yaw) < 0.5f,
-                    va("seat %d: d-pad up, holster menu %d; look stick, cursor %.0f, view %.1f", lastPad + 2,
+                    va("seat %d: L3, holster menu %d; look stick, cursor %.0f, view %.1f", lastPad + 2,
                         flatholster::open() ? 1 : 0, static_cast<double>(moved), static_cast<double>(cl.viewangles[YAW] - t.yaw)));
             }
             IN_MockPadAxes(lastPad, 0.f, 0.f, 0.f, 0.f);
-            IN_MockPadButton(lastPad, SDL_CONTROLLER_BUTTON_DPAD_UP, false);
+            IN_MockPadButton(lastPad, SDL_CONTROLLER_BUTTON_LEFTSTICK, false);
             t.wait = 8;
             jnext();
             return;
