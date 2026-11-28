@@ -36,6 +36,7 @@ Flat-screen or VR: the toolgun's Armed Humanoid page has Elite: On/Off beside In
 Flat-screen or VR: Combat > Armed Grunts > AI Behaviour > Elites in Hard and Nightmare on, a map on Hard: about one armed humanoid in seven is an elite; off, none. {test:elite_pair}
 Flat-screen or VR: the Survival Arena from wave 4 sends some elites among the armed humanoids (about one in five). {test:arena_run}
 Flat-screen or VR: in co-op, an elite the host makes (vr_attr_set elite 1) shows its dark gold dye on the other player's screen too. {test:mp_coop_bot}
+Flat-screen: the visor HUD boots at every map start, level change, loaded save and respawn: no panels at first, a power-up sound, the panels fading in with a short subtle glitch, then the scanline sweep; check the timing and the glitch's strength feel right (Debug > Tunables > Visor Boot) and the sound's level against the other UI sounds. {test:flat_visor_boot}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

@@ -4902,6 +4902,7 @@ QVR_CVAR(vr_flat_visor_fog, "1", CVAR_ARCHIVE)          // under water the visor
 QVR_CVAR(vr_flat_visor_fog_clear, "1.5", CVAR_ARCHIVE)  // seconds the visor's fog takes to clear after surfacing (0.2..10)
 QVR_CVAR(vr_flat_visor_low_health, "25", CVAR_ARCHIVE)  // health at or under which the health panel pulses red (faster and stronger at half of it; 0 never)
 QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels' power-on sweep at a spawn, a respawn and a new map (0: none)
+QVR_CVAR(vr_flat_visor_boot_seq, "1", CVAR_ARCHIVE)     // 1: the visor boots at a spawn, a respawn, a new map and a loaded save: no panels, a power-up sound, the panels fading in with a glitch, then the sweep (its times: Debug > Tunables > Visor Boot); 0: the sweep alone, as before
 QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
 QVR_CVAR(vr_flat_visor_autohide_log, "1", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
 QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (top middle: its width, the text shrinking or growing with it; 0.3 .. 2, shrunk to fit between the top corners' panels)
