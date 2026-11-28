@@ -307,3 +307,4 @@ float() VR_WP_DeathLoot;                                                 // VR_A
 void(entity g) VR_AG_DazzleTick;          // VR_AGP_Pose: its dazzle eased
 float(entity g) VR_AG_DazzleAim;          // VR_AGAI_Accuracy: its shots' error and spread times this
 void(entity g, entity p) VR_AGP_Shield;   // VR_AGP_PoseQC (and the engine's agpose): its off hand before its eyes
+float(entity g) VR_AG_ShieldingLeft;      // its left weapon raised to shield (vr_agrunt_dazzle_dual): not fired
