@@ -108,6 +108,11 @@ struct State
     // into the well; then across it, then through it). All four zero: none. The server tests hits and grips on it.
     bool magBoxValid[2]{false, false};
     glm::vec3 magBox[2][4]{};
+    // Where a magazine sits seated in each hand's gun, whether one is in or not (reloadmags: flat play's procedural reload
+    // brings a new one there, vr_flatprocreload.cpp): the magazine prop's origin (its middle) and its model's axes (unit,
+    // world: forward, left, up to the feed end), as QC VR_Reload_SeatedMagAngles has a seated one. Placed with the ports.
+    bool magSeatValid[2]{false, false};
+    glm::vec3 magSeat[2][4]{};
     // Each hand on the magazine of the other hand's gun (within Pull Reach of its box, nearer it than the gun's other
     // grips; or holding it two-handed): its hotspot is body::HS_MAGAZINE from the next frame (twohand::updateHotspots).
     bool onMagazine[2]{false, false};

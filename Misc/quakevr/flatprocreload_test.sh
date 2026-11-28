@@ -29,6 +29,14 @@ EMPTY="+attack; wait300; -attack; wait10" # the shotgun's clip fired empty (its 
 SSG="impulse 155; give s 50; wait20"
 SSGEMPTY="+attack; wait3; -attack; wait150; +attack; wait3; -attack; wait30" # both barrels fired (it breaks open by itself)
 SSGSHUT="vr_flat_ssg_break_delay 3; wait40; +attack; wait3; -attack; wait60" # fired (both barrels), R before it breaks open by itself
+# reloadmags: the magazine guns (150 + id; the nail pistol, id 29, by vr_test_give_wid) with room in the reserve; partly
+# fired (the eject key's case) or fired empty (its magazine dropped by itself vr_flat_mag_eject_delay after).
+NG="impulse 156; give n 100; wait20"
+SNG="impulse 157; give n 100; wait20"
+LG="impulse 161; give c 60; wait20"
+NP="vr_test_give_wid 29; impulse 149; give n 100; wait20"
+PART="+attack; wait30; -attack; wait10"
+MAGEMPTY="+attack; wait250; -attack; wait60"
 J="+jump; wait3; -jump; wait30"
 C="+flatcrouch; wait40; -flatcrouch; wait30"
 MQ="^flat proc reload: main hand (done|cancelled)"
@@ -73,16 +81,29 @@ run dual "^flat reload: main hand done" "$BASE; impulse 174; wait5; $SG; +attack
 run ssg "$SQ" "$BASE; $SSG; $SSGEMPTY; $R"
 # Fired and R at once (its own break 3 s off): the reload's flick breaks it open (impulse 107), the pair in, closed.
 run ssgshut "$SQ" "$BASE; $SSG; $SSGSHUT; $R"
+# reloadmags: the nailgun fired empty (its empty magazine dropped by itself, vr_flat_mag_eject): no eject key, a magazine
+# from the pouch seated, full; the super nailgun's on its side the same; a shot while the magazine is carried: cancelled, the
+# magazine back in the pouch, nothing lost (the partly used one's rounds went back as it was let out).
+run magempty_ng "$MQ" "$BASE; $NG; $MAGEMPTY; $R"
+run magempty_sng "$MQ" "$BASE; $SNG; $MAGEMPTY; $R"
+run magfire_ng "^flatprocreload: the off hand back in its pose" "$BASE; $NG; $PART; $R; wait48; vr_flatprocreload_report; +attack; wait2; -attack"
 ;; esac
 
-GUNS="sg ssg"
-[ "$MODE" = matrix-sg ] && GUNS=sg
-[ "$MODE" = matrix-ssg ] && GUNS=ssg
+GUNS="sg ssg ng sng lg np"
+case "$MODE" in matrix-*) GUNS=${MODE#matrix-} ;; esac
 if [ "$MODE" != "base" ]; then
-# reloadsys's matrix: both guns, standing, running in a circle, jumping, crouch-strafing, sliding, at 60 and 144 fps
-# (matrix-sg / matrix-ssg: one gun's, each under 13 minutes).
+# reloadsys's matrix: every gun, standing, running in a circle, jumping, crouch-strafing, sliding, at 60 and 144 fps
+# (matrix-<gun>: one gun's, each under 13 minutes; sg ssg ng sng lg np). The magazine guns partly fired: the eject key lets
+# the magazine out (its rounds back in the reserve) first.
 for GUN in $GUNS; do
-    if [ $GUN = sg ]; then GIVE="$SG; $EMPTY"; Q="$MQ"; else GIVE="$SSG; $SSGEMPTY"; Q="$SQ"; fi
+    case $GUN in
+        sg) GIVE="$SG; $EMPTY"; Q="$MQ" ;;
+        ssg) GIVE="$SSG; $SSGEMPTY"; Q="$SQ" ;;
+        ng) GIVE="$NG; $PART"; Q="$MQ" ;;
+        sng) GIVE="$SNG; $PART"; Q="$MQ" ;;
+        lg) GIVE="$LG; $PART"; Q="$MQ" ;;
+        np) GIVE="$NP; $PART"; Q="$MQ" ;;
+    esac
     for FPS in 60 144; do
         PRE="vr_fixed_frames_rate $FPS; $BASE; $GIVE"
         run "x_${GUN}_stand_$FPS" "$Q" "$PRE; $R"

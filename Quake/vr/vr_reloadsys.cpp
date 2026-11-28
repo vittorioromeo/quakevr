@@ -34,9 +34,10 @@ constexpr const char* actionNames[static_cast<int>(Action::Count)] = {"none", "t
 constexpr const char* condNames[static_cast<int>(Cond::Count)] = {"always", "closed", "opened", "loaded"};
 constexpr const char* easeNames[static_cast<int>(Ease::Count)] = {"linear", "smooth", "in", "out"};
 
-constexpr int gunCount = 2;
-constexpr const char* gunNames[gunCount] = {"shotgun", "supershotgun"};
-constexpr int gunWeapons[gunCount] = {WID_SHOTGUN, WID_SUPER_SHOTGUN};
+// (reloadmags: the magazine guns after the shotguns; the lava nailguns and the plasma-look thunderbolt are the same guns.)
+constexpr int gunCount = 6;
+constexpr const char* gunNames[gunCount] = {"shotgun", "supershotgun", "nailgun", "supernailgun", "thunderbolt", "nailpistol"};
+constexpr int gunWeapons[gunCount] = {WID_SHOTGUN, WID_SUPER_SHOTGUN, WID_NAILGUN, WID_SUPER_NAILGUN, WID_LIGHTNING, WID_NAILPISTOL};
 
 struct Table
 {
@@ -162,6 +163,73 @@ Reload superShotgun()
     r.loopFrom = 3;
     r.loopTo = 6;
     return r;
+}
+
+// A magazine gun (reloadmags; his words 2026-11-28: "we should get into a state where the magazine has been ejected. And
+// then the hand will grab a magazine from the pouch ... work backwards from the target position of the magazine ... Each
+// weapon also should ... tilt a little bit"): the gun turned to present its well (`tilt`, `move`), the magazine in it let
+// out by a flick (`flick` on the tilt; skipped with none in: an empty gun has dropped it already), the pouch, a magazine
+// carried to `approach` units out of the well along its line (the seated magazine's: the backwards solve) and pushed home,
+// back. A start for his tuning in the Reload Studio.
+Reload magazine(int gun, const glm::vec3& tilt, const glm::vec3& move, const glm::vec3& flick, float approach)
+{
+    Reload r;
+    q_strlcpy(r.gun, gunNames[gun], sizeof(r.gun));
+    r.weapon = gunWeapons[gun];
+    r.item = Item::Magazine;
+    r.dest = Dest::Receiver;
+    const glm::vec3 pouchOfs{0.f, 0.5f, 1.f}, pouchRot{90.f, 27.f, 5.f};
+    Key k[7];
+    k[0] = makeKey("present", 0.15f, Target::Hold);
+    k[1] = makeKey("eject", 0.14f, Target::Hold);
+    k[1].gunTime = 0.1f;
+    k[1].ease = Ease::Out;
+    k[1].action = Action::Eject;
+    k[1].cond = Cond::Closed;
+    k[2] = makeKey("reach", 0.22f, Target::Pouch);
+    k[3] = makeKey("grip", 0.06f, Target::Pouch);
+    k[3].action = Action::Take;
+    k[4] = makeKey("carry", 0.26f, Target::Mouth);
+    k[4].arc = 3.f;
+    k[4].approach = approach;
+    k[5] = makeKey("insert", 0.1f, Target::Dest);
+    k[5].action = Action::Insert;
+    k[6] = makeKey("return", 0.22f, Target::Rest);
+    k[6].gunTime = 0.2f;
+    k[6].finish = true;
+    for(int i = 0; i < 7; i++)
+    {
+        if(k[i].target == Target::Pouch)
+        {
+            k[i].handOfs = pouchOfs;
+            k[i].handRot = pouchRot;
+        }
+        if(i < 6)
+        {
+            k[i].gunRot = tilt;
+            k[i].gunOfs = move;
+        }
+        r.keys[i] = k[i];
+    }
+    r.keys[1].gunRot = tilt + flick;
+    r.keyCount = 7;
+    return r;
+}
+
+// The built-in reload of gun `i` (gunNames). The magazine guns' tilts: the nailgun's and the thunderbolt's wells under them
+// rolled in and up to the free hand as the shotgun's port; the super nailgun's on its inner side, already the free hand's,
+// turned in; the nail pistol's up its grip, the grip's foot turned forward and in.
+Reload builtInAt(int i)
+{
+    switch(gunWeapons[za::clamp(i, 0, gunCount - 1)])
+    {
+        case WID_SUPER_SHOTGUN: return superShotgun();
+        case WID_NAILGUN: return magazine(i, {-15.f, 45.f, 60.f}, {3.f, -1.f, -2.f}, {12.f, 0.f, 10.f}, 4.f);
+        case WID_SUPER_NAILGUN: return magazine(i, {-10.f, 40.f, -10.f}, {3.f, -1.f, -1.f}, {0.f, 0.f, -25.f}, 4.f);
+        case WID_LIGHTNING: return magazine(i, {-15.f, 45.f, 55.f}, {3.f, -1.f, -2.f}, {12.f, 0.f, 10.f}, 4.f);
+        case WID_NAILPISTOL: return magazine(i, {-35.f, 30.f, 45.f}, {3.f, -1.f, -1.f}, {15.f, 0.f, 0.f}, 3.f);
+        default: return shotgun();
+    }
 }
 
 [[nodiscard]] int lookup(const char* word, const char* const* names, int n)
@@ -368,7 +436,7 @@ using strings::appendf;
 {
     za::String out{"// quakevr/data/reloads.txt -- flat-screen play's procedural reloads, per gun (vr_reloadsys.hpp; written by the Reload\n"
                    "// Studio, vr_reloadstudio). Keys play in order; `loop a b` repeats keys a..b until the gun is full; `finish 1` keys\n"
-                   "// are the reload's end. hand: rest | pouch | mouth | dest | hold; action: none | take | insert | open | close;\n"
+                   "// are the reload's end. hand: rest | pouch | mouth | dest | hold; action: none | take | insert | open | close | eject;\n"
                    "// if: always | closed | opened | loaded; ease: linear | smooth | in | out. Offsets in units (forward, right, up),\n"
                    "// turns in degrees (pitch, yaw, roll); the free hand's mirrored by its side, the gun's by its hand's.\n"};
     for(const Reload& r : table.reloads)
@@ -476,8 +544,10 @@ void init()
     Cmd_AddCommand("vr_reloadsys_save", save_f);
     Cmd_AddCommand("vr_reloadsys_list", list_f);
     Cmd_AddCommand("vr_reloadsys_set", set_f);
-    table.reloads[0] = shotgun();
-    table.reloads[1] = superShotgun();
+    for(int i = 0; i < gunCount; i++)
+    {
+        table.reloads[i] = builtInAt(i);
+    }
 }
 
 Reload* forWeapon(int weapon)
@@ -504,7 +574,14 @@ Reload& at(int i)
 
 Reload builtIn(int weapon)
 {
-    return weapon == WID_SUPER_SHOTGUN ? superShotgun() : shotgun();
+    for(int i = 0; i < gunCount; i++)
+    {
+        if(gunWeapons[i] == weapon)
+        {
+            return builtInAt(i);
+        }
+    }
+    return shotgun();
 }
 
 const char* filePath()
@@ -528,8 +605,10 @@ const char* filePath()
 bool load()
 {
     const char* path = filePath();
-    table.reloads[0] = shotgun();
-    table.reloads[1] = superShotgun();
+    for(int i = 0; i < gunCount; i++)
+    {
+        table.reloads[i] = builtInAt(i);
+    }
     za::String text;
     const bool found = files::readText(path, text);
     if(found)
