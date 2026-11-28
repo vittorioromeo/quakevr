@@ -28,6 +28,14 @@ Flat-screen: in Tunables > Flatscreen > Procedural Reload, lock the pose at the 
 - [ ] The menu's bindings reminder is larger: main rows and the Hands / More groups, in two columns, still clear of the corner rows; try the main menu and Options, keyboard and pad {test:hub_start}
 Flat-screen or VR: stab the ogre with the bayonet nailgun and hold fire: it fires as fast as in the hand, both barrels in turn, the barrels animate on the stuck gun with its muzzle flash and sparks. {test:attach_bayomounts}
 Flat-screen or VR: stuck by its bayonet, the thunderbolt plays its start sound once and then its loop, its beam from the stuck gun's muzzle; the burst rifle bursts and the revolver fires a shot each pull. {test:attach_bayomounts}
+Flat-screen: with a bayonet on the grenade launcher, the proximity launcher and the rocket launcher (held in both hands, the other hand free), V thrusts the gun forward with both hands and sticks it in the ogre by the bayonet's point; fire it stuck. {test:attach_bayomounts}
+Flat-screen or VR: put your dagger on the nailgun, the launchers, the thunderbolt, the Plasma Gun, the burst rifle, the laser rifle and the revolver (Daggers as Bayonets): the blade runs level under the muzzle, its guard just behind the gun's front, nothing sinking into the gun. {test:attach_bayomounts}
+Flat-screen or VR: an elite armed humanoid reads at a glance next to ordinary ones: dark gold clothes pulsing towards bright gold, its backpack still in its weapon's colour; check it also reads next to armoured ones and in dim light. {test:elite_pair}
+Flat-screen or VR: fight an elite (the scene's nearer one, notarget off): it fires much more often, reacts at once, aims true, walks a quarter faster, swings quicker, rarely flinches; say if it is too hard or not hard enough (Debug > Tunables > Armed Humanoids > Elite). {test:elite_pair}
+Flat-screen or VR: the toolgun's Armed Humanoid page has Elite: On/Off beside Infected With; spawn an elite that is also infected: dark gold, and killed it bursts into a zombie that is not an elite. {test:elite_pair}
+Flat-screen or VR: Combat > Armed Grunts > AI Behaviour > Elites in Hard and Nightmare on, a map on Hard: about one armed humanoid in seven is an elite; off, none. {test:elite_pair}
+Flat-screen or VR: the Survival Arena from wave 4 sends some elites among the armed humanoids (about one in five). {test:arena_run}
+Flat-screen or VR: in co-op, an elite the host makes (vr_attr_set elite 1) shows its dark gold dye on the other player's screen too. {test:mp_coop_bot}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
