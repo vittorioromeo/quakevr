@@ -426,12 +426,12 @@ kind "progs/wizard.mdl"
     }
     plate8
     {
-        offset "0.510862 -0.442659 0.957597"
-        rotate "0 5.81991 0"
+        offset "-0.763357 -1.21183 -4.03585"
+        rotate "5.77604 5.81991 0"
         scale "0.858"
         standoff "0.05"
-        taper_start "0.745"
-        taper_end "1.119"
+        taper_start "0.826"
+        taper_end "1.114"
         scale_x "1.071"
         scale_y "1.08876"
     }
@@ -455,7 +455,8 @@ kind "progs/wizard.mdl"
     }
     plate8_back
     {
-        offset "-2.21 -2.3302 0.064573"
+        offset "-2.41049 -1.55411 -0.351986"
+        rotate "-7.38829 0 0"
         scale "0.858"
         standoff "0.05"
         taper_start "0.674"
@@ -518,8 +519,8 @@ kind "progs/ogre.mdl"
 {
     cuirass
     {
-        offset "-1.03959 1.70739 -3.00309"
-        rotate "2.0993 -4.4319 5.73315"
+        offset "-0.688789 1.56185 -3.56054"
+        rotate "-1.26045 -5.73056 5.75263"
         scale "0.929"
         taper_start "0.859"
         scale_y "1.09328"
@@ -527,11 +528,14 @@ kind "progs/ogre.mdl"
     }
     helmet
     {
-        offset "1.06452 -1.35442 -0.437469"
+        offset "1.17983 -1.24963 -0.161891"
         rotate "15.2231 0 8.5302"
+        scale "0.957"
+        taper_start "0.929"
+        taper_end "1.032"
         scale_x "0.886889"
         scale_y "0.717"
-        scale_z "0.902578"
+        scale_z "0.853"
     }
     pauldron
     {
@@ -550,7 +554,7 @@ kind "progs/ogre.mdl"
     }
     bracer_r
     {
-        offset "4.09017 2.29139 -2.4493"
+        offset "2.23312 1.59316 -3.25078"
         rotate "-32.5157 -3.83496 6.84535"
         scale "0.826"
     }
@@ -589,11 +593,14 @@ kind "progs/ogre.mdl"
     }
     plate8
     {
-        offset "-0.302872 2.06897 -2.43401"
-        rotate "-2.03312 0.731561 8.20451"
-        scale "0.826"
-        scale_y "0.834566"
-        scale_z "0.966811"
+        offset "-0.306683 3.28079 -1.53586"
+        rotate "6.14195 -0.294381 8.30403"
+        scale "0.745"
+        taper_start "0.924"
+        taper_end "0.978"
+        scale_x "0.853"
+        scale_y "0.704"
+        scale_z "0.94"
     }
     plate9
     {

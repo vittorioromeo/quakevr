@@ -1088,6 +1088,11 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flatattach_report: the Attach key's (J) hand trip as drawn: its phase, putting on or taking off, the hands, "
                   "the attachment, the hand's share of the way and the slide's, and the presses, trips, impulses sent at once and "
                   "on arrival, cancels and the last one's reason."),
+        command("Flatscreen Procedural Reload Report", "vr_flatprocreload_report")
+            .help("vr_flatprocreload_report: the procedural reload as drawn (the shotgun one-handed, Settings: Procedural Reload): "
+                  "its phase (to the pouch, taking, carrying, pushing in, back), the hands, the server's bits, the round in the free "
+                  "hand, the gun's tilt and the port's distance from the round, and the trips, takes sent, rounds seated, cancels "
+                  "and the last one's reason."),
         command("Flatscreen Swim Report", "vr_flatswim_report")
             .help("vr_flatswim_report: the swimming strokes as drawn (swimming, the stroke's cycle, speed and mix of kinds), each "
                   "hand's share and take-over, and what vr_flatswim_probe measured since: each hand's path and palm."),
@@ -1102,6 +1107,8 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flat_fg_press: E's force grab, as the key presses it (the palm turns out first, then the grab)."),
         row(opt::vr_flat_reload_debug),
         row(opt::vr_flat_attach_debug),
+        row(opt::vr_flat_proc_reload_debug),
+        row(opt::vr_flat_prl_test_miss),
         command("Holster Menu Dump", "vr_flat_holster_menu_dump")
             .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "
                   "hand holds, and each button's place, whether it does something now and its impulse."),
@@ -1898,6 +1905,13 @@ za::Vector<Item> pageDebugTools()
         command("Bindings Screen Tests", "vr_bindsetup_detect_test; vr_bindsetup_test")
             .help("The detection table (profiles and gamepad types to pictures) and the screen's swap, pick and reset on "
                   "the binds (put back after): their verdict lines in the console."),
+        command("Reminder Panels: Next Controller", "vr_bindpanel_device next")
+            .help("vr_bindpanel_device next: the bindings reminder panels (above the weapon wheel, the main menu's) show the "
+                  "next controller's buttons and glyphs, as if it were connected (a pad's panel without a pad)."),
+        command("Reminder Panels: Detected Controller", "vr_bindpanel_device auto")
+            .help("vr_bindpanel_device auto: the reminder panels show the controller in use again."),
+        command("Reminder Panels Report", "vr_bindpanel_report")
+            .help("vr_bindpanel_report: the flat panel's rows (keys or a pad's glyphs) and the headset panel's callouts."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),

@@ -7,6 +7,7 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_tunables.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_lines.hpp"
@@ -635,8 +636,9 @@ bool gearHiddenForDeath()
 bool ammoPouchEnabled()
 {
     // The server's mode as it applies (STAT_QVR_RELOADMODE: Immersive, with Weapon Mode Immersive), not this client's own
-    // setting: in multiplayer the server's rules are the ones that hold.
-    return cl.stats[protocol::STAT_QVR_RELOADMODE] == 3;
+    // setting: in multiplayer the server's rules are the ones that hold. Flat-screen play shows it for its procedural
+    // reload while the server says it is on (vr_flatprocreload.cpp).
+    return cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 || flatprocreload::pouchShown();
 }
 
 float ammoPouchReach()
@@ -652,7 +654,7 @@ glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate)
     }
     if(!vr_body_anchors.value)
     {
-        return legacyAmmoPouchPosition(s) + crouchShift(s, -1, avatar::crouchPoseShare(s));
+        return legacyAmmoPouchPosition(s) + crouchShift(s, -1, avatar::crouchPoseShare(s)) + flatprocreload::pouchOffset(s.bodyYaw);
     }
     const avatar::Follower follow{s};
     const glm::vec3 crouched = crouchShift(s, -1, follow.crouchPose());
@@ -674,7 +676,7 @@ glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate)
         plate->clearance = p.clearance;
     }
     onBothThighs(follow, now);
-    return now + crouched;
+    return now + crouched + flatprocreload::pouchOffset(standing.bodyYaw); // (flat-screen play's own nudge: 0 otherwise)
 }
 
 glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets)

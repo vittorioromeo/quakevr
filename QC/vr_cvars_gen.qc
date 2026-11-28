@@ -1095,6 +1095,8 @@ float cvarh_vr_flat_overhand_2h_push;
 float cvarh_vr_flat_parry_cone;
 float cvarh_vr_flat_parry_in_time;
 float cvarh_vr_flat_parry_out_time;
+float cvarh_vr_flat_prl_giveup;
+float cvarh_vr_flat_proc_reload;
 float cvarh_vr_flat_reload;
 float cvarh_vr_flat_reload_close_delay;
 float cvarh_vr_flat_reload_down;
@@ -3363,6 +3365,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_parry_cone = VR_CVar_Make("vr_flat_parry_cone");
     cvarh_vr_flat_parry_in_time = VR_CVar_Make("vr_flat_parry_in_time");
     cvarh_vr_flat_parry_out_time = VR_CVar_Make("vr_flat_parry_out_time");
+    cvarh_vr_flat_prl_giveup = VR_CVar_Make("vr_flat_prl_giveup");
+    cvarh_vr_flat_proc_reload = VR_CVar_Make("vr_flat_proc_reload");
     cvarh_vr_flat_reload = VR_CVar_Make("vr_flat_reload");
     cvarh_vr_flat_reload_close_delay = VR_CVar_Make("vr_flat_reload_close_delay");
     cvarh_vr_flat_reload_down = VR_CVar_Make("vr_flat_reload_down");

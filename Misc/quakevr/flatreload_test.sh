@@ -16,6 +16,7 @@
 #             up and down and walks: no reload (R and the empty clip only)
 #   vrhip     the control: the mock headset, vr_reload_mode 1, the hand put at the right upper holster: it reloads (the
 #             test sees a holster reload), with the same sums as the flat R
+# Every run with vr_flat_proc_reload 0: the shotgun's procedural reload has its own test (flatprocreload_test.sh).
 AGENT=${1:?agent}
 source "$(dirname "$0")/qvrtest.sh"
 S=C:/OHWorkspace/qvr-agents/$AGENT/scratch/flatreload
@@ -26,7 +27,7 @@ run() { local tag=$1 extra=$2 script=$3
         bash $KIT/run.sh $AGENT $extra -Script "$script; echo flatreload_test: $tag done; toggleconsole; quit" \
             -QuitOn "^flatreload_test: $tag done" -Timeout 150 -Filter "$FILTER" > "$S/$tag.log" 2>&1; }
 FLAT="-ExtraArgs -flatscreenmode"
-BASE="vr_flat_holsters 0; map vrtesthall; god; notarget; developer 1; vr_flat_reload_debug 1; wait5; setpos 0 300 25 0 90 0; wait5"
+BASE="vr_flat_holsters 0; vr_flat_proc_reload 0; map vrtesthall; god; notarget; developer 1; vr_flat_reload_debug 1; wait5; setpos 0 300 25 0 90 0; wait5"
 REP="vr_flathud_report; vr_flatreload_report; wait2"
 R="vr_mock_key r down; wait2; vr_mock_key r up"
 SG="impulse 154; wait20"

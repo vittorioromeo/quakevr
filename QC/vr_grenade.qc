@@ -1209,6 +1209,14 @@ void(entity g, entity p) VR_HandGrenade_Mine =
 // launcher in the other hand (by its ammo mode: the multi-grenade), else a grenade; with the hand's B/Y held, the
 // multi-grenade (a multi-rocket), or without multi-rockets a proximity grenade if the player has the proximity
 // launcher. No multi-rockets for a multi-grenade: a grenade. Nothing to take: a dull knock in the hand.
+// The weapon wheel's grenade entry (vr_weaponwheel.cpp; VR_Wheel_Grenade, vr_flatgrenade.qc) asks for its kind: .vr_hgren_want
+// VR_HGREN_WANT_GRENADE a grenade (the proximity launcher's in the other hand still gives its own, as the pouch does),
+// VR_HGREN_WANT_MULTI the multi-grenade, whatever the hand's B/Y and the other hand's launcher say; read (and cleared) by
+// the next take.
+.float vr_hgren_want;
+float VR_HGREN_WANT_GRENADE = 1;
+float VR_HGREN_WANT_MULTI = 2;
+
 void(float xHand) VR_HandGrenade_Take =
 {
     float front = WID_GRENADE_LAUNCHER;
@@ -1216,7 +1224,27 @@ void(float xHand) VR_HandGrenade_Take =
     float other = VRGetOtherHand(xHand);
     float ow = VRGetEntWeapon(self, other);
     float wantsMulti = VR_HandGrenade_WantsMulti(self, xHand);
-    if(wantsMulti)
+    float want = self.vr_hgren_want;
+    self.vr_hgren_want = 0;
+    if(want)
+    {
+        wantsMulti = FALSE;
+        if(want == VR_HGREN_WANT_MULTI && self.ammo_multi_rockets >= 1)
+        {
+            aid = AID_MULTI_ROCKETS;
+        }
+        else if(want == VR_HGREN_WANT_MULTI)
+        {
+            VR_HandGrenade_Haptic(self, xHand, 0.12, 30, 0.8);
+            dprint("grenade: the pouch has no multi-grenade (no multi-rockets)\n");
+            return;
+        }
+        else if(ow == WID_PROXIMITY_GUN)
+        {
+            front = WID_PROXIMITY_GUN;
+        }
+    }
+    else if(wantsMulti)
     {
         if(self.ammo_multi_rockets >= 1)
         {

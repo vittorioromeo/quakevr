@@ -6694,6 +6694,18 @@ QVR_TOGGLE(vr_flat_reload, "Reloading",
 QVR_TOGGLE(vr_flat_autoreload, "Auto Reload",
     "Playing on the desktop screen with Reloading on: a gun whose clip runs empty reloads by itself, if your ammo has "
     "rounds for it. Off (the default): only R reloads (vr_flat_autoreload).")
+QVR_TOGGLE(vr_flat_proc_reload, "Procedural Reload",
+    "Playing on the desktop screen: the shotgun held in one hand, the other empty, reloads as in a headset: the free hand "
+    "takes taped pairs of shells from the ammo pouch on your belt (shown) and pushes them into the shotgun's port, the "
+    "gun tilted to meet it, until it is full. Firing or a quick melee stops it (a pair in the hand goes back in the "
+    "pouch). Dual wielding and the other guns reload at the hip as before. Off: the shotgun too. The host's setting "
+    "holds in multiplayer (vr_flat_proc_reload; its timings: Tunables > Flatscreen > Procedural Reload).")
+QVR_TOGGLE(vr_flat_proc_reload_debug, "Flatscreen Procedural Reload Print",
+    "vr_flat_proc_reload_debug: the flat-screen procedural reload's hand printed step by step (to the pouch, the take, "
+    "the carry, the round seated, back; a cancel and why).")
+QVR_SLIDER(vr_flat_prl_test_miss, "Procedural Reload: Miss the Port", 0.f, 24.f, 1.f, "%.0f units", ext(0.f, 48.f),
+    "vr_flat_prl_test_miss: a test aid: the procedural reload's hand stops this many units short of the shotgun's port, "
+    "so its round never goes in and the failsafe cancels the reload (0: off).")
 QVR_TOGGLE(vr_flat_holsters, "Holsters",
     "Playing on the desktop screen (-flatscreenmode): on (the default), you carry what a headset player does: six "
     "holsters and your two hands. The number keys pick no weapon (3 swaps your hands); hold the mouse wheel's button for "
