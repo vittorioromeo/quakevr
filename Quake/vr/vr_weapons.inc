@@ -359,9 +359,9 @@ QVR_WEAPON_KEY(TorchRoll, "torch_roll")
 QVR_WEAPON_KEY(TorchClip, "torch_clip")
 // Weapon attachments (docs/vr-port/ATTACHMENTS.md; vr_attach.cpp; Weapon Offsets > Attachments): for attachment kind 1
 // (the bayonet; attN_ for kind N), whether it fits this weapon (att1_ok: 1 it can be attached, 0 not: every slot's
-// default) and its mount in the weapon model's own space (+x forward, +y left, +z up, the .mdl's units as its vertices are
-// drawn, frame 0): the attachment model's origin at (x, y, z), turned pitch up, yaw left, roll (degrees, the hands'
-// order), drawn `scale` times the weapon's own size (1 / the weapon's Scale: the attachment at its real size).
+// default) and its place on the weapon's mount (mnt_* below; mountoffs: in the mount's units and axes, +x forward along
+// the blade, +y left, +z up, after every weapon's offset vr_attach_<kind>_*): the attachment model's origin at (x, y, z),
+// turned pitch up, yaw left, roll (degrees, the hands' order), drawn `scale` times the mount's size (1: as made for it).
 QVR_WEAPON_KEY(Att1Ok, "att1_ok")
 QVR_WEAPON_KEY(Att1X, "att1_x")
 QVR_WEAPON_KEY(Att1Y, "att1_y")
@@ -371,7 +371,7 @@ QVR_WEAPON_KEY(Att1Yaw, "att1_yaw")
 QVR_WEAPON_KEY(Att1Roll, "att1_roll")
 QVR_WEAPON_KEY(Att1Scale, "att1_scale")
 // Kind 2, the dagger put on as a bayonet (daggerattach; vr_attach_daggers): the same keys (its origin by its grip, its
-// blade +z in its model: pitched -76.46 and rolled 180 it lies along the barrel, edge down; scale 1 / the gun's Scale as the bayonet's: its own Scale, 0.34, is drawn on it).
+// blade along the barrel and its guard level in its frame, attach::KindInfo; its own Scale, 0.34, is drawn on it).
 QVR_WEAPON_KEY(Att2Ok, "att2_ok")
 QVR_WEAPON_KEY(Att2X, "att2_x")
 QVR_WEAPON_KEY(Att2Y, "att2_y")
@@ -380,10 +380,12 @@ QVR_WEAPON_KEY(Att2Pitch, "att2_pitch")
 QVR_WEAPON_KEY(Att2Yaw, "att2_yaw")
 QVR_WEAPON_KEY(Att2Roll, "att2_roll")
 QVR_WEAPON_KEY(Att2Scale, "att2_scale")
-// The bayonet's mount drawn on the weapon (bayomounts, his 2026-11-28: "a small mounting rail ... so that the user is
-// aware"; progs/bayonet_mount.mdl, make_bayonet.py): on every weapon a bayonet fits (att1_ok), at its bayonet mount,
-// moved from it by (x, y, z) in the bayonet's own units and axes (forward along its blade, left, up), turned pitch up, yaw
-// left, roll about the blade (degrees), drawn `mnt_size` times the bayonet's size (Weapon Offsets > Attachments, Mount).
+// The bayonet's mount on the weapon (bayomounts, his 2026-11-28: "a small mounting rail ... so that the user is aware";
+// progs/bayonet_mount.mdl, make_bayonet.py), drawn on every weapon a bayonet fits (att1_ok). Since mountoffs (vr_wofs_version
+// 81) every attachment hangs from it: its place in the weapon model's own space (x, y, z as att1's above were), turned
+// pitch up, yaw left, roll (degrees), `mnt_size` the bayonet's size on the weapon (1 / the weapon's Scale: real size);
+// then every weapon's offset of the kind (vr_attach_bayonet_* / vr_attach_dagger_*), then the weapon's own att1_* /
+// att2_*, both in the mount's units and axes (attach::mountValues; Weapon Offsets > Attachments).
 QVR_WEAPON_KEY(MntX, "mnt_x")
 QVR_WEAPON_KEY(MntY, "mnt_y")
 QVR_WEAPON_KEY(MntZ, "mnt_z")

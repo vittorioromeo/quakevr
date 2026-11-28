@@ -199,6 +199,23 @@ QVR_CVAR(vr_attach_pull_radius, "6", CVAR_ARCHIVE | QVR_RULE)  // how near (unit
 QVR_CVAR(vr_attach_pull_button, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: pulled off by that hand's B/Y with its grip held (a grip there alone is the gun's two-handed grip); 0: by the grip alone
 QVR_CVAR(vr_attach_mount_show, "1", CVAR_ARCHIVE)               // bayomounts: the bayonet's mount drawn on every weapon a bayonet fits (progs/bayonet_mount.mdl at its att1 mount, Weapon Offsets mnt_*): 1 always; 2 not while an attachment is on it; 0 never
 QVR_CVAR(vr_attach_mount_dist, "1500", CVAR_ARCHIVE)            // bayomounts: lying and carried guns' mounts drawn within this many units of the view (the nearest 32)
+// mountoffs (his 2026-11-28): every weapon's bayonet and dagger placed from its gun's mount (Weapon Offsets mnt_*) by these,
+// then by the gun's own att1_*/att2_* (vr_attach.cpp mount): in the mount's units (the bayonet's) and axes (forward along
+// its blade, left, up), turned pitch up, yaw left, roll about the blade (degrees), scaled (Weapon Offsets > Attachments)
+QVR_CVAR(vr_attach_bayonet_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_scale, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_x, "-2.79", CVAR_ARCHIVE)     // (the dagger's grip behind and under the bayonet's socket: the shotguns' mean)
+QVR_CVAR(vr_attach_dagger_y, "0.339", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_z, "-1.47", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_scale, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_attach_daggers, "1", CVAR_ARCHIVE | QVR_RULE)      // Daggers as Bayonets (daggerattach; his 2026-11-27, on for testing): 1 the dagger in a hand goes on the other hand's shotgun or super shotgun as its bayonet (brought to the mount; flat: the Attach key); 0 not (one already on still comes off)
 QVR_CVAR(vr_attach_turn, "1", CVAR_NONE)                // 1: the server's attachment points (QC attachinfo) turned by the gun's Pitch/Yaw/Roll in the hand; 0: not (attach2's comparison)
 QVR_CVAR(vr_attach_probe, "0", CVAR_NONE)              // 1: the client writes the main hand's drawn attachment tip into vr_attach_probe_x/y/z every frame (the tests: QC vr_attach_test.qc)

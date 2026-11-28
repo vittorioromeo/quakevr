@@ -5495,10 +5495,152 @@ void attachFrameChecks(const Check& check, int shot, int ssg)
     }
 }
 
+// mountoffs: every attachment hangs from its gun's mount (gun -> mnt_* -> vr_attach_<kind>_* -> attN_*). At the defaults
+// every gun's bayonet and dagger are where they were before (weapons.txt of 2026-11-28: positions within 0.01, sizes and
+// turns kept); moving or turning a gun's mount takes its bayonet and dagger along; a global offset moves every gun's;
+// his config's moved nailgun mount (vr_wofs_mnt_y_04 0.68, before 81) converts to the mount where he put it, with the
+// bayonet on it and the dagger moved as much. Values put back after.
+template <typename Check>
+void attachHierarchyChecks(const Check& check)
+{
+    using weapons::Key;
+    struct Old
+    {
+        const char* gun;
+        glm::vec3 bayonet;
+        float scale;
+        glm::vec3 dagger;
+        float daggerPitch;
+    };
+    const Old olds[] = {{"progs/v_shot.mdl", {32.9f, 0.f, 2.84f}, 2.2727f, {26.55f, 0.77f, -1.717f}, -0.74f},
+        {"progs/v_shot2.mdl", {26.f, 0.f, 3.62f}, 2.0833f, {20.199f, 0.706f, 1.668f}, 0.76f},
+        {"progs/v_nail.mdl", {20.f, -1.48f, 2.14f}, 2.083f, {14.188f, -0.774f, -0.922f}, 0.f},
+        {"progs/v_rock2.mdl", {50.6f, 0.f, -1.95f}, 2.941f, {42.394f, 0.997f, -6.274f}, 0.f},
+        {"progs/v_light.mdl", {33.4f, 0.f, 7.55f}, 2.857f, {25.429f, 0.969f, 3.35f}, 0.f},
+        {"progs/v_enfrifle.mdl", {40.6f, 0.f, 4.28f}, 2.5f, {33.625f, 0.848f, 0.605f}, 0.f},
+        {"progs/v_revolver.mdl", {20.26f, 0.f, 5.56f}, 2.222f, {14.06f, 0.753f, 2.293f}, 0.f}};
+    const attach::KindInfo* const d = attach::info(attach::Dagger);
+    const glm::vec3 df = glm::normalize(d->forward);
+    float worstPos = 0.f, worstScale = 0.f, worstTurn = 0.f;
+    bool all = true;
+    for(const Old& o : olds)
+    {
+        const int slot = weapons::slotForName(o.gun);
+        all = all && slot >= 0;
+        if(slot < 0)
+        {
+            continue;
+        }
+        const attach::Mount b = attach::mount(slot, attach::Bayonet), g = attach::mount(slot, attach::Dagger);
+        const glm::mat3 oldDagger = view::mountBasis(glm::vec3{o.daggerPitch, 0.f, 0.f});
+        worstPos = za::max(worstPos, za::max(glm::distance(b.pos, o.bayonet), glm::distance(g.pos, o.dagger)));
+        worstScale = za::max(worstScale, za::max(za::fabs(b.scale - o.scale), za::fabs(g.scale - o.scale)));
+        worstTurn = za::max(worstTurn, za::max(glm::distance(b.basis[0], glm::vec3{1.f, 0.f, 0.f}),
+                                           glm::distance(g.basis * df, oldDagger[0])));
+    }
+    char line[220];
+    q_snprintf(line, sizeof(line), "at the defaults every gun's bayonet and dagger where they were (7 guns: %.4f units, sizes "
+        "%.4f, turns %.4f)", worstPos, worstScale, worstTurn);
+    check(all && worstPos < 0.01f && worstScale < 0.001f && worstTurn < 0.001f, line);
+
+    // A moved and turned mount takes its bayonet and dagger along (the nailgun's).
+    const int nail = weapons::slotForName("progs/v_nail.mdl");
+    if(nail < 0)
+    {
+        return;
+    }
+    cvar_t* const my = weapons::cvar(nail, Key::MntY);
+    cvar_t* const myaw = weapons::cvar(nail, Key::MntYaw);
+    const attach::Mount b0 = attach::mount(nail, attach::Bayonet), g0 = attach::mount(nail, attach::Dagger);
+    const glm::vec3 mount0 = attach::mountValues(nail).pos;
+    Cvar_SetValueQuick(my, my->value + 1.5f);
+    const attach::Mount b1 = attach::mount(nail, attach::Bayonet), g1 = attach::mount(nail, attach::Dagger);
+    const glm::vec3 shift{0.f, 1.5f, 0.f};
+    q_snprintf(line, sizeof(line), "Mount Left 1.5 on the nailgun: the mount, its bayonet and its dagger 1.5 left (%.3f, %.3f, "
+        "%.3f off)", glm::distance(attach::mountValues(nail).pos, mount0 + shift), glm::distance(b1.pos, b0.pos + shift),
+        glm::distance(g1.pos, g0.pos + shift));
+    check(glm::distance(attach::mountValues(nail).pos, mount0 + shift) < 1e-3f && glm::distance(b1.pos, b0.pos + shift) < 1e-3f &&
+              glm::distance(g1.pos, g0.pos + shift) < 1e-3f,
+        line);
+    Cvar_SetQuick(my, my->default_string);
+    Cvar_SetValueQuick(myaw, 20.f);
+    const attach::Mount b2 = attach::mount(nail, attach::Bayonet), g2 = attach::mount(nail, attach::Dagger);
+    const float bTurn = glm::degrees(za::acos(za::clamp(glm::dot(b2.basis[0], b0.basis[0]), -1.f, 1.f)));
+    const float gTurn = glm::degrees(za::acos(za::clamp(glm::dot(g2.basis * df, g0.basis * df), -1.f, 1.f)));
+    const float keep = za::fabs(glm::distance(attach::onGun(g2, d->tip), mount0) - glm::distance(attach::onGun(g0, d->tip), mount0));
+    q_snprintf(line, sizeof(line), "Mount Yaw 20 on the nailgun: its bayonet turned %.2f deg, its dagger %.2f deg about the mount "
+        "(its tip's distance kept: %.4f)", bTurn, gTurn, keep);
+    check(za::fabs(bTurn - 20.f) < 0.05f && za::fabs(gTurn - 20.f) < 0.05f && keep < 1e-3f && glm::distance(b2.pos, b0.pos) < 1e-3f,
+        line);
+    Cvar_SetQuick(myaw, myaw->default_string);
+
+    // Every gun's offset moves every gun's (in each mount's units: its size times the offset).
+    Cvar_SetValueQuick(&vr_attach_bayonet_z, 1.f);
+    Cvar_SetValueQuick(&vr_attach_dagger_x, vr_attach_dagger_x.value + 0.5f);
+    Cvar_SetValueQuick(&vr_attach_bayonet_scale, 1.5f);
+    float worstB = 0.f, worstD = 0.f, worstS = 0.f;
+    for(const Old& o : olds)
+    {
+        const int slot = weapons::slotForName(o.gun);
+        if(slot < 0)
+        {
+            continue;
+        }
+        const attach::Mount b = attach::mount(slot, attach::Bayonet), g = attach::mount(slot, attach::Dagger);
+        worstB = za::max(worstB, glm::distance(b.pos, o.bayonet + glm::vec3{0.f, 0.f, o.scale}));
+        worstD = za::max(worstD, glm::distance(g.pos, o.dagger + glm::vec3{0.5f * o.scale, 0.f, 0.f}));
+        worstS = za::max(worstS, za::fabs(b.scale - 1.5f * o.scale));
+    }
+    Cvar_SetQuick(&vr_attach_bayonet_z, vr_attach_bayonet_z.default_string);
+    Cvar_SetQuick(&vr_attach_dagger_x, vr_attach_dagger_x.default_string);
+    Cvar_SetQuick(&vr_attach_bayonet_scale, vr_attach_bayonet_scale.default_string);
+    q_snprintf(line, sizeof(line), "Every Bayonet Up 1, Every Dagger Forward +0.5, Every Bayonet Scale 1.5: every gun's moved "
+        "by its mount's size times them (%.4f, %.4f, %.4f off)", worstB, worstD, worstS);
+    check(worstB < 0.01f && worstD < 0.01f && worstS < 0.001f, line);
+
+    // His config before 81: the nailgun's mount moved 0.68 left in the bayonet's units, the rest the defaults.
+    attach::MountValues a1{glm::vec3{20.f, -1.48f, 2.14f}, glm::vec3{0.f}, 2.083f};
+    attach::MountValues a2{glm::vec3{14.188f, -0.774f, -0.922f}, glm::vec3{0.f}, 2.083f};
+    attach::MountValues mnt{glm::vec3{0.f, 0.68f, 0.f}, glm::vec3{0.f}, 1.f};
+    attach::convertToMountOffsets(a1, a2, mnt);
+    const weapons::Key keys[3][7] = {{Key::Att1X, Key::Att1Y, Key::Att1Z, Key::Att1Pitch, Key::Att1Yaw, Key::Att1Roll, Key::Att1Scale},
+        {Key::Att2X, Key::Att2Y, Key::Att2Z, Key::Att2Pitch, Key::Att2Yaw, Key::Att2Roll, Key::Att2Scale},
+        {Key::MntX, Key::MntY, Key::MntZ, Key::MntPitch, Key::MntYaw, Key::MntRoll, Key::MntSize}};
+    const attach::MountValues* const vals[3] = {&a1, &a2, &mnt};
+    for(int k = 0; k < 3; k++)
+    {
+        const attach::MountValues& v = *vals[k];
+        const float a[7] = {v.pos.x, v.pos.y, v.pos.z, v.angles.x, v.angles.y, v.angles.z, v.scale};
+        for(int i = 0; i < 7; i++)
+        {
+            Cvar_SetValueQuick(weapons::cvar(nail, keys[k][i]), a[i]);
+        }
+    }
+    const glm::vec3 moved{0.f, 0.68f * 2.083f, 0.f};
+    const attach::Mount b3 = attach::mount(nail, attach::Bayonet), g3 = attach::mount(nail, attach::Dagger);
+    const glm::vec3 rail = attach::mountValues(nail).pos;
+    for(int k = 0; k < 3; k++)
+    {
+        for(int i = 0; i < 7; i++)
+        {
+            cvar_t* const c = weapons::cvar(nail, keys[k][i]);
+            Cvar_SetQuick(c, c->default_string);
+        }
+    }
+    q_snprintf(line, sizeof(line), "his moved nailgun mount (mnt_y 0.68, before 81) converted: the mount at y %.3f, the bayonet "
+        "on it (%.4f off), the dagger %.3f left as the mount (%.4f off), sizes kept (%.4f, %.4f)", rail.y,
+        glm::distance(b3.pos, rail), moved.y, glm::distance(g3.pos, g0.pos + moved), b3.scale, g3.scale);
+    check(glm::distance(rail, glm::vec3{20.f, -1.48f, 2.14f} + moved) < 0.01f && glm::distance(b3.pos, rail) < 0.01f &&
+              glm::distance(g3.pos, g0.pos + moved) < 0.01f && za::fabs(b3.scale - 2.083f) < 0.001f &&
+              za::fabs(g3.scale - 2.083f) < 0.001f,
+        line);
+}
+
 // menu_vr attachtest (Misc/quakevr/attach_test.sh; attach2): Weapon Offsets > Attachments pinned to the shotgun's slot (no game
-// needed): its Bayonet Forward row there, a press right on it moves the mount forward by its step and the attachment system
-// reads the new mount (attach::mount), a press left puts it back. A bayonet fits the shotgun and the super shotgun, not the
-// super nailgun (weapons.txt att1_ok); bayomounts' guns too. Every value put back after. Ends "attachmenu_test: N passed, M failed".
+// needed): its Mount Forward row there (mountoffs: the mount the bayonet hangs from), a press right on it moves the mount
+// forward by its step and the attachment system reads the new mount (attach::mount: the bayonet on it), a press left puts it
+// back. A bayonet fits the shotgun and the super shotgun, not the super nailgun (weapons.txt att1_ok); bayomounts' guns too.
+// Every value put back after. Ends "attachmenu_test: N passed, M failed".
 void attachMenuTest()
 {
     using weapons::Key;
@@ -5535,7 +5677,8 @@ void attachMenuTest()
               !attach::mount(nail, attach::Dagger).fits && attach::strikes(attach::Dagger),
         "a dagger fits the shotgun and the super shotgun as a bayonet, not the super nailgun (att2_ok; daggerattach)");
     attachFrameChecks(check, shot, ssg);
-    cvar_t* const x = weapons::cvar(shot, Key::Att1X);
+    attachHierarchyChecks(check);
+    cvar_t* const x = weapons::cvar(shot, Key::MntX);
     Cvar_SetQuick(x, x->default_string);
     const float levelWas = vr_menu_level.value;
     Cvar_SetValueQuick(&vr_menu_level, LevelDeveloper);
@@ -5550,15 +5693,17 @@ void attachMenuTest()
     {
         forward = item.cvar == x ? &item : forward;
     }
-    check(forward != nullptr, "the page has Bayonet Forward (the shotgun's att1_x)");
+    check(forward != nullptr, "the page has Mount Forward (the shotgun's mnt_x)");
     if(forward)
     {
         const float was = x->value;
         change(*forward, 1);
         char line[160];
-        q_snprintf(line, sizeof(line), "a press right moves the mount forward (%.2f -> %.2f), the system reads it (%.2f)", was,
+        q_snprintf(line, sizeof(line), "a press right moves the mount forward (%.2f -> %.2f), the bayonet on it (%.2f)", was,
             x->value, attach::mount(shot, attach::Bayonet).pos.x);
-        check(x->value > was + 0.05f && x->value < was + 0.15f && attach::mount(shot, attach::Bayonet).pos.x == x->value, line);
+        check(x->value > was + 0.05f && x->value < was + 0.15f &&
+                  za::fabs(attach::mount(shot, attach::Bayonet).pos.x - x->value) < 1e-4f,
+            line);
         change(*forward, -1);
         check(za::abs(x->value - was) < 0.001f, "a press left puts it back");
     }

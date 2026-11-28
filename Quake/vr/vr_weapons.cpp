@@ -14,6 +14,7 @@
 #include "vr_protocol.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
@@ -259,7 +260,10 @@ namespace
 // their gun's; a config's values still those they shipped with to the new defaults (takeGunVariants79).
 // 80: the dagger as a bayonet mounted in its frame (blade forward, guard across): a config's own att2 mounts converted,
 // the blade kept, its guard level (takeDaggerFrame80).
-constexpr int settingsVersion = 80;
+// 81: every attachment hangs from the gun's mount (mountoffs: mnt_* the mount on the gun, att1_*/att2_* from it past the
+// global vr_attach_<kind>_* offsets): a config's own values converted, a moved mount taking its bayonet and dagger along
+// (takeMountOffsets81).
+constexpr int settingsVersion = 81;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -1221,7 +1225,14 @@ void takeDaggerFrame80()
         }
         glm::vec3 pos{v[0], v[1], v[2]};
         glm::vec3 angles{v[3], v[4], v[5]};
-        const float scale = cvarAt(slot, Key::Att2Scale).value > 0.f ? cvarAt(slot, Key::Att2Scale).value : 1.f;
+        // (its old scale, the gun's: today's att2_scale is from the mount, mnt_size its default part: mountoffs, 81)
+        const cvar_t& scaleVar = cvarAt(slot, Key::Att2Scale);
+        float scale = scaleVar.value > 0.f ? scaleVar.value : 1.f;
+        if(sameSetting(scaleVar.string, scaleVar.default_string))
+        {
+            const float size = static_cast<float>(Q_atof(cvarAt(slot, Key::MntSize).default_string));
+            scale *= size > 0.f ? size : 1.f;
+        }
         attach::convertOldMount(attach::Dagger, pos, angles, scale * own);
         const float out[6] = {pos.x, pos.y, pos.z, angles.x, angles.y, angles.z};
         for(int i = 0; i < 6; i++)
@@ -1231,6 +1242,90 @@ void takeDaggerFrame80()
         taken++;
     }
     Con_DPrintf("Weapon settings: %d dagger bayonet mounts turned into the dagger's frame\n", taken);
+}
+
+// 81 (mountoffs): a config's own attachment values (att1_*, att2_*, mnt_*: any not today's default) converted to the mount
+// hierarchy (attach::convertToMountOffsets). The ones it doesn't have are the old defaults, read back from today's: the
+// old att1 place is today's mount (the shipped mnt_* were all 0 then), the old att2 today's mount, global offset and att2
+// composed, the old mnt_* 0 (size 1).
+void takeMountOffsets81()
+{
+    constexpr int n = 7;
+    constexpr Key a1Keys[n] = {Key::Att1X, Key::Att1Y, Key::Att1Z, Key::Att1Pitch, Key::Att1Yaw, Key::Att1Roll, Key::Att1Scale};
+    constexpr Key a2Keys[n] = {Key::Att2X, Key::Att2Y, Key::Att2Z, Key::Att2Pitch, Key::Att2Yaw, Key::Att2Roll, Key::Att2Scale};
+    constexpr Key mKeys[n] = {Key::MntX, Key::MntY, Key::MntZ, Key::MntPitch, Key::MntYaw, Key::MntRoll, Key::MntSize};
+    const auto toArray = [](const attach::MountValues& v, float (&out)[n]) {
+        const float a[n] = {v.pos.x, v.pos.y, v.pos.z, v.angles.x, v.angles.y, v.angles.z, v.scale};
+        for(int i = 0; i < n; i++)
+        {
+            out[i] = a[i];
+        }
+    };
+    const auto fromArray = [](const float (&a)[n]) {
+        return attach::MountValues{glm::vec3{a[0], a[1], a[2]}, glm::vec3{a[3], a[4], a[5]}, a[6]};
+    };
+    const auto defaults = [&fromArray](int slot, const Key (&keys)[n]) {
+        float a[n];
+        for(int i = 0; i < n; i++)
+        {
+            a[i] = static_cast<float>(Q_atof(cvarAt(slot, keys[i]).default_string));
+        }
+        return fromArray(a);
+    };
+    const auto own = [](int slot, Key key) {
+        const cvar_t& var = cvarAt(slot, key);
+        return !sameSetting(var.string, var.default_string);
+    };
+    int taken = 0;
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        bool any = false;
+        for(int i = 0; i < n; i++)
+        {
+            any = any || own(slot, a1Keys[i]) || own(slot, a2Keys[i]) || own(slot, mKeys[i]);
+        }
+        if(!any)
+        {
+            continue;
+        }
+        // The old defaults (today's, composed back), then the config's own values over them.
+        const attach::MountValues mountDef = defaults(slot, mKeys);
+        float a1[n], a2[n], m[n];
+        toArray(mountDef, a1);
+        attach::MountValues a2Def = defaults(slot, a2Keys);
+        attach::composeMountDefaults(mountDef, a2Def);
+        toArray(a2Def, a2);
+        toArray(attach::MountValues{}, m);
+        for(int i = 0; i < n; i++)
+        {
+            a1[i] = own(slot, a1Keys[i]) ? cvarAt(slot, a1Keys[i]).value : a1[i];
+            a2[i] = own(slot, a2Keys[i]) ? cvarAt(slot, a2Keys[i]).value : a2[i];
+            m[i] = own(slot, mKeys[i]) ? cvarAt(slot, mKeys[i]).value : m[i];
+        }
+        attach::MountValues v1 = fromArray(a1), v2 = fromArray(a2), vm = fromArray(m);
+        attach::convertToMountOffsets(v1, v2, vm);
+        toArray(v1, a1);
+        toArray(v2, a2);
+        toArray(vm, m);
+        const auto put = [](cvar_t& var, float v) {
+            if(za::fabs(v - static_cast<float>(Q_atof(var.default_string))) < 5e-4f)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+            }
+            else
+            {
+                Cvar_SetValueQuick(&var, za::floor(v * 10000.f + 0.5f) / 10000.f);
+            }
+        };
+        for(int i = 0; i < n; i++)
+        {
+            put(cvarAt(slot, a1Keys[i]), a1[i]);
+            put(cvarAt(slot, a2Keys[i]), a2[i]);
+            put(cvarAt(slot, mKeys[i]), m[i]);
+        }
+        taken++;
+    }
+    Con_DPrintf("Weapon settings: %d weapons' attachment values hung from their mounts\n", taken);
 }
 
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
@@ -1280,6 +1375,7 @@ constexpr Step steps[] = {
     {78, takeLavaSngHousing78},
     {79, takeGunVariants79},
     {80, takeDaggerFrame80},
+    {81, takeMountOffsets81},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
