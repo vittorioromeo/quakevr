@@ -264,6 +264,7 @@ float cvarh_vr_agrunt_ragfire_held;
 float cvarh_vr_agrunt_ragfire_interval;
 float cvarh_vr_agrunt_ragfire_nail_interval;
 float cvarh_vr_agrunt_ragfire_steer;
+float cvarh_vr_agrunt_ragfire_wrist;
 float cvarh_vr_agrunt_ragweapon_check;
 float cvarh_vr_agrunt_range;
 float cvarh_vr_agrunt_range_scale;
@@ -2572,6 +2573,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agrunt_ragfire_interval = VR_CVar_Make("vr_agrunt_ragfire_interval");
     cvarh_vr_agrunt_ragfire_nail_interval = VR_CVar_Make("vr_agrunt_ragfire_nail_interval");
     cvarh_vr_agrunt_ragfire_steer = VR_CVar_Make("vr_agrunt_ragfire_steer");
+    cvarh_vr_agrunt_ragfire_wrist = VR_CVar_Make("vr_agrunt_ragfire_wrist");
     cvarh_vr_agrunt_ragweapon_check = VR_CVar_Make("vr_agrunt_ragweapon_check");
     cvarh_vr_agrunt_range = VR_CVar_Make("vr_agrunt_range");
     cvarh_vr_agrunt_range_scale = VR_CVar_Make("vr_agrunt_range_scale");

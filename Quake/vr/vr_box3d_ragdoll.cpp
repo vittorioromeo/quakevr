@@ -1796,6 +1796,19 @@ namespace
     return glm::length(across) > 1e-4f ? glm::normalize(across) : glm::vec3{0.f, 1.f, 0.f};
 }
 
+// Bone `b` one of an armed one's aimed gun arm (vr_agrunt_ragfire: its upper arm, forearm or hand): the aim's, never
+// the stirring's (ragfire2: a stirred hand went limp under the wrist's drive, a stirred arm pulled the aim 45 degrees off).
+[[nodiscard]] bool aimedArm(const RagdollBodies& r, int b)
+{
+    const ragactive::Aim& a = r.active.aim;
+    if(!r.active.on || !a.on || a.arm < 0 || a.arm > 1)
+    {
+        return false;
+    }
+    const auto& ch = r.active.chain[static_cast<za::SizeT>(a.arm)];
+    return b == ch[0] || b == ch[1] || b == a.hand || (ch[1] >= 0 && r.rig->bones[b].parent == ch[1]);
+}
+
 // Bone `b`'s stirring kind (0 a head turn, 1 a hand's twitch, 2 an arm, 3 a leg; -1 none: no joint to turn, its chest).
 [[nodiscard]] int stirKind(const RagdollBodies& r, int b)
 {
@@ -1894,7 +1907,7 @@ void stirPick(RagdollBodies& r, int i, double now, float strength)
     for(int b = 1; b < r.count; ++b)
     {
         const int kind = stirKind(r, b);
-        if(kind < 0 || weight[kind] <= 0.f) { continue; }
+        if(kind < 0 || weight[kind] <= 0.f || aimedArm(r, b)) { continue; }
         bool taken = false;
         for(const RagdollBodies::StirMove& other : s.move) { taken = taken || other.bone == b; }
         if(taken) { continue; }
@@ -2050,7 +2063,7 @@ void stirFrame(edict_t* ent, RagdollBodies& r)
         const int b = m.bone;
         if(b < 0) { continue; }
         const ragdoll::Bone& bone = r.rig->bones[b];
-        if(partCut(r, b) || partCut(r, bone.parent))
+        if(partCut(r, b) || partCut(r, bone.parent) || aimedArm(r, b)) // (an aim begun on it: the aim's now)
         {
             m.bone = -1;
             continue;

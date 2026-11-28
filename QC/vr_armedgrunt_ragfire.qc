@@ -21,6 +21,9 @@
 float vr_ag_rf_fired;   // every shot fired as a ragdoll (the tests)
 float vr_ag_rf_blocked; // ... held back: its muzzle or its line blocked (the tests)
 float vr_ag_rf_asked;   // ... times one was due and its gun pointed within the cone (the tests)
+float vr_ag_rf_ang;     // the last one's drawn gun's angle off its target, degrees (each frame it may fire; the tests)
+float vr_ag_rf_ang_at;  // ... the time it was measured
+float vr_ag_rf_shot_ang; // ... as its last shot left (the tests)
 float VR_AG_RF_AIM_HOLD = 0.3; // s: each ragdollaim's hold (asked every frame: it eases out this long after the last)
 float VR_AG_RF_CORR_RATE = 3;  // 1/s: its aim's turn for its gun's line off its arm's, learnt this fast
 float VR_AG_RF_CORR_MOST = 0.6; // ... at most this (a unit vector's length: about 35 degrees)
@@ -103,14 +106,20 @@ void(entity g, entity p) VR_AG_RagFire =
         }
         g.vr_ag_rf_corr = corr;
         vector want = normalize(to + corr);
-        aimed = ragdollaim(g, m + want * vlen(at - m), VR_AG_RF_AIM_HOLD, p.origin, min(1, reach));
+        // (Its wrist turns the gun onto the target too, given the gun's line: vr_agrunt_ragfire_wrist, ragfire2. Measured
+        // with it: the learnt turn above off was worse, the arm then aimed straight at the target and the wrist's 30
+        // degrees too few for the gun's own turn in the hand.)
+        vector barrel = cvar_hget(cvarh_vr_agrunt_ragfire_wrist) ? fw : '0 0 0';
+        aimed = ragdollaim(g, m + want * vlen(at - m), VR_AG_RF_AIM_HOLD, p.origin, min(1, reach), barrel);
     }
+    float c = fw * to;
+    float ang = atan2(vlen(to - fw * c), c) * 57.29578;
+    vr_ag_rf_ang = ang;
+    vr_ag_rf_ang_at = time;
     if(time < g.vr_ag_rf_next)
     {
         return;
     }
-    float c = fw * to;
-    float ang = atan2(vlen(to - fw * c), c) * 57.29578;
     if(ang > cvar_hget(cvarh_vr_agrunt_ragfire_cone))
     {
         if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
@@ -166,6 +175,7 @@ void(entity g, entity p) VR_AG_RagFire =
     {
         g.vr_ag_rf_shots = g.vr_ag_rf_shots + 1;
         vr_ag_rf_fired = vr_ag_rf_fired + 1;
+        vr_ag_rf_shot_ang = ang;
         VR_AG_Log(sprintf("ragfire: %s fired as a ragdoll (%s), its gun %.1f deg off %s, turned %.1f", p.netname,
             g.vr_kd_stagger ? "staggering" : VR_Knockdown_Held(g) ? "held" : "down", ang, t.classname, min(ang, steer)));
     }
