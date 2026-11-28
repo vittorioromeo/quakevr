@@ -716,6 +716,10 @@ QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 // and depth, and it shows a made-up frame between the game's (the game at half the display's rate). The eyes go
 // through the post-process path then (the motion target needs the scene's own targets). Off by default (first beta).
 QVR_CVAR(vr_xr_spacewarp, "0", CVAR_ARCHIVE)
+// FOV reduction (questvis; vr_backend_openxr_frame.cpp, vr_main.cpp scaledEyeSize): the rendered field of view shrunk by
+// this many percent of each edge's tangent (0..30), the eyes drawn with as many fewer pixels a side (the same sharpness);
+// the compositor shows black beyond. Any OpenXR headset; 0 off.
+QVR_CVAR(vr_fov_reduce, "0", CVAR_ARCHIVE)
 // vr_spacewarp_test (tests, Debug > Profiling): 1 makes SpaceWarp's motion vectors and depth every frame into the
 // game's own images without a runtime that has it (the PC, the mock headset); vr_spacewarp_probe reads them.
 QVR_CVAR(vr_spacewarp_test, "0", CVAR_NONE)
