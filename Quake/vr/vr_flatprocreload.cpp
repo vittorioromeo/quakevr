@@ -52,6 +52,7 @@
 #include "vr_reloadsys.hpp"
 #include "vr_tunables.hpp"
 #include "vr_view.hpp"
+#include "vr_weapon_ids.h"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
@@ -101,6 +102,7 @@ struct Trip
     double takeAt{-1e9};
     bool actionSent{false};      // the key's open / close impulse went
     bool hadItem{false};         // an item was in the hand since the take
+    bool measured{false};        // and its place in the hand measured (measureRound)
     bool atPort{false};          // the insert's push done: waiting for the item to go in
     double atPortAt{-1e9};
     int clipAtCarry{0};          // the gun's clip as the item was taken (a round seated: it rose)
@@ -118,7 +120,11 @@ struct ProcState
     glm::vec3 portIn{0.f};
     glm::vec3 faceIn{0.f, 0.f, -1.f};
     bool portKnown{false};
-    float portGap{-1.f};         // the carried item's distance from its destination as placed (the report; -1 none)
+    // The magazine seated (a receiver's destination, reloadmags): its middle and its model's axes in the gun hand's frame.
+    glm::vec3 seatIn{0.f};
+    glm::mat3 seatAxesIn{1.f};
+    bool seatKnown{false};
+    float portGap{-1.f};        // the carried item's distance from its destination as placed (the report; -1 none)
     float insertGap{-1.f};       // and as the last insert's key reached its end (the studio's success readout)
     float faceToFree{0.f};       // how much the port's opening faces the free hand (cosine; the report)
     int trips{0};                // procedural reloads started (the bit seen coming up)
@@ -139,10 +145,58 @@ ProcState ps;
 struct ItemInHand
 {
     glm::vec3 at{-0.30f, -0.18f, -1.86f};
+    glm::vec3 ref{0.f}; // its reference point (a magazine's feed end, the server's well test: view::heldRoundRef) in its model's frame
     glm::mat3 axes{1.f}; // (measured 1, 0, -0.03 / 0, 1, 0 / 0.03, 0, 1: as the hand)
     float scale{1.f};
 };
 ItemInHand item;
+// Each gun's item as last measured (reloadmags: a magazine sits in the hand unlike a pair), by its reload's weapon; `item`
+// is the gun's in hand (useItemOf).
+struct ItemMemory
+{
+    int weapon[8]{};
+    ItemInHand items[8];
+    int count{0};
+    int current{0}; // (the weapon `item` is for)
+};
+ItemMemory itemMem;
+
+// `item` made the one measured for `weapon` (its first take not yet seen: the shotgun's pair's as measured).
+void useItemOf(int weapon)
+{
+    if(itemMem.current == weapon)
+    {
+        return;
+    }
+    itemMem.current = weapon;
+    item = ItemInHand{};
+    for(int i = 0; i < itemMem.count; i++)
+    {
+        if(itemMem.weapon[i] == weapon)
+        {
+            item = itemMem.items[i];
+        }
+    }
+}
+
+// The item just measured kept for `weapon`.
+void keepItemOf(int weapon)
+{
+    itemMem.current = weapon;
+    for(int i = 0; i < itemMem.count; i++)
+    {
+        if(itemMem.weapon[i] == weapon)
+        {
+            itemMem.items[i] = item;
+            return;
+        }
+    }
+    if(itemMem.count < 8)
+    {
+        itemMem.weapon[itemMem.count] = weapon;
+        itemMem.items[itemMem.count++] = item;
+    }
+}
 
 // The drawn free hand carried on the drawn gun (attachDrawn): the gun hand's game pose and its drawn pose as last noted
 // (noteDrawn), and how much the free hand goes with it (0 at the pouch, 1 bringing the item to its destination and in).
@@ -179,6 +233,7 @@ Lock lk;
 constexpr int procBitBase = 16; // STAT_QVR_FLATRELOAD: 16 the off hand's gun, 32 the main's (QC VR_FlatReload_ProcBit)
 constexpr int procOnBit = 64;   // the procedural reload on: the pouch shown (QC VR_FLATRL_PROC_ON)
 constexpr int ssgOpenFlag = 32; // STAT_QVR_WEAPONFLAGS: QC QVR_WPNFLAG_SSG_OPEN
+constexpr int noMagFlag = 16;   // and QVR_WPNFLAG_NOMAG (a magazine gun with none in)
 constexpr float pi = 3.14159265f;
 constexpr float attachTime = 0.12f; // (s: the drawn free hand onto the drawn gun and off it, attachDrawn)
 constexpr float gripTime = 0.08f;   // (s: the free hand's fingers onto the item and off it, gripShare)
@@ -226,7 +281,8 @@ constexpr float gripTime = 0.08f;   // (s: the free hand's fingers onto the item
 // A key's condition on the gun in hand `g` now.
 [[nodiscard]] bool condMet(Cond c, int g)
 {
-    const bool open = (flagsOf(g) & ssgOpenFlag) != 0;
+    // (Open: the super shotgun broken open, a magazine gun with no magazine in: reloadmags.)
+    const bool open = (flagsOf(g) & (ssgOpenFlag | noMagFlag)) != 0;
     switch(c)
     {
         case Cond::Closed: return !open;
@@ -355,6 +411,14 @@ void cancel(const char* why, bool tellServer)
 void measurePort(int g)
 {
     const hands::State& cur = hands::current();
+    if(cur.magSeatValid[g])
+    {
+        // (The seated magazine's place, placed with the port: hands::State::magSeat; in the same game hand's frame.)
+        const glm::mat3 toGun = glm::transpose(held::axesFromAngles(&cur.rot[g][0], true));
+        ps.seatIn = toGun * (cur.magSeat[g][0] - cur.placedFrom[g]);
+        ps.seatAxesIn = toGun * glm::mat3{cur.magSeat[g][1], cur.magSeat[g][2], cur.magSeat[g][3]};
+        ps.seatKnown = glm::length(ps.seatIn) < 48.f;
+    }
     if(!cur.loadPortValid[g])
     {
         return;
@@ -381,26 +445,38 @@ void measurePort(int g)
 // The carried item's place in the free hand's frame: where it sits in the hand (vr_held.cpp placeInHand: the server's own
 // place for it in the hand, its .carry_offset), not where the entity is drawn (interpolated, a frame's walk behind on the
 // move; prlmove).
-void measureRound(int free)
+// False: not known yet (the item's entity not in the hand as drawn yet, as on the move: tried again the next frame).
+bool measureRound(int free)
 {
     const int ent = carriedEnt(free);
-    glm::vec3 in, other;
+    glm::vec3 in, other, ref;
     glm::mat3 axes;
     bool both = false;
-    if(ent <= 0 || ent >= cl.num_entities || held::placeInHand(free, in, axes, both, other) != ent || glm::length(in) >= 16.f)
+    if(ent <= 0 || ent >= cl.num_entities || held::placeInHand(free, in, axes, both, other) != ent || glm::length(in) >= 16.f ||
+       !view::heldRoundRef(free, ref))
     {
-        return;
+        return false;
     }
     item.at = in;
     item.axes = axes;
     item.scale = ENTSCALE_DECODE(cl_entities[ent].scale);
+    // (Its reference point off its origin, in its model's frame as drawn: a shell's its middle, 0.)
+    const entity_t& e = cl_entities[ent];
+    item.ref = glm::transpose(held::axesFromAngles(&e.angles[0], false)) * (ref - geom::vec(e.origin));
+    if(glm::length(item.ref) > 16.f)
+    {
+        item.ref = glm::vec3{0.f};
+    }
+    keepItemOf(ps.trip.weapon);
     if(debugOn())
     {
         const glm::mat3& a = item.axes;
-        Con_Printf("flatprocreload: the pair in the hand at %.2f %.2f %.2f, axes %.2f %.2f %.2f / %.2f %.2f %.2f / %.2f %.2f %.2f, "
-                   "size %.2f\n",
-            in.x, in.y, in.z, a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z, item.scale);
+        Con_Printf("flatprocreload: the item in the hand at %.2f %.2f %.2f, axes %.2f %.2f %.2f / %.2f %.2f %.2f / %.2f %.2f %.2f, "
+                   "size %.2f, its reference %.2f %.2f %.2f\n",
+            in.x, in.y, in.z, a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z, item.scale, item.ref.x,
+            item.ref.y, item.ref.z);
     }
+    return true;
 }
 
 // vr_flat_proc_reload_debug 2: the gun as drawn last frame, each frame of the reload (its hand and its model's origin from
@@ -506,8 +582,19 @@ void target(const hands::State& s, int f, int g, const Reload& r, const Key& k, 
 {
     const float side = sideOf(f);
     const glm::mat3 gunAxes = held::axesFromAngles(&s.rot[g][0], true);
-    const glm::vec3 port = s.pos[g] + gunAxes * ps.portIn;
-    const glm::vec3 face = glm::normalize(gunAxes * ps.faceIn);
+    // A magazine to its receiver (reloadmags): turned as it sits seated (measured on the gun's models: hands::State::magSeat;
+    // the item's and the key's turns on the seated magazine's own axes), its feed end (the server's test point, its
+    // reference: item.ref) on the well's load point, coming in along the magazine's line (its opening's way out of the
+    // well). The destination: where its middle goes then (seated: the seat's middle, give or take the port's own place).
+    const bool seat = r.dest == reloadsys::Dest::Receiver && ps.seatKnown;
+    const glm::mat3 seatAxes = gunAxes * ps.seatAxesIn;
+    const bool toItem = k.target == Target::Mouth || k.target == Target::Dest;
+    const glm::mat3 turns = held::axesFromAngles(&mirrorRot(toItem ? k.handRot : glm::vec3{0.f}, side)[0], true) *
+                            held::axesFromAngles(&mirrorRot(r.itemRot, side)[0], true);
+    const glm::mat3 itemDest = seat ? seatAxes * turns : gunAxes * turns;
+    const glm::vec3 loadPt = s.pos[g] + gunAxes * ps.portIn;
+    const glm::vec3 port = seat ? loadPt - itemDest * item.ref : loadPt;
+    const glm::vec3 face = seat ? -seatAxes[2] : glm::normalize(gunAxes * ps.faceIn);
     if(portOut)
     {
         *portOut = port;
@@ -528,8 +615,6 @@ void target(const hands::State& s, int f, int g, const Reload& r, const Key& k, 
             // Backwards: the item's turn at its destination (the reload's, the key's on top, in the gun's frame), its place
             // (the port, out of its opening by the approach; the key's offset in the gun's frame: forward, left, up, the right
             // mirrored), then the hand that holds it there as it sits in the hand.
-            const glm::mat3 itemDest = gunAxes * held::axesFromAngles(&mirrorRot(k.handRot, side)[0], true) *
-                                       held::axesFromAngles(&mirrorRot(r.itemRot, side)[0], true);
             const float out = za::max(k.target == Target::Mouth ? k.approach : 0.f, vr_flat_prl_test_miss.value);
             const glm::vec3 itemAt = port + face * out + gunAxes * glm::vec3{k.handOfs.x, side * k.handOfs.y, k.handOfs.z};
             const glm::mat3 hand = itemDest * glm::transpose(item.axes);
@@ -633,6 +718,7 @@ bool lockFrame(int value)
     lk.gun = g;
     lk.free = 1 - g;
     lk.weapon = r.weapon;
+    useItemOf(r.weapon);
     if(value > 0)
     {
         lk.key = za::min(value, r.keyCount) - 1;
@@ -814,6 +900,7 @@ void frame(bool on)
             t.on = true;
             t.ending = false;
             t.weapon = nr->weapon;
+            useItemOf(t.weapon);
             t.gun = upHand;
             t.free = 1 - upHand;
             t.hadItem = false;
@@ -867,15 +954,15 @@ void frame(bool on)
     const int carried = carriedEnt(t.free);
     const float failsafe = timeOf(vr_flat_prl_failsafe, 0.05f);
     const auto cond = [&](Cond c) { return condMet(c, t.gun); };
-    // The key's open / close at its start.
-    if(!t.actionSent && (key->action == Action::Open || key->action == Action::Close))
+    // The key's open / close / eject at its start (eject, reloadmags: the magazine let out).
+    if(!t.actionSent && (key->action == Action::Open || key->action == Action::Close || key->action == Action::Eject))
     {
         t.actionSent = true;
-        Cbuf_InsertText(key->action == Action::Open ? "impulse 107\n" : "impulse 108\n");
+        const int imp = key->action == Action::Open ? 107 : key->action == Action::Close ? 108 : 109;
+        Cbuf_InsertText(imp == 107 ? "impulse 107\n" : imp == 108 ? "impulse 108\n" : "impulse 109\n");
         if(debugOn())
         {
-            Con_Printf("flatprocreload: impulse %d: the gun %s\n", key->action == Action::Open ? 107 : 108,
-                key->action == Action::Open ? "opened" : "closed");
+            Con_Printf("flatprocreload: impulse %d: the gun %s\n", imp, imp == 107 ? "opened" : imp == 108 ? "closed" : "lets its magazine out");
         }
     }
     // The item gone from the hand (seated, or lost) on its way: on after the insert's key at once.
@@ -883,8 +970,12 @@ void frame(bool on)
     if(carried > 0 && !t.hadItem && !t.ending)
     {
         t.hadItem = true;
-        measureRound(t.free);
+        t.measured = false;
         t.clipAtCarry = clipOf(t.gun);
+    }
+    if(t.hadItem && !t.measured && carried > 0)
+    {
+        t.measured = measureRound(t.free); // (until its entity is in the hand as drawn)
     }
     if(t.hadItem && carried == 0 && !t.ending)
     {
@@ -1070,6 +1161,18 @@ glm::vec3 lockPairPlace(const glm::vec3& handPos, const glm::vec3& handRot, glm:
     const glm::mat3 hand = held::axesFromAngles(&handRot[0], true);
     axes = hand * item.axes;
     return handPos + hand * item.at;
+}
+
+const char* lockItemModel()
+{
+    switch(lk.weapon)
+    {
+        case WID_NAILGUN: return "progs/vr_mag_nail.mdl";
+        case WID_SUPER_NAILGUN: return "progs/vr_mag_snail.mdl";
+        case WID_LIGHTNING: return "progs/vr_mag_light.mdl";
+        case WID_NAILPISTOL: return "progs/vr_mag_npistol.mdl";
+        default: return "progs/vr_shell_pair.mdl";
+    }
 }
 
 Status status()

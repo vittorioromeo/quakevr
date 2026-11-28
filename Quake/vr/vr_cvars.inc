@@ -38,7 +38,8 @@ QVR_CVAR(vr_enemy_melee_kind, "1", CVAR_ARCHIVE | QVR_RULE)       // each kind's
 QVR_CVAR(vr_enemy_melee_arc_show, "0", CVAR_NONE)      // each melee monster after you within 600 units draws its arc (its sweeping blows' too once seen) and reach on the floor, red with you inside, green outside, orange inside a sweeping blow's only; 2: also printed once a second (meleearc: show) (fight.qc VR_MeleeArc_ShowFrame, vr_bodycontact.cpp meleeArcDraw)
 QVR_CVAR(vr_enemy_melee_arc_debug, "0", CVAR_NONE)      // each monster blow's angle off its facing, its arc and reach, and whether it landed, printed (meleearc:)
 QVR_CVAR(vr_test_aimcone, "0", CVAR_NONE)               // the aim cone test (vr_aimcone_test.qc; Debug > Tests > Holding Enemies): distance * 1000 + degrees (300060: 300 units, 60 deg; degrees alone: 300 units): the nearest monster set that far from you, after you, its ranged attack started, and you held that many degrees off its facing (to its right) until the attack ends; then one "aimcone: result" line (shots, waits, bends, hits)
-QVR_CVAR(vr_test_meleearc, "0", CVAR_NONE)             // the melee arc test (vr_meleearc_test.qc; Debug > Tests > Holding Enemies): the nearest monster set 56 units from you and after you: 1 facing you, 2 facing away, 3 facing you and you step aside when it swings; 4 s, then a "meleearc:" summary
+QVR_CVAR(vr_test_humlook_dye, "-1", CVAR_NONE)          // (tests: vr_attrs_test.qc 234) set by vr_humlook_dyetest (vr_humlook.cpp): its failed checks (-1 not run)
+QVR_CVAR(vr_test_meleearc, "0", CVAR_NONE)           // the melee arc test (vr_meleearc_test.qc; Debug > Tests > Holding Enemies): the nearest monster set 56 units from you and after you: 1 facing you, 2 facing away, 3 facing you and you step aside when it swings; 4 s, then a "meleearc:" summary
 QVR_CVAR(vr_enemy_aim_cone, "1", CVAR_ARCHIVE | QVR_RULE)          // a monster's ranged shot (a grunt's, an ogre's grenade, a scrag's spit; not homing ones, not bosses) leaves along its facing bent toward you at most its aim cone (pitch free), and with you outside its fire cone it waits (turning) up to vr_enemy_aim_delay first; 0: Quake's shots, straight at you whatever its facing (vr_aimcone.qc; ROUND22.md "Ranged aim cone")
 QVR_CVAR(vr_enemy_aim_narrow, "1", CVAR_ARCHIVE | QVR_RULE)         // the aim and fire cones' multiplier for hitscan and fast shots (grunts, enforcers, gremlins, scourges, the expansions' gunners)
 QVR_CVAR(vr_enemy_aim_wide, "2", CVAR_ARCHIVE | QVR_RULE)           // the aim and fire cones' multiplier for lobbed and slow shots (an ogre's grenade, a scrag's spit, a death knight's magic, a zombie's flesh)
@@ -2395,6 +2396,8 @@ QVR_CVAR(vr_gl_quake_dlights, "0", CVAR_ARCHIVE)
 // restored texel blocks gathered into a copy of the lightmap and uploaded once per band of 16 rows; 0 one upload per
 // surface, as C5b (the A/B). The same picture.
 QVR_CVAR(vr_gl_world_dlmap_batch, "1", CVAR_NONE)
+QVR_CVAR(vr_gl_world_dlmap_reach, "1", CVAR_NONE) // (questopt) a surface's lights whose sphere misses its texels' box are left out of its sums (they add nothing: exact); 0 every light collectWorld paired with it summed, as before
+QVR_CVAR(vr_gl_world_dlmap_keep, "0", CVAR_NONE) // (questopt; off: no surface kept in hip1m1, its lights change every frame) 1: a surface lit by the same lights as last frame keeps its block (vr_dlightmap.cpp); 0 every lit surface made again every frame; 2 the check (made again, compared: vr_gl_world_dlmap_info)
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them

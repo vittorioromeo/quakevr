@@ -302,3 +302,13 @@ near the noise). His config vs the new player's, same launch, 0.65 fixed, 3 pair
 11.6; 210 vs 222 draws). The 0.65 base is 2-3 ms above qtune's 14.8-15.4 of the morning (same scene and settings): the
 headset's warmth or something merged since; not split (no older build in the same launch). Scripts: posebake
 `scratch/qc/qc_*` (not committed).
+
+## hip1m1 (questopt, 2026-11-28)
+
+His recording: CPU-bound (fights 24-41 ms a frame, GPU 10-22). Landed, both exact, default on (ROUND26 "questopt"):
+
+| Change | Cvar | Measured (Quest 3, his hip1m1 autosave, interleaved x3) |
+|---|---|---|
+| Lightmap dynamic lights: a surface sums only the lights reaching its texels (box, back faces, spot cone) | `vr_gl_world_dlmap_reach` | lightmap 3.9 -> 1.6 ms; CPU busy 13.8-15.0 -> 11.1-11.2 ms |
+| Worn packs' / armour anchors: only their vertices of the drawn body; the chest frame kept per shell | `vr_hitmodel_points_subset` | PC QuakeC 2.04 -> 1.39 ms at the start; nothing at his spot (no wearer out of view) |
+| Kept blocks for unchanged lights | `vr_gl_world_dlmap_keep` (off) | no hit in hip1m1 (lights change every frame) |
