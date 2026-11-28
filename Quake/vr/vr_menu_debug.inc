@@ -1929,6 +1929,12 @@ za::Vector<Item> pageDebugTools()
         open("Texture Studio", pageIndex(pageTextureStudio))
             .help("The armed humanoids' recolours by weapon: each row's colour, strength, lightness and tint, and which "
                   "texels they dye (palette rows, painted texels), live on a row lined up ahead; saved to quakevr/humlook.txt."),
+        command("Dazzle Studio (Flat Screen)", "vr_dazzlestudio")
+            .help("vr_dazzlestudio: the flashlight dazzle's shield pose tweaked per armed humanoid kind (one weapon, and two: "
+                  "the dual-wielding set) in an ImGui window: the kind stands ahead of you shielding its eyes (frozen, or "
+                  "its hand rising and falling), gizmos on its hand, elbow and gun hand (click a dot, or 1 2 3; W move, E "
+                  "turn), sliders, the right-button drag turns it; Save writes quakevr/data/dazzle.txt (all zero: the base "
+                  "pose). vr_dazzlestudio test ends on 'dazzlestudio: N passed, M failed'. Flat screen only."),
         header("Enemy Attributes"),
         command("Make the Nearest Monster Elite", "vr_attr_set elite 1")
             .help("vr_attr_set elite 1: the monster nearest you an elite (much faster fire, reaction, aim and swings, 1.25x "

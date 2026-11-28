@@ -89,6 +89,12 @@ void(entity g) VR_AG_DazzleTick =
         return;
     }
     g.vr_ag_dazzle_at = time;
+    if(g.vr_ag_dazzle_hold > 0)
+    {
+        g.vr_ag_dazzle = min(1, g.vr_ag_dazzle_hold); // (the Dazzle Studio's subject: held, frozen or rising and falling)
+        g.vr_ag_dazzle_lit = 0;
+        return;
+    }
     dt = min(dt, 0.25);
     if(!cvar_hget(cvarh_vr_agrunt_dazzle) || g.health <= 0)
     {
@@ -164,7 +170,8 @@ float(entity g) VR_AG_DazzleAim =
 };
 
 // Holding two weapons, it shields with its left one's hand (vr_agrunt_dazzle_dual: the weapon still held, up and away).
-float(entity g) VR_AG_ShieldDual = { return g.vr_ag_prop2 && cvar_hget(cvarh_vr_agrunt_dazzle_dual); };
+// (the Dazzle Studio's subject always: its dual set is edited there)
+float(entity g) VR_AG_ShieldDual = { return g.vr_ag_prop2 && (cvar_hget(cvarh_vr_agrunt_dazzle_dual) || g.vr_ag_dazzle_hold > 0); };
 
 // Its left weapon raised to shield its eyes now (vr_agrunt_dazzle_dual): not fired (its right one fires on).
 float(entity g) VR_AG_ShieldingLeft = { return g.vr_ag_shieldw > 0.5 && VR_AG_ShieldDual(g); };
@@ -188,6 +195,55 @@ vector(entity g) VR_AGP_ShieldAt =
         at = vr_am_sh_l + normalize(off) * most;
     }
     return at;
+};
+
+// The Dazzle Studio's tweaks (quakevr/data/dazzle.txt, vr_dazzledata.cpp; his words 2026-11-28 item 14), laid on the pose
+// above per kind, a set for one weapon and one for two: all zero (the default) is that pose exactly.
+float VR_AG_DZT_HAND = 0;  // the shielding hand's grip moved (its body's space: forward, left, up; units)
+float VR_AG_DZT_TURN = 1;  // the left weapon turned in that hand (two weapons; pitch, yaw, roll in its body's frame)
+float VR_AG_DZT_ELBOW = 2; // added to the elbow's way (VR_AG_SHIELD_POLE's space)
+float VR_AG_DZT_TWIST = 3; // x: the elbow turned about the shoulder-to-hand line (degrees; its forearm rolled)
+float VR_AG_DZT_GUN = 4;   // the gun hand moved while it shields (its body's space; times the shield's share)
+
+vector(entity g, float f) VR_AG_DazzleTweak =
+{
+    VR_AM_Row(g.vr_ag_kind);
+    return dazzletweak(vr_am_kind, g.vr_ag_prop2 ? 1 : 0, f);
+};
+
+// `v` (its body's space) turned by `turn` (pitch, yaw, roll; makevectors' frame, v_* kept).
+vector(vector v, vector turn) VR_AG_DazzleTurn =
+{
+    if(turn == '0 0 0')
+    {
+        return v;
+    }
+    vector keepF = v_forward;
+    vector keepR = v_right;
+    vector keepU = v_up;
+    makevectors(turn);
+    vector o = v_forward * v_x - v_right * v_y + v_up * v_z;
+    v_forward = keepF;
+    v_right = keepR;
+    v_up = keepU;
+    return o;
+};
+
+// The shielding elbow's way (unit): VR_AG_SHIELD_POLE plus its kind's elbow tweak, turned about the line from its shoulder
+// to its hand's place `face` by its twist.
+vector(entity g, vector face) VR_AG_ShieldPole =
+{
+    vector pole = normalize(VR_AG_SHIELD_POLE + VR_AG_DazzleTweak(g, VR_AG_DZT_ELBOW));
+    vector tw = VR_AG_DazzleTweak(g, VR_AG_DZT_TWIST);
+    if(tw_x != 0)
+    {
+        VR_AM_Row(g.vr_ag_kind);
+        vector a = normalize(face - vr_am_sh_l);
+        float r = tw_x * 0.01745329;
+        float c = cos(r);
+        pole = pole * c + VR_Cross(a, pole) * sin(r) + a * ((a * pole) * (1 - c));
+    }
+    return pole;
 };
 
 // The shield (VR_AGP_PoseQC and the engine's agpose call it after the hands' poses, before the run's sway): its off hand
@@ -223,16 +279,19 @@ void(entity g, entity p) VR_AGP_Shield =
     }
     VR_AM_Row(g.vr_ag_kind);
     VR_AGP_Body(g);
-    vector face = VR_AGP_ShieldAt(g);
-    vr_agp_shpole = normalize(VR_AG_SHIELD_POLE) * (w * min(1, max(0, cvar_hget(cvarh_vr_agrunt_dazzle_elbow))));
+    vector face = VR_AGP_ShieldAt(g) + VR_AG_DazzleTweak(g, VR_AG_DZT_HAND);
+    vr_agp_shpole = VR_AG_ShieldPole(g, face) * (w * min(1, max(0, cvar_hget(cvarh_vr_agrunt_dazzle_elbow))));
+    vector gunOff = VR_AG_DazzleTweak(g, VR_AG_DZT_GUN) * w;
     if(g.vr_ag_prop2 && (vr_agp_flags & VR_AGP_LEFTWPN))
     {
         // Two weapons (vr_agrunt_dazzle_dual): its left one's grip raised before its eyes, the weapon still in its hand,
         // turned to point up and out to its side (away from its face and from you), its top back.
         VR_AM_Row(g.vr_ag_kind);
         vector fromL = vr_am_anchor_at * vr_agp_wl + vr_agp_vl;
-        vector upFw = normalize(VR_AGP_ToWorld('0.15 0.45 1'));
-        vector upUp = VR_AGP_ToWorld('-1 0 0');
+        vector turn = VR_AG_DazzleTweak(g, VR_AG_DZT_TURN);
+        vector upFw = normalize(VR_AGP_ToWorld(VR_AG_DazzleTurn('0.15 0.45 1', turn)));
+        vector upUp = VR_AGP_ToWorld(VR_AG_DazzleTurn('-1 0 0', turn));
+        vr_agp_v = vr_agp_v + gunOff; // (its right weapon's hand moved away by the tweak)
         upUp = normalize(upUp - upFw * (upUp * upFw));
         vr_agp_fwl = VR_AGP_Nlerp(vr_agp_fwl, upFw, w);
         vr_agp_upl = VR_AGP_Nlerp(vr_agp_upl, upUp, w);
@@ -281,8 +340,9 @@ void(entity g, entity p) VR_AGP_Shield =
         vr_agp_flags = keepFl;
         VR_AGP_Body(g);
     }
+    vr_agp_v = vr_agp_v + gunOff; // (the gun hand moved away by the tweak)
     VR_AM_Row(g.vr_ag_kind);
-    vr_agp_flags = (vr_agp_flags - (vr_agp_flags & (VR_AGP_TWO | VR_AGP_LEFTWPN))) | VR_AGP_LEFT;
+    vr_agp_flags =(vr_agp_flags - (vr_agp_flags & (VR_AGP_TWO | VR_AGP_LEFTWPN))) | VR_AGP_LEFT;
     vr_agp_wl = 1;
     vr_agp_vl = VR_Lerp(from, face, w) - vr_am_anchor_at;
     if(!vr_agp_quiet)
