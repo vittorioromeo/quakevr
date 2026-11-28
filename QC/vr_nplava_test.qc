@@ -74,6 +74,35 @@ void() VR_NPL_Give =
     p.ammo_lava_nails = 30;
 };
 
+// The player's rounds of ammo `xAid`: the pack's and those in the main hand's gun when it fires that ammo.
+float(float xAid) VR_NPL_Total =
+{
+    entity p = vr_npt_player;
+    float aid = WeaponIdToAmmoId(WID_NAILPISTOL, VRGetEntWeaponFlags(p, cVR_MainHand));
+    float clip = (VRGetEntWeaponFlags(p, cVR_MainHand) & QVR_WPNFLAG_NOMAG) ? 0 : VRGetEntWeaponClip(p, cVR_MainHand);
+    return VR_AmmoUtil_GetAmmoCountByAmmoId(p, xAid) + (aid == xAid ? clip : 0);
+};
+
+// Whether the main hand's gun can fire: flat play's switch ejects its magazine (VR_FlatReload_AmmoSwitch), so a
+// magazine of the new ammo is seated here (its rounds from the pack: what a reload does; flat play's R itself is the
+// flat reload tests'). Checked: the switch left it empty, its rounds back in the pack.
+float() VR_NPL_Ready =
+{
+    entity p = vr_npt_player;
+    float flags = VRGetEntWeaponFlags(p, cVR_MainHand);
+    if(!vr_npl_flat || (VRGetEntWeaponClip(p, cVR_MainHand) >= 1 && !(flags & QVR_WPNFLAG_NOMAG)))
+    {
+        return TRUE;
+    }
+    VR_Test_Check((flags & QVR_WPNFLAG_NOMAG) != 0, "flat play: N ejected the magazine (the gun empty)");
+    float aid = WeaponIdToAmmoId(WID_NAILPISTOL, flags);
+    float n = min(VR_NailPistol_MagSize(), VR_AmmoUtil_GetAmmoCountByAmmoId(p, aid));
+    VR_AmmoUtil_AddAmmoCountByAmmoId(p, aid, -n);
+    VRSetEntWeaponClip(p, cVR_MainHand, n);
+    VRSetEntWeaponFlags(p, cVR_MainHand, flags - QVR_WPNFLAG_NOMAG);
+    return FALSE;
+};
+
 void() VR_NPL_Frame =
 {
     entity p = vr_npt_player;
@@ -87,7 +116,8 @@ void() VR_NPL_Frame =
     float lava = VRGetEntWeaponFlags(p, cVR_MainHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO;
     if(vr_npl_step == 0)
     {
-        cvar_set("vr_reload_mode_npistol", "0");
+        cvar_set("vr_reload_mode_npistol", vr_npl_flat ? "-1" : "0"); // (flat play: its own reload, R)
+        if(!vr_npl_flat) localcmd("vr_mock_hand main 0.03 1.69 -0.20 70 0 0\n"); // (aimed ahead: npaim's first pose)
         VR_NPL_Give();
         VR_NPL_Next();
         return;
@@ -106,20 +136,20 @@ void() VR_NPL_Frame =
     if(vr_npl_step == 2)
     {
         VR_NPL_Press(vr_npl_frames);
-        if(!lava) return;
+        if(!lava || vr_npl_frames < 8) return; // (the key let go, or the finger in, first)
         VR_Test_Check(p.weaponmodel == "progs/v_nailpistol_lava.mdl", sprintf("%s: its lava nails, its lava look (%s)",
             vr_npl_flat ? "N" : "its button pressed", p.weaponmodel));
-        VR_Test_Check(p.currentammo == p.ammo_lava_nails, sprintf("its ammo the lava nails (%g of %g)", p.currentammo, p.ammo_lava_nails));
+        VR_Test_Check(p.currentammo == AID_LAVA_NAILS, sprintf("its ammo the lava nails (ammo id %g)", p.currentammo));
         if(!vr_npl_flat) localcmd("vr_mock_hand_to off wbutton front 9\n"); // (the finger away again)
         VR_NPL_Next();
         return;
     }
     if(vr_npl_step == 3)
     {
-        if(vr_npl_frames < 12) return; // (the finger out of the button's reach before anything else)
-        VR_NPT_Target(128);
-        vr_npl_nails0 = p.ammo_nails;
-        vr_npl_lava0 = p.ammo_lava_nails;
+        if(!VR_NPL_Ready() || vr_npl_frames < 50) return; // (the finger out of the button's reach; a seated magazine racked)
+        VR_NPT_Target(64);
+        vr_npl_nails0 = VR_NPL_Total(AID_NAILS);
+        vr_npl_lava0 = VR_NPL_Total(AID_LAVA_NAILS);
         vr_npl_health0 = vr_np_target.health;
         vr_npl_shots0 = vr_np_lavashots;
         vr_np_lavahits = 0;
@@ -142,9 +172,9 @@ void() VR_NPL_Frame =
         float each = cvar_hget(cvarh_vr_dmg_nailpistol) * cvar_hget(cvarh_vr_dmg_lava_nail) / max(1, cvar_hget(cvarh_vr_dmg_nail));
         float dealt = vr_npl_health0 - vr_np_target.health;
         VR_Test_Check(shots == 3, sprintf("three pulls: %g lava nails fired", shots));
-        VR_Test_Check(vr_npl_lava0 - p.ammo_lava_nails == 3 && p.ammo_nails == vr_npl_nails0,
-            sprintf("lava nails %g -> %g, nails %g -> %g (want 3 lava used, no nails)", vr_npl_lava0, p.ammo_lava_nails,
-            vr_npl_nails0, p.ammo_nails));
+        VR_Test_Check(vr_npl_lava0 - VR_NPL_Total(AID_LAVA_NAILS) == 3 && VR_NPL_Total(AID_NAILS) == vr_npl_nails0,
+            sprintf("lava nails %g -> %g, nails %g -> %g (want 3 lava used, no nails)", vr_npl_lava0,
+            VR_NPL_Total(AID_LAVA_NAILS), vr_npl_nails0, VR_NPL_Total(AID_NAILS)));
         VR_Test_Check(vr_np_lavahits == 3, sprintf("%g lava nails hit the box", vr_np_lavahits));
         VR_Test_Check(fabs(vr_np_lastdmg - each) < 0.01, sprintf("a lava nail's damage %g (want %g: vr_dmg_nailpistol %g x lava %g / nail %g)",
             vr_np_lastdmg, each, cvar_hget(cvarh_vr_dmg_nailpistol), cvar_hget(cvarh_vr_dmg_lava_nail), cvar_hget(cvarh_vr_dmg_nail)));
@@ -157,21 +187,28 @@ void() VR_NPL_Frame =
     if(vr_npl_step == 5)
     {
         VR_NPL_Press(vr_npl_frames);
-        if(lava) return;
+        if(lava || vr_npl_frames < 8) return;
         VR_Test_Check(p.weaponmodel == "progs/v_nailpistol.mdl", sprintf("pressed again: its nails, its own look (%s)", p.weaponmodel));
         if(!vr_npl_flat) localcmd("vr_mock_hand_to off wbutton front 9\n");
-        vr_npl_nails0 = p.ammo_nails;
-        vr_npl_lava0 = p.ammo_lava_nails;
+        vr_npl_pulls = 0;
         VR_NPL_Next();
         return;
     }
     if(vr_npl_step == 6)
     {
-        if(vr_npl_frames == 12) VR_NPT_Trigger(1);
-        if(vr_npl_frames == 16) VR_NPT_Trigger(0);
-        if(vr_npl_frames < 40) return;
-        VR_Test_Check(vr_npl_nails0 - p.ammo_nails == 1 && p.ammo_lava_nails == vr_npl_lava0,
-            sprintf("a plain shot: nails %g -> %g, lava nails %g -> %g", vr_npl_nails0, p.ammo_nails, vr_npl_lava0, p.ammo_lava_nails));
+        if(!vr_npl_pulls)
+        {
+            if(vr_npl_frames < 12 || !VR_NPL_Ready()) return;
+            vr_npl_nails0 = VR_NPL_Total(AID_NAILS);
+            vr_npl_lava0 = VR_NPL_Total(AID_LAVA_NAILS);
+            vr_npl_pulls = vr_npl_frames;
+        }
+        if(vr_npl_frames == vr_npl_pulls + 40) VR_NPT_Trigger(1); // (a magazine just seated: its slide racks first)
+        if(vr_npl_frames == vr_npl_pulls + 44) VR_NPT_Trigger(0);
+        if(vr_npl_frames < vr_npl_pulls + 70) return;
+        VR_Test_Check(vr_npl_nails0 - VR_NPL_Total(AID_NAILS) == 1 && VR_NPL_Total(AID_LAVA_NAILS) == vr_npl_lava0,
+            sprintf("a plain shot: nails %g -> %g, lava nails %g -> %g", vr_npl_nails0, VR_NPL_Total(AID_NAILS), vr_npl_lava0,
+            VR_NPL_Total(AID_LAVA_NAILS)));
         if(vr_npl_flat) { VR_NPL_End(); return; } // (immersive reloading is the headset's)
         cvar_set("vr_reload_mode_npistol", "3");
         VR_NPL_Give();
