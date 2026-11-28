@@ -1541,17 +1541,22 @@ void callBodyHits(float dt)
                 {
                     m++;
                 }
-                const bool fresh = m >= r.meetCount;
-                if(fresh && r.meetCount >= static_cast<int>(r.meets.size()))
+                const bool known = m < r.meetCount;
+                if(known && r.thrownAt > r.meets[static_cast<za::SizeT>(m)].since)
+                {
+                    r.meets[static_cast<za::SizeT>(m)] = {n, 0.f, false, qcvm->time}; // (thrown since they met: anew)
+                }
+                if(!known && r.meetCount >= static_cast<int>(r.meets.size()))
                 {
                     continue; // (meeting more monsters at once than it keeps: the rest wait)
                 }
-                RagdollBodies::Meet meet = fresh ? RagdollBodies::Meet{n, 0.f, false, qcvm->time} :
-                                                   r.meets[static_cast<za::SizeT>(m)];
+                RagdollBodies::Meet meet = known ? r.meets[static_cast<za::SizeT>(m)] :
+                                                   RagdollBodies::Meet{n, 0.f, false, qcvm->time};
+                // (Its closing speed taken at the first frame it closes on it at all.)
                 const RagKnock k = ragKnockStrike(parts.data(), partCount, mass, mid, boost, driven,
                     glm::vec3{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]},
                     glm::vec3{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]},
-                    glm::vec3{e->v.velocity[0], e->v.velocity[1], e->v.velocity[2]}, dt, meet.speed, fresh);
+                    glm::vec3{e->v.velocity[0], e->v.velocity[1], e->v.velocity[2]}, dt, meet.speed, meet.speed <= 0.f);
                 if(!k.met)
                 {
                     continue;
@@ -1568,7 +1573,7 @@ void callBodyHits(float dt)
                                   k.whole || k.strike == glm::vec3{0.f};
                 const bool fire = !meet.fired && ripe && meet.best != glm::vec3{0.f};
                 meet.fired = meet.fired || fire;
-                if(fresh)
+                if(!known)
                 {
                     m = r.meetCount++;
                 }
