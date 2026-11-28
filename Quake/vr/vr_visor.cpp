@@ -15,6 +15,7 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_stereo.hpp"
+#include "vr_tunables.hpp"
 #include "vr_weaponwheel.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
@@ -87,6 +88,26 @@ struct State
     int lastHealth{0};
     const void* lastWorld{nullptr};
     float bootAt{-100.f}; // the clock at the last power-on
+    // The boot sequence (vr_flat_visor_boot_seq): this boot's (dark, fading in glitching, then the sweep; false: the sweep
+    // alone), a boot asked for (VR_VisorSignon), the fade in now (0..1), its glitch now (0..1), boots and sounds so far.
+    bool bootSeq{false};
+    bool bootAsked{false};
+    float bootIn{1.f};
+    float bootGlitch{0.f};
+    int boots{0};
+    int bootSounds{0};
+    // A boot's trace (vr_flat_visor_fx trace 1: the tests', the Debug menu's): what it went through, a verdict line as it
+    // ends (bootVerdict). Frames: dark (no panel shown), fading (the fade under way), glitching, sweeping, then booted.
+    struct BootTrace
+    {
+        bool on{false};    // tracing boots
+        bool live{false};  // this boot traced, not ended yet
+        za::Array<char, 32> cause{};
+        int dark{0}, darkShown{0}, fading{0}, glitching{0}, sweeping{0};
+        int rises{0}, falls{0}; // the fade in's steps up and down (smooth: rises alone)
+        float lastIn{0.f}, peakGlitch{0.f}, fadeAtSweep{0.f};
+        int sounds{0};
+    } trace;
     float glitch{0.f};    // a hit's glitch now (0..1)
     float fog{0.f};       // the fog now (0..1)
     bool underwater{false};
@@ -193,6 +214,107 @@ using geom::smoothstep;
     return popTime > 0.f ? za::clamp((state().clock - state().center.popAt) / popTime, 0.f, 1.f) : 1.f;
 }
 
+[[nodiscard]] glm::vec2 panelFade(int p);
+
+// The boot's power-up sound (vr/visor_boot.wav, vr_flat_visor_boot_volume): at the viewer, as a menu's (S_LocalSound's).
+void bootSound(State& s)
+{
+    const float volume = za::clamp(vr_flat_visor_boot_volume.value, 0.f, 1.f);
+    if(volume <= 0.f)
+    {
+        return;
+    }
+    s.bootSounds++; // (asked for: counted with no sound device too, as in the headless tests)
+    s.trace.sounds++;
+    if(sfx_t* sfx = S_PrecacheSound("vr/visor_boot.wav"))
+    {
+        S_StartSound(cl.viewentity, -1, sfx, vec3_origin, volume, 1.f);
+    }
+}
+
+// A power-on (`cause`: the tests' trace's): with the boot sequence (vr_flat_visor_boot_seq; the visor up) dark first, its
+// sound, the panels fading in glitching, then the sweep; without it the sweep alone.
+void startBoot(State& s, const char* cause)
+{
+    s.bootAt = s.clock;
+    s.glitch = 0.f;
+    s.bootSeq = vr_flat_visor_boot_seq.value != 0.f && active();
+    s.bootIn = s.bootSeq ? 0.f : 1.f;
+    s.bootGlitch = 0.f;
+    s.boots++;
+    State::BootTrace& t = s.trace;
+    if(t.on)
+    {
+        t = State::BootTrace{.on = true, .live = true};
+        q_strlcpy(t.cause.data(), cause, t.cause.size());
+    }
+    if(s.bootSeq)
+    {
+        bootSound(s);
+    }
+}
+
+// Where the boot is: dark (no panel), fading (in, glitching), sweeping (the power-on sweep, a panel's still under way) or
+// booted.
+[[nodiscard]] const char* bootPhase(const State& s)
+{
+    if(s.bootSeq && s.bootIn <= 0.f)
+    {
+        return "dark";
+    }
+    if(s.bootSeq && s.bootIn < 1.f)
+    {
+        return "fading";
+    }
+    for(int p = 0; p < gadget::VisorCenter; p++)
+    {
+        if(s.input.boot[p] < 1.f)
+        {
+            return "sweeping";
+        }
+    }
+    return "booted";
+}
+
+// The trace (vr_flat_visor_fx trace 1) of a boot under way: this frame's phase counted; its verdict line once booted.
+void traceBoot(State& s)
+{
+    State::BootTrace& t = s.trace;
+    if(!t.live)
+    {
+        return;
+    }
+    const char* phase = bootPhase(s);
+    const float shown = panelFade(gadget::VisorVitals).x;
+    if(!q_strcasecmp(phase, "dark"))
+    {
+        t.dark++;
+        t.darkShown += shown > 0.f ? 1 : 0;
+    }
+    else if(!q_strcasecmp(phase, "fading"))
+    {
+        t.fading++;
+        t.rises += s.bootIn > t.lastIn ? 1 : 0;
+        t.falls += s.bootIn < t.lastIn ? 1 : 0;
+        t.glitching += s.bootGlitch > 0.f ? 1 : 0;
+        t.peakGlitch = za::max(t.peakGlitch, s.bootGlitch);
+    }
+    else if(!q_strcasecmp(phase, "sweeping"))
+    {
+        t.fadeAtSweep = t.sweeping == 0 ? s.bootIn : t.fadeAtSweep;
+        t.sweeping++;
+    }
+    else
+    {
+        Con_Printf("visorboot: boot %d (%s) seq %d: dark %d frames (shown %d), fading %d (rises %d falls %d, glitching %d, "
+                   "peak %.2f), sweeping %d (fade %.2f at its start), booted %.2f s (fade %.2f), sounds %d\n",
+            s.boots, t.cause.data(), s.bootSeq ? 1 : 0, t.dark, t.darkShown, t.fading, t.rises, t.falls, t.glitching,
+            t.peakGlitch, t.sweeping, t.fadeAtSweep, s.clock - s.bootAt, shown, t.sounds);
+        t.live = false;
+    }
+    t.lastIn = s.bootIn;
+}
+
 // Once a frame, with the view set up (R_RenderView): the clock, the sway and the effects.
 void update()
 {
@@ -205,13 +327,14 @@ void update()
     state().clock += dt;
     State& s = state();
 
-    // A new map (or a save loaded), a spawn: the power-on sweep.
+    // A new map, a changelevel, a save loaded, a restart (the client signed on: VR_VisorSignon), a spawn: the power-on.
     const int health = static_cast<int>(readHealth());
-    if(s.lastWorld != cl.worldmodel || (s.lastHealth <= 0 && health > 0))
+    const bool newWorld = s.lastWorld != cl.worldmodel, spawned = s.lastHealth <= 0 && health > 0;
+    if(newWorld || spawned || s.bootAsked)
     {
-        s.bootAt = s.clock;
+        startBoot(s, s.bootAsked ? "signon" : newWorld ? "map" : "respawn");
+        s.bootAsked = false;
         s.haveAngles = false;
-        s.glitch = 0.f;
     }
     // A hit: the server's damage messages' armour and blood (onDamage; not health going down by itself, as a megahealth's
     // overheal ticking away, nor a new map's), the glitch by how much.
@@ -312,11 +435,30 @@ void update()
     s.logFade = vr_flat_visor_autohide_log.value != 0.f && logEmpty ? za::max(0.f, s.logFade - dt / 0.5f)
                                                                      : za::min(1.f, s.logFade + dt / 0.15f);
 
-    // The power-on sweep: each panel in turn.
+    // The power-on. Its sequence (vr_flat_visor_boot_seq): dark (vr_flat_visor_boot_dark), the panels fading in
+    // (_boot_fade), glitching (_boot_glitch: the most at the fade's start, a third of it at its end), then the sweep.
+    const float sinceBoot = s.clock - s.bootAt;
+    float sweepAt = 0.f;
+    if(s.bootSeq)
+    {
+        const float dark = za::clamp(vr_flat_visor_boot_dark.value, 0.f, 5.f);
+        const float fadeTime = za::clamp(vr_flat_visor_boot_fade.value, 0.f, 5.f);
+        s.bootIn = sinceBoot < dark ? 0.f : fadeTime > 0.f ? za::clamp((sinceBoot - dark) / fadeTime, 0.f, 1.f) : 1.f;
+        const float g = za::clamp(vr_flat_visor_boot_glitch.value, 0.f, 2.f);
+        s.bootGlitch = sinceBoot >= dark && s.bootIn < 1.f ? za::min(1.f, g * (1.f - 0.7f * s.bootIn)) : 0.f;
+        sweepAt = dark + fadeTime;
+    }
+    else
+    {
+        s.bootIn = 1.f;
+        s.bootGlitch = 0.f;
+    }
+    // The sweep: each panel in turn.
     const float boot = vr_flat_visor_boot.value;
     for(int p = 0; p < VisorPanelCount; p++)
     {
-        s.input.boot[p] = boot > 0.f ? za::clamp((s.clock - s.bootAt - boot * 0.05f * static_cast<float>(p)) / (boot * 0.7f), 0.f, 1.f) : 1.f;
+        s.input.boot[p] = boot > 0.f ? za::clamp((sinceBoot - sweepAt - boot * 0.05f * static_cast<float>(p)) / (boot * 0.7f), 0.f, 1.f)
+                                     : sinceBoot >= sweepAt ? 1.f : 0.f;
     }
     s.input.alarm = s.alarm;
     s.input.log = vr_flat_visor_log.value != 0.f;
@@ -339,6 +481,7 @@ void update()
     }
     s.input.boot[gadget::VisorCenter] = za::min(s.input.boot[gadget::VisorCenter], centerPop());
     s.input.center = c.fade > 0.f ? c.text.data() : "";
+    traceBoot(s);
 }
 
 // The glass's rim and fog triangles as last built (drawGlass).
@@ -466,6 +609,7 @@ layout(location = 9) uniform vec4 ShiftA;  // the sway (layer pixels): the back 
 layout(location = 10) uniform vec4 ShiftB; // the face's (and what lies over it), the mount's fade, the contents' fade
 layout(location = 11) uniform float InkScan; // the scanlines' strength over the contents' ink, times Scan.x (vr_flat_visor_ink_crt)
 layout(location = 12) uniform vec4 Pop;      // the panel grown from its middle (layer pixels: x, y) by 1 / z (the centre print's pop in; 1 the rest)
+layout(location = 13) uniform vec4 Tear;     // the boot's glitch: rows torn sideways by at most x pixels (0: none), its seed, the colour fringes' (pixels), the bands' height (pixels)
 layout(location = 0) out vec4 Out;
 vec2 layerOf(vec2 v)
 {
@@ -489,17 +633,10 @@ float shapesNear(vec2 q)
     vec2 s = slot(SlotC.xy, q - ShiftB.xy, 1.0).rg;
     return s.g + (1.0 - s.g) * s.r;
 }
-void main()
+// The panel's colour at view pixel v (n x n taps), its contents' coverage summed into ink.
+vec4 panelAt(vec2 v, int n, inout float ink)
 {
-    vec2 p = gl_FragCoord.xy - Rect.xy;
-    vec2 v = vec2(p.x, Rect.w - p.y); // (view pixels, y down)
-    vec2 here = layerOf(v);
-    vec4 shape = slot(SlotC.xy, here - ShiftB.xy, 1.0); // (b: anything here; g: the face, shapes()'s, kept for the glass)
-    if (shape.b <= 0.0)
-        discard; // (nothing of the panel can be here)
-    int n = (int(SlotC.z) + 1) / 2;
     vec4 c = vec4(0.0);
-    float ink = 0.0; // (the contents' coverage: their glyphs keep most of their light under the scanlines)
     for (int j = 0; j < n; j++)
         for (int i = 0; i < n; i++)
         {
@@ -513,7 +650,33 @@ void main()
             f = slot(SlotB.zw, q - ShiftB.xy, SlotC.z) * ShiftB.z;
             c += f + (1.0 - f.a) * s;
         }
-    c /= float(n * n);
+    return c / float(n * n);
+}
+void main()
+{
+    vec2 p = gl_FragCoord.xy - Rect.xy;
+    if (Tear.x > 0.0)
+    {
+        // The boot's glitch: some bands of rows torn sideways, each its own way.
+        float h = fract(sin(floor(p.y / Tear.w) * 12.9898 + Tear.y) * 43758.5453);
+        p.x += h > 0.62 ? (h - 0.81) * 5.2 * Tear.x : 0.0;
+    }
+    vec2 v = vec2(p.x, Rect.w - p.y); // (view pixels, y down)
+    vec2 here = layerOf(v);
+    vec4 shape = slot(SlotC.xy, here - ShiftB.xy, 1.0); // (b: anything here; g: the face, shapes()'s, kept for the glass)
+    if (shape.b <= 0.0)
+        discard; // (nothing of the panel can be here)
+    int n = (int(SlotC.z) + 1) / 2;
+    float ink = 0.0; // (the contents' coverage: their glyphs keep most of their light under the scanlines)
+    vec4 c = panelAt(v, n, ink);
+    if (Tear.z > 0.0)
+    {
+        // And its colour fringes: the red read one way, the blue the other.
+        float unused = 0.0;
+        vec4 r = panelAt(v + vec2(Tear.z, 0.0), n, unused);
+        vec4 b = panelAt(v - vec2(Tear.z, 0.0), n, unused);
+        c = vec4(r.r, c.g, b.b, max(c.a, max(r.a, b.a)));
+    }
     if (SlotC.w > 0.5)
     {
         Out = c;
@@ -717,12 +880,18 @@ void useSlot(LayerPass& lp, const PanelLayer& pl, int s)
     const float g = state().glitch;
     const float flicker = g > 0.f ? 1.f - 0.45f * g * hash(static_cast<unsigned>(host_framecount) * 2654435761u) : 1.f;
     const float b = state().input.boot[p];
-    const float stutter = b < 0.15f && hash(static_cast<unsigned>(host_framecount) * 7u + static_cast<unsigned>(p)) < 0.4f ? 0.35f : 1.f;
+    // (The boot sequence's: the mount up already, the stutter only once its sweep starts.)
+    const bool stutters = b < 0.15f && (!state().bootSeq || b > 0.f);
+    const float stutter = stutters && hash(static_cast<unsigned>(host_framecount) * 7u + static_cast<unsigned>(p)) < 0.4f ? 0.35f : 1.f;
     const float hide = p == gadget::VisorLog      ? smoothstep(0.f, 1.f, state().logFade) // (vr_flat_visor_autohide_log)
                        : p == gadget::VisorCenter ? smoothstep(0.f, 1.f, state().center.fade)
                                                   : 1.f;
-    const float fade = state().fade * flicker * stutter * hide;
-    return {fade, fade * smoothstep(0.f, 0.2f, b)};
+    // The boot sequence's fade in, flickering with its glitch (each panel its own way).
+    const float bg = state().bootGlitch;
+    const float bootFlicker = bg > 0.f ? 1.f - 0.6f * bg * hash(static_cast<unsigned>(host_framecount) * 40503u + static_cast<unsigned>(p) * 97u) : 1.f;
+    const float bootIn = smoothstep(0.f, 1.f, state().bootIn) * bootFlicker;
+    const float fade = state().fade * flicker * stutter * hide * bootIn;
+    return {fade, state().bootSeq ? fade : fade * smoothstep(0.f, 0.2f, b)};
 }
 
 // The atlas's slots for every built panel at `ss` texels a layer pixel (shelves, the tallest first; a gap round each
@@ -1226,6 +1395,20 @@ void scanUniforms(float viewH)
     GL_Uniform1fFunc(11, za::clamp(vr_flat_visor_ink_crt.value, 0.f, 1.f));
 }
 
+// The boot's glitch's uniforms (the layer program's, in use; `px` view pixels a 1080p pixel): on about half its frames
+// rows torn sideways (at most 16 1080p pixels at full strength), and colour fringes on all of them (2.5).
+constexpr float bootTearRows = 16.f;
+constexpr float bootTearFringe = 2.5f;
+constexpr float bootTearMost = 0.19f * 5.2f * bootTearRows + bootTearFringe; // (the shader's (h - 0.81) * 5.2 at its widest)
+void bootTear(float px)
+{
+    const float g = state().bootGlitch;
+    const unsigned frame = static_cast<unsigned>(host_framecount);
+    const bool torn = g > 0.f && hash(frame * 2246822519u + 7u) < 0.55f;
+    GL_Uniform4fFunc(13, torn ? bootTearRows * g * px : 0.f, hash(frame * 3266489917u) * 97.f, g > 0.f ? bootTearFringe * g * px : 0.f,
+        za::max(2.f, 7.f * px));
+}
+
 // Panel p's own uniforms (the layer program's, in use): its box and slots in lp's atlas, its sway (`shift`, layer pixels:
 // each depth its share), its fades (panelFade's), the centre print's pop in.
 void panelUniforms(const LayerPass& lp, int p, const glm::vec2& shift, const glm::vec2& fade, bool alphaOnly)
@@ -1369,6 +1552,8 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
         const glm::vec2 shift = swayShift(lp.L, state().sway, lp.tx);
         const float most = glm::length(shift) * za::max(1.f, za::max(za::abs(lp.plateParallax), lp.contentParallax));
         lp.swayPad = most > 0.f ? most * 1.6f + 1.f : 0.f;
+        // (and the boot's glitch: its rows torn sideways and its fringes, bootTear)
+        lp.swayPad += state().bootGlitch > 0.f ? bootTearMost * state().bootGlitch * static_cast<float>(h) / 1080.f + 1.f : 0.f;
     }
     const GLuint behind = gp.on ? glassBlur(framebuffer, x, y, w, h, vr_flat_visor_glass_blur.value, false) : 0u;
 
@@ -1381,6 +1566,7 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     const float px = static_cast<float>(h) / 1080.f;
     GL_Uniform4fFunc(0, static_cast<float>(x), static_cast<float>(y), static_cast<float>(w), static_cast<float>(h));
     scanUniforms(static_cast<float>(h));
+    bootTear(px);
     if(gp.on)
     {
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, behind);
@@ -1511,6 +1697,7 @@ void renderHeadset()
     // The view's pixel (y down) a texel shows: the box's (the target's bottom row its bottom).
     GL_Uniform4fFunc(0, -pl.box.x, pl.box.y + pl.box.w - L.h, L.w, L.h);
     scanUniforms(L.h);
+    GL_Uniform4fFunc(13, 0.f, 0.f, 0.f, 1.f); // (no boot glitch)
     GL_Uniform4fFunc(2, 0.f, 0.f, 0.f, 0.f);
     GL_Uniform4fFunc(4, L.w, L.h, L.k, L.zoom);
     panelUniforms(lp, p, glm::vec2{0.f}, fade, false);
@@ -1532,6 +1719,8 @@ void report_f()
         s.underwater ? 1 : 0, s.fade, s.alarm, s.input.boot[0], s.input.boot[3], s.input.boot[6], gadget::visorLogLines());
     Con_Printf("visor: shake %.3f (%.3f %.3f) logfade %.3f glass %d hits %d health %d\n", shakeLeft(s), s.shake.x, s.shake.y,
         s.logFade, glassPass.on ? 1 : 0, s.hits, static_cast<int>(readHealth()));
+    Con_Printf("visor: boot %s seq %d in %.3f glitch %.3f since %.2f boots %d sounds %d\n", bootPhase(s), s.bootSeq ? 1 : 0,
+        s.bootIn, s.bootGlitch, s.clock - s.bootAt, s.boots, s.bootSounds);
     const gadget::VisorSides sides = gadget::visorSides();
     Con_Printf("visor: sides left %d right %d shown %d scale %.2f\n", sides.left, sides.right, sides.rightShown, sides.rightScale);
     const glm::vec2 centerSize = gadget::visorImage(gadget::VisorCenter).size;
@@ -1570,7 +1759,13 @@ void fx_f()
     }
     else if(!q_strcasecmp(what, "boot"))
     {
-        state().bootAt = state().clock;
+        startBoot(state(), "fx");
+    }
+    else if(!q_strcasecmp(what, "trace"))
+    {
+        // Each boot from now traced, its verdict printed as it ends ("visorboot: boot ..."); 0 stops.
+        state().trace.on = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) != 0 : true;
+        state().trace.live = state().trace.live && state().trace.on;
     }
     else if(!q_strcasecmp(what, "fog"))
     {
@@ -1597,8 +1792,9 @@ void fx_f()
     }
     else
     {
-        Con_Printf("vr_flat_visor_fx damage [amount] | hit [amount] | boot | fog [seconds] | center <text>|long: the visor's hit "
-                   "glitch (hit: a real damage message from the server, no health taken), its power-on sweep, its "
+        Con_Printf("vr_flat_visor_fx damage [amount] | hit [amount] | boot | trace [0|1] | fog [seconds] | center <text>|long: "
+                   "the visor's hit glitch (hit: a real damage message from the server, no health taken), its power-on (its "
+                   "boot sequence, vr_flat_visor_boot_seq), each boot traced (a verdict line as it ends), its "
                    "fog held up that long (then clearing), a centre print as the game's (\\n a new line)\n");
     }
 }
@@ -1709,6 +1905,13 @@ using namespace qvr;
 extern "C" int VR_VisorOn(void)
 {
     return visor::active() ? 1 : 0;
+}
+
+// The client fully signed on (CL_ParseUpdate: a new map, a changelevel, a loaded save, a restart): the visor's next update
+// powers it on (its boot sequence).
+extern "C" void VR_VisorSignon(void)
+{
+    visor::state().bootAsked = true;
 }
 
 // SCR_CheckDrawCenterString, the game's centre print (`text`, Quake's fade `alpha`) due to be drawn this frame: nonzero

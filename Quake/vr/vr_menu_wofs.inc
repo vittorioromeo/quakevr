@@ -1118,52 +1118,72 @@ za::Vector<Item> pageWofsAttachments()
         return weaponOffsetsNoWeapon(list, slot);
     }
     const auto s = weaponOffsetsSlider;
-    const char* moveHelp = "Moves the bayonet's mount on this weapon (the weapon model's own units, as its vertices are drawn): "
-                           "forward along the barrel, left, up. The bayonet's origin is its socket's top front, which sits "
-                           "under the barrel at the muzzle. It is drawn on the weapon in your hand while this page is open.";
-    const char* turnHelp = "Turns the bayonet on its mount (degrees): Pitch tips its point up, Yaw turns it left, Roll about "
-                           "its blade.";
-    list.pushBackMultiple(
-        header("Bayonet"),
-        cycle("Bayonet Fits", weapons::cvar(slot, Key::Att1Ok), {{0.f, "No"}, {1.f, "Yes"}})
-            .help("Whether a bayonet can be attached to this weapon (brought to its mount in VR, the Attach key in flat "
-                  "play). By default the shotguns, the nailgun, the grenade, rocket and proximity launchers, the "
-                  "lightning gun, the Plasma Gun, the burst rifle, the laser rifle and the heavy revolver."),
-        s("Bayonet Forward", Key::Att1X, -10.f, 60.f, 0.1f, "%+.1f").extend(-200.f, 200.f).help(moveHelp),
-        s("Bayonet Left", Key::Att1Y, -10.f, 10.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(moveHelp),
-        s("Bayonet Up", Key::Att1Z, -10.f, 20.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(moveHelp),
-        s("Bayonet Pitch (up)", Key::Att1Pitch, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(turnHelp),
-        s("Bayonet Yaw (left)", Key::Att1Yaw, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(turnHelp),
-        s("Bayonet Roll", Key::Att1Roll, -180.f, 180.f, 0.5f, "%+.1f deg").help(turnHelp),
-        s("Bayonet Scale", Key::Att1Scale, 0.5f, 4.f, 0.01f, "%.3f").extend(0.05f, 20.f)
-            .help("How big the bayonet is drawn, times the weapon's own size: 1 / the weapon's Scale draws it at its real "
-                  "size (the shotgun's 2.27, the super shotgun's 2.08).")
-    );
-    // bayomounts (his 2026-11-28): the bayonet's mount drawn on every weapon a bayonet fits, wherever the weapon is.
-    const char* mntMoveHelp = "Moves the bayonet's mount (the small lug and ring drawn where the bayonet goes) from the bayonet's "
-                              "own place on this weapon, in the bayonet's units: forward along its blade, left, up.";
-    const char* mntTurnHelp = "Turns the bayonet's mount about its place (degrees): Pitch up, Yaw left, Roll about the barrel.";
+    // mountoffs (his 2026-11-28): every attachment hangs from the weapon's mount: the mount on the weapon, then every
+    // weapon's offset of the kind (vr_attach_<kind>_*), then this weapon's own (attach::mountValues).
+    const char* mntMoveHelp = "Moves the bayonet's mount on this weapon (the small lug and ring drawn where the bayonet goes; the "
+                              "weapon model's own units, as its vertices are drawn): forward along the barrel, left, up. The "
+                              "bayonet and the dagger go with it.";
+    const char* mntTurnHelp = "Turns the bayonet's mount about its place (degrees): Pitch up, Yaw left, Roll about the barrel. "
+                              "The bayonet and the dagger turn with it.";
     list.pushBackMultiple(
         header("Bayonet Mount"),
+        cycle("Bayonet Fits", weapons::cvar(slot, Key::Att1Ok), {{0.f, "No"}, {1.f, "Yes"}})
+            .help("Whether a bayonet can be attached to this weapon (brought to its mount in VR, the Attach key in flat "
+                  "play), and its mount drawn. By default the shotguns, the nailgun, the grenade, rocket and proximity "
+                  "launchers, the lightning gun, the Plasma Gun, the burst rifle, the laser rifle and the heavy revolver."),
         cycle("Show Bayonet Mounts", vr_attach_mount_show, {{0.f, "Never"}, {1.f, "Always"}, {2.f, "Without an Attachment"}})
             .help("The small lug and ring drawn under every weapon a bayonet fits, in your hands, holstered, lying, carried by "
                   "monsters and as map pickups, so that you can see where a bayonet goes. Without an Attachment: hidden "
                   "while a bayonet or a dagger is on it."),
-        s("Mount Forward", Key::MntX, -5.f, 5.f, 0.05f, "%+.2f").extend(-50.f, 50.f).help(mntMoveHelp),
-        s("Mount Left", Key::MntY, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f).help(mntMoveHelp),
-        s("Mount Up", Key::MntZ, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f).help(mntMoveHelp),
+        s("Mount Forward", Key::MntX, -10.f, 60.f, 0.1f, "%+.1f").extend(-200.f, 200.f).help(mntMoveHelp),
+        s("Mount Left", Key::MntY, -10.f, 10.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(mntMoveHelp),
+        s("Mount Up", Key::MntZ, -10.f, 20.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(mntMoveHelp),
         s("Mount Pitch (up)", Key::MntPitch, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(mntTurnHelp),
         s("Mount Yaw (left)", Key::MntYaw, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(mntTurnHelp),
         s("Mount Roll", Key::MntRoll, -180.f, 180.f, 0.5f, "%+.1f deg").help(mntTurnHelp),
-        s("Mount Size", Key::MntSize, 0.25f, 3.f, 0.01f, "%.2f").extend(0.05f, 10.f)
-            .help("How big the bayonet's mount is drawn, times the bayonet's own size on this weapon (1: made to fit it).")
+        s("Mount Size", Key::MntSize, 0.5f, 4.f, 0.01f, "%.3f").extend(0.05f, 20.f)
+            .help("How big the mount, and the bayonet and the dagger on it, are drawn, times the weapon's own size: 1 / the "
+                  "weapon's Scale draws them at their real size (the shotgun's 2.27, the super shotgun's 2.08).")
+    );
+    const char* moveHelp = "Moves the bayonet from this weapon's mount (and every weapon's bayonet offset below), in the "
+                           "mount's units: forward along its blade, left, up. 0: on the mount. It is drawn on the weapon in "
+                           "your hand while this page is open.";
+    const char* turnHelp = "Turns the bayonet on its mount (degrees): Pitch tips its point up, Yaw turns it left, Roll about "
+                           "its blade.";
+    list.pushBackMultiple(
+        header("Bayonet"),
+        s("Bayonet Forward", Key::Att1X, -5.f, 5.f, 0.05f, "%+.2f").extend(-50.f, 50.f).help(moveHelp),
+        s("Bayonet Left", Key::Att1Y, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f).help(moveHelp),
+        s("Bayonet Up", Key::Att1Z, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f).help(moveHelp),
+        s("Bayonet Pitch (up)", Key::Att1Pitch, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(turnHelp),
+        s("Bayonet Yaw (left)", Key::Att1Yaw, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(turnHelp),
+        s("Bayonet Roll", Key::Att1Roll, -180.f, 180.f, 0.5f, "%+.1f deg").help(turnHelp),
+        s("Bayonet Scale", Key::Att1Scale, 0.25f, 3.f, 0.01f, "%.2f").extend(0.05f, 10.f)
+            .help("How big the bayonet is drawn on this weapon, times its mount's size (1: as made for it)."),
+        header("Every Weapon's Bayonet"),
+        slider("Every Bayonet Forward", vr_attach_bayonet_x, -5.f, 5.f, 0.05f, "%+.2f").extend(-50.f, 50.f)
+            .help("Moves the bayonet on every weapon from its mount (the mount's units: forward along the blade, left, up), "
+                  "under each weapon's own offset above."),
+        slider("Every Bayonet Left", vr_attach_bayonet_y, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f)
+            .help("Moves the bayonet on every weapon from its mount: left."),
+        slider("Every Bayonet Up", vr_attach_bayonet_z, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f)
+            .help("Moves the bayonet on every weapon from its mount: up."),
+        slider("Every Bayonet Pitch (up)", vr_attach_bayonet_pitch, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f)
+            .help("Turns the bayonet on every weapon's mount (degrees): its point up."),
+        slider("Every Bayonet Yaw (left)", vr_attach_bayonet_yaw, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f)
+            .help("Turns the bayonet on every weapon's mount (degrees): left."),
+        slider("Every Bayonet Roll", vr_attach_bayonet_roll, -180.f, 180.f, 0.5f, "%+.1f deg")
+            .help("Turns the bayonet on every weapon's mount (degrees): about its blade."),
+        slider("Every Bayonet Scale", vr_attach_bayonet_scale, 0.25f, 3.f, 0.01f, "%.2f").extend(0.05f, 10.f)
+            .help("How big the bayonet is drawn on every weapon, times its mount's size (1: as made for it).")
     );
     // daggerattach (his 2026-11-27): the dagger put on as a bayonet, the same way; its own mount (kind 2: att2_*).
-    const char* dgMoveHelp = "Moves the dagger's mount on this weapon (the weapon model's own units): forward along the barrel, "
-                             "left, up. The dagger's origin is by its grip; its blade lies along under the barrel. Drawn on "
-                             "the weapon in your hand while this page is open with Preview on the dagger.";
-    const char* dgTurnHelp = "Turns the dagger on its mount (degrees, as the bayonet's). Its blade runs up its own model: "
-                             "Pitch -76.5 lays it along the barrel, Roll 180 puts its edge down.";
+    const char* dgMoveHelp = "Moves the dagger on this weapon from the weapon's mount past every weapon's dagger offset below "
+                             "(the mount's units): forward along the barrel, left, up. The dagger's origin is by its grip; its "
+                             "blade lies along under the barrel. Drawn on the weapon in your hand while this page is open with "
+                             "Preview on the dagger.";
+    const char* dgTurnHelp = "Turns the dagger on its mount (degrees, as the bayonet's): all zero lays its blade along the "
+                             "barrel with its guard level; Pitch about the guard, Yaw about up, Roll about the blade.";
     list.pushBackMultiple(
         header("Dagger"),
         toggle("Daggers as Bayonets", vr_attach_daggers)
@@ -1179,15 +1199,31 @@ za::Vector<Item> pageWofsAttachments()
         cycle("Dagger Fits", weapons::cvar(slot, Key::Att2Ok), {{0.f, "No"}, {1.f, "Yes"}})
             .help("Whether a dagger can be put on this weapon as its bayonet (Daggers as Bayonets). The shotgun and the "
                   "super shotgun by default."),
-        s("Dagger Forward", Key::Att2X, -10.f, 60.f, 0.1f, "%+.1f").extend(-200.f, 200.f).help(dgMoveHelp),
-        s("Dagger Left", Key::Att2Y, -10.f, 10.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(dgMoveHelp),
-        s("Dagger Up", Key::Att2Z, -20.f, 20.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(dgMoveHelp),
+        s("Dagger Forward", Key::Att2X, -5.f, 5.f, 0.05f, "%+.2f").extend(-50.f, 50.f).help(dgMoveHelp),
+        s("Dagger Left", Key::Att2Y, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f).help(dgMoveHelp),
+        s("Dagger Up", Key::Att2Z, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f).help(dgMoveHelp),
         s("Dagger Pitch", Key::Att2Pitch, -180.f, 180.f, 0.5f, "%+.1f deg").help(dgTurnHelp),
         s("Dagger Yaw", Key::Att2Yaw, -180.f, 180.f, 0.5f, "%+.1f deg").help(dgTurnHelp),
         s("Dagger Roll", Key::Att2Roll, -180.f, 180.f, 0.5f, "%+.1f deg").help(dgTurnHelp),
-        s("Dagger Scale", Key::Att2Scale, 0.5f, 4.f, 0.01f, "%.3f").extend(0.05f, 20.f)
-            .help("How big the dagger is drawn, times the weapon's own size (its own Scale on top): 1 / the weapon's Scale "
-                  "draws it at the size it has in your hand (the shotgun's 2.27, the super shotgun's 2.08).")
+        s("Dagger Scale", Key::Att2Scale, 0.25f, 3.f, 0.01f, "%.2f").extend(0.05f, 10.f)
+            .help("How big the dagger is drawn on this weapon, times its mount's size (its own Scale on top; 1: the size "
+                  "it has in your hand)."),
+        header("Every Weapon's Dagger"),
+        slider("Every Dagger Forward", vr_attach_dagger_x, -5.f, 5.f, 0.05f, "%+.2f").extend(-50.f, 50.f)
+            .help("Moves the dagger on every weapon from its mount (the mount's units: forward along the barrel, left, up), "
+                  "under each weapon's own offset above. -2.79: its grip behind the bayonet's socket."),
+        slider("Every Dagger Left", vr_attach_dagger_y, -2.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f)
+            .help("Moves the dagger on every weapon from its mount: left."),
+        slider("Every Dagger Up", vr_attach_dagger_z, -4.f, 2.f, 0.02f, "%+.2f").extend(-50.f, 50.f)
+            .help("Moves the dagger on every weapon from its mount: up."),
+        slider("Every Dagger Pitch", vr_attach_dagger_pitch, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f)
+            .help("Turns the dagger on every weapon's mount (degrees): about its guard."),
+        slider("Every Dagger Yaw", vr_attach_dagger_yaw, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f)
+            .help("Turns the dagger on every weapon's mount (degrees): about up."),
+        slider("Every Dagger Roll", vr_attach_dagger_roll, -180.f, 180.f, 0.5f, "%+.1f deg")
+            .help("Turns the dagger on every weapon's mount (degrees): about its blade."),
+        slider("Every Dagger Scale", vr_attach_dagger_scale, 0.25f, 3.f, 0.01f, "%.2f").extend(0.05f, 10.f)
+            .help("How big the dagger is drawn on every weapon, times its mount's size (1: the size it has in your hand).")
     );
     return list;
 }

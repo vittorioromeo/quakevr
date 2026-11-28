@@ -822,6 +822,7 @@ extern "C" void VR_End2D(void (*windowHud)())
             visor::renderPanels(); // (flatscreen play's visor HUD: its panels' images, shown in the next frame's view)
             VR_FlatSeatPanels();   // (the toolgun's panel, the holster menu, the weapon wheel)
         }
+        menuui::drawPadCursor(); // (a gamepad's cursor over the menus: vr_menuui.cpp, padflat; seat 1's full menu)
         return;
     }
     drawingToCanvas = false;

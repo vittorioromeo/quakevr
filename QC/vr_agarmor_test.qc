@@ -638,12 +638,34 @@ void() VR_AgArmor_TestFrame =
             VR_ARC_Frame(request); // (armourrebuild: the armour on the drawn body's cost, ten ogres; vr_beastarmour_test.qc)
             return;
         }
+        if(request >= 25 && request <= 27)
+        {
+            VR_BMP_Frame(request); // (beastmp: an armoured ogre and scrag for the MP test, a part broken, killed; vr_beastarmour_test.qc)
+            return;
+        }
         if(request == 2)
         {
             // (the eyeshots: green, yellow and red full sets side by side, facing the player)
             VR_AgArmor_Give(VR_ART_Spawn(p, -44), 1, 1023);
             VR_AgArmor_Give(VR_ART_Spawn(p, 0), 2, 1023);
             VR_AgArmor_Give(VR_ART_Spawn(p, 44), 3, 1023);
+            return;
+        }
+        if(request == 24)
+        {
+            // (armourstyle's lineup renders: a bare one, then green, yellow and red full sets, three quarters on; temp1 the
+            // kind: 0 grunts, 1 enforcers, 2 knights, 3 death knights)
+            float k24 = cvar_hget(cvarh_temp1);
+            float i24;
+            for(i24 = 0; i24 < 4; i24++)
+            {
+                entity e24 = VR_ART_SpawnKind(p, -57 + 38 * i24, k24, 370);
+                e24.angles_y = e24.angles_y - 35;
+                if(i24 > 0)
+                {
+                    VR_AgArmor_Give(e24, i24, 1023);
+                }
+            }
             return;
         }
         if(request == 3)

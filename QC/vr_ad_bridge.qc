@@ -1333,7 +1333,7 @@ void(float xHand) AD_FireWidowmaker =
         '0.045 0.03 0');
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
-    weaponfired(self, xHand); // (its drawn kick and muzzle flash: vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // (its drawn kick and muzzle flash: vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 0.9);
     ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 1, 0.12, 0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
@@ -1466,7 +1466,7 @@ void(float xHand) AD_FirePlasma =
     // At the muzzle: blue-white sparks and a wisp (its kick and flash: weaponfired, slot 35's Effects in vr_weapons.inc).
     particle2(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand) * 40, QVR_PARTICLE_PRESET_CONTACTSPARKS, 5);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
-    weaponfired(self, xHand);
+    VR_WeaponFired(xHand);
     VRGunHaptic(xHand, 0.3, 60, 0.7);
 };
 

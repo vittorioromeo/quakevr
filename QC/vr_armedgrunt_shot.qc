@@ -633,6 +633,8 @@ void(entity g, entity p) VR_AGS_Projectiles =
 {
     if(findradiusmoving(p.origin, 128 + VR_AG_LINE_REACH, 0) == world)
     {
+        vr_ags_quiet = p; // (the throw scan's first look settled too: vr_qc_scan_share)
+        vr_ags_quiet_at = p.origin;
         return;
     }
     VR_AG_WeaponLine(p);
@@ -746,6 +748,7 @@ float(entity g, entity p) VR_AGS_Frame =
     {
         return FALSE;
     }
+    vr_ags_quiet = world; // (a roll's outcome below: the throw scan looks for itself)
     float won = VR_Disarm_Roll(p, 1);
     float acc = vr_disarm_acc;
     float chance = vr_disarm_chance;

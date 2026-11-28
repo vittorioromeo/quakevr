@@ -158,12 +158,22 @@ clip with Auto Reload) doesn't start the trip to the hip. The server raises the 
 32; 64 while the option is on: the ammo pouch is shown, `vr_body.cpp ammoPouchEnabled`, nudged by `vr_flat_ammo_pouch_*`)
 and `vr_flatprocreload.cpp` drives the free hand: to the pouch, impulse 99 there (its hotspot the pouch's) takes a taped
 pair by VR's own `VR_Reload_Take`; to the port's mouth and in, where VR's own carry test (`VR_Reload_HeldFrame`, the port's
-reach) loads it; again until full. The gun's hand tilts the gun to present its port (`vr_flat_prl_tilt_*`). A shot, a shove
+reach) loads it; again until full. The gun's hand tilts the gun to present its port. Since reloadsys (2026-11-28) all of
+this is the gun's keyframes (`vr_reloadsys.hpp`, `quakevr/data/reloads.txt`, the Reload Studio `vr_reloadstudio`; the
+shotgun and the super shotgun: broken open by impulse 107, closed by 108), the hand at the port solved backwards from the
+item's place there; ROUND26.md "reloadsys". The magazine guns too (reloadmags: the nailguns, the thunderbolt, the nail
+pistol): the magazine let out by impulse 109 (its rounds back in the reserve), a fresh one from the pouch carried up its
+well's line to where a seated one sits (`hands::State::magSeat`) and seated by VR's own well test; ROUND26.md "reloadmags".
+A shot, a shove
 or bash, the weapon changing, the free hand taking something else cancel it; a round in the hand goes back in the reserve
 (`VR_FlatReload_ProcPutBack`). Failsafes: the client cancels (impulse 106) when a round at the port isn't seated within
 `vr_flat_prl_failsafe` or the pouch gives nothing; the server when nothing is taken or loaded for `vr_flat_prl_giveup`.
-Dual wielding and every other gun: the timed trip. Timings, eases, angles: Tunables > Flatscreen > Procedural Reload.
-Test: `Misc/quakevr/flatprocreload_test.sh`.
+Dual wielding and every other gun: the timed trip. Timings, eases, angles: the keyframes (the Reload Studio).
+On the move (prlmove): the round is aimed at the port in the game's frame and the move sends that same port
+(`flatprocreload::portNow`); the server's carry keeps the round in the hand through the body and the gun
+(`VR_FlatReload_ProcHolds`), so running, jumping and sliding don't matter. The drawn free hand rides the drawn gun from the
+carry to the insert; its fingers grip the pair as a headset's do (`gripShare`). A key's hand offset at the port nudges
+the hand and its pair there. Test: `Misc/quakevr/flatprocreload_test.sh` (`base`, `matrix`).
 
 **The guns' own parts** (his words 2026-11-10; `QC/vr_flatreload.qc`, VR's immersive functions reused: the same sounds,
 casings and physical magazines, with their caps on rounds lying about). Desktop Screen Play's toggles, Tunables >
@@ -1467,6 +1477,46 @@ binds for the headset's grips and reloads; a flat grab could reuse K/L).
 | Voice chat, toolgun | a button; the toolgun's panel | Caps Lock; F7, mouse 3, B | done |
 | Teleport, turning, recentre, height | the headset's own | the mouse turns | VR only |
 
+## A gamepad
+
+His words 2026-11-28: "The default flatscreen controller bindings are pretty bad, there's no way to access the weapon
+wheels or perform other common actions. Come up with a decent default binding selection." (ROUND26 "padflat").
+- **How**: each flat key (`vr_flat_key_*`) holds its keyboard keys and, third, a gamepad button ("c CTRL BBUTTON"): in flat
+  play it wins over the button's bind (`VR_FlatKeyOwned`), which stays the headset's (the controllers send the same keys).
+  Fire, jump and the alt layer are binds (vr_bindings.cfg). Back held is the alt layer (Ironwail's `+altmodifier`: the
+  buttons send their `_ALT` keys; a flat key on an `_ALT` key counts as bound, and a button let go after Back still lets
+  go of its `_ALT` key). Back is its own key now (`BACK`; Ironwail sent Tab).
+- **Rebinding**: Options > Controls' flat rows edit the keyboard's two keys and keep the button; the Controller Bindings
+  screen with a pad shown lists the flat actions with the binds and edits the buttons (Reset: every flat key's button
+  its default's, the keyboard's keys kept). New configs and flat keys left at their defaults have the layout (a sparse
+  config); once (`vr_flat_pad_defaults_version` 1, `vr_checkbindings`) a flat key of the player's own without a button
+  gets its default's if no other action has it, and Back / RTHUMB_ALT their binds if unbound. Nothing bound is replaced.
+
+| Button | Action | Held Back + button |
+|---|---|---|
+| Left stick / right stick | move / look (the right stick: the holster menu's cursor and the wheel's slot while open) | |
+| RT | fire (main hand; clicks in the holster menu) | |
+| LT | off hand: fire, ironsight, parry guard, the fists' guard | |
+| A | jump | lie down (`vr_flat_key_prone`) |
+| B | crouch / slide, held | grab / pull ("use": `vr_flat_key_pull`) |
+| X | reload | next ammo type |
+| Y | shove | swap hands |
+| LB / RB | that hand: a tap cycles its weapon, held its weapon wheel (the right stick points at a slot, let go takes it) | attach / detach (LB), bullet time (RB) |
+| L3 (left stick click) | holster menu, held (right stick moves its cursor, let go picks, RT clicks) | |
+| R3 (right stick click) | melee: punch | scoreboard |
+| D-pad up / down / left / right | flashlight / quick grenade / throw (tap drops, hold throws) / force grab | |
+| Back | the alt layer, held | |
+| Start | the menu (fixed) | |
+
+- **Menus** (his words: "a cursor in the menu that can be controlled with the thumbstick. Leave discrete navigation for
+  the directional keypad"): the left stick moves a cursor over the flat screen's menus (vr_menuui.cpp: `VR_MenuPadStick`;
+  speed 0.9 window heights a second at full tilt, the tilt squared past a 0.2 dead zone, held at full tilt up to 2.5x over
+  0.6 s), A clicks while it shows (the left mouse button, press and release), the d-pad steps the rows as before and hides
+  it, as the mouse moving or a key does. Tunables > Flatscreen > Gamepad (`vr_pad_cursor*`, `vr_pad_holster_cursor_speed`,
+  `vr_pad_wheel_deadzone`); `vr_pad_cursor 0`: the stick steps the rows as before. Not in a headset (the laser).
+- **Tests**: `Misc/quakevr/flatpad_test.sh` (`vr_flat_pad_test`, `vr_bindsetup_test`, `vr_menu_pad_test`; the screen's
+  screenshot `scratch/flatpad/bindings.png`). Debug > Tools > Controller Bindings has them and `vr_menu_pad_report`.
+
 ## Fists: jabs and the crossed-arms guard
 
 His words 2026-11-27: "When both hands are empty, LMB should alternate between left and right jabs, RMB should parry (use
@@ -1475,7 +1525,10 @@ an item, a carried body, a stuck blade; vr_flatplay.cpp `fistsOnly`):
 - **The left button** throws a jab (the fire button's straight punch), each hand in turn, the right first (`pollJab`); held,
   the next follows `vr_flat_jab_repeat` (0.4 s) after the last one began, and never before it draws back (one hand at a
   time). A press while the guard below still eases out is thrown once it is down. `vr_flat_jab_alternate` 0: the left
-  button the right hand's punch, the right button the left's, as before.
+  button the right hand's punch, the right button the left's, as before. Each jab's fist goes along the crosshair's ray,
+  whichever hand throws it (since 2026-11-28, flatpunch): to `jabThrough` (8 units) past what the ray hits, never nearer
+  than the old throw's reach past the hand, at most as far as the arm reaches along the ray (`meleeAimPoint`'s `jabFrom`;
+  measured from where the hand really rests). The other fist punches keep `vr_flat_punch_aim`.
 - **The right button** held crosses the forearms before the face (`fistGuardPose`, eased in over
   `vr_flat_fist_guard_in_time` 0.1 s, out over `_out_time` 0.12 s): each fist `vr_flat_fist_guard_fwd` (13) ahead of the
   eye, `_up` (0) above it, `_cross` (3) past the middle onto the other side, the right one `_stagger` (1.5) further ahead,

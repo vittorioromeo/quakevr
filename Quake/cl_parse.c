@@ -507,6 +507,7 @@ void CL_ParseUpdate (int bits)
 	{	// first update is the final signon stage
 		cls.signon = SIGNONS;
 		CL_SignonReply ();
+		VR_VisorSignon (); // QVR: the flatscreen visor boots (vr/vr_visor.cpp)
 	}
 
 	if (bits & U_MOREBITS)

@@ -89,6 +89,17 @@ constexpr int height = 150;
 Pose current;
 gfx::RenderTarget target;
 
+// The screen's own motion (gfx::State::prevFromNow; temporal AA's and SpaceWarp's motion vectors): its world-from-screen
+// transform this frame and the last one drawn (host frames).
+struct ScreenMotion
+{
+    int frame{-1};
+    glm::mat4 now{1.f};
+    glm::mat4 prev{1.f};
+    glm::mat4 prevFromNow{1.f};
+};
+ScreenMotion screenMotion; // seat-shared: the headset gadget screen's motion (VR plays one seat)
+
 // The log's shape: characters a line, lines at most, seconds a line fades out over.
 constexpr int logColumns = 40;
 constexpr int logRows = 8;
@@ -1617,6 +1628,18 @@ void drawScreen()
 
     // The texture in its own colours (palette()); the phosphor's colour (the static's) is the screen's.
     const glm::vec4 phosphor = palette().text;
+    { // its motion since the last frame (both eyes the same: once a host frame)
+        glm::mat4 now{current.axes * current.scale};
+        now[3] = glm::vec4(current.origin, 1.f);
+        ScreenMotion& m = screenMotion;
+        if(m.frame != host_framecount)
+        {
+            m.prev = m.frame == host_framecount - 1 ? m.now : now;
+            m.now = now;
+            m.frame = host_framecount;
+            m.prevFromNow = m.prev * glm::inverse(now);
+        }
+    }
     const gfx::Vertex c[4] = {{origin, {0.f, 0.f}, phosphor}, {origin + xAxis, {1.f, 0.f}, phosphor},
         {origin + xAxis + yAxis, {1.f, 1.f}, phosphor}, {origin + yAxis, {0.f, 1.f}, phosphor}};
     const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
@@ -1645,14 +1668,16 @@ void drawScreen()
         gfx::draw(quad, gfx::sceneViewProjection(),
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
                 .params = {time, dk, za::min(g, tap), 0.f},
-                .screen = {200.f * size.x / size.y, 200.f, 1.f}, .trueColor = true, .flatModelFov = true},
+                .screen = {200.f * size.x / size.y, 200.f, 1.f}, .trueColor = true, .flatModelFov = true,
+                .prevFromNow = &screenMotion.prevFromNow},
             doomTexture);
         return;
     }
     gfx::draw(quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
             .params = {time, k, g, textGlow()},
-            .screen = {width, height, 0.5f}, .trueColor = true, .flatModelFov = true},
+            .screen = {width, height, 0.5f}, .trueColor = true, .flatModelFov = true,
+            .prevFromNow = &screenMotion.prevFromNow},
         target.tex);
 }
 

@@ -1139,10 +1139,11 @@ bool OpenXrBackend::pollEvents()
                     if(absent != userAbsent)
                     {
                         noteState(absent ? "UNWORN" : "WORN");
-                        VR_PerfEvent(VR_PERF_MARK, 0.0, absent ? "xr user absent" : "xr user present");
                         char held[64];
                         q_snprintf(held, sizeof(held), "back on (%d frames held while off)", absentHeld);
                         const char* ignored = absent ? presenceIgnored() : nullptr;
+                        // (ignored: the game plays on; a stop that follows is the runtime's, "xr session STOPPING")
+                        VR_PerfEvent(VR_PERF_MARK, 0.0, !absent ? "xr user present" : ignored ? "xr user absent (ignored)" : "xr user absent");
                         xrruntime::logLine(va("%s user presence: the headset %s%s%s%s\n", wallClock(),
                             absent ? "taken off" : held, ignored ? " (ignored: " : "", ignored ? ignored : "",
                             ignored ? ")" : ""));

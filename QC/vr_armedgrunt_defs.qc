@@ -96,6 +96,22 @@ float(entity g) VR_AGPar_Guards;                                           // VR
 // The farthest a held weapon's line (VR_AG_WeaponLine: as drawn, a pose or two behind) reaches from its grip, with room:
 // the scans for what flies at it look this much farther round the grip first (nothing there: no line, no scan).
 float VR_AG_LINE_REACH = 192;
+// vr_qc_scan_share (questopt2): a scan's answer reused where it settles a second one (exact). The shot scan's first look
+// (VR_AGS_Projectiles: nothing moving within 128 + reach of its weapon) settles the throw scan's (VR_AG_WeaponStruck:
+// nothing at 100 or more within 48 + reach) while nothing can have moved between (no player near: VR_AG_StrikeFrame).
+entity vr_ags_quiet;         // the weapon that look found nothing round, this think (world: none)
+vector vr_ags_quiet_at;      // ... where it was then
+float vr_scan_share_checks;  // 2: the answers reused, also worked out again and compared (bprint every 4000)
+float vr_scan_share_diffs;   // ... of which differed
+void(float differs) VR_ScanShare_Check =
+{
+    vr_scan_share_checks = vr_scan_share_checks + 1;
+    vr_scan_share_diffs = vr_scan_share_diffs + (differs ? 1 : 0);
+    if(vr_scan_share_checks == floor(vr_scan_share_checks / 4000) * 4000)
+    {
+        bprint(sprintf("scanshare: %g compared, %g differed\n", vr_scan_share_checks, vr_scan_share_diffs));
+    }
+};
 // Directional parry (vr_dirparry.qc): your weapon held across a blow's line.
 .vector vr_drp_a0;         // (a held weapon) its drawn line's two ends last frame, and when (0: none)
 .vector vr_drp_b0;
@@ -307,3 +323,4 @@ float() VR_WP_DeathLoot;                                                 // VR_A
 void(entity g) VR_AG_DazzleTick;          // VR_AGP_Pose: its dazzle eased
 float(entity g) VR_AG_DazzleAim;          // VR_AGAI_Accuracy: its shots' error and spread times this
 void(entity g, entity p) VR_AGP_Shield;   // VR_AGP_PoseQC (and the engine's agpose): its off hand before its eyes
+float(entity g) VR_AG_ShieldingLeft;      // its left weapon raised to shield (vr_agrunt_dazzle_dual): not fired

@@ -14,6 +14,7 @@
 #include "vr_retro.hpp"
 #include "vr_foveated.hpp"
 #include "vr_stereo.hpp"
+#include "vr_temporal.hpp"
 #include "vr_particles.hpp"
 #include "vr_units.hpp"
 
@@ -1221,6 +1222,62 @@ GLuint programFor(Shade shade, bool blended, bool retro)
     return p;
 }
 
+// State::prevFromNow's: the same triangles again into the eye's motion target alone (temporal::beginOwnMotion), their
+// texels as the scene's models write them (QVR_TEMPORAL_WRITE, vr_glsl.h; its block QVR_TEMPORAL_BLOCK's, binding 7).
+#define QVR_OWN_MOTION_BLOCK                                                                                                   \
+    "layout(std140, binding = 7) uniform TemporalBlock { mat4 PrevViewProj; vec4 TemporalJitter; vec4 TemporalSize; };\n"
+constexpr const char* ownMotionVs = "#version 430\n"
+                                    "layout(location = 0) in vec3 Pos;\n"
+                                    "layout(location = 0) uniform mat4 MVP;\n"
+                                    "layout(location = 1) uniform mat4 PrevFromNow;\n" QVR_OWN_MOTION_BLOCK
+                                    "layout(location = 0) out vec4 PrevClip;\n"
+                                    "void main()\n"
+                                    "{\n"
+                                    "    gl_Position = MVP * vec4(Pos, 1.0);\n"
+                                    "    PrevClip = PrevViewProj * (PrevFromNow * vec4(Pos, 1.0));\n"
+                                    "}\n";
+constexpr const char* ownMotionFs = "#version 430\n" QVR_OWN_MOTION_BLOCK
+                                    "layout(location = 0) in vec4 PrevClip;\n"
+                                    "layout(location = 1) out vec4 Motion;\n"
+                                    "void main()\n"
+                                    "{\n"
+                                    "    Motion = vec4(PrevClip.xy / PrevClip.w * 0.5 + 0.5 - (gl_FragCoord.xy * TemporalSize.xy - "
+                                    "TemporalJitter.xy), gl_FragCoord.z, TemporalJitter.z);\n"
+                                    "}\n";
+GLuint ownMotionProgram = 0; // seat-shared: a GL program
+bool ownMotionFailed = false; // seat-shared: a GL program's build result
+
+// After a draw with State::prevFromNow: its vertices again, writing their own motion where they were drawn (the same
+// depth: the engine's test, pulled a little towards the eye so the second program's rounding never loses a pixel).
+void drawOwnMotion(za::SizeT count, const glm::mat4& mvp, const State& state)
+{
+    if(!state.prevFromNow || state.blend != Blend::Opaque || !state.depthWrite || flatplay::active())
+    {
+        return;
+    }
+    if(!ownMotionProgram && !ownMotionFailed)
+    {
+        ownMotionProgram = glProgram(ownMotionVs, ownMotionFs, "vr triangles' own motion");
+        ownMotionFailed = !ownMotionProgram;
+        gfx::ownDeferred(ownMotionProgram, &ownMotionFailed);
+    }
+    if(!ownMotionProgram || !temporal::beginOwnMotion())
+    {
+        return;
+    }
+    GL_UseProgram(ownMotionProgram);
+    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(1) | GLS_BLEND_OPAQUE | GLS_NO_ZWRITE);
+    GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
+    GL_UniformMatrix4fvFunc(1, 1, GL_FALSE, &(*state.prevFromNow)[0][0]);
+    const float toward = gl_clipcontrol_able ? 1.f : -1.f; // (reversed Z: nearer is larger)
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(toward, toward * 4.f);
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
+    glPolygonOffset(0.f, 0.f);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    temporal::endOwnMotion();
+}
+
 // Retro textures' block and palette table for a draw with set `set` (0: none).
 void bindRetro(int set)
 {
@@ -1454,6 +1511,7 @@ void draw(za::Span<const Vertex> triangles, const glm::mat4& mvp, const State& s
     GLbyte* ofs = nullptr;
     GL_Upload(GL_ARRAY_BUFFER, triangles.data(), triangles.sizeBytes(), &buf, &ofs);
     drawVertices(buf, ofs, triangles.size(), state);
+    drawOwnMotion(triangles.size(), mvp, state); // (State::prevFromNow; the vertex pointers as drawVertices set them)
 }
 
 void upload(StaticTriangles& t, za::Span<const Vertex> triangles)

@@ -251,7 +251,10 @@ static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 	// case SDL_MOUSEBUTTONDOWN:
 	// case SDL_MOUSEBUTTONUP:
 		if (key_dest == key_menu)
+		{
+			VR_MenuPadHide (); // QVR: the gamepad's menu cursor hidden (padflat)
 			M_Mousemove (event->motion.x, event->motion.y);
+		}
 		else if (key_dest == key_console)
 			Con_Mousemove (event->motion.x, event->motion.y);
 		return 0;
@@ -1157,7 +1160,7 @@ static int IN_KeyForControllerButton(SDL_GameControllerButton button)
 		case SDL_CONTROLLER_BUTTON_X: return K_XBUTTON;
 		case SDL_CONTROLLER_BUTTON_Y: return K_YBUTTON;
 		// Note: back and start are always mapped to TAB/ESC, the player cannot rebind them
-		case SDL_CONTROLLER_BUTTON_BACK: return K_TAB;
+		case SDL_CONTROLLER_BUTTON_BACK: return K_BACK; // QVR: its own key (Tab before), bindable (padflat: the alt layer; vr_bindings.cfg)
 		case SDL_CONTROLLER_BUTTON_START: return K_ESCAPE;
 		case SDL_CONTROLLER_BUTTON_LEFTSTICK: return K_LTHUMB;
 		case SDL_CONTROLLER_BUTTON_RIGHTSTICK: return K_RTHUMB;
@@ -1187,6 +1190,14 @@ and generates key repeats if the button is held down.
 Adapted from DarkPlaces by lordhavoc
 ================
 */
+// QVR: a gamepad's key event, through the menus' gamepad cursor (padflat; vr/vr_menuui.cpp): A clicks while it shows
+static void IN_PadKeyEvent (int key, qboolean down)
+{
+	key = VR_MenuPadKey (key, down);
+	if (key >= 0)
+		Key_Event (key, down);
+}
+
 static void IN_JoyKeyEvent(qboolean wasdown, qboolean isdown, int key, double *timer)
 {
 	static const double repeatdelay = 0.5; // time (in seconds) between initial press and first repetition
@@ -1203,14 +1214,14 @@ static void IN_JoyKeyEvent(qboolean wasdown, qboolean isdown, int key, double *t
 			{
 				*timer = currenttime + 1.0 / repeatrate;
 				lastactivetype = KD_GAMEPAD;
-				Key_Event(key, true);
+				IN_PadKeyEvent(key, true);
 			}
 		}
 		else
 		{
 			*timer = 0;
 			lastactivetype = KD_GAMEPAD;
-			Key_Event(key, false);
+			IN_PadKeyEvent(key, false);
 		}
 	}
 	else
@@ -1219,7 +1230,7 @@ static void IN_JoyKeyEvent(qboolean wasdown, qboolean isdown, int key, double *t
 		{
 			*timer = currenttime + repeatdelay;
 			lastactivetype = KD_GAMEPAD;
-			Key_Event(key, true);
+			IN_PadKeyEvent(key, true);
 		}
 	}
 }
@@ -1275,7 +1286,16 @@ static void IN_PadEmit (joypad_t *pad, const joybuttonstate_t *newbuttons, const
 	}
 
 	// emit emulated arrow keys so the analog sticks can be used in the menu
-	if (Key_SeatDest () != key_game) // QVR: splitscreen phase 9: the pad's seat's (its seat menu, or seat 1's menus)
+	// QVR: split21: the menu's gamepad cursor (padflat) is seat 1's full menu's; a seat 2-4 pad's own seat menu takes the
+	// emulated arrows (splitscreen phase 9: Key_SeatDest is the pad's seat's)
+	if (key_dest == key_menu && (CL_SeatIndex () == 0 || !VR_SeatMenusOn ()) && VR_MenuPadStick (IN_ApplyDeadzone (IN_GetMoveAxis (newaxisstate), 0.f, joy_outer_threshold_move.value).x,
+			IN_ApplyDeadzone (IN_GetMoveAxis (newaxisstate), 0.f, joy_outer_threshold_move.value).y, (float) host_rawframetime))
+	{
+		// QVR: the left stick moved the menu's gamepad cursor (padflat; the d-pad still steps the rows)
+		if (IN_AxisMagnitude (IN_GetMoveAxis (newaxisstate)) > joy_deadzone_move.value)
+			lastactivetype = KD_GAMEPAD;
+	}
+	else if (Key_SeatDest () != key_game)
 	{
 		joyaxis_t old_move = IN_GetMoveAxis (&pad->axisstate);
 		joyaxis_t new_move = IN_GetMoveAxis (newaxisstate);
@@ -1582,8 +1602,16 @@ void IN_JoyMove (usercmd_t *cmd)
 	if (CL_InCutscene ())
 		return;
 
-	// QVR: split11: flat play's holster menu (the weapon wheel) or toolgun panel open: the look stick moves its cursor, as
-	// the mouse does (a controller seat has no mouse); the view stays
+	// QVR: flatscreen play's open weapon wheel or holster menu: the right stick is their cursor (padflat; vr_flatplay.cpp;
+	// split21: the pad's seat's wheel and menu, its own cursor's remainder)
+	if (VR_FlatStickCursor (lookDeadzone.x, lookDeadzone.y, (float) host_rawframetime))
+	{
+		pad->cursorfrac[0] = pad->cursorfrac[1] = 0.f;
+		IN_ResetFlickState (pad);
+		return;
+	}
+	// QVR: split11: flat play's toolgun panel open: the look stick moves its cursor, as the mouse does (a controller seat
+	// has no mouse); the view stays
 	{
 		const float speed = 900.f * (float) host_rawframetime; // counts a second at full tilt (a window pixel each)
 		int dx, dy;

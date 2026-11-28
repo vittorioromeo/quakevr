@@ -34,11 +34,12 @@ layout(binding = 1) uniform sampler2D Motion; // xy uv a frame ago minus uv now,
 layout(location = 0) uniform mat4 InvViewProj;
 layout(location = 1) uniform mat4 PrevViewProj;
 layout(location = 2) uniform vec4 Params; // x the eye's stamp, y 1: reversed Z, zw the eye's drawn size (texels)
-layout(location = 3) uniform vec4 Planes; // xy the near and far planes, zw the output's size
+layout(location = 3) uniform vec4 Planes; // x the submitted depth's near plane (units; far: infinite), zw the output's size
 layout(location = 4) uniform float ObjectMark; // the alpha of a model's own motion (the test's 2; the runtime's 1)
 layout(location = 5) uniform vec2 Tolerance; // the motion texel's depth against the scene's: relative, absolute
+layout(location = 6) uniform float MaxMotion; // the largest |xy| given (NDC): beyond it no frame's motion is real
 layout(location = 0) out vec4 OutMotion;
-float GlZ(float w) { return (Planes.y + Planes.x) / (Planes.y - Planes.x) - 2.0 * Planes.y * Planes.x / ((Planes.y - Planes.x) * w); }
+bool finite3(vec3 v) { return !any(isnan(v)) && !any(isinf(v)); }
 void main()
 {
     bool reversed = Params.y > 0.5;
@@ -47,17 +48,22 @@ void main()
     float d = texelFetch(SceneDepth, q, 0).r;
     if (reversed ? d >= 1.0 : d <= 0.0) // the lenses' hidden area (at the near plane): nothing there, far away
     {
-        gl_FragDepth = reversed ? 0.0 : 1.0;
+        gl_FragDepth = 1.0;
         OutMotion = vec4(0.0);
         return;
     }
-    gl_FragDepth = d;
     vec2 uv = (vec2(q) + 0.5) / Params.zw;
     vec3 ndc = vec3(uv * 2.0 - 1.0, reversed ? d : d * 2.0 - 1.0);
     vec4 h = InvViewProj * vec4(ndc, 1.0);
+    float zNow = 1.0 / h.w; // the distance along the view now (units: clip w)
+    // The depth as Meta's GLES sample submits it: OpenGL's, near plane Planes.x, the far one infinite (1 - near / z):
+    // the runtime's most used form, whatever the scene's own convention (reversed Z, its planes)
+    gl_FragDepth = clamp(1.0 - Planes.x / max(zNow, 1e-6), 0.0, 1.0);
     vec4 c = PrevViewProj * vec4(h.xyz / h.w, 1.0);
-    // The camera's motion (head and locomotion), z as OpenGL's NDC depth (Meta's GLES sample's convention)
-    vec3 mv = vec3(ndc.xy - c.xy / c.w, GlZ(1.0 / h.w) - GlZ(c.w));
+    // The camera's motion (head and locomotion): NDC now minus then, z as OpenGL's NDC depth (1 - 2 near / z) in the
+    // same form. A point behind (or at) the last frame's eye has no motion there: none given (it was huge or infinite:
+    // the runtime's made-up frames pulled black squares from outside the picture).
+    vec3 mv = c.w > Planes.x * 0.5 ? vec3(ndc.xy - c.xy / c.w, 2.0 * Planes.x * (1.0 / c.w - 1.0 / zNow)) : vec3(0.0);
     float mark = 1.0;
     vec4 m = texelFetch(Motion, q, 0);
     if (abs(floor(m.w) - Params.x) < 0.5 && abs(m.z - d) <= max(abs(d) * Tolerance.x, Tolerance.y))
@@ -65,9 +71,22 @@ void main()
         mv = vec3(-2.0 * m.xy, 0.0); // a model's own (uv a frame ago minus uv now: NDC now minus then, depth unknown)
         mark = ObjectMark;
     }
+    if (!finite3(mv))
+    {
+        mv = vec3(0.0);
+    }
+    float len = length(mv.xy);
+    mv.xy *= len > MaxMotion ? MaxMotion / len : 1.0;
+    mv.z = clamp(mv.z, -1.0, 1.0);
     OutMotion = vec4(mv, mark);
 }
 )";
+
+// The submitted depth's near plane (metres; the far plane infinite): Meta's GLES sample's 0.1 m halved for the hands
+// close to the eyes (nearer: at the plane). 24 bits keep 1.2 cm at 100 m.
+constexpr float depthNearMetres = 0.05f;
+// The largest motion given (NDC, a frame): a 600 degree/s turn at half the Quest's rate moves the view ~0.3.
+constexpr float maxMotionNdc = 0.6f;
 
 // A runtime image pair's framebuffer (Meta's samples: one per swapchain image, made once, kept attached).
 struct Fbo
@@ -97,6 +116,7 @@ struct Stats
     float cameraMean{0.f}; // mean |xy| (NDC)
     float objectMean{0.f};
     float objectMax{0.f};
+    int wild{0};         // texels not finite or past maxMotionNdc (none may be)
     float depthMin{1.f}, depthMax{0.f}; // over the texels not hidden
     glm::vec3 deltaT{0.f};  // the last frame's play-space delta: metres
     float deltaYaw{0.f};    // ... degrees about the up axis
@@ -318,6 +338,7 @@ void readStats(GLuint fbo, int w, int h, bool reversed)
     s.camera = s.object = s.hidden = 0;
     double camSum = 0.0, objSum = 0.0;
     s.objectMax = 0.f;
+    s.wild = 0;
     s.depthMin = 1.f;
     s.depthMax = 0.f;
     for(za::SizeT i = 0; i < n; i++)
@@ -342,6 +363,9 @@ void readStats(GLuint fbo, int w, int h, bool reversed)
             s.camera++;
             camSum += len;
         }
+        // (a value the runtime can't use: not finite, or past the clamp)
+        const bool finite = len == len && len <= 1e30f && p[2] == p[2] && za::abs(p[2]) <= 1e30f;
+        s.wild += !finite || len > maxMotionNdc + 1e-3f ? 1 : 0;
     }
     s.cameraMean = s.camera ? static_cast<float>(camSum / s.camera) : 0.f;
     s.objectMean = s.object ? static_cast<float>(objSum / s.object) : 0.f;
@@ -411,9 +435,11 @@ void eyePass(const EyeInputs& in)
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, in.invViewProj);
     GL_UniformMatrix4fvFunc(1, 1, GL_FALSE, in.prevViewProj);
     GL_Uniform4fFunc(2, in.stamp, in.reversed ? 1.f : 0.f, static_cast<float>(in.drawnWidth), static_cast<float>(in.drawnHeight));
-    GL_Uniform4fFunc(3, in.nearUnits, in.farUnits, static_cast<float>(images.width), static_cast<float>(images.height));
+    const float upm = units::metresToUnits();
+    GL_Uniform4fFunc(3, depthNearMetres * upm, 0.f, static_cast<float>(images.width), static_cast<float>(images.height));
     GL_Uniform1fFunc(4, test ? 2.f : 1.f);
     GL_Uniform2fFunc(5, in.halfMotion ? 1.5e-3f : 2e-5f, in.halfMotion ? 1e-6f : 1.5e-7f); // (a half: 10 bits; TAA's)
+    GL_Uniform1fFunc(6, maxMotionNdc);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glDepthFunc(gl_clipcontrol_able ? GL_GEQUAL : GL_LEQUAL); // (the engine's own: GL_Init's)
     if(test && in.eye == 0)
@@ -431,9 +457,9 @@ void eyePass(const EyeInputs& in)
     // The frame's information, from the left eye (the right's is the same play space)
     if(in.eye == 0 && in.origin && in.angles)
     {
-        const float upm = units::metresToUnits();
-        state.nearZ = in.reversed ? in.farUnits / upm : in.nearUnits / upm; // (the distance at depth 0, then at 1)
-        state.farZ = in.reversed ? in.nearUnits / upm : in.farUnits / upm;
+        // (the distance at depth 0, then at 1: the pass's own depth, Meta's sample's form)
+        state.nearZ = depthNearMetres;
+        state.farZ = INFINITY;
         state.worldFromApp = worldFromApp(in.origin, in.angles, frameState().eyes[0].pose);
         state.havePose = true;
         state.jump = in.jump;
@@ -489,11 +515,15 @@ void check_f()
     const Stats& s = state.stats;
     testkit::Tally& t = state.tally;
     Con_Printf("spacewarp: %s: frames %d, skipped %d, %dx%d: camera %d (mean %.5f), models %d (mean %.5f, max %.5f), hidden "
-               "%d, depth %.5f..%.5f; delta %.4f %.4f %.4f m, yaw %.3f\n",
+               "%d, depth %.5f..%.5f, wild %d; delta %.4f %.4f %.4f m, yaw %.3f\n",
         what, s.frames, s.skipped, s.width, s.height, s.camera, static_cast<double>(s.cameraMean), s.object,
         static_cast<double>(s.objectMean), static_cast<double>(s.objectMax), s.hidden, static_cast<double>(s.depthMin),
-        static_cast<double>(s.depthMax), static_cast<double>(s.deltaT.x), static_cast<double>(s.deltaT.y),
+        static_cast<double>(s.depthMax), s.wild, static_cast<double>(s.deltaT.x), static_cast<double>(s.deltaT.y),
         static_cast<double>(s.deltaT.z), static_cast<double>(s.deltaYaw));
+    if(ZA_STRCMP(what, "begin") && ZA_STRCMP(what, "verdict") && ZA_STRCMP(what, "jumped"))
+    {
+        t.check(s.wild == 0, "spacewarp", "motion not finite or past the clamp (the made-up frames' black squares)");
+    }
     if(!ZA_STRCMP(what, "begin"))
     {
         t.reset();

@@ -18,6 +18,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_armourdata.hpp"
 #include "vr_armourstudio.hpp"
+#include "vr_reloadstudio.hpp"
 #include "vr_humlook.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_mapstyle.hpp"
@@ -244,6 +245,7 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
+#include "Zancle/Math/Atan.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
@@ -2057,9 +2059,21 @@ void statusLines(za::Vector<za::String>& out)
     out.pushBack(za::String{line});
 }
 
+float fovReduceFactor()
+{
+    return 1.f - za::clamp(vr_fov_reduce.value, 0.f, 30.f) * 0.01f;
+}
+
+float reducedFovAngle(float angle)
+{
+    const float k = fovReduceFactor();
+    return k >= 1.f ? angle : za::atan(za::tan(angle) * k);
+}
+
 int scaledEyeSize(int image, int max)
 {
-    return dynres::eyeSize(image, max, dynres::scale()); // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp)
+    // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp; vr_fov_reduce's narrower view at the same density)
+    return dynres::eyeSize(image, max, dynres::scale() * fovReduceFactor());
 }
 
 } // namespace qvr
@@ -2478,6 +2492,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gamecode", progs::gameCode_f);
     Cmd_AddCommand("vr_forcegrab_grid_stats", progs::forcegrabGridStats_f);
     Cmd_AddCommand("vr_agpose_compare", progs::agposeCompare_f);
+    Cmd_AddCommand("vr_agthink_compare", progs::agthinkCompare_f);
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
     Cmd_AddCommand("vr_test_handcontact", physics::testHandContact_f);
@@ -2611,6 +2626,7 @@ extern "C" void VR_Shutdown()
 {
     waveeditor::shutdown();
     armourstudio::windowShutdown(); // (its ImGui window closed, the input grab given back)
+    reloadstudio::shutdown(); // (likewise)
     weaponstudio::shutdown(); // (its window closed, its preview humanoid let go)
     rigstudio::shutdown(); // (the studio closed: its settings put back; ImGui let go, the GL context still there)
     doom::shutdown(); // Doom's settings saved, qvr_doom.dll unloaded
@@ -2799,6 +2815,7 @@ extern "C" void VR_BeginFrame()
         }
         ragtool::clientFrame(); // -ragtool: the ragdoll tool started once the game is up (vr_ragtool.cpp)
         armourstudio::windowFrame(); // vr_armourstudio_window: its ImGui window (first: it closes when another tool opens)
+        reloadstudio::frame(); // vr_reloadstudio: the procedural reloads' keyframes (vr_reloadstudio.cpp; closes when another tool opens)
         rigstudio::clientFrame(); // vr_rigstudio: its ImGui frame and windows (vr_rigstudio.cpp; nothing while closed)
         waveeditor::clientFrame(); // vr_waveeditor: likewise (never both: it won't open with the studio's up)
         weaponstudio::clientFrame(); // vr_weaponstudio: likewise (flat screen: its own window; never with the other two)

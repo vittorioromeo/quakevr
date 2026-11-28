@@ -1855,6 +1855,26 @@ Host_God_f
 Sets client to godmode
 ==================
 */
+/*
+==================
+SV_HeldUntilSpawned
+
+QVR: a player cheat (god, notarget, noclip, fly, give, setpos) the client sent before it spawned: Host_Spawn_f clears its
+edict and PutClientInServer sets it up afresh, so the command would be lost (a test script's "map x; god" reaches the server
+with the signon). Kept and run once the client has spawned (Host_Begin_f). True: held.
+==================
+*/
+static qboolean SV_HeldUntilSpawned (void)
+{
+	if (host_client->spawned)
+		return false;
+	q_strlcat (host_client->heldcmds, Cmd_Argv (0), sizeof (host_client->heldcmds));
+	q_strlcat (host_client->heldcmds, " ", sizeof (host_client->heldcmds));
+	q_strlcat (host_client->heldcmds, Cmd_Args () ? Cmd_Args () : "", sizeof (host_client->heldcmds));
+	q_strlcat (host_client->heldcmds, "\n", sizeof (host_client->heldcmds));
+	return true;
+}
+
 static void Host_God_f (void)
 {
 	if (cmd_source == src_command)
@@ -1864,6 +1884,8 @@ static void Host_God_f (void)
 	}
 
 	if (pr_global_struct->deathmatch)
+		return;
+	if (SV_HeldUntilSpawned ()) // QVR
 		return;
 
 	//johnfitz -- allow user to explicitly set god mode to on or off
@@ -1909,6 +1931,8 @@ static void Host_Notarget_f (void)
 	}
 
 	if (pr_global_struct->deathmatch)
+		return;
+	if (SV_HeldUntilSpawned ()) // QVR
 		return;
 
 	//johnfitz -- allow user to explicitly set notarget to on or off
@@ -1956,6 +1980,8 @@ static void Host_Noclip_f (void)
 	}
 
 	if (pr_global_struct->deathmatch)
+		return;
+	if (SV_HeldUntilSpawned ()) // QVR
 		return;
 
 	//johnfitz -- allow user to explicitly set noclip to on or off
@@ -2018,6 +2044,8 @@ static void Host_SetPos_f(void)
 	}
 
 	if (pr_global_struct->deathmatch)
+		return;
+	if (SV_HeldUntilSpawned ()) // QVR
 		return;
 
 	for (i = 1, numargs = 0; i < Cmd_Argc (); i++)
@@ -2103,6 +2131,8 @@ static void Host_Fly_f (void)
 	}
 
 	if (pr_global_struct->deathmatch)
+		return;
+	if (SV_HeldUntilSpawned ()) // QVR
 		return;
 
 	//johnfitz -- allow user to explicitly set noclip to on or off
@@ -3649,6 +3679,21 @@ static void Host_Begin_f (void)
 		return;
 
 	host_client->spawned = true;
+	// QVR: the cheats it sent before it spawned (SV_HeldUntilSpawned), in order
+	if (host_client->heldcmds[0])
+	{
+		char held[sizeof (host_client->heldcmds)];
+		char *line, *next;
+		q_strlcpy (held, host_client->heldcmds, sizeof (held));
+		host_client->heldcmds[0] = 0;
+		for (line = held; line && *line; line = next)
+		{
+			next = strchr (line, '\n');
+			if (next)
+				*next++ = 0;
+			Cmd_ExecuteString (line, src_client);
+		}
+	}
 }
 
 //===========================================================================
@@ -3767,6 +3812,8 @@ static void Host_Give_f (void)
 	}
 
 	if (pr_global_struct->deathmatch)
+		return;
+	if (SV_HeldUntilSpawned ()) // QVR
 		return;
 
 	t = Cmd_Argv(1);

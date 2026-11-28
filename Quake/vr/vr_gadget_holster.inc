@@ -129,9 +129,10 @@ void holsterTextMid(float cx, float y, float size, const char* s, const glm::vec
 }
 
 // wheelui (his words 2026-11-28): a slot's holster title smaller and fainter than its weapon's name; the ammunition's
-// line's characters; the attachment's glyph's width.
+// line's characters; the attachment's glyph's width. (panelfix, his words 2026-11-28: the title's fade was overdone: 0.55
+// of the label ink to 0.8.)
 constexpr float holsterTitleSize = 5.f;
-constexpr float holsterTitleInk = 0.55f;
+constexpr float holsterTitleInk = 0.8f;
 constexpr float holsterAmmoSize = 5.f;
 constexpr float holsterGlyphW = 8.f;
 
@@ -389,10 +390,12 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Flatscreen play's bindings reminder (wheelui; vr_bindpanel.cpp says what is on it): rows of an action and its keys as key
-// caps, in columns, drawn as the holster menu is, on its own target (both show at once).
+// caps, in columns, drawn as the holster menu is, on its own target (both show at once). panelfix: the main rows in the
+// first column, the minor ones smaller in the second under their groups' titles.
 //
-//   Fire          [MOUSE1]           Reload       [R]
-//   Crouch        [C] [CTRL]         Holster menu [MOUSE3]
+//   Fire          [LMB]              Hands -------------
+//   Aim / off hand [RMB]             Cycle L / R  [1] [2]
+//   Reload        [R]                Holster L / R [4] [5]
 
 struct BindPanelState
 {
@@ -405,17 +408,6 @@ constexpr float bindChar = 6.f; // the text's characters
 constexpr float bindRowH = 11.f;
 constexpr float bindPad = 5.f;
 constexpr float bindColGap = 12.f;
-
-[[nodiscard]] float bindCapW(const char* key)
-{
-    return static_cast<float>(strlen(key)) * bindChar + 4.f;
-}
-
-// A key's width on the panel: its glyph's (a controller's button), else its cap's.
-[[nodiscard]] float bindKeyW(const BindPanelRow& r, int s)
-{
-    return r.glyphs[s] ? bindChar + 3.f : bindCapW(r.keys[s]);
-}
 
 // A glyph or a controller's picture (a qpic_t) over (x, y, w, h), in its own colours.
 void bindPicture(const void* pic, float x, float y, float w, float h)
@@ -523,33 +515,98 @@ struct CalloutLayout
     return l;
 }
 
-struct BindPanelMetrics
+// panelfix: a minor row's letters and height (BindPanelRow::minor), and a group's title's row over its first.
+constexpr float bindCharMinor = 5.f;
+constexpr float bindRowHMinor = 9.f;
+constexpr float bindHeaderH = 8.f;
+constexpr float bindGroupGap = 3.f; // before a group's title, under the rows above it
+constexpr int bindMaxRows = 32;
+constexpr int bindMaxColumns = 4;
+
+[[nodiscard]] float bindCharOf(const BindPanelRow& r)
 {
-    int perColumn{0};
-    float labelW{0.f}; // the actions' column, the keys' caps after it
-    float columnW{0.f};
+    return r.minor ? bindCharMinor : bindChar;
+}
+
+// A key's width on the panel at its row's letters: its glyph's (a controller's button), else its cap's ("???" unbound).
+[[nodiscard]] float bindKeyWOf(const BindPanelRow& r, int s)
+{
+    const float c = bindCharOf(r);
+    return r.glyphs[s] ? c + 3.f : static_cast<float>(strlen(r.keys[s][0] ? r.keys[s] : "???")) * c + 4.f;
+}
+
+// The rows' places: with minor rows the main ones in the first column and the minor ones in the second, each group's
+// title over its first row; else `columns` columns by count (wheelui's).
+struct BindRowsLayout
+{
+    glm::vec2 size{0.f};
+    glm::vec2 at[bindMaxRows]{}; // each row's top left
+    float headerY[bindMaxRows]{}; // its group's title's top (a row with a header)
+    int column[bindMaxRows]{};
+    float colX[bindMaxColumns]{}, labelW[bindMaxColumns]{}, colW[bindMaxColumns]{};
 };
 
-[[nodiscard]] BindPanelMetrics bindPanelMetrics(const BindPanelView& v)
+[[nodiscard]] BindRowsLayout bindRowsLayout(const BindPanelView& v)
 {
-    BindPanelMetrics m;
-    const int columns = za::max(v.columns, 1);
-    m.perColumn = (v.rowCount + columns - 1) / columns;
-    float keys = 0.f;
-    for(int i = 0; i < v.rowCount; i++)
+    BindRowsLayout l;
+    const int n = za::min(v.rowCount, bindMaxRows);
+    if(n <= 0)
+    {
+        return l;
+    }
+    bool minor = false;
+    for(int i = 0; i < n; i++)
+    {
+        minor = minor || v.rows[i].minor;
+    }
+    const int columns = minor ? 2 : za::clamp(v.columns, 1, bindMaxColumns);
+    const int perColumn = (n + columns - 1) / columns;
+    float keysW[bindMaxColumns]{};
+    for(int i = 0; i < n; i++)
     {
         const BindPanelRow& r = v.rows[i];
-        m.labelW = za::max(m.labelW, static_cast<float>(strlen(r.action)) * bindChar);
+        const int col = minor ? (r.minor ? 1 : 0) : i / perColumn;
+        l.column[i] = col;
+        const float c = bindCharOf(r);
+        l.labelW[col] = za::max(l.labelW[col], static_cast<float>(strlen(r.action)) * c + c);
+        const bool none = !r.keys[0][0] && !r.keys[1][0] && !r.glyphs[0];
         float w = 0.f;
         for(int s = 0; s < 2; s++)
         {
-            w += r.keys[s][0] || r.glyphs[s] ? bindKeyW(r, s) + 2.f : 0.f;
+            w += r.keys[s][0] || r.glyphs[s] || (none && s == 0) ? bindKeyWOf(r, s) + 2.f : 0.f;
         }
-        keys = za::max(keys, w);
+        keysW[col] = za::max(keysW[col], w);
     }
-    m.labelW += bindChar;
-    m.columnW = m.labelW + za::max(keys, bindCapW("???"));
-    return m;
+    float x = bindPad;
+    float bottom = bindPad;
+    for(int col = 0; col < columns; col++)
+    {
+        l.colX[col] = x;
+        l.colW[col] = l.labelW[col] + keysW[col];
+        x += l.colW[col] + bindColGap;
+        float y = bindPad;
+        bool first = true;
+        for(int i = 0; i < n; i++)
+        {
+            if(l.column[i] != col)
+            {
+                continue;
+            }
+            const BindPanelRow& r = v.rows[i];
+            if(minor && r.header[0])
+            {
+                y += first ? 0.f : bindGroupGap;
+                l.headerY[i] = y;
+                y += bindHeaderH;
+            }
+            l.at[i] = {l.colX[col], y};
+            y += r.minor ? bindRowHMinor : bindRowH;
+            first = false;
+        }
+        bottom = za::max(bottom, y);
+    }
+    l.size = {x - bindColGap + bindPad, bottom - 2.f + bindPad};
+    return l;
 }
 
 glm::vec2 bindPanelLayoutSize(const BindPanelView& v)
@@ -562,10 +619,7 @@ glm::vec2 bindPanelLayoutSize(const BindPanelView& v)
     {
         return glm::vec2{0.f};
     }
-    const BindPanelMetrics m = bindPanelMetrics(v);
-    const int columns = za::max(v.columns, 1);
-    return {bindPad * 2.f + m.columnW * static_cast<float>(columns) + bindColGap * static_cast<float>(columns - 1),
-        bindPad * 2.f + bindRowH * static_cast<float>(m.perColumn) - 2.f};
+    return bindRowsLayout(v).size;
 }
 
 VisorImage bindPanelRender(const BindPanelView& v)
@@ -583,7 +637,6 @@ VisorImage bindPanelRender(const BindPanelView& v)
     {
         return out;
     }
-    const BindPanelMetrics m = bindPanelMetrics(v);
     gfx::begin2D(t, w, h);
     fill(0.f, 0.f, size.x, size.y, visorBlack);
     holsterOutline({1.f, 1.f, size.x - 2.f, size.y - 2.f}, pal.line * 0.6f);
@@ -612,22 +665,30 @@ VisorImage bindPanelRender(const BindPanelView& v)
             drawText(tx, l.at[i].y + 3.f, calloutChar, c.text, c.text[0] ? pal.value : pal.dim, pal);
         }
     }
-    for(int i = 0; i < (v.pictureCount > 0 ? 0 : v.rowCount); i++)
+    const BindRowsLayout rl = v.pictureCount > 0 ? BindRowsLayout{} : bindRowsLayout(v);
+    for(int i = 0; i < (v.pictureCount > 0 ? 0 : za::min(v.rowCount, bindMaxRows)); i++)
     {
         const BindPanelRow& r = v.rows[i];
-        const int col = m.perColumn > 0 ? i / m.perColumn : 0, row = m.perColumn > 0 ? i % m.perColumn : i;
-        const float x = bindPad + static_cast<float>(col) * (m.columnW + bindColGap);
-        const float y = bindPad + static_cast<float>(row) * bindRowH;
-        drawText(x, y + 1.f, bindChar, r.action, pal.label, pal);
-        float kx = x + m.labelW;
+        const float x = rl.at[i].x, y = rl.at[i].y, c = bindCharOf(r);
+        if(r.header[0] && rl.headerY[i] > 0.f) // (set only with minor rows: bindRowsLayout)
+        {
+            // A group's title (panelfix): small, dim, a rule after it to the column's end.
+            const float hy = rl.headerY[i];
+            const float tw = static_cast<float>(strlen(r.header)) * bindCharMinor;
+            drawText(x, hy + 1.f, bindCharMinor, r.header, pal.dim * 1.6f, pal);
+            fill(x + tw + 3.f, hy + 3.f, za::max(0.f, rl.colW[rl.column[i]] - tw - 3.f), 1.f, pal.line * 0.5f);
+        }
+        drawText(x, y + 1.f, c, r.action, r.minor ? pal.label * 0.85f : pal.label, pal);
+        float kx = x + rl.labelW[rl.column[i]];
         const bool none = !r.keys[0][0] && !r.keys[1][0] && !r.glyphs[0];
         for(int s = 0; s < 2; s++)
         {
             const char* k = r.keys[s];
+            const float kw = bindKeyWOf(r, s);
             if(r.glyphs[s])
             {
-                bindPicture(r.glyphs[s], kx, y - 1.f, bindKeyW(r, s), bindKeyW(r, s));
-                kx += bindKeyW(r, s) + 2.f;
+                bindPicture(r.glyphs[s], kx, y - 1.f, kw, kw);
+                kx += kw + 2.f;
                 continue;
             }
             if(!k[0] && !(none && s == 0))
@@ -635,11 +696,10 @@ VisorImage bindPanelRender(const BindPanelView& v)
                 continue;
             }
             const char* shown = k[0] ? k : "???";
-            const float cw = bindCapW(shown);
-            fill(kx, y - 1.f, cw, bindChar + 3.f, pal.dim * 0.15f);
-            holsterOutline({kx, y - 1.f, cw, bindChar + 3.f}, k[0] ? pal.line : pal.dim * 0.5f);
-            drawText(kx + 2.f, y + 1.f, bindChar, shown, k[0] ? pal.value : pal.dim, pal);
-            kx += cw + 2.f;
+            fill(kx, y - 1.f, kw, c + 3.f, pal.dim * 0.15f);
+            holsterOutline({kx, y - 1.f, kw, c + 3.f}, k[0] ? pal.line : pal.dim * 0.5f);
+            drawText(kx + 2.f, y + 1.f, c, shown, k[0] ? pal.value : pal.dim, pal);
+            kx += kw + 2.f;
         }
     }
     gfx::end2D();

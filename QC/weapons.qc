@@ -114,6 +114,7 @@ float vr_flatthrow_refused; // (vr_flatgrenade.qc: frames of the fire button ref
 void() VR_FlatReload_Key;
 void() VR_FlatReload_ProcTake;                  // (vr_flatreload.qc: the procedural reload's take, impulse 99)
 void(string xWhy) VR_FlatReload_ProcCancelAll; // (and its cancel)
+void() VR_FlatReload_ProcEject;                 // (and its eject key, impulse 109: reloadmags)
 void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
 void() VR_FlatThrow_Release;
@@ -997,7 +998,7 @@ void(float xHand, float stat) HIP_FireLaser =
     }
 
     self.punchangle_x = -1;
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
@@ -2560,7 +2561,7 @@ void(float xHand) W_FireShotgun =
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.25, 70, 0.75);
 
     // The spent shell out of the port as the gun cycles (vr_shells.cpp). The super shotgun's (one
@@ -2619,7 +2620,7 @@ void(float xHand) W_FireSuperShotgun =
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.55, 75, 1.0);
 
     // Without reloading it reloads itself: the two spent shells come out as it would open.
@@ -2768,7 +2769,7 @@ entity(float xHand) W_FireRocket =
     // HIPNOTIC
     //MED 11/09/96
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.5, 75, 1.0);
 
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 3);
@@ -3176,7 +3177,7 @@ void(float xHand) W_FireLightning =
     vr_decap_weapon = 0;
     VR_Hit_End();
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 175, 1.0);
     particle2(org, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
@@ -3317,7 +3318,7 @@ void(float xHand) W_FireGrenade =
 
     VR_FireGrenadeMissile(xHand);
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 };
@@ -3503,7 +3504,7 @@ void(float xHand) W_FireProximityGrenade =
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     setsize(missile, '-1 -1 -1', '1 1 1');
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 };
@@ -3578,7 +3579,7 @@ void(float xHand) W_FireSuperSpikes =
 
     self.punchangle_x = -2;
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
@@ -3613,7 +3614,7 @@ void(float xHand, float ox) W_FireSpikes =
 
     self.punchangle_x = -2;
 
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2(VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
@@ -3912,6 +3913,7 @@ void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_RocketLa
     *xOutAttackFinished = time + RuneApplyHell(0.8, self);
 };
 
+float vr_lg_starts; // (the tests: the thunderbolt's start sounds: once a trigger pull, its loop after; vr_attach_test.qc embedrate)
 void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_Lightning =
 {
     if(!(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO) && DW_FireVariant(xHand, xOutAttackFinished)) { return; } // Dwell's Crystal Lance (dw_items.qc)
@@ -3932,6 +3934,7 @@ void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_Lightnin
         *xOutAttackFinished = time + RuneApplyHell(0.1, self);
     }
     sound(self, VRGetHandChannel(xHand), "weapons/lstart.wav", 1, ATTN_NORM);
+    vr_lg_starts++;
 };
 
 // HIPNOTIC (MED): Mjolnir, swung by the tracked hands; untracked, a swing (its lightning with 30 cells or more).
@@ -4933,11 +4936,25 @@ void() ImpulseCommands =
     }
     // Flatscreen play's procedural reload (vr_flatprocreload.cpp drives the free hand; vr_flatreload.qc): 99 the free hand
     // at the ammo pouch takes a round, 106 cancels (100-105 are the bots') (a punch, the client's failsafe). Nobody else's impulses.
-    if((self.impulse == 99 || self.impulse == 106) && VR_FlatPlay(self))
+    // 107 / 108: its keys' open and close (reloadsys: the super shotgun broken open, snapped shut).
+    // 109: its eject key (reloadmags: a magazine gun's magazine let out, its rounds back in the reserve).
+    if((self.impulse == 99 || (self.impulse >= 106 && self.impulse <= 109)) && VR_FlatPlay(self))
     {
         if(self.impulse == 99)
         {
             VR_FlatReload_ProcTake();
+        }
+        else if(self.impulse == 107)
+        {
+            VR_FlatReload_ProcOpen();
+        }
+        else if(self.impulse == 108)
+        {
+            VR_FlatReload_ProcClose();
+        }
+        else if(self.impulse == 109)
+        {
+            VR_FlatReload_ProcEject();
         }
         else
         {
@@ -5206,9 +5223,11 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
         WriteVec3(MSG_BROADCAST, trace_endpos);
     }
 
+    // (A gun stuck in a body that the hand drives, vr_fire_prop: the beam the prop's, drawn from its muzzle where it is; the
+    // player's would follow the empty hand, and end at once, its gun gone from it: vr_client.cpp VR_BeamGone.)
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
-    WriteEntity(MSG_BROADCAST, self);
+    WriteEntity(MSG_BROADCAST, (vr_fire_prop != world && (self.flags & FL_CLIENT)) ? vr_fire_prop : self);
     WriteByte(MSG_BROADCAST, xHand); /* disambiguator */
     WriteVec3(MSG_BROADCAST, xOrigin);
     WriteVec3(MSG_BROADCAST, beamEnd);
@@ -5264,6 +5283,8 @@ void(float xHand, float xPressed) W_TriggerFrame =
     }
 };
 
+void(float xHand, float xProp) W_HandFireFrame;
+
 void(float xHand) W_WeaponFrameImpl =
 {
     // A weapon prop the hand holds (a blade stuck in a body, its weapon able to fire there): its trigger frame instead
@@ -5285,8 +5306,16 @@ void(float xHand) W_WeaponFrameImpl =
         return;
     }
 
+    W_HandFireFrame(xHand, FALSE);
+}
+
+// The weapon's part of a hand's frame: its stream drawn, its barrels' spin, its refire, the lava nailgun's let-go, its
+// trigger. For the weapon in the hand (W_WeaponFrameImpl) and for a weapon prop the hand drives (`xProp`, the hand's
+// weapon fields the prop's: vr_propfire.qc VR_PropFire_Frame; the hand is on the prop: no force grab, reload trip or throw).
+void(float xHand, float xProp) W_HandFireFrame =
+{
     FrameDrawLightningTrail(xHand, VRGetFireButtonPressed(xHand));
-    AD_WidowmakerSpinHook(xHand, VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand));
+    AD_WidowmakerSpinHook(xHand, VRGetFireButtonPressed(xHand) && (xProp || !VR_Forcegrab_IsHandBusy(self, xHand)));
 
     if(!deathmatch && time < self.vr_readytime)
     {
@@ -5313,7 +5342,16 @@ void(float xHand) W_WeaponFrameImpl =
     // check for attack
     // (Flat-screen play: not while the gun is on its reload trip to the hip, vr_flatreload.qc, nor while the throw key winds
     // it up to throw it, vr_flatgrenade.qc.)
-    float pressed = VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !VR_FlatReload_Busy(self, xHand);
+    float pressed = VRGetFireButtonPressed(xHand);
+    if(xProp)
+    {
+        W_TriggerFrame(xHand, pressed);
+        return;
+    }
+    if(VR_Forcegrab_IsHandBusy(self, xHand) || VR_FlatReload_Busy(self, xHand))
+    {
+        pressed = FALSE;
+    }
     if(pressed && VR_FlatThrow_WindsUpWeapon(self, xHand))
     {
         pressed = FALSE;

@@ -17,12 +17,14 @@
 #include "vr_backend.hpp"
 #include "vr_bindpanel.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_gadget.hpp"
 #include "vr_gfx.hpp"
 #include "vr_main.hpp"
+#include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_renderdoc.hpp"
@@ -40,6 +42,7 @@
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -130,7 +133,8 @@ void copyText(char* to, za::SizeT size, const char* from)
 // The back pouch's grenade entry (wheelgrenade): a grenade (rockets, STAT_ROCKETS) or the multi-grenade (multi-rockets,
 // STAT_QVR_AMMOMULTI), its thumbnail the pouch's own model (QC VR_HandGrenade_Model) and the count left as an ammo line;
 // both carried: two halves, the grenade on top; neither: one greyed grenade. None without the pouch (vr_handgrenade 0).
-int listGrenades(Choice* out, int max)
+// The kind the hand holds (`gren`, flatholster::handGrenade; grenhold) stays lit with none left: picked, it goes back.
+int listGrenades(Choice* out, int max, int gren)
 {
     if(vr_handgrenade.value == 0.f || max <= 0)
     {
@@ -138,7 +142,7 @@ int listGrenades(Choice* out, int max)
     }
     const int rockets = cl.stats[STAT_ROCKETS], multi = cl.stats[protocol::STAT_QVR_AMMOMULTI];
     const bool split = rockets > 0 && multi > 0 && max >= 2;
-    const auto make = [](Choice& c, bool isMulti, int left, int half) {
+    const auto make = [gren](Choice& c, bool isMulti, int left, int half) {
         c = Choice{};
         c.key = isMulti ? keyMultiGrenade : keyGrenade;
         copyText(c.title, sizeof(c.title), "BACK POUCH");
@@ -146,7 +150,7 @@ int listGrenades(Choice* out, int max)
         copyText(c.model, sizeof(c.model), isMulti ? "progs/mervup.mdl" : "progs/grenade.mdl");
         c.ammoType = isMulti ? 6 : 3; // (AID_MULTI_ROCKETS, AID_ROCKETS)
         c.reserve = za::max(left, 0);
-        c.usable = left > 0;
+        c.usable = left > 0 || gren == (isMulti ? 2 : 1);
         c.half = half;
     };
     if(split)
@@ -155,7 +159,8 @@ int listGrenades(Choice* out, int max)
         make(out[1], true, multi, 2);
         return 2;
     }
-    make(out[0], multi > 0, multi > 0 ? multi : rockets, 0);
+    const bool isMulti = multi > 0 || (rockets <= 0 && gren == 2);
+    make(out[0], isMulti, isMulti ? multi : rockets, 0);
     return 1;
 }
 
@@ -164,6 +169,9 @@ int listHolsters(int hand, Choice* out, int max)
     const flatholster::HolsterSlot held = flatholster::handSlot(hand);
     const bool handFull = held.name[0] != 0;
     const bool immersive = vr_holster_mode.value == 0.f;
+    // (grenhold: a hand grenade in the hand isn't a carried prop: EMPTY HAND puts it back in the pouch, a holster's weapon
+    // comes into the hand after it, BACK POUCH swaps its kind; armed, lit all the same: the server's refusal says why.)
+    const int gren = flatholster::handGrenade(hand);
     int n = 0;
     if(n < max)
     {
@@ -171,8 +179,8 @@ int listHolsters(int hand, Choice* out, int max)
         c = Choice{};
         c.key = -1;
         copyText(c.title, sizeof(c.title), "EMPTY HAND");
-        copyText(c.name, sizeof(c.name), handFull ? "put away" : "");
-        c.usable = handFull;
+        copyText(c.name, sizeof(c.name), handFull ? "put away" : gren == 3 ? "armed!" : gren ? "put back" : "");
+        c.usable = handFull || gren != 0;
         c.icon = hand == HAND_MAIN ? gadget::MenuIcon::HandRight : gadget::MenuIcon::HandLeft;
     }
     for(const int i : holsterOrder)
@@ -183,7 +191,7 @@ int listHolsters(int hand, Choice* out, int max)
         }
         if(i == keyGrenade)
         {
-            n += listGrenades(out + n, max - n);
+            n += listGrenades(out + n, max - n, gren);
             continue;
         }
         Choice& c = out[n++];
@@ -196,7 +204,7 @@ int listHolsters(int hand, Choice* out, int max)
             const bool drop = i == keyDrop, flip = i == keyFlip;
             copyText(c.title, sizeof(c.title), drop ? "DROP" : flip ? "FLIP GRIP" : "UNLOAD");
             c.usable = drop ? flatholster::canDrop(hand) : flip ? flatholster::canFlip(hand) : flatholster::canUnload(hand);
-            copyText(c.name, sizeof(c.name), handFull ? held.name : drop && c.usable ? "carried" : "");
+            copyText(c.name, sizeof(c.name), handFull ? held.name : drop && c.usable ? (gren ? "grenade" : "carried") : "");
             c.icon = drop ? gadget::MenuIcon::Drop : flip ? gadget::MenuIcon::FlipGrip : gadget::MenuIcon::Unload;
             continue;
         }
@@ -393,7 +401,9 @@ struct Test
     bool gren{false};     // "grenade" / "flatgrenade": the grenade entry's (grenadeTestStep)
     int shotgunAt{-1};    // flat: the shotgun's holster
     int firstWid{0};      // flat: the weapon 2's first tap drew (the first holstered)
-    int pickAt{-1};       // flat: its holster, the wheel's pick
+    int pickAt{-1};       // flat: its holster, the wheel's pick (grenade: the nailgun's holster)
+    int r0{0}, m0{0};     // grenade: the rockets and multi-rockets with a grenade in the hand (grenhold)
+    int stow0{0};         // grenade: QC's put-backs (and refusals) before (stowCode)
     int opens{0};         // flat: the wheel's opens before a step
     int walk{0};          // the left stick's walk with the wheel open: frames walked
     glm::vec2 cursor0{0.f}; // ... the cursor before it
@@ -790,7 +800,10 @@ void flatTestStep()
 // each half lights it; let go on CLUSTER: that hand holds a multi-grenade (its gun holstered), 2 multi-rockets left; still
 // held a while later (the headset's: without its grip); its fire button (flat: LMB; headset: the trigger) arms it, then
 // the throw (flat: LMB held, let go; headset: the grip pressed and let go): gone from the hand, still 2 left; the other
-// hand (holding a gun) on GRENADE: a grenade in that hand, its gun holstered, 4 rockets left; flat: G puts it back (5).
+// hand (holding a gun) on GRENADE: a grenade in that hand, its gun holstered, 4 rockets left; flat: G puts it back (5)
+// and the wheel gives another. grenhold: with it in the hand, EMPTY HAND and CLUSTER lit; CLUSTER swaps it (the rocket
+// back, a multi-rocket out); the nailgun's holster: the nailgun in the hand, the multi-grenade back; GRENADE again, armed
+// by its fire button: EMPTY HAND says "armed!", picked, refused (still armed in the hand, no rocket back); thrown away.
 // Ends "weaponwheel_test: N passed, M failed".
 
 // What the first player's hand `hand` holds from the pouch (QC VR_Wheel_TestHeld: 0 nothing, 1 a grenade, 2 a
@@ -803,6 +816,17 @@ void flatTestStep()
     }
     const progs::ServerVm vm;
     return static_cast<int>(progs::qcFloat(progs::findFunction("VR_Wheel_TestHeld"), static_cast<float>(hand)));
+}
+
+// The hand grenades a pick put back, + 1000 x the put-backs refused (QC VR_Wheel_TestStow; grenhold). Single player.
+[[nodiscard]] int stowCode()
+{
+    if(!sv.active)
+    {
+        return -1;
+    }
+    const progs::ServerVm vm;
+    return static_cast<int>(progs::qcFloat(progs::findFunction("VR_Wheel_TestStow")));
 }
 
 // The pouch's ammo: the player's rockets and multi-rockets, by "give r" and "give m" (the scene's way; Host_Give_f's m
@@ -998,7 +1022,7 @@ void grenadeTestStep()
                 va("the other hand on GRENADE: a grenade in it, its gun holstered; %d rockets left", rocketsLeft()));
             if(!test.flat)
             {
-                test.step = 99; // (the headset's ends here)
+                test.step = 20; // (the headset's: on with it in the hand)
                 break;
             }
             Cbuf_AddText("impulse 57\n"); // (G: the unarmed one back in the pouch)
@@ -1008,6 +1032,138 @@ void grenadeTestStep()
         if(waitFor(heldCode(second) == 0 && rocketsLeft() == 5, "G puts it back"))
         {
             result(true, "G puts the unarmed grenade back: 5 rockets");
+            wheelKey(second, true); // (flat: another one from the wheel for the steps below)
+        }
+        break;
+    case 18:
+        (void)waitFor(ws().hand == second, "the wheel open again");
+        break;
+    case 19:
+        if(pointed(choiceOfKey(keyGrenade), "GRENADE lit again"))
+        {
+            wheelKey(second, false);
+        }
+        break;
+    // grenhold (his words 2026-11-28): a hand grenade in the hand isn't a carried prop to the wheel. Unarmed, BACK POUCH's
+    // other kind swaps it, a holster's gun puts it back; armed, EMPTY HAND is refused (it stays, nothing comes back).
+    case 20:
+        if(waitFor(ws().hand < 0 && heldCode(second) % 100 == 1 && (!test.flat || heldCode(second) / 100 == 2),
+               "a grenade held, unarmed"))
+        {
+            test.r0 = rocketsLeft();
+            test.m0 = multiLeft();
+            test.stow0 = stowCode();
+            wheelKey(second, true);
+        }
+        break;
+    case 21:
+        if(waitFor(ws().hand == second, "the wheel open with a grenade in the hand"))
+        {
+            const int e = choiceOfKey(-1), m = choiceOfKey(keyMultiGrenade);
+            result(e >= 0 && ws().choices[e].usable && m >= 0 && ws().choices[m].usable,
+                va("a grenade in the hand: EMPTY HAND lit (\"%s\"), CLUSTER lit", e >= 0 ? ws().choices[e].name : "?"));
+        }
+        break;
+    case 22:
+        if(pointed(choiceOfKey(keyMultiGrenade), "CLUSTER lit"))
+        {
+            wheelKey(second, false);
+        }
+        break;
+    case 23:
+        if(waitFor(ws().hand < 0 && heldCode(second) % 100 == 2 && (!test.flat || heldCode(second) / 100 == 2),
+               "the grenade swapped for a multi-grenade"))
+        {
+            result(rocketsLeft() == test.r0 + 1 && multiLeft() == test.m0 - 1,
+                va("CLUSTER with a grenade in the hand: swapped, the grenade back (%d rockets), %d multi-rockets left",
+                    rocketsLeft(), multiLeft()));
+            wheelKey(second, true);
+        }
+        break;
+    case 24:
+        if(waitFor(ws().hand == second, "the wheel open with a multi-grenade in the hand"))
+        {
+            test.pickAt = -1;
+            for(int i = 0; i < flatholster::holsterSlots; i++)
+            {
+                test.pickAt = test.pickAt < 0 && holsterStat(i) == WID_NAILGUN ? i : test.pickAt;
+            }
+        }
+        break;
+    case 25:
+        if(pointed(choiceOfKey(test.pickAt), "the nailgun's holster lit"))
+        {
+            wheelKey(second, false);
+        }
+        break;
+    case 26:
+        if(waitFor(ws().hand < 0 && handWeapon(second) == WID_NAILGUN, "the nailgun in the hand"))
+        {
+            result(heldCode(second) == 0 && multiLeft() == test.m0 && rocketsLeft() == test.r0 + 1,
+                va("the nailgun picked with a multi-grenade in the hand: the gun in it, the grenade back (%d multi-rockets)",
+                    multiLeft()));
+            wheelKey(second, true);
+        }
+        break;
+    case 27:
+        (void)waitFor(ws().hand == second, "the wheel open for a grenade to arm");
+        break;
+    case 28:
+        if(pointed(choiceOfKey(keyGrenade), "GRENADE lit for the armed one"))
+        {
+            wheelKey(second, false);
+        }
+        break;
+    case 29:
+        if(waitFor(ws().hand < 0 && heldCode(second) % 100 == 1 && handWeapon(second) == WID_FIST &&
+                       (!test.flat || heldCode(second) / 100 == 2),
+               "a grenade to arm"))
+        {
+            Cbuf_AddText(test.flat ? "+offhandattack\n" : "vr_mock_button main trigger 1\n");
+        }
+        break;
+    case 30:
+        if(++test.mark == 4)
+        {
+            Cbuf_AddText(test.flat ? "-offhandattack\n" : "vr_mock_button main trigger 0\n");
+        }
+        if(waitFor(test.mark > 4 && heldCode(second) % 100 >= 10, "armed in the second hand"))
+        {
+            test.r0 = rocketsLeft();
+            wheelKey(second, true);
+        }
+        break;
+    case 31:
+        if(waitFor(ws().hand == second, "the wheel open with an armed grenade"))
+        {
+            const int e = choiceOfKey(-1);
+            result(e >= 0 && ws().choices[e].usable && q_strcasecmp(ws().choices[e].name, "armed!") == 0,
+                va("an armed grenade: EMPTY HAND says \"%s\"", e >= 0 ? ws().choices[e].name : "?"));
+        }
+        break;
+    case 32:
+        if(pointed(choiceOfKey(-1), "EMPTY HAND lit"))
+        {
+            wheelKey(second, false);
+        }
+        break;
+    case 33:
+        // (a counted few frames for the pick to reach the server and nothing to come of it)
+        if(waitFor(ws().hand < 0 && ++test.mark >= 10, "the pick sent"))
+        {
+            result(heldCode(second) % 100 >= 10 && rocketsLeft() == test.r0 && stowCode() / 1000 > test.stow0 / 1000,
+                va("EMPTY HAND with an armed grenade: refused, still in the hand (%d), %d rockets", heldCode(second),
+                    rocketsLeft()));
+            Cbuf_AddText(test.flat ? "+offhandattack\n" : "vr_mock_button main grip 0\n"); // (thrown away)
+        }
+        break;
+    case 34:
+        if(++test.mark == 30 && test.flat)
+        {
+            Cbuf_AddText("-offhandattack\n");
+        }
+        if(waitFor(heldCode(second) % 100 == 0, "the armed one thrown"))
+        {
             test.step = 99;
         }
         break;
@@ -1567,6 +1723,22 @@ bool flatMouse(int dx, int dy)
     return true;
 }
 
+bool flatStick(float x, float y)
+{
+    if(ws().hand < 0 || !ws().flat)
+    {
+        return false;
+    }
+    // A gamepad's stick (padflat) points at a slot: past vr_pad_wheel_deadzone the cursor on the ring that way; back in the
+    // middle it stays on the slot it last pointed at (letting go of the shoulder button takes it).
+    const float len = za::sqrt(x * x + y * y);
+    if(len > za::clamp(vr_pad_wheel_deadzone.value, 0.05f, 0.95f))
+    {
+        ws().cursor = ringMid + glm::vec2{x / len * ringR.x, y / len * ringR.y};
+    }
+    return true;
+}
+
 bool escape()
 {
     if(ws().hand < 0 || !ws().flat)
@@ -1629,6 +1801,7 @@ void render()
     {
         return;
     }
+    QVR_PROFILE("weapon wheel");
     gadget::HolsterMenuSlot slots[maxChoices]{};
     gadget::HolsterMenuButton buttons[maxChoices]{};
     int slotCount = 0, buttonCount = 0;

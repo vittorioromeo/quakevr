@@ -1674,8 +1674,10 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
     {
         return;
     }
-    // A gun held in two hands comes in to where the other arm reaches its grip: across the chest, and nearer.
-    s.pos[st().holding] += reachPull(s, st().helping, s.grip2H[st().holding] + (s.pos[st().holding] - s.placedFrom[st().holding]), share);
+    // A gun held in two hands comes in to where the other arm reaches its grip: across the chest, and nearer. (Not as far
+    // while V thrusts its bayonet: both hands drive it out, the arms' stretch taking the rest: bayofix.)
+    s.pos[st().holding] += reachPull(s, st().helping, s.grip2H[st().holding] + (s.pos[st().holding] - s.placedFrom[st().holding]),
+        share * (1.f - flatplay::bayonetDrive2H(st().holding)));
     // The hotspot as the view placed it last frame, carried to this frame's pose with the holding hand.
     const glm::vec3 grip = s.grip2H[st().holding] + (s.pos[st().holding] - s.placedFrom[st().holding]);
     const glm::vec3 out = st().helping == HAND_OFF ? reach * share : glm::vec3{0.f}; // E still reaches out with it
@@ -1789,7 +1791,11 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     // dual wielding (the other hand holds), not a melee weapon (no sight line: aimsAtPoint), not a gun with no hotspot: one hand.
     // (A gun on its reload trip to the hip has no stance: the free hand hangs relaxed until it is back; vr_flatreload.cpp.)
     // (Nor while the free hand is away with the quick grenade, vr_flatgrenade.cpp: the gun is held one-handed till it is back.)
-    const bool twoHandGun = st().holding >= 0 && st().helping >= 0 && aimsAtPoint(s, st().holding) && emptyHand(st().helping) &&
+    // (The procedural reload's free hand counts as empty for the whole trip, the round it carries too: the stance taken off
+    // as a pair came into the hand and put back as it went in pushed the gun ~4 units forward and snapped it back each trip,
+    // his "jolt" after the tilt-in, prlfix 2026-11-28; vr_flatprocreload.cpp.)
+    const bool twoHandGun = st().holding >= 0 && st().helping >= 0 && aimsAtPoint(s, st().holding) &&
+                            (emptyHand(st().helping) || flatprocreload::busy(st().helping)) &&
                             st().spot[st().holding] >= 0 && !flatreload::busy(st().holding) && !flatgrenade::letsGo(st().holding, st().helping) &&
                             !flatswim::freesHand(); // (nor swimming: the free hand swims, vr_flatswim.cpp)
     const bool pistol = twoHandGun && glm::length(st().muzzleLocal[st().holding]) < longGunMuzzle;
@@ -2290,7 +2296,8 @@ glm::vec3 gripPull(const hands::State& s, int h, float slide)
     }
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.rot[h], fwd, right, up);
-    return reachPull(s, st().helping, s.pos[h] + fwd * local.x + right * local.y + up * local.z, st().pinShare);
+    return reachPull(s, st().helping, s.pos[h] + fwd * local.x + right * local.y + up * local.z,
+        st().pinShare * (1.f - flatplay::bayonetDrive2H(h)));
 }
 
 void noteDrawn(const hands::State& s)

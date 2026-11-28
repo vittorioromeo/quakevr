@@ -72,7 +72,11 @@ struct Written
     // the frame's writes gathered here and sent in one upload per band of bandRows rows, not one per surface: a tiler's
     // driver copies or waits for a texture a frame in flight still reads at every upload.
     za::Vector<unsigned> atlas;
-    auto members() { return mem::list(blocks, surfStamp, atlas); }
+    // questopt (vr_gl_world_dlmap_keep): per surface the hash of the lights it was lit with last (their place, size,
+    // colour, minlight, spot, in order; the falloff's choices), 0 none: lit again with the same lights the frame after,
+    // its block in the texture is what it would be made again (the same sums, bit for bit), so neither summed nor sent
+    za::Vector<za::U64> surfHash;
+    auto members() { return mem::list(blocks, surfStamp, atlas, surfHash); }
 };
 mem::Cache<Written> written{"dlightmap blocks", mem::MapChange};
 
@@ -85,7 +89,8 @@ struct FrameScratch
     za::Vector<Block> keep;          // the blocks still lit
     za::Vector<glm::vec3> sums;      // a surface's added light, texel by texel
     za::Vector<unsigned> texels;     // a block to upload
-    auto members() { return mem::list(lights, local, pairs, keep, sums, texels); }
+    za::Vector<glm::ivec2> reach;    // a surface's pairs whose light reaches its texels' box (vr_gl_world_dlmap_reach)
+    auto members() { return mem::list(lights, local, pairs, keep, sums, texels, reach); }
 };
 mem::Scratch<FrameScratch> scratch{"dlightmap"};
 
@@ -94,6 +99,60 @@ bool frameActive = false; // this frame's lights are in the lightmap (the views 
 int frameStamp = 0;       // counts the builds (surfStamp's values)
 const gltexture_t* madeFor = nullptr; // the lightmap texture the blocks were written into
 double lastMs = 0.0;      // the last build's CPU time (vr_gl_world_dlmap_info)
+bool keepValid = false; // seat-shared: the renderer's lit-world cache (this frame may keep last frame's blocks (the atlas, when batching, mirrors the texture))
+// vr_gl_world_dlmap_keep's counts (vr_gl_world_dlmap_info; 2: the check, the kept blocks made again and compared)
+struct KeepStats
+{
+    int kept = 0, lit = 0, added = 0; // the last build's surfaces kept / summed / of those, given light
+    long long checked = 0, differed = 0;
+};
+KeepStats keepStats; // seat-shared: the renderer's lit-world cache's stats
+// vr_gl_world_dlmap_reach's counts since the map began (vr_gl_world_dlmap_info): (surface, light) pairs, those kept
+struct ReachStats
+{
+    long long pairs = 0, kept = 0;
+    long long checked = 0, differed = 0; // 2: surfaces it would skip, and those of them that took light
+};
+ReachStats reachStats; // seat-shared: the renderer's lit-world cache's stats
+
+void forgetKept()
+{
+    for(za::U64& h : written.surfHash)
+    {
+        h = 0;
+    }
+}
+
+[[nodiscard]] za::U64 hashLights(const Light* lights, const glm::ivec2* first, const glm::ivec2* last, bool darkplaces, float angle)
+{
+    za::U64 h = 1469598103934665603ull;
+    const auto mix = [&h](float f) {
+        za::U32 u = 0;
+        ZA_MEMCPY(&u, &f, sizeof(u));
+        for(int i = 0; i < 4; i++)
+        {
+            h = (h ^ ((u >> (8 * i)) & 0xffu)) * 1099511628211ull;
+        }
+    };
+    mix(darkplaces ? 1.f : 0.f);
+    mix(angle);
+    for(const glm::ivec2* pr = first; pr != last; pr++)
+    {
+        const Light& l = lights[pr->y];
+        for(int i = 0; i < 3; i++)
+        {
+            mix(l.pos[i]);
+            mix(l.color[i]);
+        }
+        mix(l.radius);
+        mix(l.minlight);
+        for(int i = 0; i < 4; i++)
+        {
+            mix(l.spot[i]);
+        }
+    }
+    return h != 0 ? h : 1;
+}
 
 [[nodiscard]] bool wanted()
 {
@@ -264,6 +323,7 @@ void restoreAll()
         endUploads();
     }
     written.blocks.clear();
+    forgetKept();
 }
 
 // The surfaces of the world's BSP the sphere's box touches (walked as Quake's R_MarkLights).
@@ -337,6 +397,91 @@ void lightSurface(const msurface_t* s, const Light* lights, const glm::ivec2* fi
     {
         n = -n;
     }
+    const int index = static_cast<int>(s - cl.worldmodel->surfaces);
+    const lightmap_t& lm = lightmaps[s->lightmaptexturenum];
+    const int x0 = lm.xofs + s->light_s, y0 = lm.yofs + s->light_t;
+    if(x0 < 0 || y0 < 0 || x0 + smax > lightmap_width || y0 + tmax > lightmap_height)
+    {
+        return;
+    }
+    // vr_gl_world_dlmap_reach (questopt): the lights whose sphere misses the box round the surface's texels (the corners
+    // of their grid, 1 unit more) left out: no texel of it is within their radius, so they add nothing (collectWorld takes
+    // every surface on a node's plane the sphere crosses, however far along the plane: in hip1m1 9 in 10 lit nothing)
+    const glm::ivec2* reachFirst = first;
+    const glm::ivec2* reachLast = last;
+    bool reachSkipped = false;
+    if(vr_gl_world_dlmap_reach.value != 0.f)
+    {
+        const glm::vec3 cs = ds * static_cast<float>(smax - 1), ct = dt * static_cast<float>(tmax - 1);
+        const glm::vec3 lo = glm::min(glm::min(p0, p0 + cs), glm::min(p0 + ct, p0 + cs + ct)) - glm::vec3(1.f);
+        const glm::vec3 hi = glm::max(glm::max(p0, p0 + cs), glm::max(p0 + ct, p0 + cs + ct)) + glm::vec3(1.f);
+        za::Vector<glm::ivec2>& reach = scratch.reach;
+        reach.clear();
+        for(const glm::ivec2* pr = first; pr != last; pr++)
+        {
+            const Light& l = lights[pr->y];
+            const glm::vec3 q = glm::clamp(l.pos, lo, hi) - l.pos;
+            // ... and those behind the face (half a unit or more: every texel's n.l is then below 0 for all the sums'
+            // rounding) when the falloff gives the faces turned away nothing (vr_dlight_angle 1, no minlight)
+            const float facing = darkplaces ? 1.f + angle * (l.minlight - 1.f) : 1.f - angle;
+            const bool behind = facing <= 0.f && glm::dot(n, l.pos - p0) < -0.5f;
+            // ... and a spot's (the flashlight's: radius 1000, ~3,800 surfaces paired, ~430 in its cone) whose cone misses
+            // the sphere round that box: the texels' spot factor is 0 there (k = w + s.v/d >= 1 with v = light - texel, i.e.
+            // the angle from the cone's axis s past its edge, cos (w - 1)/|s|), with a little to spare for the rounding
+            bool outside = false;
+            const float sl = glm::length(glm::vec3(l.spot));
+            if(sl > 1e-6f)
+            {
+                const glm::vec3 c = (lo + hi) * 0.5f;
+                const float rr = glm::length(hi - c);
+                const glm::vec3 dc = c - l.pos;
+                const float dd = glm::length(dc);
+                if(dd > rr * 1.001f + 0.01f)
+                {
+                    const float cosA = glm::dot(glm::vec3(l.spot) / sl, dc / dd);
+                    const float sinB = rr / dd;
+                    const float cosB = za::sqrt(za::max(1.f - sinB * sinB, 0.f));
+                    const float sinA = za::sqrt(za::max(1.f - cosA * cosA, 0.f));
+                    const float cosEdge = (l.spot.w - 1.f) / sl;
+                    // past the edge: the angle A - B (the box's nearest direction to the axis) beyond it
+                    outside = cosA < cosB && cosA * cosB + sinA * sinB < cosEdge - 1e-3f;
+                }
+            }
+            if(glm::dot(q, q) < l.radius * l.radius && !behind && !outside)
+            {
+                reach.pushBack(*pr);
+            }
+        }
+        reachStats.pairs += static_cast<long long>(last - first);
+        reachStats.kept += static_cast<long long>(reach.size());
+        if(reach.empty() && vr_gl_world_dlmap_reach.value != 2.f)
+        {
+            written.surfHash[static_cast<za::SizeT>(s - cl.worldmodel->surfaces)] = 0;
+            return;
+        }
+        reachSkipped = reach.empty(); // (2: the check: such a surface summed all the same; it must add nothing)
+        if(!reachSkipped)
+        {
+            reachFirst = reach.data();
+            reachLast = reach.data() + reach.size();
+        }
+    }
+    first = reachFirst;
+    last = reachLast;
+    // vr_gl_world_dlmap_keep: the same lights as last frame on a block still in the texture: kept as it is
+    const float keepMode = vr_gl_world_dlmap_keep.value;
+    za::U64& lastHash = written.surfHash[static_cast<za::SizeT>(index)];
+    const za::U64 hash = keepMode != 0.f && keepValid ? hashLights(lights, first, last, darkplaces, angle) : 0;
+    const bool same = hash != 0 && hash == lastHash && written.surfStamp[static_cast<za::SizeT>(index)] == frameStamp - 1;
+    if(same && keepMode != 2.f)
+    {
+        scratch.keep.pushBack({index, x0, y0, smax, tmax});
+        written.surfStamp[static_cast<za::SizeT>(index)] = frameStamp;
+        keepStats.kept++;
+        return;
+    }
+    keepStats.lit++;
+    lastHash = 0;
 
     za::Vector<glm::vec3>& sums = scratch.sums;
     sums.assign(static_cast<za::SizeT>(smax) * static_cast<za::SizeT>(tmax), glm::vec3(0.f));
@@ -390,30 +535,41 @@ void lightSurface(const msurface_t* s, const Light* lights, const glm::ivec2* fi
             }
         }
     }
+    if(reachSkipped)
+    {
+        reachStats.checked++;
+        reachStats.differed += any ? 1 : 0;
+    }
     if(!any)
     {
         return;
     }
+    keepStats.added++;
 
     // C5g: the block in the light texture, at the surface's first style's place in the lightmap (the shader reads it
     // where it reads that style), the light as the per-pixel loop's dynamic_light, packed (packLight).
     const int w = smax;
-    const lightmap_t& lm = lightmaps[s->lightmaptexturenum];
-    const int x0 = lm.xofs + s->light_s, y0 = lm.yofs + s->light_t;
-    if(x0 < 0 || y0 < 0 || x0 + w > lightmap_width || y0 + tmax > lightmap_height)
-    {
-        return;
-    }
     za::Vector<unsigned>& texels = scratch.texels;
     texels.resize(static_cast<za::SizeT>(w) * static_cast<za::SizeT>(tmax));
     for(za::SizeT i = 0; i < texels.size(); i++)
     {
         texels[i] = packLight(sums[i]);
     }
+    if(same && batching) // (keep 2: the block kept would be these texels: the texture's copy compared)
+    {
+        bool differs = false;
+        for(int r = 0; r < tmax && !differs; r++)
+        {
+            differs = ZA_MEMCMP(written.atlas.data() + static_cast<za::SizeT>(y0 + r) * lightmap_width + x0,
+                          texels.data() + static_cast<za::SizeT>(r) * w, static_cast<za::SizeT>(w) * sizeof(unsigned)) != 0;
+        }
+        keepStats.checked++;
+        keepStats.differed += differs ? 1 : 0;
+    }
     upload(x0, y0, w, tmax, texels.data());
-    const int index = static_cast<int>(s - cl.worldmodel->surfaces);
     scratch.keep.pushBack({index, x0, y0, w, tmax});
     written.surfStamp[static_cast<za::SizeT>(index)] = frameStamp;
+    lastHash = hash;
 }
 
 // The pairs sorted by surface, each surface lit once with its lights.
@@ -447,12 +603,22 @@ void build()
         atlasValid = false;
         madeFor = lightmap_texture;
         makeTexture();
+        forgetKept();
     }
+    // (kept blocks: the texture holds them; batched, the atlas too, unless it is made afresh (dark) this frame: then
+    // its bands would send the dark copy over them)
+    const bool atlasWas = atlasValid;
     beginUploads();
+    keepValid = !batching || atlasWas;
+    keepStats.kept = keepStats.lit = keepStats.added = 0;
     za::Vector<int>& stamps = written.surfStamp;
     if(stamps.size() != static_cast<za::SizeT>(cl.worldmodel->numsurfaces))
     {
         stamps.assign(static_cast<za::SizeT>(cl.worldmodel->numsurfaces), 0);
+    }
+    if(written.surfHash.size() != stamps.size())
+    {
+        written.surfHash.assign(stamps.size(), 0);
     }
     const bool darkplaces = vr_dlight_falloff.value != 0.f;
     const float angle = za::clamp(vr_dlight_angle.value, 0.f, 1.f);
@@ -601,6 +767,17 @@ void info_f()
         glprogs.world_unlit[0][0] ? "" : " (no unlit world form: the ES profile only)");
     Con_Printf("vr_gl_world_dlmap: %d uploads, %d texels (vr_gl_world_dlmap_batch %g)\n", uploadsLast, uploadedTexels,
         vr_gl_world_dlmap_batch.value);
+    Con_Printf("vr_gl_world_dlmap_keep %g: last build %d surfaces kept, %d summed (%d of them given light); check: %lld "
+               "compared, %lld differed\n",
+        vr_gl_world_dlmap_keep.value, keepStats.kept, keepStats.lit, keepStats.added, keepStats.checked, keepStats.differed);
+    Con_Printf("vr_gl_world_dlmap_reach %g: %lld of %lld surface-light pairs reach the texels; check: %lld skipped surfaces "
+               "summed, %lld took light\n",
+        vr_gl_world_dlmap_reach.value, reachStats.kept, reachStats.pairs, reachStats.checked, reachStats.differed);
+    for(const Light& l : scratch.lights)
+    {
+        Con_Printf("  light at %.1f %.1f %.1f radius %.1f colour %.3f %.3f %.3f minlight %.2f spot %.2f %.2f %.2f %.2f\n", l.pos.x,
+            l.pos.y, l.pos.z, l.radius, l.color.x, l.color.y, l.color.z, l.minlight, l.spot.x, l.spot.y, l.spot.z, l.spot.w);
+    }
 }
 
 // vr_gl_world_dlmap_probe x y z [min] | end (questrender; Misc/quakevr/darkflash_test.sh): the light the last build

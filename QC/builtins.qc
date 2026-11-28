@@ -291,6 +291,13 @@ float(entity g, entity p, entity pL, float fl, float bytes, vector gx, vector gy
 // VR_AGP_PoseQC (vr_agpose_native; vr_builtins_agpose.inc). FALSE: not done (vr_agpose_native 0, a case it leaves to
 // QuakeC: the Pose Studio's, the Grip Editor's, the toolgun's ghost, debug prints): VR_AGP_PoseQC does it.
 float(entity g, entity p) agpose = #0;
+// agstruck: VR_AG_WeaponStruck answered by the engine when nothing comes at weapon `p` of `g` (nothing moving near it, no
+// roll due, no tug, no player within reach): 0, QuakeC's writes made; -1: VR_AG_WeaponStruckQC's to do
+// (vr_qc_native_think; vr_builtins_agthink.inc).
+float(entity g, entity p) agstruck = #0;
+// agparry: VR_AGPar_Frame answered by the engine while nothing comes at armed humanoid `g` (its guard idle, no raise to
+// read, no player within reach, no monster's melee begun): TRUE, QuakeC's writes made; FALSE: VR_AGPar_FrameQC's to do.
+float(entity g) agparry = #0;
 // AD sword kind's (VR_ADMELEE_*) blade at share f of the line from the hand to its tip, off that line (shares of its
 // length): x along the line's normal in the blade's plane (the model's +y crossed with the line), y along its +y; z 1
 // if it is curved, else 0 (vr_admelee.cpp admelee::bend; QC VR_Melee_At).
@@ -697,6 +704,7 @@ void(entity e, float zone, vector lo, vector hi, float radius) debughitzone = #0
 float(entity e, vector p, vector dir) playerhitzone = #0;
 // (leanaim) Sample point i of player e's drawn body (world): 0 the head's centre, 1 the neck, 2 the torso's middle, 3 and
 // 4 the shoulders (off, main), 5 and 6 the hands; '0 0 0': no shape (vr_hit_player_shape 0) or no such point.
+// 16 + i: point i of the shape the last call made for e (for points read with no change to him between; questopt2).
 vector(entity e, float i) playerbodypoint = #0;
 // Debug > Show Disarm Volumes (vr_debug_disarm; vr_disarmviz.qc, the engine's vr_disarmviz.cpp): a shape this server
 // frame (world units: a capsule of `radius` round a..b, a sphere where they meet; `kind` VR_DV_*), and a note: `what` 0

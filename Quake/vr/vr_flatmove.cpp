@@ -3037,10 +3037,95 @@ cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, 
 const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Crouch / slide", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Grab / pull",
     "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Throw / drop", "Bullet time", "Flashlight", "Gear lights", "Attach / detach", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
 static_assert(za::getArraySize(flatKeyList) == za::getArraySize(flatKeyLabels), "a label for every flat key");
-static_assert(flatplay::keySlots == VR_FLATKEY_SLOTS, "the menu's slots are the keys'");
+static_assert(flatplay::keySlots == VR_FLATKEY_SLOTS + 1, "the menu's slots are the keyboard's, a gamepad button after them");
+
+int rawKeyNums(const cvar_t& c, int (&out)[flatplay::keySlots]);
+
+// split21: a seat 2-4's own gamepad buttons for the flat keys (padflat's layout; its Controller Bindings screen edits them,
+// not the cvars, which stay seat 1's and the keyboard's): once its player changed one, each flat key's button is the
+// seat's (-1 none) in place of the cvar's. By seat number, saved as `seat_flatkey N <cvar> <button>` after its seat_bind
+// lines (Key_SeatWriteBindings); `seat_unbindall N` empties it (the cvars' again).
+constexpr int flatKeyMost = 64;
+struct SeatPadKeys
+{
+    bool has{false};
+    int pad[flatKeyMost]{};
+};
+SeatPadKeys seatPadKeys[seat::maxSeats]; // seat-shared: each seat's preferences by seat number (saved; read before a join)
+
+[[nodiscard]] int flatKeyIndex(const cvar_t& c)
+{
+    for(int i = 0; i < static_cast<int>(za::getArraySize(flatKeyList)) && i < flatKeyMost; i++)
+    {
+        if(flatKeyList[i] == &c)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// The current seat's own buttons (2-4 with edits), -1: the cvars'.
+[[nodiscard]] int seatPadOwner()
+{
+    const int s = seat::current().index;
+    return s > 0 && s < seat::maxSeats && seatPadKeys[s].has ? s : -1;
+}
+
+// Seat s's buttons made its own, from the cvars' (its first edit).
+void seatPadKeysFromCvars(int s)
+{
+    SeatPadKeys& sp = seatPadKeys[s];
+    sp.has = true;
+    for(int i = 0; i < flatKeyMost; i++)
+    {
+        sp.pad[i] = -1;
+        if(i < static_cast<int>(za::getArraySize(flatKeyList)))
+        {
+            int keys[flatplay::keySlots];
+            const int n = rawKeyNums(*flatKeyList[i], keys);
+            for(int k = 0; k < n; k++)
+            {
+                sp.pad[i] = sp.pad[i] < 0 && flatplay::isPadKey(keys[k]) ? keys[k] : sp.pad[i];
+            }
+        }
+    }
+}
+
+// The keys a key cvar names, in its order, for the current seat: a seat 2-4 with buttons of its own has its button in
+// place of the cvar's (split21); out past the last: -1.
+int flatKeyNums(const cvar_t& c, int (&out)[flatplay::keySlots])
+{
+    const int n = rawKeyNums(c, out);
+    const int s = seatPadOwner();
+    const int idx = s >= 0 ? flatKeyIndex(c) : -1;
+    if(idx < 0)
+    {
+        return n;
+    }
+    int m = 0;
+    for(int i = 0; i < n; i++)
+    {
+        if(!flatplay::isPadKey(out[i]))
+        {
+            out[m++] = out[i];
+        }
+    }
+    const int pad = seatPadKeys[s].pad[idx];
+    if(pad >= 0)
+    {
+        m = za::min(m, flatplay::keySlots - 1);
+        out[m++] = pad;
+    }
+    for(int i = m; i < flatplay::keySlots; i++)
+    {
+        out[i] = -1;
+    }
+    return m;
+}
 
 // The keys a key cvar names, in its order (a name Key_StringToKeynum does not know: none); out past the last: -1.
-int flatKeyNums(const cvar_t& c, int (&out)[flatplay::keySlots])
+int rawKeyNums(const cvar_t& c, int (&out)[flatplay::keySlots])
 {
     int n = 0;
     const char* s = c.string;
@@ -3122,8 +3207,25 @@ bool qvr::flatplay::keyHeld(const cvar_t& c)
 
 void qvr::flatplay::setKey(cvar_t& c, int slot, int key)
 {
+    // The keyboard's slots (Options > Controls, the VR menu's key rows): the gamepad's button kept after them (padflat); a
+    // gamepad button given is the action's button instead (setPadKey).
+    if(key > 0 && isPadKey(key))
+    {
+        setPadKey(c, key);
+        return;
+    }
+    const int pad = keyNumPad(c);
+    int all[keySlots];
+    const int total = flatKeyNums(c, all);
     int keys[keySlots];
-    int n = flatKeyNums(c, keys);
+    int n = 0;
+    for(int i = 0; i < total; i++)
+    {
+        if(!isPadKey(all[i]) && n < keySlots - 1)
+        {
+            keys[n++] = all[i];
+        }
+    }
     const bool valid = key > 0 && key < MAX_KEYS;
     // (one key never in both slots: the action has it already, nothing changes)
     for(int i = 0; valid && i < n; i++)
@@ -3148,11 +3250,15 @@ void qvr::flatplay::setKey(cvar_t& c, int slot, int key)
             n--;
         }
     }
-    else if(valid && n < keySlots)
+    else if(valid && n < keySlots - 1)
     {
         keys[n++] = key;
     }
-    char value[64] = "";
+    if(pad >= 0)
+    {
+        keys[n++] = pad;
+    }
+    char value[96] = "";
     for(int i = 0; i < n; i++)
     {
         q_strlcat(value, i ? " " : "", sizeof(value));
@@ -3165,6 +3271,223 @@ void qvr::flatplay::setKey(cvar_t& c, int slot, int key)
 za::Span<cvar_t* const> qvr::flatplay::keyCvars()
 {
     return flatKeyList;
+}
+
+bool qvr::flatplay::isPadKey(int key)
+{
+    return key >= K_GAMEPAD_BEGIN && key < K_GAMEPAD_END;
+}
+
+int qvr::flatplay::keyNumKeyboard(const cvar_t& c, int slot)
+{
+    int keys[keySlots];
+    const int n = flatKeyNums(c, keys);
+    for(int i = 0, seen = 0; i < n; i++)
+    {
+        if(!isPadKey(keys[i]) && seen++ == slot)
+        {
+            return keys[i];
+        }
+    }
+    return -1;
+}
+
+int qvr::flatplay::keyNumPad(const cvar_t& c)
+{
+    int keys[keySlots];
+    const int n = flatKeyNums(c, keys);
+    for(int i = 0; i < n; i++)
+    {
+        if(isPadKey(keys[i]))
+        {
+            return keys[i];
+        }
+    }
+    return -1;
+}
+
+namespace
+{
+// The keys `keys[0 .. n)` written into `c` (as setKey writes them: the default's spelling where they are its keys).
+void writeKeys(cvar_t& c, const int* keys, int n)
+{
+    // split21: a seat 2-4 (its Controller Bindings screen): its own button, the cvar (seat 1's, the keyboard's) kept
+    const int s = seat::current().index;
+    const int idx = s > 0 && s < seat::maxSeats ? flatKeyIndex(c) : -1;
+    if(idx >= 0)
+    {
+        if(!seatPadKeys[s].has)
+        {
+            seatPadKeysFromCvars(s);
+        }
+        int pad = -1;
+        for(int i = 0; i < n; i++)
+        {
+            pad = pad < 0 && flatplay::isPadKey(keys[i]) ? keys[i] : pad;
+        }
+        seatPadKeys[s].pad[idx] = pad;
+        return;
+    }
+    char value[96] = "";
+    for(int i = 0; i < n; i++)
+    {
+        q_strlcat(value, i ? " " : "", sizeof(value));
+        q_strlcat(value, Key_KeynumToString(keys[i]), sizeof(value));
+    }
+    Cvar_SetQuick(&c, c.default_string && !q_strcasecmp(c.default_string, value) ? c.default_string : value);
+}
+
+// `c`'s keys without gamepad buttons (or without `only` alone, when >= 0), then `pad` added if there is room (>= 0).
+void replacePad(cvar_t& c, int pad, int only = -1)
+{
+    int keys[flatplay::keySlots];
+    const int n = flatKeyNums(c, keys);
+    int out[flatplay::keySlots], m = 0;
+    for(int i = 0; i < n; i++)
+    {
+        const bool drop = only >= 0 ? keys[i] == only : flatplay::isPadKey(keys[i]);
+        if(!drop)
+        {
+            out[m++] = keys[i];
+        }
+    }
+    if(pad >= 0)
+    {
+        if(m == flatplay::keySlots)
+        {
+            m--; // (full of keyboard keys: the gamepad's button takes the last place)
+        }
+        out[m++] = pad;
+    }
+    if(m != n || pad >= 0 || only >= 0)
+    {
+        writeKeys(c, out, m);
+    }
+}
+
+// The gamepad button of cvar `c`'s default value (-1 none).
+[[nodiscard]] int defaultPadKey(const cvar_t& c)
+{
+    cvar_t probe = c;
+    probe.string = c.default_string ? c.default_string : "";
+    return flatplay::keyNumPad(probe);
+}
+} // namespace
+
+void qvr::flatplay::setPadKey(cvar_t& c, int key)
+{
+    if(key >= 0 && isPadKey(key))
+    {
+        for(cvar_t* other : flatKeyList)
+        {
+            if(other != &c && keyIs(*other, key))
+            {
+                replacePad(*other, -1, key);
+            }
+        }
+    }
+    replacePad(c, key >= 0 && isPadKey(key) ? key : -1);
+}
+
+void qvr::flatplay::resetPadKeys()
+{
+    for(cvar_t* c : flatKeyList)
+    {
+        replacePad(*c, -1);
+    }
+    for(cvar_t* c : flatKeyList)
+    {
+        const int pad = defaultPadKey(*c);
+        if(pad >= 0)
+        {
+            setPadKey(*c, pad);
+        }
+    }
+}
+
+void qvr::flatplay::seatPadKeysClear(int s)
+{
+    if(s > 0 && s < seat::maxSeats)
+    {
+        seatPadKeys[s] = SeatPadKeys{};
+    }
+}
+
+bool qvr::flatplay::seatPadKeysOwn(int s)
+{
+    return s > 0 && s < seat::maxSeats && seatPadKeys[s].has;
+}
+
+void qvr::flatplay::writeSeatPadKeys(FILE* f, int s)
+{
+    if(!seatPadKeysOwn(s))
+    {
+        return;
+    }
+    for(int i = 0; i < static_cast<int>(za::getArraySize(flatKeyList)) && i < flatKeyMost; i++)
+    {
+        const int pad = seatPadKeys[s].pad[i];
+        fprintf(f, "seat_flatkey %d %s \"%s\"\n", s + 1, flatKeyList[i]->name, pad >= 0 ? Key_KeynumToString(pad) : "");
+    }
+}
+
+// seat_flatkey <2-4> <vr_flat_key_*> [button]: that seat's own gamepad button for a flat key ("" or none: no button).
+void qvr::flatplay::seatFlatKey_f()
+{
+    const int s = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) - 1 : -1;
+    const cvar_t* c = Cmd_Argc() > 2 ? Cvar_FindVar(Cmd_Argv(2)) : nullptr;
+    const int idx = c ? flatKeyIndex(*c) : -1;
+    if(s < 1 || s >= seat::maxSeats || idx < 0)
+    {
+        Con_Printf("seat_flatkey <2-%d> <vr_flat_key_...> [gamepad button] : that seat's own button for a flat key\n", seat::maxSeats);
+        return;
+    }
+    if(!seatPadKeys[s].has)
+    {
+        seatPadKeysFromCvars(s);
+    }
+    const int key = Cmd_Argc() > 3 && Cmd_Argv(3)[0] ? Key_StringToKeynum(Cmd_Argv(3)) : -1;
+    seatPadKeys[s].pad[idx] = key > 0 && isPadKey(key) ? key : -1;
+}
+
+void qvr::flatplay::fillPadDefaults()
+{
+    // Version 1: padflat's layout (FLATPLAY.md "A gamepad"). A flat key left at its default has it already (a sparse config).
+    constexpr int padDefaultsVersion = 1;
+    if(vr_flat_pad_defaults_version.value >= padDefaultsVersion)
+    {
+        return;
+    }
+    Cvar_SetValueQuick(&vr_flat_pad_defaults_version, static_cast<float>(padDefaultsVersion));
+    int filled = 0;
+    for(cvar_t* c : flatKeyList)
+    {
+        const int pad = defaultPadKey(*c);
+        if(pad < 0 || keyNumPad(*c) >= 0 || VR_FlatKeyFor(pad, -1) >= 0)
+        {
+            continue; // (none to give, a button of its own already, or the button another action's)
+        }
+        replacePad(*c, pad);
+        filled++;
+    }
+    // The alt layer's button and the scoreboard on it, Quake binds (a headset sends neither), where nothing is bound.
+    const struct
+    {
+        int key;
+        const char* command;
+    } binds[] = {{K_BACK, "+altmodifier"}, {K_RTHUMB_ALT, "+showscores"}};
+    for(const auto& b : binds)
+    {
+        if(!Key_Seat()->bindings[b.key] || !Key_Seat()->bindings[b.key][0])
+        {
+            Key_SetBinding(b.key, b.command);
+            filled++;
+        }
+    }
+    if(filled > 0)
+    {
+        Con_Printf("Quake VR: %d gamepad buttons given their flat-screen defaults (vr_flat_pad_defaults_version 1)\n", filled);
+    }
 }
 
 bool qvr::flatplay::keyActive(const cvar_t& c)
@@ -3192,7 +3515,7 @@ extern "C" const char* VR_FlatKeyCvarName(int i)
 
 extern "C" int VR_FlatKeyGet(int i, int slot)
 {
-    return flatKeyIndexOk(i) ? flatplay::keyNum(*flatKeyList[i], slot) : -1;
+    return flatKeyIndexOk(i) ? flatplay::keyNumKeyboard(*flatKeyList[i], slot) : -1; // (the keyboard's keys: setKey's slots)
 }
 
 extern "C" void VR_FlatKeySet(int i, int slot, int key)

@@ -703,6 +703,12 @@ void ikStretchReset()
         row(opt::vr_agrunt_speed),
         row(opt::vr_agrunt_speed_back),
         row(opt::vr_agrunt_speed_strafe),
+        header("Elites"),
+        toggle("Elites in Hard and Nightmare", vr_elite_spawn)
+            .help("On Hard and Nightmare, a few of the armed humanoids the map spawns are elites: much faster fire, "
+                  "reaction, aim and swings, 1.25x walking speed, more health, most pains shrugged off, and a dark gold "
+                  "dye that pulses. Their chance and factors: Debug > Tunables > Armed Humanoids > Elite. The toolgun's "
+                  "Armed Humanoid page makes elites at will; the Survival Arena's later waves send some (vr_elite_spawn)."),
         header("Melee Spacing"),
         toggle("Long Blades Keep Their Reach", vr_agrunt_mspace)
             .help("One holding a long melee weapon (a sword, a long sword) stops where its swing's tip still meets your "

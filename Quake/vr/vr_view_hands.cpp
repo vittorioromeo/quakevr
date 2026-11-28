@@ -8,6 +8,7 @@
 #include "vr_axestick.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_progs.hpp"
 #include "vr_physics.hpp"
@@ -4699,10 +4700,11 @@ void setupHand(const hands::State& s, int hand)
     }
 
     // A free hand pushed into the other hand's weapon stops at its surface (drawn only), held back a few centimetres at
-    // most: past that it passes into it until it is out again (vr_hand_collide).
+    // most: past that it passes into it until it is out again (vr_hand_collide). Not flat-screen play's procedural reload's
+    // hand (vr_flatprocreload.cpp): empty at the port after a round went in, it pushed the gun ~0.45 units, eased back (prlfix).
     pushOut(hand,
         own && gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand) &&
-            limbEase()[hand].blend <= 0.f && vh().embedPins[hand].weight <= 0.f,
+            limbEase()[hand].blend <= 0.f && vh().embedPins[hand].weight <= 0.f && !flatprocreload::busy(hand),
         pos, handRot, mirrored);
 
     // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a
@@ -4907,6 +4909,13 @@ void setupHand(const hands::State& s, int hand)
     // What the fingers wrap (vr_hand_fit): the gun in the hand, the other hand's gun it helps hold (its foregrip, a
     // sword's blade), a carried box or gib, the flashlight.
     Held held = heldBy(hp);
+    // Flat-screen play's procedural reload (prlmove): its free hand bringing the round to the port goes on the gun as drawn
+    // (the gun sways off its game pose on the move; the round is aimed at the port in the game's frame).
+    if(own)
+    {
+        flatprocreload::attachDrawn(s, hand, pos, handRot);
+        flatprocreload::noteDrawn(s, hand, pos, handRot);
+    }
     drawHand(hand, pos, handRot, mirrored, hide, held, motion);
     // (flatgrip3: the probe of a hand put on a pole's shaft above, measured as drawn: after the grasp's palm move.)
     poleProbeNote(hand, mirrored, pos, handRot);

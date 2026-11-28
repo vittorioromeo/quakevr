@@ -7,8 +7,11 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_glutil.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_testkit.hpp"
+#include "vr_tunables.hpp"
 
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
@@ -16,8 +19,10 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <cstdio>
@@ -30,8 +35,10 @@ namespace
 // The table's names: the rows (QC VR_AM_* order) and the categories (QC VR_HUM_CAT_*; 0 none).
 constexpr const char* kindNames[] = {"grunt", "enforcer", "knight", "dknight"};
 constexpr const char* categoryNames[] = {
-    "none", "explosive", "energy", "flame", "poison", "shells", "nails", "melee", "own",
+    "none", "explosive", "energy", "flame", "poison", "shells", "nails", "melee", "own", "9", "10", "11", "12", "13", "14",
+    "elite", // (catElite: an elite's clothes, whatever it holds; vr_humlook.hpp eliteBit)
 };
+static_assert(countof(categoryNames) == maxCategories && catElite == maxCategories - 1);
 constexpr const char* partNames[] = {"clothes", "pack"};
 // The masks' keys: a kind's body, or a worn pack (any kind's).
 constexpr const char* keyNames[] = {"grunt", "enforcer", "knight", "dknight", "pack"};
@@ -567,8 +574,17 @@ void describe(int look)
     const int body = look & (partPack - 1);
     const int kind = body / maxCategories;
     const int cat = body % maxCategories;
-    Con_Printf("  look %d: %s %s %s", look, kind < static_cast<int>(countof(kindNames)) ? kindNames[kind] : "?",
-        cat < static_cast<int>(countof(categoryNames)) ? categoryNames[cat] : "?", partNames[part]);
+    const bool elite = (look & eliteBit) != 0;
+    Con_Printf("  look %d: %s %s %s%s", look, kind < static_cast<int>(countof(kindNames)) ? kindNames[kind] : "?",
+        cat < static_cast<int>(countof(categoryNames)) ? categoryNames[cat] : "?", partNames[part], elite ? " elite" : "");
+    if(elite && !part)
+    {
+        const Spec* e = kind < maxKinds ? spec(kind, catElite, 0) : nullptr;
+        Con_Printf(e && e->set ? ": elite colour %g %g %g strength %g light %g tint %g\n" : ": no elite row (as it is)\n",
+            e ? e->rgb[0] : 0.f, e ? e->rgb[1] : 0.f, e ? e->rgb[2] : 0.f, e ? e->strength : 0.f, e ? e->light : 0.f,
+            e ? e->tint : 0.f);
+        return;
+    }
     const Spec* s = kind < maxKinds && cat > 0 ? spec(kind, cat, part) : nullptr;
     if(!s || !s->set)
     {
@@ -583,8 +599,26 @@ void describe(int look)
 void info_f()
 {
     ensureLoaded();
-    Con_Printf("humlook: %d rows from %s, %d skins' masks, %d looks known by the client, vr_humlook %g\n", table.rows,
-        tableName(), static_cast<int>(skins.size()), numLooks, vr_humlook.value);
+    int elites = 0; // (the client's elites' bodies: the MP test reads it)
+    for(const unsigned short l : looks)
+    {
+        elites += (l & eliteBit) && !(l & partPack) ? 1 : 0;
+    }
+    Con_Printf("humlook: %d rows from %s, %d skins' masks, %d looks known by the client, %d elites, vr_humlook %g\n",
+        table.rows, tableName(), static_cast<int>(skins.size()), numLooks, elites, vr_humlook.value);
+    // The client's elites as they are drawn: each one's instance's clothes row (the elite dye, pulsing), a remote client's too.
+    for(int i = 0; i < static_cast<int>(looks.size()) && cl_entities && i < cl_max_edicts; i++)
+    {
+        const int look = looks[static_cast<za::SizeT>(i)];
+        if((look & eliteBit) && !(look & partPack) && cl_entities[i].model)
+        {
+            float rows[4][4];
+            instanceRows(&cl_entities[i], rows);
+            Con_Printf("  client elite %d (%s, look %d): clothes %.2f %.2f %.2f strength %.2f light %.2f, mask %s\n", i,
+                cl_entities[i].model->name, look, rows[0][0], rows[0][1], rows[0][2], rows[0][3], rows[2][0],
+                rows[3][0] > 0.f ? "yes" : "no");
+        }
+    }
     for(const Skin& s : skins)
     {
         int count[4] = {};
@@ -632,6 +666,106 @@ void info_f()
     describe(stateOf(e));
 }
 
+// The shader's HumDye (vr_glsl_alias.h) on the CPU: `c` dyed by the row `col` (rgb, strength) at light/tint `lt`.
+void humDye(const float c[3], const float col[4], const float lt[2], float out[3])
+{
+    const auto lum = [](const float* v) { return v[0] * 0.299f + v[1] * 0.587f + v[2] * 0.114f; };
+    const float l = lum(c) * lt[0];
+    const float colLum = za::max(lum(col), 0.02f);
+    const float cm = za::max(za::max(col[0], col[1]), za::max(col[2], 0.02f));
+    for(int i = 0; i < 3; i++)
+    {
+        const float dyed = za::min(col[i] * (l / colLum), 1.f);
+        const float tinted = za::min(c[i] * lt[0] * col[i] / cm, 1.f);
+        const float d = dyed + (tinted - dyed) * lt[1];
+        out[i] = c[i] + (d - c[i]) * col[3];
+    }
+}
+
+// vr_humlook_dyetest [n]: each of the client's elites' clothes as drawn (its skin texture's masked texels, read back,
+// through its instance's rows, the shader's dye on the CPU) against its stock skin: the mean colour moved, towards gold (red over blue). Ends on
+// `humlook dyetest: P passed, F failed` (fewer than n elites: a failure each). ROUND26.md, "elitedye".
+void dyeTest_f()
+{
+    ensureLoaded();
+    const int want = Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 0;
+    testkit::Tally tally;
+    for(int i = 0; i < static_cast<int>(looks.size()) && cl_entities && i < cl_max_edicts; i++)
+    {
+        const int look = looks[static_cast<za::SizeT>(i)];
+        const entity_t* e = &cl_entities[i];
+        if(!(look & eliteBit) || (look & partPack) || !e->model)
+        {
+            continue;
+        }
+        float rows[4][4];
+        instanceRows(e, rows);
+        const int kind = (look & (partPack - 1)) / maxCategories;
+        Skin* s = skinFor(e->model, e->skinnum, keyOf(look));
+        // (the skin as drawn: its texture read back, an external or retro one too; the mask's texel at its place)
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
+        const int sk = hdr && e->skinnum >= 0 && e->skinnum < hdr->numskins ? e->skinnum : 0;
+        gltexture_t* tex = hdr ? hdr->gltextures[sk][0] : nullptr;
+        GLint tw = 0, th = 0;
+        za::Vector<unsigned char> px;
+        if(tex)
+        {
+            GL_Bind(GL_TEXTURE0, tex);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &tw);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &th);
+            px.resize(static_cast<za::SizeT>(za::max(tw, 0) * za::max(th, 0) * 4), 0);
+            if(px.empty() || !gfx::readTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data(), false))
+            {
+                px.clear();
+            }
+        }
+        double before[3] = {}, after[3] = {};
+        int n = 0;
+        for(int t = 0; s && !px.empty() && rows[3][0] > 0.f && t < s->w * s->h; t++)
+        {
+            if(classAt(*s, t) != 1u)
+            {
+                continue;
+            }
+            const int x = (t % s->w) * tw / s->w, y = (t / s->w) * th / s->h;
+            const unsigned char* p = &px[static_cast<za::SizeT>((y * tw + x) * 4)];
+            const float c[3] = {p[0] / 255.f, p[1] / 255.f, p[2] / 255.f};
+            float d[3];
+            humDye(c, rows[0], rows[2], d);
+            for(int k = 0; k < 3; k++)
+            {
+                before[k] += c[k];
+                after[k] += d[k];
+            }
+            n++;
+        }
+        for(int k = 0; k < 3 && n > 0; k++)
+        {
+            before[k] /= n;
+            after[k] /= n;
+        }
+        // (by hue, not lightness: the elite rows darken; each colour's channels' shares of its sum. Gold's blue share is
+        // 0.1: the dyed clothes' blue share down by 0.05 or more, red over green)
+        const double sb = za::max(before[0] + before[1] + before[2], 1e-6), sa = za::max(after[0] + after[1] + after[2], 1e-6);
+        double moved = 0.0;
+        for(int k = 0; k < 3; k++)
+        {
+            moved = za::max(moved, za::abs(after[k] / sa - before[k] / sb));
+        }
+        const double warmer = before[2] / sb - after[2] / sa;
+        const bool ok = n > 0 && moved > 0.04 && warmer > 0.05 && after[0] > after[1];
+        tally.check(ok);
+        Con_Printf("humlook dyetest: %s entity %d (%s %s, look %d): %d clothes texels, mean %.3f %.3f %.3f -> %.3f %.3f %.3f "
+                   "(moved %.3f, warmer %.3f)\n",
+            ok ? "PASS" : "FAIL", i, kind < static_cast<int>(countof(kindNames)) ? kindNames[kind] : "?", e->model->name, look,
+            n, before[0], before[1], before[2], after[0], after[1], after[2], moved, warmer);
+    }
+    const int drawn = tally.passed + tally.failed;
+    tally.check(drawn >= want, "humlook dyetest", "fewer elites drawn than wanted");
+    tally.verdict("humlook dyetest");
+    Cvar_SetValueQuick(&vr_test_humlook_dye, static_cast<float>(tally.failed)); // (test 234's QC check reads it)
+}
+
 // Where a file of quakevr/ is written: quakevr/ in the last base folder that has one (as vr_armourdata.cpp's).
 [[nodiscard]] const char* writePath(const char* name)
 {
@@ -657,7 +791,8 @@ constexpr const char* tableHead =
     "# A row: <type> <category> <part> r g b strength light tint\n"
     "#   type      grunt, enforcer, knight, dknight (the armed monsters' rows, QC VR_AM_*)\n"
     "#   category  explosive (rockets, grenades), energy (lightning, plasma, lasers), flame, poison; the others (shells, nails,\n"
-    "#             melee, the monster's own gun) have no row: as today\n"
+    "#             melee, the monster's own gun) have no row: as today; elite: an elite's clothes whatever it holds (its pack\n"
+    "#             keeps its weapon's colour, else the elite pack row; QC vr_attrs.qc), its lightness pulsing (vr_elite_pulse)\n"
     "#   part      clothes (its body's masked texels), pack (its worn backpack, and a pack in its body's skin)\n"
     "# Which texels: humlook_masks.txt (their palette rows; a few painted by hand). Faces and flesh are never changed.\n"
     "#   r g b     the colour (0..1) the texels are dyed: each keeps its own lightness (its shading), in that colour\n"
@@ -970,13 +1105,63 @@ void parseEvent()
     }
 }
 
+// vr_attr_set <attribute> <0|1> [entity]: an enemy attribute (QC vr_attrs.qc's table: infected, elite, or its bit) given
+// or taken on that entity, or on the monster nearest the first player (Debug > Tools > Enemy Attributes).
+namespace
+{
+void attrSet_f()
+{
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_attr_set <attribute> <0|1> [entity]: infected, elite (QC vr_attrs.qc), on the nearest monster or that one\n");
+        return;
+    }
+    if(!sv.active)
+    {
+        Con_Printf("vr_attr_set: no game running here\n");
+        return;
+    }
+    const progs::ServerVm vm;
+    const func_t count = progs::findFunction("VR_Attr_UiCount"), name = progs::findFunction("VR_Attr_UiName"),
+                 cmd = progs::findFunction("VR_Attr_Cmd");
+    if(!count || !name || !cmd)
+    {
+        Con_Printf("vr_attr_set: not in this game's QC\n");
+        return;
+    }
+    int bit = 0;
+    const int n = static_cast<int>(progs::qcFloat(count));
+    for(int i = 0; i < n && i < 16 && !bit; i++)
+    {
+        char text[32];
+        progs::qcText(text, sizeof(text), name, static_cast<float>(i));
+        bit = !q_strcasecmp(text, Cmd_Argv(1)) ? 1 << i : 0;
+    }
+    bit = bit ? bit : atoi(Cmd_Argv(1));
+    if(bit <= 0)
+    {
+        Con_Printf("vr_attr_set: no attribute \"%s\"\n", Cmd_Argv(1));
+        return;
+    }
+    edict_t* e = Cmd_Argc() > 3 ? progs::edictAt(atoi(Cmd_Argv(3))) : nullptr;
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+    G_FLOAT(OFS_PARM0) = static_cast<float>(bit);
+    G_FLOAT(OFS_PARM1) = atof(Cmd_Argv(2)) != 0.0 ? 1.f : 0.f;
+    G_INT(OFS_PARM2) = e ? EDICT_TO_PROG(e) : 0;
+    PR_ExecuteProgram(cmd);
+}
+} // namespace
+
 void registerCommands()
 {
+    Cmd_AddCommand("vr_attr_set", attrSet_f);
     Cmd_AddCommand("vr_humlook_reload", [] {
         reload();
         Con_Printf("humlook: %d rows from %s, masks from %s\n", table.rows, tableName(), masksName());
     });
     Cmd_AddCommand("vr_humlook_info", info_f);
+    Cmd_AddCommand("vr_humlook_dyetest", dyeTest_f);
     studioInit();
 }
 
@@ -995,10 +1180,17 @@ void instanceRows(const entity_t* e, float rows[4][4])
     }
     const int part = key == keyPack ? 1 : 0;
     const int body = look & (partPack - 1);
-    const Spec* clothes = part ? nullptr : spec(body / maxCategories, body % maxCategories, 0);
+    const bool elite = (look & eliteBit) != 0;
+    // (an elite: its clothes the elite row's; its pack its weapon's colour, else the elite row's pack)
+    const Spec* clothes = part ? nullptr : spec(body / maxCategories, elite ? catElite : body % maxCategories, 0);
     const Spec* pack = spec(body / maxCategories, body % maxCategories, 1);
     clothes = clothes && clothes->set ? clothes : nullptr;
     pack = pack && pack->set ? pack : nullptr;
+    if(elite && !pack)
+    {
+        pack = spec(body / maxCategories, catElite, 1);
+        pack = pack && pack->set ? pack : nullptr;
+    }
     const bool overlay = studioOverlay();
     if(!clothes && !pack && !overlay && !studioCursorOn())
     {
@@ -1018,6 +1210,20 @@ void instanceRows(const entity_t* e, float rows[4][4])
         rows[0][3] = clothes->strength;
         rows[2][0] = clothes->light;
         rows[2][1] = clothes->tint;
+        if(elite && vr_elite_pulse.value > 0.f)
+        {
+            // (the elite's pulse: its dark gold row glows towards bright gold and back, brighter as it does; each one on its
+            // own phase by its number. The MP test reads the row at rest: rows[0] is the table's colour at t 0.)
+            const float phase = static_cast<float>(cl.time) * vr_elite_pulse_hz.value * 6.2831853f +
+                                static_cast<float>(e - cl_entities) * 1.7f;
+            const float t = za::clamp(vr_elite_pulse.value, 0.f, 1.f) * (0.5f + 0.5f * za::sin(phase));
+            constexpr float gold[3] = {1.f, 0.85f, 0.35f};
+            for(int c = 0; c < 3; c++)
+            {
+                rows[0][c] = clothes->rgb[c] + (gold[c] - clothes->rgb[c]) * t;
+            }
+            rows[2][0] = clothes->light * (1.f + t);
+        }
     }
     if(pack)
     {

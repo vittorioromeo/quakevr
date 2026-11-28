@@ -195,6 +195,7 @@ struct Grab
     Rigid part0, ctrl0;
     glm::vec3 shoulder{0.f}, wrist{0.f}, waist{0.f};
     glm::vec3 torso0{0.f}, pole0{0.f};
+    glm::vec3 elbowDir0{0.f}; // an elbow's: its drawn way off its shoulder-to-wrist line at the grab (chest space, unit)
     bool legMirror{false}; // a leg part's: the kneel mirrored (a left hand's take: the key's y, yaw and roll flipped)
     // Live, paused (vr_poselive.hpp): the key weighing most at that frame, its share there, whether it is mirrored there
     bool live{false};
@@ -747,6 +748,16 @@ void dropUnchangedUndo()
     return vr_agrunt_grip_scope.value == 0.f;
 }
 
+// An elbow at `at` (model space): its way off grab g's shoulder-to-wrist line, in the chest's space at the grab (unit);
+// `none` when it lies on the line.
+[[nodiscard]] glm::vec3 elbowWay(const Grab& g, const glm::vec3& at, const glm::vec3& none)
+{
+    const glm::vec3 d = glm::normalize(g.wrist - g.shoulder);
+    glm::vec3 e = at - g.shoulder;
+    e -= d * glm::dot(e, d);
+    return glm::length(e) > 0.5f ? glm::inverse(torsoQuat(g.torso0)) * glm::normalize(e) : none;
+}
+
 // A pose key's grab of part `p` (its key g.code set), held by `c` (world): the key, the part's and the holder's frames
 // and what the drag's mapping (poseDrag) measures from, as the note has them now.
 void fillPoseGrab(Grab& g, const Note& n, int p, const Rigid& c)
@@ -765,6 +776,7 @@ void fillPoseGrab(Grab& g, const Note& n, int p, const Rigid& c)
     g.waist = waistOf(n);
     g.torso0 = n.torso;
     g.pole0 = n.elbowPole[side];
+    g.elbowDir0 = elbowWay(g, g.part0.pos, g.pole0);
 }
 
 void grab(int hand, int p)
@@ -906,12 +918,11 @@ void poseDragLive(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
         case PElbowR:
         case PElbowL:
         {
-            const glm::vec3 dir = glm::normalize(g.wrist - g.shoulder);
-            glm::vec3 e = partNow.pos - g.shoulder;
-            e -= dir * glm::dot(e, dir);
-            if(glm::length(e) > 0.5f)
+            // (the held way's change from the drawn elbow's at the grab, as poseDrag's)
+            const glm::vec3 want = elbowWay(g, partNow.pos, glm::vec3{0.f});
+            if(glm::length(want) > 0.5f && glm::length(g.elbowDir0) > 0.5f)
             {
-                d.v[side ? agpose::ElbowL : agpose::ElbowR] = (glm::inverse(torsoQuat(g.torso0)) * glm::normalize(e) - g.pole0) * sc;
+                d.v[side ? agpose::ElbowL : agpose::ElbowR] = (want - g.elbowDir0) * sc;
             }
             break;
         }
@@ -1006,15 +1017,15 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
         case PElbowL:
         {
             // (its pole: the way from its shoulder-to-wrist line to where the elbow is held, in its chest's space; the
-            // arm's IK takes it as its elbow's way, its wrist's comfort and its limits still weighed)
+            // arm's IK takes it as its elbow's way, its wrist's comfort and its limits still weighed. The key moves by
+            // the held way's change from where the elbow was drawn at the grab, not to it: an elbow its wrist's comfort
+            // holds off its pole (Aim's, 33 deg) kept that offset, so a drag down turned the pole down instead of
+            // snapping it to the drawn elbow's side: ROUND26 "godfallout")
             const int pe = side ? agpose::ElbowL : agpose::ElbowR;
-            const glm::vec3 d = glm::normalize(g.wrist - g.shoulder);
-            glm::vec3 e = partNow.pos - g.shoulder;
-            e -= d * glm::dot(e, d);
-            if(glm::length(e) > 0.5f)
+            const glm::vec3 want = elbowWay(g, partNow.pos, glm::vec3{0.f});
+            if(glm::length(want) > 0.5f && glm::length(g.elbowDir0) > 0.5f)
             {
-                const glm::vec3 want = glm::inverse(torsoQuat(g.torso0)) * glm::normalize(e);
-                k.v[pe] = want - (g.pole0 - g.key0.v[pe]); // (the sent pole: the pose's own plus the key)
+                k.v[pe] = g.key0.v[pe] + (want - g.elbowDir0);
             }
             break;
         }

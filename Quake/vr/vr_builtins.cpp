@@ -11,6 +11,7 @@
 #include "vr_predict.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_brushes.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_goresound.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
@@ -908,6 +909,7 @@ void PF_WriteVec3()
 #include "vr_builtins_held.inc"
 #include "vr_builtins_hitmodel.inc"
 #include "vr_builtins_agpose.inc"
+#include "vr_builtins_agthink.inc"
 
 // ----------------------------------------------------------------------------
 // The console
@@ -948,6 +950,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"arenadirsupply", arenadirector::pfSupply},
     {"agposekey", PF_agposekey},
     {"agpose", PF_agpose},
+    {"agstruck", PF_agstruck},
+    {"agparry", PF_agparry},
     {"agstrikeblend", PF_agstrikeblend},
     {"agkeytime", PF_agkeytime},
     {"agdrawnframe", PF_agdrawnframe},
@@ -1218,6 +1222,12 @@ void agposeCompare_f()
     }
     ServerVm vm;
     agposeCompareReport();
+}
+
+// vr_agthink_compare: vr_qc_native_think's answers and comparisons since the last (vr_builtins_agthink.inc).
+void agthinkCompare_f()
+{
+    agthinkCompareReport();
 }
 
 // vr_forcegrab_grid_stats: the force grab's searches since the last (and resets them).

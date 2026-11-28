@@ -224,11 +224,16 @@ struct HolsterMenuView
 //
 //   META QUEST 3
 //   [glyph] Attack ------( L )   ( R )------ [glyph] Attack
+// panelfix (his words 2026-11-28: the less important bindings smaller, organised): a `minor` row is drawn smaller, and
+// a row with a `header` starts a group under that small title. With minor rows the image's first column is the main
+// rows, the second the minor ones in their groups (else `columns` columns by count).
 struct BindPanelRow
 {
     const char* action{""};
     const char* keys[2]{"", ""};
     const void* glyphs[2]{nullptr, nullptr}; // a key's glyph (nullptr: its cap, `keys`)
+    bool minor{false};                       // smaller letters (a secondary binding)
+    const char* header{""};                  // a group's title over this row ("" none)
 };
 struct BindPanelCallout
 {

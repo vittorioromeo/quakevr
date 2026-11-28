@@ -182,12 +182,17 @@ void updateFingerFrames()
         const float fistShare = flatplay::active() && !holder && !flatGrips ? flatplay::fistShare(hand) : 0.f;
         fist.gripValue = za::fmax(fist.gripValue, fistShare);
         fist.triggerValue = za::fmax(fist.triggerValue, fistShare);
-        const HandInput& in = holder || flatGrips ? holding : fistShare > 0.f ? fist : input.hands[hand];
+        // (Flat-screen play's procedural reload, prlmove: its free hand holding the round grips it as a headset's hand does,
+        // the grip squeezed (blended in by its share), the index closing with it: vr_flatprocreload.cpp gripShare.)
+        const float roundShare = flatplay::active() && !holder && !flatGrips ? flatprocreload::gripShare(hand) : 0.f;
+        HandInput onRound = fistShare > 0.f ? fist : input.hands[hand];
+        onRound.gripValue = za::fmax(onRound.gripValue, roundShare);
+        const HandInput& in = holder || flatGrips ? holding : roundShare > 0.f ? onRound : fistShare > 0.f ? fist : input.hands[hand];
         // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
         // the torch, a body (an enemy, a limb, a tug's weapon: holdsBody).
         const bool holdsOther = posingHotspot ? !holder
                                               : twohand::drawnHelping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand) ||
-                                                    holdsBody(hand);
+                                                    holdsBody(hand) || roundShare > 0.f;
         // (Flatscreen swimming, an empty hand: open for the stroke, its fingers together and the palm cupped, the thumb
         // along the index: vr_flat_swim_cup's curl, its share of the stroke; vr_flatswim.cpp.)
         const float swimOpen = flatplay::active() && !holder && !flatGrips ? flatswim::openShare(hand) : 0.f;
@@ -2783,7 +2788,12 @@ struct AttachSeenList
     int count{0};
     int frame{-1};
 };
-AttachSeenList attachSeen; // seat-shared: a test's report (vr_attach_report, mp_test.py attach)
+// split21: the seat's (seat::Part::AttachSeen): with two seats drawn in one frame, seat 2's hands were listed as "yours"
+// in seat 1's report; vr_attach_report prints the seat it runs as's
+[[nodiscard]] AttachSeenList& attachSeen()
+{
+    return qvr::seat::part<AttachSeenList>(qvr::seat::current(), qvr::seat::Part::AttachSeen);
+}
 
 void noteAttachSeen(const char* where, int ent, int kind, const qvr::view::ViewEntity& out, const qvr::view::ViewEntity& gun,
     const qvr::view::ViewEntity* barrels = nullptr, float deg = 0.f)
@@ -2792,14 +2802,14 @@ void noteAttachSeen(const char* where, int ent, int kind, const qvr::view::ViewE
     {
         return;
     }
-    if(attachSeen.frame != host_framecount)
+    if(attachSeen().frame != host_framecount)
     {
-        attachSeen.count = 0;
-        attachSeen.frame = host_framecount;
+        attachSeen().count = 0;
+        attachSeen().frame = host_framecount;
     }
-    if(attachSeen.count < static_cast<int>(sizeof(attachSeen.list) / sizeof(attachSeen.list[0])))
+    if(attachSeen().count < static_cast<int>(sizeof(attachSeen().list) / sizeof(attachSeen().list[0])))
     {
-        AttachSeen& a = attachSeen.list[attachSeen.count++];
+        AttachSeen& a = attachSeen().list[attachSeen().count++];
         a = AttachSeen{where, ent, kind, gun.ent.model, glm::vec3{out.ent.origin[0], out.ent.origin[1], out.ent.origin[2]}};
         const int slot = gun.ent.model ? qvr::weapons::slotForModel(gun.ent.model) : -1;
         if(const qvr::attach::Mount m = qvr::attach::mount(slot, kind); m.fits)
@@ -3211,6 +3221,29 @@ int posePouchItemsIn(const view::ViewEntity& pouch, bool placed, int kind, int c
 
 namespace
 {
+
+// Flat play's procedural reload locked at a key pose with a pair in the free hand (vr_flat_prl_lock: prlfix): the pair
+// drawn in it as a real take's sat (the server gives none: nothing is taken or loaded).
+void setupPrlPair(const hands::State& s)
+{
+    view::ViewEntity& ve = entities().prlPair;
+    int hand = HAND_OFF;
+    float size = 1.f;
+    qmodel_t* const model = flatprocreload::lockPair(hand, size) ? view::viewModel(flatprocreload::lockItemModel()) : nullptr;
+    if(!model)
+    {
+        ve.visible = false;
+        return;
+    }
+    glm::vec3 pos = s.pos[hand], rot = s.rot[hand];
+    (void)view::drawnHandPose(hand, pos, rot); // (the hand as drawn this frame, else as posed)
+    glm::mat3 axes;
+    const glm::vec3 at = flatprocreload::lockPairPlace(pos, rot, axes);
+    place(ve, model, at, aliasAngles(axes[0], axes[2]), 0, false);
+    ve.ent.skinnum = flatprocreload::lockItemSkin(); // (reloadmuzzle: the revolver's blue slugs)
+    ve.scale = glm::vec3{CLAMP(0.25f, size, 4.f)};
+    ve.visible = true;
+}
 
 void setupAmmoPouch(const hands::State& s)
 {
@@ -4580,6 +4613,7 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(body, VR_DRAW_BODY), QVR_DRAW_RANGE(plate, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldron, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldronArm, VR_DRAW_BODY),
         QVR_DRAW_RANGE(gadget, VR_DRAW_WORN), QVR_DRAW_RANGE(gadgetStrap, VR_DRAW_WORN), QVR_DRAW_RANGE(flashlight, VR_DRAW_WORN),
         QVR_DRAW_RANGE(pouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouchItem, VR_DRAW_WORN),
+        QVR_DRAW_RANGE(prlPair, VR_DRAW_HELD),
         QVR_DRAW_RANGE(mag, VR_DRAW_HELD), QVR_DRAW_RANGE(magOut, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterMag, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldMag, VR_DRAW_LYING),
         QVR_DRAW_RANGE(well, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterWell, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldWell, VR_DRAW_LYING),
         QVR_DRAW_RANGE(pumpBody, VR_DRAW_HELD), QVR_DRAW_RANGE(pump, VR_DRAW_HELD), QVR_DRAW_RANGE(ssgFrame, VR_DRAW_HELD),
@@ -6403,6 +6437,7 @@ extern "C" void VR_SetupViewEntities()
         }
         setupPouch(s);
         setupAmmoPouch(s);
+        setupPrlPair(s);
     }
     {
         QVR_PROFILE("view blood shock smoke");
@@ -6523,7 +6558,7 @@ extern "C" void VR_SetupViewEntities()
         s = unposed;
         for(int hand = 0; hand < 2; hand++)
         {
-            s.muzzleValid[hand] = s.grip2HValid[hand] = s.loadPortValid[hand] = s.magBoxValid[hand] = false;
+            s.muzzleValid[hand] = s.grip2HValid[hand] = s.loadPortValid[hand] = s.magBoxValid[hand] = s.magSeatValid[hand] = false;
             s.onMagazine[hand] = false;
         }
     }
@@ -6661,10 +6696,10 @@ extern "C" void VR_SetupViewEntities()
 // vr_attach_report (vr_view_diag.cpp): every attachment drawn last frame, a line each, then the count (mp_test.py attach).
 void qvr::view::printDrawnAttachments()
 {
-    const int n = attachSeen.frame >= host_framecount - 1 ? attachSeen.count : 0;
+    const int n = attachSeen().frame >= host_framecount - 1 ? attachSeen().count : 0;
     for(int i = 0; i < n; i++)
     {
-        const AttachSeen& a = attachSeen.list[i];
+        const AttachSeen& a = attachSeen().list[i];
         // (holsterattach: gap, its mount's distance from the gun's as drawn: AttachSeen::gap)
         Con_Printf("attach_drawn: where=%s ent=%d kind=%d gun=%s at=%.1f %.1f %.1f gap=%.2f\n", a.where, a.ent, a.kind,
             a.gun ? a.gun->name : "-", a.at.x, a.at.y, a.at.z, a.gap);

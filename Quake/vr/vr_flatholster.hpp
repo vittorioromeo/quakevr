@@ -47,6 +47,10 @@ struct HolsterSlot
 // Hand `hand`'s FLIP GRIP would turn its weapon's grip over (a sword, a dagger, the Crystal Lance: view::heldGripFlippable,
 // the eject button's flip; not a weapon carried by its foregrip): this menu's button lit, and the weapon wheel's FLIP GRIP.
 [[nodiscard]] bool canFlip(int hand);
+// The hand grenade hand `hand` holds (grenhold; STAT_QVR_FLATUNLOADFULL bits 6 .. 9): 0 none, 1 an unarmed grenade (or
+// proximity grenade), 2 an unarmed multi-grenade, 3 armed. The weapon wheel's EMPTY HAND and BACK POUCH put an unarmed
+// one back or swap it, this menu's holster buttons too; armed, the server refuses (throw it or drop it).
+[[nodiscard]] int handGrenade(int hand);
 
 // The menu's image (gadget::renderHolsterMenu's texture, `size` its virtual pixels) on its face, as the visor's screens
 // (Shade::Screen: phosphor, scanlines, flicker at vr_flat_holster_menu_crt): the quad `corner` (low left, low right, up

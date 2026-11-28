@@ -12,6 +12,7 @@
 #include "vr_attach.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
+#include "vr_profile.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
@@ -427,19 +428,34 @@ void rasterize(const za::Vector<Triangle>& tris, const za::Vector<Texture>& text
         const int x1 = za::min(rw - 1, static_cast<int>(za::floor(za::max(s[0].x, s[1].x, s[2].x))));
         const int y0 = za::max(0, static_cast<int>(za::floor(za::min(s[0].y, s[1].y, s[2].y))));
         const int y1 = za::min(rh - 1, static_cast<int>(za::floor(za::max(s[0].y, s[1].y, s[2].y))));
+        // (pcperf) The barycentric weights' numerators (edge functions, either winding) set up once a row and stepped
+        // along it: linear in x, so the samples inside a row are one run, and the row ends at the run's end. The weights
+        // as before (the edge function over the area); the third from the two (1 - w0 - w1).
+        const float inv = 1.f / area;
+        const float sgn = area > 0.f ? 1.f : -1.f;
+        const float d0 = s[1].y - s[2].y; // d e0 / dx
+        const float d1 = s[2].y - s[0].y; // d e1 / dx
         for(int y = y0; y <= y1; y++)
         {
-            for(int x = x0; x <= x1; x++)
+            const float py = y + 0.5f;
+            const float px0 = x0 + 0.5f;
+            float e0 = (s[1].x - px0) * (s[2].y - py) - (s[2].x - px0) * (s[1].y - py);
+            float e1 = (s[2].x - px0) * (s[0].y - py) - (s[0].x - px0) * (s[2].y - py);
+            bool entered = false;
+            for(int x = x0; x <= x1; x++, e0 += d0, e1 += d1)
             {
-                const float px = x + 0.5f, py = y + 0.5f;
-                // Barycentric weights (either winding).
-                const float w0 = ((s[1].x - px) * (s[2].y - py) - (s[2].x - px) * (s[1].y - py)) / area;
-                const float w1 = ((s[2].x - px) * (s[0].y - py) - (s[0].x - px) * (s[2].y - py)) / area;
+                const float w0 = e0 * inv;
+                const float w1 = e1 * inv;
                 const float w2 = 1.f - w0 - w1;
-                if(w0 < 0.f || w1 < 0.f || w2 < 0.f)
+                if(e0 * sgn < 0.f || e1 * sgn < 0.f || w2 < 0.f)
                 {
+                    if(entered)
+                    {
+                        break; // (past the run)
+                    }
                     continue;
                 }
+                entered = true;
                 const float z = w0 * s[0].z + w1 * s[1].z + w2 * s[2].z;
                 float& d = depth[y * rw + x];
                 if(z >= d)
@@ -604,6 +620,13 @@ const gfx::Picture* get(const char* model, int skin, bool side, int attach)
     return nullptr;
 }
 
+MeshStats drawStats; // seat-shared: the last mesh drawn's debug stats (the last drawMesh's (lastMeshStats))
+
+MeshStats lastMeshStats()
+{
+    return drawStats;
+}
+
 bool drawMesh(const za::Vector<glm::vec3>& verts, const za::Vector<unsigned>& tris, const glm::vec3& toViewer, int width,
     int height, gfx::Picture& picture, Framing& framing)
 {
@@ -632,9 +655,14 @@ bool drawMesh(const za::Vector<glm::vec3>& verts, const za::Vector<unsigned>& tr
         }
         out.pushBack(tri);
     }
-    rasterize(out, textures, toViewer, scratch.out, width, height, &framing);
+    {
+        QVR_PROFILE("mesh raster");
+        rasterize(out, textures, toViewer, scratch.out, width, height, &framing);
+    }
+    QVR_PROFILE("mesh upload");
     gfx::ensurePicture(picture, width, height, "body preview");
     gfx::updatePicture(picture, scratch.out.data());
+    drawStats = {static_cast<int>(out.size()), width, height};
     return true;
 }
 

@@ -1410,7 +1410,8 @@ void() VR_Reload_PlayerFrame =
             hand = h ? VRGetOtherHand(near) : near;
         }
         float aid = VR_Reload_KindOf(VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand));
-        if(aid >= 0 && self.ishuman && VR_Reload_Immersive())
+        // (Flat-screen play's procedural reload of that gun too, reloadmuzzle: the pouch shows a launcher's rounds.)
+        if(aid >= 0 && self.ishuman && (VR_Reload_Immersive() || VR_FlatReload_ProcIn(self, hand)))
         {
             self.vr_pouch_aid = aid;
             self.vr_pouch_wid = vr_reload_kind_wid;
@@ -1884,6 +1885,9 @@ void(entity p, float xHand) VR_Reload_SsgSetToggled =
 // Set by flat-screen play's break (VR_FlatReload_EjectNow): its spent shells leave once the gun is drawn fully open and
 // vr_flat_ssg_eject_delay after (the clients' wait, QVR_EJECT_AFTER_OPEN; his words 2026-11-10).
 float vr_ssg_eject_after_open;
+// Set by flat-screen play's procedural reload's break (VR_FlatReload_ProcOpen, reloadsys): the live shells stay in their
+// chambers (one fired: the spent one out, one shell to load), only the spent ones out.
+float vr_ssg_keep_live;
 
 // The super shotgun in `xHand` of `p` breaks open (`xHow`: what did it, for the log): its spent shells thrown out (the
 // clients' casings, vr_shells.cpp), its live ones too, as rounds lying about to take again; open, empty, until closed.
@@ -1892,8 +1896,10 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgBreak =
     float f = VRGetEntWeaponFlags(p, xHand);
     float spent = VR_Reload_SsgSpentOf(f);
     float live = VRGetEntWeaponClip(p, xHand);
+    float kept = vr_ssg_keep_live ? live : 0; // (VR_FlatReload_ProcOpen: kept in)
+    live = live - kept;
     VRSetEntWeaponFlags(p, xHand, (f - (f & QVR_WPNFLAG_SSG_SPENT)) | QVR_WPNFLAG_SSG_OPEN);
-    VRSetEntWeaponClip(p, xHand, 0);
+    VRSetEntWeaponClip(p, xHand, kept);
     VR_Reload_AmmoChanged(p);
     VR_Reload_SsgSetToggled(p, xHand);
     VR_Reload_Sound(p, VRGetGunChannel(xHand), "vr/reload_ssg_open.wav", 1);
@@ -2460,8 +2466,8 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
     float leniency = VR_Reload_PortRadiusIn(self, gunHand) + VR_Reload_MagRadius(r.vr_ammo_wid);
     if(cvar_hget(cvarh_vr_reload_debug) >= 2)
     {
-        dprint(sprintf("reload: a held round %.1f units from the port (leniency %g): at %v, the port %v\n", d,
-            leniency, VR_Reload_RoundRef(r), port));
+        dprint(sprintf("reload: a held round %.1f units from the port (leniency %g): at %v, the port %v (its origin %v, the hand %v)\n", d,
+            leniency, VR_Reload_RoundRef(r), port, r.origin, VRGetEntHandPos(self, xHand)));
     }
     // (Well away, or vr_reload_reinsert_time gone since it came out or knocked one out: a magazine just out, or that knocked
     // one out, may seat; the author: even kept close it goes in after a moment, never at once.)

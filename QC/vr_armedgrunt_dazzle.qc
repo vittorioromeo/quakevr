@@ -14,12 +14,15 @@
 
 float VR_AG_DAZZLE_FACE_COS = 0.17; // the lens must be ahead of its face (within about 80 degrees of where it looks)
 
-vector VR_AG_DAZZLE_EYE = '3 0 22'; // the grunt's eyes in its body (forward, left, up), fitted to each kind's (VR_AM_Fit)
+// The shielding elbow's way from its shoulder (its body's space: forward, left, up; the left arm's): out to its side,
+// down a little and a little forward, so its forearm comes in across its eyes (not up from below as a punch's).
+vector VR_AG_SHIELD_POLE = '0.3 1 -0.45';
 
-// Its eyes (world; makevectors: its yaw's).
+// Its eyes (world; makevectors: its yaw's): its kind's (vr_am_eye: its rig's head bone; the grunt's '3 0 22').
 vector(entity g) VR_AG_DazzleEye =
 {
-    vector l = VR_AM_Fit(g, VR_AG_DAZZLE_EYE);
+    VR_AM_Row(g.vr_ag_kind);
+    vector l = vr_am_eye;
     makevectors([0, g.angles_y, 0]);
     return g.origin + v_forward * l_x - v_right * l_y + '0 0 1' * l_z;
 };
@@ -160,16 +163,47 @@ float(entity g) VR_AG_DazzleAim =
     return m;
 };
 
+// Holding two weapons, it shields with its left one's hand (vr_agrunt_dazzle_dual: the weapon still held, up and away).
+float(entity g) VR_AG_ShieldDual = { return g.vr_ag_prop2 && cvar_hget(cvarh_vr_agrunt_dazzle_dual); };
+
+// Its left weapon raised to shield its eyes now (vr_agrunt_dazzle_dual): not fired (its right one fires on).
+float(entity g) VR_AG_ShieldingLeft = { return g.vr_ag_shieldw > 0.5 && VR_AG_ShieldDual(g); };
+
+// Where its shielding hand's grip goes (its body's space): before its eyes (its kind's, vr_am_eye) by
+// vr_agrunt_dazzle_face_* (the grunt's units, times its arm's length against the grunt's), within vr_agrunt_dazzle_bend of
+// its arm's reach from its shoulder (drawn towards it: a bent arm, its forearm across its face, never one held out
+// straight; the grunt's place within it, as before: 11 0.5 21.5).
+vector(entity g) VR_AGP_ShieldAt =
+{
+    VR_AM_Row(g.vr_ag_kind);
+    float s = vr_am_arm / 15.2;
+    vector at = vr_am_eye;
+    at_x = at_x + s * cvar_hget(cvarh_vr_agrunt_dazzle_face_fwd);
+    at_y = at_y + s * cvar_hget(cvarh_vr_agrunt_dazzle_face_left);
+    at_z = at_z + s * cvar_hget(cvarh_vr_agrunt_dazzle_face_up);
+    vector off = at - vr_am_sh_l;
+    float most = max(0.3, cvar_hget(cvarh_vr_agrunt_dazzle_bend)) * (0.93 * vr_am_arm + 2.5);
+    if(vlen(off) > most)
+    {
+        at = vr_am_sh_l + normalize(off) * most;
+    }
+    return at;
+};
+
 // The shield (VR_AGP_PoseQC and the engine's agpose call it after the hands' poses, before the run's sway): its off hand
-// raised before its eyes (vr_agrunt_dazzle_hand_*: the grunt's body, fitted to each kind), eased in and out; a two-handed
-// gun taken into the gun hand alone (its one-handed hold blended in). Not with two weapons held, nor while that hand
-// punches, swings a two-handed weapon, casts or reaches for a weapon.
+// raised before its eyes (VR_AGP_ShieldAt: measured from its kind's own head and shoulder), its elbow out to its side
+// (VR_AG_SHIELD_POLE times vr_agrunt_dazzle_elbow: vr_agp_shpole, sent with its body's poles), eased in and out; a
+// two-handed gun taken into the gun hand alone (its one-handed hold blended in). With two weapons held only with
+// vr_agrunt_dazzle_dual (its left weapon raised, still held, pointing up and away). Not while that hand punches, swings a
+// two-handed weapon, casts or reaches for a weapon.
 void(entity g, entity p) VR_AGP_Shield =
 {
+    vr_agp_shpole = '0 0 0';
     float target = 0;
     float c = p ? VR_AG_Class(p.weapon) : VR_AG_CLASS_FISTS;
     float keepSet = vr_agh_set;
-    if(!g.vr_ag_prop2 && g.health > 0 && g.vr_ag_took_at <= 0)
+    float dual = VR_AG_ShieldDual(g);
+    if((!g.vr_ag_prop2 || dual) && g.health > 0 && g.vr_ag_took_at <= 0)
     {
         target = VR_AG_DazzleShare(g);
         if(g.vr_ag_act && (c == VR_AG_CLASS_FISTS || g.vr_ag_act == VR_AGP_CAST || (c == VR_AG_CLASS_MELEE && VR_AGP_TwoHanded(p))))
@@ -183,12 +217,38 @@ void(entity g, entity p) VR_AGP_Shield =
         g.vr_ag_shieldw = VR_AGP_Ease(g.vr_ag_shieldw, target, 4);
     }
     float w = VR_Smooth(g.vr_ag_shieldw);
-    if(w <= 0 || g.vr_ag_prop2)
+    if(w <= 0 || (g.vr_ag_prop2 && !dual))
     {
         return;
     }
     VR_AM_Row(g.vr_ag_kind);
     VR_AGP_Body(g);
+    vector face = VR_AGP_ShieldAt(g);
+    vr_agp_shpole = normalize(VR_AG_SHIELD_POLE) * (w * min(1, max(0, cvar_hget(cvarh_vr_agrunt_dazzle_elbow))));
+    if(g.vr_ag_prop2 && (vr_agp_flags & VR_AGP_LEFTWPN))
+    {
+        // Two weapons (vr_agrunt_dazzle_dual): its left one's grip raised before its eyes, the weapon still in its hand,
+        // turned to point up and out to its side (away from its face and from you), its top back.
+        VR_AM_Row(g.vr_ag_kind);
+        vector fromL = vr_am_anchor_at * vr_agp_wl + vr_agp_vl;
+        vector upFw = normalize(VR_AGP_ToWorld('0.15 0.45 1'));
+        vector upUp = VR_AGP_ToWorld('-1 0 0');
+        upUp = normalize(upUp - upFw * (upUp * upFw));
+        vr_agp_fwl = VR_AGP_Nlerp(vr_agp_fwl, upFw, w);
+        vr_agp_upl = VR_AGP_Nlerp(vr_agp_upl, upUp, w);
+        vr_agp_wl = 1;
+        vr_agp_vl = VR_Lerp(fromL, face, w) - vr_am_anchor_at;
+        if(!vr_agp_quiet)
+        {
+            g.vr_ag_shield_at = g.origin + VR_AGP_ToWorld(VR_Lerp(fromL, face, w));
+        }
+        return;
+    }
+    if(g.vr_ag_prop2)
+    {
+        vr_agp_shpole = '0 0 0';
+        return; // (its left weapon not on its own target this frame: a take, a swap)
+    }
     // Where the off hand is now (its body's space): its own target, a two-handed gun's second grip, else hanging.
     vector from = VR_AGP_Hang(1);
     if(vr_agp_flags & VR_AGP_LEFT)
@@ -221,11 +281,7 @@ void(entity g, entity p) VR_AGP_Shield =
         vr_agp_flags = keepFl;
         VR_AGP_Body(g);
     }
-    vector hand;
-    hand_x = cvar_hget(cvarh_vr_agrunt_dazzle_hand_fwd);
-    hand_y = cvar_hget(cvarh_vr_agrunt_dazzle_hand_left);
-    hand_z = cvar_hget(cvarh_vr_agrunt_dazzle_hand_up);
-    vector face = VR_AM_Fit(g, hand);
+    VR_AM_Row(g.vr_ag_kind);
     vr_agp_flags = (vr_agp_flags - (vr_agp_flags & (VR_AGP_TWO | VR_AGP_LEFTWPN))) | VR_AGP_LEFT;
     vr_agp_wl = 1;
     vr_agp_vl = VR_Lerp(from, face, w) - vr_am_anchor_at;

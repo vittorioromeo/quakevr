@@ -166,6 +166,12 @@ Tests:
     meleearcs  (mparcs, 2026-11-27) Show Melee Arcs on a remote client: a listen host A on vrtesthall, B turns the
              option on; A's vr_agrunt_test 216 has an armed sword grunt swing at A: B's client draws its swing trail
              (frames and segments, QVR_SVC_MELEEARC) whatever A's option says; B's option off: the server stops sending.
+    beastmp  (beastmp, 2026-11-28) the beasts' armour on a remote client: a listen host A on vrtesthall, its QC
+             (vr_agarmor_test 25) puts an ogre and a scrag in full yellow armour before A; B (remote: his own drawing
+             of their bodies) draws every piece the server's mask says and their leather; 26 breaks the ogre's left
+             shin and the scrag's tail3, wears the ogre's breastplate: B drops just those, draws the wear, sees the
+             debris; 27 kills both: the corpses keep their pieces at B. beastmp_dedicated (not in the suite): the
+             same on a dedicated server, A and B both remote.
     roomnonce  (review 2026-11-18, finding 11) the room service's replies to a host checked (a stand-in service):
              REFUSED, BADVERSION and REGISTERED with another nonce change nothing; COOKIE (protocol version 2) with
              his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
@@ -549,6 +555,55 @@ def respawn_if_dead(srv, c, ent):
         if got or wait_or_none(c, r"mp_event: .* respawned", 0.5, since):
             break
     return alive(srv, ent)
+
+
+def elite(s):
+    """(elite, ROUND26) An armed grunt ahead of the players made an elite on the server (vr_attr_set elite 1, QC
+    vr_attrs.qc): the remote client B knows it as one (vr_humlook_info: its elites) and draws it with the elite dye (its
+    instance's clothes row: the table's elite colour, a mask); made ordinary again, B knows no elite."""
+    srv, a, b, ea, eb = join(s, level="vrtesthall", srv_first="developer 1",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90))
+    b.ent = eb
+    a.cmd("god; notarget")
+    b.cmd("god; notarget")
+    put_at(srv, b, eb, ARMED_B, 90)
+    since = srv.mark()
+    srv.cmd("vr_physics_spawn monster_vr_grunt %d 0" % ARMED_SPAWNS[0])
+    srv.wait(r"vr_physics_spawn: \d+ monster_vr_grunt at", 20, since, "an armed grunt ahead")
+    since = b.mark()  # (QC's bprint: the players' consoles, not the dedicated server's)
+    srv.cmd("vr_attr_set elite 1")
+    _, made = b.wait(r"vr_attr_set: .* now elite", 10, since, "the grunt made an elite")
+    s.note(made.strip())
+
+    def elites_on_b():
+        since = b.mark()
+        b.cmd("vr_humlook_info")
+        _, line = b.wait(r"humlook: \d+ rows", 10, since, "B's vr_humlook_info")
+        m = re.search(r"(\d+) elites", line)
+        return (int(m.group(1)) if m else -1), since
+
+    n, since = -1, 0
+    for _ in range(40):  # (the look reaches B reliably: a few frames)
+        n, since = elites_on_b()
+        if n >= 1:
+            break
+    s.check("B's client knows the elite (its look's elite bit)", n == 1, "%d elites known" % n)
+    row = b.find(r"client elite \d+ .*: clothes", since) if n >= 1 else None
+    line = row[1] if row else ""
+    m = re.search(r"clothes ([\d.]+) ([\d.]+) ([\d.]+) strength ([\d.]+) light ([\d.]+), mask (\w+)", line)
+    # (humlook.txt's elite row, dark gold 0.95 0.70 0.18, pulsing towards bright gold 1 0.85 0.35: each channel between)
+    ok = bool(m) and all(min(lo, hi) - 0.02 <= float(m.group(i + 1)) <= max(lo, hi) + 0.02
+                         for i, (lo, hi) in enumerate(((0.95, 1.0), (0.70, 0.85), (0.18, 0.35)))) and \
+        float(m.group(4)) > 0.5 and m.group(6) == "yes"
+    s.check("B draws it with the elite dye (dark gold, masked)", ok, line.strip() or "no client elite line")
+    since = b.mark()
+    srv.cmd("vr_attr_set elite 0")
+    b.wait(r"vr_attr_set: .* no longer elite", 10, since, "the grunt made ordinary")
+    for _ in range(40):
+        n, _ = elites_on_b()
+        if n == 0:
+            break
+    s.check("made ordinary, B knows no elite", n == 0, "%d elites known" % n)
 
 
 def armed(s):
@@ -4314,6 +4369,195 @@ def meleearcs(s):
     s.check("B's option off: the server stops sending them (remote wanted 0)", wanted == 0, "remote wanted %d" % wanted)
 
 
+def beast_drawn(inst):
+    """inst's vr_beastarmour_drawn -> ({model: {ent, type, mask, pieces, whole, worn, worst, leather, body}}, debris)."""
+    since = inst.mark()
+    inst.cmd("vr_beastarmour_drawn")
+    _, head = inst.wait(r"beastarmour drawn: \d+ beasts", 10, since, "%s's vr_beastarmour_drawn" % inst.name)
+    inst.quiet(r"^beastarmour drawn: ent=", 0.3, 5)
+    debris = int(re.search(r"(\d+) debris", head).group(1))
+    beasts = {}
+    for line in inst.lines[since:]:
+        m = re.match(r"beastarmour drawn: ent=(\d+) model=(\S+) type=(\d+) mask=(\d+) pieces=(\d+) whole=(\d+) worn=(\d+) "
+                     r"worst=(\d+) leather=(\d+) at=(\S+) (\S+)", line.strip())
+        if m:
+            model = m.group(2).split("#")[0]
+            beasts[model] = dict(ent=int(m.group(1)), type=int(m.group(3)), mask=int(m.group(4)), pieces=int(m.group(5)),
+                                 whole=int(m.group(6)), worn=int(m.group(7)), worst=int(m.group(8)),
+                                 leather=int(m.group(9)), at=[float(x) for x in m.group(10).split(",")],
+                                 body=m.group(11))
+    return beasts, debris
+
+
+def beastmp_said(srv, reader, req):
+    """The server's QC vr_agarmor_test `req` (25-27) -> {"ogre": {mask, pieces, wear}, "scrag": {...}} as it printed it
+    (bprint: to the players, `reader` one of them)."""
+    since = reader.mark()
+    srv.cmd("vr_agarmor_test %d" % req)
+    reader.wait(r"beastmp: scrag mask", 30, since, "the server's vr_agarmor_test %d" % req)
+    said = {}
+    for line in reader.lines[since:]:
+        m = re.search(r"beastmp: (ogre|scrag) mask (\d+) pieces (\d+) wear (\d+)/(\d+) debris (\d+)", line)
+        if m:
+            said[m.group(1)] = dict(mask=int(m.group(2)), pieces=int(m.group(3)), wear=int(m.group(4)),
+                                    debris=int(m.group(6)))
+    return said
+
+
+BEAST_MODELS = {"ogre": "progs/ogre.mdl", "scrag": "progs/wizard.mdl"}
+
+
+def beastmp_until(viewers, said, ok, tries=40):
+    """Each viewer's vr_beastarmour_drawn until ok(beasts, debris, said) holds for all (or tries run out) -> {name: (beasts, debris)}."""
+    got = {}
+    for _ in range(tries):
+        got = {v.name: beast_drawn(v) for v in viewers}
+        if all(ok(b, d, said) for b, d in got.values()):
+            break
+        time.sleep(0.25)
+    return got
+
+
+BEAST_AT_ALIVE = 3.0  # units: where B draws a living beast's armour (its pieces' mean) against A's (clocks a tick apart, idling)
+BEAST_AT_DEAD = 1.0   # ... a settled corpse's
+
+
+def beast_gap(got, a, b, model):
+    """The distance between viewers a's and b's drawn armour of `model` (their pieces' mean), or 1e9."""
+    pa, pb = got[a.name][0].get(model, {}).get("at"), got[b.name][0].get(model, {}).get("at")
+    return math.dist(pa, pb) if pa and pb else 1e9
+
+
+BEAST_SAME_UNITS = 0.05  # the host placing his beasts' pieces a remote client's way: off his own by this at most (units) ...
+BEAST_SAME_DEGREES = 0.5  # ... turned this at most
+BEAST_SAME_RAG_UNITS = 0.25  # (a corpse: the client's way draws it between its last two steps, his hit model at the latest:
+BEAST_SAME_RAG_DEGREES = 2.0  # a ragdoll still settling moves a little between them)
+
+
+def beast_compare(inst):
+    """inst (a listen host) places each beast's pieces both ways for a frame (vr_beastarmour_drawn compare) ->
+    {model: (mean, most, degrees, how)}."""
+    since = inst.mark()
+    inst.cmd("vr_beastarmour_drawn compare")
+    inst.wait(r"beastarmour compare: ", 10, since, "%s's compare" % inst.name)
+    inst.quiet(r"^beastarmour compare: ", 0.3, 5)
+    out = {}
+    for line in inst.lines[since:]:
+        m = re.search(r"beastarmour compare: ent=\d+ model=(\S+) \d+ pieces .*: mean ([\d.]+), most ([\d.]+) units, turned "
+                      r"([\d.]+) degrees at most \((\w+)\)", line)
+        if m:
+            out[m.group(1).split("#")[0]] = (float(m.group(2)), float(m.group(3)), float(m.group(4)), m.group(5))
+    return out
+
+
+def beastmp(s, listen=True):
+    """(beastmp, ROUND26.md) A remote client draws the beasts' armour as the host does: the server's QC (vr_agarmor_test 25)
+    puts an ogre and a scrag in full yellow armour before A; B (a remote client: no server of his own, his own drawing of
+    their bodies: "client-body") draws every piece the server says they wear (mask and count), their leather junctions;
+    26 breaks the ogre's left shin and the scrag's third tail segment (parts breaking alone) and wears the ogre's breastplate
+    to two thirds: B drops exactly those pieces, draws the breastplate at its wear and sees the debris; 27 kills both: their
+    corpses (ragdolls, sent as QVR_SVC_RAGPOSE) keep their pieces at B. `listen`: A hosts (A draws the server's bodies);
+    else a dedicated server, A and B both remote, the beasts dressed before B joins (the shaped pieces' debris models,
+    "#tweak", in his precache list; their armour in the state a joining client is sent). Each step also where B draws each
+    beast's armour (its pieces' mean) against A."""
+    pre = {}
+
+    def first(srv, a, ea):
+        put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90)
+        if not listen:
+            pre.update(beastmp_said(srv, a, 25))
+
+    srv, a, b, ea, eb = join(s, listen=listen, level="vrtesthall", srv_first="developer 1", first=first)
+    a.cmd("god; notarget")
+    b.cmd("god; notarget")
+    put_at(srv, b, eb, ARMED_B, 90)
+    viewers = [a, b]
+    remote = [b] if listen else [a, b]
+
+    def drawn_all(beasts, debris, said):
+        return all(BEAST_MODELS[k] in beasts and beasts[BEAST_MODELS[k]]["mask"] == said[k]["mask"] and
+                   beasts[BEAST_MODELS[k]]["pieces"] == said[k]["pieces"] for k in said)
+
+    def same_check(what, how, units, degrees):
+        if not listen:
+            return
+        cmp_ = {}
+        for _ in range(20):
+            cmp_ = beast_compare(a)
+            if all(m in cmp_ and cmp_[m][3] == how for m in BEAST_MODELS.values()):
+                break
+        s.metric("beastmp_same_" + what.split()[0], cmp_)
+        s.check("%s: A (the host) places every piece a remote client's way (his client's data alone: %s) where he draws it: off "
+                "%.2f units, %.1f degrees at most" % (what, how, units, degrees),
+                all(m in cmp_ and cmp_[m][3] == how and cmp_[m][1] <= units and cmp_[m][2] <= degrees
+                    for m in BEAST_MODELS.values()), "%s" % cmp_)
+
+    def placed_check(got, bound, what):
+        gaps = {k: beast_gap(got, a, b, m) for k, m in BEAST_MODELS.items()}
+        s.metric("beastmp_gap_" + what.split()[0], gaps)
+        s.check("%s: B draws each beast's armour where A does (its pieces' mean on the body, within %.1f units)" % (what, bound),
+                all(g <= bound for g in gaps.values()), ", ".join("%s %.2f" % kv for kv in gaps.items()))
+
+    said = pre or beastmp_said(srv, a, 25)
+    s.check("the server dressed an ogre and a scrag in full yellow (vr_agarmor_test 25)",
+            set(said) == {"ogre", "scrag"} and all(v["pieces"] > 0 for v in said.values()), "%s" % said)
+    if set(said) != {"ogre", "scrag"}:
+        return
+    got = beastmp_until(viewers, said, drawn_all)
+    for v in viewers:
+        beasts, debris = got[v.name]
+        body = "client-body" if v in remote else "server-body"
+        for k, model in BEAST_MODELS.items():
+            d = beasts.get(model, {})
+            s.check("%s (%s) draws the %s's every piece (%d) for the server's mask %d, its leather, its own drawing (%s)" % (
+                v.name, "remote" if v in remote else "the host", k, said[k]["pieces"], said[k]["mask"], body),
+                d.get("pieces") == said[k]["pieces"] and d.get("mask") == said[k]["mask"] and d.get("leather") == 1 and
+                d.get("body") == body and d.get("whole") == d.get("pieces"), "%s" % d)
+    s.metric("beastmp_drawn", {n: {k: got[n][0].get(m, {}).get("pieces") for k, m in BEAST_MODELS.items()} for n in got})
+    if listen:
+        # (a dedicated server's beasts are dressed before B joins and can take B for their enemy before his notarget: they
+        # hunt him, A and B sample them a moment apart in other frames; the corpses' check below holds for both)
+        placed_check(got, BEAST_AT_ALIVE, "alive, idling")
+    same_check("alive, idling", "animated", BEAST_SAME_UNITS, BEAST_SAME_DEGREES)
+
+    said2 = beastmp_said(srv, a, 26)
+    broke = said2.get("ogre", {}).get("debris", 0) - said["ogre"]["debris"]
+    s.check("the server broke the ogre's left shin and the scrag's tail3 (2 pieces fewer, 2 debris), the ogre's breastplate worn",
+            said2["ogre"]["pieces"] == said["ogre"]["pieces"] - 1 and said2["scrag"]["pieces"] == said["scrag"]["pieces"] - 1 and
+            said2["ogre"]["wear"] == 1 and broke == 2, "%s; debris made %d" % (said2, broke))
+
+    def broken_all(beasts, debris, said):
+        return drawn_all(beasts, debris, said) and beasts[BEAST_MODELS["ogre"]]["worn"] == 1 and debris >= 2
+
+    got = beastmp_until(viewers, said2, broken_all)
+    for v in viewers:
+        beasts, debris = got[v.name]
+        o, c = beasts.get(BEAST_MODELS["ogre"], {}), beasts.get(BEAST_MODELS["scrag"], {})
+        s.check("%s: the broken parts gone (ogre %d pieces, mask %d; scrag %d, mask %d), the breastplate at two thirds, the debris "
+                "seen" % (v.name, said2["ogre"]["pieces"], said2["ogre"]["mask"], said2["scrag"]["pieces"], said2["scrag"]["mask"]),
+                broken_all(beasts, debris, said2), "ogre %s; scrag %s; debris %d" % (o, c, debris))
+
+    said3 = beastmp_said(srv, a, 27)
+    def settled(beasts, debris, said):
+        return drawn_all(beasts, debris, said) and all(beasts[m]["body"] in ("server-body", "client-ragdoll")
+                                                       for m in BEAST_MODELS.values())
+
+    got = beastmp_until(viewers, said3, settled)
+    # (their ragdolls settle: A's and B's drawings of them the same once still)
+    for _ in range(40):
+        if all(beast_gap(got, a, b, m) <= BEAST_AT_DEAD for m in BEAST_MODELS.values()):
+            break
+        time.sleep(0.25)
+        got = beastmp_until(viewers, said3, settled, 1)
+    for v in viewers:
+        beasts, debris = got[v.name]
+        s.check("%s: both killed, their corpses keep their pieces (ogre %d, scrag %d)%s" % (v.name, said3["ogre"]["pieces"],
+                said3["scrag"]["pieces"], ", on the ragdolls the server sent" if v in remote else ""),
+                settled(beasts, debris, said3), "%s" % beasts)
+    placed_check(got, BEAST_AT_DEAD, "corpses settled")
+    same_check("corpses settled", "ragdoll", BEAST_SAME_RAG_UNITS, BEAST_SAME_RAG_DEGREES)
+
+
 def coopbots(s):
     """(MP bots phase 1) Bots in a coop game (FrikBot's coop rules, the hands of a flat-screen player): on a dedicated
     coop server on e1m1 A adds a bot (impulse 100): three players listed at A; the server's QC test (vr_dm_test 11)
@@ -5247,6 +5491,142 @@ def attach_dm(s, srv, a, b, c):
     after = health_of(srv, ea)
     s.check("deathmatch: B's bayonet thrust hurts A", after < before or got is not None,
             "A's health %d -> %d; %s" % (before, after, got[1].strip() if got else "no damage line"))
+    srv.cmd("developer 0")
+
+
+MPSYNC_HAND_TRIP = 6.0  # mpsync: units: B's free hand seen at A moving at least this far from where it rested (pouch and port)
+MPSYNC_FIRE_TIME = 1.2  # game seconds B holds the trigger of his stuck gun
+MPSYNC_RELOAD_TIME = 15.0  # game seconds B's whole reload may take (four trips: about 4 s)
+
+
+def prop_shots(srv):
+    """The server's count of shots fired by guns stuck in something (vr_dm_test 26's `attachmp: propshots=`)."""
+    since = srv.mark()
+    srv.cmd("vr_dm_test 26")
+    n, _ = srv.wait(r"attachmp: report done", 10, since, "the server's attachment report")
+    got = [l for l in srv.lines[since:n] if l.startswith("attachmp: propshots=")]
+    return float(got[-1].split("=")[1]) if got else -1.0
+
+
+def mpsync_hands(s, a, eb):
+    """A's drawing of B's two hands (vr_mp_avatars) -> [hand0, hand1] or None."""
+    (lines,) = reports(s, [a])
+    got = by_ent(lines, "mp_avatar").get(eb)
+    return [got["hand0"], got["hand1"]] if got and "hand0" in got and "hand1" in got else None
+
+
+def mpsync(s):
+    """(mpsync, 2026-11-28) The features of 11-27/28 a remote client uses: a listen host A (VR; the test's bprints reach
+    its console), B (flat-screen) remote through the proxy. (1) Procedural reload (vr_flat_proc_reload 1, the host's
+    rule): B fires his shotgun empty and presses R; the server counts the rounds in (`flat proc reload: main hand done`,
+    the clip full) and A sees B's free hand travel (the hand is B's own client's; the server owns the rounds). (2) A held
+    grenade put back by a holster pick: B's wheel pick BACK POUCH (vr_wheel_pick 0 -5, his flat trip), then EMPTY HAND
+    (vr_wheel_pick 0 -1): back in the pouch, his rocket back. (3) A dagger as a bayonet (vr_dm_test 28 gives it, J puts it
+    on): A draws it (kind 2) on B's gun. (4) V's thrust sticks the gun in a grunt by the dagger's point; A draws the dagger
+    on the stuck gun; B pulls the trigger: the stuck gun fires (the server's prop shots) and hurts the grunt."""
+    srv, a, b, ea, eb = join(s, listen=True, flat="B")
+    a.cmd("name A")
+    b.cmd("name B")
+    slot = eb - 1
+    srv.cmd("developer 1; vr_flat_proc_reload 1; vr_flat_autoreload 0")
+    b.cmd("vr_flat_autoreload 0")
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+
+    # (1) Procedural reload as a remote flat-screen client.
+    b.cmd("impulse 154")
+    held = weapon_until(s, srv, eb, 4)
+    b.cmd("+attack")
+    inv, _ = inventories_until(srv, lambda i, m: i.get(slot, {}).get("clip", 1) == 0)
+    b.cmd("-attack")
+    empty = inv.get(slot, {})
+    s.check("reload: B holds the shotgun and fires it empty (the server's clip 0)", held[-1] == 4 and empty.get("clip") == 0,
+            "main weapon by report %s; B on the server %s" % (held, empty))
+    rest = mpsync_hands(s, a, eb)
+    since = srv.mark()
+    b.cmd("vr_mock_key r down")
+    server_time_past(srv, server_time(srv) + 0.05)
+    b.cmd("vr_mock_key r up")
+    trip, done = 0.0, None
+    give_up = server_time(srv) + MPSYNC_RELOAD_TIME
+    while server_time(srv) < give_up:  # (a definite end: the server's game clock)
+        now = mpsync_hands(s, a, eb)
+        if rest and now:
+            trip = max(trip, math.dist(now[0], rest[0]), math.dist(now[1], rest[1]))
+        done = next((l for l in srv.lines[since:] if re.match(r"flat proc reload: main hand (done|cancelled)", l)), None)
+        if done:
+            break
+    inv, _ = inventories_until(srv, lambda i, m: i.get(slot, {}).get("clip", 0) > 0)
+    full = inv.get(slot, {})
+    steps = [l.strip() for l in srv.lines[since:] if l.startswith("flat proc reload:")]
+    s.check("reload: B's R runs the procedural reload on the server to a full clip (`main hand done`)",
+            done is not None and "done" in done and full.get("clip", 0) >= 2,
+            "%s; B on the server %s; steps %s" % (done.strip() if done else "no end line", full, steps[:4]))
+    s.check("reload: A sees B's free hand travel to the pouch and the port (his avatar's hands at A)", trip >= MPSYNC_HAND_TRIP,
+            "the most a hand of B moved at A: %.1f units (rested at %s)" % (trip, rest))
+
+    # (2) A held grenade put back by a holster pick (the wheel's, as B's client sends it); the shotgun in his other hand.
+    b.cmd("give r 10")
+    inv, _ = inventories_until(srv, lambda i, m: i.get(slot, {}).get("rockets", 0) >= 10)
+    since = srv.mark()
+    b.cmd("cmd vr_wheel_pick 0 -5")
+    took = wait_quietly(srv, r"flat grenade: (done; the off hand holds|the off hand has it)|weapon wheel: hand 0, grenade: "
+                        r"(the pouch is empty|the hand is not free|the hand carries|nothing came)", 20, since, "B's grenade")
+    inv1, _ = inventories(srv)
+    s.check("grenade: B's wheel pick BACK POUCH (vr_wheel_pick 0 -5) puts a grenade in his free hand, a rocket out of the pouch",
+            took is not None and "flat grenade" in took[1] and inv1.get(slot, {}).get("rockets", 0) < inv.get(slot, {}).get("rockets", 0),
+            "%s; rockets %s -> %s" % (took[1].strip() if took else "no line", inv.get(slot, {}).get("rockets"),
+                                      inv1.get(slot, {}).get("rockets")))
+    since = srv.mark()
+    b.cmd("cmd vr_wheel_pick 0 -1")
+    back = wait_quietly(srv, r"grenade: hand (grenade|multi-grenade) put back|grenade: hand 0: not put back", 20, since,
+                        "B's grenade put back")
+    inv2, _ = inventories_until(srv, lambda i, m: i.get(slot, {}).get("rockets", 0) > inv1.get(slot, {}).get("rockets", 0))
+    s.check("grenade: B's EMPTY HAND pick (vr_wheel_pick 0 -1) puts the unarmed grenade back, the rocket back in the pouch",
+            back is not None and "put back" in back[1] and
+            inv2.get(slot, {}).get("rockets", 0) == inv1.get(slot, {}).get("rockets", 0) + 1,
+            "%s; rockets %s -> %s" % (back[1].strip() if back else "no line", inv1.get(slot, {}).get("rockets"),
+                                      inv2.get(slot, {}).get("rockets")))
+
+    # (3) A dagger as a bayonet, drawn by A.
+    since = srv.mark()
+    srv.cmd("vr_dm_test_who %d; vr_dm_test 28" % eb)
+    got = wait_quietly(srv, r"attachmp: (dagger in|no) player", 10, since, "the dagger given")
+    b.cmd("impulse 52")
+    pl, _, _ = attach_server_until(srv, lambda p, l, m: p.get(eb, {}).get("main") == (4, 2))
+    s.check("dagger: B is given a dagger (vr_dm_test 28) and J puts it on his shotgun (the server's record: kind 2)",
+            got is not None and "dagger in" in got[1] and pl.get(eb, {}).get("main") == (4, 2),
+            "%s; B on the server %s" % (got[1].strip() if got else "no attachmp line", pl.get(eb)))
+    attach_seen_until(s, [b], has_drawn("hand_main", kind=2), "dagger: B draws the dagger on the shotgun in his own hand")
+    attach_seen_until(s, [a], has_drawn("other_held", eb, kind=2), "dagger: A draws the dagger on B's shotgun")
+
+    # (4) V sticks the gun in a grunt by the dagger's point; B fires the stuck gun.
+    put_at(srv, b, eb, OPEN_SPOT, 90)
+    srv.cmd("vr_test_spawn 0; vr_test_spawn_dist %g" % ATTACH_STAB_DIST)
+    b.cmd("impulse 241")
+    _, _, mon = attach_server_until(srv, lambda p, l, m: len(m) > 0)
+    before = min((x["health"] for x in mon), default=None)
+    b.cmd("vr_flat_punch v")
+    by_b = lambda x: x["stuck"] and x["attach"] == 2 and math.hypot(x["at"][0] - OPEN_SPOT[0], x["at"][1] - OPEN_SPOT[1]) <= 96
+    pl, ly, mon = attach_server_until(srv, lambda p, l, m: any(by_b(x) for x in l))
+    stuck = [x for x in ly if by_b(x)]
+    stabbed = min((x["health"] for x in mon), default=None)
+    s.check("stuck: B's dagger-bayonet thrust (V) hurts the grunt and sticks the shotgun in it by the dagger",
+            bool(stuck) and before is not None and (stabbed is None or stabbed < before),
+            "stuck guns %s; grunt health %s -> %s" % (stuck, before, stabbed))
+    if not stuck:
+        return
+    attach_seen_until(s, [a], has_drawn("lying", near=stuck[0]["at"], kind=2), "stuck: A draws the dagger on B's stuck gun")
+    shots0 = prop_shots(srv)
+    b.cmd("+attack")
+    server_time_past(srv, server_time(srv) + MPSYNC_FIRE_TIME)
+    b.cmd("-attack")
+    shots1 = prop_shots(srv)
+    _, _, mon = attach_server(srv)
+    shot = min((x["health"] for x in mon), default=None)
+    s.check("stuck: B's trigger fires the stuck gun (the server's prop shots) and the shot hurts the grunt",
+            shots1 > shots0 and (shot is None or stabbed is None or shot < stabbed),
+            "prop shots %g -> %g; grunt health %s -> %s" % (shots0, shots1, stabbed, shot))
+
     srv.cmd("developer 0")
 
 
@@ -10921,6 +11301,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             bandwidth(s)
         elif test == "mp_armed":
             armed(s)
+        elif test == "mp_elite":
+            elite(s)
         elif test == "mp_retransmit":
             retransmit(s)
         elif test == "mp_version":
@@ -11075,6 +11457,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             holstersync(s)
         elif test == "mp_attach":
             attach(s)
+        elif test == "mp_mpsync":
+            mpsync(s)
         elif test == "mp_botrevolver":
             botrevolver(s)
         elif test == "mp_deathlook":
@@ -11083,6 +11467,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             botgrab(s)
         elif test == "mp_meleearcs":
             meleearcs(s)
+        elif test == "mp_beastmp":
+            beastmp(s, True)
+        elif test == "mp_beastmp_dedicated":
+            beastmp(s, False)
         elif test == "mp_debugviz":
             debugviz(s, False)
         elif test == "mp_debugviz_listen":
@@ -11124,6 +11512,7 @@ SUITE = [
     ("mp_coop_lag", (150, 0, 0.02)),
     ("mp_bandwidth", ()),
     ("mp_armed", ()),
+    ("mp_elite", ()),
     ("mp_retransmit", ()),
     ("mp_version", ()),
     ("mp_overflow", ()),
@@ -11179,10 +11568,12 @@ SUITE = [
     ("mp_botgear", ()),
     ("mp_holstersync", ()),
     ("mp_attach", ()),
+    ("mp_mpsync", ()),
     ("mp_variantowned", ()),
     ("mp_botrevolver", ()),
     ("mp_debugviz", ()),
     ("mp_meleearcs", ()),
+    ("mp_beastmp", ()),
     ("mp_debugviz_listen", ()),
     ("mp_wristscore", ()),
     ("mp_lockstep", ()),
@@ -11213,7 +11604,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "meleearcs", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "overflow", "overflow_coop"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "meleearcs", "beastmp", "beastmp_dedicated", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "mpsync", "overflow", "overflow_coop"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -11282,7 +11673,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "meleearcs", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "overflow", "overflow_coop"):
+                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "meleearcs", "beastmp", "beastmp_dedicated", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "mpsync", "overflow", "overflow_coop"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

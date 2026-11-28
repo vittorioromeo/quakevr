@@ -16,6 +16,7 @@
 #include "vr_gadget.hpp"
 #include "vr_gfx.hpp"
 #include "vr_notectx.hpp"
+#include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_testkit.hpp"
@@ -154,6 +155,7 @@ struct Contents
     bool unloadFull[2]{}; // that gun's ammo full up in the reserve: no round would go back
     bool unloadable[2]{}; // UNLOAD would move rounds now (some fit, not reloading): lit (the weapon wheel's UNLOAD too)
     bool tooBig[2]{};     // that hand's weapon too big for a holster (QC WeaponIdToHolsterable: a drag greys the holsters)
+    int gren[2]{};        // the hand grenade it holds (handGrenade): 0 none, 1 unarmed, 2 an unarmed multi-grenade, 3 armed
 };
 
 [[nodiscard]] Contents contents()
@@ -200,6 +202,8 @@ struct Contents
     c.tooBig[1] = (full & 8) != 0;
     c.unloadable[0] = (full & 16) != 0; // (bits 4 and 5: the server's own test, either mode)
     c.unloadable[1] = (full & 32) != 0;
+    c.gren[0] = (full >> 6) & 3; // (grenhold: two bits a hand, QC VR_FlatReload_HandFrameOn)
+    c.gren[1] = (full >> 8) & 3;
     return c;
 }
 
@@ -293,11 +297,38 @@ struct BodyPreview
     bool ok{false};
     int frame{-1}; // host_framecount it was made in
     int made{0};   // (vr_flatholster_dump)
+    int kept{0};   // frames it was kept as made (the body moved under keepPixels)
+    float moved{0.f}; // (vr_flatholster_dump) the last frame's most movement from the drawn body, picture pixels
+    glm::vec3 level{0.f}; // the view's level direction it was drawn from
+    za::Vector<glm::vec3> drawnVerts; // (pcperf: the body's vertices as the picture shows them; keepPixels)
 };
 // split20: each seat's (seat::Part::HolsterBody): each seat's holster menu shows its own body
 [[nodiscard]] BodyPreview& bodyPreview()
 {
     return seat::part<BodyPreview>(seat::current(), seat::Part::HolsterBody);
+}
+
+// (pcperf) The body's vertices as the picture shows them: a body that moved less than keepPixels of the picture since
+// keeps its picture (the raster was 1.5-2.2 ms a frame: standing with the menu open, its slowed time, the pose drifts by
+// hundredths of a pixel). Measured against the drawn vertices, never the last frame's, so the picture is never further off
+// than that.
+// (split21: each seat's, its BodyPreview's drawnVerts: seat 2's body is not seat 1's)
+constexpr float keepPixels = 0.05f;
+
+// The most any vertex of `now` moved from `was` (units; a different mesh: infinity).
+[[nodiscard]] float mostMoved(const za::Vector<glm::vec3>& was, const za::Vector<glm::vec3>& now)
+{
+    if(was.size() != now.size())
+    {
+        return 1e30f;
+    }
+    float most = 0.f;
+    for(za::SizeT i = 0; i < now.size(); i++)
+    {
+        const glm::vec3 d = now[i] - was[i];
+        most = za::max(most, za::max(za::abs(d.x), za::abs(d.y), za::abs(d.z)));
+    }
+    return most;
 }
 
 // The body drawn this frame (false: not posed, or nothing drawn: the stick figure instead).
@@ -308,19 +339,39 @@ struct BodyPreview
     {
         return b.ok;
     }
+    QVR_PROFILE("holster menu body");
     b.frame = host_framecount;
-    b.ok = false;
     avatar::Skeleton sk;
-    if(!avatar::skeleton(sk) || !avatar::posedMesh(bodyScratch.verts, bodyScratch.tris, bodyScratch.parts, true))
+    if(!avatar::skeleton(sk))
     {
+        b.ok = false;
         return false;
     }
     const glm::vec3 fwd = sk.pelvisFrame.rot[2];
     glm::vec3 level{fwd.x, fwd.y, 0.f};
     level = glm::length(level) > 1e-3f ? glm::normalize(level) : glm::vec3{1.f, 0.f, 0.f};
+    {
+        QVR_PROFILE("holster menu body mesh");
+        if(!avatar::posedMesh(bodyScratch.verts, bodyScratch.tris, bodyScratch.parts, true))
+        {
+            b.ok = false;
+            return false;
+        }
+    }
+    // (pcperf) Seen the same way and moved less than keepPixels: the picture kept (keepPixels).
+    const float pixelsPerUnit = b.framing.scale;
+    b.moved = b.ok ? mostMoved(b.drawnVerts, bodyScratch.verts) * pixelsPerUnit : 1e30f;
+    if(b.ok && level == b.level && b.moved < keepPixels)
+    {
+        b.kept++;
+        return true;
+    }
+    QVR_PROFILE("holster menu body raster");
     b.ok = toolgun::icons::drawMesh(bodyScratch.verts, bodyScratch.tris, -level + glm::vec3{0.f, 0.f, bodyViewRise}, bodyPicW,
         bodyPicH, b.picture, b.framing);
     b.made += b.ok ? 1 : 0;
+    b.level = level;
+    b.drawnVerts = bodyScratch.verts;
     return b.ok;
 }
 
@@ -396,8 +447,12 @@ void layOut()
     const auto handHas = [&c](int h) { return c.hand[h] != WID_FIST || c.carry[h] != 0; };
     switch(b.act)
     {
-    case Act::HolsterLeft: return (c.holster[b.index] != WID_FIST || c.hand[0] != WID_FIST) && !c.carry[0];
-    case Act::HolsterRight: return (c.holster[b.index] != WID_FIST || c.hand[1] != WID_FIST) && !c.carry[1];
+    // (A hand grenade isn't a carried prop here, grenhold: the press puts it back in the pouch, the holster's weapon then
+    // drawn; armed, the server's refusal says why.)
+    case Act::HolsterLeft:
+        return (c.holster[b.index] != WID_FIST || c.hand[0] != WID_FIST || c.gren[0]) && (!c.carry[0] || c.gren[0]);
+    case Act::HolsterRight:
+        return (c.holster[b.index] != WID_FIST || c.hand[1] != WID_FIST || c.gren[1]) && (!c.carry[1] || c.gren[1]);
     case Act::HolsterDrop: return c.holster[b.index] != WID_FIST;
     case Act::HandDrop: return handHas(b.index);
     case Act::DropBoth: return handHas(0) || handHas(1);
@@ -802,6 +857,11 @@ bool canUnload(int hand)
     return enabled(b, contents());
 }
 
+int handGrenade(int hand)
+{
+    return contents().gren[hand == 0 ? 0 : 1];
+}
+
 bool canFlip(int hand)
 {
     const Button b{Act::FlipGrip, hand == 0 ? 0 : 1, {}, {}};
@@ -848,6 +908,7 @@ void draw()
     {
         return;
     }
+    QVR_PROFILE("holster menu");
     layOut();
     const Contents c = contents();
 
@@ -1777,6 +1838,11 @@ void dump_f()
         Con_Printf("  button \"%s\" at %.0f %.0f %.0f x %.0f: %s, impulse %d\n", b.name, b.rect.x, b.rect.y, b.rect.z, b.rect.w,
             enabled(b, c) ? "on" : "off", impulseOf(b));
     }
+    const toolgun::icons::MeshStats ms = toolgun::icons::lastMeshStats();
+    Con_Printf("  body preview: %s, made %d times, kept %d frames (moved under %.2f px), last moved %.3f px, %d triangles into "
+               "%d x %d\n",
+        bodyPreview().ok ? "shown" : "none", bodyPreview().made, bodyPreview().kept, keepPixels, bodyPreview().moved, ms.triangles,
+        ms.width, ms.height);
 }
 
 } // namespace

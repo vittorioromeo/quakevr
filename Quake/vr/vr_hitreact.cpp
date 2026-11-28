@@ -1242,6 +1242,22 @@ bool drawnWeapon(int prop, glm::vec3& at, glm::vec3& fw, glm::vec3& up)
     return false;
 }
 
+bool drawnArm(int ent, int side, glm::vec3& shoulder, glm::vec3& elbow, glm::vec3& hand)
+{
+    const ArmPose* s = armPoseOf(ent, false);
+    if(!s || side < 0 || side > 1 || ent <= 0 || ent >= cl.num_entities || s->seenFrame < 0 ||
+        host_framecount - s->seenFrame > 36)
+    {
+        return false;
+    }
+    const ArmSeen& as = armSeen[s - armPoses.slots];
+    const entity_t* e = &cl_entities[ent];
+    shoulder = toWorld(e, as.shoulder[side]);
+    elbow = toWorld(e, as.elbow[side]);
+    hand = toWorld(e, as.hand[side]);
+    return true;
+}
+
 void parseArmPose()
 {
     ArmPoseMsg m;

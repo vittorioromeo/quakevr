@@ -94,7 +94,7 @@ constexpr float agc_VR_AGK_TUG_EASE = 0.25f;
     X(vr_agk_tugs) X(vr_agk_hpose) X(vr_agk_hphase) X(vr_agk_hplay) X(vr_agk_test_hold) X(vr_agp_tw) X(vr_agp_ts) \
     X(vr_agp_th) X(vr_agp_tr) X(vr_agp_kw) X(vr_agp_kwfw) X(vr_agp_kc) X(vr_agp_ke) X(vr_agp_kefw) X(vr_agp_sawat) \
     X(vr_agp_sawfw) X(vr_agp_sfw) X(vr_agp_sup) X(vr_agp_gunat) X(vr_agp_onehand) X(vr_agp_gunpose) X(vr_agp_ww) \
-    X(vr_agp_wf) X(vr_agp_tq) X(vr_agp_drawr) X(vr_agp_drawl) X(vr_agp_waist) X(vr_agp_elr) X(vr_agp_ell) \
+    X(vr_agp_wf) X(vr_agp_tq) X(vr_agp_drawr) X(vr_agp_drawl) X(vr_agp_waist) X(vr_agp_elr) X(vr_agp_ell) X(vr_agp_shpole) \
     X(vr_agp_trq) X(vr_agp_trc) X(vr_agp_trs) X(vr_agk_ba) X(vr_agk_bb) X(vr_agk_bf) X(vr_agk_rep) X(vr_agk_repent) \
     X(vr_agk_k_rp) X(vr_agk_k_rr) X(vr_agk_k_lp) X(vr_agk_k_lr) X(vr_agk_k_er) X(vr_agk_k_el) X(vr_agk_k_t) \
     X(vr_agk_k_gp) X(vr_agk_k_gr) X(vr_agh_set) X(vr_agp_fwl) X(vr_agp_upl) X(vr_agpar_mw) X(vr_am_filled) \
@@ -1958,6 +1958,21 @@ AgpCoverage agpCov; // (the server's VM: the main thread)
             body = true;
         }
     }
+    if(!agZero(AGV(vr_agp_shpole)) && agAnd(AG(vr_agp_flags), agfFixed) == 0.f)
+    {
+        // (dazzled: its shielding elbow out to its side, QC VR_AGP_Shield; on a strike's or the keys' poles, or alone)
+        if(!body)
+        {
+            const AgV zero{0.f, 0.f, 0.f};
+            AGSET(vr_agp_tq, zero);
+            AGSET(vr_agp_elr, zero);
+            AGSET(vr_agp_ell, zero);
+        }
+        AGSET(vr_agp_ell, AGV(vr_agp_ell) + AGV(vr_agp_shpole));
+        AG(vr_agp_flags) = agOr(AG(vr_agp_flags), agfBody);
+        body = true;
+    }
+    AGSET(vr_agp_shpole, (AgV{0.f, 0.f, 0.f}));
     if(agVlen(AGV(vr_agp_elr)) > 1) { AGSET(vr_agp_elr, agNormalize(AGV(vr_agp_elr))); }
     if(agVlen(AGV(vr_agp_ell)) > 1) { AGSET(vr_agp_ell, agNormalize(AGV(vr_agp_ell))); }
     if(AG(vr_agk_on) != 0.f)

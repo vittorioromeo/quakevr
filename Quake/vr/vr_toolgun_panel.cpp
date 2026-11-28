@@ -1104,11 +1104,17 @@ void armedPage(Ui& ui)
             Cvar_SetValueQuick(&vr_toolgun_armed_pieces, static_cast<float>(ap));
         }
         // What it rises as when first killed (QC vr_mg3_infected.qc VR_INFECT_ROWS; on each one spawned).
-        const int inf = dropdown(ui, Rect{x0, 119.f, x1, 131.f}, "Infected With", l.infected.data(), static_cast<int>(l.infected.size()),
+        const int inf = dropdown(ui, Rect{x0, 119.f, xm - 2.f, 131.f}, "Infected With", l.infected.data(), static_cast<int>(l.infected.size()),
             za::clamp(static_cast<int>(vr_toolgun_armed_infected.value), 0, za::max(0, static_cast<int>(l.infected.size()) - 1)));
         if(inf >= 0)
         {
             Cvar_SetValueQuick(&vr_toolgun_armed_infected, static_cast<float>(inf));
+        }
+        // An elite (QC vr_attrs.qc VR_Attr_Toolgun, on each one spawned; with an infection too): lit when on.
+        const bool elite = vr_toolgun_armed_elite.value != 0.f;
+        if(button(ui, Rect{xm + 2.f, 119.f, x1, 131.f}, elite ? "Elite: On" : "Elite: Off", elite))
+        {
+            Cvar_SetValueQuick(&vr_toolgun_armed_elite, elite ? 0.f : 1.f);
         }
         if(ui.mode == Mode::Draw && !ps().drop.name[0]) // (none under an open list: the pictures are drawn after it)
         {

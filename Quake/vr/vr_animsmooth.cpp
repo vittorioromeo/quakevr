@@ -1485,17 +1485,24 @@ bool animsmooth::drawnPoints(const entity_s* e, int pose1, int pose2, float blen
     return true;
 }
 
-bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* out, int n)
+bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* out, int n, const int* verts)
 {
     if(!model || model->type != mod_alias)
     {
         return false;
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
-    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || n != hdr->numverts || l.pose1 < 0 || l.pose2 < 0 ||
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || (!verts && n != hdr->numverts) || l.pose1 < 0 || l.pose2 < 0 ||
         l.pose1 >= hdr->numposes || l.pose2 >= hdr->numposes)
     {
         return false;
+    }
+    for(int i = 0; verts && i < n; i++)
+    {
+        if(verts[i] < 0 || verts[i] >= hdr->numverts)
+        {
+            return false;
+        }
     }
     // instanceMemo's choices, with the server's lerp in place of the client entity's
     const bool splined = r_lerpmodels.value == 3.f && l.pose1 != l.pose2 && l.blend > 0.f && l.blend < 1.f;
@@ -1559,12 +1566,13 @@ bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* o
         }
     }
     const za::Vector<int>& vbo = vboOfVert(m, hdr);
-    for(int v = 0; v < n; v++)
+    for(int i = 0; i < n; i++)
     {
+        const int v = verts ? verts[i] : i;
         const int vi = vbo[static_cast<za::SizeT>(v)];
         if(vi >= 0)
         {
-            out[v] = drawnVertex(swung ? &m : nullptr, hdr, vi, poses, s.w, swung ? rows : nullptr, rebuild);
+            out[i] = drawnVertex(swung ? &m : nullptr, hdr, vi, poses, s.w, swung ? rows : nullptr, rebuild);
             continue;
         }
         glm::vec3 p{0.f};
@@ -1572,7 +1580,7 @@ bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* o
         {
             p += s.w[k] == 0.f ? glm::vec3{0.f} : s.w[k] * mdldequant::poseVertex(hdr, poses[k], v);
         }
-        out[v] = p;
+        out[i] = p;
     }
     return true;
 }

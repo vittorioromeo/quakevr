@@ -1077,6 +1077,7 @@ void seatUnbindall_f()
     }
     savedBinds[s] = SavedBinds{};
     savedBinds[s].has = true;
+    qvr::flatplay::seatPadKeysClear(s); // (split21: its flat keys' buttons the cvars' again, until its seat_flatkey lines)
     if(Key_SeatHasBindings(s))
     {
         const int prev = CL_SeatSet(s);
@@ -1150,6 +1151,7 @@ void qvr::seat::registerBindCommands()
 {
     Cmd_AddCommand("seat_bind", seatBind_f);
     Cmd_AddCommand("seat_unbindall", seatUnbindall_f);
+    Cmd_AddCommand("seat_flatkey", qvr::flatplay::seatFlatKey_f); // (split21: a seat's own flat keys' buttons)
 }
 
 extern "C" void Key_SeatWriteBindings(FILE* f)
@@ -1172,5 +1174,6 @@ extern "C" void Key_SeatWriteBindings(FILE* f)
                 fprintf(f, "seat_bind %d \"%s\" \"%s\"\n", s + 1, Key_KeynumToString(k), savedBinds[s].bind[k].cStr());
             }
         }
+        qvr::flatplay::writeSeatPadKeys(f, s); // (split21: its own flat keys' buttons, when it has them)
     }
 }

@@ -4,6 +4,8 @@
 # either hand, is that weapon's quick melee by its own hand (his item 9). Headless flat runs on vrtesthall, fast mode:
 #   1. both fists (impulse 150 / 170): three presses of the left button jab main, off, main; held 100 frames, more jabs,
 #      still alternating; two presses at a grunt 16 ahead land a melee blow each; the right button held 20 frames: the
+#      jabs end on the crosshair's ray (the melee probe's "ray" within 2: flatpunch, his words 2026-11-28); a grunt off the
+#      line he faced, turned onto with the mouse: each hand's jab hits it, its fist on the crosshair's ray;
 #      guard up (share 1, the main fist across on the left of the off fist, the wrists close), let go: down (share 0);
 #      V with a shotgun in the off hand alone: the off hand's melee with it, a hit on a grunt; a shotgun in the main hand
 #      alone: the main hand's; a shotgun in each: the main hand's;
@@ -24,14 +26,21 @@ SC="map vrtesthall; god; notarget; developer 1; vr_flatplay_debug 1; vr_debug_da
 SC="$SC; impulse 150; impulse 170; wait5; setpos 0 260 25 0 90 0; wait5"
 SC="$SC; echo ff: presses; $press; $press; $press; wait20"
 SC="$SC; echo ff: held; +attack; wait100; -attack; wait50"
-SC="$SC; echo ff: jabhit; $grunt; $press; vr_test_kill 1; wait5; $grunt; $press; wait30; vr_test_kill 1; wait5"
+# (The second grunt 60 further back: the first one's corpse, still falling where it stood, took the next jab's blow and
+# was thrown into the new grunt, flatpunch.)
+SC="$SC; echo ff: jabhit; $grunt; $press; vr_test_kill 1; wait5; setpos 0 200 25 0 90 0; wait5; $grunt; $press; wait30; vr_test_kill 1; wait5"
+# A grunt off the line he stands on (24 ahead), then a step aside (14) and the mouse turned onto it: the crosshair on it off the
+# way he faced; each hand's jab goes along the crosshair's ray and hits it (flatpunch). A fresh grunt for each: a jab's
+# blow knocks the grunt back out of the next one's reach.
+aside() { echo "setpos 0 $1 25 0 90 0; wait5; vr_test_spawn 0; vr_test_spawn_dist 24; impulse 241; wait5; setpos 14 $1 25 4 120 0; wait5"; }
+SC="$SC; echo ff: offaim; $(aside 140); $press; wait30; vr_test_kill 1; wait5; $(aside 80); $press; wait30; vr_test_kill 1; wait5"
 SC="$SC; echo ff: guard; +offhandattack; wait20; vr_flatplay_status; -offhandattack; wait20; echo ff: letgo; vr_flatplay_status"
 SC="$SC; impulse 174; wait30; $grunt; echo ff: offgun; vr_flat_punch v; wait60; vr_test_kill 1; wait5"
 SC="$SC; impulse 170; impulse 154; wait30; $grunt; echo ff: maingun; vr_flat_punch v; wait60; vr_test_kill 1; wait5"
 SC="$SC; impulse 174; wait30; $grunt; echo ff: dual; vr_flat_punch v; wait60; vr_test_kill 1; wait5"
 SC="$SC; echo ff: done; toggleconsole; quit"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Script "$SC" -QuitOn "^ff: done" -Timeout 240 \
-    -Filter '^ff:|^flatplay: (main|off) punch|^flatfists|^  fist|^Damage:|ERROR|CRASH' > "$L" 2>&1
+    -Filter '^ff:|^flatplay: (main|off) punch|^flatmelee: (main|off) punch|^flatfists|^  fist|^Damage:|ERROR|CRASH' > "$L" 2>&1
 # The lines of one block: from its marker to the next.
 block() { awk -v m="ff: $1" '$0==m || $0==m" "{on=1;next} /^ff:/{on=0} on' "$L"; }
 ok() { awk "BEGIN { exit !(${1}) }" && echo 1 || echo 0; }
@@ -46,6 +55,17 @@ check $(alternates "$hl") "held: the jabs alternate ($hl)"
 hits=$(block jabhit | grep -ac "^Damage:.* melee:")
 jh=$(hands jabhit)
 check $(ok "$hits >= 2") "two jabs at a grunt: $hits melee hits ($jh)"
+# (The melee probe's "ray": how far the fist's held end is from the crosshair's ray, up and down too: off the crosshair on
+# the screen. Before flatpunch the fist ended 6.5 to 7.6 units from the crosshair's point, below it and short of it.)
+pa=$(block presses | grep -a "^flatmelee: .* punch:" | grep -ao " ray [0-9.]*" | awk '{ print $2 + 0 }' | sort -n | tail -1)
+check $(ok "${pa:-99} <= 2") "the jabs in the air end on the crosshair's ray (worst ${pa:-?} units off, at most 2)"
+oh=$(block offaim | grep -ac "^Damage:.* melee:")
+ojh=$(hands offaim)
+check $(ok "$oh >= 2") "the crosshair on a grunt off the line he faced: both jabs hit it ($oh melee hits; $ojh)"
+check $(alternates "$ojh") "  thrown by each hand (${ojh:-none})"
+oa=$(block offaim | grep -a "^flatmelee: .* punch:" | grep -ao " ray [0-9.]*" | awk '{ print $2 + 0 }' | sort -n | tail -1)
+on=$(block offaim | grep -ac "^flatmelee: .* punch:")
+check $(ok "$on >= 2 && ${oa:-99} <= 2") "  each fist ends on the crosshair's ray ($on jabs, worst ${oa:-?} units off)"
 gl=$(block guard | grep -a "^  fist" | tr '\n' ' ')
 share=$(grep -ao "share [0-9.]*" <<<"$gl" | awk '{ print $2 + 0 }')
 right=$(grep -ao "right [-0-9.]*" <<<"$gl" | awk '{ print $2 + 0 }')
