@@ -6072,3 +6072,41 @@ Brush").
 - Headset: beta6 put back (1.2.0-beta6, progs a0bfe11a), his 31 autosaves and 3 top-level saves restored (35 sums match).
   Scripts: worktree `scratch/qcb_*` (not committed): `qcb_q.sh` (backup/install/launch/restore), `qcb_mkcfg.py`,
   `qcb_parse.py`, `qcb_q2.cfg` (the profile A/B).
+
+## flatmenu3: the holster menu on TAB with the level bar, its BACK POUCH, legible pad glyphs, the off hand's wheel (branch agent/flatmenu3, 2026-11-28)
+
+His words 2026-11-28 (items 3-6 of the afternoon's flat-screen notes).
+- **Off hand's wheel** (3: "When both hands are holding the same weapon, the weapon wheel for the off-hand appears near the
+  edge of the screen"): an empty hand steadying the other hand's weapon (flat play's two-handed hold) is drawn on the gun,
+  but the game's hand hangs behind the eye, so its projection was the fallback or anywhere on the window as the look went.
+  `flatHandOnWindow` (vr_weaponwheel.cpp) now places such a hand's wheel at `restSpot` (0.33 W, 0.80 H, the right hand's
+  mirrored), measured where the left wheel opens with both hands empty at a level look; the same spot is the off-view
+  fallback (was 0.28, 0.68). Rule: that hand empty (WID_FIST), the other holding a weapon, not holding a thing.
+- **TAB** (4): `vr_flat_key_holster_menu` "mouse3 TAB LTHUMB" (both keyboard slots and the pad's); MMB keeps it (nothing
+  clashed). In flat play TAB is now a flat key (VR_FlatKeyOwned: its +showscores bind is not run); in VR, the console and
+  the menus TAB is as before. Configs are sparse since 218, so a player who never changed the key gets TAB.
+- **Level bar** (4): under the open menu, `vr_flat_holster_menu_levelbar` (1; VR Settings, under Holster Menu Size): a
+  gadget image (`gadget::renderLevelBar`, vr_gadget_holster.inc: the menu's face, frame, corner ticks, palette and font)
+  480 x 25 menu pixels at the menu's scale, at the window's bottom (2 % margin): the level's name and map (Sbar's), then
+  KILLS, SECRETS, SKILL, TIME (cl.time). Deathmatch: everyone's frags, the most first, yours lit, then TIME (the
+  scoreboard TAB showed there); the full ranking stays on `+showscores` (a pad's right stick click with its alt
+  modifier, padflat's default) and on dying. The menu is a little smaller (`vr_flat_holster_menu_size` 0.58, was 0.62)
+  and the bindings panel + menu are centred in the room above the bar; all of it is fitted to the window's height.
+- **BACK POUCH in the menu** (5): over the hands, GRENADE (left) and CLUSTER (right), each a compact slot (thumbnail, count)
+  between its L and R buttons (`pouch g l` .. `pouch c r`), "BACK POUCH" over them (`HolsterMenuView::caption`). Both kinds
+  always shown while the pouch is on (greyed with none left, lit while that kind is in a hand), so nothing moves. A press
+  is the wheel's own pick: `weaponwheel::pickPouch` (vr_wheel_pick -5 / -6, QC VR_Wheel_Grenade: take, swap the kind,
+  put back, armed refused); lit by `weaponwheel::pouchKind` (the wheel's rule, shared). Off with `vr_handgrenade` 0.
+- **Pad glyphs** (6): `padGlyph` (vr_gadget_holster.inc) draws a button glyph 1.3x its place round the same middle on a
+  dark plate, dimmed to 0.6 (the screen's glow makes whitish cores and halos from near-white strokes: the white caps'
+  black letters drowned): the bindings panel's rows (holster menu, flat wheel) and the VR wheel's controller callouts. The
+  main menu's panel (vr_menuui.cpp) draws its glyph 1.3x on a dark rounded plate (no glow there; not dimmed). Row heights,
+  advances and places unchanged.
+- **Tests**: flatholster_test 61/0 (new: the pouch's four buttons lit; R GRENADE takes one, R CLUSTER swaps it, again puts it
+  back; TAB held by vr_mock_key opens the menu, the level bar's name and KILLS, no scoreboard, the menu above the bar; let
+  go closes it); `weaponwheel_test.sh <agent> flatpos` 2/0 (new: the left wheel two-handed at 317 432 and with both hands
+  empty at 316 438 on 960 x 540). weaponwheel_test flat 21/0, flatgrenade 16/0, vr 26/0, grenade 15/0; bindpanel_test 37/0;
+  flatkeybind_test 31/0. Fixed on the way: the flat wheel test's `flatKey` sent the whole cvar ("1 LSHOULDER") to
+  vr_mock_key, which then did nothing (one key name now).
+- Screenshots for his review (worktree scratch): flatmenu3_menu_tab.png (TAB: menu, pouch, bar), flatmenu3_glyphs_before_after.png
+  (left before, right after: the holster menu's panel with an Xbox pad, the main menu's), flatmenu3_offwheel.png.
