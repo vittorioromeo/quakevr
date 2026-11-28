@@ -1,7 +1,7 @@
 # Backlog: agreed work for the next rounds
 
 Work the author approved or asked about, not yet done, one or two lines each, with the doc that holds the detail.
-Remove an item when it ships (git history keeps it); keep new ones as short. Last cleanup 2026-11-27 (ROUND26.md "blclean").
+Remove an item when it ships (git history keeps it); keep new ones as short. Last cleanup 2026-11-28 (ROUND26.md "blclean2").
 Staying here by his decision (2026-11-05): pickup thinks, heart gib and berserk pack, TAA/DLSS.
 Checked, by design (2026-11-19, tester "Joyeuse"'s two hand-off reports, closed): the old hand "keeps aiming"
 after a hand-to-hand swap is the designed two-handed hand-off (vr_2h_handoff 1: the gun hangs from its foregrip until
@@ -10,96 +10,32 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 
 ## 1. Open bugs and failing tests
 
-Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older ones):
-- **Lance pull-out flake**: the test's chance checks moved to flatthrust 59 (ROUND26 "lancepull"); one real loss in 10 flat runs (2026-11-26: the hand empty after a shaft hit on a touching ogre, cause unknown). Lean aim is not wired for Copper, rogue eel/lavaman or AD's own checkattack. Was: `flatlance_test` section 5 fails ~1 run in 6 ("Lance gone after a pull-out"; the H case found
-  no Lance stuck). ROUND25.md "lance4", "flatembed".
-- **VR embed test 24 and test 33 case 46 still fail** (ROUND25.md "embedregress"): 24's mock axe swing is aimed by the old
-  pitch 0 (the axe ships 15.5); 33 case 46: a dead grunt held by the handle doesn't come to the hand (the ragdoll
-  handle-hold motor).
-- **Spears**: a thrown spear sticks in a grunt ~1 in 3 (skids at ~44 deg); armed grunts' spear pose is the sword pose;
-  no spear .blend. ROUND25.md "spear", "spearblunt".
+Open on 2026-11-28 (notes in ROUND26.md; the named ROUND25.md sections for older ones):
+- **Lance pull-out flake**: `flatlance_test` section 5 lost the Lance once in 10 flat runs (2026-11-26: the hand empty after a shaft hit on a touching ogre, cause unknown). Lean aim is not wired for Copper, rogue eel/lavaman or AD's own checkattack. ROUND26 "lancepull"; ROUND25.md "lance4", "flatembed".
+- **VR embed test 24 and test 33 case 46 still fail** (ROUND25.md "embedregress"): 24's mock axe swing is aimed by the old pitch 0 (the axe ships 15.5); 33 case 46: a dead grunt held by the handle doesn't come to the hand (the ragdoll handle-hold motor).
+- **Embedded blades**: real heavy monsters, saves, level change and multiplayer unproven (tests 14-20 written); the handle hold's off-hand pose isn't probed and a stab's gap now moves the body to the hand (keep as slack if that reads wrong; ROUND25.md "embedgrip"); `vr_embed_test` 7 had 2 more failures in one run with the hold on.
+- **Spears**: a thrown spear sticks in a grunt ~1 in 3 (skids at ~44 deg); armed grunts' spear pose is the sword pose; no spear .blend. ROUND25.md "spear", "spearblunt".
 - **Lance against a wall**: it tilts up and the off hand sits ~10 u off the pole, then lets go. ROUND25.md "lanceoffhand".
 - **Rope slide**: one elbow snap ~10 frames in (elbow IK). ROUND25.md "flatfb1124b".
 - **Dog wedged against a wall**: it can stay standing wedged with the wiggle off. ROUND25.md "wallglue".
 - **Flat: no low or sideways swing, so no flat leg sweeps** (his call 2026-11-24: not now).
 - **Splitscreen**: agent/split (6e6f2af6e, split19, SPLITSCREEN.md) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next if it still shows.
-- **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache across frames would rarely hit (questperf2: the instance data changes every frame with the flickering dynamic lights and the wounds' timers); LRZ in the opaque entity pass (questperf2): alive with no alias draws and after your first model, dead after your leg holsters (batches 2-3), not from one state alone; `vr_debug_alias_lrz 62` plus `vr_gl_alias_lazy_blend 1` together keep it (1.16M pixels killed): next, bisect that combination (ROUND26 "questperf2"); CPU-bound big fights
-  (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
-- **Baseline failures, 2026-11-26 list, what is left** (agrunt 203 fixed: ROUND26 "basefix2"; `ragdoll_grab` and teleporters: "basefix1"/"basefix2"): `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14 (0/5 on 11-27, same check); agrunt 16 (0/5: the drawn grip 2.73-2.76 off, limit 2.5) and agrunt 65 (1/5: "grab anywhere: an axe swung at its chest at 4.5 m/s: its parry raised 0.12, parried 0, disarmed 1") as in basefix2. Agrunt 74 and the recoil test passed 5/5 on 11-27 (ROUND26 "flakysweep").
-- **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` points to `qvr-kit/relit`); no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
+- **Quest**: cold start compiles 100 GL programs, 29-35 s; LRZ in the opaque entity pass is dead after your leg holsters' batches; `vr_debug_alias_lrz 62` plus `vr_gl_alias_lazy_blend 1` together keep it: next, bisect that combination (ROUND26 "questperf2"); CPU-bound big fights (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
+  hip1m1 (questopt, 2026-11-28, his perf recording): CPU-bound at 24 ms a frame in its fights (GPU 11.4): QuakeC 7.5 ms
+  (worn packs' anchors fixed; the rest unprofiled on the headset: `vr_qcprofile` + `profile_qc` in a hip1m1 fight next),
+  the flashlight's lightmap light 4-5 ms (now ~1.6), models 2 ms, sound spikes 2.5 ms; the unworn headset still pauses
+  ("xr user absent") despite `-unattended`.
+- **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26; no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
 - **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
-
-- **Flaky/stale lists below, from 11-12 to 11-21 (rechecked 2026-11-27 by the flaky sweep, 5 unseeded runs each: ROUND26 "flakysweep" has the table; the lines below are updated)**.
-- **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
-  (one earlier run of two failed with faulty-frame counts on the blades' stance cases while it timed out under the
-  default 240 s: a one-off, not reproduced; watch it), visor_test 37/0 with AD's two custom keys counted, `vr_agrunt_test
-  213` fixed (the test gave no weapon) and 1/0, `vr_ad_test` 73-80, 184 print their gun (no verdicts), 87/88 PASS,
-  `vr_ad_mtest 3` a diagnostic (no verdict: the death knight and zombie knight gib at the kill, the crossbow knight leaves
-  a corpse). The baseline runner has `flatswap_4_ad` and 213 under AD; the others are described in the round notes.
-- **Random run to run** (re-run 3 times each on 2026-11-12, ROUND25.md "Test triage B"; flatpose and flatswing seeded
-  and read earlier, ROUND25.md "testfix": flatpose's last version unrun): `vr_systems_test 15` (2/5 on 11-27: the
-  blast's body never knocks the torch off; the body's flight varies: UNKNOWN), ragdoll_ragtest (4/5 on 11-27: "catch: NOT begun in 3.0 s"), ragdoll_guard
-  (4/5: "guard stagger: guards its head (staggering)"), **reload is now a real failure, 0/5 on 11-27** ("a prop held in the other hand hits the
-  barrels open and shut by its surface (prop 10, want 10; the fist as far off: 1, want 0)" in all 5; also "the lying shell taken again by the fist" and
-  "let go of at the pouch: refunded" in 4, the SSG sights' colour in 2; the old "a hit: the old one knocked out" check did not show).
-- **ragdoll_stagger: what is left** (the lip fixed, ROUND25.md "realfix_stagger"): the grunt's beaten backpedal falls
-  at 0.43 s after 2 steps instead of giving way after 3 (F, not G; on level ground, every trial); in one combined
-  batched run (lip rates steady backpedal) the 8th steady grunt (balance 0.52) and monster 2's 8th fell, and the lip
-  case got 5/8, while lip alone gets 8/8 (batched or not): something between a batch's runs.
-- **ragdoll_climb** (24 of 24 at seed 7 since agent/climbleft, 2026-11-13; the grunt's move-in and the hell knight's
-  second hand fixed): pull at seed 8 is 4 of 6: the ogre "lost its hold" at 1.25 s (before too), the hell knight
-  "slid back off the lip" in the batched run (stands on the top; alone at seed 8 it gets in). The hell knight's chest
-  stays under the lip for about 2 s going over (both hands holding) and it gets in late. ROUND25.md, "Ragdoll climb
-  leftovers: the grunt's move-in, the hell knight's second hand".
-  (agrunt 60, agarmor_5, limb_wear, stealth settled 2026-11-12; autopump, cellcord, animsmooth, xr_runtime and
-  secret_hits too: ROUND25.md, "Always-failing monster tests" and "Always-failing tests, part b".)
-- Stale list, rechecked 2026-11-27 (5 unseeded runs each): steady 5/5 (off `test_flaky.txt`): agrunt 47/63/72/76/86, ragdoll_grab, rv_1, nail_1,
-  judo, parry_pose, weapon_catch, dead_gear, stealth (all scenes, seeded 1: its scenes seed themselves). Still flaky (stay on the list):
-  agrunt 66 4/5 ("lying (as shipped): walked up and reached for its weapon: it holds nothing, 1 dropped"), agrunt 67 4/5 ("grabtable normal
-  time ...: 101/128 taken (90% or more)"), agrunt 209 4/5 ("grabtable bullet time ...: 137/153 taken"), agrunt 71 3/5 ("balance grunt: damage a
-  second within 25%"), ragdoll_guard 4/5. **Real failure: `teleporters_chase` 0/5** ("chase dog at framed_sill32: never reached the north
-  room ... (try 3 of 3, seed 3)", the same text every run) and agrunt 60 0/5 (agparry: "weapon: parried 1, 0 damage (kept 5 of 20), still armed 1").
-- **Embedded blades** (`vr_embed` on since 2026-11-08): real heavy monsters, saves, level change and multiplayer
-  unproven (tests 14-20 written); tests 24 and 33 as above.
-- **Embedded blades, the handle hold** (2026-11-12, ROUND25.md "embedgrip"): his VR check of the handle staying in the
-  hand; a stab's own gap along the blade now moves the body to the hand (keep it as slack if that reads wrong); the
-  off hand's pose on a handle isn't probed; `vr_embed_test` 7 had 2 more failures in one run with the hold on.
-- **`vrtutorial_playtest.py` room 8**: the shells' throw is fixed (ROUND25.md "testfix"); still open: the mock's main
-  hand never grips the bench's shotgun (stops ~25 units short), so nothing loads; the `weapons` gate and later fail.
-- **Tooling:** Tracy GPU zones lost after toggling GPU detail mid-run; some hidden-mock eye/window captures come back
-  black; 15 test commands still registered in `vr_main.cpp`; `vr_physsound.cpp` keeps its own copy of the box test
-  `R_SurfaceHoldsPoint` replaced for the light.
-- **Baseline 2026-11-12, still failing alone** (ROUND25.md "basefix1112": first-bad merges by bisect, alone, seed 1):
-  agrunt 16's hunt check (the drawn grip 2.7-2.8 units off the drawn hand hull, limit 2.5; its vertex checks fixed,
-  ROUND25.md "agfails2"; 0/5 on 11-27, 2.73-2.76), stealth props_round (5/5 on 11-27 in the full stealth run: steady). Older (11-27, 5 runs): agrunt 3
-  0/5 ("yank: your main hand Fist, the grunt holds Shotgun": the hand does not take the gun), agrunt 91 3/5 ("raggrab: 8/9 won" / "9/10 won"), agrunt 92
-  5/5; 213 fixed 2026-11-13 (adtests).
-- **vrtrailer: the test's swing, not the game** (ROUND25.md "testenv", 2026-11-21): it has failed since 11-10 (passed
-  only in the 11-07 lanes; release12's "3 of 3 on 2026-11-12" was weapon_catch's, not this test's). Its mock (10-08)
-  was written for vr_gunangle 39.5 and an estimated Super Axe line; the defaults went to 70 on 10-16 and the axe's blow
-  line moved to the blade's edge on 11-10 (a1da23a80), with the head-zone path rule. The mock now carries its settings
-  and the measured line; still open: a swing path whose blade crosses the neck sideways (now 8 of 9: killed, "a stab
-  (0.82)" at 0.63 along the blade).
-- **Baseline 2026-11-13** (ROUND25.md "basefix1113"): agrunt 12/47 and teleporters_chase fixed (the tests); arena 11
-  failed under load only (25/0 alone, 2 of 2; 4/5 on 11-27: "its humanoids hold its 5 tier-2 and tier-3 guns (4 hold one)"); ragdoll_ragtest's catch as above (4/5); agrunt 12 and 47 5/5.
-- **r2m1 (Rogue): a counted monster that is no monster edict is inherited, not ours** (r2m1 branch, 2026-11-13): stock
-  QuakeSpasm (-rogue, skill 1, map r2m1, save) and Quake VR give the same save: total_monsters 93, 92 FL_MONSTER edicts,
-  95 monster_* edicts (the extra ones: a monster_morph spawner and a knight-class entity that counts itself without
-  FL_MONSTER). The 95/94 on another skill is the same one-off. vr_run_enemies_check failing r2m1 on it needs an
-  exemption, not a spawn-code fix.
-- **mp_coopbots, rare flake (2026-11-20, mpfinal)**: vr_dm_test 11's "the bot kills the grunt" gave up once in ten
-  takes (the grunt at 19 health at 864 frames; the fight is the bot's aim over 12 s of real time); the base before the
-  review passed its ten. Known; don't chase unless it repeats.
-- **Known failing tests, flakehunt's leftovers (2026-11-21, ROUND25.md "flakehunt")**: fixed there: flateject `rv`
-  (stale pose), `vr_pickup_test 15` (the bots' reaction delay), hotblade's crowbar/chainsaw vertex totals (mdltopo).
-  Still open: hotblade `holster` (the holstered axe found lying: the test's holster move), `blade_parts`/`superaxe`
-  (the hammer's measured length 5.9 -> 7.0 and its glowing verts 295 -> 172 of 795 with no model change: wants his
-  look before the numbers move); flateject `ssg` (second casing up 0.29 against > 0.3) and `vr` (one stroke line) run
-  to run; nav_lift_down (its verdict prints since noisefix, the scene's cmd lines ran behind the script's waits: it
-  fails, the knight boards, loses "on the lift", gives the ride up; also with vr_hull_holes 0: ROUND25 "noisefix");
-  `vr_dm_test 19` (bot navmesh chase: 2 of 4 runs fail, the bot back on its waypoints once it sees him at the door);
-  mp_debugviz_listen's bot case (rare: the bot's AI swinging while held, the server's line and the drawn one a frame
-  apart; ROUND25.md "mpopen"). (mpopen fixed: the suite's order effect and fixed 27500 base port, mp_loss's margin.)
+- **Real failures, alone, steady** (ROUND26 "flakysweep", "alwaysfail", "alwaysfail2", "godfallout"): flat tests failing with or without god (godfallout): `flat_ammo_key` 2 ("the toolgun in hand: N sent nothing", "the shotgun: N sent, nothing changed"), `flatslide` 4 (lean: "a shot across the leant head hits him"; keys: 3 swaps, R reloads, mouse 4 force-grabs), `flatthrow` 1 ("the client sent the cancel for the main hand's left button"), `flatvisuals` 2 ("dot: 1 red pixels added"; "dead, Immersive": the camera 2.3 from the head's eyes, run to run), `flatwall` a 1 ("the others: the ironsight waits", since 11-26); `attach_test` vr_embed_test 79 and 84 (VR) 3 and 2 failures on origin/next b0756f0fd, with or without god: "picked up by the hand: the same record", the stuck super shotgun "broken open by its B", "the off hand's round goes in"; agrunt 65 1/5 ("grab anywhere: an axe at its chest", parry raised 0.12, disarmed 1); agrunt 91 3/5 ("raggrab: 8/9 won").
+- **Flaky, stay on `test_flaky.txt`** (5 unseeded runs, 11-27): agrunt 66 4/5, 67 4/5 and 209 4/5 (grab table 90%), 71 3/5, arena 11 4/5 (alone 25/0), ragdoll_ragtest 4/5 ("catch: NOT begun"), ragdoll_guard 4/5, `vr_systems_test 15` 2/5 (the blast's body never knocks the torch off), `vr_dm_test 19` (bot navmesh chase, 2 of 4 fail), mp_debugviz_listen's bot case (rare), flateject `ssg` and `vr` (run to run).
+- **ragdoll_stagger**: the grunt's beaten backpedal falls at 0.43 s after 2 steps instead of 3 (F, not G; level ground, every trial); in a batched run the 8th steady grunt fell and the lip case got 5/8, while lip alone gets 8/8: something between a batch's runs (ROUND25.md "realfix_stagger").
+- **ragdoll_climb**: pull at seed 8 is 4 of 6 (the ogre "lost its hold" at 1.25 s; the hell knight "slid back off the lip" in the batched run; its chest stays under the lip ~2 s). ROUND25.md "Ragdoll climb leftovers".
+- **`vrtutorial_playtest.py` room 8**: the mock's main hand never grips the bench's shotgun (stops ~25 units short), so nothing loads; the `weapons` gate and later fail.
+- **Tooling:** Tracy GPU zones lost after toggling GPU detail mid-run; some hidden-mock eye/window captures come back black; 15 test commands still registered in `vr_main.cpp`; `vr_physsound.cpp` keeps its own copy of the box test `R_SurfaceHoldsPoint` replaced for the light.
+- **vrtrailer: the test's swing, not the game** (ROUND25.md "testenv"): fails since 11-10; still open: a swing path whose blade crosses the neck sideways (8 of 9: killed, "a stab (0.82)" at 0.63 along the blade).
+- **r2m1 (Rogue)**: a counted monster that is no monster edict is inherited from stock Quake (total_monsters 93, 92 FL_MONSTER edicts, 95 monster_* edicts); `vr_run_enemies_check` failing r2m1 needs an exemption, not a spawn-code fix.
+- **Known failing, flakehunt's leftovers** (ROUND25.md "flakehunt"): hotblade `holster` (the holstered axe found lying: the test's holster move); `blade_parts`/`superaxe` (the hammer's length 5.9 -> 7.0 and glowing verts 295 -> 172 of 795 with no model change: wants his look before the numbers move); nav_lift_down (the knight boards, loses "on the lift", gives the ride up; also with vr_hull_holes 0: ROUND25 "noisefix").
 
 ## 2. 1.2 release prep (only on his word; the 1.1 list was RELEASE_TODO.md)
 
@@ -111,12 +47,9 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 
 ## 3. Flat-screen (FLATPLAY.md)
 
-- **Procedural reloads, on by default** (2026-11-05): e.g. the shotgun rolls toward the off hand, which shuttles between
-  pouch and port until full or interrupted; recorded motions where they fit.
+- **Procedural reloads beyond the one-handed shotgun** (2026-11-05; the shotgun's shipped: ROUND26 "flatprocreload", "prlfix", "prlmove"): the other guns' reload motions.
 - **Recorded motions for flat melee and reloads** (2026-11-05): phase 1 recorder shipped (ROUND24.md, "Animation
   recorder, phase 1"); phase 2 after he records.
-- **Hotkeys for the remaining VR interactions** (2026-11-05): audit what is left (parry, ammo switch, throw, shove,
-  climb...) and propose a key or leave it VR-only.
 - **Left-handed mode** (2026-11-05): the mouse buttons' routing by hand (`flatplay::routeFire`) mirrored.
 - **Flat-screen two-handed melee pose adjustment** (2026-11-15): he ticked the checklist item for now; the 2H melee pose in
   flat play needs adjusting later; low priority.
@@ -228,13 +161,11 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 
 1. Formatting: clang-format (Zancle configs) on first-party code, `// clang-format off/on` round hand-aligned tables,
    then clang-tidy fixes; one commit in `.git-blame-ignore-revs`. Never Ironwail's code. Hold until agent/split is merged (a mass reformat conflicts with it).
-2. Ironwail extraction: about 1,600 lines of VR code out of Ironwail files into `Quake/vr/` (pure moves), the VR main
-   menu out of `menu.c`, the VR heap macro remap; `IRONWAIL_DIFF.md` refreshed.
-3. One player walk (mpreview B4): `vr_pmove.cpp` copies sv_user.c / sv_phys.c's walk, air, swim, gravity and flyMove
+2. One player walk (mpreview B4): `vr_pmove.cpp` copies sv_user.c / sv_phys.c's walk, air, swim, gravity and flyMove
    line for line; a flat-screen player, `vr_pmove_own 0` and remote flat clients still walk the sv_phys.c copy. Route
    them through `pmove::playerMove` with an EdictBody and drop the QVR-modified SV_WalkMove/SV_AirMove paths (or at
    least a qvr_checks rule tying each copy to its original), proven by the B11b frame-identical traces.
-Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
+Each verified by an unchanged physics hash, the melee tests and `vr_menu_path_check`.
 
 ## 10. Big features (each needs its own decision)
 

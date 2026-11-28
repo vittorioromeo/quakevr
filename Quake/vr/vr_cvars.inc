@@ -38,7 +38,8 @@ QVR_CVAR(vr_enemy_melee_kind, "1", CVAR_ARCHIVE | QVR_RULE)       // each kind's
 QVR_CVAR(vr_enemy_melee_arc_show, "0", CVAR_NONE)      // each melee monster after you within 600 units draws its arc (its sweeping blows' too once seen) and reach on the floor, red with you inside, green outside, orange inside a sweeping blow's only; 2: also printed once a second (meleearc: show) (fight.qc VR_MeleeArc_ShowFrame, vr_bodycontact.cpp meleeArcDraw)
 QVR_CVAR(vr_enemy_melee_arc_debug, "0", CVAR_NONE)      // each monster blow's angle off its facing, its arc and reach, and whether it landed, printed (meleearc:)
 QVR_CVAR(vr_test_aimcone, "0", CVAR_NONE)               // the aim cone test (vr_aimcone_test.qc; Debug > Tests > Holding Enemies): distance * 1000 + degrees (300060: 300 units, 60 deg; degrees alone: 300 units): the nearest monster set that far from you, after you, its ranged attack started, and you held that many degrees off its facing (to its right) until the attack ends; then one "aimcone: result" line (shots, waits, bends, hits)
-QVR_CVAR(vr_test_meleearc, "0", CVAR_NONE)             // the melee arc test (vr_meleearc_test.qc; Debug > Tests > Holding Enemies): the nearest monster set 56 units from you and after you: 1 facing you, 2 facing away, 3 facing you and you step aside when it swings; 4 s, then a "meleearc:" summary
+QVR_CVAR(vr_test_humlook_dye, "-1", CVAR_NONE)          // (tests: vr_attrs_test.qc 234) set by vr_humlook_dyetest (vr_humlook.cpp): its failed checks (-1 not run)
+QVR_CVAR(vr_test_meleearc, "0", CVAR_NONE)           // the melee arc test (vr_meleearc_test.qc; Debug > Tests > Holding Enemies): the nearest monster set 56 units from you and after you: 1 facing you, 2 facing away, 3 facing you and you step aside when it swings; 4 s, then a "meleearc:" summary
 QVR_CVAR(vr_enemy_aim_cone, "1", CVAR_ARCHIVE | QVR_RULE)          // a monster's ranged shot (a grunt's, an ogre's grenade, a scrag's spit; not homing ones, not bosses) leaves along its facing bent toward you at most its aim cone (pitch free), and with you outside its fire cone it waits (turning) up to vr_enemy_aim_delay first; 0: Quake's shots, straight at you whatever its facing (vr_aimcone.qc; ROUND22.md "Ranged aim cone")
 QVR_CVAR(vr_enemy_aim_narrow, "1", CVAR_ARCHIVE | QVR_RULE)         // the aim and fire cones' multiplier for hitscan and fast shots (grunts, enforcers, gremlins, scourges, the expansions' gunners)
 QVR_CVAR(vr_enemy_aim_wide, "2", CVAR_ARCHIVE | QVR_RULE)           // the aim and fire cones' multiplier for lobbed and slow shots (an ogre's grenade, a scrag's spit, a death knight's magic, a zombie's flesh)
@@ -716,6 +717,10 @@ QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 // and depth, and it shows a made-up frame between the game's (the game at half the display's rate). The eyes go
 // through the post-process path then (the motion target needs the scene's own targets). Off by default (first beta).
 QVR_CVAR(vr_xr_spacewarp, "0", CVAR_ARCHIVE)
+// FOV reduction (questvis; vr_backend_openxr_frame.cpp, vr_main.cpp scaledEyeSize): the rendered field of view shrunk by
+// this many percent of each edge's tangent (0..30), the eyes drawn with as many fewer pixels a side (the same sharpness);
+// the compositor shows black beyond. Any OpenXR headset; 0 off.
+QVR_CVAR(vr_fov_reduce, "0", CVAR_ARCHIVE)
 // vr_spacewarp_test (tests, Debug > Profiling): 1 makes SpaceWarp's motion vectors and depth every frame into the
 // game's own images without a runtime that has it (the PC, the mock headset); vr_spacewarp_probe reads them.
 QVR_CVAR(vr_spacewarp_test, "0", CVAR_NONE)
@@ -2391,6 +2396,8 @@ QVR_CVAR(vr_gl_quake_dlights, "0", CVAR_ARCHIVE)
 // restored texel blocks gathered into a copy of the lightmap and uploaded once per band of 16 rows; 0 one upload per
 // surface, as C5b (the A/B). The same picture.
 QVR_CVAR(vr_gl_world_dlmap_batch, "1", CVAR_NONE)
+QVR_CVAR(vr_gl_world_dlmap_reach, "1", CVAR_NONE) // (questopt) a surface's lights whose sphere misses its texels' box are left out of its sums (they add nothing: exact); 0 every light collectWorld paired with it summed, as before
+QVR_CVAR(vr_gl_world_dlmap_keep, "0", CVAR_NONE) // (questopt; off: no surface kept in hip1m1, its lights change every frame) 1: a surface lit by the same lights as last frame keeps its block (vr_dlightmap.cpp); 0 every lit surface made again every frame; 2 the check (made again, compared: vr_gl_world_dlmap_info)
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
@@ -3725,6 +3732,7 @@ QVR_CVAR(vr_agtune_test, "0", CVAR_NONE)             // the QC tests of the arme
 QVR_CVAR(vr_agrunt_speed, "1", CVAR_ARCHIVE | QVR_RULE)          // Movement Speed: every step they take times this (running, closing in, backing off, strafing); 1 as before
 QVR_CVAR(vr_agrunt_speed_back, "1", CVAR_ARCHIVE | QVR_RULE)     // Backpedal Speed: the part of a step backwards of their facing times this too (on top of vr_agrunt_speed)
 QVR_CVAR(vr_agrunt_speed_strafe, "1", CVAR_ARCHIVE | QVR_RULE)   // Strafe Speed: the part of a step sideways of their facing times this too (on top of vr_agrunt_speed)
+QVR_CVAR(vr_elite_spawn, "0", CVAR_ARCHIVE | QVR_RULE)          // Elites in Hard and Nightmare: 1 an armed humanoid spawned by the map may be an elite (vr_elite_spawn_chance; QC vr_attrs.qc)
 QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE | QVR_RULE)    // units: an unarmed one with you this near fights with its fists rather than going for a weapon lying further than 64 from it; 0 off (as before)
 QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE | QVR_RULE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
 QVR_CVAR(vr_agrunt_strafe_turn, "60", CVAR_ARCHIVE | QVR_RULE)   // degrees: armed humanoids moving sideways turn their pelvis and legs this far toward the way they go (at 80 u/s; scaled by sideways speed, eased; backing off: never flipped), the spine turning back so the chest and gun stay aimed; 0 none
@@ -4694,6 +4702,7 @@ QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's 
 QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
 QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
 QVR_CVAR(vr_toolgun_armed_infected, "0", CVAR_ARCHIVE)  // ... what it is infected with: a row of QC's VR_INFECT_ROWS (0 none; killed, it bursts and rises as that monster)
+QVR_CVAR(vr_toolgun_armed_elite, "0", CVAR_ARCHIVE)  // ... 1: an elite (QC vr_attrs.qc: much faster fire, reaction, aim and melee, 1.25x steps, shrugs pains; its own dye)
 QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
 QVR_CVAR(vr_toolgun_beast_armor, "5", CVAR_ARCHIVE)     // the spawn panel's Monsters page: a beast's armour (the rottweiler, ogre, scrag, fiend: VR_AgArmor_Toolgun's 0-4 as vr_toolgun_armed_armor; 5 as the skill rolls, the skill's roll held otherwise)
 QVR_CVAR(vr_toolgun_beast_pieces, "1", CVAR_ARCHIVE)    // ... its pieces: 0 the core (its cuirass group and its helmet), 1 all its pieces, 2 random (the core and some of the rest)
@@ -4776,8 +4785,9 @@ QVR_CVAR(vr_flat_revolver_eject, "1", CVAR_ARCHIVE)     // the same: the revolve
 QVR_CVAR(vr_flat_autoreload, "0", CVAR_ARCHIVE | QVR_PREF)        // flat-screen play: 1: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0 (default since 2026-11-09, his call): only R reloads
 QVR_CVAR(vr_flat_proc_reload, "1", CVAR_ARCHIVE | QVR_RULE)       // flat-screen play (flatprocreload, his words 2026-11-28): 1: the shotgun held in one hand, the other empty, reloads as a headset does: the free hand takes taped pairs from the ammo pouch (shown) to its port until it is full (vr_flatprocreload.cpp, QC vr_flatreload.qc; Tunables > Flatscreen > Procedural Reload); 0: the timed trip to the hip (vr_flat_reload_*). Dual wielding and other guns: the timed trip either way. The host's value holds (the server decides, the client follows its bit)
 QVR_CVAR(vr_flat_proc_reload_debug, "0", CVAR_NONE)  // 1: the flat-screen procedural reload's hand printed step by step (flatprocreload: ...; vr_flatprocreload.cpp); 2: and the gun as drawn each frame (fprl_trace: ...)
-QVR_CVAR(vr_flat_prl_lock, "0", CVAR_NONE)           // the procedural reload held at a key pose to tune it (prlfix): 1 rest, 2 the gun tilted, 3 the hand at the pouch, 4 gripping the pair, 5 at the port's mouth, 6 inserted, 7 returning, 8 scrub (vr_flat_prl_scrub); 0 off
-QVR_CVAR(vr_flat_prl_scrub, "0", CVAR_NONE)          // with vr_flat_prl_lock 8: the share of one trip held (0 rest .. 1 back at rest)
+QVR_CVAR(vr_flat_prl_lock, "0", CVAR_NONE)           // the procedural reload held at a keyframe's pose to tune it (prlfix; reloadsys: any key): N the end of key N of the gun's reload (vr_reloadsys.hpp), -1 the scrub (vr_flat_prl_scrub), 0 off
+QVR_CVAR(vr_flat_prl_scrub, "0", CVAR_NONE)          // with vr_flat_prl_lock -1: the share of one pass through the reload's keys held (0 its start .. 1 its end)
+QVR_CVAR(vr_reload_file, "data/reloads.txt", CVAR_NONE) // debug (vr_reloadsys.cpp): the procedural reloads' keyframes' file under quakevr/ (the tests' own)
 QVR_CVAR(vr_flat_prl_test_miss, "0", CVAR_NONE)      // the tests' blocked port: units the procedural reload's hand stops short of the port (out of its opening), so the round never goes in and the failsafe cancels
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
@@ -4900,6 +4910,7 @@ QVR_CVAR(vr_flat_visor_fog, "1", CVAR_ARCHIVE)          // under water the visor
 QVR_CVAR(vr_flat_visor_fog_clear, "1.5", CVAR_ARCHIVE)  // seconds the visor's fog takes to clear after surfacing (0.2..10)
 QVR_CVAR(vr_flat_visor_low_health, "25", CVAR_ARCHIVE)  // health at or under which the health panel pulses red (faster and stronger at half of it; 0 never)
 QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels' power-on sweep at a spawn, a respawn and a new map (0: none)
+QVR_CVAR(vr_flat_visor_boot_seq, "1", CVAR_ARCHIVE)     // 1: the visor boots at a spawn, a respawn, a new map and a loaded save: no panels, a power-up sound, the panels fading in with a glitch, then the sweep (its times: Debug > Tunables > Visor Boot); 0: the sweep alone, as before
 QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
 QVR_CVAR(vr_flat_visor_autohide_log, "1", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
 QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (top middle: its width, the text shrinking or growing with it; 0.3 .. 2, shrunk to fit between the top corners' panels)

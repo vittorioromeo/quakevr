@@ -1702,7 +1702,7 @@ float(float force) VR_AG_Expose =
 vector() VR_AG_AimPoint =
 {
     entity t = self.enemy;
-    vector at = VR_AI_Origin(t) - t.velocity * 0.15;
+    vector at = VR_AI_Origin(t) - t.velocity * (0.15 * VR_Attr_Mult(self, VR_ATTR_ST_AIMLAG)); // (an elite's: none, vr_elite_aimlag)
     if(t.flags & FL_CLIENT)
     {
         if(VR_AG_XOn(t))
@@ -3616,6 +3616,7 @@ void(float kind) VR_AM_Spawn =
     VR_AgArmor_Spawn(self); // (its armour by the skill: vr_agarmor.qc)
     VR_WP_Spawn(self);      // (its backpack on its back if it carries a ranged weapon: vr_wornpack.qc)
     VR_HUM_Look(self);      // (its recolour by what it holds: vr_humrepl.qc)
+    VR_Attr_Spawned(self);  // (a map's attributes; Hard and Nightmare's elites: vr_attrs.qc)
 };
 
 // Its weapons from its keys (as VR_AM_Spawn's: "weapon" decoded to `want`, `flags`, `inst`; "weapon2" `want2`,

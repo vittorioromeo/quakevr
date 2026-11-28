@@ -403,7 +403,7 @@ void(float xHand) W_FireRevolver =
 
     self.effects = self.effects | EF_MUZZLEFLASH;
     self.punchangle_x = -4;
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp; slot 38's Recoil, Flash)
+    VR_WeaponFired(xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp; slot 38's Recoil, Flash)
     VRGunHaptic(xHand, 0.16, 50, 1);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 
@@ -1145,9 +1145,14 @@ void(float xHand) VR_Revolver_HandFrame =
     }
     if(self.ishuman && self.health > 0 && VR_Reload_ManualInHand(self, xHand))
     {
-        VR_Revolver_ReloadFrame(xHand, h, r);
+        // (Flat-screen play's procedural reload, reloadmuzzle: its keys open and close it, impulses 107 / 108; no flick, push
+        // or button of the drawn gun's.)
+        if(!VR_FlatPlay(self))
+        {
+            VR_Revolver_ReloadFrame(xHand, h, r);
+        }
     }
-    else if(r.wi_rv_open && !VR_FlatReload_Busy(self, xHand) &&
+    else if(r.wi_rv_open && !VR_FlatReload_Busy(self, xHand) && self.vr_fprl_closeh != xHand + 1 &&
             !(VR_FlatReload_RevolverOpens(xHand) && VRGetEntWeaponClip(self, xHand) <= 0))
     {
         // (No longer loaded by hand: home. Flat-screen play's swings out fired empty, until the reload, and for its trip.)
@@ -1187,10 +1192,12 @@ void(float xHand) VR_Revolver_HandFrame =
 };
 
 // Every player frame (client.qc PlayerPreThink, self the player).
+// (A revolver stuck in a body by its bayonet, the hand on it: its frame on it, vr_propfire.qc; embedfire2: its cocked hammer
+// was let down at once, the hand's weapon the fist, and it never fired.)
 void() VR_Revolver_PlayerFrame =
 {
-    VR_Revolver_HandFrame(cVR_MainHand);
-    VR_Revolver_HandFrame(cVR_OffHand);
+    VR_PropFire_With(cVR_MainHand, VR_Revolver_HandFrame);
+    VR_PropFire_With(cVR_OffHand, VR_Revolver_HandFrame);
 };
 
 /*QUAKED weapon_revolver (0 .5 .8) (-16 -16 0) (16 16 32)

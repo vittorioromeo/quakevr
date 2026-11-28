@@ -240,6 +240,15 @@ void armedArmour(edict_t* e)
         G_FLOAT(OFS_PARM1) = vr_toolgun_armed_infected.value;
         PR_ExecuteProgram(infect);
     }
+    // And whether it is an elite (QC vr_attrs.qc VR_Attr_Toolgun: the page's Elite; infected or not).
+    if(const func_t elite = qvr::progs::findFunction("VR_Attr_Toolgun"); elite && !e->free)
+    {
+        pr_global_struct->time = qcvm->time;
+        pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+        G_FLOAT(OFS_PARM1) = vr_toolgun_armed_elite.value;
+        PR_ExecuteProgram(elite);
+    }
 }
 
 [[nodiscard]] edict_t* spawnChoice(const Selection& sel, const glm::vec3& origin, const glm::vec3& angles)

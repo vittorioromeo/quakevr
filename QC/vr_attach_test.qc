@@ -64,11 +64,13 @@ entity(float xHand) VR_AT_Bayonet =
 // daggerattach: 84/85 run 79/80 with the dagger (Daggers as Bayonets) in place of the bayonet.
 float vr_at_guns; // 96: the bayonet on every other gun that takes one (bayomounts)
 float vr_atg_i;   // (96) the gun tested
+float VR_AER_COUNT = 11; // (97) the guns embedrate fires (bayofix: 8 .. 10 the GL, prox and RL, two-handed)
+float vr_aer_to;         // (97) ... up to (not with) this one
 string() VR_AT_Name =
 {
     if(vr_at_guns)
     {
-        return "attachguns";
+        return vr_at_guns == 2 ? "embedrate" : "attachguns";
     }
     if(vr_at_anim)
     {
@@ -227,9 +229,18 @@ entity(entity r) VR_AT_Lying =
 
 void(float xAsk) VR_AT_Begin =
 {
-    vr_at_guns = (xAsk == 96);
+    vr_at_guns = xAsk == 97 ? 2 : (xAsk == 96); // (97 embedfire2's embedrate: the guns of 96 and the shotguns fired stuck)
     vr_atg_i = 0;
-    vr_at_flat = (xAsk == 80 || xAsk == 85 || xAsk == 86 || xAsk == 87 || xAsk == 96);
+    vr_aer_to = VR_AER_COUNT;
+    float few = cvar_hget(cvarh_scratch1);
+    if(xAsk == 97 && few > 0)
+    {
+        // (a test aid: `scratch1 <first + 1000 * last>`, one gun or a few: 1 the super shotgun, 2 the nailgun, .. 7 the revolver, 8 .. 10 the GL, prox, RL)
+        vr_aer_to = floor(few / 1000);
+        vr_atg_i = few - 1000 * vr_aer_to;
+        vr_aer_to = vr_aer_to + 1;
+    }
+    vr_at_flat = (xAsk == 80 || xAsk == 85 || xAsk == 86 || xAsk == 87 || xAsk == 96 || xAsk == 97);
     vr_at_anim = (xAsk == 86 || xAsk == 87);
     vr_at_kind = (xAsk == 84 || xAsk == 85 || xAsk == 87) ? VR_ATT_DAGGER : VR_ATT_BAYONET;
     cvar_set("vr_attach_daggers", "1");
@@ -1096,7 +1107,9 @@ void() VR_AT_HolsterSet =
 //   vr_dm_test 26: every player's carried records' attachments and every thrown weapon's (dropped, thrown, stuck):
 //     `attachmp: player ent=N main=<wid>,<attach> off=<wid>,<attach> holsters=a,b,c,d,e,f`, `attachmp: lying wid=<wid>
 //     attach=<kind> stuck=<0|1> speed=<u/s> at=<x y z>`, the live monsters within 160 units of a player (`attachmp:
-//     monster`), then `attachmp: report done`.
+//     monster`), the stuck guns' shots so far (`attachmp: propshots=N`), then `attachmp: report done`.
+//   vr_dm_test 28 (mpsync): 25 with a dagger (Daggers as Bayonets, a weapon of its own); `attachmp: dagger in player N's
+//     off hand`.
 // (An entity's number: its place among the used edicts, exact for players, whose edicts are never freed.)
 float(entity e) VR_AT_EntNum =
 {
@@ -1128,6 +1141,25 @@ void() VR_AttachMPTest_Frame =
             }
         }
         bprint(sprintf("attachmp: no player %g with an empty off hand\n", who));
+    }
+    if(ask == 28) // (mpsync) a dagger (Daggers as Bayonets) given into the empty off hand, as 25's bayonet
+    {
+        cvar_set("vr_dm_test", "0");
+        float dwho = cvar_hget(cvarh_vr_dm_test_who);
+        entity dself = self;
+        for(entity dp = VR_Player(); dp; dp = VR_NextPlayer(dp))
+        {
+            if(VR_AT_EntNum(dp) == dwho && dp.health > 0 && VRIsHandEmpty(dp, cVR_OffHand) && VR_Carry_Held(dp, cVR_OffHand) == world)
+            {
+                self = dp;
+                VRGiveEntWeapon(self, cVR_OffHand, WID_SWORD, VR_ADMelee_Flags(VR_SWORDKIND_DAGGER), 0);
+                W_SetCurrentAmmo();
+                self = dself;
+                bprint(sprintf("attachmp: dagger in player %g's off hand\n", dwho));
+                return;
+            }
+        }
+        bprint(sprintf("attachmp: no player %g with an empty off hand\n", dwho));
     }
     if(ask == 27)
     {
@@ -1195,6 +1227,7 @@ void() VR_AttachMPTest_Frame =
                 }
             }
         }
+        bprint(sprintf("attachmp: propshots=%g\n", vr_wfired_propshots)); // (mpsync: the shots stuck guns fired)
         bprint("attachmp: report done\n");
     }
 };
@@ -1208,6 +1241,8 @@ void() VR_AttachMPTest_Frame =
 // checks the marks' reports (attach_guns_check.py). Ends `attachguns: N passed, M failed`.
 float VR_ATG_COUNT = 9;
 entity vr_atg_pks[5]; // the pickups (removed at the end)
+float vr_atg_2h;      // the gun held in both hands as V was pressed (bayofix: the GL, prox and RL are, in flat play)
+string vr_atg_model;  // its model then (the hand's is the prop's once it is stuck)
 
 float(float i) VR_ATG_Wid =
 {
@@ -1259,6 +1294,9 @@ void() VR_ATG_Frame =
     {
         setorigin(p, vr_eh_home - '0 40 0');
         p.velocity = '0 0 0';
+        // (Immune: the script's `god` doesn't reach the server before it spawns, and the launchers' blasts at the grunt
+        // killed the player, his death menu pausing the game until the run's timeout: embedfire2's "stall"; bayofix.)
+        p.flags = p.flags | FL_GODMODE;
         VRSetHandEmpty(p, cVR_OffHand);
         VRSetHandEmpty(p, h);
         VR_ATG_Give(vr_atg_i, FALSE);
@@ -1297,24 +1335,24 @@ void() VR_ATG_Frame =
     else if(vr_at_s == 5 && u > 0.6)
     {
         vr_at_health = vr_et_m != world ? vr_et_m.health : 0;
+        vr_atg_2h = VRGet2HAiming(p);
+        vr_atg_model = what;
         localcmd("vr_flat_punch v\n");
         VR_AT_To(6);
     }
     else if(vr_at_s == 6 && (w != world || u > 0.9))
     {
         float hurt = vr_et_m != world ? vr_at_health - vr_et_m.health : 0;
+        // (The GL, the prox launcher and the RL are held in both hands in flat play once the off hand is free: V drives
+        // them forward with both, flatplay::bayonetDrive2H; bayofix.)
         float wid6 = VR_ATG_Wid(vr_atg_i);
-        string line6 = sprintf("%s: V thrusts its bayonet in: hurt %g, stuck by its point, the hand drives it", what, hurt);
-        if(w == world && (wid6 == WID_GRENADE_LAUNCHER || wid6 == WID_PROXIMITY_GUN || wid6 == WID_ROCKET_LAUNCHER))
+        if(wid6 == WID_GRENADE_LAUNCHER || wid6 == WID_PROXIMITY_GUN || wid6 == WID_ROCKET_LAUNCHER)
         {
-            // (open, bayomounts: flat play takes these heavy guns two-handed as soon as the off hand is free ("2h click"),
-            // and V two-handed is no bayonet thrust: not counted until flat V thrusts a two-handed bayonet gun)
-            dprint(sprintf("attachguns: PENDING %s (two-handed in flat play)\n", line6));
+            VR_Test_Check(vr_atg_2h, sprintf("%s: held in both hands as V was pressed", vr_atg_model));
         }
-        else
-        {
-            VR_Test_Check(w != world && hurt > 0 && VR_PropFire_Held(p, h) == w, line6);
-        }
+        VR_Test_Check(w != world && hurt > 0 && VR_PropFire_Held(p, h) == w,
+            sprintf("%s: V thrusts its bayonet in%s: hurt %g, stuck by its point, the hand drives it", vr_atg_model,
+                vr_atg_2h ? " (two-handed)" : "", hurt));
         vr_at_w = w;
         VR_AT_To(w != world ? 7 : 10);
     }
@@ -1434,6 +1472,215 @@ void() VR_ATG_Frame =
             vr_atg_pks[k2] = world;
         }
         VR_AT_To(99);
+    }
+    else if(vr_at_s == 99)
+    {
+        VR_AT_Finish();
+    }
+};
+
+// ---- vr_embed_test 97 (embedfire2, flat-screen; his flat note 2026-11-28: the stuck nailgun fired slower, one barrel, no
+// frames nor effects; the thunderbolt's start sound again and again; the burst rifle and the revolver didn't fire): every gun
+// that takes a bayonet fired in the hand for VR_AER_FOR s, then stuck in a grunt by V's thrust and fired again for as long,
+// the trigger the same both times (held; the revolver's pulled again and again), its clip and ammo topped up. Stuck, it
+// fires as in the hand: shots (VR_WeaponFired) within 5%, every one of them from the prop (its flash, sparks and smoke drawn
+// on it), its frames go on as in the hand (drawn on the prop), the thunderbolt's start sound once, the grunt hurt (the
+// grenades' and mines' delayed blasts not required). The launchers last, held in both hands (bayofix). A fresh grunt takes the thrust (the shots' pain frames bent the first off its line). Ends
+// `embedrate: N passed, M failed`.
+float VR_AER_FOR = 1.55;  // s each phase fires (not a multiple of the 0.1 s refires: no shot on the let-go's frame)
+float VR_AER_PULSE = 0.4; // the revolver's trigger: pulled VR_AER_ON s each VR_AER_PULSE s (double action: a shot a pull)
+float VR_AER_ON = 0.25;
+float vr_aer_shots;       // the in-hand phase's shots, frame changes, start sounds
+float vr_aer_frames;
+float vr_aer_starts;
+float vr_aer_n0;          // the counters as the phase began
+float vr_aer_p0;
+float vr_aer_s0;
+float vr_aer_fc;          // frame changes seen in the phase
+float vr_aer_flast;
+float vr_aer_press;       // the trigger as the test holds it
+
+float(float i) VR_AER_Wid =
+{
+    if(i == 0) return WID_SHOTGUN;
+    if(i == 1) return WID_SUPER_SHOTGUN;
+    if(i == 2) return WID_NAILGUN;
+    if(i >= 8) return VR_ATG_Wid(i - 7); // (the GL, prox and RL, held in both hands: bayofix, V drives them with both)
+    return VR_ATG_Wid(i + 1); // (the thunderbolt .. the revolver: test 96's; 4 the AD Plasma Gun)
+};
+
+float() VR_AER_Heavy =
+{
+    float wid = VR_AER_Wid(vr_atg_i);
+    return wid == WID_GRENADE_LAUNCHER || wid == WID_PROXIMITY_GUN || wid == WID_ROCKET_LAUNCHER;
+};
+
+// The trigger as the phase wants it `u` s in (held; the revolver's pulled again and again), and the gun of record `r` topped up.
+void(float u, entity r) VR_AER_Fire =
+{
+    entity p = self;
+    float want = u < VR_AER_FOR;
+    if(want && VR_AER_Wid(vr_atg_i) == WID_REVOLVER)
+    {
+        want = (u - floor(u / VR_AER_PULSE) * VR_AER_PULSE) < VR_AER_ON;
+    }
+    if(want != vr_aer_press)
+    {
+        vr_aer_press = want;
+        VR_AT_Trigger(want);
+    }
+    p.ammo_shells = p.ammo_nails = p.ammo_rockets = p.ammo_cells = 200;
+    if(r != world)
+    {
+        r.wi_clip = VR_ClipSizeOf(VR_AER_Wid(vr_atg_i), r);
+    }
+};
+
+void() VR_AER_PhaseStart =
+{
+    vr_aer_n0 = vr_wfired_shots;
+    vr_aer_p0 = vr_wfired_propshots;
+    vr_aer_s0 = vr_lg_starts;
+    vr_aer_fc = 0;
+    vr_aer_flast = -1;
+    vr_aer_press = 0;
+    VRSetAttackFinished(cVR_MainHand, 0);
+};
+
+void(float xFrame) VR_AER_FrameSeen =
+{
+    if(vr_aer_flast >= 0 && xFrame != vr_aer_flast)
+    {
+        vr_aer_fc++;
+    }
+    vr_aer_flast = xFrame;
+};
+
+void() VR_AER_Frame =
+{
+    entity p = self;
+    float u = time - vr_at_t0;
+    float h = cVR_MainHand;
+    entity w = VR_EH_Blade();
+    string what = VR_Attach_HandModel(p, h);
+    if(u > VR_ET_GIVEUP && vr_at_s != 99)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out: gun %g state %g", vr_atg_i, vr_at_s));
+        VR_AT_To(99);
+    }
+    VR_AT_HoldGrunt();
+    if(vr_at_s == 0)
+    {
+        setorigin(p, vr_eh_home - '0 40 0');
+        p.velocity = '0 0 0';
+        p.flags = p.flags | FL_GODMODE; // (the launchers' blasts at the grunt: VR_ATG_Frame's note)
+        VRSetHandEmpty(p, cVR_OffHand);
+        VRSetHandEmpty(p, h);
+        VR_EH_Give(VR_AER_Wid(vr_atg_i), 0);
+        vr_at_rec = VRGetEntWeaponInst(p, h);
+        vr_at_rec.wi_adup = vr_atg_i == 4 ? ad_IT_UPGRADE_LG : 0;
+        p.weaponmodel = VR_Attach_HandModel(p, h);
+        vr_at_rec.wi_attach = vr_at_kind;
+        W_SetCurrentAmmoFor(h);
+        if(VR_AER_Heavy() && cvar_hget(cvarh_scratch2))
+        {
+            // (a test aid, `scratch2 1`: the off hand busy, so flat play holds the launcher in one hand: embedfire2's stall)
+            VRGiveEntWeapon(p, cVR_OffHand, WID_AXE, 0, 0);
+            W_SetCurrentAmmoFor(cVR_OffHand);
+        }
+        VR_PE_Grunt(42);
+        vr_et_m.health = VR_AT_HEALTH;
+        VR_AER_Fire(VR_AER_FOR, vr_at_rec);
+        VR_AT_To(1);
+    }
+    else if(vr_at_s == 1 && u > 0.4)
+    {
+        VR_AER_PhaseStart();
+        VR_AT_To(2);
+    }
+    else if(vr_at_s == 2)
+    {
+        VR_AER_Fire(u, vr_at_rec);
+        VR_AER_FrameSeen(VRGetWeaponFrame(h));
+        if(u >= VR_AER_FOR + 0.5)
+        {
+            vr_aer_shots = vr_wfired_shots - vr_aer_n0;
+            vr_aer_frames = vr_aer_fc;
+            vr_aer_starts = vr_lg_starts - vr_aer_s0;
+            dprint(sprintf("embedrate: %s in the hand: %g shots, %g frame changes, %g starts\n", what, vr_aer_shots, vr_aer_frames,
+                vr_aer_starts));
+            if(vr_et_m != world)
+            {
+                remove(vr_et_m); // (a fresh grunt to stab: the shots' pain frames may have it bent off the thrust's line)
+            }
+            VR_PE_Grunt(42);
+            vr_et_m.health = VR_AT_HEALTH;
+            VR_AT_To(6);
+        }
+    }
+    else if(vr_at_s == 6 && u > 0.6)
+    {
+        if(VR_AER_Heavy())
+        {
+            VR_Test_Check(VRGet2HAiming(p) == !cvar_hget(cvarh_scratch2), sprintf("%s: held in %s hands as V is pressed", what,
+                cvar_hget(cvarh_scratch2) ? "one of its" : "both"));
+        }
+        localcmd("vr_flat_punch v\n");
+        VR_AT_To(3);
+    }
+    else if(vr_at_s == 3 && (w != world || u > 0.9))
+    {
+        VR_Test_Check(w != world && VR_PropFire_Held(p, h) == w, sprintf("%s: V sticks it, the hand drives it", what));
+        vr_at_w = w;
+        VR_AT_To(w != world ? 4 : 10);
+    }
+    else if(vr_at_s == 4 && u > 0.3)
+    {
+        VR_AER_PhaseStart();
+        vr_at_health = vr_et_m != world ? vr_et_m.health : 0;
+        VR_AT_To(5);
+    }
+    else if(vr_at_s == 5)
+    {
+        VR_AER_Fire(u, vr_at_w.weaponinst);
+        VR_AER_FrameSeen(vr_at_w.frame);
+        if(u >= VR_AER_FOR + 0.5)
+        {
+            float shots = vr_wfired_shots - vr_aer_n0;
+            float fromProp = vr_wfired_propshots - vr_aer_p0;
+            float starts = vr_lg_starts - vr_aer_s0;
+            float hurt = vr_et_m != world ? vr_at_health - vr_et_m.health : 0;
+            float wid = VR_AER_Wid(vr_atg_i);
+            float delayed = wid == WID_GRENADE_LAUNCHER || wid == WID_PROXIMITY_GUN;
+            dprint(sprintf("embedrate: %s stuck: %g shots (%g from the prop), %g frame changes, %g starts, the grunt hurt %g\n",
+                what, shots, fromProp, vr_aer_fc, starts, hurt));
+            VR_Test_Check(vr_aer_shots >= 1 && fabs(shots - vr_aer_shots) <= vr_aer_shots * 0.05,
+                sprintf("%s stuck: fires as fast as in the hand (%g shots, %g in the hand)", what, shots, vr_aer_shots));
+            VR_Test_Check(shots >= 1 && fromProp == shots,
+                sprintf("%s stuck: every shot's flash and effects on the prop (%g of %g)", what, fromProp, shots));
+            VR_Test_Check(vr_aer_frames == 0 ? TRUE : fabs(vr_aer_fc - vr_aer_frames) <= max(1, vr_aer_frames * 0.1),
+                sprintf("%s stuck: its frames go on as in the hand (%g changes, %g in the hand)", what, vr_aer_fc, vr_aer_frames));
+            VR_Test_Check(starts == vr_aer_starts && (wid != WID_LIGHTNING || vr_atg_i == 4 || starts == 1),
+                sprintf("%s stuck: its start sound as in the hand (%g, %g in the hand)", what, starts, vr_aer_starts));
+            VR_Test_Check(hurt > 0 || delayed, sprintf("%s stuck: the grunt hurt (%g%s)", what, hurt, delayed ? ", a delayed blast: not required" : ""));
+            VR_AT_To(10);
+        }
+    }
+    else if(vr_at_s == 10)
+    {
+        if(w != world)
+        {
+            VR_Embed_DropHands(w, "test");
+            remove(w);
+        }
+        if(vr_et_m != world)
+        {
+            remove(vr_et_m);
+            vr_et_m = world;
+        }
+        VRSetHandEmpty(p, cVR_OffHand);
+        vr_atg_i = vr_atg_i + 1;
+        VR_AT_To((vr_atg_i < VR_AER_COUNT && vr_atg_i < vr_aer_to) ? 0 : 99);
     }
     else if(vr_at_s == 99)
     {

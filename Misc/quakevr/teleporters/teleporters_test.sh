@@ -73,7 +73,13 @@ if [ "$WHAT" = chase ] || [ "$WHAT" = all ]; then
     for t in "7 dog -256 flush_player" "7 dog 1180 framed_sill16" "7 dog 1360 framed_sill32" "9 demon 0 flush_large" "9 demon 1580 framed_large" "0 soldier -256 flush_player"; do
         [ -n "$ONLY" ] && [[ "$t" != *"$ONLY"* ]] && continue
         set -- $t
-        S="${EXTRA}developer 1;vr_fixed_frames 1;vr_agrunt_repl 0;sv_random_seed __SEED__;map vrteleporters;wait60;god;vr_stealth_meter 0;setpos $3 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn $1;vr_test_spawn_dist 200;impulse 241;wait40;echo MOVE;setpos $3 1150 24 0 270 0;wait5;noclip 0"
+        # (the sill-32 dog: its expected way, bumping the sill and sliding to the sill-16 gate, is Quake's chase at his live
+        # place. Since navtrail (2026-11-13, vr_nav_trail) a hunter that lost him walks his trail and searches within 160
+        # units of its end; the setpos below leaves no trail through a gate, so the dog searched about his old place in
+        # front of the sill it can't climb, 180 units from the sill-16 gate: 0 of 8 seeds. That case keeps Quake's chase;
+        # ROUND26.md "alwaysfail2". The others pass either way: their gate lies within the search.)
+        PRE=""; [ $4 = framed_sill32 ] && PRE="vr_nav_trail 0;"
+        S="${EXTRA}${PRE}developer 1;vr_fixed_frames 1;vr_agrunt_repl 0;sv_random_seed __SEED__;map vrteleporters;wait60;god;vr_stealth_meter 0;setpos $3 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn $1;vr_test_spawn_dist 200;impulse 241;wait40;echo MOVE;setpos $3 1150 24 0 270 0;wait5;noclip 0"
         for i in $(seq 1 32); do S="$S;wait15;echo SNAP $i;entities"; done
         tries=${TRIES:-3}; [ $2 = soldier ] && tries=1
         # (the dog over the 16-unit sill gets through on few seeds: seed 2 of 1-3 until Box3D 042be58 (box3dup3), which

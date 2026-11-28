@@ -50,6 +50,7 @@
 #include "vr_held.hpp"
 #include "vr_flatattach.hpp"
 #include "vr_flatprocreload.hpp"
+#include "vr_reloadstudio.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
 #include "vr_flatswim.hpp"
@@ -3908,6 +3909,16 @@ float thrustOutShare(int h)
     return za::clamp(thrustAlong(h) / za::max(za::clamp(reach.value, -30.f, 40.f), 1.f), 0.f, 1.f);
 }
 
+float bayonetDrive2H(int h)
+{
+    if(!active() || bot != nullptr || h < 0 || h >= HAND_COUNT || twohand::poleWeapon(heldIn(h)) ||
+        !attach::strikes(view::ownGunLook(h).attach))
+    {
+        return 0.f;
+    }
+    return thrustShare(h) * za::clamp(vr_flat_thrust_2h_drive.value, 0.f, 1.f);
+}
+
 float thrustOffSlide(int h)
 {
     // (Drawn back, the other hand stays put, the pole sliding back through it; thrust out, it rides with the pole, sliding
@@ -4140,7 +4151,8 @@ void init()
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
     flatattach::init(); // vr_flatattach_report (vr_flatattach.cpp)
-    flatprocreload::init(); // vr_flatprocreload_report (vr_flatprocreload.cpp)
+    flatprocreload::init(); // vr_flatprocreload_report (vr_flatprocreload.cpp); the reloads' keyframes (vr_reloadsys.cpp)
+    reloadstudio::init();   // vr_reloadstudio (vr_reloadstudio.cpp)
     flatholster::init(); // +flatholsters, vr_flat_holster_menu_dump, vr_flatholster_test (vr_flatholster.cpp)
     bindpanel::init();   // vr_bindpanel_report, vr_bindpanel_setup (vr_bindpanel.cpp: wheelui)
     flatfgrab::init();  // vr_flat_fg_report, vr_flat_fg_press (vr_flatfgrab.cpp)

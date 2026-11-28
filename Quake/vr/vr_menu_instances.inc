@@ -1059,16 +1059,17 @@ void runLaunchArenaCheck()
     {
         arena = !arena && it.infoArg == arenaModeTitle ? &it : arena;
     }
-    const bool underAd = arena && arena != camps.data() && (arena - 1)->infoArg == VR_CampaignTitle &&
-                         (arena - 1)->arg == qvr::ad::campaignIndex;
+    // (Under the last campaign's row, pageCampaigns: Dwell and Quoth came after Arcane Dimensions, the last until then.)
+    const bool underLast = arena && arena != camps.data() && (arena - 1)->infoArg == VR_CampaignTitle &&
+                           (arena - 1)->arg == VR_CampaignCount() - 1;
     const bool noContinue = arena && (arena + 1 == camps.data() + camps.size() || (arena + 1)->look != Item::Sub);
     const char* quakeSave = VR_LaunchContinueSave(0, "");
     Con_Printf("runlaunch: arena's save there %d, Arena Mode's row %d, no Continue %d, Quake's Continue %s\n",
         qvr::files::exists(path) ? 1 : 0, arena ? 1 : 0, noContinue ? 1 : 0, quakeSave ? quakeSave : "none");
     t.tally.check(qvr::files::exists(path) && arena && noContinue && (!quakeSave || strcmp(quakeSave, runLaunchArenaSave)),
         name, "an autosave of the arena there: no Continue under Arena Mode, nor Quake's");
-    t.tally.check(underAd && arena->look == Item::Lead && arena->tagArg && !strcmp(arena->tagArg(arena->arg), "experimental"),
-        name, "Select Campaign: Arena Mode right under Arcane Dimensions, its look, \"experimental\" at its right");
+    t.tally.check(underLast && arena->look == Item::Lead && arena->tagArg && !strcmp(arena->tagArg(arena->arg), "experimental"),
+        name, "Select Campaign: Arena Mode right under the last campaign, its look, \"experimental\" at its right");
     if(!t.arenaSaveBefore)
     {
         (void)VR_LaunchContinueTestFixture(nullptr, runLaunchArenaSave, "");

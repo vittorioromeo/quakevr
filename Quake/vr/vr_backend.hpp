@@ -171,6 +171,12 @@ struct EyeSizes
 // largest size): resampled into the image when it differs (vr_stereo.cpp).
 [[nodiscard]] int scaledEyeSize(int image, int max);
 
+// vr_fov_reduce (questvis): the factor each edge's tangent of the rendered view is scaled by (1: the headset's own), and
+// the eyes' drawn size with it (scaledEyeSize). The backends apply it to the views they locate.
+[[nodiscard]] float fovReduceFactor();
+// Each edge's angle (radians) with its tangent times fovReduceFactor().
+[[nodiscard]] float reducedFovAngle(float angle);
+
 // The headset's eye tracking for the foveation (vr_foveated_gaze; his ask, 2026-11-21: used when there, the lens centre
 // when not, nothing to set or restart): what the runtime said at VR start. Whether the gaze is tracked this frame is
 // FrameState::gaze.valid.
@@ -283,14 +289,14 @@ public:
     struct SpaceWarpImages
     {
         unsigned motion{0}; // RGBA16F: xyz this frame's NDC minus the last frame's
-        unsigned depth{0};  // the eye's depth, as its projection writes it
+        unsigned depth{0};  // the eye's depth: OpenGL's form, near plane nearZ, the far one infinite (vr_spacewarp.cpp)
         int width{0};
         int height{0};
     };
     struct SpaceWarpFrame
     {
         Pose appSpaceDelta;  // the play space's own motion in the world since the last frame (Inv(prev) * current)
-        float nearZ{0.f};    // metres at depth 0 and 1 (reversed Z: nearZ > farZ)
+        float nearZ{0.f};    // metres at depth 0 and 1 (farZ infinite: Meta's sample's)
         float farZ{0.f};
         bool skip{false};    // a jump (teleport, snap turn, a new map): nothing made up from this frame
     };

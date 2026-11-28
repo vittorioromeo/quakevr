@@ -4909,6 +4909,35 @@ the camera suddenly a few units, then goes back" and "add a way to lock the anim
   the scrub, let go; the fire and melee cases now cancel at wait20: with his promoted times the first pair was already in
   at wait30). flatreload_test.sh 54/0.
 - **Open**: the pair in the locked hand is drawn but only checked by numbers (his eyes: key 4 looking down, key 6).
+## embedfire2: a gun stuck in an enemy by its bayonet fires exactly as in the hand (branch agent/embedfire, 2026-11-28)
+
+His flat notes 2026-11-28 (8, 15, 16): the stuck nailgun fired slower, one barrel, no frames, no flash or sparks; the
+stuck thunderbolt's start sound again and again; the burst rifle and the revolver didn't fire stuck.
+- **Causes**: the prop path (vr_propfire.qc) ran only the trigger frame on the stuck gun. Its End called
+  W_SetCurrentAmmoFor, whose player_run ended the firing frames' think every frame, and that think (player_nail*,
+  player_light*, player_shot*) ran on the empty hand (the fist: no ammo, so it stopped). So one nail per 0.2 s refire, one
+  barrel, the thunderbolt restarting (lstart) every 0.1 s. The revolver's hammer and the burst rifle's burst are per-frame
+  hand code (VR_Revolver_HandFrame, VR_EnemyGuns_Frame) that saw the fist: the cocked hammer was let down every frame,
+  bursts cut. Every gun called `weaponfired(self, hand)`, so the flash, sparks and smoke went to the empty hand
+  (VR_WeaponFired, which routes them to the prop, was never called). The thunderbolt's beam was the player's: the client
+  drew it from the empty hand and ended it at once (vr_client.cpp VR_BeamGone). In flat play a quick click of a stuck
+  revolver counted as a tap and pulled it out (its shot came a frame before the hold saw the press).
+- **Fix**: `VR_PropFire_With(hand, fn)` runs `fn` with the hand's weapon fields, frame, place and muzzle taken from the
+  stuck gun (Begin .. End). It wraps the firing frames' think (player.qc doThinkArgFn/doThink2ArgFn), the revolver's
+  frame and the burst frame. Begin/End also swap the hand's weaponframe with the prop's `.frame`, so the frames are drawn
+  on the stuck gun. End restores the ammo mirror without player_run. The prop's trigger frame runs the hand's whole fire
+  frame (weapons.qc `W_HandFireFrame`: the thunderbolt's stream, the Widowmaker's spin, the lava nailgun's let-go). All 24
+  `weaponfired(self, hand)` calls are now `VR_WeaponFired(hand)`. The thunderbolt's beam takes the prop as its entity
+  while one fires. Flat tap (vr_embedhold.qc VR_Embed_FlatPull): a shot on the press's frame or the one before counts as
+  fired, and a press while the gun still cycles is no tap.
+- **Test**: `vr_embed_test 97` (flat, embedrate; `scratch1 <first + 1000*last>` runs a few guns): shotgun, SSG, nailgun,
+  thunderbolt, AD Plasma Gun, burst rifle, laser rifle and revolver, each fired 1.55 s in the hand, then stuck by V in a
+  fresh grunt and fired as long. Shots (VR_WeaponFired) within 5%, all from the prop, frame changes as in the hand, the
+  thunderbolt's start sound once, the grunt hurt.
+- **Open**: GL, prox and RL are not in 97: flat V doesn't stick them (test 96's PENDING). With the off hand busy (a carried
+  bayonet or an axe, so flat doesn't take them two-handed), the run stalled after the V (no more output until the
+  timeout). Not looked into. Casings (ejectcasings) still come from the hand. A stuck gun let go mid-animation keeps its
+  last frame. Multiplayer: the prop's `.frame` and the beam entity go out as ordinary entity state; nothing per seat.
 
 ## padflat: a flat-screen gamepad's default layout, its stick on the wheel and holster menu, a stick cursor in the menus (branch agent/padflat, 2026-11-28)
 
@@ -5113,7 +5142,135 @@ them back by using the usual weapon wheel or MMB buttons."
   EMPTY HAND and CLUSTER lit; CLUSTER swaps it, the rocket back; the nailgun's holster: the gun in the hand, the
   multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
   `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.
+## questvis: SpaceWarp's black squares and the gadget's jitter; the menu at native resolution; FOV reduction (branch agent/questvis, 2026-11-28)
 
+His words (Quest 3 standalone): SpaceWarp shows black floating squares and the wrist gadget's UI jitters; the menu
+renders the world at full scale; top foveation barely shows; are we rendering the right FOV; add FOV reduction.
+- **SpaceWarp, black squares (causes found in the code; not seen worn)**: (1) the camera motion of a point behind or
+  at the last frame's eye (near walls and props while turning or strafing) divided by its previous clip w near 0: huge
+  or infinite motion vectors (half floats overflow to inf), and the runtime's made-up frame fetched from outside the
+  picture: black blocks of a motion texel (4x4 eye pixels). Now such texels get no motion, any non-finite value is 0,
+  |xy| is clamped to 0.6 NDC and z to +-1. (2) The depth went to the runtime in reversed Z (nearZ > farZ, which the
+  spec only "may" allow) with the scene's own planes; it is now written in Meta's GLES sample's form (OpenGL depth
+  1 - near/z, nearZ 0.05 m, farZ infinite), whatever the scene's convention: the runtime's most used path.
+  `vr_spacewarp_check` counts "wild" texels (not finite or past the clamp): every check requires 0.
+- **SpaceWarp, the gadget's jitter**: the wrist gadget's screen is a gfx quad in the scene that wrote depth but no
+  motion, so SpaceWarp (and TAA) took it for world-fixed: the made-up frames left it behind the moving hand while the
+  gadget model (an alias model, its own motion) went on. `gfx::State::prevFromNow` (a world transform now -> a frame
+  ago) makes an opaque depth-writing draw write its own motion (the same triangles again into the motion target alone,
+  `temporal::beginOwnMotion`, a small program with TAA's texel format); the gadget's screen and Doom's picture on it
+  use it (`vr_gadget.cpp` ScreenMotion). Not done: the UI drawn over the eyes after the scene (lasers, HUD panel, head
+  text, the gadget's log) still takes the scene's motion under it (a quad layer or a UI motion pass would fix it);
+  SpaceWarp stays off by default until he has looked at it worn.
+- **Menu at native resolution** (`vr_menu_native`, tunable, 1): while a menu is open the eyes are never drawn into
+  the corner part of their images (`vr_eye_subimage`): the world, at its own scale (Render Scale or dynamic
+  resolution), is resampled to the image's full size and the menu and all the UI over the eyes are drawn at that
+  size, as sharp as at scale 1. `vr_menu_render_scale` -1 now means no floor with it (the old: 1 on the Quest, which
+  drew the whole world at 1 behind a menu). Dynamic resolution skips menu frames. PC VR already drew the UI after the
+  resample at the image's size (no floor there): unchanged.
+- **FOV**: the eyes are drawn with exactly xrLocateViews' field of view (`VR_OverrideProjection` takes
+  `frameState().eyes[].fov`, and the projection layer submits the same), with the runtime's hidden-area mesh drawn
+  first: nothing is rendered outside what the runtime asks for. The console now says the runtime's angles once a
+  session (`VR: eye N field of view (the runtime's): ...`). Quest 3: left eye left -54 right 40 up 44 down -55 degrees
+  (94 x 99), the right eye mirrored; recommended 1680 x 1760 an eye. No waste to cut beyond the hidden area.
+- **FOV reduction** (`vr_fov_reduce`, 0..30 %, saved, default 0; VR Settings > Display and Graphics, "FOV
+  Reduction"): each edge's tangent of the located views is scaled (both the projection and the submitted layer, so the
+  compositor places the picture right and shows black beyond), and the eyes' drawn size with it (`scaledEyeSize`):
+  the same sharpness, (1 - p)^2 of the pixels. Any OpenXR headset and the mock.
+- **Foveation**: what is applied is right (the runtime says "fixed foveation level N ... set" for 0..4, the profile on
+  the eye swapchains, the eyes drawn straight into them, form 2). Its coverage is the driver's: whole bins of 864 x 448
+  (qfov4), the bins round the submitted rect's centre kept full. At his 0.55-0.65 scale the drawn part (about 1090 x
+  1140 at 0.65) covers 2 x 3 bins, so little is left to reduce: High saves 0.6 ms on the hub (below); at 0.9 it saved
+  5.5 ms (questfovmusic). XR_FB_foveation has no level past High (Top) and no custom map; eye-tracked foveation is
+  Quest Pro only. Show Foveation models zones, not the driver's bins. Nothing changed.
+- **Headset numbers** (Quest 3 unworn, `-unattended -noconfigwrite`, the hub vrstart, fixed scale 0.65, `vr_dynres 0`,
+  parts of 360 frames interleaved, 2 rounds in one launch, GPU mean a frame from `vr_profile_report 3`, median):
+
+  | part | GPU ms | frame period | missed |
+  |---|---|---|---|
+  | Foveation Off | 13.22 | 13.88 | 0.6% |
+  | Low | 13.07 | 13.92 | 0.2% |
+  | Medium | 13.08 | 13.91 | 0.2% |
+  | High | 12.64 | 13.88 | 0.2% |
+  | High (Top) | 13.52 (12.77 / 14.27) | 14.65 | 2.9% |
+  | High + FOV reduction 10% | 11.62 | 13.89 | 0.4% |
+  | High + FOV reduction 20% | 11.21 | 13.88 | 0.2% |
+  | Menu open, native (world 0.65, menu at the image's size) | 13.98 | 15.67 | 16.9% |
+  | Menu open, old (`vr_menu_native 0`: the whole eye at 1) | 13.91 | 15.37 | 11.8% |
+  | SpaceWarp on (High) | 15.11 | 27.77 | 0.0% |
+  | SpaceWarp off | 12.76 | 13.95 | 0.8% |
+
+  FOV reduction: -1.0 ms (8%) at 10%, -1.4 ms (11%) at 20% (the pixels -19% / -36%; the fixed costs stay). The menu
+  at native resolution costs the same as the old floor: the world at 0.65 leaves the straight-in path (the resample
+  needs the post-process path, the scene's own unfoveated targets, more full-image passes). Its cheap form is the menu
+  as a compositor quad layer (the world straight in, the menu sampled by the runtime): not done. SpaceWarp with the
+  new depth and motion: half rate at once, nothing missed, no crash; its look worn: not checked.
+- **Headset**: this branch's release APK for the block only; the APK installed before (questnext's 1.2.0-beta6
+  release build) put back with `install -r`, his 439 saves/configs verified md5-equal. Left on the headset:
+  quakevr/qv_measure.cfg and qv_round.cfg (to delete).
+- Files: vr_spacewarp.cpp, vr_backend.hpp, vr_gfx.hpp, vr_gfx_gl.cpp, vr_temporal.cpp/.hpp, vr_gadget.cpp,
+  vr_stereo.cpp, vr_dynres.cpp, vr_main.cpp, vr_backend_openxr_frame.cpp, vr_backend_openxr_internal.hpp,
+  vr_backend_mock.cpp, vr_cvars.inc, vr_menu_rows.inc, vr_menu_settings.inc, vr_tunables.inc, vr_tunables_rows.inc;
+  menu_paths.txt regenerated; canonical_allowlist (the new program: motion vectors are two-pass only).
+- Tests: spacewarp_test.sh 20/0 (was 16: the wild-texel checks); tunables_test 13/0; gles_render_test 15/6: its
+  four "both drew" checks fail on the eyeshots' mean brightness (6-7 of 255 vs > 8, PC and ES alike, every other check
+  incl. ES = PC identity passes): not this branch's changes as far as the code shows (not run on origin/next);
+  dynres_ceiling_test is Linux-only (fails to start on Windows).
+
+## questopt: hip1m1 on the Quest: his perf recording read; the worn packs' anchors and the flashlight's lightmap light made cheap (branch agent/questopt, 2026-11-28)
+
+His words: "Collected a profiler report in hip1m1 on the Quest ... there's a lot of room for optimization."
+- **Getting it off the headset**: his report was the perf recorder's (`vr_perf_record`, history.txt: two takes; one CSV,
+  `perf_20261128_025051.csv`, 286 s, beta6), which a release APK keeps in the app's internal `perf/` (run-as refused).
+  `vr_android_export` now also copies into the base folder's `export/`; `+vr_android_export perf +vr_android_share export`
+  then `adb pull .../files/export/` (ANDROID_RELEASE.md "Measuring a release APK"). vr_android.cpp.
+- **His profile** (Quest 3, Standalone, dynres 0.55-0.80, 11,950 frames; CPU-bound: the frame period follows CPU busy):
+
+| Cost (ms a frame, medians) | start (0-60 s) | fights (70-260 s) | after he turned the rig lights off (270 s+) |
+|---|---|---|---|
+| frame period / CPU busy | 14-17 / 13-15 | 24-41 / 23-40 | 17-24 / 10-17 |
+| GPU (gpu_span) | 9-12 | 10-22 | 12-17 |
+| QuakeC (ev_qc; SV_Physics 1.3x) | 4.4-4.6 | 8-15 | 3-6 |
+| lightmap dynamic lights (CPU; c_lights) | 0.1 | 3.7-5.6 | 0 |
+| models (c_alias) / view entities | 1.0-2.0 / 0.7-1.0 | 1.8-3.1 / 1.2-2.7 | 2.0 / 0.4 |
+| sound | 0.2 | 0.3-2.7 (spikes) | 0.2 |
+
+  7,105 of 11,950 frames missed a refresh. The profiler's own cost doesn't apply: no `vr_profile`/GPU timer queries were
+  on, only the perf recorder (its GPU column is the frame's timestamps).
+- **QuakeC** (PC mock, `vr_qcprofile 1` + `profile_qc`, hip1m1's start, 720 frames): 2.0 ms a frame, the top cost
+  `VR_WP_Place` 0.69 ms (the worn backpacks' place on their 23 wearers each frame) in the builtin `limbpiece(e, 0, 30)`:
+  for a wearer out of view (not drawn: drawnpose has no bone) `agarmor::packWhere` walked the shell's vertices three times
+  (frameOnBone, 3.8 us) and `hitmodel::drawnVertexPoints` made the whole body's drawn shape with normals (shapeOf,
+  15.7 us) for its 3 anchor vertices. Now (`vr_hitmodel_points_subset`, Debug tunables "Fast Anchor Points", default 1):
+  `animsmooth::serverPoints` takes a vertex list and works out only those (the same rows, the same values), and the chest
+  frame is kept with the pack's rest per shell. Exact: mode 2 compares with the whole shape, 16,000 anchor sets, 0
+  differed. PC: limbpiece 0.73 -> 0.16 ms, QuakeC 2.04 -> 1.39 ms a frame. On the headset at his last spot (his
+  autosave, wearers dead or in view) QuakeC was 2.4 ms either way: no measured gain there; the fights' 8-15 ms are
+  unprofiled (next: `profile_qc` in a hip1m1 fight on the headset). Also faster: the armour plates' and beasts' armour
+  anchors (the same call).
+- **The lightmap's dynamic lights** (`vr_gl_world_dlmap 1`, the Standalone preset): at his spot 6 lights, 3.9 ms a frame;
+  `vr_gl_world_dlmap_info` now lists them: the flashlight (a spot, radius 1000, and its 500 spill), the rig's small lights
+  (16-36). collectWorld pairs every surface on a node plane the sphere crosses: 3,837 surfaces summed a frame, 434 given
+  light. Now (`vr_gl_world_dlmap_reach`, Debug > Profiling "Lightmap Lights Only Where They Reach (Quest)", default 1)
+  a surface's lights are left out when their sphere misses the box round its texel grid, when they are behind the face
+  and the falloff gives turned-away faces nothing, or when a spot's cone misses the sphere round that box. Exact: mode 2
+  sums the surfaces it would skip anyway: 6.5M summed, 0 took light. Also `vr_gl_world_dlmap_keep` (default 0): a surface
+  lit by bit-identical lights as the frame before keeps its block (mode 2 compared 3,384 blocks, 0 differed), but nothing
+  is kept in hip1m1 (its lights change every frame), so off.
+
+| Headset A/B (Quest 3, release APK, his hip1m1 autosave, god, unworn; 3 interleaved rounds of 576 frames) | off | on |
+|---|---|---|
+| `vr_gl_world_dlmap_reach`: lightmap build (ev_lightmap) | 3.91-3.95 | **1.60-1.61** |
+| ... CPU busy median | 13.8-15.0 | **11.1-11.2** |
+| ... frame period median | 14.6-15.8 | **14.0-14.1** |
+| `vr_hitmodel_points_subset`: CPU busy / QuakeC (this spot) | 13.2-14.6 / 2.4 | 13.3-14.4 / 2.4 |
+
+- Tests: the two checks above (0 differed); vr_wornpack_test 1 (see the report); the PC is unchanged where the
+  lightmap path is off (the PC's GL 4 profile never builds it); the anchors' change is exact.
+- Headset: back to beta6 (1.2.0-beta6, progs a0bfe11a) with his 31 autosaves and 3 saves (checksums match). Pushed and
+  left: `quakevr/qo_ab*.cfg`, `files/export/` (his CSV and mine).
+- Open: QuakeC in hip1m1's fights (8-15 ms; profile_qc on the headset in a fight); models 2-3 ms; sound spikes; the
+  unworn headset's pauses ("xr user absent") in unattended launches despite `-unattended`.
 ## panelsize: the menu's bindings reminder easier to read (branch agent/panelsize, 2026-11-28)
 
 His words: "Binding reminder is a bit too small in the menu now, please make it easier to read."
@@ -5167,3 +5324,438 @@ then "the hand grabbing the shells doesn't use the same finger pose as VR" and "
   reload_test 112/4: the 4 are BACKLOG section 1's known baseline failures (0/5 on 11-27), VR paths this doesn't touch.
 - **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
   the pair); his eyes on the drawn pair at the port while running.
+
+## reloadsys: keyframed procedural reloads, the Reload Studio, the super shotgun (branch agent/reloadsys, 2026-11-28)
+
+His words (2026-11-28 night, kit `scratch/fb1127n/reload_words_1128.md`): a keyframe-based system for every reloadable
+weapon, tweakable per keyframe in a new ImGui studio; "the reloads almost always succeed"; the hand's target worked out
+backwards from where the shell must be. Phase 1: the system, the studio, the shotgun moved onto it, the super shotgun.
+- **The data** (`Quake/vr/vr_reloadsys.hpp/.cpp`; `quakevr/data/reloads.txt`, `vr_reload_file`; built-ins in the code where
+  the file has no entry). Per gun (`reload shotgun|supershotgun { ... }`): `item` (shell, pair, magazine, rocket, cylinder),
+  `dest` (port, chamber, receiver, muzzle, cylinder), `item_rot` (the item's turn at its destination in the gun's frame),
+  `loop a b` (keys a..b, from 1, repeat until full), then `key "<name>" { ... }`: `time`, `gun_time` (0: the key's),
+  `ease` (linear, smooth, in, out), `hand` (rest, pouch, mouth, dest, hold), `hand_ofs` / `hand_rot` (rest and pouch: the
+  body's frame; mouth and dest: the item's offset and turn on its destination, the gun's frame), `arc`, `approach` (mouth:
+  out of the opening), `gun_rot` (pitch + muzzle down, yaw in, roll) / `gun_ofs` (forward, in, up), `action` (none, take,
+  insert, open, close, eject), `if` (always, closed, opened, loaded), `finish 1` (the end: played when the reload is over or
+  cancelled). The free hand's values mirror by its side, the gun's by its hand's (as the tunables did). Magazines,
+  rockets, the revolver's cylinder (later phases) fit: their item, destination (receiver, muzzle, cylinder slots), an eject
+  action. `vr_reloadsys_set <gun> <key|-> <field> <values>`, `_save`, `_reload`, `_list`.
+- **Playback** (`vr_flatprocreload.cpp`, rewritten on the data): each key moves the free hand and the gun hand's pose from
+  where each was drawn last over its times and ease; Take (impulse 99 at the pouch's hotspot, the key waits for the item),
+  Insert (waits at its end for VR's port test, then its failsafe), Open / Close (impulses 107 / 108); the item going in
+  goes on after the insert's key at once; the loop while the server's bit is up, then the finish keys. **Backwards solve**
+  (`target`): the item's destination pose (the port measured on the gun's game pose, `item_rot` and the key's turn on the
+  gun's frame), the item's place in the hand (`held::placeInHand`, the server's), so the hand = destination * grip^-1, every
+  frame. No hand-gun or hand-body collision while busy (prlfix's, kept). The shotgun's built-ins are his promoted tunables:
+  `item_rot` -38.17 / -43.74 / 51.87 baked from his hand at the port (pitch -40, yaw 59, roll -9 on the gun's) at a level
+  view (the same look there; looking up or down the item now keeps its turn on the gun, the old angles' sum didn't).
+- **Retired**: 28 tunables `vr_flat_prl_{reach,grab,carry,insert,return,tilt_in,tilt_out}_time`, `_tilt_*`, `_gun_*`,
+  `_approach`, `_arc`, `_ease`, `_pouch_*`, `_port_*` (in the data now; a saved value of them is an unknown command).
+  Kept: `vr_flat_prl_failsafe`, `_giveup`, `_test_miss`, `vr_flat_ammo_pouch_*`. **The lock generalised**:
+  `vr_flat_prl_lock N` holds key N's end pose (any gun's), -1 the scrub (`vr_flat_prl_scrub` over one pass of the keys);
+  next / previous step them.
+- **The super shotgun** (QC `VR_FlatReload_ProcWanted`: with `vr_flat_ssg_break`; not the Widowmaker): keys present, break
+  open (if closed: impulse 107, `VR_FlatReload_ProcOpen`: VR's `VR_Reload_SsgBreak`, its spent shells out, live ones kept
+  by `vr_ssg_keep_live`), reach, grip (VR's take: a pair, a single shell for one place), carry, insert (VR's chambers
+  test), reach again (loop), then return (if loaded: a flick up), close (impulse 108, `VR_FlatReload_ProcClose`: VR's
+  `VR_Reload_SsgClose`; a second later by itself if that never comes). The flat break's silent close skips a gun its
+  reload holds open. Its poses are a start for his tuning (tilt 25 / 35 / -30, the item's turn the shotgun's).
+- **The Reload Studio** (`vr_reloadstudio.cpp`; `vr_reloadstudio [open|close|toggle|test]`; Debug > Tools > Flatscreen:
+  Reload Studio, Tunables > Flatscreen > Procedural Reload): Gun (Hold This Gun: impulse 154 / 155), unsaved / saved,
+  Save / Revert / Reset Gun; Timeline: Play / Pause (the scrub looping, Speed), < > (step and lock), Lock Key, Unlock,
+  Reload (R) (a real one), Scrub; the readout: the item's gap to its destination now and at the last insert's end, and the
+  real reloads' seated / dropped / cancelled / failsafes; Reload: Item, Destination, Item Turn, Loop Keys; Keys: the list
+  (click locks it), Add (a copy after), Remove, Up, Down; Key: Name, Time, Gun Time, Ease, Action, Condition, Reload's End,
+  the free hand's Target, Offset, Turn, Arc, Approach, the gun hand's Tilt and Move; the gizmo on the free hand (Off / Move
+  / Rotate, vr_gizmo.hpp's, in the key's frame) while its key is locked.
+- **Tests**: `flatprocreload_test.sh questi base` 53/0 before the ssgshut change (trips, cont144, lock on the 6 keys,
+  mrun/jump/slide/crouch/60/144, fire, melee, blocked, dual, ssg; ssgshut alone: opened by 107, 2 in, closed). The matrix
+  ("almost always succeed", `matrix-sg` / `matrix-ssg`): see the report's numbers below. `vr_reloadstudio test`.
+## Enemy attributes; the elite (branch agent/elite, 2026-11-28)
+
+His ask: a system of special attributes on enemies like "infected", with an "elite" first: much faster fire, reaction,
+accuracy, harder to fight, 1.25x walking speed; set from the toolgun's Armed Humanoid page; coexisting with infection;
+synced in MP; recognisable by a dye through the weapon-colour system.
+
+- **The system** (`QC/vr_attrs_defs.qc`, `QC/vr_attrs.qc`): `.vr_attrs` bits (`VR_ATTR_INFECTED` 1, `VR_ATTR_ELITE` 2),
+  a table (name, factor per stat `VR_ATTR_ST_*`, look). `VR_Attr_Mult(e, stat)` is exactly 1 with no attribute (no
+  random number drawn), so nothing changes for ordinary monsters. Infected is its existing row (`.vr_mg3_infected`: the
+  bit derived from it, `VR_Attr_Set(e, VR_ATTR_INFECTED, 1)` gives the zombie's row): behaviour unchanged (toolgun
+  infected test 54/0). An infected elite rising loses the elite (bit and dye) with the armed layer.
+- **The elite's stats** (Tunables > Armed Humanoids > Elite, `vr_elite_*`): fire rate x3 (pause / 3), reaction x0.25,
+  accuracy x3, aggressiveness x1.5, steps x1.25 (`VR_AG_Speed`: run, strafe, back off), swings and punches 1.35x quicker
+  (`vr_ag_act_speed` may now pass 1: `VR_AGP_Speed` caps 3, every phase shorter), aim lag behind a moving target x0
+  (aims where you are), turning x1.5, health x1.5 (both given back on losing it), pains taken 0.35 (T_Damage skips
+  th_pain otherwise: no flinch). The knobs are the armed layer's, so the AI factors apply to armed humanoids only; pain
+  and health apply to any monster given the bit (`vr_attr_set`).
+- **The look**: `.vr_hum_look` + 8192 (`VR_HUM_LOOK_ELITE`, engine `humlook::eliteBit`): the clothes use humlook.txt's
+  new `elite` category rows (category 15; dark gold 0.95 0.70 0.18, strength 0.85, light 0.55-0.6) instead of the
+  weapon's, pulsing towards bright gold and brighter (`vr_elite_pulse` 0.3, `vr_elite_pulse_hz` 0.6; each on its own
+  phase); the worn pack keeps its weapon's colour (the elite pack row where the weapon has none). Texture Studio: Weapon
+  Category > Elite edits the rows. An elite with no weapon colour gets its kind's row (category 0) for the dye.
+- **MP / splitscreen**: the bit rides the existing look short (`QVR_SVC_HUMLOOK`), sent on change and with the spawn
+  state; an older client reads the same body look and ignores the bit: no `QVR_NET_VERSION` bump. Seats share the
+  client's entities: drawn the same.
+- **Who gets elites**: the toolgun's Armed Humanoid page (Elite: On/Off beside Infected With, `vr_toolgun_armed_elite`;
+  Reset/Clear put it back); "Elites in Hard and Nightmare" (Combat > Armed Grunts > AI Behaviour, `vr_elite_spawn`,
+  default 0, a server rule): each armed humanoid the map or a replacement spawns rolls `vr_elite_spawn_chance` 0.15
+  (never the tools', the arena's, deathmatch's); the Survival Arena: from wave `vr_elite_arena_wave` 4 each armed
+  humanoid is an elite with `vr_elite_arena_chance` 0.2, by a hash of wave and index (`VR_ARENA_EliteAt`: no draw from the
+  arena's own numbers, its plans and spots as before); a map's `vr_attrs` key (taken up with its gains at spawn).
+- **Debug**: `vr_attr_set <infected|elite> <0|1> [entity]` (nearest monster by default; Debug > Tools > Enemy
+  Attributes); `vr_humlook_info` prints the client's elites and each one's drawn clothes row.
+- **Tests**: `vr_agrunt_test 233` (52/0): each armed kind ordinary beside elite, every factor, 1.25x steps, health,
+  turning, look, swing, pains; infected too; back; a map key; the roll's rules; the arena rule. `vr_agrunt_test 234`:
+  the lineup screenshot (his review). `vr_toolgun_armed_elite_test` (18/0: every armed kind elite, elite+infected,
+  neither). `mp_test.py suite --only mp_elite` (9/0): B knows the elite and draws its dye; made ordinary, none.
+- **Open**: in the lineup screenshot (scratch/elite_lineup.png) the elite grunt and knight read dark gold, but the elite
+  enforcer (lightning) still looks like the stock green although `vr_humlook_info` gives it the elite row with a mask;
+  to look at (his eyes, the Texture Studio's Elite rows for the enforcer). The arena tests were not rerun (the rule only
+  touches waves 4+).
+## bayofix: flat V drives a two-handed gun's bayonet with both hands; the dagger placed on every new gun (branch agent/bayofix, 2026-11-28)
+
+Open from bayomounts: flat V with a bayonet on the GL, prox and RL (held in both hands once the off hand is free) was no
+stab; the dagger mounts on the new guns untuned. And embedfire2's open "stall" with the launchers.
+- **Why V missed** (measured: the server's blade line per frame): the thrust ran, but flatsight's pinToGrip pulls a
+  two-handed gun in to where the free arm reaches its foregrip (`reachPull`, gripKeep 0.92 of the arm): the launchers'
+  foregrips are far ahead, so the bayonet's point stopped ~10 units short of the grunt (y 288 against 298 one-handed).
+- **Fix** (vr_flatplay.cpp `bayonetDrive2H`, vr_flatsight.cpp pinToGrip / gripPull): while V thrusts a gun's bayonet or
+  dagger, the free arm's pull fades by the thrust's share times `vr_flat_thrust_2h_drive` (1; 0: as before; Tunables row
+  "Two-Handed Bayonet Drive"): both hands go out with the gun, the arms' IK stretch (vr_flat_thrust_arm_stretch, any
+  thrust) keeps the free hand on the grip. Not pole weapons (their grip slides along the pole) nor guns with no blade on.
+  The crosshair's rehearsed strike path (noteStrikePath via gripPull) uses the same share.
+- **The "stall"**: the script's `god` doesn't reach the server before it spawns; the launchers' blasts at the grunt (in
+  the hand and stuck) killed the player, and his death menu paused the game until the run's timeout. Tests 96 and 97 now
+  set FL_GODMODE on the player each case. One-handed launchers (an axe in the off hand) stab and fire stuck fine.
+- **The dagger on the new guns** (weapons.txt att2_x / att2_z, mount units, on top of the every-gun default): measured on
+  the models as drawn (`vr_attach_mdl_dump <gun> <file> 2` now writes the gun and that attachment placed on it, OBJ
+  objects gun / attach). His shotgun's dagger sits 0.2 mount units under the gun, its guard 0.45 behind the gun's front;
+  each new gun solved to the same with no vertex inside the gun: nailgun z -1.13 (it sank 1.9 units into the shroud), GL
+  x 0.75 z 0.15, prox x 0.75 z 0.1, RL x 1 z 1.11 (it hung 3 units under the nose), thunderbolt x 0.65 z -0.99 (2.2 into
+  the body), Plasma Gun x 0.5 z 0.62, burst rifle z 0.76 (its 5 #adv slots the same, not measured), laser rifle z -1.07,
+  revolver z -0.54. The lava nailgun, multi launchers and plasma-look thunderbolt inherit them (checked). Level (pitch 0).
+  Contact sheet (side and from below, the dagger orange): worktree `scratch/bayofix_sheet.png` (scratch bayofix_sheet.py,
+  bayofix_measure.py, bayofix_solve.py). His config keeps only the shotguns' att2 pitches: the new values reach him.
+- **Tests**: `vr_embed_test 96` attachguns 66/0 (no PENDING: the GL, prox and RL "held in both hands as V was pressed"
+  and stuck), attach_guns_check 32/32; `vr_embed_test 97` embedrate 69/0 (the GL, prox, RL added, two-handed;
+  `scratch1 10008; scratch2 1` runs those three one-handed: 21/0); menu attachtest 20/0 (its hierarchy checks expect the
+  new dagger offsets); flat 80 17/0, flat dagger 85 18/0.
+- **Open**: VR stabs with the launchers are hand-driven (not tested per gun). The #adv burst rifles' daggers copy the
+  burst rifle's.
+## alwaysfail: the tests that failed every run of the flaky sweep (branch agent/alwaysfail, 2026-11-28)
+
+Tests and one test aid only, no gameplay change. Found on origin/next 2ea7ac94e (Release; the author's game running, so
+low-impact runs).
+
+| test | cause | action | result |
+|---|---|---|---|
+| agrunt_3 (yank) | harness: the test's header says its script holds +grabmain; the baseline's script (`vr_agrunt_test 3` alone) holds nothing, so the yanked shotgun went into the hand and was let go of 0.12 s later (grip up), and the grunt picked it up again | the test presses `+grabmain` itself at its start and lets go at the verdict | 1/0, 3 of 3 |
+| agrunt_60 (agparry "weapon") | stale: the sword grunt spawns wearing armour plates (vr_agarmor, Plate Blocks All); the parried blow's kept 5 lands on its chest and the plate takes all of it: 0 damage | `VR_AGPT2_Hold` strips the plates (`vr_ar_type`/`vr_ar_mask` 0, vr_agarmor_test's way) | 6/0, 3 of 3; off `test_flaky.txt` |
+| reload: "the lying shell taken again by the fist", "let go of at the pouch: refunded (37)" | harness: the mock put the hand's point 1 unit over the shell's origin; the fist's spheres sit off that point, and how near they come depends on how the shell lies: 3.60 cm off, allowed 3 (passed 11-25, failed from 11-27: most likely the Box3D update's other rest pose, box3dup3 11-26). The refund failed only because nothing was in the hand | `vr_mock_hand_to <hand> nearest <class> <units> palm` (new: the palm's middle there, `hands::palmPoint`, as magpalm does); the test aims the palm: the fist -0.64 cm, touching | both PASS (2 full runs) |
+| reload: "a prop held in the other hand hits the barrels ... (the fist as far off: 1, want 0)" | harness: the fist alone stopping 20 cm over the barrels came to 6.0 units off their front, Hit Reach (vr_reload_ssg_hit_reach 6) itself, so it opened them (since 11-25). Both cases are within a unit of the reach: with both at 24 cm the head no longer opened them either | the fist-alone run stops 22 cm over; the head stays at 20 | head 10 (as in both full runs), fist alone at 22: not opened. Last full run before that change 115/1 |
+| vr_runlaunch_test "Arena Mode right under Arcane Dimensions" | stale: pageCampaigns puts Arena Mode after the last campaign; Dwell (7) and Quoth (8) came after AD (6) | the check wants it under the last campaign's row (`VR_CampaignCount() - 1`) | 92/0 |
+| teleporters_chase (the framed_sill32 dog) | not found. Not chance: seeds 1-8 all fail the same way, the dog ends near (1400-1440, 510-570) and never takes the sill-16 gate (its expected way since the test was written) | none; stays on `test_flaky.txt` | 0/8 |
+| agrunt_16 (hunt: the drawn grip 2.73 off the drawn hand hull, limit 2.5) | not looked into (failing since about 11-10; mean 2.13 over 72 frames, while the limit's note says the shotgun's grip point is 1.44 out of the palm's hull: the grip or hull moved about 0.7) | none | 273/1 |
+| rigstudio_posekeys case 5 (right elbow) | not reached (the one run gave no output: lane lock) | none | |
+| vr_agarmor_look_check's 26 | not looked into: the coverage/shape checks on the player and monster bodies (vrgrunt 0% of covered skin under plates at rest and bent, the others 50-59% against 85/80%, hknight thigh_l width 8.89 against 7.5 and taper 0.46 against 0.45) | none | 88/26 |
+
+- **Test aid**: `vr_mock_hand_to <main|off> nearest <class> <units> palm` (vr_backend_mock.cpp handToNearest).
+- **Not run 3x**: the reload test (two full runs, about 15 min each, plus the fist case alone); runlaunch once.
+- **Open**: teleporters_chase's sill-32 dog (AI/nav: why it no longer slides to the sill-16 gate, since about 11-14), agrunt
+  16, rigstudio_posekeys 5, the armour look check's 26.
+
+## beastmp: remote multiplayer clients draw the beasts' armour (branch agent/beastmp, 2026-11-28)
+
+Approved 2026-11-28 (beastarmour's open note: "a remote MP client draws no beast pieces").
+- **Cause:** not the wire. The server already sends every armoured entity's type, worn mask and wear (QVR_SVC_ARMOR, the
+  humanoids' message: beasts included). The client's `beastarmour::relinkEntity` placed the pieces from the *server's*
+  edict (`ready(ent)`, `place(ent, ...)`: the hit model's body), so it returned at once without a server (`!sv.active`): a
+  remote client drew no piece, no leather. Second, latent: a piece armour.txt shapes has its debris model named
+  "<piece>#tweak" in the server's precache list; a client that had not yet read beastarmour.txt (a remote one joining)
+  could not make it (`makeTweaked` looked only at kinds already read and resolved).
+- **Now:** without a server edict for the entity the pieces sit on the client's own drawing of the body (`ClientBody`,
+  vr_beastarmour.cpp): animated, its drawn lerp (`hitmodel::clientLerp`) and the shader's points for the anchors
+  (`animsmooth::drawnPoints`, as a listen host's armour since armourrebuild) through the renderer's drawn matrix
+  (`render::drawnEntityMatrix`: place, turn, scale, network scale and offset); a corpse or knocked-down beast, the ragdoll
+  the server sent (QVR_SVC_RAGPOSE) skinned as drawn (`ragdoll::skinnedVertices(num, ..., drawn)`: each vertex on its own
+  body, as the drawn skin and the host's hit model have it; per-part `drawnPart` was tried first: the ogre's chest and
+  right forearm pieces came out 3.6-4.7 units off, their anchors' vertices carried by other bodies). The rest is shared with
+  the listen path (`fitPlaced`, `restPlaced`, `junctionBonesBy` taking a placer): pieces, parts with their own bits (shins,
+  the scrag's back half and tail segments), the leather junctions, the wear skins by the server's wear bits, the Armour
+  Studio's ghost. Breaks need nothing new: the mask shrinks, the debris is a server entity with the piece's model.
+  `makeTweaked` reads beastarmour.txt and resolves the piece's kind first.
+- **Whose armour.txt:** each client's own (decision). As the humanoids' MP path (each machine makes the shells from its
+  armour.txt): the shipped file is the same on every install, so everyone sees his promoted tweaks; the server's file
+  decides what a shot hits (the server's placements); a player's own Armour Studio edits stay a local look; no wire bytes.
+  A remote client with a different armour.txt sees its own shapes on bodies that are hit as the server's.
+- **Wire:** unchanged, no QVR_NET_VERSION bump.
+- **Debug:** `vr_beastarmour_drawn` (Debug > Tests "Beast Armour Drawn Here"): each armoured beast drawn last frame, the
+  server's mask, pieces drawn at each wear, leather, the pieces' mean on the body, "server-body" / "client-body" /
+  "client-ragdoll", and the debris in view; `vr_beastarmour_drawn compare` (a listen host) places each beast's pieces both
+  ways for a frame and prints how far apart. Debug > Tests also has "Beast Armour in Multiplayer: Armoured Ogre and Scrag"
+  (`vr_agarmor_test 25`) and "... Break a Part of Each" (26).
+- **Tests:** `mp_test.py beastmp` 19/0 (in the suite): a listen host A on vrtesthall, B remote; the server's QC
+  (`vr_agarmor_test 25`-`27`, test_numbers.txt) dresses an ogre (12 pieces, mask 4095) and a scrag (13, 32575) in yellow:
+  A and B draw every piece and the leather (B "client-body"); B's armour on each body within 0.68 / 0.91 units of A's
+  (pieces' mean, idling; clocks a tick apart); the host placing them B's way off his own by 0.000 units, 0.04 degrees at
+  most; 26 breaks the ogre's left shin and the scrag's tail3 and wears the ogre's breastplate: B drops just those (11 /
+  12), draws the breastplate at two thirds, sees the 2 debris; 27 kills both: B draws the corpses' pieces on the sent
+  ragdolls, 0.66 / 0.09 units from A's once settled (host compare 0.11 units, 0.57 degrees: the drawn pose between the last
+  two steps against the hit model's latest). `beastmp_dedicated` 17/0 (not in the suite): a dedicated server, the beasts
+  dressed before B joins (the "#tweak" debris models in his precache list, the armour in the joining client's state), A and
+  B both remote, the corpses within 0.01 / 0.00 units of each other. `vr_agarmor_test 15` 71/0, `21` 30/0.
+- **Files:** vr_beastarmour.cpp (ClientBody, placeClient, fitPlaced/restPlaced, junctionBonesBy, relinkBody, the report,
+  makeTweaked), vr_agarmor.cpp (beginRelink every frame), vr_menu_debug_tests.inc, QC vr_beastarmour_test.qc
+  (VR_BMP_Frame), vr_agarmor_test.qc, mp_test.py (beastmp), scenario `mp_coop_beasts`.
+- **Open:** a remote client's armour follows its own clock (as its drawing of the body, no kick); the beasts of
+  `beastmp_dedicated` hunt B before his notarget, so their living placement is compared on the listen run only;
+  `vr_armour_on_drawn 0` (debug) is a listen host's comparison alone (a remote client always uses the drawn points).
+
+## visorboot: the flat visor HUD's boot-up sequence (branch agent/visorboot, 2026-11-28)
+
+His words: the boot should start with no panels, a boot sound, the panels fading in with a subtle glitch, then the
+scanline sweep, on every level transition, respawn and so on.
+- **What it does:** at every signon (the first start, `map`, `changelevel`, a loaded save, single player's respawn
+  `restart`: `VR_VisorSignon` from `CL_ParseUpdate`) and every respawn in place (coop/DM: health from 0 or less to
+  more, as before), with the flat visor up: dark (no panel drawn, `vr_flat_visor_boot_dark` 0.3 s), the power-up sound
+  starting (`vr/visor_boot.wav`, 1.05 s, made by `make_sounds.py visor_boot`, timed to the default steps; volume
+  `vr_flat_visor_boot_volume` 0.6), the whole panels (mounts) fading in over `vr_flat_visor_boot_fade` 0.5 s while
+  glitching (`vr_flat_visor_boot_glitch` 0.6: strongest at the fade's start, a third of it at its end; a per-panel
+  flicker of the alpha, on about half the frames bands of rows torn sideways up to 16 1080p pixels, colour fringes of
+  2.5 px: the layer shader's `Tear` uniform, the red and blue read either side), their contents still dark; then the
+  existing sweep (`vr_flat_visor_boot` 0.8 s, each panel in turn) fills them. Booted about 1.6 s after the signon.
+- **Settings:** `vr_flat_visor_boot_seq` 1 (VR Settings > Visor HUD Look > Visor Boot Sequence; 0: the sweep alone,
+  exactly as before); Tunables > Flatscreen > Visor Boot (dark, fade in, glitch, sound volume). The headset (VR) path
+  and its centre popup keep the old sweep (the sequence needs `visor::active()`).
+- **Debug:** Debug > Visor: Power On (now the whole sequence) and Visor: Power On, Traced (`vr_flat_visor_fx trace 1`:
+  every boot prints a `visorboot: boot N (<cause>) ...` verdict as it ends: frames dark and shown, fading, rises and
+  falls, glitching and its peak, sweeping, the time booted, sounds asked). `vr_flat_visor_report` has a `visor: boot
+  <phase> ...` line.
+- **Files:** vr_visor.cpp (startBoot, bootSound, bootPhase, traceBoot, panelFade, bootTear, the layer shader),
+  cl_parse.c, vr_api.h, vr_cvars.inc, vr_tunables(.inc, _rows.inc), vr_menu_rows/pages/debug.inc, make_sounds.py,
+  quakevr/sound/vr/visor_boot.wav, SOUNDS_OURS.md, scenario `flat_visor_boot`.
+- **Tests:** `visorboot_test.sh` (42 checks: the first start's report stepped through dark with nothing drawn, fading
+  in glitching, sweeping, booted; the traces of the first start, a changelevel, a death and `restart`, a coop map and a
+  coop respawn in place, the switch off); `visor_test.sh`'s boot step waits the whole sequence now (37/0).
+- **Open:** splitscreen: the visor has one state (no seats in it yet); when the seats come it moves into the seat's
+  state with the rest of the visor's. The sound counts as asked in the headless runs (no sound device there): its
+  level against the other UI sounds is his to judge (loudest 100 ms RMS 0.24 at volume 1, the tap-on's 0.37).
+
+## blclean2: BACKLOG.md keeps only what still needs work (branch agent/blclean2, 2026-11-28)
+
+Docs only; 331 -> about 260 lines. Removed or rewritten:
+- Section 1 rewritten as one list: the three "baseline" lists, "AD-only tests", "Random run to run", "Stale list", "Baseline 2026-11-12/13" folded into "Real failures" and "Flaky" (only failures still seen on 11-27/28).
+- Removed as fixed: agrunt 3 and agrunt 60 (alwaysfail), reload's lying shell, pouch refund, fist-alone barrel hit and SSG sights, agrunt 12/47/63/72/74/76/86/92, nail_1, rv_1, ragdoll_grab, judo, parry_pose, weapon_catch, dead_gear, stealth, recoil (flakysweep), agrunt 213, stealth props_round, mp_coopbots one-off ("don't chase").
+- Added from alwaysfail: `vr_agarmor_look_check`'s 26 failures.
+- Section 3: "Hotkeys for the remaining VR interactions" removed (audit done, FLATPLAY.md "Hotkeys"); "Procedural reloads" cut to the guns beyond the one-handed shotgun (flatprocreload).
+- Section 9: item 2 "Ironwail extraction" removed (iwextract; what is left stays inside Ironwail's functions); the check says melee tests, not the eval.
+- Kept, tightened: the rest of section 1, sections 2, 4-8, 10, 11 (each still open; none found implemented).
+
+## mpsync: the features of 11-27/28 in multiplayer, audited and tested from a remote client (branch agent/mpsync, 2026-11-28)
+
+His words (2026-11-28): "Ensure that all the newly added features (e.g. attachment, bayonets) are properly synced in
+multiplayer and splitscreen." Audit of each feature's path (what a remote client sees and does against the host) and a new
+MP scenario for the ones no MP test covered. **No sync gap found**: every new feature keeps its state on the server (QC
+fields, records, stats) or sends it in an existing message; the client-driven parts (hands, poses) ride the move. No
+QVR_NET_VERSION change.
+
+| Feature | Remote client (VR / flat), listen or dedicated | Status / test |
+|---|---|---|
+| Attachments held, holstered, dropped, thrown, stuck (attach1-5) | the record's kind by weapon id (QVR_SVC_WEAPONATTACH) and the avatar's attachment byte per gun look and holster | OK: mp_attach 26/0 |
+| Dagger as a bayonet (daggerattach) | the same kind byte (2) | OK, newly tested: mp_mpsync (B's J; A draws kind 2 held and stuck) |
+| Mount rails (bayomounts), global and per-gun offsets (mountoffs, bayofix) | drawn from local weapons.txt / CVAR_ARCHIVE offsets; the server's attach points use the host's | OK by design (a client with edited offsets sees its own drawing; hits are the host's) |
+| Holstered attachments, SSG open (holsterattach) | drawGunParts on the avatar's holster looks | OK: mp_attach (other_holster) |
+| Firing a stuck gun as a client (embedfire2) | the server's trigger path (VR_PropFire_With); flash via weaponfired on the prop; beam entity the prop | OK, newly tested: mp_mpsync (prop shots 0 -> 3, grunt hurt) |
+| Bayonet stab / V thrust by a client (attach, flatbayonet, bayofix) | server-side strike from the move's hands; flat V an impulse | OK: mp_attach (coop stick, deathmatch hurt), mp_mpsync (dagger stick) |
+| Dazzle by a client's flashlight, the forearm pose (flashblind, dazzlepose) | flashlightbeam reads the client's move (lampLit/Lens/Dir, stealth's path); pose in VR_AGP_BODY (the existing pose message) | OK by code (no new wire state) |
+| Elite (elite) | a bit in QVR_SVC_HUMLOOK, with the spawn state | OK: mp_elite (suite) |
+| Beast armour drawn remotely, independent breaks (beastmp, armourhits, scragtail) | QVR_SVC_ARMOR (its bytes unchanged; the 64-bit word is each side's own unpacking: no version bump) | OK: mp_beastmp 19/0 (suite), beastmp_dedicated |
+| Drawn-body hits, lag compensation (drawnhits) | server shapes from the server's own lerp; rewound pose a key | OK: mp_lagcomp (suite) |
+| Held grenade put back / swapped, BACK POUCH (wheelgrenade, grenhold) | client command vr_wheel_pick (whitelisted, slots -6..5) into QC; hand-grenade bits in STAT_QVR_FLATUNLOADFULL per client | OK, newly tested: mp_mpsync (a remote flat client's pick, then EMPTY HAND: the rocket back) |
+| Procedural reload as a client (flatprocreload, prlmove, prlfix, reloadsys) | the hand is the client's (state machine, impulses 99/106-108, the port in the move); the server owns rounds; rule vr_flat_proc_reload is the host's | OK, newly tested: mp_mpsync (full clip on the server; A sees B's free hand travel 29 units) |
+| Flat jabs, fists, punch aim (flatfists, flatpunch) | the pose is the client's; the blow the game's hand motion from the move | OK by design (no new state) |
+| Visor boot, gamepad, panels, controller bindings (visorboot, padflat, panelfix, ctrlbind, bindpanel2, wheelui) | local UI and input | OK (local) |
+| mparcs, netmismatch, mpoverflow, mplows, menupaths | MP work of their own, each with its group | OK (their tests) |
+
+- **New scenario** `mp_test.py mpsync` (suite `mp_mpsync`): a listen host A (VR), B flat-screen remote through the proxy,
+  coop e1m1. (1) B fires his shotgun empty, R: the server's `flat proc reload: main hand done` and a full clip; A's avatar
+  of B shows the free hand's trip. (2) B's `cmd vr_wheel_pick 0 -5` (BACK POUCH): the flat trip, the grenade in his off
+  hand, a rocket out; `vr_wheel_pick 0 -1` (EMPTY HAND): put back, the rocket back. (3) `vr_dm_test 28` (new,
+  vr_attach_test.qc: a dagger into a player's empty off hand), J: the record's kind 2; B and A draw the dagger. (4) V
+  sticks the gun in a grunt by the dagger; A draws it on the stuck gun; B's trigger fires the stuck gun (`vr_dm_test 26`
+  now also prints `attachmp: propshots=N`, the stuck guns' shots). 16/0.
+- **Harness fix**: `mp_test.py weaponwheel` ran the whole suite (the choice was missing from main_run's list): now its own
+  scenario.
+- **Seen, not MP**: a flat wheel pick of a grenade for the off hand while the main hand holds a gun stuck in a grunt is
+  refused ("the hand is not free"); single player has the same rule. A remote client's procedural reload sends the take
+  (impulse 99) again while its stat catches up: the server refuses the repeat harmlessly ("the off hand isn't empty").
+- **For split21** (client state that is the local player's today):
+  - vr_flatprocreload.cpp's state machine and the port it sends (one per seat), and its debug/lock tools.
+  - flatholster::handGrenade and the wheel's lit slots read cl.stats (the seat's own stats); the wheel's
+    vr_wheel_pick goes through the seat's own connection (forwardCommand per seat).
+  - flatplay's jab/guard pose, flat V's bayonet thrust and the flat Attach key's hand trip (flatattachanim): per-seat
+    flat state.
+  - vr_attach_report's own-hand entries and the held-weapon attachment drawing (setupAttachments) per seat's hands;
+    other players' guns already come from the entities (shared).
+  - Visor boot, the bindings panels, padflat's stick cursor and Controller Bindings: per seat's input device and HUD.
+  - Global attachment offsets are shared CVAR_ARCHIVE (seats draw with the same; nothing to do).
+## elitedye: the elite enforcer's dye hidden by its armour; every elite kind checked as drawn (branch agent/elitedye, 2026-11-28)
+
+Open from "elite": in the lineup (test 234) the elite enforcer looked stock green though `vr_humlook_info` gave it the elite
+row and a mask.
+- **Cause**: not the dye. The skill's armour roll (`VR_AgArmor_Roll`, by spawn position) gave that spot green armour: the
+  cuirass, helmet and pauldrons drew over the dyed clothes (a pure-red elite row dyed only its legs). The dye, mask, rows and
+  shader were right for every kind. In play an armoured elite shows its gold only where no plate sits (decision: the plates
+  keep their tier colour, which is armour information; a gold trim on an elite's plates is his call).
+- **Test 234** (`vr_attrs_test.qc`): the lineup is now 8 (death knight added), unarmoured (`VR_AgArmor_Give(e, 0, 0)`), laid
+  out clear of vrtesthall's left wall (dist 260, sides -55 + 36 i); it runs `vr_humlook_dyetest 4` with the screenshot and
+  checks its result (cvar `vr_test_humlook_dye`, its failures): 2/0.
+- **`vr_humlook_dyetest [n]`** (vr_humlook.cpp; Debug > Tools > Enemy Attributes > Check the Elites' Dye): each client
+  elite's skin texture read back, its clothes-masked texels through its instance rows (the shader's HumDye on the CPU)
+  against the stock texels: PASS when the mean hue moves (channel shares > 0.04) towards gold (blue share down > 0.05, red
+  over green); fewer than n elites fails. Grunt, enforcer, knight and death knight pass (blue share down 0.08-0.12).
+- **Infected**: an infected elite still loses the elite when it rises (kept). The risen body's `.vr_hum_look` is now 0
+  (`MG3_Infected_DropWeapon`: it kept its weapon's look, which the engine would dye on the zombie's skin by palette rows);
+  arena test 35 checks it. Test 35's "his plates shed" failures (4-6 of 504, varying) are the same without this change.
+- Tests: `vr_agrunt_test 233` 52/0, `234` 2/0 (dyetest 5/0), `vr_arena_test 35` 498/6 (pre-existing, above).
+
+## alwaysfail2: the four still-failing tests, and `god` in test scripts (branch agent/alwaysfail2, 2026-11-28)
+
+| test | cause | action | result |
+|---|---|---|---|
+| vr_agarmor_look_check 26 | stale, not today's armour work: the failures date from 11-07/08 (ROUND24 "fewer, bigger plates" already had 25 "there before"). Main cause: the leather bridge (14512043b, 11-07) took the elbows' and knees' leather out of the shell's triangles (a per-frame bridge entity), so the coverage rays counted every skin vertex between a limb's last plate row and its joint as bare (grunt thigh 0%, player forearms 54-56%, death knight shin 12%). The rest: the fewer, bigger plates and his armour.txt tuning (5c475b022: death knight thigh taper_start 1.5, cuirass start 2.5 / end 4 / standoff -0.4) | the coverage also casts at the bridge (evalBridge in the check's pose, s.bridgeTris); humanoid coverage limits 0.7 / 0.7 (grunt thigh 75%, enforcer upper arm bent 75%, knight forearm 81%: 8-20 vertices a piece); death knight width 9.5, taper 0.5, rest 0.65 (his tuning: 8.89, 0.46, cuirass 68%, 78% untuned). Player builds keep 0.85 / 0.8 (now 0.95-1.00) | 114/0, 3 of 3 |
+| teleporters_chase (sill-32 dog) | harness stale since navtrail (613a3861c, 11-13): a hunter that lost you walks your trail and searches within vr_nav_trail_search 160 of its end. The test moves the player by setpos through the wall: no trail through a gate, so the dog searched about his old place in front of the 32 sill it can't climb (it ended at 1400-1440, 510-570: that place), 180 units from the sill-16 gate. Not a play bug (a real player crosses by a gate, which the trail follows) | that case runs with vr_nav_trail 0, keeping its expected Quake chase (bump, slide, sill-16 gate) | PASS seeds 1, 4, 7, each on its first try (90-105 frames); off test_flaky.txt |
+| `god` in test START lines (bayofix's find) | two causes. Client: right after `map` the client is connected at signon 0; the forwarded command went into cls.message, which reading the serverinfo clears (CL_ClearState): lost. Server: one arriving before the client spawned is undone by Host_Spawn_f's edict reset and PutClientInServer | client: forwarded commands are held (the mpoverflow queue, vr_client.cpp fitsNow) until the serverinfo is read; server: god, notarget, noclip, fly, give, setpos from a client not yet spawned are kept (client_t.heldcmds, SV_HeldUntilSpawned) and run at its begin, in order | `map start; god; notarget; give s 77` -> FL_GODMODE, FL_NOTARGET, 77 shells (before: none). flatwalk 12/0, dismember arm/leg clean, attach_test 51/2 (the 2 also without god: see below) |
+| agrunt_16 (hunt grip) | not found: max 2.73, mean 2.13 over 72 frames, the server's hull 1.51, 126 from you; passes batched, fails alone (testbatch3) | none | 273/1 |
+| rigstudio_posekeys 5 | the earlier "no output": the studio is flat-screen only, the run had no -flatscreenmode and the not-open path printed no verdict (ran to its timeout). With -flatscreenmode: case 5 "right elbow, down 4": key ElbowR +(-0.31, 0.27, -0.09), the drawn elbow moved (-1.44, 1.46, -0.05): sideways, not down; not looked into further | the not-open path prints the verdict (0 passed, 1 failed) | 13/1 |
+
+- **Tests that asked for god/notarget/give right after `map` and never had it** (57 files; scan scratch/af2_godscan.py): agspear,
+  attach, attach_holster, doubletap, embeddual, embedfire, embedhold, poleembed, smallgibs, spear, vrspear, stickclick,
+  weaponwheel, ragdoll/saveload (god); ragdoll/active and ragdoll/dismember (notarget, "unaware of you"); 31 flat*_test.sh
+  (flatads, flatdrag, flatfists, flatmelee4/6, flatreload, flatsight, flatwalk, flatwall, flatzoom, ...); vr_playerplates_test.qc's
+  scripts. They now get what they ask for; the ones run here are unchanged (above). The coordinator's suites will show any
+  that leaned on being mortal or seen.
+- **Unrelated, on origin/next b0756f0fd:** attach_test's vr_embed_test 79 (3) and 84 (2) failures: "picked up by the hand: the
+  same record", the stuck super shotgun "broken open where it is by its B", "the off hand's round goes in"; the same with
+  god taken out of the script (BACKLOG section 1).
+- **Files:** vr_agarmor_check.cpp, host_cmd.c, server.h, vr_client.cpp, vr_rigstudio.cpp, teleporters_test.sh, test_flaky.txt,
+  BACKLOG.md.
+
+## godfallout: the tests that now really get god/notarget/give/setpos; agrunt 16; posekeys 5 (branch agent/godfallout, 2026-11-28)
+
+The 54 test scripts of alwaysfail2's scan (57 files: the other three are a comment in vr_client.cpp, vr_playerplates_test.qc's
+header and a Debug menu entry) run on origin/next b36d74214 (Release, 2 lanes, each script under 780 s; scratch/gf_run57.py).
+What they asked for right after `map` reaches the server since alwaysfail2: god and notarget, and also a **setpos** (which
+turns noclip on). 40 pass, 5 give no verdict line (below); the changed ones ("before": the last count recorded in ROUND26):
+
+| test | before | now | cause | action | after |
+|---|---|---|---|---|---|
+| flatads | 13/0 | 10/3 (crosshair pixels; aim sway: shotgun and launcher, no jump or turn sway) | its `setpos 480 -352 88` (e1m1's start) now applied: noclip on, the jump and turn of section g gave nothing | setpos dropped (the map's start) | 13/0 |
+| flatpose | - | 20/2 (the nudges and his origin 88; the near plane) | the same setpos | setpos dropped | 22/0 |
+| flatgrabthrow | 64/0 | 61/3 (ragpush: H takes the ogre, too heavy, let go) | `vr_test_kill 1` struck an armour plate (Plate Blocks All): the ogre lived on 1 health, its plates shed as debris, H took a plate. Its plates come by chance, so the run's random sequence (now with notarget) decides | the kill aid strips its target's plates first (combat_test.qc VR_TestKill_Frame: a kill aid kills) | 64/0 |
+
+Not from the god fix (the same with god taken out of the script): flat_ammo_key 11/2 (the toolgun's N, the shotgun's N),
+flatslide 22/4 (lean: "a shot across the leant head hits him"; keys: 3, R, mouse 4; its god comes after `wait60`, as ever),
+flatthrow 53/1 (the cancel's left button), flatvisuals 6/2 (the dot: 1 red pixel, every run; "dead, Immersive": the
+camera 2.3 from the head's eyes, run to run: with god failed, without god passed once and failed once), flatwall a's "the others" (known since 11-26),
+attach 51/2 (alwaysfail2's). All in BACKLOG section 1. ragdoll/active ran past 780 s (a diagnostic of 8 cases; no FAIL in
+deaths, head, wound, crawl, stumble); ragdoll/dismember, saveload, smallgibs and flatswim_shots give no verdict line (exit 0).
+None passes now that failed before: nothing comes off test_flaky.txt.
+
+- **Also held now, not in the scan** (setpos/noclip right after `map`, not run here): ragdoll/liquid_active, placed_corpse,
+  ragdoll_sound, ragdoll_test; the flat ones (flataimsens, flatflycam, flatsight, flatslide's sights, flatstance, flattp,
+  flatxhair, flatzoom) passed above.
+- **agrunt 16 (hunt grip)**: not batch state. A one-case batch fails too (2.72), and `vr_fixed_frames_rate 250` alone 2.62.
+  Frame by frame the drawn grip is 2.31 off the drawn hand hull standing, 2.0-2.35 walking, down to 1.5 turning, and the
+  server's hull at the end agrees (1.51 against the drawn 1.50): the grip point simply lies 1.5-2.4 out of the palm's hull
+  by the pose (1.44 when the check was written). A batch's other path met other poses under 2.5. The check now wants most
+  3.5 and mean 2.5 (a hull off the drawn hand, the animation frame's, is many units off): 274/0.
+- **posekeys 5 (right elbow)**: two things. The tool: the elbow's pose-key drag set the pole to the drawn elbow's way, but
+  Aim's elbow is held 33 deg off its pole by its wrist's comfort, so any drag first snapped the pole by that offset (the key
+  +(-0.31, 0.27, -0.09), the elbow sideways 2 units). The drag now moves the key by the held way's change from where the
+  elbow was drawn at the grab (vr_posestudio.cpp `elbowWay`, `Grab::elbowDir0`; the desk/VR drag and the Live drag): a
+  grab and let go changes nothing. The test: Aim's elbow hangs at the bottom of its round about the shoulder-to-wrist
+  line, so "down 4" only lengthened its way (now key +(-0.02, 0.03, 0), moved 0.16); case 5 drags it out to its right
+  (axis y, -4): key +(0.22, -0.28, 0.11), moved (1.28, -1.04, 0.51): 14/0 (3 runs). strikekeys 22/0.
+- **Files:** vr_disarmhull_test.qc, vr_posestudio.cpp, vr_rigstudio.cpp, combat_test.qc, flatads_test.sh,
+  flatpose_test.sh, BACKLOG.md.
+## reloadmags: flat play's procedural reload for the magazine guns (branch agent/reloadmags, 2026-11-28)
+
+His words (kit `scratch/fb1127n/reload_words_1128.md`, the magazine paragraph): eject first, a magazine from the pouch,
+"work backwards from the target position of the magazine", the gun tilted to present its well, per-frame on the move.
+- **Guns**: every gun that loads by magazine (QC `VR_Reload_UsesMag`): the nailgun (well under it), the super nailgun (on
+  its inner side), the thunderbolt (its cell under it), the nail pistol (up its grip). The same reloads cover the lava
+  nailguns, the plasma-look thunderbolt and AD's Plasma Gun (their own mounts, the same weapon ids). Not covered: no other
+  mission-pack, AD or Dwell gun loads by magazine in VR (the burst and laser rifles, the revolver, the launchers have no
+  magazine mount); the launchers and the revolver are reloadmuzzle's.
+- **The receiver pose, measured from the models** (`hands::State::magSeat`, vr_view_weapon.cpp `magazineBox`): where a
+  seated magazine sits in the gun, one in or not: the box round `vr_mag_on_<gun>.mdl`'s vertices in the gun's model space
+  (its middle, the prop's origin), its feed end up the box's length, its front across it as QC `VR_Reload_SeatedMagAngles`
+  turns a seated one; placed with the ports from the gun as drawn.
+- **The backwards solve for `dest receiver`** (vr_flatprocreload.cpp `target`, `measurePort`): the magazine turned as the
+  seated one (measured in the game hand's frame like the port; `item_rot` and a key's turn on the seated magazine's own
+  axes, 0 0 0: exactly as seated), its feed end (the server's test point, `view::heldRoundRef`, kept per take as
+  `item.ref`) on the well's load point, `mouth` `approach` units out of the well along the magazine's line; the hand =
+  destination * grip^-1 every frame. (Aiming its middle at the seat's middle left the nail pistol's feed end 2.3 units
+  off its load point, leniency 1.5: every moving reload failed. The item's place in the hand is now measured on the first
+  frame its entity is drawn in the hand, `Trip::measured`: on the move it wasn't there the frame it was taken.) VR's own
+  well test seats it (`VR_Reload_HeldFrame` -> `VR_Reload_MagAtWell`), usually as the carry reaches the mouth; the drawn
+  magazine slides home (`vr_reload_mag_seat_travel`).
+- **The eject** (`action eject`, impulse 109, QC `VR_FlatReload_ProcEject` / `_ProcEjectHand`): the rounds in it back in
+  the reserve first (what has no room stays in the magazine, which drops; the pouch catches it if it falls in), then the
+  gun's own eject (`VR_Reload_EjectOut`: pushed out its well's way; the nail pistol's slides out of its grip). Its key is
+  `if closed`: for a magazine gun "closed" is a magazine in (`QVR_WPNFLAG_NOMAG` clear), so an empty gun (its magazine
+  dropped by itself, `vr_flat_mag_eject`) skips it. The take ejects one still in first (never seated over one: flat
+  play's `VR_Reload_MagIn` is always false, so a new one would replace the old one's rounds).
+- **The keys** (built-ins in vr_reloadsys.cpp `magazine()`, the same in `quakevr/data/reloads.txt`; starting poses for his
+  tuning): present (0.15 s, the tilt), eject (0.14 s, a flick on the tilt), reach, grip (take), carry (0.26 s, arc 3,
+  approach 4; the nail pistol 3), insert, return. Tilts (pitch, yaw in, roll): nailgun -15 45 60, thunderbolt -15 45 55
+  (their wells rolled in and up as the shotgun's port), super nailgun -10 40 -10 (its side already the free hand's),
+  nail pistol -35 30 45 (the grip's foot forward and in). No loop: one magazine fills the gun.
+- **The studio** lists the six guns (Gun combo up to 16); Hold This Gun gives any (impulse 150 + id, the nail pistol by
+  `vr_test_give_wid`); the lock draws the gun's magazine in the free hand (`lockItemModel`), each gun's item in the hand
+  remembered from its last take (`useItemOf` / `keepItemOf`). `vr_reloadstudio test` checks each magazine gun's reload.
+- **Shotgun check**: reloads.txt's shotgun block carries his last values (gun_rot -20 60 69, gun_ofs 3 -1 -2.5): unchanged.
+- **Tests**: `flatprocreload_test.sh <tree> base` adds magempty_ng / magempty_sng (fired empty: no eject, one magazine,
+  full, nothing lost) and magfire_ng (a shot mid-carry: cancelled, nothing lost); `matrix-ng|sng|lg|np` (stand, run,
+  jump, crouch, slide x 60 / 144 fps, partly fired: the eject key, the rounds back, one magazine seated, no failsafe).
+  Scenario `flat_proc_reload` spawns the four guns. Strips for his review: worktree `scratch/reloadmags_strip_ng.png`
+  (bottom well) and `scratch/reloadmags_strip_sng.png` (side), the lock on each key after a real reload.
+
+## reloadmuzzle: the launchers loaded at the muzzle and the heavy revolver's cylinder on the procedural reload (branch agent/reloadmuzzle, 2026-11-28)
+
+His words (kit `scratch/fb1127n/reload_words_1128.md`): the launchers' gun hand turns the muzzle to the free hand, which puts
+the rockets and grenades in; the revolver's cylinder breaks out, its spent shells go, the hand brings a shell or a pair
+into the empty slots, a flick of the wrist closes it. Reload phase 3 on reloadsys' keyframes (flat-screen, vr_flat_proc_reload).
+- **The guns** (`vr_reloadsys.cpp`: `grenadelauncher`, `proxlauncher`, `rocketlauncher`, `revolver`; their blocks in
+  `quakevr/data/reloads.txt`; the mission packs' multi-grenades/rockets are the same guns' other ammo): QC
+  `VR_FlatReload_ProcWanted` takes `VR_Reload_IsFront` guns (vr_reload_front) and the revolver. VR's own paths load them:
+  `VR_Reload_Take` (a launcher's round, a taped pair of slugs with vr_revolver_shell_pairs, one for one empty chamber),
+  `VR_Reload_HeldFrame` (the muzzle's butt-first test; `VR_Revolver_LoadInto`'s nearest empty chambers). No new load path.
+- **Backwards solve** (`vr_flatprocreload.cpp`): `Dest::Muzzle` and `Dest::CylinderSlot` first put the item's axis on the way
+  in (`alignOf`: a round nose out along the barrel, the multi-grenade's +z; a slug front first along the bore; a pair turned
+  about the bore to lie along its two chambers), `item_rot` and the key's turn tweaks on top (default 0); the item's
+  reference (a round's butt, view::heldRoundRef) goes to the destination. The revolver's destination (`measureDest`): the first
+  empty chamber's mouth on the swung-out cylinder as drawn (`view::revolverChamberPath`), a pair's middle between the first two
+  empty side by side; remade every frame. Its carry stops 4 units out (past the face's reach) so the pair goes in at its
+  chambers, not on the way (measured: aimed 0/2/4, loaded 0+1, 2+3, 4+5).
+- **The revolver's keys**: open (if closed: impulse 107, `VR_FlatReload_ProcOpen` swings it out: `VR_FlatReload_RvOpen`, its
+  spent out 0.24 s later, live ones kept: the spent-first order), eject (the muzzle up while they drop), reach, grip, carry,
+  insert, reach again (loop), close (if loaded: a flick the other way, impulse 108: `VR_Revolver_Close`), return. Its VR
+  gestures (flicks, push, button) are off on a flat procedural reload (vr_revolver.qc); left out and loaded at its end it waits
+  for the close key (`vr_fprl_closeh`, a second's failsafe), as the super shotgun. The take forces a pending spent eject.
+- **Poses** (a start for his Reload Studio tuning): the launchers' muzzle up and across the view to the free hand (grenade/prox
+  tilt -30 60 0, move 4 2 -2; rocket -25 65 0, 2 2 -4); the revolver presented muzzle down, cylinder in (50 25 -40, 8 3 0).
+- **Fixes on the way**: the launcher's grenade from the pouch was adopted as a quick grenade (`VR_FlatGrenade_Adopt`) and
+  flatgrenade posed the free hand in its hold, 7 units off the muzzle: a procedural reload's round is skipped now. The pouch
+  shows the gun's rounds while a flat procedural reload runs (`VR_Reload_PlayerFrame`). The lock draws the gun's item
+  (`lockItemModel`, `lockItemSkin`: rocket, grenade, prox, the revolver's blue slugs). Debug: `vr_reload_debug 2`'s held-round
+  line adds the round's origin and the hand; the "went in" line names the chamber aimed at.
+- **Tests**: `flatprocreload_test.sh qtune muzzle` 24/0 (gl, px, rl, rlrun: 4 a round at a time, nothing lost; rv: 2 fired,
+  opened by the flick, a pair, closed; rvempty: 6 fired, out by itself, 3 pairs, closed; rvfire: a shot cancels, closed with
+  what went in; rllock), `matrix-gl/-px/-rl/-rv` 10/0 each (stand, run, jump, crouch, slide x 60/144), `base` 67/0 after the
+  merge with reloadmags. Scenario `flat_proc_reload` now spawns the launchers and the revolver.
+- **Open**: the drawn rocket meets the port a hand's width past the rocket launcher's drawn muzzle in the strips (the server's
+  test passes: the port is the Load Point's `vr_reload_port_rl_*`; worth his eye and a Load Point tweak); strips for his review:
+  worktree `scratch/rm_strip_rl.png`, `scratch/rm_strip_rv.png` (real reloads, before the merge: the same poses).

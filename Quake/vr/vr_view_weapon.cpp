@@ -1140,7 +1140,30 @@ namespace
 void magazineBox(hands::State& s, int hand, const view::ViewEntity& ve, qmodel_t* model, bool floating)
 {
     s.magBoxValid[hand] = false;
+    s.magSeatValid[hand] = false;
     const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
+    // Where a magazine sits seated, one in or not (hands::State::magSeat; reloadmags): its box's middle, its feed end up the
+    // box's length, its front across it as QC VR_Reload_SeatedMagAngles turns a seated one (the super nailgun's the other way).
+    if(const MagMount* seat = !floating && magazinesShown() ? magMountFor(model) : nullptr)
+    {
+        MagShape sh;
+        if(magazineShape(*seat, viewModel(seat->model), sh))
+        {
+            const glm::vec3 c = view::modelPoint(ve, sh.centre);
+            const glm::vec3 up = view::modelPoint(ve, sh.centre + sh.axis[0]) - c;
+            glm::vec3 fwd = (view::modelPoint(ve, sh.centre + sh.axis[1]) - c) * (seat->kind == 1 ? 1.f : -1.f);
+            fwd -= up * (glm::dot(fwd, up) / za::max(glm::dot(up, up), 1e-6f));
+            if(glm::length(up) > 1e-4f && glm::length(fwd) > 1e-4f)
+            {
+                const glm::vec3 z = glm::normalize(up), x = glm::normalize(fwd);
+                s.magSeat[hand][0] = c;
+                s.magSeat[hand][1] = x;
+                s.magSeat[hand][2] = glm::cross(z, x);
+                s.magSeat[hand][3] = z;
+                s.magSeatValid[hand] = true;
+            }
+        }
+    }
     magSlideStep(hand, model);
     // (One sliding out: its box still sent, slid with it, for where the server lets it go; no grip nor collision on it.)
     const bool sliding = magSlidingOut(hand);

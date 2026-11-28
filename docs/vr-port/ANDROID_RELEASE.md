@@ -123,7 +123,10 @@ into a non-debuggable app: they stay in the backup.
 
 ## Measuring a release APK
 
-`run-as` can't read a non-debuggable app's files, so the perf CSV (`vr_perf_record`) stays on the headset. Each
+`run-as` can't read a non-debuggable app's files, so the perf CSVs (`vr_perf_record`, the app's internal `perf/`) come
+out through the base folder (questopt, 2026-11-28): launch with
+`--es args "'-unattended -noconfigwrite +vr_android_export perf +vr_android_share export'"`, force-stop once logcat shows
+the share's line, then `adb pull /sdcard/Android/data/com.vittorioromeo.quakevr/files/export/`. Each
 `vr_perf_mark` now also prints the frames since the previous mark on the console (and so logcat): frames, CPU busy median
 and p90, period median, GPU median and p90, frames the runtime reported late. The same lines come from the development APK.
 

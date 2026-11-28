@@ -399,6 +399,9 @@ void() VR_AGTest_Yank =
         p.weaponflags = 0;
         cvar_set("vr_agrunt_tug", "0"); // (the grab at once: the tug-of-war is vr_agrunt_test 21..23)
         cvar_set("vr_mock_hand_lift", "0");
+        // The grip held from here to the verdict (the test's own +grabmain: the baseline's script has none, and a gun
+        // taken into a hand whose grip is up is let go of 0.12 s later and the grunt picks it up again).
+        localcmd("+grabmain\n");
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 100); // (out of the hand's reach until it is brought there)
         vr_agt_step = 1;
         vr_agt_until = time + 1;
@@ -431,6 +434,7 @@ void() VR_AGTest_Yank =
         return;
     }
     cvar_set("vr_mock_hand_lift", "0");
+    localcmd("-grabmain\n");
     VR_AGT_Check(sprintf("yank:your main hand %s, the grunt holds %s:", VR_AGT_Name(p.weapon),
         g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
     cvar_set("vr_agrunt_tug", "1");
@@ -1554,6 +1558,8 @@ void() VR_MRT_SwingFrame;
 void() VR_AGSP_Frame; // (vr_armedgrunt_spear_test.qc)
 void() VR_AGXT_Frame; // (vr_armedgrunt_extent_test.qc)
 void() VR_AGDZ_Frame; // (vr_armedgrunt_dazzle_test.qc)
+void() VR_ATT_Frame; // (vr_attrs_test.qc)
+void() VR_ATL_Frame; // (vr_attrs_test.qc)
 void() VR_AGCD_Frame; // (vr_armedgrunt_coopdisarm_test.qc)
 void() VR_OGFT_Frame; // (vr_ogre_friends_test.qc)
 
@@ -1654,6 +1660,8 @@ void() VR_AGTest_Frame =
     else if(t == 215) { VR_AGCD_Frame(); } // (a grunt disarmed by shots still dies, coop too: vr_armedgrunt_coopdisarm_test.qc)
     else if(t == 214) { VR_AGXT_Frame(); } // (a held weapon's drawn extent after a tune: vr_armedgrunt_extent_test.qc)
     else if(t == 232) { VR_AGDZ_Frame(); } // (blinded by the flashlight: vr_armedgrunt_dazzle_test.qc)
+    else if(t == 233) { VR_ATT_Frame(); } // (enemy attributes: the elite: vr_attrs_test.qc)
+    else if(t == 234) { VR_ATL_Frame(); } // (the elite lineup's screenshot: vr_attrs_test.qc)
     else if(t == 94) { VR_AGST_Frame(); } // (a deliberate strike or throw on its weapon or hand: vr_armedgrunt_strike_test.qc)
     else if(t == 96 || t == 98) { VR_AGPP_Frame(t); } // (its guard: the preventive and wind-up parries: vr_armedgrunt_preparry_test.qc)
     else if(t == 205) { VR_AGL_Frame(); } // (a held gun stays with its body as it walks: vr_armedgrunt_gunlag_test.qc)

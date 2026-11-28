@@ -29,7 +29,9 @@ source "$(dirname "$0")/testbatch/testbatch.sh"
 # pass without its awk/grep checks)
 export TB_RATE=${TB_RATE-72} TB_COLLECT_STUBS=${TB_COLLECT_STUBS-2}
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
-P="sv_random_seed 1; map e1m1; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154"
+# (e1m1's start, where the map puts you: the setpos 480 -352 88 this line had (that same place) never reached the server
+# until alwaysfail2 held commands until the client spawned, and a setpos turns noclip on: ROUND26 "godfallout")
+P="sv_random_seed 1; map e1m1; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; impulse 154"
 # A record of a printed class, the console's wrapped lines joined back: flatsight: the muzzle's distance off the
 # crosshair's ray, flatcam: the drawn eye's and his origin's place, flatmove: the frame's shot against the view.
 recs() { awk '{ if ($0 ~ /^(flatsight|flatcam|flatmove): /) { if (rec != "") print rec; rec = $0 } else if (rec != "") { rec = rec " " $0 } } END { if (rec != "") print rec }' "$1"; }

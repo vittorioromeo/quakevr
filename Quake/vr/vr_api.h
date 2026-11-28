@@ -577,6 +577,7 @@ void VR_WriteHeldPlaces (struct sizebuf_s *msg, struct client_s *client); // SV_
 void VR_PredictRelink (int num, float *origin);		// CL_RelinkEntities, each entity placed: our own predicted, the lift we stand on at its newest
 int VR_FlatHudOn (void);						// Sbar_Draw, the modern status bar at hudstyle 1: 1 while flatscreen play draws its own layout (vr_flat_hud; vr_flathud.cpp)
 int VR_VisorOn (void);							// Sbar_Draw, SCR_CalcRefdef: 1 while flatscreen play's visor is the HUD (vr_flat_visor; vr_visor.cpp): no status bar, no room kept for it
+void VR_VisorSignon (void);						// CL_ParseUpdate, the client fully signed on (a new map, a changelevel, a loaded save, a restart): the visor boots (vr_flat_visor_boot_seq)
 int VR_FlatHudClip (int left, int *clip, int *clipSize);	// flatscreen play reloading (vr_flat_reload): 1 when the left (1) or right (0) hand's gun has a clip, which the status bars draw big with the reserve small beside it; its rounds and its size
 int VR_FlatHudHand (int left, int *count, int *ammoPic);	// that layout's counter of the left (1) or right (0) hand: 0 for none (an empty hand, a weapon with no ammo); the count, and its ammo's picture (0..3 shells, nails, rockets, cells; -1 none)
 int VR_FlatHudTime (float *level, int *state);			// its bullet time bar: 0 while bullet time is off (vr_bullettime_enabled); the meter 0..1 and its state (0 filling, 1 ready, 2 running, 3 cooling)
