@@ -5587,3 +5587,45 @@ row and a mask.
   god taken out of the script (BACKLOG section 1).
 - **Files:** vr_agarmor_check.cpp, host_cmd.c, server.h, vr_client.cpp, vr_rigstudio.cpp, teleporters_test.sh, test_flaky.txt,
   BACKLOG.md.
+## reloadmags: flat play's procedural reload for the magazine guns (branch agent/reloadmags, 2026-11-28)
+
+His words (kit `scratch/fb1127n/reload_words_1128.md`, the magazine paragraph): eject first, a magazine from the pouch,
+"work backwards from the target position of the magazine", the gun tilted to present its well, per-frame on the move.
+- **Guns**: every gun that loads by magazine (QC `VR_Reload_UsesMag`): the nailgun (well under it), the super nailgun (on
+  its inner side), the thunderbolt (its cell under it), the nail pistol (up its grip). The same reloads cover the lava
+  nailguns, the plasma-look thunderbolt and AD's Plasma Gun (their own mounts, the same weapon ids). Not covered: no other
+  mission-pack, AD or Dwell gun loads by magazine in VR (the burst and laser rifles, the revolver, the launchers have no
+  magazine mount); the launchers and the revolver are reloadmuzzle's.
+- **The receiver pose, measured from the models** (`hands::State::magSeat`, vr_view_weapon.cpp `magazineBox`): where a
+  seated magazine sits in the gun, one in or not: the box round `vr_mag_on_<gun>.mdl`'s vertices in the gun's model space
+  (its middle, the prop's origin), its feed end up the box's length, its front across it as QC `VR_Reload_SeatedMagAngles`
+  turns a seated one; placed with the ports from the gun as drawn.
+- **The backwards solve for `dest receiver`** (vr_flatprocreload.cpp `target`, `measurePort`): the magazine turned as the
+  seated one (measured in the game hand's frame like the port; `item_rot` and a key's turn on the seated magazine's own
+  axes, 0 0 0: exactly as seated), its feed end (the server's test point, `view::heldRoundRef`, kept per take as
+  `item.ref`) on the well's load point, `mouth` `approach` units out of the well along the magazine's line; the hand =
+  destination * grip^-1 every frame. (Aiming its middle at the seat's middle left the nail pistol's feed end 2.3 units
+  off its load point, leniency 1.5: every moving reload failed. The item's place in the hand is now measured on the first
+  frame its entity is drawn in the hand, `Trip::measured`: on the move it wasn't there the frame it was taken.) VR's own
+  well test seats it (`VR_Reload_HeldFrame` -> `VR_Reload_MagAtWell`), usually as the carry reaches the mouth; the drawn
+  magazine slides home (`vr_reload_mag_seat_travel`).
+- **The eject** (`action eject`, impulse 109, QC `VR_FlatReload_ProcEject` / `_ProcEjectHand`): the rounds in it back in
+  the reserve first (what has no room stays in the magazine, which drops; the pouch catches it if it falls in), then the
+  gun's own eject (`VR_Reload_EjectOut`: pushed out its well's way; the nail pistol's slides out of its grip). Its key is
+  `if closed`: for a magazine gun "closed" is a magazine in (`QVR_WPNFLAG_NOMAG` clear), so an empty gun (its magazine
+  dropped by itself, `vr_flat_mag_eject`) skips it. The take ejects one still in first (never seated over one: flat
+  play's `VR_Reload_MagIn` is always false, so a new one would replace the old one's rounds).
+- **The keys** (built-ins in vr_reloadsys.cpp `magazine()`, the same in `quakevr/data/reloads.txt`; starting poses for his
+  tuning): present (0.15 s, the tilt), eject (0.14 s, a flick on the tilt), reach, grip (take), carry (0.26 s, arc 3,
+  approach 4; the nail pistol 3), insert, return. Tilts (pitch, yaw in, roll): nailgun -15 45 60, thunderbolt -15 45 55
+  (their wells rolled in and up as the shotgun's port), super nailgun -10 40 -10 (its side already the free hand's),
+  nail pistol -35 30 45 (the grip's foot forward and in). No loop: one magazine fills the gun.
+- **The studio** lists the six guns (Gun combo up to 16); Hold This Gun gives any (impulse 150 + id, the nail pistol by
+  `vr_test_give_wid`); the lock draws the gun's magazine in the free hand (`lockItemModel`), each gun's item in the hand
+  remembered from its last take (`useItemOf` / `keepItemOf`). `vr_reloadstudio test` checks each magazine gun's reload.
+- **Shotgun check**: reloads.txt's shotgun block carries his last values (gun_rot -20 60 69, gun_ofs 3 -1 -2.5): unchanged.
+- **Tests**: `flatprocreload_test.sh <tree> base` adds magempty_ng / magempty_sng (fired empty: no eject, one magazine,
+  full, nothing lost) and magfire_ng (a shot mid-carry: cancelled, nothing lost); `matrix-ng|sng|lg|np` (stand, run,
+  jump, crouch, slide x 60 / 144 fps, partly fired: the eject key, the rounds back, one magazine seated, no failsafe).
+  Scenario `flat_proc_reload` spawns the four guns. Strips for his review: worktree `scratch/reloadmags_strip_ng.png`
+  (bottom well) and `scratch/reloadmags_strip_sng.png` (side), the lock on each key after a real reload.
