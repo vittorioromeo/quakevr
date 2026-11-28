@@ -668,7 +668,16 @@ float(float i, entity m, entity by, float xMass, vector dir, float xStrike, stri
         VR_KdTrig_Stands(i, m, sprintf("too heavy: %s", about));
         return 0;
     }
-    if(xStrike < max(0, cvar_hget(cvarh_vr_kdtrig_thrown_least)) && i == VR_KDT_THROWN)
+    // Ragdoll knocks (vr_ragknock; ROUND26.md, "ragknock"): a thrown body's strike in tiers, nothing under
+    // vr_ragknock_stagger, a stagger under vr_ragknock_down, then down by a chance from half its full growing to its
+    // full at vr_ragknock_sure (the engine's strike is the meeting parts' momentum into it: ragKnockStrike).
+    float rk = i == VR_KDT_THROWN && cvar_hget(cvarh_vr_ragknock);
+    float weakest = max(0, cvar_hget(cvarh_vr_kdtrig_thrown_least));
+    if(rk)
+    {
+        weakest = max(weakest, cvar_hget(cvarh_vr_ragknock_stagger));
+    }
+    if(xStrike < weakest && i == VR_KDT_THROWN)
     {
         VR_KdTrig_Stands(i, m, sprintf("too weak: %s", about));
         return 0;
@@ -688,6 +697,12 @@ float(float i, entity m, entity by, float xMass, vector dir, float xStrike, stri
     if(cls == 2)
     {
         float chance = min(1, base) * min(1, max(0, (xStrike - least) / max(0.01, 1 - least)));
+        if(rk)
+        {
+            float rkDown = max(weakest, cvar_hget(cvarh_vr_ragknock_down));
+            float rkSure = max(rkDown + 0.01, cvar_hget(cvarh_vr_ragknock_sure));
+            chance = xStrike < rkDown ? 0 : min(1, base) * min(1, 0.5 + 0.5 * (xStrike - rkDown) / (rkSure - rkDown));
+        }
         float roll = random();
         if(roll < chance)
         {
@@ -739,6 +754,8 @@ float(float i, entity m, entity by, float xMass, vector dir, float xStrike, stri
     return 1;
 };
 
+float(entity m) VR_RagKnock_Stance;
+
 // The engine's (vr_box3d_step.cpp callBodyHits): a thrown ragdoll `body` (a corpse or a knocked-down one; its mass xMass
 // kg, its middle going at xVel units/s) meeting living monster `m`'s box. Its strike: its momentum over that of a body of
 // m's weight at vr_kdtrig_thrown_speed.
@@ -769,7 +786,28 @@ void(entity m, entity body, float xMass, vector xVel) VR_KdTrig_BodyHit =
     float speed = vlen(xVel);
     VR_KdTrig_Class(m, xMass); // (its weight)
     float strike = xMass * speed / (vr_kdt_tweight * max(1, cvar_hget(cvarh_vr_kdtrig_thrown_speed)));
-    VR_KdTrig_Bump(VR_KDT_THROWN, m, body, xMass, dir, strike, sprintf("a %s at %.0f u/s", body.classname, speed));
+    float stance = cvar_hget(cvarh_vr_ragknock) ? VR_RagKnock_Stance(m) : 1;
+    strike = strike / stance;
+    VR_KdTrig_Bump(VR_KDT_THROWN, m, body, xMass, dir, strike, sprintf("a %s at %.0f u/s%s", body.classname, speed,
+        stance != 1 ? sprintf(", its stance %.2fx", stance) : ""));
+};
+
+// Ragdoll knocks (vr_ragknock): how much harder `m` is to knock over than its weight says, by its stance: off the
+// ground easier (vr_ragknock_air), a low, wide box harder (vr_ragknock_low: its height under vr_ragknock_low_ratio times
+// its width; an ogre, a dog, a spider).
+float(entity m) VR_RagKnock_Stance =
+{
+    float s = 1;
+    if(!(m.flags & FL_ONGROUND))
+    {
+        s = s * max(0.1, cvar_hget(cvarh_vr_ragknock_air));
+    }
+    float wide = max(1, m.maxs_x - m.mins_x);
+    if((m.maxs_z - m.mins_z) / wide < cvar_hget(cvarh_vr_ragknock_low_ratio))
+    {
+        s = s * max(0.1, cvar_hget(cvarh_vr_ragknock_low));
+    }
+    return s;
 };
 
 // The shoulder charge (the tackle's entry; ROUND22.md, "Shoulder charge" and "Shoulder charge tuning"): running at

@@ -1022,6 +1022,10 @@ void() VR_AG_PropThink =
     {
         VR_AG_PlaceProp(g, self);
     }
+    if(g.vr_knockdown == 1 && !still && cvar_hget(cvarh_vr_agrunt_ragfire))
+    {
+        VR_AG_RagFire(g, self); // (a one-handed gun fired as it lies, staggers or is held: vr_armedgrunt_ragfire.qc)
+    }
     if(g.vr_adgun_stream && time - g.vr_adgun_stream > 0.4)
     {
         VR_ADGun_MonsterStreamEnd(g, self.weapon, FALSE); // (no flame for a while: its attack cut short, a pain)
@@ -1787,7 +1791,7 @@ vector(entity p, vector dir) VR_AG_DrawnMuzzle =
     }
     vr_ag_dm_dir = dir;
     vr_ag_dm_turn = 0;
-    if(cvar_hget(cvarh_vr_agrunt_shot_drawn))
+    if(cvar_hget(cvarh_vr_agrunt_shot_drawn) && vr_ag_rf_dir == '0 0 0') // (a ragdoll's shot: its own line, VR_AG_RagFire)
     {
         vector turn = weapondrawnpose(p, 0, 21);
         float ang = vlen(turn);
@@ -2127,6 +2131,12 @@ void(entity p) VR_AG_ShootProp =
     vr_ag_aim_mult = -1; // (no error: the straight line, the tests' measure)
     vector straight = VR_AG_AimDir(p.origin);
     vr_ag_aim_mult = 0;
+    if(vr_ag_rf_dir != '0 0 0')
+    {
+        // (a ragdoll's shot, vr_agrunt_ragfire: along the line VR_AG_RagFire chose from its gun as it lies, error in it)
+        dir = vr_ag_rf_dir;
+        straight = vr_ag_rf_dir;
+    }
     float kick = pen > 0 ? VR_AG_KickLeft(p) : 0;
     if(kick > 0)
     {
@@ -2143,7 +2153,7 @@ void(entity p) VR_AG_ShootProp =
     }
     vr_ag_last_kick = kick;
     vr_ag_last_aimdev = atan2(vlen(dir - straight * (dir * straight)), dir * straight) * 57.29578;
-    vr_ag_shot_on = 1;
+    vr_ag_shot_on = vr_ag_rf_dir == '0 0 0'; // (a ragdoll's shot never converges on its target: VR_AG_SetHand)
     vr_ag_shot_straight = straight;
     VR_AG_SetHand(p, dir);
     vr_ag_shot_on = 0;
