@@ -1530,6 +1530,18 @@ QVR_TUNABLE(vr_kdtrig_thrown_push, "2") // ... its push over and back (two hands
 QVR_TUNABLE(vr_kdtrig_thrown_speed, "160") // ... units/s a body of the monster's own weight topples it at (its momentum over the monster's weight at this: 1); a quarter of it the least that counts
 QVR_TUNABLE(vr_kdtrig_thrown_least, "0.05") // ... a weaker strike (that momentum share) does nothing; from it to 1 the topple's chance grows to its full (else a stagger back)
 QVR_TUNABLE(vr_kdtrig_thrown_window, "1.5") // ... s after a hand lets go it counts as thrown (held and swung: while a hand swings)
+QVR_TUNABLE(vr_ragknock, "1") // Ragdoll knocks (vr_box3d_step.cpp ragKnockStrike, QC VR_KdTrig_Bump; ROUND26.md, "ragknock"): 1 a body strikes by the parts that meet the monster, their momentum into it, in tiers (nothing, a stagger, down) against its weight and stance; 0 the old rule (the whole body's momentum, however it met it)
+QVR_TUNABLE(vr_ragknock_min_speed, "60") // ... units/s: the meeting parts slower into it (relative to it) only brush it
+QVR_TUNABLE(vr_ragknock_body, "0.6") // ... the share of the rest of the body's mass behind its pelvis or chest meeting it
+QVR_TUNABLE(vr_ragknock_limb, "0.15") // ... and behind limbs alone meeting it (an arm, a leg: loose joints carry little)
+QVR_TUNABLE(vr_ragknock_wait, "0.15") // ... s: one strike a meeting, its hardest within this long of their meeting (a hand or a foot first, the trunk behind); sooner when all of the body is in it or it strikes no longer
+QVR_TUNABLE(vr_ragknock_driven, "1.75") // ... a body a stagger's backpedal drives (shoved into it): all of its mass behind the parts, its strike times this
+QVR_TUNABLE(vr_ragknock_stagger, "0.35") // ... a strike under this (Thrown Bodies' strike: 1 a body of its weight at Speed) does nothing; from it a stagger
+QVR_TUNABLE(vr_ragknock_down, "0.9") // ... from this a toppleable one may go down: half the chance here, growing to its full at Sure (else a stagger)
+QVR_TUNABLE(vr_ragknock_sure, "1.5") // ... from this the full chance
+QVR_TUNABLE(vr_ragknock_air, "0.6") // ... a monster off the ground: its weight times this for the strike (easier)
+QVR_TUNABLE(vr_ragknock_low, "1.6") // ... a low, wide stance (its box's height under Low Ratio times its width: an ogre, a dog, a spider): its weight times this (harder)
+QVR_TUNABLE(vr_ragknock_low_ratio, "1.45") // ... height over width under which a stance is low (a grunt 1.75, an ogre 1.38)
 
 // Combat > Ragdoll Triggers - Wounded
 QVR_TUNABLE(vr_kdtrig_wounded, "0.25") // Wounded: the chance (Badly hurt, any hit may knock it down.)

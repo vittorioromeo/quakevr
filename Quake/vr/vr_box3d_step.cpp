@@ -1311,16 +1311,111 @@ void callRagImpacts()
 // box (SV_AreaEdictsUnordered: every solid and trigger linked; a living monster is a linked solid, a mounted torch is
 // SOLID_NOT_BUT_TOUCHABLE, linked as it is put on its wall), in edict order as the old walk of every edict, the box grown
 // by bodyHitMargin and by its middle's move in the frame (a fast body meets a monster it would pass between two frames).
+//
+// Ragdoll knocks (vr_ragknock; ROUND26.md, "ragknock"; the author, 2026-11-28: bodies with smaller forces knocked
+// enemies down too easily). The old rule met the monster with the whole body's box and struck with the whole body's
+// momentum, however it came: an arm of a body falling over beside it, a corpse sliding past its side, struck as the
+// whole body thrown into it. Now only the parts whose boxes meet its box strike, by their momentum into it: their mass
+// at their speed along the way from them to its middle (relative to its own velocity), with vr_ragknock_body of the
+// rest of the body's mass behind them when the pelvis or the chest is among them (the body's weight comes through its
+// trunk), vr_ragknock_limb of it when only limbs meet it (loose joints carry little), at the body's middle's speed into
+// it; a meeting slower than vr_ragknock_min_speed is a brush (none). The QC still gets the whole body's mass (its weight
+// class) and a velocity whose length is that momentum over it (the strike's speed), along the parts' way. Wall-mounted
+// things keep the old numbers (their detach rule).
 struct BodyHit
 {
     int body{0};
     int mon{0};
     float mass{0.f};   // kg: the thrown body's
-    glm::vec3 vel{0.f}; // units/s: its middle's
+    glm::vec3 vel{0.f}; // units/s: its middle's (vr_ragknock: its strike's speed along its parts' way)
 };
 constexpr int bodyHitsMost = 16;
 constexpr float thrownKeep = 0.85f; // a thrown body's strike: this share of its fastest since the throw at least
 constexpr float bodyHitMargin = 4.f; // units round its parts' box, at least (and its middle's move in the frame)
+
+// One ragdoll part's share of a body hit (vr_ragknock): its mass, velocity and box (units), whether it is the trunk's.
+struct BodyHitPart
+{
+    float mass{0.f};
+    glm::vec3 vel{0.f};
+    glm::vec3 lo{0.f}, hi{0.f};
+    bool trunk{false};
+};
+
+// A body meeting a monster this frame (vr_ragknock): whether a part meets its box, the strike (its length the momentum
+// over the body's mass; zero a brush), whether nearly all of the body is in it (the meeting at its fullest).
+struct RagKnock
+{
+    bool met{false};
+    glm::vec3 strike{0.f};
+    bool whole{false};
+};
+
+// The strike of a body's `parts` (its middle at `mid` units/s, `boost` its thrown-keep factor; `driven`: a stagger's
+// drive carrying it, vr_ragknock_driven) meeting the box lo..hi of a monster moving at `monVel`, by vr_ragknock. `dt`
+// grows each part's box by its own move in the frame. `meet`: the meeting's closing speed (a fresh one, `fresh`, sets
+// it; its speeds go no higher while they stay met).
+RagKnock ragKnockStrike(const BodyHitPart* parts, int count, float bodyMass, const glm::vec3& mid, float boost,
+    bool driven, const glm::vec3& monLo, const glm::vec3& monHi, const glm::vec3& monVel, float dt, float& meet, bool fresh)
+{
+    RagKnock k{};
+    float touchMass = 0.f;
+    bool trunk = false;
+    glm::vec3 momentum{0.f}, at{0.f};
+    for(int i = 0; i < count; i++)
+    {
+        const BodyHitPart& p = parts[i];
+        const float grow = za::max(bodyHitMargin, glm::length(p.vel) * boost * dt);
+        if(p.hi.x + grow < monLo.x || p.lo.x - grow > monHi.x || p.hi.y + grow < monLo.y || p.lo.y - grow > monHi.y ||
+           p.hi.z + grow < monLo.z || p.lo.z - grow > monHi.z)
+        {
+            continue;
+        }
+        touchMass += p.mass;
+        momentum += p.mass * p.vel;
+        at += p.mass * 0.5f * (p.lo + p.hi);
+        trunk = trunk || p.trunk;
+    }
+    if(touchMass <= 0.f || bodyMass <= 0.f)
+    {
+        return k;
+    }
+    k.met = true;
+    k.whole = touchMass >= 0.9f * bodyMass;
+    at /= touchMass;
+    const glm::vec3 partsVel = momentum / touchMass * boost - monVel;
+    glm::vec3 into = 0.5f * (monLo + monHi) - at;
+    const float far = glm::length(into);
+    into = far > 0.01f ? into / far : (glm::length(partsVel) > 0.01f ? glm::normalize(partsVel) : glm::vec3{0.f});
+    float partsIn = za::max(glm::dot(partsVel, into), 0.f);
+    float bodyIn = za::max(glm::dot(mid * boost - monVel, into), 0.f);
+    if(fresh)
+    {
+        meet = za::max(partsIn, bodyIn);
+    }
+    constexpr float meetGive = 1.1f; // (its speeds measured afresh each frame: a little over the meeting's)
+    partsIn = za::min(partsIn, meetGive * meet);
+    bodyIn = za::min(bodyIn, meetGive * meet);
+    if(partsIn < za::max(vr_ragknock_min_speed.value, 0.f))
+    {
+        return k; // (a brush: a limb laid on it, a body sliding by its side, one falling through it)
+    }
+    // (A stagger's drive holds the body together and pushes on through it: all of it, harder.)
+    const float share = driven ? 1.f : za::clamp(trunk ? vr_ragknock_body.value : vr_ragknock_limb.value, 0.f, 1.f);
+    float push = touchMass * partsIn + share * za::max(bodyMass - touchMass, 0.f) * za::min(bodyIn, partsIn);
+    if(driven)
+    {
+        push *= za::max(vr_ragknock_driven.value, 0.f);
+    }
+    const glm::vec3 way = glm::length(partsVel) > 0.01f ? glm::normalize(partsVel) : into;
+    if(vr_kdtrig_debug.value >= 2.f)
+    {
+        Con_Printf("ragknock: %.0f of %.0f kg meet it (%s%s) at %.0f u/s into it, the body %.0f: %.0f kg u/s, as %.0f u/s\n",
+            touchMass, bodyMass, trunk ? "trunk" : "limbs", driven ? ", driven" : "", partsIn, bodyIn, push, push / bodyMass);
+    }
+    k.strike = way * (push / bodyMass);
+    return k;
+}
 
 void callBodyHits(float dt)
 {
@@ -1343,6 +1438,17 @@ void callBodyHits(float dt)
     edict_t** list = static_cast<edict_t**>(Temp_Alloc(static_cast<za::SizeT>(space) * sizeof(edict_t*)));
     for(RagdollBodies& r : world->ragdolls)
     {
+        // Its meetings (vr_ragknock): those it did not meet last frame are over; the rest wait to be met again.
+        int kept = 0;
+        for(int m = 0; m < r.meetCount; m++)
+        {
+            if(r.meets[static_cast<za::SizeT>(m)].seen)
+            {
+                r.meets[static_cast<za::SizeT>(kept)] = r.meets[static_cast<za::SizeT>(m)];
+                r.meets[static_cast<za::SizeT>(kept++)].seen = false;
+            }
+        }
+        r.meetCount = kept;
         if(r.num <= 0 || !r.rig || r.num >= qcvm->num_edicts || count >= bodyHitsMost)
         {
             continue;
@@ -1360,6 +1466,8 @@ void callBodyHits(float dt)
         float mass = 0.f;
         b3Vec3 momentum = b3Vec3_zero;
         glm::vec3 lo{1e9f}, hi{-1e9f};
+        za::Array<BodyHitPart, ragdoll::maxBones> parts{};
+        int partCount = 0;
         for(int b = 0; b < r.count; b++)
         {
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
@@ -1369,10 +1477,17 @@ void callBodyHits(float dt)
             }
             const float m = b3Body_GetMass(body);
             mass += m;
-            momentum = b3MulAdd(momentum, m, b3Body_GetLinearVelocity(body));
+            const b3Vec3 v = b3Body_GetLinearVelocity(body);
+            momentum = b3MulAdd(momentum, m, v);
             const b3AABB box = b3Body_ComputeAABB(body);
-            lo = glm::min(lo, world->toU(box.lowerBound));
-            hi = glm::max(hi, world->toU(box.upperBound));
+            BodyHitPart& part = parts[static_cast<za::SizeT>(partCount++)];
+            part.mass = m;
+            part.vel = world->toU(v);
+            part.lo = world->toU(box.lowerBound);
+            part.hi = world->toU(box.upperBound);
+            part.trunk = r.rig->bones[b].joint == ragdoll::Joint::Root || r.rig->bones[b].role == modelmeta::BoneRole::Chest;
+            lo = glm::min(lo, part.lo);
+            hi = glm::max(hi, part.hi);
         }
         if(mass <= 0.f)
         {
@@ -1390,9 +1505,13 @@ void callBodyHits(float dt)
         }
         // A thrown one strikes at thrownKeep of its fastest since the throw at least: its limbs dragging on the floor or
         // catching on the way slow its middle before it meets the monster (the throw's speed is what the thrower gave it).
+        const glm::vec3 mid = vel;
+        const bool driven = r.active.on && r.active.stagger.on; // (a stagger's backpedal carrying it: vr_ragknock_driven)
+        float boost = 1.f;
         if(thrown && speed > 0.f && speed < thrownKeep * r.thrownPeak)
         {
-            vel *= thrownKeep * r.thrownPeak / speed;
+            boost = thrownKeep * r.thrownPeak / speed;
+            vel *= boost;
         }
         const float margin = za::max(bodyHitMargin, speed * dt);
         const float qlo[3] = {lo.x - margin, lo.y - margin, lo.z - margin};
@@ -1414,7 +1533,53 @@ void callBodyHits(float dt)
             {
                 continue;
             }
-            hits[static_cast<za::SizeT>(count++)] = {num, n, mass, vel};
+            glm::vec3 strike = vel;
+            if(!mounted && vr_ragknock.value != 0.f)
+            {
+                int m = 0;
+                while(m < r.meetCount && r.meets[static_cast<za::SizeT>(m)].mon != n)
+                {
+                    m++;
+                }
+                const bool fresh = m >= r.meetCount;
+                if(fresh && r.meetCount >= static_cast<int>(r.meets.size()))
+                {
+                    continue; // (meeting more monsters at once than it keeps: the rest wait)
+                }
+                RagdollBodies::Meet meet = fresh ? RagdollBodies::Meet{n, 0.f, false, qcvm->time} :
+                                                   r.meets[static_cast<za::SizeT>(m)];
+                const RagKnock k = ragKnockStrike(parts.data(), partCount, mass, mid, boost, driven,
+                    glm::vec3{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]},
+                    glm::vec3{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]},
+                    glm::vec3{e->v.velocity[0], e->v.velocity[1], e->v.velocity[2]}, dt, meet.speed, fresh);
+                if(!k.met)
+                {
+                    continue;
+                }
+                // One strike a meeting: its hardest within vr_ragknock_wait s of their meeting (a hand or a foot first,
+                // the trunk a frame or two behind; a body driven on, harder as it goes), struck then, or sooner when
+                // all of it is in it or it strikes no longer (moving off, or only brushing now).
+                meet.seen = true;
+                if(glm::length(k.strike) > glm::length(meet.best))
+                {
+                    meet.best = k.strike;
+                }
+                const bool ripe = qcvm->time - meet.since >= static_cast<double>(za::max(vr_ragknock_wait.value, 0.f)) ||
+                                  k.whole || k.strike == glm::vec3{0.f};
+                const bool fire = !meet.fired && ripe && meet.best != glm::vec3{0.f};
+                meet.fired = meet.fired || fire;
+                if(fresh)
+                {
+                    m = r.meetCount++;
+                }
+                r.meets[static_cast<za::SizeT>(m)] = meet;
+                if(!fire)
+                {
+                    continue;
+                }
+                strike = meet.best;
+            }
+            hits[static_cast<za::SizeT>(count++)] = {num, n, mass, strike};
         }
     }
     Temp_FreeToMark(mark);
