@@ -5911,6 +5911,50 @@ Brush").
 - Headset: beta6 put back (APK 9261565a, progs a0bfe11a), his 31 autosaves and 3 saves restored (35 sums match). Scripts:
   worktree `scratch/qn_*` (not committed).
 
+## qcvm: QuakeC's interpreter on the Quest and PC: the loop's own calls and returns; what the loop costs there (branch agent/qcvm, 2026-11-28)
+
+- **Found first**: the brief's steps 1-2 (computed-goto dispatch with the switch kept for other compilers; the runaway
+  count and profile accounting off the per-statement path, kept exact) were already in: `vr_qcexec` 1 since 2026-10-15
+  (QC_VM.md, `vr/vr_qcexec_loop.inc`, built for clang/gcc: the NDK's clang and clang-cl both get the goto loop). Never
+  measured on the Quest until now.
+- **What changed** (`vr/vr_qcexec.c`, `QCExec_Enter`/`QCExec_Leave`, `QX_FASTCALL` in the loop): a QuakeC call and its
+  return are done by the loop itself instead of PR_EnterFunction/PR_LeaveFunction: the VM in a register (their every
+  `qcvm->` was a reload, as their stores through the globals may alias it), the locals saved and put back by memcpy, each
+  parameter copied in one go; the same state in the same order. vr_qcprofile, a Tracy build, a stack at either end:
+  those functions as before (their errors). `vr_qcexec` 3 (Debug > Profiling "QuakeC Loop": "Goto, Old Calls") is the
+  loop with the old calls: the A/B. `vr_qcexec_bench` times all four loops.
+- **Tool**: `vr_qcexec_time [label|stop]` (Debug > Profiling "QuakeC Time a Frame"): QuakeC's time a frame (every
+  outermost call, builtins included: vr_profile's "quakec"), statements a frame and ns a statement since the last call.
+- **Same behaviour**: the seeded hip1m1 fight (69 monsters, 2,670 frames, 232,773,678 statements): every function's
+  statement count equal for loops 0, 1, 2 and 3 (1,364 functions). vr_bench_statehash is not repeatable on this scene
+  (the same loop twice gives different hashes), so it is no check here. `vr_qcexec_bench`: results and counts equal for
+  the four loops on PC and the Quest. Agrunt group (kit run_baseline, 222 cases): 220 PASS, agrunt_65 5/1 and
+  agrunt_71 8/2 (both on test_flaky.txt).
+- **Measured** (interleaved blocks in one run, medians; ns a statement is QuakeC's time over its statements, builtins
+  included: the fights' statement counts drift 87-105 k a frame, so it is the fairer number):
+
+| change | PC hip1m1 fight (LTO, exclusive, 4x720 frames) | PC combat_48 scene | Quest 3 hip1m1 fight (release APK, 2 launches, 4-6x432 frames) |
+|---|---|---|---|
+| original loop (`vr_qcexec 0`) | 0.977 ms, 12.17 ns | 12.35 ns | 2.99 ms, 33.1 ns |
+| goto dispatch, implicit count (October; `3`) | 0.886 ms (-9%), 10.97 ns | 11.14 ns (-10%) | 2.96 ms, 33.2 ns (-0%, within noise) |
+| + the loop's own calls (`1`, the default) | **0.838 ms (-5% on 3)**, 10.44 ns | 10.72 ns (-4%) | **2.83 ms (-4% on 3)**, 31.9 ns (-3.1 to -4.6% in all 4 launches) |
+| the same with the switch (`2`) | 0.836 ms, 10.41 ns | 10.61 ns | |
+| Android link: `-Bsymbolic`, `-fno-semantic-interposition`, `-fno-plt` (APK B against A, `vr_qcexec 1`) | (PC: none needed) | | 31.73 -> 31.52 ns, 32.28 -> 32.31: none; CPU busy 8.92 -> 8.90, 9.19 -> 9.06: noise. Not kept |
+
+  Quest CPU busy (vr_profile, same blocks) moved within its +-0.3 ms noise. The microbenchmark on the Quest
+  (`vr_qcexec_bench`, ns a call, original / goto / switch / goto old calls): ad_mathlib_fast_pow 344 / 202 / 325 / 220
+  (1.70x), pow(1.5, 7.25) 660 / 666 / 739 / 681, sqrt 471 / 483 / 519 / 496: the goto loop helps branchy code there,
+  not latency-bound float loops (fdiv chains); 2.3-4.3 ns a statement in all.
+- **Why the VM can't give more on the Quest**: ~89 k statements a frame at ~3 ns is ~0.3 ms of the fight's 2.8 ms of
+  QuakeC; the rest is the builtins' native work (PC profile: agpose, navsteer, limbpiece, agstruck, traceline ~1 ms of
+  it; ~3,500 builtin calls a frame, cvar_hget 1,276, min/max 850). The PLT/GOT question settled too: the release
+  `libquakevr.so` has 7,330 PLT slots and 6,066 GOT data entries for its own symbols (B: 533 and 4) and binding them
+  measured nothing (the Quest's cores predict the stubs and keep the GOT cached). Pre-decoded statements and
+  superinstructions (QC_VM.md's steps 3-4) would cut part of the 0.3 ms: not done. The next QuakeC gains are the
+  builtins' own work (qcnative's list: agpose, limbpiece, navsteer, findradiusmoving).
+- Headset: beta6 put back (APK 9261565a, progs a0bfe11a), his 31 autosaves and 3 saves restored (35 sums match).
+  Scripts: worktree `scratch/qcvm_*` (not committed): `qcvm_q.sh` (backup/install/launch/restore), `qcvm_mkcfg.py`
+  (the scenes), `qcvm_parse.py`, `qcvm_hash.sh`.
 ## qcjit: is a QuakeC JIT or AOT worth it on the Quest and PC? (research; branch agent/qcjit, 2026-11-28)
 
 - Research and a doc only, no engine change: `docs/vr-port/QC_JIT.md` (existing work, libraries, platforms' JIT rules,
