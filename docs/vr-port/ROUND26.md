@@ -6072,6 +6072,35 @@ Brush").
 - Headset: beta6 put back (1.2.0-beta6, progs a0bfe11a), his 31 autosaves and 3 top-level saves restored (35 sums match).
   Scripts: worktree `scratch/qcb_*` (not committed): `qcb_q.sh` (backup/install/launch/restore), `qcb_mkcfg.py`,
   `qcb_parse.py`, `qcb_q2.cfg` (the profile A/B).
+## elite2: elites easy to spot (gold rim glow, gold-trimmed plates) and the All Elites mutator (branch agent/elite2, 2026-11-28)
+
+His words 2026-11-28 (items 15, 16): the elite colouring is not easily visible, armoured elites harder still; a glow or aura; a
+Run Setup mutator making every enemy spawn elite. Then (his addition): a gold trim on an armoured elite's plates, the tier's
+colour still clearly read.
+- **The marker** (`vr_elite_glow` 0.55, `vr_elite_glow_fill` 0.12; Tunables > Armed Humanoids > Elite): a gold fresnel rim
+  (1 - |n.v|)^2 plus a small fill, unlit (added after the model's light, before fog): an elite reads in the dark. On its body
+  and on its armour's plates and joints' leather (`agarmor::sourceOf` maps them to the wearer); the plates get the outline
+  alone (no fill: their tier's colour kept). Pulses with the dye (`vr_elite_pulse`, same phase). `humlook::eliteGlow` fills a
+  new instance vec4 `Elite` (vraliasinstance_t.elite); the term lives in `ModelRimReflect`, so an elite's instance sets the
+  rim bit (128) of `VR_AliasPlainNeeds`: no new plain-form bit, no extra pass. AD's death guard and crossbow knight now carry
+  the elite bit too (QC VR_Attr_Look: kind * 16 + 8192; no dye masks there: keyOf -1, the marker alone; dyetest skips them).
+- **The gold trim** (`vr_elite_trim` 1): make_agarmor.py paints 9 more skins (9..17: the same nine with the plates' trim, sides
+  and lower edge, a bright gold quantised with Quake's tan-gold and yellow rows, not the tier's: no green or red speckle); the
+  faces are untouched. relink draws an elite's plates with skin + 9 (the leather keeps its own). The first nine skins and the
+  relief are byte-identical; vragarmor.mdl 295 KB -> 590 KB. On red the gold reads orange-gold (the palette's limit).
+- **Cost**: per elite fragment one dot, an abs and three mads under a per-instance branch; 16 bytes more per alias instance;
+  the trim a skin swap (9 more 256x128 skins in memory). Not measured on the Quest (no headset run here), nor timed on PC.
+- **All Elites** (`allelites`, Run Setup's Enemies group and Arena Mode's screen): `vr_run_allelites.qc` through the new hook
+  `VR_Run_ForcesElite(e)` in VR_Attr_Spawned (VR_AM_Spawn's end): every armed humanoid the map, a replacement, Enemy Count or
+  Randomized Enemies spawns, and the arena's waves (its held roll, preset waves too); never the tools' (vr_agr_hold) or
+  deathmatch's. Not held by Armed Humanoids (decision: Arena Mode always has them; without them it changes nothing). Saved
+  with the run through the registry like the others.
+- **Debug**: `vr_humlook_glowtest [elites] [plates]` (Debug > Tools > Enemy Attributes > Check the Elites' Marker); the client
+  elite lines of `vr_humlook_info` print the marker.
+- **Tests**: `vr_agrunt_test 234` 4/0 (three screenshots now: plain, armoured a tier per pair, dim light; glowtest 10/0, then
+  26/0 with the plates and their skins); `vr_run_elites_check` 4/0 (e1m2: 17 of 17 armed humanoids elite, 0 of 7 others; off:
+  none; the hook's rules); vr_runsetup_test 91/0; `mp_test.py suite --only mp_elite` 10/0 (B's marker 0.45); tunables_test
+  passes. Scene: elite_marker.
 
 ## ragknock: ragdolls knock living monsters down only when it convinces (branch agent/ragknock, 2026-11-28)
 

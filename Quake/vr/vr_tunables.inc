@@ -3023,3 +3023,6 @@ QVR_TUNABLE(vr_elite_arena_wave, "4") // the Survival Arena's waves from this on
 QVR_TUNABLE(vr_elite_arena_chance, "0.2") // ... each armed humanoid in them an elite with this chance
 QVR_TUNABLE(vr_elite_pulse, "0.3") // the elite dye's pulse: its dark gold glows this far towards bright gold and back, brighter by as much (0: steady)
 QVR_TUNABLE(vr_elite_pulse_hz, "0.6") // ... this many times a second
+QVR_TUNABLE(vr_elite_glow, "0.55") // the elite marker: a soft gold glow round an elite's outline and on its armour, unlit (seen in the dark); its strength (0: none). It pulses with the dye (vr_elite_pulse)
+QVR_TUNABLE(vr_elite_trim, "1") // an elite's armour plates drawn with a gold trim round their edges (make_agarmor.py's elite skins; the faces keep the tier's colour). 0: the tier's own trim
+QVR_TUNABLE(vr_elite_glow_fill, "0.12") // ... and this share of it over the whole body facing you, not its armour's plates (0: the outline alone)

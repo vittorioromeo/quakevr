@@ -149,7 +149,7 @@ struct RunSetupGroup
 };
 constexpr RunSetupGroup runSetupGroups[] = {
     {"Rules", {"startgun", "startmelee", "meleeonly", "glasscannon", "ironman"}},
-    {"Enemies", {"armed", "rangedknights", "wildweapons", "armoredfoes", "smartai", "enemycount", "enemyrandom"}},
+    {"Enemies", {"armed", "rangedknights", "wildweapons", "armoredfoes", "allelites", "smartai", "enemycount", "enemyrandom"}},
     {"World", {"pickups"}},
 };
 constexpr int runSetupGroupCount = static_cast<int>(sizeof(runSetupGroups) / sizeof(runSetupGroups[0]));
@@ -208,12 +208,12 @@ za::Vector<Item> pageRunSetup()
         // else (his call 2026-11-15: the rest would disrupt the arena's balance; runsetup::arenaValue fixes them).
         items.pushBack(action("Start", runSetupStart)
                            .help("Starts Arena Mode with these choices: Unleashed, armed humanoids and the smarter AI "
-                                 "always, the other mutators off; your Run Setup for other runs is left as it is. Back: "
+                                 "always, the other mutators off (All Elites as picked); your Run Setup for other runs is left as it is. Back: "
                                  "not started.")
                            .button());
-        constexpr const char* order[] = {"skill", "gore", "glasscannon", "meleeonly"};
-        constexpr const char* before[] = {nullptr, "Presets", "Rules", nullptr};
-        for(int o = 0; o < 4; o++)
+        constexpr const char* order[] = {"skill", "gore", "glasscannon", "meleeonly", "allelites"};
+        constexpr const char* before[] = {nullptr, "Presets", "Rules", nullptr, nullptr};
+        for(int o = 0; o < 5; o++)
         {
             const int i = runsetup::find(order[o]);
             if(before[o])

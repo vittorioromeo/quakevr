@@ -1948,6 +1948,10 @@ za::Vector<Item> pageDebugTools()
             .help("vr_humlook_dyetest: each elite's clothes as drawn (its skin's masked texels through its dye) "
                   "against its stock skin, in the console: PASS when warmer, towards gold. Armour plates cover the dye "
                   "where they sit: Armour Studio or vr_agarmor_set <entity> 0 to see it bare."),
+        command("Check the Elites' Marker", "vr_humlook_glowtest")
+            .help("vr_humlook_glowtest: the elite marker as last drawn, in the console: each elite's body and armour plates "
+                  "glowing gold (and its plates the gold-trimmed skins), every ordinary armed humanoid's not (vr_elite_glow, "
+                  "vr_elite_trim)."),
         header("Controller Bindings"),
         command("Controller Bindings Screen", "menu_bindsetup")
             .help("menu_bindsetup [model]: the Controller Bindings screen for the controller in use (or a model's: quest3, "

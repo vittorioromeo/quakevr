@@ -942,12 +942,19 @@ SPECULAR_AA_FUNCTIONS
 "{\n" \
 "	vec4 s = instances[in_instance].Surface;\n" \
 "	vec3 add = vec3(0.);\n" \
+"	vec3 v = normalize(-in_pos);\n" \
+"	vec4 el = instances[in_instance].Elite; // the elite marker (vr/vr_humlook.cpp eliteGlow): unlit, its outline's fresnel and a fill\n" \
+"	vec3 mark = vec3(0.);\n" \
+"	if (el.r > 0.)\n" \
+"	{\n" \
+"		float ef = 1.0 - abs(dot(n, v));\n" \
+"		mark = el.rgb * (el.w + ef * ef * (1.0 - el.w));\n" \
+"	}\n" \
 "#if ALPHATEST\n" \
 "	lit = 1.0;\n" \
 "#endif\n" \
 "	if ((s.x <= 0. && s.y <= 0.) || lit <= 0.)\n" \
-"		return add;\n" \
-"	vec3 v = normalize(-in_pos);\n" \
+"		return mark;\n" \
 "	if (s.x > 0.)\n" \
 "	{\n" \
 "		float f = 1.0 - clamp(dot(n, v), 0.0, 1.0);\n" \
@@ -968,7 +975,7 @@ SPECULAR_AA_FUNCTIONS
 "		float dark = smoothstep(0.02, 0.35, dot(in_color.rgb, vec3(0.3333)));\n" \
 "		add += env * fres * (metal * dark * 1.5);\n" \
 "	}\n" \
-"	return add * lit;\n" \
+"	return add * lit + mark; // (the marker whole: a fullbright texel's too)\n" \
 "}\n" \
 "\n" \
 "// QVR: a gun morphing into its other ammo's model (vr/vr_render.cpp: in_morph + coming in, - going out, 2 * kind +\n" \
