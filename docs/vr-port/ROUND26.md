@@ -5037,3 +5037,47 @@ them back by using the usual weapon wheel or MMB buttons."
   EMPTY HAND and CLUSTER lit; CLUSTER swaps it, the rocket back; the nailgun's holster: the gun in the hand, the
   multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
   `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.
+## questvis: SpaceWarp's black squares and the gadget's jitter; the menu at native resolution; FOV reduction (branch agent/questvis, 2026-11-28)
+
+His words (Quest 3 standalone): SpaceWarp shows black floating squares and the wrist gadget's UI jitters; the menu
+renders the world at full scale; top foveation barely shows; are we rendering the right FOV; add FOV reduction.
+- **SpaceWarp, black squares (causes found in the code; not seen worn)**: (1) the camera motion of a point behind or
+  at the last frame's eye (near walls and props while turning or strafing) divided by its previous clip w near 0: huge
+  or infinite motion vectors (half floats overflow to inf), and the runtime's made-up frame fetched from outside the
+  picture: black blocks of a motion texel (4x4 eye pixels). Now such texels get no motion, any non-finite value is 0,
+  |xy| is clamped to 0.6 NDC and z to +-1. (2) The depth went to the runtime in reversed Z (nearZ > farZ, which the
+  spec only "may" allow) with the scene's own planes; it is now written in Meta's GLES sample's form (OpenGL depth
+  1 - near/z, nearZ 0.05 m, farZ infinite), whatever the scene's convention: the runtime's most used path.
+  `vr_spacewarp_check` counts "wild" texels (not finite or past the clamp): every check requires 0.
+- **SpaceWarp, the gadget's jitter**: the wrist gadget's screen is a gfx quad in the scene that wrote depth but no
+  motion, so SpaceWarp (and TAA) took it for world-fixed: the made-up frames left it behind the moving hand while the
+  gadget model (an alias model, its own motion) went on. `gfx::State::prevFromNow` (a world transform now -> a frame
+  ago) makes an opaque depth-writing draw write its own motion (the same triangles again into the motion target alone,
+  `temporal::beginOwnMotion`, a small program with TAA's texel format); the gadget's screen and Doom's picture on it
+  use it (`vr_gadget.cpp` ScreenMotion). Not done: the UI drawn over the eyes after the scene (lasers, HUD panel, head
+  text, the gadget's log) still takes the scene's motion under it (a quad layer or a UI motion pass would fix it);
+  SpaceWarp stays off by default until he has looked at it worn.
+- **Menu at native resolution** (`vr_menu_native`, tunable, 1): while a menu is open the eyes are never drawn into
+  the corner part of their images (`vr_eye_subimage`): the world, at its own scale (Render Scale or dynamic
+  resolution), is resampled to the image's full size and the menu and all the UI over the eyes are drawn at that
+  size, as sharp as at scale 1. `vr_menu_render_scale` -1 now means no floor with it (the old: 1 on the Quest, which
+  drew the whole world at 1 behind a menu). Dynamic resolution skips menu frames. PC VR already drew the UI after the
+  resample at the image's size (no floor there): unchanged.
+- **FOV**: the eyes are drawn with exactly xrLocateViews' field of view (`VR_OverrideProjection` takes
+  `frameState().eyes[].fov`, and the projection layer submits the same), with the runtime's hidden-area mesh drawn
+  first: nothing is rendered outside what the runtime asks for. The console now says the runtime's angles once a
+  session (`VR: eye N field of view (the runtime's): ...`). Quest 3: QV_FOV_TBD.
+- **FOV reduction** (`vr_fov_reduce`, 0..30 %, saved, default 0; VR Settings > Display and Graphics, "FOV
+  Reduction"): each edge's tangent of the located views is scaled (both the projection and the submitted layer, so the
+  compositor places the picture right and shows black beyond), and the eyes' drawn size with it (`scaledEyeSize`):
+  the same sharpness, (1 - p)^2 of the pixels. Any OpenXR headset and the mock.
+- **Foveation**: QV_FOVEATION_TBD
+- **Headset numbers**: QV_HEADSET_TBD
+- Files: vr_spacewarp.cpp, vr_backend.hpp, vr_gfx.hpp, vr_gfx_gl.cpp, vr_temporal.cpp/.hpp, vr_gadget.cpp,
+  vr_stereo.cpp, vr_dynres.cpp, vr_main.cpp, vr_backend_openxr_frame.cpp, vr_backend_openxr_internal.hpp,
+  vr_backend_mock.cpp, vr_cvars.inc, vr_menu_rows.inc, vr_menu_settings.inc, vr_tunables.inc, vr_tunables_rows.inc;
+  menu_paths.txt regenerated; canonical_allowlist (the new program: motion vectors are two-pass only).
+- Tests: spacewarp_test.sh 20/0 (was 16: the wild-texel checks); tunables_test 13/0; gles_render_test 15/6: its
+  four "both drew" checks fail on the eyeshots' mean brightness (6-7 of 255 vs > 8, PC and ES alike, every other check
+  incl. ES = PC identity passes): not this branch's changes as far as the code shows (not run on origin/next);
+  dynres_ceiling_test is Linux-only (fails to start on Windows).
