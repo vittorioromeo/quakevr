@@ -1527,7 +1527,7 @@ struct PointBonesCheck
     int compared{0};
     int differed{0};
 };
-PointBonesCheck pointBonesCheck;
+PointBonesCheck pointBonesCheck; // seat-shared: the server's points' debug tally (vr_qc_builtin_fast 2)
 constexpr int maxCheckedPoints = 16;
 } // namespace
 

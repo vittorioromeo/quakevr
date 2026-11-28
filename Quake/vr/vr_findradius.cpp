@@ -169,9 +169,9 @@ struct Movers
     za::Vector<double> at;     // [max_edicts] the server time it was listed this frame (-1: not this frame)
     auto members() { return mem::list(now, last, at); }
 };
-mem::Cache<Movers> movers{"findradius movers", mem::Never};
-double moversFrame = -1.; // Movers::now's server time
-int moversTurns = 0;      // frames turned since the lists began: under 2, the last frame's list is not whole
+mem::Cache<Movers> movers{"findradius movers", mem::Never}; // seat-shared: the server's movers (one server)
+double moversFrame = -1.; // seat-shared: the server's; Movers::now's server time
+int moversTurns = 0;      // seat-shared: the server's; frames turned since the lists began (under 2: the last's not whole)
 
 // The movers' lists for the server's frame now (a new frame: this one's becomes the last's).
 [[nodiscard]] Movers* moversNow()

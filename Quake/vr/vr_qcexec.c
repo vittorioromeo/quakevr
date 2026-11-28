@@ -185,7 +185,7 @@ static struct
 	unsigned long long ticks, tsc0;
 	double time0, instr0;
 	int frame0;
-} qcexec_time;
+} qcexec_time; // seat-shared: the QuakeC VM's clock (vr_qcexec_time, one process)
 
 static void QCExec_TimeReset (void)
 {
