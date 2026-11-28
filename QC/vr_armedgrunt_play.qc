@@ -1244,7 +1244,20 @@ float(entity g, string why) VR_AG_TugDisarm =
 };
 
 // VR_AG_PropThink, every frame: a hard blow or a throw on the held weapon itself (not only its hand). TRUE: disarmed.
+// Nothing coming at it: the engine's answer (agstruck, vr_qc_native_think: QuakeC's steps below, the same writes).
+float(entity g, entity p) VR_AG_WeaponStruckQC;
 float(entity g, entity p) VR_AG_WeaponStruck =
+{
+    float r = agstruck(g, p);
+    if(r >= 0)
+    {
+        return r;
+    }
+    return VR_AG_WeaponStruckQC(g, p);
+};
+
+// ... by QuakeC (vr_qc_native_think 0; whatever the engine leaves to it; its comparison, vr_qc_native_think 2).
+float(entity g, entity p) VR_AG_WeaponStruckQC =
 {
     vr_ags_quiet = world;
     if(VR_AGS_Frame(g, p)) // (shot out of its hand: vr_armedgrunt_shot.qc)

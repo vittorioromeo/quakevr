@@ -521,4 +521,4 @@ void gameCode_f();
 
 } // namespace qvr::progs
 
-namespace qvr::progs { void propQueriesTest_f(); void forcegrabGridStats_f(); void agposeCompare_f(); }
+namespace qvr::progs { void propQueriesTest_f(); void forcegrabGridStats_f(); void agposeCompare_f(); void agthinkCompare_f(); }
