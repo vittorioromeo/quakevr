@@ -170,6 +170,9 @@ struct HolsterMenuSlot
     // Its attachment (attach::Kind: the bayonet, a dagger as one; 0 none): drawn on its thumbnail and as a blade glyph
     // after its name.
     int attach{0};
+    // A half slot (the weapon wheel's grenade entry split in two, wheelgrenade): its thumbnail on its left, the name and the
+    // ammunition's line beside it, no title.
+    bool compact{false};
     // While a weapon is dragged (vr_flatholster.cpp): the slot it came from (its thumbnail faded), a place it may go
     // (lit), or one it may not (greyed).
     enum class Drop : unsigned char
