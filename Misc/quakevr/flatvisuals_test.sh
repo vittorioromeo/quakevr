@@ -14,7 +14,9 @@
 AGENT=${1:-embed5}; LABEL=${2:-now}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 HERE=$(dirname "$0"); mkdir -p "$HERE/../../scratch"
-S="map e1m1; god; notarget; viewsize 120; crosshair 0; vr_flat_bob 0; vr_flat_sway 0; vr_crosshair_hue 0; vr_crosshair_size 1"
+# (mortal: the death case dies by impulse 195; the god this line had reached the server only since alwaysfail2, and with
+# it the dead view's camera sat 2.3 from the head's eyes: ROUND26 "godfallout")
+S="map e1m1; viewsize 120; crosshair 0; vr_flat_bob 0; vr_flat_sway 0; vr_crosshair_hue 0; vr_crosshair_size 1"
 S="$S; vr_crosshair_alpha 1; vr_crosshair_depth 0; vr_test_give_wid 4; impulse 149; wait120"
 S="$S; vr_crosshair 0; wait3; screenshot; vr_crosshair 1; wait3; screenshot; vr_crosshair 2; wait3; screenshot"
 S="$S; vr_crosshair 3; wait3; screenshot; vr_crosshair 0"
