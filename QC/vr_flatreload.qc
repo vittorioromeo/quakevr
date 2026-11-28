@@ -37,7 +37,8 @@
 .float vr_flatrl_unl1;   // the main hand's (VR_FlatReload_HandFrame; 0 none)
 .float vr_flatrl_full;   // the hands whose UNLOAD is greyed, its rounds having no room in the reserve (1 off, 2 main:
                          // STAT_QVR_FLATUNLOADFULL; VR_FlatReload_HandFrame); + 4 off, 8 main: that hand's weapon too
-                         // big for a holster (the holster menu's drag); + 16 off, 32 main: UNLOAD would move rounds now
+                         // big for a holster (the holster menu's drag); + 16 off, 32 main: UNLOAD would move rounds now;
+                         // the hand grenade held: 1 .. 3 * 64 off, * 256 main (VR_FlatReload_HandFrameOn, grenhold)
 .float vr_flatrl_due0;   // the off hand's gun fired empty: when it breaks open or drops its magazine (0 nothing due),
 .float vr_flatrl_due1;   // the main hand's
 .entity vr_flatrl_duei0; // and the gun's record it is for
@@ -828,6 +829,17 @@ void(float xHand) VR_FlatReload_HandFrameOn =
     {
         self.vr_flatrl_full = self.vr_flatrl_full - (self.vr_flatrl_full & bbit);
     }
+    // The hand grenade in the hand (grenhold: the weapon wheel's EMPTY HAND and BACK POUCH, the holster menu's holster
+    // buttons put it back or swap it, VR_HandGrenade_Stow): two bits a hand, the off hand's * 64, the main hand's * 256:
+    // 1 an unarmed grenade (or proximity grenade), 2 an unarmed multi-grenade, 3 armed.
+    float gshift = fbit == 1 ? 64 : 256;
+    float gcode = 0;
+    entity hg = VR_Carry_Held(self, xHand);
+    if(hg != world && hg.vr_hgren)
+    {
+        gcode = hg.vr_hgren_armed ? 3 : (hg.vr_hgren_multi ? 2 : 1);
+    }
+    self.vr_flatrl_full = self.vr_flatrl_full - (self.vr_flatrl_full & (gshift * 3)) + gcode * gshift;
     if(VR_FlatPlay(self))
     {
         VR_FlatReload_RvEjectFrame(xHand, FALSE);
