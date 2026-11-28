@@ -6072,3 +6072,72 @@ Brush").
 - Headset: beta6 put back (1.2.0-beta6, progs a0bfe11a), his 31 autosaves and 3 top-level saves restored (35 sums match).
   Scripts: worktree `scratch/qcb_*` (not committed): `qcb_q.sh` (backup/install/launch/restore), `qcb_mkcfg.py`,
   `qcb_parse.py`, `qcb_q2.cfg` (the profile A/B).
+
+## questframe: the Quest's whole frame profiled per scene; a crowd's thinks spread; the sound's reverb off the main thread (branch agent/questframe, 2026-11-28)
+
+His words: "Profile the whole frame" (what sets the Quest's frame rate, beyond QuakeC).
+- **Method**: Quest 3, release APK of this branch with the test progs, his ironwail.cfg (read, `-noconfigwrite`), unworn,
+  `-unattended`, 72 Hz (the runtime's: his `vid_refreshrate 90` is the desktop's, logged), dynres on, SpaceWarp off; one
+  launch through the scenes, each settled 3 s then 432 frames between perf marks, `vr_profile 1` (GPU queries 1 in 4) and
+  the perf recorder (CSV exported: `vr_android_export perf` + `vr_android_share export`); per frame "bound" = CPU busy or
+  gpu_span over 0.9 of the 13.89 ms budget. Every thread's work that sets the frame is the main thread's (server, client,
+  GL submit, xrWaitFrame/xrEndFrame, S_Update); the pool takes the sound mix, the steam-audio sims, arm solves, Box3D.
+  Scripts: worktree `scratch/qf_*` (not committed: qf_q.sh backup/install/launch/restore, qf_mkcfg.py, qf_csv.py,
+  qf_parse.py, qf_ab.py).
+
+| scene (ms) | period med / p90 | CPU busy med / p90 | GPU med / p90 | dynres | late | bound |
+|---|---|---|---|---|---|---|
+| hub (vrstart) | 14.07 / 16.11 | 8.05 / 10.19 | 10.90 / 11.43 | 0.80 (held) | 0% | GPU, by design (dynres holds it at ~11 ms); xrWaitFrame idles 4.7 ms |
+| e1m1 start | 13.88 / 14.70 | 7.08 / 7.76 | 6.40 / 7.10 | 1.00 | 0% | neither: paced by the runtime (6 ms idle) |
+| arena wave 3 | 14.06 / 15.67 | 5.63 / 7.55 | 6.70 / 7.57 | 1.00 | 0.5% | neither |
+| hip1m1, 69 woken | 13.58 / 22.47 | 8.12 / 16.45 | 5.68 / 6.35 | 1.00 | 3.9% (report: 93 of 408 missed) | **CPU spikes: QuakeC every 7th frame** |
+| hipnotic start / rogue start | 13.99 / 15.65, 14.06 / 15.94 | 5.84 / 7.54, 6.52 / 8.58 | 6.83 / 7.05, 6.16 / 6.40 | 1.00 | 0-0.5% | neither |
+
+  (The last row was meant as his hip1m1 and r1m1 autosaves: `load qf/...` copies were not found under the campaign's
+  folder and the campaigns' start maps were measured instead; not re-run.)
+  Top CPU costs (vr_profile, ms a frame): hub models 1.77, ui/hud/menu 1.06 (the hub's signs), vr view setup 1.03,
+  light setup 0.92, sound 0.63; e1m1 vr view setup 1.12, models 1.03, quakec 0.97, render other 0.63, ui 0.61; arena vr
+  view setup 1.10, models 1.00, quakec 0.61, render other 0.48, ui 0.47; fight quakec 3.80, vr view setup 1.05, sound
+  0.66, models 0.66, ui 0.46 (box3d 0.38, physics 0.39). GPU: one "render other" row (the eyes' scene passes, 5.4-10.8):
+  timer queries inside an Adreno tiled pass don't split by system (world, models ~0.01), so the GPU's parts come only from
+  turning features off (questperf: the world ~5 ms of the fight's 7.5).
+- **What sets the frame**: unworn at his settings every scene holds 72 Hz on average with CPU and GPU under budget; the
+  misses come from spikes on the main thread: (1) **QuakeC's 10 Hz burst** in the crowd: SV_RunThink runs a think at its
+  nextthink, so 69 monsters woken on one frame think on one frame every 0.1 s for good: ev_qc 11-14 ms on every 7th frame
+  (2 ms between; autocorrelation 0.45 at lag 7; PC: 66 monster thinks, up to 207k statements, on one frame, none on the
+  others); (2) **the spatial audio's reverb convolution** (~2 ms, `vr_snd_bench`: paint 2.1 ms median, reverb_conv 1.7)
+  landing on the main thread every 3-10 frames: the pool's mix and S_Update both painted, and whichever crossed the next
+  spatial frame took it (snd_mixstats: 2 paints a frame, half on the main thread); `vr_snd_spatial 0` took busy p90 10.5
+  -> 8.5 in the hub.
+- **Change 1: `vr_think_spread`** (cvar 12, `vr_think_spread_frames` 4; Debug > the armed humanoids' rows "Monsters'
+  Thinks Spread over Frames", "Monsters' Thinks a Frame" = `vr_think_spread_stats`): past 12 monster (FL_MONSTER) thinks
+  in a server frame the rest wait (their nextthink stays due) and run on the next frame at its time (as a think that fell
+  due between frames always did), at most 4 frames late; their later thinks fall on later frames, so the burst is spread
+  once (11 frames deferred anything in 720) and stays spread. Deterministic (counts, no clock); missiles, doors, triggers,
+  players never wait. sv_phys.c SV_RunThink, vr_physics.cpp. PC fight: monster thinks a frame max 66 -> 19, their
+  statements max 207k -> 15k. **Not frame-for-frame the same game** once a crowd above 12 is due on one frame: those
+  monsters' AI ticks shift by up to 4 frames (55 ms) once; nothing visible. combat48 seed 7: 1227 damage taken (2050
+  before; one seed, chaotic: aglod's seeds ranged 1067-2050).
+- **Change 2: `snd_mixasync_lead`** (cvar 0.6; Debug > Threads "Sound Paint Left to the Pool"): S_Update leaves its paint
+  to the pool's mix (posted every screen update) while what is painted leads the device by 60% of the mix-ahead or more;
+  a long frame (less lead) still paints at once. The same samples. snd_mixstats counts the paints left. snd_dma.c.
+- **Headset A/B** (interleaved blocks in one launch each, medians over blocks):
+
+| | off | on |
+|---|---|---|
+| `vr_think_spread` 0 / 12, hip1m1 69 woken (each block re-woken: `vr_test_monsters 2`), 6+6 blocks of 432 | late 10.22%, over budget 13.9%, busy p90 17.45, p99 24.90, period p90 23.03, ev_qc p99 17.2 | **late 1.39%, over 3.7%, busy p90 12.55, p99 18.60, period p90 17.08, ev_qc p99 11.4** (busy median 9.14 -> 10.70: the same work spread; QuakeC mean 4.49 / 4.78) |
+| `snd_mixasync_lead` 0 / 0.5, hub, 6+6 blocks of 432 | main-thread sound 0.67 ms a frame (p99 2.81), busy p90 10.27, p99 11.24, period p90 16.15 | **0.05 (p99 0.19), busy p90 8.59, p99 9.69, period p90 14.70** |
+
+  Underruns (snd_mixstats past the load): hub 0.5 0, fight 0.5 1 of 1371 frames (0 with 0), fight 0.6 0 and 0 in two
+  blocks of 1296: the default is 0.6 (still 1371 of 1373 paints left to the pool). PC: the sound isn't on in headless runs
+  (0 paints), so the sound change is measured on the Quest only; the think spread is the same code on PC.
+- Tests: aglod_test.sh 18/0; aglod_balance.py hip1m1 + combat48 seed 7 "2 same, 0 differ" (think LOD off = on with the
+  spread on); the spread's stats above. vr_snd_mixcheck_test needs sound (not on in headless runs): not run.
+- Headset: beta6 put back (APK 9261565a, progs a0bfe11a), his 31 autosaves and 4 top-level saves restored (35 sums
+  match); lock released. Left: `quakevr/qf.cfg`, `quakevr/qf/` (two save copies, not listed by the load menu),
+  `files/export/` CSVs. prox_close was not used (the KEYCODE_WAKEUP cycle kept it running; frames don't run while the
+  runtime stops the session, so per-frame numbers hold).
+- Open (by size): his autosaves' scenes (load them as `load autosave/<campaign>~<map>`, fixed in qf_mkcfg.py); the
+  hub's GPU (dynres holds 0.80: SpaceWarp or foveation are his calls); vr view setup ~1.0-1.1 ms everywhere; models
+  0.6-1.8; the hub's ui/hud 1.06 ms; a worn session (his play adds the flashlight's and rig's lightmap lights:
+  questopt) not reproducible unattended.

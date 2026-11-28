@@ -332,3 +332,13 @@ the lean sight (0.26). Builtins are ~half of it: the hot QuakeC left is natively
 | The weapon props' quiet frames by the engine: `agstruck` (the shot/throw/strike check, nothing coming) and `agparry` (the parry frame, nothing to read), QuakeC's steps and writes (qcnative) | `vr_qc_native_think` (cvar: the release build fixes tunables; 2 compares) | Exact: 65,752 compared on the Quest, 0 differed. Quest QuakeC (perf recorder, no profiler, 5+5 interleaved blocks) 2.95 -> 2.83 ms; with the profiler 4.38 -> 3.88; PC 1.305 -> 1.123. CPU busy within noise. Note: the `vr_qc_scan_share` row above was measured with a tunable the release build ignores (both blocks on) |
 | A worn pack's three anchors on a body out of view rebuild only their vertices' bones and parents, not the whole rig (`limbpiece`, animsmooth::serverPoints; qcbuiltins) | `vr_qc_builtin_fast` (cvar; 2 compares) | Quest QuakeC 2.93 -> 2.63 ms a frame (-10%, 12+12 blocks); limbpiece 0.45 -> 0.20 ms (Quest), 0.28 -> 0.10 ms (PC); 44,000 compared, 0 differed |
 | Far, unseen, quiet armed humanoids' whole weapon think (scans, parry, pose) once in 4 frames; every frame the frame anything could notice (seen, near, something moving near the weapon, an attack, aim or parry) (aglod) | `vr_agrunt_think_lod` (cvar, default 1) | The same game: same seed, LOD on and off, 12 scene/seed pairs (hip1m1, combat_48, 48 behind him, arena waves): identical damage, hits, shots, kills and game hash. Quest `quakec` scope (12+12 interleaved blocks) 2.995 -> 2.960 ms, CPU busy 9.25 -> 9.14 (noise); PC 0.940 -> 0.915. Small: qcnative made quiet frames cheap already |
+
+## Whole frame (questframe, 2026-11-28)
+
+| Change | Where | Quest 3 A/B (interleaved, medians) | Default |
+|---|---|---|---|
+| A crowd's monster thinks spread over frames (`vr_think_spread` 12, `_frames` 4) | sv_phys.c, vr_physics.cpp | hip1m1 69 woken: late 10.2 -> 1.4%, busy p90 17.5 -> 12.6 ms, period p90 23.0 -> 17.1 | on |
+| S_Update's sound paint left to the pool's mix while it leads (`snd_mixasync_lead` 0.6) | snd_dma.c | hub: main-thread sound 0.67 -> 0.05 ms, busy p90 10.3 -> 8.6, period p90 16.2 -> 14.7 | on |
+
+Per scene (unworn, his config, 72 Hz): hub GPU 10.9 at dynres 0.80 (GPU by design); e1m1, arena, the campaigns' starts
+paced by the runtime (CPU 5.6-7.1, GPU 6.2-6.8); the 69-monster fight CPU spikes (QuakeC's 10 Hz burst). ROUND26 "questframe".
