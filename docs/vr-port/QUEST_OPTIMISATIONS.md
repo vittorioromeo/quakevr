@@ -91,6 +91,7 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 | Compile-time and program cache | Programs' binaries cached per driver; queued compile with a loading panel | cold 65.1 s vs warm 8.3 s to e1m1's first frame; 103 programs from binaries in 126 ms (6k); later one set, 70 from the cache, first frame 5.3-6.7 s (6zk) | `vr_program_cache` 1 on ES (2 also on PC); `-shadersasync` | yes | Maybe: PC saved ~20 ms warm (off by default); of little value there |
 | Armed humanoids' CPU | Investigated: QuakeC props and relink ~1.5 ms of a 4.4 ms fight frame; nothing cut | not an optimisation (6d) | none | no | Likely: a real cost on PC too (its own item, not yet done) |
 | Lit textures' walk from a leaf grid (questperf) | R_WorldLitTextures (the split's skip, C4w) tests only the leaves in grid cells round each light, once, and reuses the answer for the second eye | 0 on the Quest at Standalone (the lights go into the lightmap: no split view walks); PC mock under ES: the hub 0.865 -> 0.080 ms CPU | `vr_gl_world_lit_reuse` 1 (0 the old walk, 2 both compared) | no (the split is ES's) | No: the PC has no split |
+| QuakeC's interpreter (qcvm) | The goto loop (October) measured on the Quest; calls and returns done by the loop itself (the VM in a register, locals by memcpy) | hip1m1 69-monster fight, QuakeC a frame: original 2.99 ms, goto 2.96 (noise), + own calls 2.83 (-4%; 31.9 against 33.2 ns a statement, every launch); CPU busy within noise. The interpreter is ~0.3 ms of the 2.8: the rest is builtins' native work | `vr_qcexec` 1 (0 original, 2 switch, 3 goto with the old calls); `vr_qcexec_time` | no | Yes: PC 0.977 -> 0.886 -> 0.838 ms (hip1m1 fight) |
 
 ## 7. Runtime and OpenXR
 
@@ -111,6 +112,9 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 - Models lit at the vertex (`vr_gl_alias_vlight`): no gain (6ze). Skin form: +0.02 ms (6ze).
 - PBR off on the world: within noise (6zl). CPU/GPU level 4: -0.2 ms noise (6zl).
 - A fast-light path inside the full loop (`FASTLIGHT`): 12.3 with 3 lights against 11.8 for the lite form, slower with it (6w).
+- The library's own calls and globals bound inside it (`-Wl,-Bsymbolic`, `-fno-semantic-interposition`, `-fno-plt`): PLT
+  slots 7,330 -> 533, GOT data 6,066 -> 4, but the hip1m1 fight's QuakeC 31.73 -> 31.52 and 32.28 -> 32.31 ns a
+  statement and CPU busy within noise in two interleaved APK pairs (qcvm, ROUND26 "qcvm").
 
 ## Candidates for PC
 
