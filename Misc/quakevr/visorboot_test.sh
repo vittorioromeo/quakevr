@@ -22,7 +22,7 @@ mkdir -p "$S"
 LOG=$S/visorboot_test.log
 R="vr_flat_visor_report"
 E="echo visorboot_test:"
-START="vr_flat_visor_fx trace 1; vr_flat_visor_autohide_log 0; map e1m1; wait8; $E start dark; $R; screenshot; wait24; $E start fading; $R; screenshot; wait10; screenshot; wait20; $E start sweeping; $R; screenshot; wait60; $E start booted; $R; screenshot"
+START="vr_flat_visor_fx trace 1; vr_flat_visor_autohide_log 0; map e1m1; wait14; $E start dark; $R; screenshot; wait18; $E start fading; $R; screenshot; wait10; screenshot; wait20; $E start sweeping; $R; screenshot; wait60; $E start booted; $R; screenshot"
 CHANGE="notarget; changelevel e1m2; wait140; $E change done"
 DEATH="notarget; vr_hurt 500; wait36; restart; wait150; $E death done"
 COOP="vr_death_menu 0; coop 1; map e1m1; wait140; notarget; vr_hurt 500; wait110; +attack; wait3; -attack; wait140; $E coop done; coop 0; reset vr_death_menu"

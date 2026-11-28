@@ -4462,6 +4462,9 @@ vr_flat_prl_pouch_roll|2|Tunables|Hand at Pouch: Roll|Advanced VR Options > Debu
 vr_flat_prl_port_pitch|2|Tunables|Hand at Port: Pitch|Advanced VR Options > Debug > Tunables > Hand at Port: Pitch
 vr_flat_prl_port_yaw|2|Tunables|Hand at Port: Yaw|Advanced VR Options > Debug > Tunables > Hand at Port: Yaw
 vr_flat_prl_port_roll|2|Tunables|Hand at Port: Roll|Advanced VR Options > Debug > Tunables > Hand at Port: Roll
+vr_flat_prl_port_fwd|2|Tunables|Hand at Port: Forward|Advanced VR Options > Debug > Tunables > Hand at Port: Forward
+vr_flat_prl_port_right|2|Tunables|Hand at Port: Right|Advanced VR Options > Debug > Tunables > Hand at Port: Right
+vr_flat_prl_port_up|2|Tunables|Hand at Port: Up|Advanced VR Options > Debug > Tunables > Hand at Port: Up
 vr_flat_prl_failsafe|2|Tunables|Failsafe Time|Advanced VR Options > Debug > Tunables > Failsafe Time
 vr_flat_prl_giveup|2|Tunables|Server Give-Up Time|Advanced VR Options > Debug > Tunables > Server Give-Up Time
 vr_flat_ammo_pouch_x|2|Tunables|Pouch: Forward|Advanced VR Options > Debug > Tunables > Pouch: Forward
@@ -4502,6 +4505,10 @@ vr_flat_swap_2h_attach_time|2|Tunables|Swap 2H: Attach Time|Advanced VR Options 
 vr_flat_swap_look|2|Tunables|Swap 2H: Long Guns As Rocket L.|Advanced VR Options > Debug > Tunables > Swap 2H: Long Guns As Rocket L.
 vr_flat_swap_2h_all|2|Tunables|Swap 2H: Every Two-Hand Hold|Advanced VR Options > Debug > Tunables > Swap 2H: Every Two-Hand Hold
 vr_flat_swap_things|2|Tunables|Swap: Carried Things Too|Advanced VR Options > Debug > Tunables > Swap: Carried Things Too
+vr_flat_visor_boot_dark|2|Tunables|Visor Boot: Dark|Advanced VR Options > Debug > Tunables > Visor Boot: Dark
+vr_flat_visor_boot_fade|2|Tunables|Visor Boot: Fade In|Advanced VR Options > Debug > Tunables > Visor Boot: Fade In
+vr_flat_visor_boot_glitch|2|Tunables|Visor Boot: Glitch|Advanced VR Options > Debug > Tunables > Visor Boot: Glitch
+vr_flat_visor_boot_volume|2|Tunables|Visor Boot: Sound Volume|Advanced VR Options > Debug > Tunables > Visor Boot: Sound Volume
 vr_flat_grenade_fetch_time|2|Tunables|Grenade: Pouch Time|Advanced VR Options > Debug > Tunables > Grenade: Pouch Time
 vr_flat_grenade_up_time|2|Tunables|Grenade: Up Time|Advanced VR Options > Debug > Tunables > Grenade: Up Time
 vr_flat_grenade_fetch_fwd|2|Tunables|Grenade: Pouch Forward|Advanced VR Options > Debug > Tunables > Grenade: Pouch Forward
@@ -5350,6 +5357,17 @@ vr_agrunt_dazzle_fade|2|Tunables|Fade Time|Advanced VR Options > Debug > Tunable
 vr_agrunt_dazzle_threshold|2|Tunables|Hand Up From|Advanced VR Options > Debug > Tunables > Hand Up From
 vr_agrunt_dazzle_spread|2|Tunables|Aim Spread|Advanced VR Options > Debug > Tunables > Aim Spread
 vr_agrunt_dazzle_pose|2|Tunables|Hand Pose|Advanced VR Options > Debug > Tunables > Hand Pose
+vr_agrunt_dazzle_hand_fwd|2|Tunables|Hand Forward|Advanced VR Options > Debug > Tunables > Hand Forward
+vr_agrunt_dazzle_hand_left|2|Tunables|Hand Left|Advanced VR Options > Debug > Tunables > Hand Left
+vr_agrunt_dazzle_hand_up|2|Tunables|Hand Up|Advanced VR Options > Debug > Tunables > Hand Up
+vr_pad_cursor|2|Tunables|Menu Stick Cursor|Advanced VR Options > Debug > Tunables > Menu Stick Cursor
+vr_pad_cursor_speed|2|Tunables|Menu Cursor Speed|Advanced VR Options > Debug > Tunables > Menu Cursor Speed
+vr_pad_cursor_accel|2|Tunables|Menu Cursor Acceleration|Advanced VR Options > Debug > Tunables > Menu Cursor Acceleration
+vr_pad_cursor_accel_time|2|Tunables|Menu Cursor Acceleration Time|Advanced VR Options > Debug > Tunables > Menu Cursor Acceleration Time
+vr_pad_cursor_curve|2|Tunables|Menu Cursor Curve|Advanced VR Options > Debug > Tunables > Menu Cursor Curve
+vr_pad_cursor_deadzone|2|Tunables|Menu Cursor Dead Zone|Advanced VR Options > Debug > Tunables > Menu Cursor Dead Zone
+vr_pad_holster_cursor_speed|2|Tunables|Holster Menu Stick Speed|Advanced VR Options > Debug > Tunables > Holster Menu Stick Speed
+vr_pad_wheel_deadzone|2|Tunables|Wheel Stick Dead Zone|Advanced VR Options > Debug > Tunables > Wheel Stick Dead Zone
 vr_agrunt_dazzle_face_fwd|2|Tunables|Hand Forward|Advanced VR Options > Debug > Tunables > Hand Forward
 vr_agrunt_dazzle_face_left|2|Tunables|Hand Left|Advanced VR Options > Debug > Tunables > Hand Left
 vr_agrunt_dazzle_face_up|2|Tunables|Hand Up|Advanced VR Options > Debug > Tunables > Hand Up
@@ -5807,6 +5825,7 @@ vr_xr_debug|2|Debug - Profiling and Memory|OpenXR Loader Log|Advanced VR Options
 |2|Debug - Reports|Visor: Real Hit Message|Advanced VR Options > Debug > Reports > Visor: Real Hit Message
 |2|Debug - Reports|Visor: Cache On / Off|Advanced VR Options > Debug > Reports > Visor: Cache On / Off
 |2|Debug - Reports|Visor: Power On|Advanced VR Options > Debug > Reports > Visor: Power On
+|2|Debug - Reports|Visor: Power On, Traced|Advanced VR Options > Debug > Reports > Visor: Power On, Traced
 |2|Debug - Reports|Visor: Centre Message|Advanced VR Options > Debug > Reports > Visor: Centre Message
 |2|Debug - Reports|Visor: Long Centre Message|Advanced VR Options > Debug > Reports > Visor: Long Centre Message
 |2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
@@ -6045,6 +6064,10 @@ vr_obsrec_as_if|2|Debug - Reports|Clean Recording: Act As If OBS Records|Advance
 |2|Debug - Tools|Reminder Panels: Next Controller|Advanced VR Options > Debug > Tools > Reminder Panels: Next Controller
 |2|Debug - Tools|Reminder Panels: Detected Controller|Advanced VR Options > Debug > Tools > Reminder Panels: Detected Controller
 |2|Debug - Tools|Reminder Panels Report|Advanced VR Options > Debug > Tools > Reminder Panels Report
+|2|Debug - Tools|Flat Gamepad Layout Test|Advanced VR Options > Debug > Tools > Flat Gamepad Layout Test
+|2|Debug - Tools|Gamepad Menu Cursor Test|Advanced VR Options > Debug > Tools > Gamepad Menu Cursor Test
+|2|Debug - Tools|Gamepad Menu Cursor Report|Advanced VR Options > Debug > Tools > Gamepad Menu Cursor Report
+|2|Debug - Tools|Fill Flat Gamepad Defaults|Advanced VR Options > Debug > Tools > Fill Flat Gamepad Defaults
 |2|Debug - Tools|Blood Feedback Report|Advanced VR Options > Debug > Tools > Blood Feedback Report
 |2|Debug - Tools|Damage Protocol Preview|Advanced VR Options > Debug > Tools > Damage Protocol Preview
 |2|Debug - Tools|Preview Hit Left|Advanced VR Options > Debug > Tools > Preview Hit Left
@@ -6301,6 +6324,9 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Beasts' Shaped Armour: Look and Debris Check|Advanced VR Options > Debug > Tests > Beasts' Shaped Armour: Look and Debris Check
 |2|Debug - Tests|Beasts Drawn Smoothly (Slow Motion)|Advanced VR Options > Debug > Tests > Beasts Drawn Smoothly (Slow Motion)
 |2|Debug - Tests|Beast Armour On The Drawn Body: Cost (Ten Ogres)|Advanced VR Options > Debug > Tests > Beast Armour On The Drawn Body: Cost (Ten Ogres)
+|2|Debug - Tests|Beast Armour in Multiplayer: Armoured Ogre and Scrag|Advanced VR Options > Debug > Tests > Beast Armour in Multiplayer: Armoured Ogre and Scrag
+|2|Debug - Tests|Beast Armour in Multiplayer: Break a Part of Each|Advanced VR Options > Debug > Tests > Beast Armour in Multiplayer: Break a Part of Each
+|2|Debug - Tests|Beast Armour Drawn Here|Advanced VR Options > Debug > Tests > Beast Armour Drawn Here
 |2|Debug - Tests|Armour Studio: ImGui Window Test (Flat Screen)|Advanced VR Options > Debug > Tests > Armour Studio: ImGui Window Test (Flat Screen)
 |2|Debug - Tests|Armour Studio: Window Handle (Gizmo) Test (Flat Screen)|Advanced VR Options > Debug > Tests > Armour Studio: Window Handle (Gizmo) Test (Flat Screen)
 |2|Debug - Tests|Armour Studio: Your Clone's Armour Test|Advanced VR Options > Debug > Tests > Armour Studio: Your Clone's Armour Test
@@ -9268,6 +9294,7 @@ vr_flat_visor_fog|1|Visor HUD Look|Visor Fog Under Water|Advanced VR Options > M
 vr_flat_visor_fog_clear|1|Visor HUD Look|Visor Fog Clears In|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Fog Clears In
 vr_flat_visor_low_health|1|Visor HUD Look|Visor Low Health|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Low Health
 vr_flat_visor_boot|1|Visor HUD Look|Visor Power On|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Power On
+vr_flat_visor_boot_seq|1|Visor HUD Look|Visor Boot Sequence|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Boot Sequence
 |1|Visor HUD Look|Reset This Page|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Reset This Page
 @page|1|Third-Person Camera||Advanced VR Options > Movement > Locomotion > Third-Person Camera
 vr_flat_tp|1|Third-Person Camera|Third-Person Camera|Advanced VR Options > Movement > Locomotion > Third-Person Camera > Third-Person Camera

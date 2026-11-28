@@ -5243,3 +5243,33 @@ Approved 2026-11-28 (beastarmour's open note: "a remote MP client draws no beast
 - **Open:** a remote client's armour follows its own clock (as its drawing of the body, no kick); the beasts of
   `beastmp_dedicated` hunt B before his notarget, so their living placement is compared on the listen run only;
   `vr_armour_on_drawn 0` (debug) is a listen host's comparison alone (a remote client always uses the drawn points).
+
+## visorboot: the flat visor HUD's boot-up sequence (branch agent/visorboot, 2026-11-28)
+
+His words: the boot should start with no panels, a boot sound, the panels fading in with a subtle glitch, then the
+scanline sweep, on every level transition, respawn and so on.
+- **What it does:** at every signon (the first start, `map`, `changelevel`, a loaded save, single player's respawn
+  `restart`: `VR_VisorSignon` from `CL_ParseUpdate`) and every respawn in place (coop/DM: health from 0 or less to
+  more, as before), with the flat visor up: dark (no panel drawn, `vr_flat_visor_boot_dark` 0.3 s), the power-up sound
+  starting (`vr/visor_boot.wav`, 1.05 s, made by `make_sounds.py visor_boot`, timed to the default steps; volume
+  `vr_flat_visor_boot_volume` 0.6), the whole panels (mounts) fading in over `vr_flat_visor_boot_fade` 0.5 s while
+  glitching (`vr_flat_visor_boot_glitch` 0.6: strongest at the fade's start, a third of it at its end; a per-panel
+  flicker of the alpha, on about half the frames bands of rows torn sideways up to 16 1080p pixels, colour fringes of
+  2.5 px: the layer shader's `Tear` uniform, the red and blue read either side), their contents still dark; then the
+  existing sweep (`vr_flat_visor_boot` 0.8 s, each panel in turn) fills them. Booted about 1.6 s after the signon.
+- **Settings:** `vr_flat_visor_boot_seq` 1 (VR Settings > Visor HUD Look > Visor Boot Sequence; 0: the sweep alone,
+  exactly as before); Tunables > Flatscreen > Visor Boot (dark, fade in, glitch, sound volume). The headset (VR) path
+  and its centre popup keep the old sweep (the sequence needs `visor::active()`).
+- **Debug:** Debug > Visor: Power On (now the whole sequence) and Visor: Power On, Traced (`vr_flat_visor_fx trace 1`:
+  every boot prints a `visorboot: boot N (<cause>) ...` verdict as it ends: frames dark and shown, fading, rises and
+  falls, glitching and its peak, sweeping, the time booted, sounds asked). `vr_flat_visor_report` has a `visor: boot
+  <phase> ...` line.
+- **Files:** vr_visor.cpp (startBoot, bootSound, bootPhase, traceBoot, panelFade, bootTear, the layer shader),
+  cl_parse.c, vr_api.h, vr_cvars.inc, vr_tunables(.inc, _rows.inc), vr_menu_rows/pages/debug.inc, make_sounds.py,
+  quakevr/sound/vr/visor_boot.wav, SOUNDS_OURS.md, scenario `flat_visor_boot`.
+- **Tests:** `visorboot_test.sh` (42 checks: the first start's report stepped through dark with nothing drawn, fading
+  in glitching, sweeping, booted; the traces of the first start, a changelevel, a death and `restart`, a coop map and a
+  coop respawn in place, the switch off); `visor_test.sh`'s boot step waits the whole sequence now (37/0).
+- **Open:** splitscreen: the visor has one state (no seats in it yet); when the seats come it moves into the seat's
+  state with the rest of the visor's. The sound counts as asked in the headless runs (no sound device there): its
+  level against the other UI sounds is his to judge (loudest 100 ms RMS 0.24 at volume 1, the tap-on's 0.37).
