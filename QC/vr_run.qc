@@ -53,6 +53,13 @@ void(float held) VR_Run_MapSpawned =
     VR_RunPickups_MapSpawned(held);
 };
 
+// VR_Attr_Spawned (vr_attrs.qc; VR_AM_Spawn's end: every armed humanoid, the arena's waves too): TRUE when the run makes
+// this one an elite (All Elites).
+float(entity e) VR_Run_ForcesElite =
+{
+    return VR_RunAllElites_Forces(e);
+};
+
 // respawn (client.qc), a dead single player's: TRUE when a mutator took it over (Ironman: the level restarted).
 float() VR_Run_Respawn =
 {

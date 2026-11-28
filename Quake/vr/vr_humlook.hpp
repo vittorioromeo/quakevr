@@ -76,6 +76,13 @@ void parseEvent();
 void registerCommands();
 // VR_AliasInstance: `e`'s four Recolor rows (all zero: none).
 void instanceRows(const struct entity_s* e, float rows[4][4]);
+// VR_AliasInstance: the elite marker (vr_elite_glow; the shaders' Elite): an elite's body (its look's eliteBit) and the
+// armour plates and joints' leather drawn on it (agarmor::sourceOf) glow gold round their outline, unlit, pulsing with
+// the dye (vr_elite_pulse). `out`: rgb the glow times its strength, w its share over the whole body (all zero: none).
+// The client's own looks: a remote client draws it as the host does.
+void eliteGlow(const struct entity_s* e, float out[4]);
+// The client's entity `num` an elite (its look's eliteBit): its armour drawn with the gold trim (vr_agarmor.cpp relink).
+[[nodiscard]] bool isElite(int num);
 
 // The table's and the masks' files (vr_humlook_file, vr_humlook_masks_file: in quakevr/).
 [[nodiscard]] const char* tableName();

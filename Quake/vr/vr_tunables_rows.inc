@@ -2963,3 +2963,6 @@ QVR_TUNABLE_SLIDER(vr_elite_arena_wave, "Arena: From Wave", 0.0f, 20.0f, 1.0f, "
 QVR_TUNABLE_SLIDER(vr_elite_arena_chance, "Arena: Chance", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "In those waves, the chance each armed humanoid is an elite (vr_elite_arena_chance).")
 QVR_TUNABLE_SLIDER(vr_elite_pulse, "Dye Pulse", 0.0f, 0.5f, 0.02f, "%.2f", 0.0f, 1.0f, "How far the elite dye's dark gold glows towards bright gold and back (brighter by as much); 0 steady (vr_elite_pulse).")
 QVR_TUNABLE_SLIDER(vr_elite_pulse_hz, "Dye Pulse Rate", 0.1f, 3.0f, 0.1f, "%.1f Hz", 0.0f, 10.0f, "The elite dye's pulses a second (vr_elite_pulse_hz).")
+QVR_TUNABLE_SLIDER(vr_elite_glow, "Marker Glow", 0.0f, 1.5f, 0.05f, "%.2f", 0.0f, 4.0f, "The elite marker: a soft gold glow round an elite's outline and on its armour, seen in dim light too; 0 none (vr_elite_glow).")
+QVR_TUNABLE_CYCLE(vr_elite_trim, "Gold Armour Trim", "An elite's armour plates drawn with a gold trim round their edges; their faces keep the armour's own colour (vr_elite_trim).", {0.0f, "Off"}, {1.0f, "On"})
+QVR_TUNABLE_SLIDER(vr_elite_glow_fill, "Marker Fill", 0.0f, 0.5f, 0.02f, "%.2f", 0.0f, 1.0f, "The share of the marker's glow over an elite's whole body facing you; 0 its outline alone (vr_elite_glow_fill).")

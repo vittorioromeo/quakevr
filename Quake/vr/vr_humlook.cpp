@@ -2,6 +2,7 @@
 
 #include "vr_humlook.hpp"
 
+#include "vr_agarmor.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
@@ -18,6 +19,7 @@
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -605,9 +607,11 @@ void info_f()
         {
             float rows[4][4];
             instanceRows(&cl_entities[i], rows);
-            Con_Printf("  client elite %d (%s, look %d): clothes %.2f %.2f %.2f strength %.2f light %.2f, mask %s\n", i,
-                cl_entities[i].model->name, look, rows[0][0], rows[0][1], rows[0][2], rows[0][3], rows[2][0],
-                rows[3][0] > 0.f ? "yes" : "no");
+            float glow[4];
+            eliteGlow(&cl_entities[i], glow);
+            Con_Printf("  client elite %d (%s, look %d): clothes %.2f %.2f %.2f strength %.2f light %.2f, mask %s, marker %.2f\n",
+                i, cl_entities[i].model->name, look, rows[0][0], rows[0][1], rows[0][2], rows[0][3], rows[2][0],
+                rows[3][0] > 0.f ? "yes" : "no", glow[0]);
         }
     }
     for(const Skin& s : skins)
@@ -685,9 +689,9 @@ void dyeTest_f()
     {
         const int look = looks[static_cast<za::SizeT>(i)];
         const entity_t* e = &cl_entities[i];
-        if(!(look & eliteBit) || (look & partPack) || !e->model)
+        if(!(look & eliteBit) || (look & partPack) || !e->model || keyOf(look) < 0)
         {
-            continue;
+            continue; // (AD's death guard and crossbow knight: their own look, no dye; the marker alone)
         }
         float rows[4][4];
         instanceRows(e, rows);
@@ -755,6 +759,52 @@ void dyeTest_f()
     tally.check(drawn >= want, "humlook dyetest", "fewer elites drawn than wanted");
     tally.verdict("humlook dyetest");
     Cvar_SetValueQuick(&vr_test_humlook_dye, static_cast<float>(tally.failed)); // (test 234's QC check reads it)
+}
+
+// vr_humlook_glowtest [elites] [plates]: the elite marker (vr_elite_glow) as the last frame drew it: each drawn armed
+// humanoid's body and each armour plate or joints' leather entity on one (agarmor::sourceOf), its instance's glow
+// (eliteGlow) lit on an elite's, dark on an ordinary one's; at least `elites` elite bodies and `plates` plate entities on
+// elites drawn. Ends on `humlook glowtest: P passed, F failed` (vr_test_humlook_glow: its failures; test 234 reads it).
+void glowTest_f()
+{
+    const int want = Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 0;
+    const int wantPlates = Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) : 0;
+    testkit::Tally tally;
+    int bodies[2] = {}, plates[2] = {}; // (ordinary, elite)
+    for(int v = 0; v < cl_numvisedicts && cl_entities; v++)
+    {
+        const entity_t* e = cl_visedicts[v];
+        const bool own = e && e >= cl_entities && e < cl_entities + cl_max_edicts;
+        const entity_t* src = own ? e : (e ? agarmor::sourceOf(e) : nullptr);
+        const int num = src ? static_cast<int>(src - cl_entities) : -1;
+        const int look = num >= 0 ? lookOf(num) : 0;
+        if(!e || !e->model || look <= 0 || (look & partPack))
+        {
+            continue; // (armed humanoids' bodies and what they wear; their packs and the rest left out)
+        }
+        float g[4];
+        eliteGlow(e, g);
+        const int elite = (look & eliteBit) ? 1 : 0;
+        const bool lit = g[0] > 0.f;
+        const bool wanted = elite != 0 && vr_elite_glow.value > 0.f;
+        (own ? bodies : plates)[elite]++;
+        // (a plate entity's skin: an elite's the gold-trimmed nine, 9..17, an ordinary one's 0..8; the leather's its own 0..2)
+        const auto* ahdr = !own && e->model->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(e->model)) : nullptr;
+        const bool trimmable = ahdr && ahdr->numskins >= 18 && !ZA_STRSTR(e->model->name, "#bridge");
+        const bool trimOk = !trimmable || (e->skinnum >= 9) == (elite != 0 && vr_elite_trim.value != 0.f);
+        tally.check(lit == wanted && trimOk);
+        if(lit != wanted || !trimOk)
+        {
+            Con_Printf("humlook glowtest: FAIL entity %d %s (%s skin %d, look %d): glow %.2f %.2f %.2f fill %.2f\n", num,
+                own ? "body" : "plates", e->model->name, e->skinnum, look, g[0], g[1], g[2], g[3]);
+        }
+    }
+    Con_Printf("humlook glowtest: bodies %d elite (lit), %d ordinary (dark); plate entities %d on elites, %d on ordinary ones; "
+               "vr_elite_glow %g\n", bodies[1], bodies[0], plates[1], plates[0], vr_elite_glow.value);
+    tally.check(bodies[1] >= want, "humlook glowtest", "fewer elites drawn than wanted");
+    tally.check(plates[1] >= wantPlates, "humlook glowtest", "fewer plates drawn on elites than wanted");
+    tally.verdict("humlook glowtest");
+    Cvar_SetValueQuick(&vr_test_humlook_glow, static_cast<float>(tally.failed));
 }
 
 // Where a file of quakevr/ is written: quakevr/ in the last base folder that has one (as vr_armourdata.cpp's).
@@ -1153,6 +1203,7 @@ void registerCommands()
     });
     Cmd_AddCommand("vr_humlook_info", info_f);
     Cmd_AddCommand("vr_humlook_dyetest", dyeTest_f);
+    Cmd_AddCommand("vr_humlook_glowtest", glowTest_f);
     studioInit();
 }
 
@@ -1229,6 +1280,48 @@ void instanceRows(const entity_t* e, float rows[4][4])
     rows[3][1] = static_cast<float>(s->w);
     rows[3][2] = static_cast<float>(s->h);
     rows[3][3] = overlay ? 1.f : 0.f;
+}
+
+bool isElite(int num)
+{
+    return (lookOf(num) & eliteBit) != 0;
+}
+
+void eliteGlow(const entity_t* e, float out[4])
+{
+    ZA_MEMSET(out, 0, sizeof(float) * 4);
+    if(vr_elite_glow.value <= 0.f || !cl_entities || !e)
+    {
+        return;
+    }
+    const bool worn = e < cl_entities || e >= cl_entities + cl_max_edicts;
+    if(worn)
+    {
+        e = agarmor::sourceOf(e); // (an armour's plates or its joints' leather: its wearer's)
+        if(!e || e < cl_entities || e >= cl_entities + cl_max_edicts)
+        {
+            return;
+        }
+    }
+    const int num = static_cast<int>(e - cl_entities);
+    if(!(lookOf(num) & eliteBit))
+    {
+        return;
+    }
+    float strength = za::clamp(vr_elite_glow.value, 0.f, 4.f);
+    if(vr_elite_pulse.value > 0.f)
+    {
+        // (the dye's pulse, on the same phase: brightest as the dye is)
+        const float phase = static_cast<float>(cl.time) * vr_elite_pulse_hz.value * 6.2831853f + static_cast<float>(num) * 1.7f;
+        strength *= 1.f + za::clamp(vr_elite_pulse.value, 0.f, 1.f) * za::sin(phase);
+    }
+    constexpr float gold[3] = {1.f, 0.72f, 0.25f};
+    for(int c = 0; c < 3; c++)
+    {
+        out[c] = gold[c] * strength;
+    }
+    // (the plates: their outline alone, no fill over their faces: the tier's colour stays clearly read under the gold trim)
+    out[3] = worn ? 0.f : za::clamp(vr_elite_glow_fill.value, 0.f, 1.f);
 }
 
 } // namespace qvr::humlook
