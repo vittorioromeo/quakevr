@@ -34,10 +34,13 @@ constexpr const char* actionNames[static_cast<int>(Action::Count)] = {"none", "t
 constexpr const char* condNames[static_cast<int>(Cond::Count)] = {"always", "closed", "opened", "loaded"};
 constexpr const char* easeNames[static_cast<int>(Ease::Count)] = {"linear", "smooth", "in", "out"};
 
-// (reloadmags: the magazine guns after the shotguns; the lava nailguns and the plasma-look thunderbolt are the same guns.)
-constexpr int gunCount = 6;
-constexpr const char* gunNames[gunCount] = {"shotgun", "supershotgun", "nailgun", "supernailgun", "thunderbolt", "nailpistol"};
-constexpr int gunWeapons[gunCount] = {WID_SHOTGUN, WID_SUPER_SHOTGUN, WID_NAILGUN, WID_SUPER_NAILGUN, WID_LIGHTNING, WID_NAILPISTOL};
+// (reloadmags: the magazine guns after the shotguns; the lava nailguns and the plasma-look thunderbolt are the same guns.
+// reloadmuzzle: the launchers loaded at the muzzle, the heavy revolver's cylinder.)
+constexpr int gunCount = 10;
+constexpr const char* gunNames[gunCount] = {"shotgun", "supershotgun", "nailgun", "supernailgun", "thunderbolt", "nailpistol",
+    "grenadelauncher", "proxlauncher", "rocketlauncher", "revolver"};
+constexpr int gunWeapons[gunCount] = {WID_SHOTGUN, WID_SUPER_SHOTGUN, WID_NAILGUN, WID_SUPER_NAILGUN, WID_LIGHTNING, WID_NAILPISTOL,
+    WID_GRENADE_LAUNCHER, WID_PROXIMITY_GUN, WID_ROCKET_LAUNCHER, WID_REVOLVER};
 
 struct Table
 {
@@ -216,6 +219,123 @@ Reload magazine(int gun, const glm::vec3& tilt, const glm::vec3& move, const glm
     return r;
 }
 
+// The launchers (reloadmuzzle; his words: "the hand holding the gun should rotate it so that the muzzle is more accessible.
+// And then once it's rotated ... the offhand can put the rockets and grenades into it"): the gun turned muzzle up and in
+// towards the free hand as it reaches; a round from the pouch (VR's take: a grenade, a proximity grenade, a rocket, or the
+// other ammo mode's multi-round) to `approach` out of the muzzle, lying along the barrel butt first (the item's axis put on
+// the barrel's by the backwards solve: Dest::Muzzle), pushed in along it (VR's muzzle test), the next, back. A start for
+// his tuning; `approach` the round's butt out of the muzzle before it goes in, `move` the gun's (the rocket launcher's tube is
+// longer: pulled back and down more).
+Reload launcher(int weapon, const char* name, float approach, const glm::vec3& tilt, const glm::vec3& move)
+{
+    Reload r;
+    q_strlcpy(r.gun, name, sizeof(r.gun));
+    r.weapon = weapon;
+    r.item = Item::Rocket;
+    r.dest = Dest::Muzzle;
+    const glm::vec3 pouchOfs{0.f, 0.5f, 1.f}, pouchRot{90.f, 27.f, 5.f};
+    Key k[6];
+    k[0] = makeKey("reach", 0.3f, Target::Pouch);
+    k[0].gunTime = 0.25f;
+    k[1] = makeKey("grip", 0.06f, Target::Pouch);
+    k[1].action = Action::Take;
+    k[2] = makeKey("carry", 0.28f, Target::Mouth);
+    k[2].arc = 4.f;
+    k[2].approach = approach;
+    k[3] = makeKey("insert", 0.12f, Target::Dest);
+    k[3].action = Action::Insert;
+    k[4] = makeKey("reach again", 0.24f, Target::Pouch);
+    k[4].arc = 4.f;
+    k[5] = makeKey("return", 0.25f, Target::Rest);
+    k[5].gunTime = 0.22f;
+    k[5].finish = true;
+    for(int i = 0; i < 6; i++)
+    {
+        if(k[i].target == Target::Pouch)
+        {
+            k[i].handOfs = pouchOfs;
+            k[i].handRot = pouchRot;
+        }
+        if(i < 5)
+        {
+            k[i].gunRot = tilt;
+            k[i].gunOfs = move;
+        }
+        r.keys[i] = k[i];
+    }
+    r.keyCount = 6;
+    r.loopFrom = 1;
+    r.loopTo = 4;
+    return r;
+}
+
+// The heavy revolver (reloadmuzzle; his words: "the cylinder should break apart and we should eject all the spent shells. And
+// then the hand should repeatedly go from the pouch, grab a shell or two shells ... and put them into the empty slots of the
+// cylinder ... when the cylinder is full, or when there are no more shells to reload, the cylinder should close with a flick
+// of the wrist"): a flick of the wrist swings the cylinder out if it is home (impulse 107: VR's open), the muzzle up while its
+// spent shells drop (the live ones stay: flat-screen play's eject, vr_revolver_spent_first's order), the muzzle down and the
+// cylinder in to the free hand; a taped pair (one slug for one empty chamber: VR's take) to its empty chambers' mouths (the
+// backwards solve: Dest::CylinderSlot, the pair along the two chambers), in along the bore, the next; at the end, if loaded,
+// a flick the other way swings it home (impulse 108: VR's close), back. A start for his tuning.
+Reload revolver()
+{
+    Reload r;
+    q_strlcpy(r.gun, "revolver", sizeof(r.gun));
+    r.weapon = WID_REVOLVER;
+    r.item = Item::Cylinder;
+    r.dest = Dest::CylinderSlot;
+    const glm::vec3 tilt{50.f, 25.f, -40.f}, move{8.f, 3.f, 0.f};
+    const glm::vec3 pouchOfs{0.f, 0.5f, 1.f}, pouchRot{90.f, 27.f, 5.f};
+    Key k[10];
+    k[0] = makeKey("open", 0.14f, Target::Hold);
+    k[0].action = Action::Open;
+    k[0].cond = Cond::Closed;
+    k[0].ease = Ease::Out;
+    k[0].gunRot = glm::vec3{-10.f, 25.f, -55.f}; // (the flick towards the cylinder's side)
+    k[0].gunOfs = move;
+    k[1] = makeKey("eject", 0.26f, Target::Hold);
+    k[1].gunRot = glm::vec3{-55.f, 25.f, -30.f}; // (the muzzle up: the spent shells drop out)
+    k[1].gunOfs = move;
+    k[2] = makeKey("reach", 0.24f, Target::Pouch);
+    k[2].gunTime = 0.2f;
+    k[3] = makeKey("grip", 0.06f, Target::Pouch);
+    k[3].action = Action::Take;
+    k[4] = makeKey("carry", 0.24f, Target::Mouth);
+    k[4].arc = 3.f;
+    k[4].approach = 4.f; // (out past the face's reach: the pair goes in at its chambers, not on the way)
+    k[5] = makeKey("insert", 0.1f, Target::Dest);
+    k[5].action = Action::Insert;
+    k[6] = makeKey("reach again", 0.22f, Target::Pouch);
+    k[6].arc = 3.f;
+    k[7] = makeKey("close", 0.14f, Target::Rest);
+    k[7].action = Action::Close;
+    k[7].cond = Cond::Loaded;
+    k[7].ease = Ease::Out;
+    k[7].finish = true;
+    k[7].gunRot = glm::vec3{20.f, 10.f, 35.f}; // (the flick the other way)
+    k[8] = makeKey("return", 0.22f, Target::Rest);
+    k[8].gunTime = 0.18f;
+    k[8].finish = true;
+    for(int i = 2; i < 7; i++)
+    {
+        if(k[i].target == Target::Pouch)
+        {
+            k[i].handOfs = pouchOfs;
+            k[i].handRot = pouchRot;
+        }
+        k[i].gunRot = tilt;
+        k[i].gunOfs = move;
+    }
+    for(int i = 0; i < 9; i++)
+    {
+        r.keys[i] = k[i];
+    }
+    r.keyCount = 9;
+    r.loopFrom = 3;
+    r.loopTo = 6;
+    return r;
+}
+
 // The built-in reload of gun `i` (gunNames). The magazine guns' tilts: the nailgun's and the thunderbolt's wells under them
 // rolled in and up to the free hand as the shotgun's port; the super nailgun's on its inner side, already the free hand's,
 // turned in; the nail pistol's up its grip, the grip's foot turned forward and in.
@@ -228,6 +348,14 @@ Reload builtInAt(int i)
         case WID_SUPER_NAILGUN: return magazine(i, {-10.f, 40.f, -10.f}, {3.f, -1.f, -1.f}, {0.f, 0.f, -25.f}, 4.f);
         case WID_LIGHTNING: return magazine(i, {-15.f, 45.f, 55.f}, {3.f, -1.f, -2.f}, {12.f, 0.f, 10.f}, 4.f);
         case WID_NAILPISTOL: return magazine(i, {-35.f, 30.f, 45.f}, {3.f, -1.f, -1.f}, {15.f, 0.f, 0.f}, 3.f);
+        // (reloadmuzzle: the muzzle up and across the view to the free hand, in sight: the rocket launcher's longer tube less up.)
+        case WID_GRENADE_LAUNCHER:
+            return launcher(WID_GRENADE_LAUNCHER, "grenadelauncher", 3.f, glm::vec3{-30.f, 60.f, 0.f}, glm::vec3{4.f, 2.f, -2.f});
+        case WID_PROXIMITY_GUN:
+            return launcher(WID_PROXIMITY_GUN, "proxlauncher", 3.f, glm::vec3{-30.f, 60.f, 0.f}, glm::vec3{4.f, 2.f, -2.f});
+        case WID_ROCKET_LAUNCHER:
+            return launcher(WID_ROCKET_LAUNCHER, "rocketlauncher", 4.f, glm::vec3{-25.f, 65.f, 0.f}, glm::vec3{2.f, 2.f, -4.f});
+        case WID_REVOLVER: return revolver();
         default: return shotgun();
     }
 }

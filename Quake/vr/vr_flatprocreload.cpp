@@ -48,6 +48,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
 #include "vr_held.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_protocol.hpp"
 #include "vr_reloadsys.hpp"
 #include "vr_tunables.hpp"
@@ -55,6 +56,9 @@
 #include "vr_weapon_ids.h"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -120,6 +124,12 @@ struct ProcState
     glm::vec3 portIn{0.f};
     glm::vec3 faceIn{0.f, 0.f, -1.f};
     bool portKnown{false};
+    // The item's destination as last measured in the same frame (reloadmuzzle): the port, or the revolver's empty chamber's
+    // mouth (a taped pair: between two empty chambers', `acrossIn` from the first to the second; else none) and its number.
+    glm::vec3 destIn{0.f};
+    glm::vec3 acrossIn{0.f};
+    int chamber{-1};
+    int aimed{-1}; // (the chamber the item in the hand was aimed at last: the debug print as it goes in)
     // The magazine seated (a receiver's destination, reloadmags): its middle and its model's axes in the gun hand's frame.
     glm::vec3 seatIn{0.f};
     glm::mat3 seatAxesIn{1.f};
@@ -142,20 +152,25 @@ ProcState ps;
 // The item as it sits in the free hand (forward, left, up in the hand's frame; its model's axes in the hand's): measured at
 // each real take (measureRound, held::placeInHand: the server's own place for it); before one, as measured on the shotgun
 // (prlfix, 2026-11-28). The trip's backwards solve and the lock's drawn pair use it.
+// reloadmuzzle: `axis` the way it goes in (a launcher's round's nose, a slug's front: +x; the multi-grenade's +z), `across` a
+// taped pair's line from one shell to the other (its model's frame); `ref` is a launcher's round's butt too (QC
+// VR_Reload_RoundRef).
 struct ItemInHand
 {
     glm::vec3 at{-0.30f, -0.18f, -1.86f};
     glm::vec3 ref{0.f}; // its reference point (a magazine's feed end, the server's well test: view::heldRoundRef) in its model's frame
     glm::mat3 axes{1.f}; // (measured 1, 0, -0.03 / 0, 1, 0 / 0.03, 0, 1: as the hand)
     float scale{1.f};
+    glm::vec3 axis{1.f, 0.f, 0.f};
+    glm::vec3 across{0.f}; // (none: a single round)
 };
 ItemInHand item;
 // Each gun's item as last measured (reloadmags: a magazine sits in the hand unlike a pair), by its reload's weapon; `item`
 // is the gun's in hand (useItemOf).
 struct ItemMemory
 {
-    int weapon[8]{};
-    ItemInHand items[8];
+    int weapon[16]{};
+    ItemInHand items[16];
     int count{0};
     int current{0}; // (the weapon `item` is for)
 };
@@ -191,7 +206,7 @@ void keepItemOf(int weapon)
             return;
         }
     }
-    if(itemMem.count < 8)
+    if(itemMem.count < 16)
     {
         itemMem.weapon[itemMem.count] = weapon;
         itemMem.items[itemMem.count++] = item;
@@ -234,6 +249,8 @@ constexpr int procBitBase = 16; // STAT_QVR_FLATRELOAD: 16 the off hand's gun, 3
 constexpr int procOnBit = 64;   // the procedural reload on: the pouch shown (QC VR_FLATRL_PROC_ON)
 constexpr int ssgOpenFlag = 32; // STAT_QVR_WEAPONFLAGS: QC QVR_WPNFLAG_SSG_OPEN
 constexpr int noMagFlag = 16;   // and QVR_WPNFLAG_NOMAG (a magazine gun with none in)
+constexpr int rvOpenBit = 4096; // STAT_QVR_REVOLVER(2): its cylinder swung out (QC VR_Revolver_HandFrame's hud)
+constexpr int rvChambers = 6;
 constexpr float pi = 3.14159265f;
 constexpr float attachTime = 0.12f; // (s: the drawn free hand onto the drawn gun and off it, attachDrawn)
 constexpr float gripTime = 0.08f;   // (s: the free hand's fingers onto the item and off it, gripShare)
@@ -278,11 +295,23 @@ constexpr float gripTime = 0.08f;   // (s: the free hand's fingers onto the item
     return h == HAND_MAIN ? 1.f : -1.f; // (mirrored for the left hand)
 }
 
+[[nodiscard]] int revolverBits(int h)
+{
+    return cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2];
+}
+
+// Whether the gun in hand `g` is open: the super shotgun broken open, the revolver's cylinder swung out.
+[[nodiscard]] bool gunOpen(int g)
+{
+    // (A magazine gun with no magazine in, too: reloadmags.)
+    return weaponOf(g) == WID_REVOLVER ? (revolverBits(g) & rvOpenBit) != 0 : (flagsOf(g) & (ssgOpenFlag | noMagFlag)) != 0;
+}
+
 // A key's condition on the gun in hand `g` now.
 [[nodiscard]] bool condMet(Cond c, int g)
 {
-    // (Open: the super shotgun broken open, a magazine gun with no magazine in: reloadmags.)
-    const bool open = (flagsOf(g) & (ssgOpenFlag | noMagFlag)) != 0;
+    // (Open: the super shotgun broken open, a magazine gun with no magazine in: reloadmags; the revolver swung out.)
+    const bool open = gunOpen(g);
     switch(c)
     {
         case Cond::Closed: return !open;
@@ -442,6 +471,72 @@ void measurePort(int g)
     ps.portKnown = glm::length(ps.portIn) < 48.f;
 }
 
+// The revolver's chamber `i`'s mouth on its swung-out cylinder's back face, as drawn, off its load point (the face's middle),
+// in the world. False: no revolver drawn in `g`.
+[[nodiscard]] bool chamberOff(int g, int i, glm::vec3& off)
+{
+    glm::vec3 c, deep, end, m, mw, cw;
+    if(!view::loadPath(g, c, deep, end) || !view::revolverChamberPath(g, i, m, deep, end) || !view::gunToWorld(g, c, cw) ||
+       !view::gunToWorld(g, m, mw))
+    {
+        return false;
+    }
+    off = mw - cw;
+    return true;
+}
+
+// The item's destination for reload `r` of the gun in `g` (after measurePort; the same frame): the port; the revolver's
+// (Dest::CylinderSlot) the first empty chamber's mouth, a taped pair's middle between the first two empty side by side
+// (vr_revolver_shell_pairs: the server puts its two slugs into the empty chambers nearest it, QC VR_Revolver_ChamberFor), its
+// line from one to the other. Remade every frame; the chamber changes only as one is filled.
+void measureDest(int g, const Reload& r)
+{
+    ps.destIn = ps.portIn;
+    ps.acrossIn = glm::vec3{0.f};
+    ps.chamber = -1;
+    if(r.dest != reloadsys::Dest::CylinderSlot || weaponOf(g) != WID_REVOLVER)
+    {
+        return;
+    }
+    const int bits = revolverBits(g);
+    const auto empty = [&](int i) { return ((bits >> (2 * (i % rvChambers))) & 3) == 0; };
+    const int ent = ps.trip.on ? carriedEnt(ps.trip.free) : 0;
+    const qmodel_t* inHand = ent > 0 && ent < cl.num_entities ? cl_entities[ent].model : nullptr;
+    const bool pair = inHand ? ZA_STRSTR(inHand->name, "pair") != nullptr : vr_revolver_shell_pairs.value != 0.f;
+    int first = -1, second = -1;
+    for(int i = 0; i < rvChambers && second < 0; i++)
+    {
+        if(empty(i) && pair && empty(i + 1))
+        {
+            first = i;
+            second = (i + 1) % rvChambers;
+        }
+        else if(empty(i) && first < 0)
+        {
+            first = i;
+        }
+    }
+    if(!pair)
+    {
+        second = -1;
+    }
+    const hands::State& cur = hands::current();
+    const glm::mat3 toHand = glm::transpose(held::axesFromAngles(&cur.rot[g][0], true));
+    glm::vec3 a, b;
+    if(first < 0 || !chamberOff(g, first, a))
+    {
+        return; // (none empty: the face's middle)
+    }
+    ps.chamber = first;
+    if(second >= 0 && chamberOff(g, second, b))
+    {
+        ps.destIn = ps.portIn + toHand * ((a + b) * 0.5f);
+        ps.acrossIn = toHand * (b - a);
+        return;
+    }
+    ps.destIn = ps.portIn + toHand * a;
+}
+
 // The carried item's place in the free hand's frame: where it sits in the hand (vr_held.cpp placeInHand: the server's own
 // place for it in the hand, its .carry_offset), not where the entity is drawn (interpolated, a frame's walk behind on the
 // move; prlmove).
@@ -460,12 +555,27 @@ bool measureRound(int free)
     item.at = in;
     item.axes = axes;
     item.scale = ENTSCALE_DECODE(cl_entities[ent].scale);
-    // (Its reference point off its origin, in its model's frame as drawn: a shell's its middle, 0.)
+    // (Its reference point off its origin, in its model's frame as drawn: a shell's its middle, 0; a launcher's round's butt.)
     const entity_t& e = cl_entities[ent];
     item.ref = glm::transpose(held::axesFromAngles(&e.angles[0], false)) * (ref - geom::vec(e.origin));
     if(glm::length(item.ref) > 16.f)
     {
         item.ref = glm::vec3{0.f};
+    }
+    // reloadmuzzle: the way it goes in (a launcher's round's nose: +x, the multi-grenade's +z) and a taped pair's shells side
+    // by side along its model's wider side.
+    item.axis = glm::vec3{1.f, 0.f, 0.f};
+    item.across = glm::vec3{0.f};
+    if(const qmodel_t* m = e.model)
+    {
+        if(modelmeta::is(m, modelmeta::Id::Mervup))
+        {
+            item.axis = glm::vec3{0.f, 0.f, 1.f};
+        }
+        else if(ZA_STRSTR(m->name, "pair"))
+        {
+            item.across = (m->maxs[1] - m->mins[1]) >= (m->maxs[2] - m->mins[2]) ? glm::vec3{0.f, 1.f, 0.f} : glm::vec3{0.f, 0.f, 1.f};
+        }
     }
     keepItemOf(ps.trip.weapon);
     if(debugOn())
@@ -575,6 +685,57 @@ void lockPrev_f()
     lockStep(-1);
 }
 
+// The skew matrix of `v` (k * x = v cross x).
+[[nodiscard]] glm::mat3 skew(const glm::vec3& v)
+{
+    return glm::mat3{glm::vec3{0.f, v.z, -v.y}, glm::vec3{-v.z, 0.f, v.x}, glm::vec3{v.y, -v.x, 0.f}};
+}
+
+// The turn of `angle` radians about the unit `axis`.
+[[nodiscard]] glm::mat3 turnAbout(const glm::vec3& axis, float angle)
+{
+    const glm::mat3 k = skew(axis);
+    return glm::mat3{1.f} + k * za::sin(angle) + k * k * (1.f - za::cos(angle));
+}
+
+// The shortest turn taking the unit `from` onto the unit `to`.
+[[nodiscard]] glm::mat3 turnOnto(const glm::vec3& from, const glm::vec3& to)
+{
+    const float c = glm::dot(from, to);
+    if(c < -0.9999f)
+    {
+        const glm::vec3 p = glm::normalize(glm::cross(from, za::abs(from.x) < 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f}));
+        return turnAbout(p, pi);
+    }
+    const glm::mat3 k = skew(glm::cross(from, to));
+    return glm::mat3{1.f} + k + k * k * (1.f / (1.f + c));
+}
+
+// reloadmuzzle: the item put on its way in, in the gun hand's frame (the destination's measures, measurePort / measureDest):
+// at the muzzle its axis out of the opening (a round lies nose out, butt first in), into a revolver's chamber along the bore
+// (a slug front first), a taped pair then turned about that way to lie along its two chambers (the nearer way round). The port
+// and the super shotgun's chambers: none (their item turn is his, baked whole).
+[[nodiscard]] glm::mat3 alignOf(const Reload& r)
+{
+    if((r.dest != reloadsys::Dest::Muzzle && r.dest != reloadsys::Dest::CylinderSlot) || glm::length(ps.faceIn) < 1e-3f)
+    {
+        return glm::mat3{1.f};
+    }
+    const glm::vec3 way = glm::normalize(r.dest == reloadsys::Dest::Muzzle ? ps.faceIn : -ps.faceIn);
+    glm::mat3 a = turnOnto(glm::normalize(item.axis), way);
+    const glm::vec3 across = a * item.across;
+    const glm::vec3 have = across - way * glm::dot(across, way);
+    const glm::vec3 want = ps.acrossIn - way * glm::dot(ps.acrossIn, way);
+    if(glm::length(have) > 1e-3f && glm::length(want) > 1e-3f)
+    {
+        const glm::vec3 h = glm::normalize(have), w = glm::normalize(want);
+        float angle = za::atan2(glm::dot(glm::cross(h, w), way), glm::dot(h, w));
+        angle = angle > 0.5f * pi ? angle - pi : (angle < -0.5f * pi ? angle + pi : angle);
+        a = turnAbout(way, angle) * a;
+    }
+    return a;
+}
+
 // The free hand's target this frame for key `k` (its pose as `s` has it now, before the trip moves it; the gun in `g` posed
 // already): place and turn. Hold: `held` (where it was). The port and its opening's way into `port`, `face`.
 void target(const hands::State& s, int f, int g, const Reload& r, const Key& k, const glm::vec3& heldPos, const glm::vec3& heldRot,
@@ -591,13 +752,16 @@ void target(const hands::State& s, int f, int g, const Reload& r, const Key& k, 
     const bool toItem = k.target == Target::Mouth || k.target == Target::Dest;
     const glm::mat3 turns = held::axesFromAngles(&mirrorRot(toItem ? k.handRot : glm::vec3{0.f}, side)[0], true) *
                             held::axesFromAngles(&mirrorRot(r.itemRot, side)[0], true);
-    const glm::mat3 itemDest = seat ? seatAxes * turns : gunAxes * turns;
-    const glm::vec3 loadPt = s.pos[g] + gunAxes * ps.portIn;
-    const glm::vec3 port = seat ? loadPt - itemDest * item.ref : loadPt;
+    // reloadmuzzle: at the muzzle and the revolver's chambers the item's axis is first put on the way in (a round nose out
+    // along the barrel, butt first; a slug front first along the bore; a taped pair turned about it to lie along its two
+    // chambers: alignOf), the reload's and the key's turns tweaks on top. Its reference (a round's butt) goes to the
+    // destination (the port; the revolver's empty chambers' mouths: ps.destIn).
+    const glm::mat3 itemDest = seat ? seatAxes * turns : gunAxes * turns * alignOf(r);
+    const glm::vec3 loadPt = s.pos[g] + gunAxes * ps.destIn;
     const glm::vec3 face = seat ? -seatAxes[2] : glm::normalize(gunAxes * ps.faceIn);
     if(portOut)
     {
-        *portOut = port;
+        *portOut = seat ? loadPt - itemDest * item.ref : loadPt; // (the item's destination: its middle seated, the port, a chamber)
     }
     switch(k.target)
     {
@@ -616,9 +780,9 @@ void target(const hands::State& s, int f, int g, const Reload& r, const Key& k, 
             // (the port, out of its opening by the approach; the key's offset in the gun's frame: forward, left, up, the right
             // mirrored), then the hand that holds it there as it sits in the hand.
             const float out = za::max(k.target == Target::Mouth ? k.approach : 0.f, vr_flat_prl_test_miss.value);
-            const glm::vec3 itemAt = port + face * out + gunAxes * glm::vec3{k.handOfs.x, side * k.handOfs.y, k.handOfs.z};
+            const glm::vec3 itemAt = loadPt + face * out + gunAxes * glm::vec3{k.handOfs.x, side * k.handOfs.y, k.handOfs.z};
             const glm::mat3 hand = itemDest * glm::transpose(item.axes);
-            pos = itemAt - hand * item.at;
+            pos = itemAt - itemDest * item.ref - hand * item.at;
             held::anglesFromAxes(hand, &rot[0], true);
             return;
         }
@@ -676,7 +840,10 @@ void playKey(hands::State& s, int f, int g, const Reload& r, int k, const Offset
     const glm::vec3 toFree = pos - port;
     const glm::vec3 face = glm::normalize(held::axesFromAngles(&s.rot[g][0], true) * ps.faceIn);
     ps.faceToFree = glm::length(toFree) > 1e-3f ? glm::dot(face, glm::normalize(toFree)) : 0.f;
-    ps.portGap = glm::distance(pos + held::axesFromAngles(&rot[0], true) * item.at, port);
+    const glm::mat3 handAxes = held::axesFromAngles(&rot[0], true);
+    // (Its test point against the destination: a seated magazine's middle, else its reference: a launcher's round's butt.)
+    const bool middle = r.dest == reloadsys::Dest::Receiver && ps.seatKnown;
+    ps.portGap = glm::distance(pos + handAxes * item.at + (middle ? glm::vec3{0.f} : handAxes * item.axes * item.ref), port);
 }
 
 // The end pose of key `k` (its targets reached), from the end of the keys before it (the lock: each key's pose made from
@@ -756,6 +923,7 @@ bool lockFrame(int value)
         lk.shown = value;
     }
     measurePort(g);
+    measureDest(g, r);
     return true;
 }
 
@@ -947,6 +1115,7 @@ void frame(bool on)
         }
     }
     measurePort(t.gun);
+    measureDest(t.gun, *r);
     key = &r->keys[t.key];
     t.t = za::min(1.f, t.t + step / reloadsys::handTime(*key));
     t.gt = za::min(1.f, t.gt + step / reloadsys::gunTime(*key));
@@ -977,6 +1146,10 @@ void frame(bool on)
     {
         t.measured = measureRound(t.free); // (until its entity is in the hand as drawn)
     }
+    if(carried > 0)
+    {
+        ps.aimed = ps.chamber;
+    }
     if(t.hadItem && carried == 0 && !t.ending)
     {
         t.hadItem = false;
@@ -984,8 +1157,9 @@ void frame(bool on)
         (in ? ps.seated : ps.dropped)++;
         if(debugOn())
         {
-            Con_Printf("flatprocreload: the round %s (key %d %s %.2f s in; clip %d; fingers %.2f, grip %.2f)\n", in ? "went in" : "left the hand",
-                t.key + 1, key->name, since, clipOf(t.gun), view::drawnGripCurl(t.free), gripShare(t.free));
+            Con_Printf("flatprocreload: the round %s (key %d %s %.2f s in; clip %d; fingers %.2f, grip %.2f; aimed at chamber %d)\n",
+                in ? "went in" : "left the hand", t.key + 1, key->name, since, clipOf(t.gun), view::drawnGripCurl(t.free), gripShare(t.free),
+                ps.aimed);
         }
         const int n = insert >= 0 ? reloadsys::nextKey(*r, insert, up, cond) : -1;
         if(!up)
@@ -1156,6 +1330,11 @@ bool lockPair(int& hand, float& scale)
     return lk.on && lk.pair;
 }
 
+int lockItemSkin()
+{
+    return lk.weapon == WID_REVOLVER ? 1 : 0; // (reloadmuzzle: the revolver's blue slugs)
+}
+
 glm::vec3 lockPairPlace(const glm::vec3& handPos, const glm::vec3& handRot, glm::mat3& axes)
 {
     const glm::mat3 hand = held::axesFromAngles(&handRot[0], true);
@@ -1171,6 +1350,11 @@ const char* lockItemModel()
         case WID_SUPER_NAILGUN: return "progs/vr_mag_snail.mdl";
         case WID_LIGHTNING: return "progs/vr_mag_light.mdl";
         case WID_NAILPISTOL: return "progs/vr_mag_npistol.mdl";
+        // (reloadmuzzle: the launchers' rounds, the revolver's slugs.)
+        case WID_ROCKET_LAUNCHER: return "progs/vr_round_rocket.mdl";
+        case WID_GRENADE_LAUNCHER: return "progs/grenade.mdl";
+        case WID_PROXIMITY_GUN: return "progs/proxbomb.mdl";
+        case WID_REVOLVER: return vr_revolver_shell_pairs.value != 0.f ? "progs/vr_shell_pair.mdl" : "progs/vr_shell_live.mdl";
         default: return "progs/vr_shell_pair.mdl";
     }
 }

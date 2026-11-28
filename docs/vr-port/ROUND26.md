@@ -5722,3 +5722,40 @@ His words (kit `scratch/fb1127n/reload_words_1128.md`, the magazine paragraph): 
   jump, crouch, slide x 60 / 144 fps, partly fired: the eject key, the rounds back, one magazine seated, no failsafe).
   Scenario `flat_proc_reload` spawns the four guns. Strips for his review: worktree `scratch/reloadmags_strip_ng.png`
   (bottom well) and `scratch/reloadmags_strip_sng.png` (side), the lock on each key after a real reload.
+
+## reloadmuzzle: the launchers loaded at the muzzle and the heavy revolver's cylinder on the procedural reload (branch agent/reloadmuzzle, 2026-11-28)
+
+His words (kit `scratch/fb1127n/reload_words_1128.md`): the launchers' gun hand turns the muzzle to the free hand, which puts
+the rockets and grenades in; the revolver's cylinder breaks out, its spent shells go, the hand brings a shell or a pair
+into the empty slots, a flick of the wrist closes it. Reload phase 3 on reloadsys' keyframes (flat-screen, vr_flat_proc_reload).
+- **The guns** (`vr_reloadsys.cpp`: `grenadelauncher`, `proxlauncher`, `rocketlauncher`, `revolver`; their blocks in
+  `quakevr/data/reloads.txt`; the mission packs' multi-grenades/rockets are the same guns' other ammo): QC
+  `VR_FlatReload_ProcWanted` takes `VR_Reload_IsFront` guns (vr_reload_front) and the revolver. VR's own paths load them:
+  `VR_Reload_Take` (a launcher's round, a taped pair of slugs with vr_revolver_shell_pairs, one for one empty chamber),
+  `VR_Reload_HeldFrame` (the muzzle's butt-first test; `VR_Revolver_LoadInto`'s nearest empty chambers). No new load path.
+- **Backwards solve** (`vr_flatprocreload.cpp`): `Dest::Muzzle` and `Dest::CylinderSlot` first put the item's axis on the way
+  in (`alignOf`: a round nose out along the barrel, the multi-grenade's +z; a slug front first along the bore; a pair turned
+  about the bore to lie along its two chambers), `item_rot` and the key's turn tweaks on top (default 0); the item's
+  reference (a round's butt, view::heldRoundRef) goes to the destination. The revolver's destination (`measureDest`): the first
+  empty chamber's mouth on the swung-out cylinder as drawn (`view::revolverChamberPath`), a pair's middle between the first two
+  empty side by side; remade every frame. Its carry stops 4 units out (past the face's reach) so the pair goes in at its
+  chambers, not on the way (measured: aimed 0/2/4, loaded 0+1, 2+3, 4+5).
+- **The revolver's keys**: open (if closed: impulse 107, `VR_FlatReload_ProcOpen` swings it out: `VR_FlatReload_RvOpen`, its
+  spent out 0.24 s later, live ones kept: the spent-first order), eject (the muzzle up while they drop), reach, grip, carry,
+  insert, reach again (loop), close (if loaded: a flick the other way, impulse 108: `VR_Revolver_Close`), return. Its VR
+  gestures (flicks, push, button) are off on a flat procedural reload (vr_revolver.qc); left out and loaded at its end it waits
+  for the close key (`vr_fprl_closeh`, a second's failsafe), as the super shotgun. The take forces a pending spent eject.
+- **Poses** (a start for his Reload Studio tuning): the launchers' muzzle up and across the view to the free hand (grenade/prox
+  tilt -30 60 0, move 4 2 -2; rocket -25 65 0, 2 2 -4); the revolver presented muzzle down, cylinder in (50 25 -40, 8 3 0).
+- **Fixes on the way**: the launcher's grenade from the pouch was adopted as a quick grenade (`VR_FlatGrenade_Adopt`) and
+  flatgrenade posed the free hand in its hold, 7 units off the muzzle: a procedural reload's round is skipped now. The pouch
+  shows the gun's rounds while a flat procedural reload runs (`VR_Reload_PlayerFrame`). The lock draws the gun's item
+  (`lockItemModel`, `lockItemSkin`: rocket, grenade, prox, the revolver's blue slugs). Debug: `vr_reload_debug 2`'s held-round
+  line adds the round's origin and the hand; the "went in" line names the chamber aimed at.
+- **Tests**: `flatprocreload_test.sh qtune muzzle` 24/0 (gl, px, rl, rlrun: 4 a round at a time, nothing lost; rv: 2 fired,
+  opened by the flick, a pair, closed; rvempty: 6 fired, out by itself, 3 pairs, closed; rvfire: a shot cancels, closed with
+  what went in; rllock), `matrix-gl/-px/-rl/-rv` 10/0 each (stand, run, jump, crouch, slide x 60/144), `base` 67/0 after the
+  merge with reloadmags. Scenario `flat_proc_reload` now spawns the launchers and the revolver.
+- **Open**: the drawn rocket meets the port a hand's width past the rocket launcher's drawn muzzle in the strips (the server's
+  test passes: the port is the Load Point's `vr_reload_port_rl_*`; worth his eye and a Load Point tweak); strips for his review:
+  worktree `scratch/rm_strip_rl.png`, `scratch/rm_strip_rv.png` (real reloads, before the merge: the same poses).

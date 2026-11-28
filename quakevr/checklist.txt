@@ -49,6 +49,9 @@ Flat-screen: reload a magazine gun while running, jumping, crouching and sliding
 Flat-screen: Debug > Tools > Flatscreen: Reload Studio lists the nailgun, super nailgun, thunderbolt and nail pistol; Hold This Gun on each, lock the carry and insert keys: the gun's magazine is in the free hand, and the tilts can be tuned and saved. {test:flat_proc_reload}
 On the Quest, play Scourge of Armagon's first map with the flashlight on, into its first fights: it should run smoother than before, and the flashlight's light on the walls should look exactly the same. {test:campaign_music}
 On the Quest, in Scourge of Armagon's first map, toggle Debug > Profiling and Memory > Lightmap Lights Only Where They Reach Off and On while the flashlight lights a wall: no visible change in the light. {test:campaign_music}
+Flat-screen: fire the rocket launcher or the grenade launcher empty and press R: the gun turns its muzzle up and across to the free hand, which pushes rockets or grenades into the muzzle one at a time until it is full; the pose is a start for tuning in the Reload Studio. {test:flat_proc_reload}
+Flat-screen: fire the heavy revolver and press R: a wrist flick swings the cylinder out, the muzzle tips up while the spent shells drop out, then taped pairs go into the empty chambers and a flick back closes it. Does each pair look like it goes into its own chambers? {test:flat_proc_reload}
+Flat-screen: during the rocket launcher's reload, watch the rocket meet the muzzle: is it right at the drawn muzzle, or a hand's width out past it? {test:flat_proc_reload}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
