@@ -5645,7 +5645,7 @@ row and a mask.
 ## godfallout: the tests that now really get god/notarget/give/setpos; agrunt 16; posekeys 5 (branch agent/godfallout, 2026-11-28)
 
 The 54 test scripts of alwaysfail2's scan (57 files: the other three are a comment in vr_client.cpp, vr_playerplates_test.qc's
-header and a Debug menu entry) run on origin/next 38725e2f7 (Release, 2 lanes, each script under 780 s; scratch/gf_run57.py).
+header and a Debug menu entry) run on origin/next b36d74214 (Release, 2 lanes, each script under 780 s; scratch/gf_run57.py).
 What they asked for right after `map` reaches the server since alwaysfail2: god and notarget, and also a **setpos** (which
 turns noclip on). 40 pass, 5 give no verdict line (below); the changed ones ("before": the last count recorded in ROUND26):
 
