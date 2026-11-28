@@ -2048,7 +2048,7 @@ QVR_TUNABLE(vr_flat_swap_things, "1") // 1: what a hand carries (a prop, a gib, 
 // Flatscreen > Visor Boot (vr_visor.cpp; vr_flat_visor_boot_seq; visorboot 2026-11-28). Then the sweep: vr_flat_visor_boot.
 QVR_TUNABLE(vr_flat_visor_boot_dark, "0.3") // seconds with no panels at all as the boot starts (its sound starting)
 QVR_TUNABLE(vr_flat_visor_boot_fade, "0.5") // then the seconds the panels take to fade in, glitching
-QVR_TUNABLE(vr_flat_visor_boot_glitch, "0.6") // the fade's glitch: flicker, tearing and colour fringes (0 none .. 2)
+QVR_TUNABLE(vr_flat_visor_boot_glitch, "2") // the fade's glitch: flicker, tearing and colour fringes (0 none .. 2)
 QVR_TUNABLE(vr_flat_visor_boot_volume, "0.6") // the boot's power-up sound (vr/visor_boot.wav; 0: silent)
 
 // Flatscreen > Quick Grenade (vr_flatgrenade.cpp, QC vr_flatgrenade.qc; vr_flat_key_grenade). Places off the hand's

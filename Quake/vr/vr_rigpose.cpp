@@ -94,10 +94,14 @@ namespace
 {
 // along()'s work, with `keyOf(i, b)` bone b's key in the i-th of the four poses.
 template <typename KeyOf>
-void alongBy(const ragdoll::Rig& rig, const KeyOf& keyOf, const Spline& s, uint32_t alone, Rigid* out)
+void alongBy(const ragdoll::Rig& rig, const KeyOf& keyOf, const Spline& s, uint32_t alone, Rigid* out, uint32_t want)
 {
     for(int b = 0; b < rig.numBones; b++)
     {
+        if(!(want & (1u << b)))
+        {
+            continue;
+        }
         const ragdoll::Bone& bone = rig.bones[b];
         Rigid k[4];
         glm::quat q[4];
@@ -127,14 +131,28 @@ void along(const ragdoll::Rig& rig, const int poses[4], const Spline& s, uint32_
     along(rig, nullptr, poses, s, alone, out);
 }
 
-void along(const ragdoll::Rig& rig, const Rigid* keys, const int poses[4], const Spline& s, uint32_t alone, Rigid* out)
+void along(const ragdoll::Rig& rig, const Rigid* keys, const int poses[4], const Spline& s, uint32_t alone, Rigid* out,
+    uint32_t want)
 {
-    alongBy(rig, [&](int i, int b) { return keys ? keys[poses[i] * rig.numBones + b] : key(rig, poses[i], b); }, s, alone, out);
+    alongBy(rig, [&](int i, int b) { return keys ? keys[poses[i] * rig.numBones + b] : key(rig, poses[i], b); }, s, alone, out,
+        want);
 }
 
-void alongSlots(const ragdoll::Rig& rig, const Rigid (*keys)[ragdoll::maxBones], const Spline& s, uint32_t alone, Rigid* out)
+void alongSlots(const ragdoll::Rig& rig, const Rigid (*keys)[ragdoll::maxBones], const Spline& s, uint32_t alone, Rigid* out,
+    uint32_t want)
 {
-    alongBy(rig, [&](int i, int b) { return keys[i][b]; }, s, alone, out);
+    alongBy(rig, [&](int i, int b) { return keys[i][b]; }, s, alone, out, want);
+}
+
+uint32_t wantWithParents(const ragdoll::Rig& rig, uint32_t want)
+{
+    // (parents come before their children: alongBy's rooted test; from the last bone down, each wanted one's parent added)
+    for(int b = rig.numBones - 1; b >= 0; b--)
+    {
+        const int p = rig.bones[b].parent;
+        want |= (want & (1u << b)) && p >= 0 && p < b ? 1u << p : 0u;
+    }
+    return want;
 }
 
 Rigid fitRigid(const glm::vec3* a, const glm::vec3* b, int n)
