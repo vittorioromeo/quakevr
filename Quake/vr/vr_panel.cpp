@@ -811,6 +811,7 @@ extern "C" void VR_End2D(void (*windowHud)())
         toolgun::panel::drawFlat(); // (flatscreen play: the toolgun's panel over the window, its cursor on it)
         flatholster::draw(); // (flatscreen play: the holster menu, its cursor on it: vr_flatholster.cpp)
         weaponwheel::drawFlat(); // (flatscreen play: the weapon wheel on 1 / 2 held, where that hand is: vr_weaponwheel.cpp)
+        menuui::drawPadCursor(); // (a gamepad's cursor over the menus: vr_menuui.cpp, padflat)
         return;
     }
     drawingToCanvas = false;

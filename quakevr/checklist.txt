@@ -59,6 +59,10 @@ On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution
 ## Grab, hold and push
 ## Spear and Crystal Lance
 Flat-screen: with the shotgun in one hand and the other empty, fire then press R: the free hand goes to the ammo pouch on your belt, brings a taped pair to the port under the shotgun (tilted to meet it) and back, two shells a trip until full; say how the speed, the tilt and the hand's path feel. {test:flat_proc_reload}
+Flat-screen: with a gamepad every common action has a button: RT/LT fire, A jump, B crouch, X reload, Y shove, R3 punch, LB/RB tap to cycle or hold for that hand's weapon wheel, L3 held the holster menu, the d-pad flashlight/grenade/throw/force grab, and Back held a second layer (lie down, grab/pull, next ammo, swap hands, attach, bullet time, scoreboard); check each feels natural. {test:flat_gamepad}
+Flat-screen: with a gamepad, the weapon wheel (LB/RB held) picks the slot the right stick points at, and the holster menu (L3 held) moves its cursor with the right stick; check the view does not turn meanwhile. {test:flat_gamepad}
+Flat-screen: in the menus a gamepad's left stick moves a cursor (A clicks what it is on), the d-pad still steps the rows and hides the cursor, and moving the mouse hides it too; check its speed and feel. {test:hub_start}
+Flat-screen: the Controller Bindings screen with a pad shows its flat-play actions (Crouch / slide, Cycle right hand, ...), drag swaps them and Reset to Defaults brings back the new layout. {test:hub_start}
 
 [3. Tutorial and VR interface]
 ## Tutorial

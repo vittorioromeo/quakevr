@@ -1918,6 +1918,19 @@ za::Vector<Item> pageDebugTools()
             .help("vr_bindpanel_device auto: the reminder panels show the controller in use again."),
         command("Reminder Panels Report", "vr_bindpanel_report")
             .help("vr_bindpanel_report: the flat panel's rows (keys or a pad's glyphs) and the headset panel's callouts."),
+        command("Flat Gamepad Layout Test", "vr_flat_pad_test")
+            .help("vr_flat_pad_test (flat play, in a map): the flat-screen gamepad's default layout (every action on a "
+                  "button, none twice), Back's alt layer, filling an older config, reset; the verdict line in the console "
+                  "(FLATPLAY.md \"A gamepad\")."),
+        command("Gamepad Menu Cursor Test", "vr_menu_pad_test")
+            .help("vr_menu_pad_test: on the Controller Bindings screen (an Xbox pad) the left stick's cursor is moved, "
+                  "steered onto B's label and clicked with A, then the d-pad steps; the verdict line in the console."),
+        command("Gamepad Menu Cursor Report", "vr_menu_pad_report")
+            .help("vr_menu_pad_report: the menus' gamepad cursor: shown or hidden, where, its moves, clicks and hides "
+                  "(Tunables > Flatscreen > Gamepad tunes it)."),
+        command("Fill Flat Gamepad Defaults", "vr_flat_pad_defaults_version 0; vr_checkbindings")
+            .help("Runs the once-only fill again: each flat key without a gamepad button gets its default's where no other "
+                  "action has it; Back the alt layer and Back + right stick click the scoreboard where unbound."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),

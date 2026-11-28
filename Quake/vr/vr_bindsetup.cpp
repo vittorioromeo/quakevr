@@ -4,6 +4,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
 #include "vr_testkit.hpp"
@@ -23,6 +24,7 @@ extern "C" {
 extern float m_mousex, m_mousey;   // menu.c: the mouse (the laser) in menu coordinates
 extern qboolean keydown[MAX_KEYS]; // keys.c
 extern char* keybindings[MAX_KEYS]; // keys.c
+extern qboolean joy_altmodifier_pressed; // in_sdl.c: a gamepad's alt layer button held (+altmodifier)
 int Key_StringToKeynum(const char* str);
 void M_Menu_Keys_f(void);
 }
@@ -255,9 +257,77 @@ struct Action
     za::String name;
 };
 
+// The model the screen shows (its binds' context: a gamepad's flat actions, below).
+[[nodiscard]] Model shownModel();
+
+// A gamepad (not a headset's controllers, not the keyboard): its buttons' flat-screen actions (padflat) are the flat keys
+// (vr_flat_key_*, their gamepad button), which win over the buttons' binds in flat play; the binds are the headset's.
+[[nodiscard]] bool flatPad(Model m)
+{
+    return m != Model::Keyboard && static_cast<int>(m) < static_cast<int>(Model::Count) && !info(m).vr;
+}
+
+// A flat key's cvar by its name (an action's command), nullptr: not a flat key.
+[[nodiscard]] cvar_t* flatKeyNamed(const char* command)
+{
+    for(cvar_t* c : flatplay::keyCvars())
+    {
+        if(command && !ZA_STRCMP(c->name, command))
+        {
+            return c;
+        }
+    }
+    return nullptr;
+}
+
+// What `key` does with model `m` shown: with a gamepad its flat key (the cvar's name, the action's command) if it has one,
+// else its bind; "" nothing.
+[[nodiscard]] const char* bindingOf(int key, Model m)
+{
+    if(key < 0)
+    {
+        return "";
+    }
+    if(flatPad(m))
+    {
+        for(const cvar_t* c : flatplay::keyCvars())
+        {
+            if(flatplay::keyIs(*c, key))
+            {
+                return c->name;
+            }
+        }
+    }
+    return keybindings[key] ? keybindings[key] : "";
+}
+
 [[nodiscard]] const char* bindingOf(int key)
 {
-    return key >= 0 && keybindings[key] ? keybindings[key] : "";
+    return bindingOf(key, shownModel());
+}
+
+void setKey(int key, const char* command)
+{
+    if(key < 0)
+    {
+        return;
+    }
+    if(flatPad(shownModel()))
+    {
+        if(cvar_t* flat = flatKeyNamed(command))
+        {
+            flatplay::setPadKey(*flat, key); // (its bind left as it is: the headset's)
+            return;
+        }
+        for(cvar_t* c : flatplay::keyCvars())
+        {
+            if(flatplay::keyIs(*c, key))
+            {
+                flatplay::setPadKey(*c, -1); // (a bind now: no flat key on the button)
+            }
+        }
+    }
+    Key_SetBinding(key, command && command[0] ? command : nullptr);
 }
 
 void swapKeys(int a, int b)
@@ -267,16 +337,8 @@ void swapKeys(int a, int b)
         return;
     }
     const za::String ba{bindingOf(a)}, bb{bindingOf(b)};
-    Key_SetBinding(a, bb.empty() ? nullptr : bb.cStr());
-    Key_SetBinding(b, ba.empty() ? nullptr : ba.cStr());
-}
-
-void setKey(int key, const char* command)
-{
-    if(key >= 0)
-    {
-        Key_SetBinding(key, command && command[0] ? command : nullptr);
-    }
+    setKey(a, bb.cStr());
+    setKey(b, ba.cStr());
 }
 
 // The next token of `s` (a "quoted" one whole), into out; false at the line's end.
@@ -403,6 +465,14 @@ struct Screen
 
 Screen screen;
 
+// (panelButtons' model while it reads a panel's buttons: their binds in its context, not the screen's)
+Model panelModel{Model::Count};
+
+Model shownModel()
+{
+    return panelModel != Model::Count ? panelModel : screen.shown;
+}
+
 constexpr float rowHeight = 10.f; // the action list's rows (menu y)
 constexpr float labelHeight = 19.f; // two lines: the button's name, its action
 
@@ -439,6 +509,11 @@ void buildActions()
     screen.actions.clear();
     screen.actions.pushBack({za::String{}, za::String{"(nothing)"}});
     M_Keys_EachAction(addAction);
+    // A gamepad's flat-screen actions (padflat): the flat keys, listed with a gamepad shown (refilter).
+    for(int i = 0; i < VR_FlatKeyCount(); i++)
+    {
+        addAction(VR_FlatKeyCvarName(i), VR_FlatKeyLabel(i));
+    }
 }
 
 [[nodiscard]] const char* actionName(const char* binding)
@@ -478,16 +553,25 @@ void resetSlots()
         if(s.key >= 0)
         {
             const za::String d = defaultBinding(s.key);
-            setKey(s.key, d.cStr());
+            Key_SetBinding(s.key, d.empty() ? nullptr : d.cStr());
         }
+    }
+    if(flatPad(screen.shown))
+    {
+        flatplay::resetPadKeys(); // (and every flat key's gamepad button its default's: padflat)
     }
 }
 
 void refilter()
 {
     screen.filtered.clear();
+    const bool pad = flatPad(screen.shown);
     for(int i = 0; i < static_cast<int>(screen.actions.size()); i++)
     {
+        if(!pad && flatKeyNamed(screen.actions[i].command.cStr()))
+        {
+            continue; // (the flat keys: a gamepad's in flat play only)
+        }
         if(!screen.search[0] || q_strcasestr(screen.actions[i].name.cStr(), screen.search) ||
             q_strcasestr(screen.actions[i].command.cStr(), screen.search))
         {
@@ -1018,6 +1102,291 @@ void detectTest_f()
     t.verdict("bindsetup_detect_test");
 }
 
+// Every flat key's value, put back by restore() (the tests change them).
+struct FlatKeysSaved
+{
+    za::Vector<za::String> values;
+    FlatKeysSaved()
+    {
+        for(const cvar_t* c : flatplay::keyCvars())
+        {
+            values.pushBack(za::String{c->string});
+        }
+    }
+    void restore() const
+    {
+        int i = 0;
+        for(cvar_t* c : flatplay::keyCvars())
+        {
+            Cvar_SetQuick(c, values[static_cast<za::SizeT>(i++)].cStr());
+        }
+    }
+};
+
+// vr_flat_pad_test (padflat; Misc/quakevr/flatpad_test.sh, flat play in a map): the flat-screen gamepad's default layout
+// (FLATPLAY.md "A gamepad"): every common action on a button, no button twice, the alt layer and its key handling, the
+// defaults filled into an older config, the Controller Bindings screen's view of them.
+void padTest_f()
+{
+    testkit::Tally t;
+    auto check = [&](bool ok, const char* what) { t.check(ok, "flat_pad_test", what); };
+    const FlatKeysSaved flatSaved;
+    for(cvar_t* c : flatplay::keyCvars())
+    {
+        Cvar_SetQuick(c, c->default_string);
+    }
+    // 1. Every listed action's button: the flat keys' (their defaults' gamepad buttons) and the shipped binds'.
+    const struct
+    {
+        const char* what;
+        const cvar_t* flat; // nullptr: a bind (vr_bindings.cfg)
+        int key;
+    } layout[] = {{"fire (main hand)", nullptr, K_RTRIGGER}, {"fire / ironsight / parry (off hand)", nullptr, K_LTRIGGER},
+        {"jump", nullptr, K_ABUTTON}, {"alt layer", nullptr, K_BACK}, {"scoreboard", nullptr, K_RTHUMB_ALT},
+        {"crouch / slide", &vr_flat_key_crouch, K_BBUTTON}, {"lie down", &vr_flat_key_prone, K_ABUTTON_ALT},
+        {"reload", &vr_flat_key_reload, K_XBUTTON}, {"force grab", &vr_flat_key_grab, K_DPAD_RIGHT},
+        {"shove", &vr_flat_key_shove, K_YBUTTON}, {"throw / drop", &vr_flat_key_throw, K_DPAD_LEFT},
+        {"use (grab / pull)", &vr_flat_key_pull, K_BBUTTON_ALT}, {"left weapon wheel", &vr_flat_key_cycle_left, K_LSHOULDER},
+        {"right weapon wheel", &vr_flat_key_cycle_right, K_RSHOULDER}, {"holster menu", &vr_flat_key_holster_menu, K_LTHUMB},
+        {"swap hands", &vr_flat_key_swap, K_YBUTTON_ALT}, {"flashlight", &vr_flat_key_flashlight, K_DPAD_UP},
+        {"quick grenade", &vr_flat_key_grenade, K_DPAD_DOWN}, {"next ammo", &vr_flat_key_ammo, K_XBUTTON_ALT},
+        {"melee (punch)", &vr_flat_key_punch, K_RTHUMB}, {"attach", &vr_flat_key_attach, K_LSHOULDER_ALT},
+        {"bullet time", &vr_flat_key_bullettime, K_RSHOULDER_ALT}};
+    for(const auto& l : layout)
+    {
+        const za::String bind = defaultBinding(l.key);
+        const bool ok = l.flat ? flatplay::keyNumPad(*l.flat) == l.key : !bind.empty();
+        check(ok, va("%s on %s (%s)", l.what, Key_KeynumToString(l.key), l.flat ? l.flat->name : bind.cStr()));
+    }
+    // 2. No gamepad button on two flat keys, nor on a flat key and a bind flat play needs (fire, jump, the alt layer).
+    int dupes = 0, clash = 0, pads = 0;
+    for(int k = K_GAMEPAD_BEGIN; k < K_GAMEPAD_END; k++)
+    {
+        int owners = 0;
+        for(const cvar_t* c : flatplay::keyCvars())
+        {
+            owners += flatplay::keyIs(*c, k) ? 1 : 0;
+        }
+        pads += owners > 0 ? 1 : 0;
+        dupes += owners > 1 ? 1 : 0;
+        clash += owners > 0 && (k == K_RTRIGGER || k == K_LTRIGGER || k == K_ABUTTON || k == K_BACK || k == K_START) ? 1 : 0;
+    }
+    check(dupes == 0 && clash == 0 && pads == 17, va("%d buttons on flat keys, %d on two, %d on fire/jump/alt/menu", pads, dupes, clash));
+    // every flat key's default: two keyboard keys at most, one gamepad button at most
+    int badSlots = 0;
+    for(const cvar_t* c : flatplay::keyCvars())
+    {
+        int pad = 0;
+        for(int s = 0; s < flatplay::keySlots; s++)
+        {
+            pad += flatplay::isPadKey(flatplay::keyNum(*c, s)) ? 1 : 0;
+        }
+        badSlots += pad > 1 || flatplay::keyNumKeyboard(*c, 2) >= 0 ? 1 : 0;
+    }
+    check(badSlots == 0, va("every flat key: <= 2 keyboard keys and <= 1 button (%d not)", badSlots));
+    // 3. Key handling in flat play: B is the crouch's (its bind does not run), the alt layer turns X into X (alt), and
+    // letting go of the alt button first still lets go of X (alt).
+    check(flatplay::active() && VR_FlatKeyOwned(K_BBUTTON) && VR_FlatKeyOwned(K_XBUTTON_ALT) && !VR_FlatKeyOwned(K_ABUTTON),
+        "flat play owns B and X (alt), not A (jump's bind)");
+    check(!ZA_STRCMP(defaultBinding(K_BACK).cStr(), "+altmodifier"), "Back's shipped bind: +altmodifier");
+    joy_altmodifier_pressed = true; // (Back held: its bind's +altmodifier)
+    Key_Event(K_XBUTTON, true);
+    const bool altDown = keydown[K_XBUTTON_ALT] && !keydown[K_XBUTTON] && flatplay::keyHeld(vr_flat_key_ammo) &&
+                         !flatplay::keyHeld(vr_flat_key_reload);
+    joy_altmodifier_pressed = false; // (Back let go first)
+    Key_Event(K_XBUTTON, false);
+    check(altDown && !keydown[K_XBUTTON_ALT] && !keydown[K_XBUTTON], "Back held: X is next ammo (X alt), let go after Back: released");
+    Key_Event(K_XBUTTON, true);
+    const bool plain = keydown[K_XBUTTON] && flatplay::keyHeld(vr_flat_key_reload);
+    Key_Event(K_XBUTTON, false);
+    check(plain && !keydown[K_XBUTTON], "X alone: reload");
+    // 4. An older config: a flat key of its own without a button gets its default's; one whose button another has not.
+    Cvar_SetQuick(&vr_flat_key_reload, "r t");
+    Cvar_SetQuick(&vr_flat_key_grenade, "g");
+    Cvar_SetQuick(&vr_flat_key_flashlight, "f DPAD_DOWN"); // (the grenade's button taken)
+    Cvar_SetValueQuick(&vr_flat_pad_defaults_version, 0.f);
+    flatplay::fillPadDefaults();
+    check(!ZA_STRCMP(vr_flat_key_reload.string, "r t XBUTTON") && !ZA_STRCMP(vr_flat_key_grenade.string, "g") &&
+              !ZA_STRCMP(vr_flat_key_flashlight.string, "f DPAD_DOWN") && vr_flat_pad_defaults_version.value == 1.f,
+        va("fill: reload \"%s\", grenade \"%s\", flashlight \"%s\"", vr_flat_key_reload.string, vr_flat_key_grenade.string,
+            vr_flat_key_flashlight.string));
+    Cvar_SetQuick(&vr_flat_key_reload, "r t");
+    flatplay::fillPadDefaults();
+    check(!ZA_STRCMP(vr_flat_key_reload.string, "r t"), "fill: once only");
+    flatplay::resetPadKeys();
+    check(!ZA_STRCMP(vr_flat_key_reload.string, "r t XBUTTON") && !ZA_STRCMP(vr_flat_key_grenade.string, "g DPAD_DOWN") &&
+              !ZA_STRCMP(vr_flat_key_flashlight.string, "f DPAD_UP"),
+        "reset: every button its default's, the keyboard keys kept");
+    for(cvar_t* c : flatplay::keyCvars())
+    {
+        Cvar_SetQuick(c, c->default_string);
+    }
+    // 5. The Controller Bindings screen and the pad's reminder panel name the flat actions.
+    if(screen.actions.empty())
+    {
+        buildActions();
+    }
+    PanelPictures pics;
+    PanelButton buttons[40];
+    const int n = panelButtons(Model::XboxOne, pics, buttons, 40);
+    bool crouch = false, wheel = false, jump = false;
+    for(int i = 0; i < n; i++)
+    {
+        crouch = crouch || !ZA_STRCMP(buttons[i].action, "Crouch / slide");
+        wheel = wheel || !ZA_STRCMP(buttons[i].action, "Cycle right hand");
+        jump = jump || !ZA_STRCMP(buttons[i].action, "Jump / swim up");
+    }
+    check(crouch && wheel && jump, va("xboxone panel: Crouch / slide %d, Cycle right hand %d, Jump %d", crouch, wheel, jump));
+    check(!ZA_STRCMP(bindingOf(K_BBUTTON, Model::Quest3), keybindings[K_BBUTTON] ? keybindings[K_BBUTTON] : ""),
+        "quest3: B shows its bind (a headset's)");
+    flatSaved.restore();
+    t.verdict("flat_pad_test");
+}
+
+// vr_menu_pad_test (padflat; Misc/quakevr/flatpad_test.sh, flat screen): the menus' gamepad cursor on this screen with an
+// Xbox pad shown, a stage a frame (stepped at the end of VR_BindSetup_Draw, the labels laid out): the stick moves it, it
+// is steered onto B's label and A clicks (the action list opens), the d-pad steps the labels and hides it.
+struct MenuPadTest
+{
+    int stage{0}; // 0 not running
+    int frames{0};
+    testkit::Tally tally;
+    float startX{0.f};
+    int target{-1}; // B's slot
+    int cursorWas{-1};
+};
+MenuPadTest menuPadTest;
+
+void menuPadCheck(bool ok, const char* what)
+{
+    if(menuPadTest.tally.check(ok, "menu_pad_test", what))
+    {
+        Con_Printf("menu_pad_test: PASS %s\n", what);
+    }
+}
+
+void menuPadTest_f()
+{
+    menuPadTest = MenuPadTest{};
+    menuPadTest.stage = open(Model::XboxOne) ? 1 : 0;
+    if(!menuPadTest.stage)
+    {
+        menuPadCheck(false, "the screen opens");
+        menuPadTest.tally.verdict("menu_pad_test");
+    }
+}
+
+void menuPadStep()
+{
+    MenuPadTest& t = menuPadTest;
+    if(t.stage <= 0)
+    {
+        return;
+    }
+    constexpr float dt = 1.f / 72.f; // (a fixed frame's: the stick's moves the same at any frame rate)
+    float px, py;
+    t.frames++;
+    if(t.frames > 900)
+    {
+        menuPadCheck(false, va("timed out at stage %d", t.stage));
+        t.stage = 99;
+    }
+    switch(t.stage)
+    {
+        case 1: // hidden to start with; the stick right for 12 frames
+            VR_MenuPadHide();
+            menuPadCheck(!menuui::padCursor(px, py), "hidden before the stick moves");
+            t.startX = m_mousex;
+            t.stage = 2;
+            t.frames = 0;
+            break;
+        case 2:
+            (void)VR_MenuPadStick(1.f, 0.f, dt);
+            if(t.frames >= 12)
+            {
+                menuPadCheck(menuui::padCursor(px, py) && m_mousex > t.startX + 4.f,
+                    va("the stick moved it right: menu x %.0f -> %.0f, shown %d", t.startX, m_mousex, menuui::padCursor(px, py)));
+                for(int i = 0; i < static_cast<int>(screen.slots.size()); i++)
+                {
+                    t.target = screen.slots[i].art->btn == Btn::B ? i : t.target;
+                }
+                t.stage = 3;
+                t.frames = 0;
+            }
+            break;
+        case 3: // steered onto B's label
+        {
+            const Label* goal = nullptr;
+            for(const Label& l : screen.labels)
+            {
+                goal = l.slot == t.target ? &l : goal;
+            }
+            if(!goal)
+            {
+                menuPadCheck(false, "B's label laid out");
+                t.stage = 99;
+                break;
+            }
+            if(labelAt(m_mousex, m_mousey) == t.target)
+            {
+                menuPadCheck(true, va("steered onto B's label in %d frames", t.frames));
+                t.stage = 4;
+                break;
+            }
+            const float dx = (goal->x0 + goal->x1) * 0.5f - m_mousex, dy = (goal->y0 + goal->y1) * 0.5f - m_mousey;
+            const float d = za::sqrt(dx * dx + dy * dy);
+            const float tilt = za::clamp(d / 30.f, 0.45f, 1.f);
+            (void)VR_MenuPadStick(dx / d * tilt, dy / d * tilt, dt);
+            break;
+        }
+        case 4: // A pressed: the left mouse button on the label
+        {
+            const int k = VR_MenuPadKey(K_ABUTTON, 1);
+            menuPadCheck(k == K_MOUSE1, va("A sends the left mouse button (%s)", Key_KeynumToString(k)));
+            if(k >= 0)
+            {
+                Key_Event(k, true);
+            }
+            t.stage = 5;
+            break;
+        }
+        case 5: // ... and let go: the click (the draw's release, next frame) opens the list
+        {
+            const int k = VR_MenuPadKey(K_ABUTTON, 0);
+            if(k >= 0)
+            {
+                Key_Event(k, false);
+            }
+            t.stage = 6;
+            break;
+        }
+        case 6:
+            menuPadCheck(screen.listOpen && screen.listSlot == t.target && !keydown[K_MOUSE1],
+                va("A clicked B's label: its action list opens (open %d, slot %d)", screen.listOpen, screen.listSlot));
+            screen.listOpen = false;
+            t.cursorWas = screen.cursor;
+            {
+                const int k = VR_MenuPadKey(K_DPAD_DOWN, 1); // (the d-pad: discrete, as in_sdl.c sends it)
+                Key_Event(k, true);
+                Key_Event(k, false);
+            }
+            t.stage = 7;
+            break;
+        case 7:
+            menuPadCheck(screen.cursor != t.cursorWas && !menuui::padCursor(px, py),
+                va("the d-pad steps the labels (%d -> %d) and hides the cursor", t.cursorWas, screen.cursor));
+            t.stage = 99;
+            break;
+        default:
+            break;
+    }
+    if(t.stage == 99)
+    {
+        t.tally.verdict("menu_pad_test");
+        t.stage = 0;
+    }
+}
+
 // vr_bindsetup_test: the screen's binding changes, on the binds themselves (the binds it touches put back after).
 void bindTest_f()
 {
@@ -1028,8 +1397,9 @@ void bindTest_f()
     za::String saved[sizeof(keys) / sizeof(keys[0])];
     for(int i = 0; i < static_cast<int>(sizeof(keys) / sizeof(keys[0])); i++)
     {
-        saved[i] = bindingOf(keys[i]);
+        saved[i] = keybindings[keys[i]] ? keybindings[keys[i]] : "";
     }
+    const FlatKeysSaved flatSaved;
     const float swapWas = vr_button_swap.value;
     Cvar_SetValueQuick(&vr_button_swap, 0.f);
     const Model keep = screen.shown;
@@ -1093,24 +1463,42 @@ void bindTest_f()
     buildSlots();
     check(screen.slots[slotOf(Pic::Right, Btn::Primary)].key == K_XBUTTON, "button swap: A's key is XBUTTON");
     Cvar_SetValueQuick(&vr_button_swap, 0.f);
-    // a gamepad: X onto B, then reset
+    // a gamepad (padflat): its buttons' flat actions (the flat keys' gamepad buttons): X onto B swaps them, then reset
     screen.shown = Model::XboxOne;
     buildSlots();
-    Key_SetBinding(K_XBUTTON, "+reloadoff");
-    Key_SetBinding(K_BBUTTON, "impulse 10");
-    swapSlots(slotOf(Pic::Pad, Btn::X), slotOf(Pic::Pad, Btn::B));
-    check(!ZA_STRCMP(bindingOf(K_XBUTTON), "impulse 10") && !ZA_STRCMP(bindingOf(K_BBUTTON), "+reloadoff"),
-        "xboxone: X and B swapped");
-    check(slotOf(Pic::Pad, Btn::Start) >= 0 && screen.slots[slotOf(Pic::Pad, Btn::Start)].key < 0, "xboxone: Start fixed");
     resetSlots();
-    check(!ZA_STRCMP(bindingOf(K_XBUTTON), "+reloadoff") && !ZA_STRCMP(bindingOf(K_BBUTTON), "impulse 10") &&
-              !bindingOf(K_DPAD_LEFT)[0],
-        "xboxone reset: the shipped bindings (D-pad left unbound)");
+    check(!ZA_STRCMP(bindingOf(K_XBUTTON), "vr_flat_key_reload") && !ZA_STRCMP(bindingOf(K_BBUTTON), "vr_flat_key_crouch"),
+        "xboxone: X reloads, B crouches (flat keys)");
+    swapSlots(slotOf(Pic::Pad, Btn::X), slotOf(Pic::Pad, Btn::B));
+    check(!ZA_STRCMP(bindingOf(K_XBUTTON), "vr_flat_key_crouch") && !ZA_STRCMP(bindingOf(K_BBUTTON), "vr_flat_key_reload") &&
+              !ZA_STRCMP(vr_flat_key_reload.string, "r BBUTTON") && !ZA_STRCMP(vr_flat_key_crouch.string, "c CTRL XBUTTON"),
+        "xboxone: X and B swapped (the flat keys' buttons, their keyboard keys kept)");
+    check(slotOf(Pic::Pad, Btn::Start) >= 0 && screen.slots[slotOf(Pic::Pad, Btn::Start)].key < 0, "xboxone: Start fixed");
+    // a bind onto a flat key's button: A (jump, a bind) onto Y (shove, a flat key)
+    swapSlots(slotOf(Pic::Pad, Btn::A), slotOf(Pic::Pad, Btn::Y));
+    check(!ZA_STRCMP(bindingOf(K_ABUTTON), "vr_flat_key_shove") && !ZA_STRCMP(bindingOf(K_YBUTTON), "+jump"),
+        "xboxone: A and Y swapped (a bind and a flat key)");
+    resetSlots();
+    check(!ZA_STRCMP(bindingOf(K_XBUTTON), "vr_flat_key_reload") && !ZA_STRCMP(bindingOf(K_BBUTTON), "vr_flat_key_crouch") &&
+              !ZA_STRCMP(bindingOf(K_DPAD_LEFT), "vr_flat_key_throw") && !ZA_STRCMP(bindingOf(K_ABUTTON), "+jump") &&
+              !ZA_STRCMP(bindingOf(K_YBUTTON), "vr_flat_key_shove") && !ZA_STRCMP(keybindings[K_BACK] ? keybindings[K_BACK] : "", "+altmodifier"),
+        "xboxone reset: the shipped flat pad layout (D-pad left throws, Back the alt layer)");
+    check(!ZA_STRCMP(vr_flat_key_reload.string, "r XBUTTON") && !ZA_STRCMP(vr_flat_key_crouch.string, "c CTRL BBUTTON"),
+        "xboxone reset: the flat keys' keyboard keys kept");
+    // the list: a gamepad's has the flat actions, a headset's not
+    q_strlcpy(screen.search, "Quick grenade", sizeof(screen.search));
+    refilter();
+    check(!screen.filtered.empty(), "xboxone list: Quick grenade (a flat key) listed");
+    screen.shown = Model::Quest3;
+    refilter();
+    check(screen.filtered.empty(), "quest3 list: no flat keys");
+    screen.search[0] = 0;
 
     for(int i = 0; i < static_cast<int>(sizeof(keys) / sizeof(keys[0])); i++)
     {
-        setKey(keys[i], saved[i].cStr());
+        Key_SetBinding(keys[i], saved[i].empty() ? nullptr : saved[i].cStr());
     }
+    flatSaved.restore();
     Cvar_SetValueQuick(&vr_button_swap, swapWas);
     screen.shown = keep;
     buildSlots();
@@ -1272,6 +1660,7 @@ int panelButtons(Model m, PanelPictures& pictures, PanelButton* out, int max)
         pictures.pic[p] = imagePic(va("gfx/vr/controllers/%s%s_s", file, mi.vr ? (p == 0 ? "_l" : "_r") : ""), &pictures.aspect[p]);
     }
     int n = 0;
+    panelModel = m;
     for(const ArtButton& a : artButtons)
     {
         if(a.art != mi.art || n >= max)
@@ -1289,6 +1678,7 @@ int panelButtons(Model m, PanelPictures& pictures, PanelButton* out, int max)
         b.fixed = key < 0;
         b.action = key < 0 ? "Menu" : bindingOf(key)[0] ? actionName(bindingOf(key)) : "";
     }
+    panelModel = Model::Count;
     return n;
 }
 
@@ -1298,6 +1688,9 @@ void registerCommands()
     Cmd_AddCommand("vr_bindsetup_print", print_f);
     Cmd_AddCommand("vr_bindsetup_detect_test", detectTest_f);
     Cmd_AddCommand("vr_bindsetup_test", bindTest_f);
+    Cmd_AddCommand("vr_flat_pad_test", padTest_f);
+    Cmd_AddCommand("vr_menu_pad_test", menuPadTest_f);
+    Cmd_AddCommand("vr_menu_pad_report", menuui::padCursorReport);
 }
 
 } // namespace qvr::bindsetup
@@ -1392,6 +1785,7 @@ extern "C" void VR_BindSetup_Draw()
     drawButton(screen.backButton, cx + 70.f, b - 22.f, "Back", pointer && screen.backButton.has(m_mousex, m_mousey));
 
     drawList(l, t, w, b);
+    menuPadStep(); // (vr_menu_pad_test, a stage a frame)
 }
 
 extern "C" void VR_BindSetup_Key(int key)

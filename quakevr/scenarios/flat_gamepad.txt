@@ -1,0 +1,9 @@
+# flat_gamepad: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode)
+# with a gamepad: the default layout (FLATPLAY.md "A gamepad"; ROUND26 "padflat"), a few weapons in the holsters,
+# props and a grunt to try it on; flatpad_test.sh checks the layout and the menu cursor.
+title Flat-screen: a gamepad's default layout and the menus' stick cursor
+map vrtesthall
+notarget
+cmd impulse 9
+cmd vr_physics_spawn monster_army 200 0
+hint Play with -flatscreenmode and a gamepad. RT / LT fire (LT also aims and parries), A jump, B crouch, X reload, Y shove, R3 punch; LB / RB tap cycles that hand, held opens its weapon wheel (right stick points at a slot, let go takes it); L3 held opens the holster menu (right stick moves its cursor, let go picks); d-pad: flashlight, grenade, throw, force grab. Hold Back for the second layer: A lie down, B grab/pull, X next ammo, Y swap hands, LB attach, RB bullet time, R3 scoreboard. In the menus the left stick moves a cursor and A clicks; the d-pad still steps the rows.

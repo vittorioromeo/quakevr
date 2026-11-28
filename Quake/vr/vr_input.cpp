@@ -950,6 +950,7 @@ constexpr int bindingsVersion = 3;
 void checkBindings_f()
 {
     takes::defaultKeys(); // the keyboard's take keys, once, where unbound (vr_takes_keys)
+    flatplay::fillPadDefaults(); // a flat-screen gamepad's buttons, once, where the config has none (padflat)
     if(vr_bindings_version.value >= bindingsVersion)
     {
         return;

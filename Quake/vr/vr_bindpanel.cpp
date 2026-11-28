@@ -230,13 +230,13 @@ int rows(gadget::BindPanelRow* out, int max)
         int keys[2] = {-1, -1};
         if(a.second)
         {
-            keys[0] = flatplay::keyNum(*a.key, 0);
-            keys[1] = flatplay::keyNum(*a.second, 0);
+            keys[0] = flatplay::keyNumKeyboard(*a.key, 0); // (a gamepad's buttons: the pad's own rows, controllerRows)
+            keys[1] = flatplay::keyNumKeyboard(*a.second, 0);
         }
         else if(a.key)
         {
-            keys[0] = flatplay::keyNum(*a.key, 0);
-            keys[1] = flatplay::keyNum(*a.key, 1);
+            keys[0] = flatplay::keyNumKeyboard(*a.key, 0);
+            keys[1] = flatplay::keyNumKeyboard(*a.key, 1);
         }
         else
         {

@@ -214,5 +214,10 @@ bool drawProgress(int x0, int x1, int y, float fraction);
 
 // An open drop-down list's highlighted choice (vr_menu.cpp): a bar from x0 to x1 on the row at y, in either menu style.
 void drawListHighlight(float x0, float x1, int y);
+// A gamepad's menu cursor (padflat; vr_pad_cursor): where it is (window pixels) and whether it shows; drawn over the flat
+// screen's menus (VR_End2D); vr_menu_pad_report's line.
+[[nodiscard]] bool padCursor(float& x, float& y);
+void drawPadCursor();
+void padCursorReport();
 
 } // namespace qvr::menuui
