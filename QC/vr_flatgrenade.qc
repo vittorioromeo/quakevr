@@ -125,6 +125,7 @@ void(string xWhy) VR_FlatGrenade_Cancel =
         dprint(sprintf("flat grenade: %s hand: over (%s)\n", VR_FlatGrenade_HandName(self.vr_flatgren_hand), xWhy));
     }
     self.vr_flatgren_ent = world;
+    self.vr_hgren_want = 0; // (a wheel's kind never outlives its trip)
     VR_FlatGrenade_Set(VR_FLATGREN_NONE);
 };
 
@@ -218,9 +219,103 @@ void() VR_FlatGrenade_Key =
     }
     self.vr_flatgren_hand = h;
     self.vr_flatgren_ent = world;
+    self.vr_hgren_want = 0; // (the pouch's own choice)
     VR_FlatGrenade_Set(VR_FLATGREN_FETCH);
     dprint(sprintf("flat grenade: G: the %s hand goes for the pouch%s\n", VR_FlatGrenade_HandName(h),
         VR_FlatGrenade_OnGrip(h) ? " (off the weapon's grip)" : ""));
+};
+
+// The weapon wheel's grenade entry (vr_weaponwheel.cpp; VR_Wheel_Pick's VR_WHEEL_GRENADE / _MULTIGRENADE; his words
+// 2026-11-28): a grenade (`xMulti`: the multi-grenade) from the back pouch into `xHand`, as the pouch gives one. A weapon
+// in the hand goes to a holster first (the wheel's EMPTY HAND: VR_Wheel_Pick -1; too big for one, or none free: nothing
+// happens). Flat-screen play: the quick grenade's trip to the pouch with that hand (VR_FLATGREN_FETCH: armed, wound up,
+// thrown and put back with G as ever); a headset: taken at once (VR_HandGrenade_Take), held without the grip until it is
+// pressed (VR_Carry_HoldGiven), then the grip holds it, its trigger arms it, and letting go throws it.
+void(float xHand, float xMulti) VR_Wheel_Grenade =
+{
+    string kind = xMulti ? "CLUSTER" : "GRENADE";
+    if(!self.ishuman || !cvar_hget(cvarh_vr_handgrenade))
+    {
+        dprint(sprintf("weapon wheel: hand %g, %s: no grenade pouch\n", xHand, kind));
+        return;
+    }
+    if((xMulti ? self.ammo_multi_rockets : self.ammo_rockets) < 1)
+    {
+        sprint(self, xMulti ? "No multi-rockets for a grenade.\n" : "No rockets for a grenade.\n");
+        dprint(sprintf("weapon wheel: hand %g, %s: the pouch is empty\n", xHand, kind));
+        return;
+    }
+    float flat = VR_FlatPlay(self);
+    if(flat && (self.vr_flatgren_phase || self.vr_flatgren_launch))
+    {
+        dprint(sprintf("weapon wheel: hand %g, %s: the %s hand is busy with one (phase %g)\n", xHand, kind,
+            VR_FlatGrenade_HandName(self.vr_flatgren_hand), self.vr_flatgren_phase));
+        return;
+    }
+    if(VR_Carry_Held(self, xHand) != world)
+    {
+        sprint(self, "That hand carries something: drop it first.\n");
+        dprint(sprintf("weapon wheel: hand %g, %s: the hand carries something\n", xHand, kind));
+        return;
+    }
+    if(!VRIsHandWeaponless(self, xHand))
+    {
+        VR_Wheel_Pick(xHand, -1); // (its weapon put away)
+        if(!VRIsHandWeaponless(self, xHand))
+        {
+            dprint(sprintf("weapon wheel: hand %g, %s: its weapon stays (not holstered)\n", xHand, kind));
+            return;
+        }
+    }
+    if(flat)
+    {
+        if(!VR_FlatGrenade_HandFree(xHand, FALSE) && !VR_FlatGrenade_HandFree(xHand, TRUE))
+        {
+            dprint(sprintf("weapon wheel: hand %g, %s: the hand is not free\n", xHand, kind));
+            return;
+        }
+        self.vr_flatgren_hand = xHand;
+        self.vr_flatgren_ent = world;
+        self.vr_hgren_want = xMulti ? VR_HGREN_WANT_MULTI : VR_HGREN_WANT_GRENADE;
+        VR_FlatGrenade_Set(VR_FLATGREN_FETCH);
+        dprint(sprintf("weapon wheel: hand %g, %s: the hand goes for the pouch\n", xHand, kind));
+        return;
+    }
+    if(!VR_HandGrenade_PouchHandEmpty(self, xHand))
+    {
+        dprint(sprintf("weapon wheel: hand %g, %s: the hand is not free\n", xHand, kind));
+        return;
+    }
+    self.vr_hgren_want = xMulti ? VR_HGREN_WANT_MULTI : VR_HGREN_WANT_GRENADE;
+    VR_HandGrenade_Take(xHand);
+    entity g = VR_Carry_Held(self, xHand);
+    if(g != world && g.vr_hgren)
+    {
+        VR_Carry_HoldGiven(self, xHand, g);
+    }
+    dprint(sprintf("weapon wheel: hand %g, %s: %s\n", xHand, kind, g != world ? "taken from the pouch" : "nothing came out"));
+};
+
+// (vr_weaponwheel_test grenade: what the first player's `xHand` holds, from the pouch: 0 nothing, 1 a grenade, 2 a
+// multi-grenade, 3 a proximity grenade; + 10 armed; + 100 times the quick grenade's phase when that hand is its.)
+float(float xHand) VR_Wheel_TestHeld =
+{
+    entity p = nextent(world);
+    if(p == world)
+    {
+        return 0;
+    }
+    entity g = VR_Carry_Held(p, xHand);
+    float r = 0;
+    if(g != world && g.vr_hgren)
+    {
+        r = (g.vr_hgren_prox ? 3 : (g.vr_hgren_multi ? 2 : 1)) + (g.vr_hgren_armed ? 10 : 0);
+    }
+    if(p.vr_flatgren_phase && p.vr_flatgren_hand == xHand)
+    {
+        r = r + 100 * p.vr_flatgren_phase;
+    }
+    return r;
 };
 
 // Where a flat throw (the throw key's, the quick grenade's) leaves and its way (his words 2026-11-23: thrown things

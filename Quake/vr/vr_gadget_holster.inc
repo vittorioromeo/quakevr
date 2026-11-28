@@ -218,6 +218,30 @@ void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
     fill(r.x + 1.f, r.y + 1.f, 1.f, 3.f, pal.value);
     fill(r.x + r.z - 4.f, r.y + r.w - 2.f, 3.f, 1.f, pal.value);
     fill(r.x + r.z - 2.f, r.y + r.w - 4.f, 1.f, 3.f, pal.value);
+    if(s.compact)
+    {
+        // A half slot (the wheel's split grenade entry): the thumbnail on its left, the name and the ammunition's line
+        // beside it, no title.
+        const float picSize = r.w - 4.f;
+        if(s.model[0] && picSize > 4.f)
+        {
+            if(const gfx::Picture* pic = toolgun::icons::get(s.model, 0, true))
+            {
+                const float k = invalid ? 0.35f : 1.f;
+                fill(r.x + 2.f, r.y + 2.f + picSize * 0.2f, picSize, picSize * 0.6f, pal.label * 0.45f * k);
+                gfx::draw2D::color(glm::vec4{1.8f * k, 1.8f * k, 1.8f * k, 1.f});
+                gfx::draw2D::picture(*pic, r.x + 2.f, r.y + 2.f, picSize, picSize);
+                gfx::draw2D::color(glm::vec4{1.f});
+            }
+        }
+        const float x0 = r.x + picSize + 4.f, w = r.x + r.z - 2.f - x0;
+        const char* name = s.name[0] ? s.name : "- EMPTY -";
+        const float size = za::min(6.f, w / static_cast<float>(za::max<za::SizeT>(strlen(name), 1)));
+        const float nameY = r.y + (r.w - size - holsterAmmoSize - 1.f) * 0.5f;
+        holsterTextMid(x0 + w * 0.5f, nameY, size, name, invalid ? pal.dim : pal.value, pal);
+        holsterAmmoLine(s, x0 + w * 0.5f, nameY + size + 1.f, invalid, pal);
+        return;
+    }
     // The holster's title smaller and fainter than the weapon's name (wheelui, his words 2026-11-28).
     holsterTextMid(r.x + r.z * 0.5f, r.y + 3.f, holsterTitleSize, s.title, pal.label * holsterTitleInk, pal);
     // The name as large as fits (6 pixels a character at most), a blade glyph after it for an attachment; the ammunition's
