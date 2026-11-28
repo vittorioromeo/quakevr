@@ -43,6 +43,10 @@ Flat-screen: reload the shotgun and the super shotgun while running in circles, 
 Quest standalone, SpaceWarp on (VR Settings > Scaling): walk, strafe and turn round the hub and in a fight; the black floating squares should be gone, and the wrist gadget's screen should stay on the gadget when you move your hand. {test:quest_gibfight}
 Quest standalone, Render Scale 0.6: open the menu; the menu should be as sharp as at scale 1 while the world behind it stays at its own resolution (no frame-rate drop when the menu opens). {test:hub_start}
 Quest standalone, VR Settings > Scaling > FOV Reduction 10 and 20: the far edges of the view go black, the rest looks the same, and the game should run lighter. {test:quest_foveation}
+Flat-screen: take the nailgun (or the thunderbolt) in one hand, fire a few shots and press R: the gun tilts its well towards the free hand, lets the magazine out, the hand brings a fresh magazine from the belt pouch up into the well from below and the gun is full; nothing lost from the count. {test:flat_proc_reload}
+Flat-screen: the same with the super nailgun (its magazine goes in on its side) and the nail pistol (up into its grip); fire one empty first: no eject, its empty magazine already dropped, the new one goes straight in. {test:flat_proc_reload}
+Flat-screen: reload a magazine gun while running, jumping, crouching and sliding: the magazine still goes in every time; fire mid-reload: it stops and the magazine goes back in the pouch. {test:flat_proc_reload}
+Flat-screen: Debug > Tools > Flatscreen: Reload Studio lists the nailgun, super nailgun, thunderbolt and nail pistol; Hold This Gun on each, lock the carry and insert keys: the gun's magazine is in the free hand, and the tilts can be tuned and saved. {test:flat_proc_reload}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
