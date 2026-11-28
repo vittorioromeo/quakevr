@@ -500,6 +500,9 @@ void forEachEntity(F&& f)
 }
 
 [[nodiscard]] bool isHandModel(const qmodel_t* model);
+// Flat play's procedural reload locked at a key (the Reload Studio): its item placed on `hand` as drawn at (`pos`, `rot`),
+// before that hand's grasp (vr_view.cpp; reloadstudio2). False: the lock draws no item in that hand.
+bool placePrlItem(int hand, const glm::vec3& pos, const glm::vec3& rot);
 [[nodiscard]] qmodel_t* precachedModel(int index);
 
 // Mod_ForName(name, false) for the view entities' own models, asked for every frame: the model found for the

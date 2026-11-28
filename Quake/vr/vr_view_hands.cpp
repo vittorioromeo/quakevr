@@ -4324,6 +4324,24 @@ void ropeHeld(int hand, Held& held)
     held.toWorld = glm::mat4{glm::vec4{x, 0.f}, glm::vec4{glm::cross(up, x), 0.f}, glm::vec4{up, 0.f}, glm::vec4{at, 1.f}};
 }
 
+// A held prop wrapped (a carried thing in the hand; reloadstudio2: the Reload Studio's lock's item too, so both hands take
+// the same grip): its fingers and overlap (Held Object Offsets, vr_props.inc; the flashlight's are its own page's).
+[[nodiscard]] Held propHeld(const entity_t& e)
+{
+    Held held{&e, false, -1};
+    if(const qmodel_t* model = e.model)
+    {
+        const int slot = props::slotForModel(model);
+        using props::Key;
+        held.overlap = props::value(slot, Key::Overlap);
+        held.inPalm = static_cast<int>(props::value(slot, Key::GripMode)) == 2; // (vr_grip.hpp's Palm)
+        const float curl[handrig::FingerCount]{props::value(slot, Key::FingerCurlThumb), props::value(slot, Key::FingerCurlIndex),
+            props::value(slot, Key::FingerCurlMiddle), props::value(slot, Key::FingerCurlRing), props::value(slot, Key::FingerCurlPinky)};
+        setManualFingers(held, props::value(slot, Key::FingerManual) >= 0.5f, curl, props::value(slot, Key::FingerThumbAcross));
+    }
+    return held;
+}
+
 // What the fingers wrap.
 [[nodiscard]] Held heldBy(const HandPose& hp)
 {
@@ -4435,18 +4453,7 @@ void ropeHeld(int hand, Held& held)
     }
     else if(const int ent = held::heldEntity(hand))
     {
-        held = {&cl_entities[ent], false, -1};
-        // Its fingers and overlap (Held Object Offsets, vr_props.inc; the flashlight's are its own page's).
-        if(const qmodel_t* model = cl_entities[ent].model)
-        {
-            const int slot = props::slotForModel(model);
-            using props::Key;
-            held.overlap = props::value(slot, Key::Overlap);
-            held.inPalm = static_cast<int>(props::value(slot, Key::GripMode)) == 2; // (vr_grip.hpp's Palm)
-            const float curl[handrig::FingerCount]{props::value(slot, Key::FingerCurlThumb), props::value(slot, Key::FingerCurlIndex),
-                props::value(slot, Key::FingerCurlMiddle), props::value(slot, Key::FingerCurlRing), props::value(slot, Key::FingerCurlPinky)};
-            setManualFingers(held, props::value(slot, Key::FingerManual) >= 0.5f, curl, props::value(slot, Key::FingerThumbAcross));
-        }
+        held = propHeld(cl_entities[ent]);
     }
     else if(LimbHold limb; limbHold(hand, limb) && (limb.shape || limb.tug))
     {
@@ -4869,6 +4876,22 @@ void setupHand(const hands::State& s, int hand)
     {
         flatprocreload::attachDrawn(s, hand, pos, handRot);
         flatprocreload::noteDrawn(s, hand, pos, handRot);
+        // (reloadstudio2) The item in its free hand rigid on the hand as drawn now (a real reload's carried round, placed
+        // where the server holds it in the hand; the Reload Studio's lock's, as measured there), and wrapped by the same grasp
+        // with its prop's fingers: before, the real one rode the hand placed before the attach (off the drawn hand and
+        // moving in it, so the grasp re-solved warm every frame and its palm drifted up to the 20 degree limit), and the
+        // lock's was drawn after the hands, not wrapped (the fingers closed to a fist through it).
+        if(flatprocreload::busy(hand))
+        {
+            if(placePrlItem(hand, pos, handRot))
+            {
+                held = propHeld(entities.prlPair.ent);
+            }
+            else if(held::heldEntity(hand) != 0)
+            {
+                held::followHand(hand, pos, handRot);
+            }
+        }
     }
     drawHand(hand, pos, handRot, mirrored, hide, held, motion);
     // (flatgrip3: the probe of a hand put on a pole's shaft above, measured as drawn: after the grasp's palm move.)

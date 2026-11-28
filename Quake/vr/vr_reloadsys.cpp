@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_strings.hpp"
+#include "vr_tunables.hpp"
 #include "vr_weapon_ids.h"
 
 #include "Zancle/Base/Strcmp.hpp"
@@ -410,6 +411,7 @@ bool setField(Reload& r, Key* k, const char* field, const char* const* args, int
         if(!ZA_STRCMP(field, "item")) return word(r.item, itemNames, static_cast<int>(Item::Count));
         if(!ZA_STRCMP(field, "dest")) return word(r.dest, destNames, static_cast<int>(Dest::Count));
         if(!ZA_STRCMP(field, "item_rot")) return vec(r.itemRot);
+        if(!ZA_STRCMP(field, "speed")) return num(r.speed);
         if(!ZA_STRCMP(field, "loop"))
         {
             if(n < 2)
@@ -572,6 +574,7 @@ using strings::appendf;
         appendf(out, "\nreload %s\n{\n", r.gun);
         appendf(out, "    item %s\n    dest %s\n", itemNames[static_cast<int>(r.item)], destNames[static_cast<int>(r.dest)]);
         appendf(out, "    item_rot %g %g %g\n    loop %d %d\n", r.itemRot.x, r.itemRot.y, r.itemRot.z, r.loopFrom + 1, r.loopTo + 1);
+        appendf(out, "    speed %g\n", r.speed);
         for(int i = 0; i < r.keyCount; i++)
         {
             const Key& k = r.keys[i];
@@ -826,6 +829,11 @@ float handTime(const Key& k)
 float gunTime(const Key& k)
 {
     return za::max(0.02f, k.gunTime > 0.f ? k.gunTime : k.time);
+}
+
+float playSpeed(const Reload& r)
+{
+    return za::clamp(r.speed, minSpeed, maxSpeed) * za::clamp(vr_reload_speed.value, minSpeed, maxSpeed);
 }
 
 int takeKey(const Reload& r)
