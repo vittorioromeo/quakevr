@@ -5113,3 +5113,58 @@ them back by using the usual weapon wheel or MMB buttons."
   EMPTY HAND and CLUSTER lit; CLUSTER swaps it, the rocket back; the nailgun's holster: the gun in the hand, the
   multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
   `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.
+
+## questopt: hip1m1 on the Quest: his perf recording read; the worn packs' anchors and the flashlight's lightmap light made cheap (branch agent/questopt, 2026-11-28)
+
+His words: "Collected a profiler report in hip1m1 on the Quest ... there's a lot of room for optimization."
+- **Getting it off the headset**: his report was the perf recorder's (`vr_perf_record`, history.txt: two takes; one CSV,
+  `perf_20261128_025051.csv`, 286 s, beta6), which a release APK keeps in the app's internal `perf/` (run-as refused).
+  `vr_android_export` now also copies into the base folder's `export/`; `+vr_android_export perf +vr_android_share export`
+  then `adb pull .../files/export/` (ANDROID_RELEASE.md "Measuring a release APK"). vr_android.cpp.
+- **His profile** (Quest 3, Standalone, dynres 0.55-0.80, 11,950 frames; CPU-bound: the frame period follows CPU busy):
+
+| Cost (ms a frame, medians) | start (0-60 s) | fights (70-260 s) | after he turned the rig lights off (270 s+) |
+|---|---|---|---|
+| frame period / CPU busy | 14-17 / 13-15 | 24-41 / 23-40 | 17-24 / 10-17 |
+| GPU (gpu_span) | 9-12 | 10-22 | 12-17 |
+| QuakeC (ev_qc; SV_Physics 1.3x) | 4.4-4.6 | 8-15 | 3-6 |
+| lightmap dynamic lights (CPU; c_lights) | 0.1 | 3.7-5.6 | 0 |
+| models (c_alias) / view entities | 1.0-2.0 / 0.7-1.0 | 1.8-3.1 / 1.2-2.7 | 2.0 / 0.4 |
+| sound | 0.2 | 0.3-2.7 (spikes) | 0.2 |
+
+  7,105 of 11,950 frames missed a refresh. The profiler's own cost doesn't apply: no `vr_profile`/GPU timer queries were
+  on, only the perf recorder (its GPU column is the frame's timestamps).
+- **QuakeC** (PC mock, `vr_qcprofile 1` + `profile_qc`, hip1m1's start, 720 frames): 2.0 ms a frame, the top cost
+  `VR_WP_Place` 0.69 ms (the worn backpacks' place on their 23 wearers each frame) in the builtin `limbpiece(e, 0, 30)`:
+  for a wearer out of view (not drawn: drawnpose has no bone) `agarmor::packWhere` walked the shell's vertices three times
+  (frameOnBone, 3.8 us) and `hitmodel::drawnVertexPoints` made the whole body's drawn shape with normals (shapeOf,
+  15.7 us) for its 3 anchor vertices. Now (`vr_hitmodel_points_subset`, Debug tunables "Fast Anchor Points", default 1):
+  `animsmooth::serverPoints` takes a vertex list and works out only those (the same rows, the same values), and the chest
+  frame is kept with the pack's rest per shell. Exact: mode 2 compares with the whole shape, 16,000 anchor sets, 0
+  differed. PC: limbpiece 0.73 -> 0.16 ms, QuakeC 2.04 -> 1.39 ms a frame. On the headset at his last spot (his
+  autosave, wearers dead or in view) QuakeC was 2.4 ms either way: no measured gain there; the fights' 8-15 ms are
+  unprofiled (next: `profile_qc` in a hip1m1 fight on the headset). Also faster: the armour plates' and beasts' armour
+  anchors (the same call).
+- **The lightmap's dynamic lights** (`vr_gl_world_dlmap 1`, the Standalone preset): at his spot 6 lights, 3.9 ms a frame;
+  `vr_gl_world_dlmap_info` now lists them: the flashlight (a spot, radius 1000, and its 500 spill), the rig's small lights
+  (16-36). collectWorld pairs every surface on a node plane the sphere crosses: 3,837 surfaces summed a frame, 434 given
+  light. Now (`vr_gl_world_dlmap_reach`, Debug > Profiling "Lightmap Lights Only Where They Reach (Quest)", default 1)
+  a surface's lights are left out when their sphere misses the box round its texel grid, when they are behind the face
+  and the falloff gives turned-away faces nothing, or when a spot's cone misses the sphere round that box. Exact: mode 2
+  sums the surfaces it would skip anyway: 6.5M summed, 0 took light. Also `vr_gl_world_dlmap_keep` (default 0): a surface
+  lit by bit-identical lights as the frame before keeps its block (mode 2 compared 3,384 blocks, 0 differed), but nothing
+  is kept in hip1m1 (its lights change every frame), so off.
+
+| Headset A/B (Quest 3, release APK, his hip1m1 autosave, god, unworn; 3 interleaved rounds of 576 frames) | off | on |
+|---|---|---|
+| `vr_gl_world_dlmap_reach`: lightmap build (ev_lightmap) | 3.91-3.95 | **1.60-1.61** |
+| ... CPU busy median | 13.8-15.0 | **11.1-11.2** |
+| ... frame period median | 14.6-15.8 | **14.0-14.1** |
+| `vr_hitmodel_points_subset`: CPU busy / QuakeC (this spot) | 13.2-14.6 / 2.4 | 13.3-14.4 / 2.4 |
+
+- Tests: the two checks above (0 differed); vr_wornpack_test 1 (see the report); the PC is unchanged where the
+  lightmap path is off (the PC's GL 4 profile never builds it); the anchors' change is exact.
+- Headset: back to beta6 (1.2.0-beta6, progs a0bfe11a) with his 31 autosaves and 3 saves (checksums match). Pushed and
+  left: `quakevr/qo_ab*.cfg`, `files/export/` (his CSV and mine).
+- Open: QuakeC in hip1m1's fights (8-15 ms; profile_qc on the headset in a fight); models 2-3 ms; sound spikes; the
+  unworn headset's pauses ("xr user absent") in unattended launches despite `-unattended`.
