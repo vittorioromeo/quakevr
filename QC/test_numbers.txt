@@ -368,7 +368,7 @@ vr_reload_test   44       vr_reload_test.qc                (VR_Reload_TestPouchC
 vr_reload_test   45-48    vr_reload_test.qc                (VR_Reload_TestStartGun)
 vr_reload_test   49       vr_reload_test.qc                a holstered gun keeps its rounds, every path and reload mode (VR_HolsterAmmo_Test, vr_holsterammo_test.qc)
 vr_reload_test   50       vr_reload_test.qc                switching ammo type ejects old magazine before flags/model flip, flat and VR (VR_AmmoSwitch_Test, vr_holsterammo_test.qc)
-vr_reload_test   51-54    vr_reload_test.qc                the ammo follows the rounds loaded: switch refused, pouch halves, lava magazine fires lava, no mixed launcher loads, simple/flat keep the switch; 52-54 the mock's end to end (VR_AmmoMags_Test, vr_ammomags_test.qc; ammomags)
+vr_reload_test   51-55    vr_reload_test.qc                the ammo follows the rounds loaded: switch refused, pouch halves, lava magazine fires lava, no mixed launcher loads, simple/flat keep the switch; 52-55 the mock's end to end (VR_AmmoMags_Test, vr_ammomags_test.qc; ammomags)
 
 vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)

@@ -3,7 +3,7 @@
 //
 //
 // ----------------------------------------------------------------------------
-// vr_reload_test 51-54: the ammo follows the rounds loaded (ammomags; ROUND26.md "ammomags"; vr_reload.qc
+// vr_reload_test 51-55: the ammo follows the rounds loaded (ammomags; ROUND26.md "ammomags"; vr_reload.qc
 // VR_Reload_AmmoByMag)
 // ----------------------------------------------------------------------------
 //
@@ -13,11 +13,14 @@
 // launcher and the grenade launcher: the left half's multi-round refused while plain rounds are in (no mixed loads),
 // taken once empty (the launcher fires multi-rounds), then a plain one refused. The simple mode and flat play keep the
 // switch (its flags flip) and a whole pouch. Ends with "ammomags: N passed, M failed".
-// 52, 53, 54: the mock's end to end (Misc/quakevr/ammomags_test.sh): 52 an empty nailgun in the off hand, the main
-// hand empty, 50 nails and 30 lava nails; 53 after the main hand took from the pouch's left half and seated it: the gun
-// fires lava nails; 54 after it took from the right half: the hand holds a plain magazine.
+// 52-55: the mock's end to end (Misc/quakevr/ammomags_test.sh): 52 an empty nailgun in the off hand, the main hand
+// empty, 50 nails and 30 lava nails; 53 after the main hand took from the pouch's left half and seated it: the gun takes
+// lava nails; 54 after its trigger was held: lava nails flew, its lava rounds used; 55 after the main hand took from the
+// right half: it holds a plain magazine. (A synchronous W_Attack only starts the nailgun's firing frames: 51 checks the
+// ammo it would fire, 54 the shots.)
 
 float vr_amt_mode, vr_amt_holster, vr_amt_front, vr_amt_flat;
+float vr_amt_spikes, vr_amt_clip; // (53: the lava nails out and the gun's rounds before its trigger is held)
 
 void() VR_AMT_Save =
 {
@@ -126,16 +129,19 @@ void(float xWid) VR_AMT_Launcher =
 void() VR_AmmoMags_Test =
 {
     VR_Test_BeginFlags("ammomags", VR_TEST_LOUD);
-    VR_AMT_Save();
+    float step = cvar_hget(cvarh_vr_reload_test);
+    if(step == 51 || step == 52)
+    {
+        VR_AMT_Save(); // (53-55 run on 52's settings; 55 puts them back)
+        VRGiveEntWeapon(self, cVR_OffHand, WID_FIST, 0, 0);
+    }
     vector pos0 = self.ammopouchpos;
     vector y0 = self.ammopouchy;
-    if(self.ammopouchz == '0 0 0')
+    if(step == 51 && self.ammopouchz == '0 0 0')
     {
         self.ammopouchpos = self.origin + '8 0 -4'; // (no pouch from the client yet: one in front of the belly, its +y left)
         self.ammopouchy = '0 3 0';
     }
-    float step = cvar_hget(cvarh_vr_reload_test);
-    VRGiveEntWeapon(self, cVR_OffHand, WID_FIST, 0, 0);
     if(step == 52)
     {
         VRGiveEntWeapon(self, cVR_MainHand, WID_FIST, 0, 0);
@@ -146,15 +152,24 @@ void() VR_AmmoMags_Test =
         VR_Test_Verdict();
         return; // (the settings kept for the mock's moves; the script puts them back)
     }
-    if(step == 53 || step == 54)
+    if(step >= 53 && step <= 55)
     {
         float f = VRGetEntWeaponFlags(self, cVR_OffHand);
         if(step == 53)
         {
+            vr_amt_spikes = VR_AMT_Count("lava_spike");
+            vr_amt_clip = VRGetEntWeaponClip(self, cVR_OffHand);
             VR_Test_Check((f & QVR_WPNFLAG_USE_SECONDARY_AMMO) && !(f & QVR_WPNFLAG_NOMAG) && self.currentammo2 == AID_LAVA_NAILS &&
                 VRGetEntWeaponClip(self, cVR_OffHand) > 0 && self.ammo_lava_nails < 30 && self.ammo_nails == 50,
                 sprintf("the left half's magazine seated: the gun fires lava nails (flags %g, ammo %g, clip %g; lava %g, nails %g)",
                 f, self.currentammo2, VRGetEntWeaponClip(self, cVR_OffHand), self.ammo_lava_nails, self.ammo_nails));
+        }
+        else if(step == 54)
+        {
+            float flew = VR_AMT_Count("lava_spike") - vr_amt_spikes;
+            float used = vr_amt_clip - VRGetEntWeaponClip(self, cVR_OffHand);
+            VR_Test_Check(used > 0 && flew > 0 && self.ammo_nails == 50, sprintf("its trigger held: %g lava nails used, %g "
+                "flying (lava_spike), nails still %g", used, flew, self.ammo_nails));
         }
         else
         {
@@ -201,13 +216,8 @@ void() VR_AmmoMags_Test =
         self.weaponmodel == "progs/v_lava.mdl" && VRGetEntWeaponClip(self, cVR_MainHand) == min(size, 30),
         sprintf("seated: it fires lava nails (flags %g, ammo %g, %s, clip %g)", f1, self.currentammo, self.weaponmodel,
         VRGetEntWeaponClip(self, cVR_MainHand)));
-    float spikes = VR_AMT_Count("lava_spike");
-    float clip = VRGetEntWeaponClip(self, cVR_MainHand);
-    self.attack_finished = 0;
-    W_Attack();
-    VR_Test_Check(VR_AMT_Count("lava_spike") > spikes && VRGetEntWeaponClip(self, cVR_MainHand) < clip,
-        sprintf("fired: a lava nail out (%g lava_spike, was %g), clip %g -> %g", VR_AMT_Count("lava_spike"), spikes, clip,
-        VRGetEntWeaponClip(self, cVR_MainHand)));
+    VR_Test_Check(WeaponIdToAmmoId(WID_NAILGUN, VRGetEntWeaponFlags(self, cVR_MainHand)) == AID_LAVA_NAILS,
+        "its shots the lava nails' (WeaponIdToAmmoId by its flags)");
     entity r2 = VR_AMT_Take(cVR_OffHand, FALSE);
     VR_Test_Check(r2 != world && r2.vr_ammo_aid == AID_NAILS && r2.skin == 0 && VR_Reload_MagFits(self, cVR_MainHand, r2),
         sprintf("the right half gives a plain magazine that fits (ammo %g)", r2.vr_ammo_aid));

@@ -1277,7 +1277,7 @@ void() VR_Reload_Test =
     {
         VR_AmmoSwitch_Test(); // (ammo type switch ejects old magazine first: vr_holsterammo_test.qc)
     }
-    else if(step >= 51 && step <= 54)
+    else if(step >= 51 && step <= 55)
     {
         VR_AmmoMags_Test(); // (the ammo follows the rounds loaded: vr_ammomags_test.qc)
     }
