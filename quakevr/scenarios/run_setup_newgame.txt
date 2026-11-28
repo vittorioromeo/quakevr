@@ -1,4 +1,0 @@
-title Run Setup as New Game opens it: Start first, no Difficulty (the skill halls choose), the icon pickers
-map start
-cmd vr_runsetup newgame
-hint Run Setup as New Game opens it: the big Start button is the first row and there is no Difficulty (the start map's skill halls choose). Starting Gun, Starting Melee Weapon and Enemy Count are pictures; click them and use left/right. Menu Look > Run Setup: Icon Pickers, Icon Picker Size, Unpicked Dim, Icon Picker Gap.
