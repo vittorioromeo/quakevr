@@ -314,7 +314,7 @@ void export_f()
     if(Cmd_Argc() < 2)
     {
         Con_Printf("vr_android_export <file or folder under the game folder, or the app's files (perf)>: copied to the "
-                   "app's internal export/\n");
+                   "app's internal export/ and the base folder's export/ (then vr_android_share export)\n");
         return;
     }
 #ifdef __ANDROID__
@@ -327,12 +327,20 @@ void export_f()
         Con_Printf("vr_android_export: Android only\n");
         return;
     }
-    char to[maxPath];
-    copyPath(to, internal, "/export");
-    if(!qvr::files::createDirectories(to)) // (not Sys_mkdir: a failure ends the game)
+    // Two copies: the internal export/ (a debuggable APK's run-as) and the base folder's export/ (a release APK:
+    // run-as can't enter it, so the perf recorder's CSVs in the app's own files had no way out; `vr_android_share
+    // export` then opens that folder to adb's pull).
+    char tos[2][maxPath];
+    copyPath(tos[0], internal, "/export");
+    copyPath(tos[1], android.base, "/export");
+    const int toCount = android.base[0] != '\0' ? 2 : 1;
+    for(int i = 0; i < toCount; ++i)
     {
-        Con_Printf("vr_android_export: the export folder %s can't be made\n", to);
-        return;
+        if(!qvr::files::createDirectories(tos[i])) // (not Sys_mkdir: a failure ends the game)
+        {
+            Con_Printf("vr_android_export: the export folder %s can't be made\n", tos[i]);
+            return;
+        }
     }
     char from[maxPath];
     if(!resolveExport(from, Cmd_Argv(1), com_gamedir, internal))
@@ -341,7 +349,7 @@ void export_f()
             com_gamedir, internal);
         return;
     }
-    const auto copyOne = [&](const char* src, const char* name) {
+    const auto copyTo = [&](const char* to, const char* src, const char* name) {
         char dst[maxPath];
         q_snprintf(dst, sizeof dst, "%s/%s", to, name);
         FILE* in = fopen(src, "rb");
@@ -364,6 +372,12 @@ void export_f()
         Con_Printf("vr_android_export: %s -> %s (%s, %d bytes)\n", src, dst,
             written ? "copied" : out ? "failed: not all written (the storage full?)"
             : in ? "failed: the export folder cannot be written" : "failed: cannot be read", static_cast<int>(bytes));
+    };
+    const auto copyOne = [&](const char* src, const char* name) {
+        for(int i = 0; i < toCount; ++i)
+        {
+            copyTo(tos[i], src, name);
+        }
     };
     if(Sys_FileType(from) & FS_ENT_DIRECTORY)
     {
