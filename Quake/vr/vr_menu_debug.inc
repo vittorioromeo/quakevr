@@ -345,6 +345,10 @@ za::Vector<Item> pageDebugViews()
             .help("vr_body_crouch_report: how much of the crouched pose (Body > Crouched Pose Offsets) the body takes now, "
                   "the pelvis, chest, shoulders and elbows, the holsters and the ammo pouch: units from your eyes, forward, "
                   "right, up."),
+        command("Print Holster Leg Bob", "vr_flat_holster_bob_report")
+            .help("vr_flat_holster_bob_report: how far the walking legs carry the hip holsters and the ammo pouch now, "
+                  "across and up and down (flatscreen: after Tunables > Flatscreen > Looks, Holster Bob Horizontal / "
+                  "Vertical)."),
         command("Print Torso Direction", "vr_torso_report")
             .help("vr_torso_report: the head's yaw, the torso guess and its target, the hands' pull and weights."),
         command("Print Walking Direction", "vr_move_report")
@@ -1946,6 +1950,12 @@ za::Vector<Item> pageDebugTools()
         open("Texture Studio", pageIndex(pageTextureStudio))
             .help("The armed humanoids' recolours by weapon: each row's colour, strength, lightness and tint, and which "
                   "texels they dye (palette rows, painted texels), live on a row lined up ahead; saved to quakevr/humlook.txt."),
+        command("Dazzle Studio (Flat Screen)", "vr_dazzlestudio")
+            .help("vr_dazzlestudio: the flashlight dazzle's shield pose tweaked per armed humanoid kind (one weapon, and two: "
+                  "the dual-wielding set) in an ImGui window: the kind stands ahead of you shielding its eyes (frozen, or "
+                  "its hand rising and falling), gizmos on its hand, elbow and gun hand (click a dot, or 1 2 3; W move, E "
+                  "turn), sliders, the right-button drag turns it; Save writes quakevr/data/dazzle.txt (all zero: the base "
+                  "pose). vr_dazzlestudio test ends on 'dazzlestudio: N passed, M failed'. Flat screen only."),
         header("Enemy Attributes"),
         command("Make the Nearest Monster Elite", "vr_attr_set elite 1")
             .help("vr_attr_set elite 1: the monster nearest you an elite (much faster fire, reaction, aim and swings, 1.25x "

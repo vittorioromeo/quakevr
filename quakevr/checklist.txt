@@ -41,6 +41,17 @@
 ## Takes
 ## Studios and debug tools
 
+[New: not yet sorted]
+Flat-screen: holster both guns and walk while looking at your belt: the hip holsters and the ammo pouch bob with the legs as before; Tunables > Flatscreen > Looks, Holster Bob Horizontal and Holster Bob Vertical at 0 keep them still on the belt, each way on its own. {test:flat_holster_bob}
+Flat-screen: both hands empty, crouch, look down at the floor and jab: the fists stop on the floor with a thud instead of going through it. {test:flat_fists}
+The spear and the Crystal Lance in the hip, shoulder and upper holsters sit as you set them (your offsets are now the defaults). {test:flat_spear}
+A grunt holding two guns, lit in the face by your lamp, shields its eyes with its left gun's hand (Dual Wielders Shield on by default now). {test:agrunt_flashblind}
+Flat-screen: hold TAB (as well as MMB): the holster menu opens with the bindings reminder above it and a level bar at the bottom (level name, kills, secrets, skill, time) in the menus' look; letting go closes it, and the old TAB scoreboard no longer appears in flat play. {test:wheel_grenade}
+Flat-screen: in the holster menu, BACK POUCH over the hands: GRENADE and CLUSTER, each with L and R buttons; L/R takes one into that hand, the other kind swaps it, the same kind puts it back (as the weapon wheel's BACK POUCH). {test:wheel_grenade}
+Flat-screen: with the right hand holding a shotgun and the left hand empty on it, hold 1: the left weapon wheel opens low on the left, where it opens with both hands empty, not at the screen's edge. {test:weapon_wheel}
+Flat-screen or VR: the pad's button glyphs in the holster menu's bindings panel, the VR weapon wheel's controller panel and the main menu's reminder are larger and readable (LB, RT, LS letters clear, no glow over them); rows and places unchanged. {test:flat_gamepad}
+Flat-screen: open the Dazzle Studio (Debug > Tools, or Tunables > Armed Humanoids > Flashlight Dazzle): a grunt stands ahead shielding its eyes; click the Hand, Elbow or Gun Arm dot and drag the gizmo, or move the sliders: the pose follows at once; try each kind and Two Weapons (E turns the left revolver in the hand), Live to see the hand rise, then Save and shine your flashlight at a real grunt of that kind: it shields the way you set. {test:dazzlestudio}
+
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

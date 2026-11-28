@@ -1539,6 +1539,11 @@ VisorImage renderBindPanel(const BindPanelView& view)
     return bindPanelRender(view);
 }
 
+VisorImage renderLevelBar(const LevelBarView& view)
+{
+    return levelBarRender(view); // (vr_gadget_holster.inc)
+}
+
 VisorImage visorImage(int panel)
 {
     VisorImage out;

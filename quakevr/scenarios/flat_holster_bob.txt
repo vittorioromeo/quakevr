@@ -1,0 +1,10 @@
+# flat_holster_bob: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode):
+# the hip holsters' and the ammo pouch's sway with the walking legs, scaled across and up and down apart
+# (vr_flat_holster_bob_h / _v); flatholsterbob_test.sh. Guns in both hip holsters.
+title Flat-screen: the hip holsters and the ammo pouch bobbing with the legs as you walk
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+give "Nailgun" off
+hint Play with -flatscreenmode. Holster both guns (4 and 5), look down at your belt and walk about. Debug > Tunables > Flatscreen > Looks: Holster Bob Horizontal and Holster Bob Vertical (1: as before; 0: the holsters and the pouch stay still on the belt). Debug > Debug Views: Print Holster Leg Bob prints how far the legs carry them now.

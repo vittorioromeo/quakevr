@@ -212,8 +212,33 @@ struct HolsterMenuView
     const char* dragModel{""}; // the weapon being dragged (its thumbnail at dragAt, under the cursor; "" none)
     const char* dragName{""};
     glm::vec2 dragAt{0.f};
+    // A small title over a group (flatmenu3: "BACK POUCH" over the pouch's grenades): its middle at `captionAt` ("" none).
+    const char* caption{""};
+    glm::vec2 captionAt{0.f};
 };
 [[nodiscard]] VisorImage renderHolsterMenu(const HolsterMenuView& view);
+
+// Flatscreen play's level bar under the holster menu (flatmenu3, his words 2026-11-28: "the horizontal bar at the bottom
+// of the screen with the level name, kill/secret counter, etc while the menu is open ... stylize that bar to fit the
+// visual theme of the menus"): the level's name on top, a row of items (a small label, its value) under it, in the
+// holster menu's palette and font, its own target. `size`: the image's virtual pixels (its width the menu's).
+//
+//   THE SLIPGATE COMPLEX (e1m1)
+//   KILLS 3/24   SECRETS 0/6   SKILL 1   TIME 2:31
+struct LevelBarItem
+{
+    const char* label{""};
+    const char* value{""};
+    bool lit{false}; // (drawn brighter: the player's own frags in a deathmatch's list)
+};
+struct LevelBarView
+{
+    glm::vec2 size{0.f};
+    const char* title{""};
+    const LevelBarItem* items{nullptr};
+    int itemCount{0};
+};
+[[nodiscard]] VisorImage renderLevelBar(const LevelBarView& view);
 
 // Flatscreen play's bindings reminder (wheelui, vr_bindpanel.hpp): each row an action and its keys as key caps (up to
 // two: "" none), in `columns` columns, in the holster menu's palette and font; its own target (it shows with the holster

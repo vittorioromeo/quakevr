@@ -379,6 +379,11 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
         holsterButton(v.buttons[i], pal);
     }
     holsterTextMid(v.size.x * 0.5f, v.size.y - 9.f, 6.f, v.footer, pal.dim * 1.6f, pal);
+    if(v.caption[0])
+    {
+        holsterTextMid(v.captionAt.x, v.captionAt.y - holsterTitleSize * 0.5f, holsterTitleSize, v.caption,
+            pal.label * holsterTitleInk, pal);
+    }
     holsterDragged(v, pal); // (over everything)
     gfx::end2D();
     out.texture = t.tex;
@@ -416,6 +421,25 @@ void bindPicture(const void* pic, float x, float y, float w, float h)
     {
         Draw_SubPic(x, y, w, h, static_cast<qpic_t*>(const_cast<void*>(pic)), 0.f, 0.f, 1.f, 1.f, nullptr, 1.f);
     }
+}
+
+// flatmenu3 (his words 2026-11-28: "hard to read the controller icon buttons ... the black text is overtaken by the
+// glowiness and the icons are a bit too small"): a pad's or a controller's button glyph drawn larger than its place
+// (padGlyphGrow, centred on it: the layout unchanged), on a dark plate, and dimmed (padGlyphInk): the screen's glow
+// (Shade::Screen's whitish cores and halo come from near-white strokes) no longer floods its black letters.
+constexpr float padGlyphGrow = 1.3f;
+constexpr float padGlyphInk = 0.6f;
+void padGlyph(const void* pic, float x, float y, float w, float h)
+{
+    if(!pic)
+    {
+        return;
+    }
+    const float gw = w * padGlyphGrow, gh = h * padGlyphGrow;
+    const float gx = x - (gw - w) * 0.5f, gy = y - (gh - h) * 0.5f;
+    fill(gx - 0.5f, gy - 0.5f, gw + 1.f, gh + 1.f, visorBlack);
+    const float ink[3] = {padGlyphInk, padGlyphInk, padGlyphInk};
+    Draw_SubPic(gx, gy, gw, gh, static_cast<qpic_t*>(const_cast<void*>(pic)), 0.f, 0.f, 1.f, 1.f, ink, 1.f);
 }
 
 // bindpanel2: the pictures' layout (the headset's weapon wheel's panel): the title on top, the pictures side by side in
@@ -661,7 +685,7 @@ VisorImage bindPanelRender(const BindPanelView& v)
             fill(l.anchor[i].x - 1.f, l.anchor[i].y - 1.f, 2.f, 2.f, pal.value);
             const float gx = l.left[i] ? l.at[i].x + cw - calloutGlyph : l.at[i].x;
             const float tx = l.left[i] ? l.at[i].x : l.at[i].x + calloutGlyph + 3.f;
-            bindPicture(c.glyph, gx, l.at[i].y + 1.f, calloutGlyph, calloutGlyph);
+            padGlyph(c.glyph, gx, l.at[i].y + 1.f, calloutGlyph, calloutGlyph);
             drawText(tx, l.at[i].y + 3.f, calloutChar, c.text, c.text[0] ? pal.value : pal.dim, pal);
         }
     }
@@ -687,7 +711,7 @@ VisorImage bindPanelRender(const BindPanelView& v)
             const float kw = bindKeyWOf(r, s);
             if(r.glyphs[s])
             {
-                bindPicture(r.glyphs[s], kx, y - 1.f, kw, kw);
+                padGlyph(r.glyphs[s], kx, y - 1.f, kw, kw);
                 kx += kw + 2.f;
                 continue;
             }
@@ -707,5 +731,82 @@ VisorImage bindPanelRender(const BindPanelView& v)
     out.size = size;
     out.shown = t.tex != 0;
     out.version = ++bindPanel.version;
+    return out;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Flatscreen play's level bar (flatmenu3; vr_flatholster.cpp says what is on it): under the holster menu, its look (the
+// face, the frame, the corners' ticks): the level's name, then the items, each a small label and its value.
+
+struct LevelBarState
+{
+    gfx::RenderTarget target;
+    unsigned version{0};
+};
+LevelBarState levelBar; // seat-shared: the image's target, made and drawn in the same seat's pass (as holsterMenu)
+
+constexpr float levelBarTitle = 7.f; // the name's letters at most
+constexpr float levelBarLabel = 5.f; // an item's label's, and its value's
+constexpr float levelBarValue = 6.f;
+constexpr float levelBarGap = 12.f; // between two items (a tick in its middle)
+
+VisorImage levelBarRender(const LevelBarView& v)
+{
+    VisorImage out;
+    const int w = static_cast<int>(v.size.x + 0.5f), h = static_cast<int>(v.size.y + 0.5f);
+    if(w <= 0 || h <= 0)
+    {
+        return out;
+    }
+    const Palette pal = palette();
+    gfx::RenderTarget& t = levelBar.target;
+    if(!t.ensure(w * visorTexels, h * visorTexels, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "level bar"))
+    {
+        return out;
+    }
+    gfx::begin2D(t, w, h);
+    fill(0.f, 0.f, v.size.x, v.size.y, visorBlack);
+    holsterOutline({1.f, 1.f, v.size.x - 2.f, v.size.y - 2.f}, pal.line * 0.6f);
+    fill(2.f, 2.f, 3.f, 1.f, pal.value);
+    fill(2.f, 2.f, 1.f, 3.f, pal.value);
+    fill(v.size.x - 5.f, v.size.y - 3.f, 3.f, 1.f, pal.value);
+    fill(v.size.x - 3.f, v.size.y - 5.f, 1.f, 3.f, pal.value);
+    const float room = v.size.x - 12.f;
+    // The name, as large as fits.
+    const float ts = za::min(levelBarTitle, room / static_cast<float>(za::max<za::SizeT>(strlen(v.title), 1)));
+    holsterTextMid(v.size.x * 0.5f, 4.f, ts, v.title, pal.value, pal);
+    fill(6.f, 5.f + levelBarTitle, v.size.x - 12.f, 1.f, pal.line * 0.4f);
+    // The items in a row, centred; all smaller together when they do not fit.
+    float wide = 0.f;
+    for(int i = 0; i < v.itemCount; i++)
+    {
+        const LevelBarItem& it = v.items[i];
+        wide += static_cast<float>(strlen(it.label)) * levelBarLabel + (it.label[0] ? 3.f : 0.f) +
+                static_cast<float>(strlen(it.value)) * levelBarValue + (i > 0 ? levelBarGap : 0.f);
+    }
+    const float k = wide > room ? room / wide : 1.f;
+    float x = (v.size.x - wide * k) * 0.5f;
+    const float y = 8.f + levelBarTitle;
+    for(int i = 0; i < v.itemCount; i++)
+    {
+        const LevelBarItem& it = v.items[i];
+        if(i > 0)
+        {
+            fill(x + levelBarGap * k * 0.5f - 0.5f, y + 1.f, 1.f, levelBarValue * k - 1.f, pal.line * 0.6f);
+            x += levelBarGap * k;
+        }
+        if(it.label[0])
+        {
+            drawText(x, y + (levelBarValue - levelBarLabel) * k, levelBarLabel * k, it.label, pal.label * holsterTitleInk, pal);
+            x += (static_cast<float>(strlen(it.label)) * levelBarLabel + 3.f) * k;
+        }
+        drawText(x, y, levelBarValue * k, it.value, it.lit ? glm::min(pal.value * 1.3f, glm::vec3{1.f}) : pal.value, pal);
+        x += static_cast<float>(strlen(it.value)) * levelBarValue * k;
+    }
+    gfx::end2D();
+    out.texture = t.tex;
+    out.size = v.size;
+    out.shown = t.tex != 0;
+    out.version = ++levelBar.version;
     return out;
 }

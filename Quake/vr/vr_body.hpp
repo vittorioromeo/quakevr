@@ -115,4 +115,8 @@ void queueDebug(const hands::State& s);
 // reach), drawn body or not (Misc/quakevr/reload/pouchbody_test.sh).
 void crouchReport_f();
 
+// vr_flat_holster_bob_report: how far the legs' move (walking) carries the hip holsters and the ammo pouch now, across and
+// up and down (world units), after flat-screen play's vr_flat_holster_bob_h / _v (Misc/quakevr/flatholsterbob_test.sh).
+void flatHolsterBobReport_f();
+
 } // namespace qvr::body

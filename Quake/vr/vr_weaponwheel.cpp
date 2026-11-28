@@ -32,6 +32,7 @@
 #include "vr_testkit.hpp"
 #include "vr_timescale.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_twohand.hpp"
 #include "vr_weapon_ids.h"
 
 #include "Zancle/Base/SizeT.hpp"
@@ -82,6 +83,10 @@ constexpr float fadeSeconds = 0.1f;
 constexpr float panelGap = 6.f; // a headset: between the bindings panel and the wheel's image above which it shows
 constexpr float flatCursorMargin = 60.f; // flatscreen play: how far past the image's edge the mouse's cursor goes (off the wheel)
 constexpr int giveUp = 400; // the test: frames a step may wait
+// Flatscreen play: where an empty left hand rests on the window, as shares of its width and height (measured at a level
+// look, vr_weaponwheel_test flatpos: 0.33, 0.81; the right hand's mirrored): the wheel's spot for a hand steadying the
+// other's weapon, and off the view.
+constexpr glm::vec2 restSpot{0.33f, 0.80f};
 
 struct WheelState
 {
@@ -134,6 +139,12 @@ void copyText(char* to, za::SizeT size, const char* from)
 // STAT_QVR_AMMOMULTI), its thumbnail the pouch's own model (QC VR_HandGrenade_Model) and the count left as an ammo line;
 // both carried: two halves, the grenade on top; neither: one greyed grenade. None without the pouch (vr_handgrenade 0).
 // The kind the hand holds (`gren`, flatholster::handGrenade; grenhold) stays lit with none left: picked, it goes back.
+// (the rule pouchKind shares with the holster menu)
+[[nodiscard]] bool pouchUsable(int left, int gren, bool isMulti)
+{
+    return left > 0 || gren == (isMulti ? 2 : 1);
+}
+
 int listGrenades(Choice* out, int max, int gren)
 {
     if(vr_handgrenade.value == 0.f || max <= 0)
@@ -150,7 +161,7 @@ int listGrenades(Choice* out, int max, int gren)
         copyText(c.model, sizeof(c.model), isMulti ? "progs/mervup.mdl" : "progs/grenade.mdl");
         c.ammoType = isMulti ? 6 : 3; // (AID_MULTI_ROCKETS, AID_ROCKETS)
         c.reserve = za::max(left, 0);
-        c.usable = left > 0 || gren == (isMulti ? 2 : 1);
+        c.usable = pouchUsable(left, gren, isMulti);
         c.half = half;
     };
     if(split)
@@ -353,8 +364,15 @@ void tick(int hand)
 [[nodiscard]] glm::vec2 flatHandOnWindow(int hand, const hands::State& s)
 {
     const float W = static_cast<float>(za::max(vid.width, 1)), H = static_cast<float>(za::max(vid.height, 1));
-    const glm::vec2 fallback{W * (hand == HAND_MAIN ? 0.72f : 0.28f), H * 0.68f};
-    if(!s.valid)
+    const glm::vec2 fallback{W * (hand == HAND_MAIN ? 1.f - restSpot.x : restSpot.x), H * restSpot.y};
+    // (flatmenu3) An empty hand steadying the other hand's weapon (flat play's two-handed hold): the game's hand is not
+    // where it is drawn (it hung behind the eye: the fallback, or anywhere on the window as the look went; his words
+    // 2026-11-28: "near the edge of the screen"): where an empty hand rests instead.
+    const int other = hand == HAND_MAIN ? HAND_OFF : HAND_MAIN;
+    const bool steadies = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2] == WID_FIST &&
+                          cl.stats[other == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2] != WID_FIST &&
+                          !flatplay::holdsThing(hand);
+    if(!s.valid || steadies)
     {
         return fallback;
     }
@@ -399,6 +417,8 @@ struct Test
     int flags0{0};        // the dagger's flags before the wheel's hold (FLIP GRIP: its reverse grip's bit turned over)
     bool flat{false};     // "flat": flatscreen play's (flatTestStep)
     bool gren{false};     // "grenade" / "flatgrenade": the grenade entry's (grenadeTestStep)
+    bool pos{false};      // "flatpos": where the off hand's wheel opens (posTestStep)
+    glm::vec2 helpAt{0.f}; // flatpos: the left wheel's spot with the left hand on the right's gun
     int shotgunAt{-1};    // flat: the shotgun's holster
     int firstWid{0};      // flat: the weapon 2's first tap drew (the first holstered)
     int pickAt{-1};       // flat: its holster, the wheel's pick (grenade: the nailgun's holster)
@@ -427,11 +447,18 @@ void result(bool ok, const char* what)
     Con_Printf("weaponwheel_test: %s %s\n", ok ? "PASS" : "FAIL", what);
 }
 
+void flatKey(int hand, bool down); // (below)
+
 void finish()
 {
     test.on = false;
-    Cbuf_AddText(test.flat ? va("vr_mock_key %s up; vr_mock_key %s up; vr_flat_wheel 1\n", vr_flat_key_cycle_left.string,
-                                 vr_flat_key_cycle_right.string)
+    if(test.flat)
+    {
+        // (one key name a call: Key_KeynumToString's buffer is shared)
+        flatKey(HAND_OFF, false);
+        flatKey(HAND_MAIN, false);
+    }
+    Cbuf_AddText(test.flat ? "vr_flat_wheel 1\n"
                            : "vr_mock_button main secondary 0; vr_mock_button off secondary 0; vr_mock_stick off 0 0\n");
     if(test.wheelWas >= 0.f)
     {
@@ -509,8 +536,9 @@ void press(int hand, bool down)
 
 void flatKey(int hand, bool down)
 {
+    // (its first key by name: the cvar holds a list since padflat, "1 LSHOULDER", and vr_mock_key takes one)
     const cvar_t& key = hand == HAND_MAIN ? vr_flat_key_cycle_right : vr_flat_key_cycle_left;
-    Cbuf_AddText(va("vr_mock_key %s %s\n", key.string, down ? "down" : "up"));
+    Cbuf_AddText(va("vr_mock_key %s %s\n", Key_KeynumToString(flatplay::keyNum(key, 0)), down ? "down" : "up"));
 }
 
 // The mouse's cursor onto choice `i`'s slot (-1: off the wheel, to its left), by the counts vr_flat_mouse_move hands on.
@@ -1174,10 +1202,85 @@ void grenadeTestStep()
     }
 }
 
+// vr_weaponwheel_test flatpos (flatmenu3, his words 2026-11-28: "When both hands are holding the same weapon, the weapon
+// wheel for the off-hand appears near the edge of the screen ... closer to the center, roughly in the same position where
+// it would appear if both hands were empty"). The flat script's weapons (the shotgun right, the nailgun left): the
+// nailgun holstered (the left hand then on the shotgun), 1 held: the left wheel's spot; the shotgun holstered, 1 held:
+// the spot with both hands empty; the two within 6 % of the window's height of each other, both away from the edges.
+void posTestStep()
+{
+    const int main = HAND_MAIN, off = HAND_OFF;
+    const float H = static_cast<float>(za::max(vid.height, 1)), W = static_cast<float>(za::max(vid.width, 1));
+    switch(test.step)
+    {
+    case 0:
+        if(waitFor(cls.signon == SIGNONS && cl.stats[STAT_HEALTH] > 0 && handWeapon(main) == WID_SHOTGUN &&
+                       handWeapon(off) == WID_NAILGUN, "the game up, both hands full"))
+        {
+            Cbuf_AddText("impulse 88\n"); // (4's: the left hand's nailgun into a free holster)
+        }
+        break;
+    case 1:
+        if(waitFor(handWeapon(off) == WID_FIST && ++test.mark > 30, "the nailgun holstered, the left hand on the shotgun"))
+        {
+            result(handWeapon(off) == WID_FIST && handWeapon(main) == WID_SHOTGUN,
+                va("the left hand empty, on the right's shotgun (drawn helping %d)", twohand::drawnHelping(off) ? 1 : 0));
+            flatKey(off, true);
+        }
+        break;
+    case 2:
+        // (a screenshot a few frames after it opened: his review of the spot)
+        if(ws().hand == off && ++test.mark == 4)
+        {
+            Cbuf_AddText("screenshot\n");
+        }
+        if(waitFor(ws().hand == off && test.mark >= 9, "the left wheel open (the shotgun two-handed)"))
+        {
+            test.helpAt = ws().screenAt;
+            flatKey(off, false);
+        }
+        break;
+    case 3:
+        if(waitFor(ws().hand < 0, "the left wheel closed"))
+        {
+            Cbuf_AddText("impulse 89\n");
+        }
+        break;
+    case 4:
+        if(waitFor(handWeapon(main) == WID_FIST && ++test.mark > 30, "the shotgun holstered, both hands empty"))
+        {
+            flatKey(off, true);
+        }
+        break;
+    case 5:
+        if(waitFor(ws().hand == off, "the left wheel open (both hands empty)"))
+        {
+            const glm::vec2 e = ws().screenAt, h = test.helpAt;
+            const auto inner = [W, H](const glm::vec2& p) { return p.x > W * 0.15f && p.x < W * 0.85f && p.y > H * 0.15f && p.y < H * 0.85f; };
+            result(glm::length(e - h) < H * 0.06f && inner(h) && inner(e),
+                va("the left wheel two-handed at %.0f %.0f, both hands empty at %.0f %.0f (window %.0f x %.0f)", h.x, h.y,
+                    e.x, e.y, W, H));
+            flatKey(off, false);
+        }
+        break;
+    case 6:
+        if(waitFor(ws().hand < 0, "the left wheel closed"))
+        {
+            finish();
+        }
+        break;
+    }
+}
+
 void testStep()
 {
     if(!test.on)
     {
+        return;
+    }
+    if(test.pos)
+    {
+        posTestStep();
         return;
     }
     if(test.gren)
@@ -1565,7 +1668,8 @@ void test_f()
     test.on = true;
     test.mp = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "mp");
     test.gren = Cmd_Argc() > 1 && (!q_strcasecmp(Cmd_Argv(1), "grenade") || !q_strcasecmp(Cmd_Argv(1), "flatgrenade"));
-    test.flat = Cmd_Argc() > 1 && (!q_strcasecmp(Cmd_Argv(1), "flat") || !q_strcasecmp(Cmd_Argv(1), "flatgrenade"));
+    test.pos = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "flatpos");
+    test.flat = Cmd_Argc() > 1 && (!q_strcasecmp(Cmd_Argv(1), "flat") || !q_strcasecmp(Cmd_Argv(1), "flatgrenade") || test.pos);
     if(!test.flat)
     {
         test.wheelWas = vr_weaponwheel.value; // (off by default since 2026-11-24: on for the test)
@@ -1575,6 +1679,22 @@ void test_f()
 }
 
 } // namespace
+
+PouchKind pouchKind(int hand, bool multi)
+{
+    PouchKind k;
+    k.on = vr_handgrenade.value != 0.f;
+    k.left = za::max(multi ? cl.stats[protocol::STAT_QVR_AMMOMULTI] : cl.stats[STAT_ROCKETS], 0);
+    k.usable = k.on && pouchUsable(k.left, flatholster::handGrenade(hand), multi);
+    return k;
+}
+
+void pickPouch(int hand, bool multi)
+{
+    Choice c;
+    c.key = multi ? keyMultiGrenade : keyGrenade;
+    pickHolster(hand == HAND_MAIN ? HAND_MAIN : HAND_OFF, c);
+}
 
 const Provider& holsterProvider()
 {

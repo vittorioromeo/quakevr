@@ -583,6 +583,13 @@ float pointWallDepth(const glm::vec3& from, const glm::vec3& point, float margin
     return hit && hit->wall ? za::max(hit->depth, 0.f) : 0.f;
 }
 
+float pointSurfaceDepth(const glm::vec3& from, const glm::vec3& point, float margin)
+{
+    const float m = za::max(margin, 0.f);
+    const auto hit = marginTrace(from, point, m);
+    return hit ? za::max(hit->depth + (hit->wall ? 0.f : m), 0.f) : 0.f; // (marginTrace adds the margin for a wall only)
+}
+
 void resolvePositions(hands::State& s, float /* turnYaw */)
 {
     // On the real clock, every frame: cl.time moves in steps with the server's messages (72 Hz, or

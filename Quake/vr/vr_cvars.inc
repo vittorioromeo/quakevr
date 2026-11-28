@@ -4791,6 +4791,12 @@ QVR_CVAR(vr_flat_proc_reload_debug, "0", CVAR_NONE)  // 1: the flat-screen proce
 QVR_CVAR(vr_flat_prl_lock, "0", CVAR_NONE)           // the procedural reload held at a keyframe's pose to tune it (prlfix; reloadsys: any key): N the end of key N of the gun's reload (vr_reloadsys.hpp), -1 the scrub (vr_flat_prl_scrub), 0 off
 QVR_CVAR(vr_flat_prl_scrub, "0", CVAR_NONE)          // with vr_flat_prl_lock -1: the share of one pass through the reload's keys held (0 its start .. 1 its end)
 QVR_CVAR(vr_reload_file, "data/reloads.txt", CVAR_NONE) // debug (vr_reloadsys.cpp): the procedural reloads' keyframes' file under quakevr/ (the tests' own)
+QVR_CVAR(vr_dazzle_file, "data/dazzle.txt", CVAR_NONE) // debug (vr_dazzledata.cpp): the dazzle shield's per-kind tweaks' file under quakevr/ (the tests' own)
+QVR_CVAR(vr_dazzlestudio_kind, "0", CVAR_NONE)        // debug: the Dazzle Studio's subject (vr_dazzlestudio): 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 AD's death guard, 5 AD's crossbow knight
+QVR_CVAR(vr_dazzlestudio_dual, "0", CVAR_NONE)        // debug: ... 1 holding two revolvers (the dual-wielding set edited), 0 its own weapon (the single set)
+QVR_CVAR(vr_dazzlestudio_live, "0", CVAR_NONE)        // debug: ... 0 frozen at full dazzle, 1 its hand rising and falling (the shield's ease), over and over
+QVR_CVAR(vr_dazzlestudio_turn, "0", CVAR_NONE)        // debug: ... turned this many degrees from facing you (the right-button drag)
+QVR_CVAR(vr_dazzlestudio_ahead, "56", CVAR_NONE)      // debug: ... units ahead of you
 QVR_CVAR(vr_flat_prl_test_miss, "0", CVAR_NONE)      // the tests' blocked port: units the procedural reload's hand stops short of the port (out of its opening), so the round never goes in and the failsafe cancels
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
@@ -4809,12 +4815,13 @@ QVR_CVAR(vr_flat_key_gearlights, "9", CVAR_ARCHIVE)    // the key that dims and 
 QVR_CVAR(vr_flat_key_attach, "j LSHOULDER_ALT", CVAR_ARCHIVE)        // weapon attachments (QC vr_attach.qc, impulse 52): the key that puts the attachment the other hand holds (a bayonet) on the gun in one hand, or takes the gun's off into the empty other hand, by its bind name; "" none
 QVR_CVAR(vr_flat_key_punch, "v RTHUMB", CVAR_ARCHIVE)         // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
 QVR_CVAR(vr_flat_key_voicechat, "CAPSLOCK", CVAR_ARCHIVE) // multiplayer voice chat's push-to-talk key, held (vr_voicechat.cpp; flat play owns it, VR reads it too); by its bind name; "" none
-QVR_CVAR(vr_flat_key_holster_menu, "mouse3 LTHUMB", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
+QVR_CVAR(vr_flat_key_holster_menu, "mouse3 TAB LTHUMB", CVAR_ARCHIVE) // flatscreen play: the holster menu's keys (bind names; "" none; how it opens and picks: vr_flat_holster_menu_mode); TAB too since flatmenu3 (his words 2026-11-28: one key for the menu, the bindings reminder and the level's stats: TAB's scoreboard is its level bar, vr_flat_holster_menu_levelbar)
 QVR_CVAR(vr_flat_holster_menu_mode, "0", CVAR_ARCHIVE) // flatscreen play: 0 hold the key, hover a button and let go: that button (let go over nothing: just closed; a left click while held clicks too, and then letting go only closes); 1 a press opens it, left clicks as many as wanted, the next press (or Esc) closes it (his words 2026-11-10)
 QVR_CVAR(vr_flat_holster_menu_timescale, "0.3", CVAR_ARCHIVE) // flatscreen play: time's speed while the holster menu is open (bullet time's slow motion; 1 not slowed)
 QVR_CVAR(vr_flat_holster_menu_blur, "6", CVAR_ARCHIVE)  // flatscreen play: the view's blur behind the holster menu and the weapon wheel (pixels at 1080p, 0 none)
 QVR_CVAR(vr_flat_holster_menu_xhair_fade, "1", CVAR_ARCHIVE) // flatscreen play: how far the crosshair fades out while the holster menu is open (1 gone, 0 kept)
-QVR_CVAR(vr_flat_holster_menu_size, "0.62", CVAR_ARCHIVE) // flatscreen play: the holster menu's height, a share of the window's
+QVR_CVAR(vr_flat_holster_menu_size, "0.58", CVAR_ARCHIVE) // flatscreen play: the holster menu's height, a share of the window's (0.62 before flatmenu3: a little smaller, the level bar under it)
+QVR_CVAR(vr_flat_holster_menu_levelbar, "1", CVAR_ARCHIVE) // flatscreen play: the level bar under the open holster menu (flatmenu3): the level's name, kills, secrets, skill and time (a deathmatch: the frags), TAB's old scoreboard in the menus' look; 0 none
 QVR_CVAR(vr_flat_holster_menu_fade_time, "0.12", CVAR_ARCHIVE) // flatscreen play: seconds the holster menu takes to fade in or out (real time)
 QVR_CVAR(vr_flat_holster_menu_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the holster menu's cursor speed (1: as the desktop's pointer)
 QVR_CVAR(vr_flat_holster_menu_crt, "0.5", CVAR_ARCHIVE) // flatscreen play: the holster menu's screen's CRT look (scanlines, flicker; 0 none), as the visor's panels
