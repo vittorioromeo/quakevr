@@ -1990,7 +1990,8 @@ void testPoseKeys_f()
 {
     if(!st.open)
     {
-        Con_Printf("rigstudio posekeys: the studio is not open\n");
+        Con_Printf("rigstudio posekeys: the studio is not open (flat-screen only: -flatscreenmode)\n");
+        qvr::testkit::verdict("rigstudio posekeys", 0, 1); // (a verdict, so the run ends on it, not its timeout)
         return;
     }
     st.tool = Tool::PoseKeys;
