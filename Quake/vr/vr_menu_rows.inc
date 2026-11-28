@@ -6719,6 +6719,10 @@ QVR_TOGGLE(vr_flat_proc_reload_debug, "Flatscreen Procedural Reload Print",
 QVR_SLIDER(vr_flat_prl_test_miss, "Procedural Reload: Miss the Port", 0.f, 24.f, 1.f, "%.0f units", ext(0.f, 48.f),
     "vr_flat_prl_test_miss: a test aid: the procedural reload's hand stops this many units short of the shotgun's port, "
     "so its round never goes in and the failsafe cancels the reload (0: off).")
+QVR_SLIDER(vr_flat_prl_hold, "Procedural Reload: Hold Real Reload at Key", 0.f, 24.f, 1.f, "%.0f", noExt,
+    "vr_flat_prl_hold: a test aid: a real procedural reload (R) stops at the end of key N of its gun's reload and stays there "
+    "(no failsafe) until this is set back to 0, the item kept in the hand: compare it with the Reload Studio's lock on the "
+    "same key (Procedural Reload: Pose Print). 0: off.")
 QVR_SLIDER(vr_flat_prl_lock, "Procedural Reload: Lock Pose", -1.f, 24.f, 1.f, "%.0f", noExt,
     "vr_flat_prl_lock: to tune the procedural reload's poses, holds it at one keyframe's pose (a gun with a procedural "
     "reload in one hand, the other empty; no R needed): N the end of key N of its reload (the Reload Studio lists them), "

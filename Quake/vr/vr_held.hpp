@@ -124,6 +124,9 @@ void viewPush(int hand, const glm::vec3& push);
 // lagged or led the hand as the mouse turned). Before viewPush, which moves it on from there. The gibs skewered on a blade
 // in a hand (skewerFrame) too, with vr_carry_local.
 void followDrawnHands(const hands::State& drawn);
+// The same for the prop held in `hand` alone, onto the hand drawn at (`pos`, `rot`) (reloadstudio2: flat play's procedural
+// reload's free hand as finally drawn, carried on the drawn gun: the round rigid in it, as the Reload Studio's lock draws it).
+void followHand(int hand, const glm::vec3& pos, const glm::vec3& rot);
 
 // Client side: the throw estimate of `hand` (tracking clock `at`) holding a prop in both hands: the prop's own motion
 // from both hands (throwing::estimateBothAt). `release`: the hand lets go now, of a prop held in both, or held in both

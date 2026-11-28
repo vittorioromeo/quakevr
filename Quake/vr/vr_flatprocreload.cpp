@@ -585,6 +585,10 @@ bool measureRound(int free)
                    "size %.2f, its reference %.2f %.2f %.2f\n",
             in.x, in.y, in.z, a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z, item.scale, item.ref.x,
             item.ref.y, item.ref.z);
+        // (Short lines in full, the built-in table's values: itemDefaults.)
+        Con_Printf("fprl_item_at: %d %.4f %.4f %.4f size %.4f ref %.4f %.4f %.4f\n", ps.trip.weapon, in.x, in.y, in.z, item.scale,
+            item.ref.x, item.ref.y, item.ref.z);
+        Con_Printf("fprl_item_axes: %d %.5f %.5f %.5f %.5f %.5f %.5f\n", ps.trip.weapon, a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z);
     }
     return true;
 }
@@ -634,6 +638,67 @@ void report_f()
         lk.on ? "on" : "off", lk.on ? lk.key + 1 : 0, lk.on ? keyName(r, lk.key) : "-", lk.t, handName(lk.free), rel.x, rel.y, rel.z, fr.x,
         fr.y - gr.y, fr.z, gun.x, gun.y, gun.z, lk.pair ? 1 : 0, busy(lk.free) ? 1 : 0, ps.portGap, gripShare(lk.free),
         view::drawnGripCurl(lk.free));
+}
+
+// vr_flatprocreload_pose (reloadstudio2: the lock against a real reload, his note 2026-11-28 item 11): the free hand and the
+// item in it as drawn this frame, in the drawn gun hand's frame (forward, left, up; turns as angles of the relative axes):
+// the hand placed (before the grasp), the hand entity drawn (after the grasp's palm move), the item's place and turn, the
+// grasp's palm move / turn, whether the hand wraps something and its five fingers' curls. One line: "fprl_pose: ...".
+void pose_f()
+{
+    const bool lock = lk.on;
+    const int f = lock ? lk.free : ps.trip.free;
+    const int g = 1 - f;
+    glm::vec3 gp, gr, fp, fr;
+    view::DrawnHandDiag d;
+    if((!lock && !ps.trip.on) || !view::drawnHandPose(g, gp, gr) || !view::drawnHandPose(f, fp, fr) || !view::drawnHandDiag(f, d))
+    {
+        Con_Printf("fprl_pose: none\n");
+        return;
+    }
+    const glm::mat3 toGun = glm::transpose(held::axesFromAngles(&gr[0], true));
+    const auto relAngles = [&](const glm::mat3& axes) {
+        glm::vec3 a;
+        held::anglesFromAxes(toGun * axes, &a[0], true);
+        return a;
+    };
+    const glm::vec3 hp = toGun * (fp - gp), hr = relAngles(held::axesFromAngles(&fr[0], true));
+    const glm::vec3 ep = toGun * (d.origin - gp), er = relAngles(held::axesFromAngles(&d.angles[0], false));
+    glm::vec3 ip{0.f}, ir{0.f}, hip{0.f}, hir{0.f};
+    bool itemOn = false;
+    glm::vec3 itemAt{0.f};
+    glm::mat3 itemAxes{1.f};
+    if(lock && lk.pair)
+    {
+        itemAt = lockPairPlace(fp, fr, itemAxes);
+        itemOn = true;
+    }
+    else if(const int ent = carriedEnt(f); !lock && ent > 0 && ent < cl.num_entities)
+    {
+        const entity_t& e = cl_entities[ent];
+        itemAt = geom::vec(e.origin);
+        itemAxes = held::axesFromAngles(&e.angles[0], false);
+        itemOn = true;
+    }
+    if(itemOn)
+    {
+        ip = toGun * (itemAt - gp);
+        ir = relAngles(itemAxes);
+        // (and in the free hand's own frame as placed: where it sits in the hand as drawn)
+        const glm::mat3 toHand = glm::transpose(held::axesFromAngles(&fr[0], true));
+        hip = toHand * (itemAt - fp);
+        held::anglesFromAxes(toHand * itemAxes, &hir[0], true);
+    }
+    const Reload* r = reloadOf(lock ? lk.weapon : ps.trip.weapon);
+    const int key = lock ? lk.key : ps.trip.key;
+    // (Short lines: the console wraps long ones and the tests' filters see the first part only.)
+    Con_Printf("fprl_pose: %s key %d t %.2f hand %.2f %.2f %.2f turn %.1f %.1f %.1f\n", lock ? "lock" : "trip", key + 1,
+        lock ? lk.t : ps.trip.t, hp.x, hp.y, hp.z, hr.x, hr.y, hr.z);
+    Con_Printf("fprl_pose_drawn: %.2f %.2f %.2f turn %.1f %.1f %.1f palm %.2f %.1f wraps %d\n", ep.x, ep.y, ep.z, er.x, er.y, er.z,
+        d.palmMove, d.palmTurn, d.wrapsWeapon ? 2 : d.wraps ? 1 : 0);
+    Con_Printf("fprl_pose_item: %d %.2f %.2f %.2f turn %.1f %.1f %.1f in hand %.2f %.2f %.2f turn %.1f %.1f %.1f\n", itemOn ? 1 : 0,
+        ip.x, ip.y, ip.z, ir.x, ir.y, ir.z, hip.x, hip.y, hip.z, hir.x, hir.y, hir.z);
+    Con_Printf("fprl_pose_curl: %.2f %.2f %.2f %.2f %.2f (%s)\n", d.curl[0], d.curl[1], d.curl[2], d.curl[3], d.curl[4], keyName(r, key));
 }
 
 [[nodiscard]] int lockValue()
@@ -952,6 +1017,7 @@ void applyLock(hands::State& s)
 void init()
 {
     Cmd_AddCommand("vr_flatprocreload_report", report_f);
+    Cmd_AddCommand("vr_flatprocreload_pose", pose_f);
     Cmd_AddCommand("vr_flat_prl_lock_next", lockNext_f);
     Cmd_AddCommand("vr_flat_prl_lock_prev", lockPrev_f);
     reloadsys::init();
@@ -1117,9 +1183,11 @@ void frame(bool on)
     measurePort(t.gun);
     measureDest(t.gun, *r);
     key = &r->keys[t.key];
-    t.t = za::min(1.f, t.t + step / reloadsys::handTime(*key));
-    t.gt = za::min(1.f, t.gt + step / reloadsys::gunTime(*key));
-    const double since = vr_gametime - t.keyAt;
+    // (reloadstudio2: the gun's speed and vr_reload_speed scale every key's times: `since` below in the keys' own seconds.)
+    const float speed = reloadsys::playSpeed(*r);
+    t.t = za::min(1.f, t.t + step * speed / reloadsys::handTime(*key));
+    t.gt = za::min(1.f, t.gt + step * speed / reloadsys::gunTime(*key));
+    const double since = (vr_gametime - t.keyAt) * static_cast<double>(speed);
     const int carried = carriedEnt(t.free);
     const float failsafe = timeOf(vr_flat_prl_failsafe, 0.05f);
     const auto cond = [&](Cond c) { return condMet(c, t.gun); };
@@ -1177,6 +1245,8 @@ void frame(bool on)
         return;
     }
     bool done = t.t >= 1.f;
+    // (vr_flat_prl_hold N, a test aid: held at key N's end, no failsafe, until it is set back.)
+    const bool holdHere = static_cast<int>(vr_flat_prl_hold.value) == t.key + 1 && !t.ending;
     switch(key->action)
     {
         case Action::Take:
@@ -1198,7 +1268,7 @@ void frame(bool on)
                 }
             }
             done = carried > 0 && since >= static_cast<double>(reloadsys::handTime(*key)) - 1e-4;
-            if(carried == 0 && since >= static_cast<double>(reloadsys::handTime(*key) + failsafe))
+            if(carried == 0 && since >= static_cast<double>(reloadsys::handTime(*key) + failsafe * speed))
             {
                 ps.failsafes++;
                 cancel(t.takeSent ? "failsafe: the pouch gave nothing" : "failsafe: the hand never reached the pouch's hotspot", true);
@@ -1215,7 +1285,7 @@ void frame(bool on)
                     t.atPortAt = vr_gametime;
                     ps.insertGap = ps.portGap;
                 }
-                else if(vr_gametime - t.atPortAt >= static_cast<double>(failsafe))
+                else if(vr_gametime - t.atPortAt >= static_cast<double>(failsafe) && !holdHere)
                 {
                     ps.failsafes++;
                     cancel("failsafe: the round wasn't seated at the port", true);
@@ -1225,7 +1295,7 @@ void frame(bool on)
             break;
         default: break;
     }
-    if(!done)
+    if(!done || holdHere)
     {
         return;
     }
@@ -1316,6 +1386,18 @@ bool portNow(const hands::State& s, int g, glm::vec3& port)
     }
     port = s.pos[g] + held::axesFromAngles(&s.rot[g][0], true) * ps.portIn;
     return true;
+}
+
+bool freesForGrip(int h)
+{
+    const bool lock = lk.on && h == lk.free;
+    if(!lock && !(ps.trip.on && ps.trip.ending && h == ps.trip.free))
+    {
+        return false;
+    }
+    const Reload* r = reloadOf(lock ? lk.weapon : ps.trip.weapon);
+    const int k = lock ? lk.key : ps.trip.key;
+    return r && k >= 0 && k < r->keyCount && r->keys[k].finish && r->keys[k].target == Target::Rest;
 }
 
 bool busy(int h)

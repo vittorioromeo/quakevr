@@ -41,6 +41,11 @@ void apply(hands::State& s);
 void noteDrawn(const hands::State& s, int hand, const glm::vec3& pos, const glm::vec3& rot);
 void attachDrawn(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot);
 [[nodiscard]] bool portNow(const hands::State& s, int g, glm::vec3& port);
+// reloadstudio2 (his note 2026-11-28 item 10): the reload's free hand `h` on its way back (a reload's-end key to its own pose,
+// the last insert done; the lock on such a key too): the gun's two-handed grip may take it now (vr_flatsight.cpp gripWanted),
+// so that key's own pose is the grip and the hand goes there straight, not to the body's side first. One-handed guns: no grip,
+// as before.
+[[nodiscard]] bool freesForGrip(int h);
 // The key-pose lock (vr_flat_prl_lock, prlfix: to tune the poses) holding a taped pair in the free hand: that hand and the
 // pair's size (vr_view.cpp prlPair draws it); false: no pair to draw.
 [[nodiscard]] bool lockPair(int& hand, float& scale);

@@ -2002,6 +2002,7 @@ QVR_TUNABLE(vr_flat_rv_open_out_time, "0.2") // flat-screen play: the revolver's
 // reloadsys, 2026-11-28): quakevr/data/reloads.txt (vr_reloadsys.hpp), edited by the Reload Studio.
 QVR_TUNABLE(vr_flat_prl_failsafe, "0.6") // seconds after the round reaches the port without going in (a wall, a blocked hand) before the reload is cancelled (its round back in the pouch)
 QVR_TUNABLE(vr_flat_prl_giveup, "1.5") // the server's failsafe (QC): seconds with nothing taken or loaded before it cancels the reload
+QVR_TUNABLE(vr_reload_speed, "1") // reloadstudio2 (his ask 2026-11-28): every procedural reload played this much faster (x its gun's own speed in reloads.txt; 0.5..3); never slows movement
 QVR_TUNABLE(vr_flat_ammo_pouch_x, "-1") // flat-screen play's ammo pouch (shown with vr_flat_proc_reload): units it sits forward of the headset's place
 QVR_TUNABLE(vr_flat_ammo_pouch_y, "0") // and to the right
 QVR_TUNABLE(vr_flat_ammo_pouch_z, "0") // and up

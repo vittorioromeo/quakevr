@@ -24,6 +24,7 @@
 #include "vr_reloadsys.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_testkit.hpp"
+#include "vr_tunables.hpp"
 #include "vr_waveeditor.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_weaponstudio.hpp"
@@ -420,6 +421,10 @@ void reloadRows()
     editEnum("Destination", r.dest, static_cast<int>(reloadsys::Dest::Count), reloadsys::destName, "Where it goes on the gun");
     editVec("Item Turn", r.itemRot, 0.5f, -180.f, 180.f, "%.1f",
         "The item's turn at its destination in the gun's frame (pitch, yaw, roll): the hand is solved backwards from it");
+    editFloat("Speed", r.speed, 0.01f, reloadsys::minSpeed, reloadsys::maxSpeed, "%.2fx",
+        "This gun's whole reload played this much faster (1: the keys' own times), times Reload Speed (vr_reload_speed) for every gun");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(all guns %.2fx)", vr_reload_speed.value);
     int loop[2] = {r.loopFrom + 1, r.loopTo + 1};
     if(ImGui::DragInt2("Loop Keys", loop, 0.1f, 0, r.keyCount))
     {
@@ -845,7 +850,7 @@ void frame()
         const double now = realtime;
         const float dt = win.lastReal >= 0.0 ? static_cast<float>(za::clamp(now - win.lastReal, 0.0, 0.1)) : 0.f;
         win.lastReal = now;
-        float s = vr_flat_prl_scrub.value + dt * win.speed / totalTime(cur());
+        float s = vr_flat_prl_scrub.value + dt * win.speed * reloadsys::playSpeed(cur()) / totalTime(cur());
         s = s > 1.f ? s - 1.f : s;
         Cvar_SetValueQuick(&vr_flat_prl_scrub, s);
         if(vr_flat_prl_lock.value != -1.f)

@@ -4791,6 +4791,7 @@ QVR_CVAR(vr_flat_proc_reload_debug, "0", CVAR_NONE)  // 1: the flat-screen proce
 QVR_CVAR(vr_flat_prl_lock, "0", CVAR_NONE)           // the procedural reload held at a keyframe's pose to tune it (prlfix; reloadsys: any key): N the end of key N of the gun's reload (vr_reloadsys.hpp), -1 the scrub (vr_flat_prl_scrub), 0 off
 QVR_CVAR(vr_flat_prl_scrub, "0", CVAR_NONE)          // with vr_flat_prl_lock -1: the share of one pass through the reload's keys held (0 its start .. 1 its end)
 QVR_CVAR(vr_reload_file, "data/reloads.txt", CVAR_NONE) // debug (vr_reloadsys.cpp): the procedural reloads' keyframes' file under quakevr/ (the tests' own)
+QVR_CVAR(vr_flat_prl_hold, "0", CVAR_NONE)           // a test aid (reloadstudio2): a real procedural reload held at the end of key N (from 1) of its gun's reload until set back to 0, its item kept in the hand (the studio-vs-game pose check: vr_flatprocreload_pose); 0 off
 QVR_CVAR(vr_flat_prl_test_miss, "0", CVAR_NONE)      // the tests' blocked port: units the procedural reload's hand stops short of the port (out of its opening), so the round never goes in and the failsafe cancels
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none

@@ -3211,26 +3211,50 @@ namespace
 
 // Flat play's procedural reload locked at a key pose with a pair in the free hand (vr_flat_prl_lock: prlfix): the pair
 // drawn in it as a real take's sat (the server gives none: nothing is taken or loaded).
+int prlItemFrame = -1; // host_framecount the lock's item was last placed on its hand (placePrlItem)
+
+// (reloadstudio2: placed on the hand as drawn by setupHand, before the hand's grasp, placePrlItem; hidden here otherwise.)
 void setupPrlPair(const hands::State& s)
 {
+    (void)s;
     view::ViewEntity& ve = entities.prlPair;
     int hand = HAND_OFF;
     float size = 1.f;
-    qmodel_t* const model = flatprocreload::lockPair(hand, size) ? view::viewModel(flatprocreload::lockItemModel()) : nullptr;
-    if(!model)
+    if(!flatprocreload::lockPair(hand, size) || prlItemFrame != host_framecount)
     {
         ve.visible = false;
-        return;
     }
-    glm::vec3 pos = s.pos[hand], rot = s.rot[hand];
-    (void)view::drawnHandPose(hand, pos, rot); // (the hand as drawn this frame, else as posed)
+}
+
+} // namespace
+
+// The lock's item placed on `hand` as drawn (setupHand, before the hand's grasp, so it wraps it as a real reload's hand wraps
+// the item the server gave it; reloadstudio2): as a real take's sat in the hand (the server gives none: nothing is taken or
+// loaded). False: no item in that hand.
+bool placePrlItem(int hand, const glm::vec3& pos, const glm::vec3& rot)
+{
+    view::ViewEntity& ve = entities.prlPair;
+    int lockHand = HAND_OFF;
+    float size = 1.f;
+    qmodel_t* const model =
+        flatprocreload::lockPair(lockHand, size) && lockHand == hand ? view::viewModel(flatprocreload::lockItemModel()) : nullptr;
+    if(!model)
+    {
+        return false;
+    }
     glm::mat3 axes;
     const glm::vec3 at = flatprocreload::lockPairPlace(pos, rot, axes);
     place(ve, model, at, aliasAngles(axes[0], axes[2]), 0, false);
     ve.ent.skinnum = flatprocreload::lockItemSkin(); // (reloadmuzzle: the revolver's blue slugs)
+    ve.ent.frame = 0;
     ve.scale = glm::vec3{CLAMP(0.25f, size, 4.f)};
     ve.visible = true;
+    prlItemFrame = host_framecount;
+    return true;
 }
+
+namespace
+{
 
 void setupAmmoPouch(const hands::State& s)
 {

@@ -1127,6 +1127,11 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_attach_debug),
         row(opt::vr_flat_proc_reload_debug),
         row(opt::vr_flat_prl_test_miss),
+        row(opt::vr_flat_prl_hold),
+        command("Procedural Reload: Pose Print", "vr_flatprocreload_pose")
+            .help("vr_flatprocreload_pose: the free hand and the item in it as drawn now (a real reload's or the Reload Studio's "
+                  "lock), in the gun hand's frame: the hand placed and drawn, the item, the grasp's palm move and the fingers' "
+                  "curls (fprl_pose: ...)."),
         command("Reload Studio", "vr_reloadstudio")
             .help("vr_reloadstudio: the procedural reloads' keyframes in an ImGui window over play (flat screen): pick a gun, "
                   "play, pause, step or scrub its keys, edit each key's times, ease, the gun's tilt, the free hand's offset and "

@@ -1989,6 +1989,7 @@ QVR_TUNABLE_SLIDER(vr_flat_rv_open_out_time, "Revolver Open: Out Time", 0.02f, 1
 QVR_TUNABLE_GROUP("Flatscreen > Procedural Reload")
 QVR_TUNABLE_SLIDER(vr_flat_prl_failsafe, "Failsafe Time", 0.1f, 2.f, 0.05f, "%.2f s", 0.05f, 5.f, "Seconds after the pair reaches the port without going in (a wall in the way, a blocked hand) before the reload is cancelled, the pair back in the pouch (vr_flat_prl_failsafe).")
 QVR_TUNABLE_SLIDER(vr_flat_prl_giveup, "Server Give-Up Time", 0.5f, 10.f, 0.25f, "%.2f s", 0.5f, 30.f, "The game's own failsafe: seconds with nothing taken from the pouch or loaded before it cancels the reload (vr_flat_prl_giveup).")
+QVR_TUNABLE_SLIDER(vr_reload_speed, "Reload Speed", 0.5f, 3.f, 0.05f, "%.2fx", 0.5f, 3.f, "Every procedural reload played this much faster (1: the keyframes' own times; 2: twice as fast), on top of each gun's own Speed (the Reload Studio, reloads.txt). Moving is never slowed while reloading (vr_reload_speed).")
 QVR_TUNABLE_SLIDER(vr_flat_ammo_pouch_x, "Pouch: Forward", -12.f, 12.f, 0.25f, "%.2f u", -24.f, 24.f, "Flat-screen play's ammo pouch (shown with Procedural Reload on): units forward of the headset's place for it (vr_flat_ammo_pouch_x).")
 QVR_TUNABLE_SLIDER(vr_flat_ammo_pouch_y, "Pouch: Right", -12.f, 12.f, 0.25f, "%.2f u", -24.f, 24.f, "And to the right (vr_flat_ammo_pouch_y).")
 QVR_TUNABLE_SLIDER(vr_flat_ammo_pouch_z, "Pouch: Up", -12.f, 12.f, 0.25f, "%.2f u", -24.f, 24.f, "And up (vr_flat_ammo_pouch_z).")
