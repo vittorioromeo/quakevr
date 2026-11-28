@@ -13,6 +13,9 @@
 # reloadmags: the magazine guns (ng sng lg np) in the matrix too, partly fired (the eject key, the rounds back in the
 # reserve, one magazine seated); base: the nailgun and super nailgun fired empty (no eject), a shot mid-carry (nothing lost).
 # matrix: the matrix alone (matrix-<gun>: one gun's); all (the default): both. Each run ends on its own verdict line (-QuitOn);
+# reloadmuzzle: the launchers loaded at the muzzle (grenade, proximity, rocket) and the heavy revolver's cylinder (swung out
+# by the reload's flick, its spent shells out, taped pairs into its empty chambers, home by the end's flick): muzzle: their
+# runs alone (also in all); matrix-gl/-px/-rl/-rv: theirs in the matrix.
 # flatprocreload_check.py checks the logs and prints "flatprocreload: N passed, M failed".
 AGENT=${1:?agent}
 MODE=${2:-all}
@@ -43,8 +46,31 @@ J="+jump; wait3; -jump; wait30"
 C="+flatcrouch; wait40; -flatcrouch; wait30"
 MQ="^flat proc reload: main hand (done|cancelled)"
 SQ="^flat proc reload: main hand: the super shotgun closed|^flat proc reload: main hand cancelled"
+# reloadmuzzle: the launchers (the test give 150 + their IDs: 158 the grenade launcher, 159 the proximity launcher, 160 the
+# rocket launcher), fired empty (4 rounds); the heavy revolver (ID 31, the test give 149), 2 of its 6 fired (R: the reload's
+# flick swings it out, its 2 spent out, a pair in, the end's flick home) or all 6 (it swings out by itself, 3 pairs).
+GL="impulse 158; give r 50; wait20; +attack; wait300; -attack; wait20"
+PX="impulse 159; give r 50; wait20; +attack; wait300; -attack; wait20"
+RL="impulse 160; give r 50; wait20; +attack; wait400; -attack; wait20"
+SHOT="+attack; wait5; -attack; wait90"
+RV="vr_test_give_wid 31; impulse 149; give s 50; wait80; $SHOT; $SHOT"
+RVEMPTY="vr_test_give_wid 31; impulse 149; give s 50; wait80; $SHOT; $SHOT; $SHOT; $SHOT; $SHOT; $SHOT; wait30"
+VQ="^flat proc reload: main hand: the revolver closed|^flat proc reload: main hand cancelled"
 
-case "$MODE" in matrix*) ;; *)
+if [ "$MODE" = muzzle ] || [ "$MODE" = all ]; then
+run gl "$MQ" "$BASE; $GL; $R"
+run px "$MQ" "$BASE; $PX; $R"
+run rl "$MQ" "$BASE; $RL; $R"
+run rlrun "$MQ" "$BASE; $RL; +forward; +right; $R"
+run rv "$VQ" "$BASE; $RV; $R"
+run rvempty "$VQ" "$BASE; $RVEMPTY; $R"
+# A shot of the revolver mid-reload (its first pair in): cancelled, the cylinder home by the end's flick, no slug lost.
+run rvfire "$VQ" "$BASE; $RVEMPTY; $R; wait100; +attack; wait2; -attack"
+# The lock on the rocket launcher's insert key (no R): the free hand's round at the muzzle, the gap reported.
+run rllock "^fprl_test: rllock locked" "$BASE; $RL; vr_flat_prl_lock 4; wait40; vr_flatprocreload_report; vr_flat_prl_lock 0; wait5; echo fprl_test: rllock locked"
+fi
+
+case "$MODE" in matrix*|muzzle) ;; *)
 # R with the clip empty: trips of 2 to full, the server's "done (full)" ends it; the gun traced each frame (continuity).
 run trips "^flat proc reload: main hand done" "$BASE; vr_flat_proc_reload_debug 2; $SG; $EMPTY; vr_flatprocreload_report; $R"
 # The same at 144 frames a second: the path's continuity doesn't hang on the frame rate.
@@ -91,12 +117,12 @@ run magempty_sng "$MQ" "$BASE; $SNG; $MAGEMPTY; $R"
 run magfire_ng "^flatprocreload: the off hand back in its pose" "$BASE; $NG; $PART; $R; wait48; vr_flatprocreload_report; +attack; wait2; -attack"
 ;; esac
 
-GUNS="sg ssg ng sng lg np"
+GUNS="sg ssg ng sng lg np gl px rl rv"
 case "$MODE" in matrix-*) GUNS=${MODE#matrix-} ;; esac
-if [ "$MODE" != "base" ]; then
+if [ "$MODE" != "base" ] && [ "$MODE" != "muzzle" ]; then
 # reloadsys's matrix: every gun, standing, running in a circle, jumping, crouch-strafing, sliding, at 60 and 144 fps
-# (matrix-<gun>: one gun's, each under 13 minutes; sg ssg ng sng lg np). The magazine guns partly fired: the eject key lets
-# the magazine out (its rounds back in the reserve) first.
+# (matrix-<gun>: one gun's, each under 13 minutes; sg ssg ng sng lg np gl px rl rv). The magazine guns partly fired: the eject
+# key lets the magazine out (its rounds back in the reserve) first.
 for GUN in $GUNS; do
     case $GUN in
         sg) GIVE="$SG; $EMPTY"; Q="$MQ" ;;
@@ -105,6 +131,10 @@ for GUN in $GUNS; do
         sng) GIVE="$SNG; $PART"; Q="$MQ" ;;
         lg) GIVE="$LG; $PART"; Q="$MQ" ;;
         np) GIVE="$NP; $PART"; Q="$MQ" ;;
+        gl) GIVE="$GL"; Q="$MQ" ;;
+        px) GIVE="$PX"; Q="$MQ" ;;
+        rl) GIVE="$RL"; Q="$MQ" ;;
+        rv) GIVE="$RVEMPTY"; Q="$VQ" ;;
     esac
     for FPS in 60 144; do
         PRE="vr_fixed_frames_rate $FPS; $BASE; $GIVE"

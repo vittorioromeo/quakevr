@@ -6,7 +6,10 @@ AGENT=${1:-pickup}
 source "$(dirname "$0")/qvrtest.sh"
 export QVR_AUTHOR_WAIT_ALWAYS=1
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
-P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0"
+# (e1m1's start: the setpos 480 -352 88 this line had never reached the server until alwaysfail2 held a forwarded command
+# until the client spawned; there the jump and turn of section g gave no sway and the crosshair's pixels failed: ROUND26
+# "godfallout". Every section was written and passes where the map starts you.)
+P="map e1m1; god; notarget; developer 1; r_norefresh 0"
 SECTIONS=${SECTIONS:-abcdefg}  # every section (one run each); SECTIONS=a etc. for one
 
 if [[ $SECTIONS == *a* ]]; then

@@ -3227,6 +3227,7 @@ void setupPrlPair(const hands::State& s)
     glm::mat3 axes;
     const glm::vec3 at = flatprocreload::lockPairPlace(pos, rot, axes);
     place(ve, model, at, aliasAngles(axes[0], axes[2]), 0, false);
+    ve.ent.skinnum = flatprocreload::lockItemSkin(); // (reloadmuzzle: the revolver's blue slugs)
     ve.scale = glm::vec3{CLAMP(0.25f, size, 4.f)};
     ve.visible = true;
 }

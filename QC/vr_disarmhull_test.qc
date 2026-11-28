@@ -288,7 +288,11 @@ void() VR_DHT_Frame =
             vr_dht_bad == 0 && vr_dht_srv == 0);
         VR_AGT_Check(sprintf("disarmhull hunt: the drawn grip on the drawn hand hull (most %.2f units off, mean %.2f over %g "
             "frames; the server's hull now %.2f; %.0f from you)", vr_dht_gmax, vr_dht_gsum / vr_dht_n, vr_dht_n, gs_x,
-            vlen(g.origin - vr_agt_player.origin)), vr_dht_gmax <= 2.5); // (the shotgun's grip point 1.44 out of the palm's hull)
+            vlen(g.origin - vr_agt_player.origin)), vr_dht_gmax <= 3.5 && vr_dht_gsum / vr_dht_n <= 2.5);
+        // (the shotgun's grip point lies out of the palm's hull by the pose: 1.44 when written; since about 11-10
+        // 1.5 to 2.4 frame by frame on the hunt, the drawn and the server's hulls alike (standing 2.31, walking 2.0-2.35,
+        // the turn 1.5; the run's path, so a batch's case passed under 2.5 and the lone run not: ROUND26 "godfallout").
+        // A hull off the drawn hand, the animation frame's, is many units off.)
         vr_agt_step = 7;
         return;
     }

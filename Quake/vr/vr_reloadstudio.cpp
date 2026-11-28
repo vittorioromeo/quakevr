@@ -582,7 +582,7 @@ void drawWindow()
         ImGui::SameLine();
         if(ImGui::Button("Hold This Gun"))
         {
-            // (impulse 150 + its id: loaded, in the main hand; past 19, the nail pistol: vr_test_give_wid and impulse 149)
+            // (impulse 150 + its id: loaded, in the main hand; past 19, the nail pistol, the revolver: vr_test_give_wid and impulse 149)
             char give[64];
             q_snprintf(give, sizeof(give), cur().weapon < 20 ? "impulse %d\n" : "vr_test_give_wid %d; impulse 149\n",
                 cur().weapon < 20 ? 150 + cur().weapon : cur().weapon);

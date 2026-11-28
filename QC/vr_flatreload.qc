@@ -486,11 +486,12 @@ float(entity p, entity xBox) VR_FlatReload_ProcHolds =
 float(float xHand) VR_FlatReload_ProcWanted =
 {
     // (reloadsys: the shotgun and the super shotgun, the one that breaks open in flat-screen play: vr_flat_ssg_break;
-    // reloadmags: the magazine guns, VR_Reload_UsesMag: the nailguns, the thunderbolt and its plasma look, the nail pistol)
+    // reloadmags: the magazine guns, VR_Reload_UsesMag: the nailguns, the thunderbolt and its plasma look, the nail pistol;
+    // reloadmuzzle: the launchers loaded at the muzzle, vr_reload_front, and the heavy revolver's cylinder)
     float w = VRGetEntWeapon(self, xHand);
-    if(!cvar_hget(cvarh_vr_flat_proc_reload) ||
-       (w != WID_SHOTGUN && !VR_Reload_UsesMag(w) && !(w == WID_SUPER_SHOTGUN && VR_FlatReload_SsgBreaks(self, xHand))) ||
-       !VR_FlatReload_Can(xHand))
+    float kind = w == WID_SHOTGUN || VR_Reload_UsesMag(w) || (w == WID_SUPER_SHOTGUN && VR_FlatReload_SsgBreaks(self, xHand)) ||
+                 VR_Reload_IsFront(w) || (w == WID_REVOLVER && VRGetEntWeaponInst(self, xHand) != world);
+    if(!cvar_hget(cvarh_vr_flat_proc_reload) || !kind || !VR_FlatReload_Can(xHand))
     {
         return FALSE;
     }
@@ -551,7 +552,9 @@ void(float xHand, float xDone, string xWhy) VR_FlatReload_ProcStop =
     self.vr_flatrl = self.vr_flatrl - (self.vr_flatrl & VR_FlatReload_ProcBit(xHand));
     // A super shotgun left open with shells in: shut by the client's close key (the end's flick, impulse 108), by itself a
     // second later if that never comes (VR_FlatReload_CloseDueFrame).
-    if(VRGetEntWeapon(self, xHand) == WID_SUPER_SHOTGUN && (VRGetEntWeaponFlags(self, xHand) & QVR_WPNFLAG_SSG_OPEN) &&
+    // (reloadmuzzle: so too the revolver left swung out with rounds in.)
+    if(((VRGetEntWeapon(self, xHand) == WID_SUPER_SHOTGUN && (VRGetEntWeaponFlags(self, xHand) & QVR_WPNFLAG_SSG_OPEN)) ||
+        (VRGetEntWeapon(self, xHand) == WID_REVOLVER && VR_Revolver_IsOut(VRGetEntWeaponInst(self, xHand)))) &&
        VRGetEntWeaponClip(self, xHand) > 0)
     {
         self.vr_fprl_closeh = xHand + 1;
@@ -619,6 +622,8 @@ void() VR_FlatReload_ProcTake =
             VR_FlatReload_HandName(free), spot, VR_HandGrenade_PouchHandEmpty(self, free)));
         return;
     }
+    // (reloadmuzzle: a swung-out revolver's spent shells out first if their time hasn't come yet: the empty chambers to load.)
+    VR_FlatReload_RvEjectFrame(gun, TRUE);
     // (A magazine gun whose magazine is still in, its eject key skipped or not yet come: let out first, its rounds kept,
     // so the new one never seats over it and loses them: VR_FlatReload_ProcEjectHand.)
     VR_FlatReload_ProcEjectHand(gun, "the take, a magazine still in");
@@ -656,6 +661,23 @@ void() VR_FlatReload_ProcEject =
 void() VR_FlatReload_ProcOpen =
 {
     float gun = VR_FlatReload_ProcGun();
+    if(gun >= 0 && VRGetEntWeapon(self, gun) == WID_REVOLVER)
+    {
+        // (reloadmuzzle: the revolver's cylinder swung out by the reload's flick, its spent shells out once it is out:
+        // VR_FlatReload_RvOpen, its live ones kept in.)
+        entity rv = VRGetEntWeaponInst(self, gun);
+        if(rv == world || VR_Revolver_IsOut(rv))
+        {
+            dprint("flat proc reload: open: the revolver is out already\n");
+            return;
+        }
+        VR_FlatReload_SetDue(gun, 0);
+        VR_FlatReload_RvOpen(gun, "flat-screen play: the reload's flick");
+        self.vr_fprl_prog = time;
+        dprint(sprintf("flat proc reload: %s hand: the revolver swung out: clip %g of %g\n", VR_FlatReload_HandName(gun),
+            VRGetEntWeaponClip(self, gun), VR_ClipSizeIn(self, gun)));
+        return;
+    }
     if(gun < 0 || VRGetEntWeapon(self, gun) != WID_SUPER_SHOTGUN || !VR_FlatReload_SsgBreaks(self, gun) ||
        (VRGetEntWeaponFlags(self, gun) & QVR_WPNFLAG_SSG_OPEN))
     {
@@ -682,6 +704,14 @@ void(float xHand, string xHow) VR_FlatReload_ProcCloseHand =
     {
         VR_Reload_SsgClose(self, xHand, xHow);
         dprint(sprintf("flat proc reload: %s hand: the super shotgun closed (%s): clip %g\n", VR_FlatReload_HandName(xHand), xHow,
+            VRGetEntWeaponClip(self, xHand)));
+    }
+    // (reloadmuzzle: the revolver's cylinder swung home by the end's flick, loaded.)
+    if(VRGetEntWeapon(self, xHand) == WID_REVOLVER && VR_Revolver_IsOut(VRGetEntWeaponInst(self, xHand)) &&
+       !VR_FlatReload_ProcIn(self, xHand) && VRGetEntWeaponClip(self, xHand) > 0)
+    {
+        VR_Revolver_Close(xHand, VRGetEntWeaponInst(self, xHand), xHow);
+        dprint(sprintf("flat proc reload: %s hand: the revolver closed (%s): clip %g\n", VR_FlatReload_HandName(xHand), xHow,
             VRGetEntWeaponClip(self, xHand)));
     }
     if(self.vr_fprl_closeh == xHand + 1)

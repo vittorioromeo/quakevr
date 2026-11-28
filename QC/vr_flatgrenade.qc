@@ -547,6 +547,10 @@ void() VR_FlatGrenade_Adopt =
     {
         return; // (none; or held in both hands: the carry's two-handed throw)
     }
+    if(VR_FlatReload_ProcHolds(self, g))
+    {
+        return; // (reloadmuzzle: a launcher's grenade on its way to the muzzle, the procedural reload's: not a quick grenade)
+    }
     self.vr_flatgren_hand = h;
     self.vr_flatgren_ent = g;
     self.vr_flatgren_btn = VRGetFireButtonPressed(h); // (a button already down arms nothing)
