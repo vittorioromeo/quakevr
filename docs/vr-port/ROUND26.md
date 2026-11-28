@@ -6103,3 +6103,11 @@ His words 2026-11-28, items 2, 7, 8.
 - **Tests**: new `flatholsterbob_test.sh` 14/0 (four walks: 1 1, 0 0, 1 0, 0 1; each of lhip, rhip, pouch), new
   `flatpunchfloor_test.sh` 6/0 (crouched, 70 down: each jab's pose 1.9 into the floor, stops 0.4 in, the world blow; level
   jabs meet nothing); flatfists_test 21/0. Scene `flat_holster_bob`.
+## diskclean (2026-11-28)
+
+- Retired 18 checklist lines he ticked Pass (cl_retire_ticks.py, no voice notes) and removed 6 scenes nothing used any more:
+  agrunt_flashblind, armour_lineup, elite_pair, flat_proc_reload, run_setup_newgame, tutorial_ladder (agrunt_dual_guns and
+  armour_beasts kept: a QC test comment / test_numbers.txt / ARMED_MONSTERS.md still name them). checklist_tests_check 97/0.
+- Disk: moved to F:\QVR-Parked‚6-11-28\diskclean\: worktrees pcbase and unionmerge (3.3 GB, worktree prune), the kit base
+  bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
+  renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
