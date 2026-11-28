@@ -151,6 +151,9 @@ qboolean SV_RunThink (edict_t *ent)
 	if (thinktime <= 0 || thinktime > qcvm->time + VR_ThinkFrame (host_frametime)) // QVR: the world's frame, in the player's time too
 		return true;
 
+	if (VR_ThinkSpreadDefer (ent))
+		return true; // QVR: a crowd's think waits a frame (vr_think_spread); it runs next frame at that frame's time
+
 	if (thinktime < qcvm->time)
 		thinktime = qcvm->time;	// don't let things stay in the past.
 								// it is possible to start that way
@@ -167,6 +170,7 @@ qboolean SV_RunThink (edict_t *ent)
 		const double instr0 = qcvm->instr_total; // QVR: its think's QC statements (QC thinkcost)
 		PR_ExecuteProgram (ent->v.think);
 		ent->thinkcost += qcvm->instr_total - instr0;
+		VR_ThinkSpreadRan (ent, qcvm->instr_total - instr0); // QVR: vr_think_spread_stats
 	}
 
 	return !ent->free;

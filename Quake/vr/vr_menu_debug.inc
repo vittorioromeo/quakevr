@@ -828,6 +828,11 @@ za::Vector<Item> pageDebugProfiling()
         header("Threads"),
         row(opt::vr_jobs_parallel),
         row(opt::snd_mixasync),
+        slider("Sound Paint Left to the Pool", snd_mixasync_lead, 0.f, 1.f, 0.1f, "%.1f")
+            .help("snd_mixasync_lead: the frame's own sound paint left to the pool's mix while the sound already painted "
+                  "leads the device by 60% of the mix-ahead or more (a long frame still paints at once): the spatial audio's "
+                  "reverb (~2 ms on the Quest) no longer lands on the main thread every few frames. 0: both paint, as "
+                  "before (the same sound). Sound Mix Stats counts the paints left to the pool."),
         command("Sound Mix Stats", "snd_mixstats reset")
             .help("snd_mixstats: the pool's mixes since the last press (their time, the main thread's waits for them and "
                   "where), the underruns (the device past what was painted: a glitch) and the least mix-ahead left."),
@@ -900,6 +905,14 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_qc_builtin_fast: faster native ways for the engine functions QuakeC calls most, the same results "
                   "(a worn backpack's place on a body out of view from the bones of the few vertices it rides, not the whole "
                   "skeleton). Off: as before, to compare. 2 (console): both, compared bit for bit."),
+        slider("Monsters' Thinks Spread over Frames", vr_think_spread, 0.f, 32.f, 1.f, "%.0f")
+            .help("vr_think_spread: a server frame runs at most 12 monsters' thinks; the rest wait a frame (each at most "
+                  "vr_think_spread_frames, 4) and run at that frame's time: a crowd woken together (a shot's noise) no "
+                  "longer thinks all on one frame every 0.1 s (hip1m1's 69: QuakeC 11-14 ms on every 7th frame on the Quest). "
+                  "0: every due think in its frame, as before."),
+        command("Monsters' Thinks a Frame", "vr_think_spread_stats reset")
+            .help("vr_think_spread_stats: the server frames since the last press: monsters' thinks a frame and their QuakeC "
+                  "statements (median, 90th percentile, most), the other thinks' statements, the thinks that waited."),
         toggle("Armed Humanoids: Far Unseen Weapon Thinks Less Often", vr_agrunt_think_lod)
             .help("vr_agrunt_think_lod: an armed humanoid no player can see, far, with nothing moving near its weapons and "
                   "no attack, aim or parry under way, runs its weapon's think (scans, parry, pose) once every "
