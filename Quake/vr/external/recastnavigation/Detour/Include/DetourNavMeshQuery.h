@@ -192,6 +192,14 @@ public:
 					  const dtQueryFilter* filter,
 					  dtPolyRef* path, int* pathCount, const int maxPath) const;
 
+	/// QVR: findPath's search, the same results bit for bit (path, count, status), faster: the open list keeps each node's
+	/// place (no linear search to update one) and a newly reached node's place is its link's portal middle, read from
+	/// that link (no search of the polygon's links for it again).
+	dtStatus findPathQvr(dtPolyRef startRef, dtPolyRef endRef,
+						 const float* startPos, const float* endPos,
+						 const dtQueryFilter* filter,
+						 dtPolyRef* path, int* pathCount, const int maxPath) const;
+
 	/// Finds the straight path from the start to the end position within the polygon corridor.
 	///  @param[in]		startPos			Path start position. [(x, y, z)]
 	///  @param[in]		endPos				Path end position. [(x, y, z)]
@@ -575,6 +583,7 @@ private:
 	class dtNodePool* m_tinyNodePool;	///< Pointer to small node pool.
 	class dtNodePool* m_nodePool;		///< Pointer to node pool.
 	class dtNodeQueue* m_openList;		///< Pointer to open list queue.
+	class dtQvrNodeQueue* m_qvrOpenList;	///< QVR: findPathQvr's open list (on m_nodePool).
 };
 
 /// Allocates a query object using the Detour allocator.

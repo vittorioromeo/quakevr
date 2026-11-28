@@ -198,3 +198,55 @@ void dtNodeQueue::trickleDown(int i, dtNode* node)
 	}
 	bubbleUp(i, node);
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// QVR: dtQvrNodeQueue (DetourNode.h): dtNodeQueue's steps, each node's place kept.
+dtQvrNodeQueue::dtQvrNodeQueue(int n, const dtNodePool* pool) :
+	m_heap(0),
+	m_place(0),
+	m_capacity(n),
+	m_size(0),
+	m_pool(pool)
+{
+	dtAssert(m_capacity > 0);
+
+	m_heap = (dtNode**)dtAlloc(sizeof(dtNode*)*(m_capacity+1), DT_ALLOC_PERM);
+	m_place = (int*)dtAlloc(sizeof(int)*(pool->getMaxNodes()+1), DT_ALLOC_PERM);
+	dtAssert(m_heap);
+	dtAssert(m_place);
+}
+
+dtQvrNodeQueue::~dtQvrNodeQueue()
+{
+	dtFree(m_heap);
+	dtFree(m_place);
+}
+
+void dtQvrNodeQueue::bubbleUp(int i, dtNode* node)
+{
+	int parent = (i-1)/2;
+	while ((i > 0) && (m_heap[parent]->total > node->total))
+	{
+		put(i, m_heap[parent]);
+		i = parent;
+		parent = (i-1)/2;
+	}
+	put(i, node);
+}
+
+void dtQvrNodeQueue::trickleDown(int i, dtNode* node)
+{
+	int child = (i*2)+1;
+	while (child < m_size)
+	{
+		if (((child+1) < m_size) &&
+			(m_heap[child]->total > m_heap[child+1]->total))
+		{
+			child++;
+		}
+		put(i, m_heap[child]);
+		i = child;
+		child = (i*2)+1;
+	}
+	bubbleUp(i, node);
+}

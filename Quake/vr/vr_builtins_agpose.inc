@@ -245,6 +245,35 @@ inline void agRun(func_t f, int argc)
     PF_modelanchorpoint();
     return agRetV();
 }
+// vr_qc_builtin_fast (qcbuiltins2): agModelVertex for `n` vertices of `e` with its model's frame set up once
+// (hitmodel::vertexPoints: the same points as modelanchorpoint's; the QC globals untouched: the caller's next
+// agModelVertex sets them as the last of the run would). False (nothing done): not on, or a value modelanchorpoint
+// reads otherwise (below 0: a triangle or nothing).
+[[nodiscard]] bool agModelVertices(const edict_t* e, const float* vs, int n, AgV* out)
+{
+    constexpr int most = 8;
+    if(vr_qc_builtin_fast.value == 0.f || n > most)
+    {
+        return false;
+    }
+    int verts[most];
+    for(int i = 0; i < n; ++i)
+    {
+        const float a0 = -2.f - vs[i]; // (modelanchorpoint's reading of its argument, as agModelVertex passes it)
+        if(!(a0 <= -2.f))
+        {
+            return false;
+        }
+        verts[i] = static_cast<int>(-a0 - 2.f + 0.5f);
+    }
+    glm::vec3 pts[most];
+    hitmodel::vertexPoints(const_cast<edict_t*>(e), verts, n, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]}, pts);
+    for(int i = 0; i < n; ++i)
+    {
+        out[i] = {pts[i].x, pts[i].y, pts[i].z};
+    }
+    return true;
+}
 void agMakeVectors(AgV a) // makevectors
 {
     vec3_t ang{a.x, a.y, a.z};
@@ -1659,23 +1688,38 @@ AgpCoverage agpCov; // (the server's VM: the main thread)
     agRow(AF(g, vr_ag_kind));
     {
         const AgV hv = AGV(vr_am_hand);
-        const AgV h = agModelVertex(g, hv.x) + agModelVertex(g, hv.y) + agModelVertex(g, hv.z);
-        (void)(h * (1.f / 3.f));
+        // (vr_qc_builtin_fast: only the last vertex's call, whose trace_fraction is read: the point is unused and the
+        // first two calls' globals are all set again by the third; a vertex, not a triangle, whose call sets the normal.)
+        if(vr_qc_builtin_fast.value != 0.f && -2.f - hv.x <= -2.f && -2.f - hv.y <= -2.f)
+        {
+            (void)agModelVertex(g, hv.z);
+        }
+        else
+        {
+            const AgV h = agModelVertex(g, hv.x) + agModelVertex(g, hv.y) + agModelVertex(g, hv.z);
+            (void)(h * (1.f / 3.f));
+        }
     }
     if(pr_global_struct->trace_fraction == 0)
     {
         return true;
     }
     agRow(AF(g, vr_ag_kind)); // VR_AM_Anchor
-    const AgV hand = agModelVertex(g, AG(vr_am_anchor));
+    const float anchorV = AG(vr_am_anchor);
     agRow(AF(g, vr_ag_kind)); // VR_AM_GunRear, _GunMuzzle, _GunUp
     const AgV rearV = AGV(vr_am_gun_rear), muzV = AGV(vr_am_gun_muzzle), rollV = AGV(vr_am_gun_roll);
-    const AgV rear = (agModelVertex(g, rearV.x) + agModelVertex(g, rearV.y)) * 0.5f;
+    // (vr_qc_builtin_fast: the first six vertices with the frame set up once, the last by modelanchorpoint, leaving the
+    // globals as before; agRow is a no-op for the same kind, its row filled.)
+    const float six[6] = {anchorV, rearV.x, rearV.y, muzV.x, muzV.y, rollV.x};
+    AgV pts[6];
+    const bool batched = agModelVertices(g, six, 6, pts);
+    const AgV hand = batched ? pts[0] : agModelVertex(g, anchorV);
+    const AgV rear = batched ? (pts[1] + pts[2]) * 0.5f : (agModelVertex(g, rearV.x) + agModelVertex(g, rearV.y)) * 0.5f;
     agRow(AF(g, vr_ag_kind));
-    const AgV muzzle = (agModelVertex(g, muzV.x) + agModelVertex(g, muzV.y)) * 0.5f;
+    const AgV muzzle = batched ? (pts[3] + pts[4]) * 0.5f : (agModelVertex(g, muzV.x) + agModelVertex(g, muzV.y)) * 0.5f;
     const AgV gx = agNormalize(muzzle - rear);
     agRow(AF(g, vr_ag_kind));
-    AgV gz = agModelVertex(g, rollV.x) - agModelVertex(g, rollV.y);
+    AgV gz = batched ? pts[5] - agModelVertex(g, rollV.y) : agModelVertex(g, rollV.x) - agModelVertex(g, rollV.y);
     gz = agNormalize(gz - gx * agDot(gz, gx));
     if(agZero(gz)) { gz = {0.f, 0.f, 1.f}; }
     const AgV gy = agCross(gz, gx);

@@ -6318,6 +6318,31 @@ His words 2026-11-28, items 2, 7, 8.
 - Disk: moved to F:\QVR-Parked‚6-11-28\diskclean\: worktrees pcbase and unionmerge (3.3 GB, worktree prune), the kit base
   bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
   renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
+## qcbuiltins2: why the next builtins are slow; navsteer's path search and agpose's vertices faster, the same results (branch agent/qcbuiltins2, 2026-11-28)
+
+- **Scene**: questopt2's hip1m1 fight (skill 2, god, `sv_random_seed 1`, all 69 woken, 300 frames settled, 720 measured).
+  PC Release (no LTO), mock headset; the native breakdown from temporary section timers (`Sys_DoubleTime` round each
+  step, not committed; numbers in worktree `scratch/qcb2_navprof.txt`). The Quest was not used (no headset run here).
+- **Why slow, and what changed** (`vr_qc_builtin_fast`, the qcbuiltins cvar, default 1; 0 as before; 2 both, compared):
+
+| builtin | why slow (PC timers) | change | gain PC (2 runs each, same frames, fast 0 -> 1) |
+|---|---|---|---|
+| `navsteer` (12.6 calls/frame) | 81% is Detour's findPath (107 us each, 1.6 a frame). **1,676 of 1,678 searches end partial: the foe is unreachable** (shut doors' floors blocked, ledges), so every repath is an exhaustive A* over the monster's island (~1,030 nodes, each popped once). Then the start poly 7% (1.3 us), the straight path 3% (0.6 us). refreshMovers is small: 84 us a run every 0.25 s (~4.5 us a frame; the boarding pass 6.5 us a class, the movers' queries 23 us a class, the props 21 us): the "8 us a call" read before was not per call. Repath causes: goal changed or no path 733, timer 932, foe moved 13. An agent's inputs equal to its last search's: 18 of 1,717 (an exact memo would hit ~1%) | `findPathQvr` (QVR, DetourNavMeshQuery.cpp): findPath step for step, its open list keeping each node's place (dtQvrNodeQueue: Detour's modify() searched the heap linearly) and a new node's place read from the link at hand (getPortalPoints searched the polygon's links again for it) | navsteer 0.275/0.222 -> 0.211/0.206 ms a frame (-7..-23%); `vr_nav_pathbench`: findPath 88 -> 80 us (1.07-1.11x, hip1m1), 4.9 -> 4.1 us (1.18x, e1m2) |
+| `agpose` (33-41 calls/frame) | each of a pose's 10 `modelvertex` calls rebuilt the model's frame setup (hitmodel::drawnOf: lerp track, transforms, axes, a 3x3 inverse) for one vertex; the hand's three were summed and thrown away (only the last call's trace_fraction is read) | the hand's first two calls skipped (their globals all set again by the third; vertices only); six of the seven gun vertices from one setup (`hitmodel::vertexPoints`), the last through modelanchorpoint, leaving the QC globals as before | agpose 0.237/0.178 -> 0.167/0.158 ms a frame (-11..-29%) |
+| `agstruck` / findradiusmoving, `traceline`, `cvar_hget` | not profiled further here. cvar_hget's body is two loads and a bounds check: its 0.09 us on the Quest is the builtin call and the profiler's clock reads (the VM's: qcconv's) | none | |
+
+- **Exact**: agpose: `vr_agpose_native 2` (the native pose, batched, against QuakeC's, which calls modelvertex for all ten)
+  30,683 poses compared, 0 values differ, PASS exact. navsteer: `vr_qc_builtin_fast 2` (both searches each repath) 0
+  differed (hip1m1 fight; e1m2 woken, drop links: 500 compared, 0 differed); pathbench 0 differed on both maps;
+  `vr_nav_hash` after the fight the same as before the change (mesh fb87da22..., paths de4866da..., 1,763 found).
+- **Not done**: the unreachable foe's search itself (the lever: ~0.2 ms a frame PC here). Exact shortcuts don't exist (a
+  node's place is the portal it was first reached through, so the partial result depends on start and end). Behaviour
+  choices for him: repath an unreachable foe less often while the island's flags are unchanged, or let monsters open the
+  doors whose floors are blocked (Quake's doors open for monsters). The Quest A/B (vr_qcexec_time) was not run.
+- Debug: `vr_nav_pathbench [times]` (Debug > Navmesh: "Time the Chasers' Path Searches"): the last 64 searches both ways.
+- Files: Detour (DetourNode.h/.cpp dtQvrNodeQueue; DetourNavMeshQuery.h/.cpp findPathQvr), vr_nav.cpp (searchPath,
+  pathbench_f), vr_builtins_agpose.inc (agModelVertices), vr_hitmodel.cpp/.hpp (vertexPoints), vr_cvars.inc, vr_menu_debug.inc.
+- Tests: teleporters_test.sh chase 6/0; the compare runs above.
 
 ## Armed ragdolls keep firing one-handed guns: research and prototype (branch agent/ragfire, 2026-11-28)
 
