@@ -4605,9 +4605,9 @@ void() VR_Embed_TestFrame =
         {
             VR_EF_Begin(ask); // (the Crystal Lance fired while stuck in a body, VR and flat: vr_embedfire_test.qc)
         }
-        if(ask == 96)
+        if(ask == 96 || ask == 97)
         {
-            VR_AT_Begin(ask); // (bayomounts: the bayonet on every other gun that takes one, flat: vr_attach_test.qc)
+            VR_AT_Begin(ask); // (bayomounts: the bayonet on every other gun that takes one; 97 embedrate: each fired stuck as in the hand; flat: vr_attach_test.qc)
         }
         if(ask == 79 || ask == 80 || ask == 84 || ask == 85 || ask == 86 || ask == 87)
         {
@@ -4929,6 +4929,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 96)
     {
         VR_ATG_Frame(); // (bayomounts: the bayonet on every other gun, flat: vr_attach_test.qc)
+    }
+    else if(vr_et_on == 97)
+    {
+        VR_AER_Frame(); // (embedfire2: every bayonet gun fired stuck as in the hand, flat: vr_attach_test.qc)
     }
     else if(vr_et_on == 86 || vr_et_on == 87)
     {

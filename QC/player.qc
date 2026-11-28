@@ -201,14 +201,17 @@ void() player_run_no_arg =
     player_run(cVR_MainHand);
 };
 
+// A hand's firing frames' think (the nailgun's barrels, the thunderbolt's loop, the shots' frames): run on the gun stuck in a
+// body that the hand drives, if it drives one (vr_propfire.qc VR_PropFire_With; embedfire2), as on the gun in the hand.
+
 void() doThinkArgFn =
 {
-    self.thinkArgFn(self.thinkArg);
+    VR_PropFire_With(self.thinkArg, self.thinkArgFn);
 }
 
 void() doThink2ArgFn =
 {
-    self.think2ArgFn(self.think2Arg);
+    VR_PropFire_With(self.think2Arg, self.think2ArgFn);
 }
 
 // Required to not make the grapple hijack the main weapon's think.
