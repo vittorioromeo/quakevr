@@ -3070,6 +3070,41 @@ void swapHands(const char* what)
     }
 }
 
+// A gamepad's right stick on the holster menu's cursor (padflat): the window pixels not yet sent (flatholster::mouse
+// takes whole counts).
+struct PadHolsterCursor
+{
+    float x{0.f}, y{0.f};
+};
+PadHolsterCursor padHolsterCursor;
+
+// IN_JoyMove: a gamepad's right stick (eased, past its dead zone) while the weapon wheel (pointed at a slot) or the
+// holster menu (its cursor moved, vr_pad_holster_cursor_speed) is open: theirs, the view stays.
+extern "C" int VR_FlatStickCursor(float x, float y, float dt)
+{
+    if(!flatplay::active())
+    {
+        return 0;
+    }
+    if(weaponwheel::flatStick(x, y))
+    {
+        return 1;
+    }
+    if(!flatholster::open())
+    {
+        padHolsterCursor = {};
+        return 0;
+    }
+    const float k = za::max(vr_pad_holster_cursor_speed.value, 0.f) * static_cast<float>(vid.height) * za::clamp(dt, 0.f, 0.1f);
+    padHolsterCursor.x += x * k;
+    padHolsterCursor.y += y * k;
+    const int dx = static_cast<int>(padHolsterCursor.x), dy = static_cast<int>(padHolsterCursor.y);
+    padHolsterCursor.x -= static_cast<float>(dx);
+    padHolsterCursor.y -= static_cast<float>(dy);
+    (void)flatholster::mouse(dx, dy);
+    return 1;
+}
+
 // IN_MouseMotion: the toolgun panel's cursor while it is open on the screen, or the tool's adjust while B is held
 // (flatTg.adjust): the mouse is theirs, the view stays.
 extern "C" int VR_FlatToolgunMouse(int dx, int dy)

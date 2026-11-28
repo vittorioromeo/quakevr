@@ -157,6 +157,7 @@ static const keyname_t keynames[] =
 	// We don't expose the key names in order to avoid having the player bind them in the console.
 	//{"JOY_START", K_START},
 	//{"JOY_BACK", K_BACK},
+	{"BACK", K_BACK}, // QVR: a gamepad's Back / View / Select (padflat; in_sdl.c sent Tab for it)
 
 	// Gamepad buttons with the "alt modifier" pressed
 	{"LTHUMB_ALT", K_LTHUMB_ALT},
@@ -1212,14 +1213,18 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	}
 
 // evil hack for the gamepad alt modifier button, which turns K_x_BTN into K_x_BTN_ALT
-	if (joy_altmodifier_pressed && key >= K_LTHUMB && key < K_LTHUMB_ALT)
+	if (key >= K_LTHUMB && key < K_LTHUMB_ALT && !Key_IsKeyGamepadAltModifier (key))
 	{
-		// make sure key is not the altmodifier itself (which we won't turn into *_ALT)
-		if (!Key_IsKeyGamepadAltModifier (key))
+		int altkey = key + (K_LTHUMB_ALT - K_LTHUMB);
+		// QVR: a button let go as its _ALT key went down lets go of that key (the alt button let go first: no _ALT key
+		// left held, its next press no "autorepeat"); flatscreen play's actions on _ALT keys count as bound (padflat)
+		if (!down && keydown[altkey])
+			key = altkey;
+		else if (down && joy_altmodifier_pressed)
 		{
-			int altkey = key + (K_LTHUMB_ALT - K_LTHUMB);
+			// make sure key is not the altmodifier itself (which we won't turn into *_ALT)
 			// allow fallback to binding with non-alt key
-			if (keybindings[altkey] != NULL || keybindings[key] == NULL)
+			if (keybindings[altkey] != NULL || VR_FlatKeyOwned (altkey) || (keybindings[key] == NULL && !VR_FlatKeyOwned (key)))
 				key = altkey;
 		}
 	}
@@ -1232,7 +1237,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 			if (key_dest == key_game && !con_forcedup)
 				return; // ignore autorepeats in game mode
 		}
-		else if (key >= 200 && !keybindings[key] && key_dest == key_game && !cls.demoplayback)
+		else if (key >= 200 && !keybindings[key] && key_dest == key_game && !cls.demoplayback && !VR_FlatKeyOwned (key)) // QVR: a flat key's button is not unbound (padflat)
 		{
 			int optkey;
 			if (Key_GetKeysForCommand ("menu_options", &optkey, 1, KDM_ANY))
@@ -1246,6 +1251,8 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 
 	wasdown = keydown[key];
 	keydown[key] = down;
+	if (down && key_dest == key_menu && key < K_MOUSE_BEGIN) // QVR: the keyboard in a menu hides the gamepad's cursor (padflat)
+		VR_MenuPadHide ();
 	if (down)
 		key_lastpress = key; // QVR: the last key pressed (menu.c: what opened the main menu, its VR Hub line)
 

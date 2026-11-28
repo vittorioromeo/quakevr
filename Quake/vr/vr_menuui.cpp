@@ -62,6 +62,7 @@ extern "C" void M_Main_RowsExtent(float* left, float* right); // menu.c: the mai
 #include "vr_toolgun.hpp"
 #include "vr_units.hpp"
 #include "vr_window.hpp"
+#include "vr_flatholster.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Base/Strlen.hpp"
@@ -73,6 +74,10 @@ extern "C" void M_Main_RowsExtent(float* left, float* right); // menu.c: the mai
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
@@ -4117,4 +4122,124 @@ extern "C" int VR_MenuRunsGame()
         case m_vr: return !monsterHunting();
         default: return 0;
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A gamepad's menu cursor (padflat; his words 2026-11-28: "there needs to be a cursor in the menu that can be controlled
+// with the thumbstick. Leave discrete navigation for the directional keypad."). The left stick moves a mouse-like cursor
+// over the flat screen's menus (in_sdl.c IN_Commands: VR_MenuPadStick, in place of its emulated arrow keys), A clicks
+// while it shows (the left mouse button, its press and release: VR_MenuPadKey), the d-pad still steps the rows and hides
+// it, as the mouse moving or a key does (VR_MenuPadHide). Not in a headset (its laser). Tunables > Flatscreen > Gamepad.
+// ---------------------------------------------------------------------------------------------------------------------
+
+extern "C" cvar_t ui_mouse; // menu.c: the menus follow the mouse
+
+namespace
+{
+struct MenuPad
+{
+    bool shown{false};
+    bool placed{false};
+    float x{0.f}, y{0.f}; // the window's pixels (M_Mousemove's)
+    float fullFor{0.f};   // seconds held at full tilt (vr_pad_cursor_accel)
+    bool aMouse{false};   // A's press went out as the left mouse button: its release does too
+    int moves{0}, clicks{0}, hides{0};
+};
+MenuPad menuPad;
+
+[[nodiscard]] bool menuPadOn()
+{
+    return vr_pad_cursor.value != 0.f && ui_mouse.value != 0.f && !vrActive();
+}
+} // namespace
+
+extern "C" int VR_MenuPadStick(float x, float y, float dt)
+{
+    if(!menuPadOn() || key_dest != key_menu || glwidth <= 0 || glheight <= 0)
+    {
+        return 0;
+    }
+    const float len = za::sqrt(x * x + y * y);
+    const float dead = za::clamp(vr_pad_cursor_deadzone.value, 0.f, 0.9f);
+    if(len <= dead)
+    {
+        menuPad.fullFor = 0.f;
+        return 1;
+    }
+    const float tilt = za::pow((za::min(len, 1.f) - dead) / (1.f - dead), za::max(vr_pad_cursor_curve.value, 1.f));
+    menuPad.fullFor = len > 0.95f ? menuPad.fullFor + dt : 0.f;
+    const float accel = 1.f + za::max(vr_pad_cursor_accel.value, 0.f) *
+                                  za::clamp(menuPad.fullFor / za::max(vr_pad_cursor_accel_time.value, 0.01f), 0.f, 1.f);
+    const float step = za::max(vr_pad_cursor_speed.value, 0.f) * static_cast<float>(glheight) * tilt * accel * dt;
+    if(!menuPad.placed)
+    {
+        menuPad.x = static_cast<float>(glx) + static_cast<float>(glwidth) * 0.5f;
+        menuPad.y = static_cast<float>(gly) + static_cast<float>(glheight) * 0.5f;
+        menuPad.placed = true;
+    }
+    menuPad.x = za::clamp(menuPad.x + x / len * step, static_cast<float>(glx), static_cast<float>(glx + glwidth - 1));
+    menuPad.y = za::clamp(menuPad.y + y / len * step, static_cast<float>(gly), static_cast<float>(gly + glheight - 1));
+    menuPad.shown = true;
+    menuPad.moves++;
+    M_Mousemove(static_cast<int>(menuPad.x), static_cast<int>(menuPad.y));
+    return 1;
+}
+
+extern "C" int VR_MenuPadKey(int key, int down)
+{
+    if(key == K_ABUTTON && !down && menuPad.aMouse)
+    {
+        menuPad.aMouse = false; // (wherever the click took the game: its release goes with it)
+        return K_MOUSE1;
+    }
+    if(key_dest != key_menu)
+    {
+        return key;
+    }
+    if(key == K_ABUTTON && down && menuPad.shown && menuPadOn())
+    {
+        if(menuPad.aMouse)
+        {
+            return -1; // (held: one click, no repeats)
+        }
+        menuPad.aMouse = true;
+        menuPad.clicks++;
+        M_Mousemove(static_cast<int>(menuPad.x), static_cast<int>(menuPad.y)); // (the menu under it now: a new one may have opened)
+        return K_MOUSE1;
+    }
+    if(down && key >= K_DPAD_UP && key <= K_DPAD_RIGHT)
+    {
+        VR_MenuPadHide();
+    }
+    return key;
+}
+
+extern "C" void VR_MenuPadHide(void)
+{
+    menuPad.hides += menuPad.shown ? 1 : 0;
+    menuPad.shown = false;
+    menuPad.fullFor = 0.f;
+}
+
+bool qvr::menuui::padCursor(float& x, float& y)
+{
+    x = menuPad.x;
+    y = menuPad.y;
+    return menuPad.shown && menuPadOn() && key_dest == key_menu;
+}
+
+void qvr::menuui::drawPadCursor()
+{
+    float x, y;
+    if(padCursor(x, y))
+    {
+        flatholster::drawCursorOnWindow({x - static_cast<float>(glx), y - static_cast<float>(gly)}, 1.f);
+    }
+}
+
+void qvr::menuui::padCursorReport()
+{
+    Con_Printf("menu pad cursor: %s at %.0f %.0f (window %d x %d), %d moves, %d clicks, %d hides, vr_pad_cursor %g\n",
+        menuPad.shown ? "shown" : "hidden", menuPad.x, menuPad.y, glwidth, glheight, menuPad.moves, menuPad.clicks,
+        menuPad.hides, vr_pad_cursor.value);
 }

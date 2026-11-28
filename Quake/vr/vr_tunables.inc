@@ -2986,3 +2986,15 @@ QVR_TUNABLE(vr_agrunt_dazzle_pose, "1") // ... the shielding hand's share at ful
 QVR_TUNABLE(vr_agrunt_dazzle_hand_fwd, "11") // ... where the shielding hand goes in the grunt's body (fitted to each kind's): units forward,
 QVR_TUNABLE(vr_agrunt_dazzle_hand_left, "0.5") // ... to its left,
 QVR_TUNABLE(vr_agrunt_dazzle_hand_up, "21.5") // ... and up from its origin
+
+// Flatscreen > Gamepad (padflat 2026-11-28; FLATPLAY.md "A gamepad"). The menus' cursor on the left stick (vr_menuui.cpp
+// menupad: the d-pad keeps stepping the rows, A clicks while it shows; the mouse or a key hides it), and the right stick
+// on the holster menu's cursor and the weapon wheel's slots (vr_flatplay.cpp VR_FlatStickCursor).
+QVR_TUNABLE(vr_pad_cursor, "1") // a gamepad's left stick moves a cursor in the menus (0: it steps the rows as the d-pad does)
+QVR_TUNABLE(vr_pad_cursor_speed, "0.9") // ... its speed at full tilt: window heights a second
+QVR_TUNABLE(vr_pad_cursor_accel, "1.5") // ... held at full tilt it speeds up to 1 + this times that over vr_pad_cursor_accel_time
+QVR_TUNABLE(vr_pad_cursor_accel_time, "0.6") // ... seconds
+QVR_TUNABLE(vr_pad_cursor_curve, "2") // ... the tilt's response: speed times tilt to this power (past the dead zone; 1 linear)
+QVR_TUNABLE(vr_pad_cursor_deadzone, "0.2") // ... the stick's dead zone (its tilt, 0 .. 1)
+QVR_TUNABLE(vr_pad_holster_cursor_speed, "1.1") // flat play: the right stick on the holster menu's cursor: window heights a second at full tilt
+QVR_TUNABLE(vr_pad_wheel_deadzone, "0.5") // flat play: the right stick points at a weapon wheel slot past this tilt (back in the middle the last slot stays)

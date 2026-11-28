@@ -3151,6 +3151,161 @@ za::Span<cvar_t* const> qvr::flatplay::keyCvars()
     return flatKeyList;
 }
 
+bool qvr::flatplay::isPadKey(int key)
+{
+    return key >= K_GAMEPAD_BEGIN && key < K_GAMEPAD_END;
+}
+
+int qvr::flatplay::keyNumKeyboard(const cvar_t& c, int slot)
+{
+    int keys[keySlots];
+    const int n = flatKeyNums(c, keys);
+    for(int i = 0, seen = 0; i < n; i++)
+    {
+        if(!isPadKey(keys[i]) && seen++ == slot)
+        {
+            return keys[i];
+        }
+    }
+    return -1;
+}
+
+int qvr::flatplay::keyNumPad(const cvar_t& c)
+{
+    int keys[keySlots];
+    const int n = flatKeyNums(c, keys);
+    for(int i = 0; i < n; i++)
+    {
+        if(isPadKey(keys[i]))
+        {
+            return keys[i];
+        }
+    }
+    return -1;
+}
+
+namespace
+{
+// The keys `keys[0 .. n)` written into `c` (as setKey writes them: the default's spelling where they are its keys).
+void writeKeys(cvar_t& c, const int* keys, int n)
+{
+    char value[96] = "";
+    for(int i = 0; i < n; i++)
+    {
+        q_strlcat(value, i ? " " : "", sizeof(value));
+        q_strlcat(value, Key_KeynumToString(keys[i]), sizeof(value));
+    }
+    Cvar_SetQuick(&c, c.default_string && !q_strcasecmp(c.default_string, value) ? c.default_string : value);
+}
+
+// `c`'s keys without gamepad buttons (or without `only` alone, when >= 0), then `pad` added if there is room (>= 0).
+void replacePad(cvar_t& c, int pad, int only = -1)
+{
+    int keys[flatplay::keySlots];
+    const int n = flatKeyNums(c, keys);
+    int out[flatplay::keySlots], m = 0;
+    for(int i = 0; i < n; i++)
+    {
+        const bool drop = only >= 0 ? keys[i] == only : flatplay::isPadKey(keys[i]);
+        if(!drop)
+        {
+            out[m++] = keys[i];
+        }
+    }
+    if(pad >= 0)
+    {
+        if(m == flatplay::keySlots)
+        {
+            m--; // (full of keyboard keys: the gamepad's button takes the last place)
+        }
+        out[m++] = pad;
+    }
+    if(m != n || pad >= 0 || only >= 0)
+    {
+        writeKeys(c, out, m);
+    }
+}
+
+// The gamepad button of cvar `c`'s default value (-1 none).
+[[nodiscard]] int defaultPadKey(const cvar_t& c)
+{
+    cvar_t probe = c;
+    probe.string = c.default_string ? c.default_string : "";
+    return flatplay::keyNumPad(probe);
+}
+} // namespace
+
+void qvr::flatplay::setPadKey(cvar_t& c, int key)
+{
+    if(key >= 0 && isPadKey(key))
+    {
+        for(cvar_t* other : flatKeyList)
+        {
+            if(other != &c && keyIs(*other, key))
+            {
+                replacePad(*other, -1, key);
+            }
+        }
+    }
+    replacePad(c, key >= 0 && isPadKey(key) ? key : -1);
+}
+
+void qvr::flatplay::resetPadKeys()
+{
+    for(cvar_t* c : flatKeyList)
+    {
+        replacePad(*c, -1);
+    }
+    for(cvar_t* c : flatKeyList)
+    {
+        const int pad = defaultPadKey(*c);
+        if(pad >= 0)
+        {
+            setPadKey(*c, pad);
+        }
+    }
+}
+
+void qvr::flatplay::fillPadDefaults()
+{
+    // Version 1: padflat's layout (FLATPLAY.md "A gamepad"). A flat key left at its default has it already (a sparse config).
+    constexpr int padDefaultsVersion = 1;
+    if(vr_flat_pad_defaults_version.value >= padDefaultsVersion)
+    {
+        return;
+    }
+    Cvar_SetValueQuick(&vr_flat_pad_defaults_version, static_cast<float>(padDefaultsVersion));
+    int filled = 0;
+    for(cvar_t* c : flatKeyList)
+    {
+        const int pad = defaultPadKey(*c);
+        if(pad < 0 || keyNumPad(*c) >= 0 || VR_FlatKeyFor(pad, -1) >= 0)
+        {
+            continue; // (none to give, a button of its own already, or the button another action's)
+        }
+        replacePad(*c, pad);
+        filled++;
+    }
+    // The alt layer's button and the scoreboard on it, Quake binds (a headset sends neither), where nothing is bound.
+    const struct
+    {
+        int key;
+        const char* command;
+    } binds[] = {{K_BACK, "+altmodifier"}, {K_RTHUMB_ALT, "+showscores"}};
+    for(const auto& b : binds)
+    {
+        if(!keybindings[b.key] || !keybindings[b.key][0])
+        {
+            Key_SetBinding(b.key, b.command);
+            filled++;
+        }
+    }
+    if(filled > 0)
+    {
+        Con_Printf("Quake VR: %d gamepad buttons given their flat-screen defaults (vr_flat_pad_defaults_version 1)\n", filled);
+    }
+}
+
 bool qvr::flatplay::keyActive(const cvar_t& c)
 {
     // The holsters' number keys (his words 2026-11-22) only with the holsters on: off, 1 .. 7 pick weapons as before.
