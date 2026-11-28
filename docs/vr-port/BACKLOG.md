@@ -191,7 +191,13 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 ## 7. Combat and feel
 
 - **Crossed-sword parry** (2026-10-18): two blades crossed in front of the body count as a parry. After the AD melee work.
-- **Shots and broken-plate debris on the drawn body** (2026-11-27; armourrebuild's open item 2, ROUND26 "armourrebuild"): hits and debris should use the body as drawn.
+- **Re-record the melee eval takes** (2026-11-28, his decision): the 2026-10-12 takes (177, with the eval baseline)
+  had drifted too far from today's melee and were parked (F:/QVR-Parked/2026-11-28/melee_takes; the kit's
+  eval_baseline.csv and canary.txt emptied; eval.sh not used until then). He records a new, smaller set in the VR
+  recorder (vrmelee-recording; quakevr/motions/expect.cfg keeps the expected verdict per name): per weapon class
+  (axe/crowbar, sword, dagger, spear/pole, hammer/mace, fists, a bayonet stab, a two-handed blow) one each of a slash,
+  a stab, an overhead, a weak wiggle that must not hit, and a parry; plus the neck snap, lift/judo and leg cases if
+  still wanted. Then: a fresh baseline (eval.sh --full), a canary list, and the rule in the kit's brief_rules lifted.
 - **From Quake Combat+ v5.7** (2026-10-16; ideas only, nothing of theirs reusable): hit-confirm audio layering;
   wounded monsters bleeding a trail, big ones split and crawling.
 - **Flies on corpses and gibs** (2026-10-02): flies and their particles on every body after a few seconds; Armagon's

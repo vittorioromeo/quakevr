@@ -2000,24 +2000,24 @@ QVR_TUNABLE(vr_flat_prl_grab_time, "0.06") // and seconds it stays in the pouch 
 QVR_TUNABLE(vr_flat_prl_carry_time, "0.22") // and seconds it carries the round from the pouch to the mouth of the gun's loading port
 QVR_TUNABLE(vr_flat_prl_insert_time, "0.08") // and seconds it pushes the round from there into the port (it goes in at the port's reach: VR's own test)
 QVR_TUNABLE(vr_flat_prl_return_time, "0.22") // and seconds the hand takes back to its pose at the end (full, cancelled)
-QVR_TUNABLE(vr_flat_prl_tilt_in_time, "0.15") // seconds the gun's hand takes to tilt the gun to present its port
+QVR_TUNABLE(vr_flat_prl_tilt_in_time, "0.17") // seconds the gun's hand takes to tilt the gun to present its port
 QVR_TUNABLE(vr_flat_prl_tilt_out_time, "0.2") // and seconds back
-QVR_TUNABLE(vr_flat_prl_tilt_pitch, "-10") // degrees the gun tilts (pitch, + muzzle down), mirrored for a gun in the left hand
-QVR_TUNABLE(vr_flat_prl_tilt_yaw, "12") // degrees it turns in towards the body (yaw)
-QVR_TUNABLE(vr_flat_prl_tilt_roll, "-35") // degrees it rolls, its bottom (the port) towards the free hand
-QVR_TUNABLE(vr_flat_prl_gun_fwd, "0") // units the gun moves forward while tilted
-QVR_TUNABLE(vr_flat_prl_gun_up, "2") // and up
-QVR_TUNABLE(vr_flat_prl_gun_in, "3") // and in towards the body's middle
-QVR_TUNABLE(vr_flat_prl_approach, "5") // units before the port (out of its opening) the carried round comes to, before it is pushed in
+QVR_TUNABLE(vr_flat_prl_tilt_pitch, "-20") // degrees the gun tilts (pitch, + muzzle down), mirrored for a gun in the left hand
+QVR_TUNABLE(vr_flat_prl_tilt_yaw, "60") // degrees it turns in towards the body (yaw)
+QVR_TUNABLE(vr_flat_prl_tilt_roll, "35") // degrees it rolls, its bottom (the port) towards the free hand
+QVR_TUNABLE(vr_flat_prl_gun_fwd, "-4") // units the gun moves forward while tilted
+QVR_TUNABLE(vr_flat_prl_gun_up, "3") // and up
+QVR_TUNABLE(vr_flat_prl_gun_in, "2") // and in towards the body's middle
+QVR_TUNABLE(vr_flat_prl_approach, "0.5") // units before the port (out of its opening) the carried round comes to, before it is pushed in
 QVR_TUNABLE(vr_flat_prl_arc, "3") // units the hand's way bows up (and out) between the pouch and the gun
 QVR_TUNABLE(vr_flat_prl_ease, "1") // the hand's moves' ease: 0 linear, 1 smooth in and out (smoothstep)
 QVR_TUNABLE(vr_flat_prl_pouch_fwd, "1") // units the free hand stops off the pouch's middle, forward (body frame)
 QVR_TUNABLE(vr_flat_prl_pouch_right, "0") // and to the right (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_prl_pouch_up, "1") // and up
 QVR_TUNABLE(vr_flat_prl_pouch_pitch, "60") // the free hand's turn at the pouch: degrees its fingers point down
-QVR_TUNABLE(vr_flat_prl_pouch_yaw, "0") // and degrees it turns in (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_prl_pouch_yaw, "1") // and degrees it turns in (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_prl_pouch_roll, "0") // and degrees it rolls (mirrored)
-QVR_TUNABLE(vr_flat_prl_port_pitch, "0") // the free hand's turn at the port, on the gun's: degrees pitch
+QVR_TUNABLE(vr_flat_prl_port_pitch, "-43") // the free hand's turn at the port, on the gun's: degrees pitch
 QVR_TUNABLE(vr_flat_prl_port_yaw, "0") // and yaw (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_prl_port_roll, "0") // and roll (mirrored)
 QVR_TUNABLE(vr_flat_prl_failsafe, "0.6") // seconds after the round reaches the port without going in (a wall, a blocked hand) before the reload is cancelled (its round back in the pouch)
