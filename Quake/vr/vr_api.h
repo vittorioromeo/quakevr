@@ -722,6 +722,9 @@ void VR_ClientReliableStats (void);						// vr_net_stats: the client's own relia
 
 // Server physics (sv_phys.c, sv_user.c, world.c).
 int VR_RunThink2 (struct edict_s *ent);				// start of SV_RunThink: 0 if the entity was freed
+int VR_ThinkSpreadDefer (struct edict_s *ent);			// SV_RunThink, its think due: 1 to leave it for the next frame (vr_think_spread)
+void VR_ThinkSpreadRan (struct edict_s *ent, double statements);	// SV_RunThink, after the think (vr_think_spread_stats)
+void VR_ThinkSpreadStats (void);				// vr_think_spread_stats [reset]
 void VR_ClientPreMove (struct edict_s *ent);			// SV_Physics_Client: hand and weapon touches
 void VR_FoeGrabPreThink (struct edict_s *ent);			// SV_Physics_Client, after VR_ClimbPreThink: holds on enemies taken and let go (vr_foegrab.cpp)
 void VR_ClimbPreThink (struct edict_s *ent);			// SV_Physics_Client, before PlayerPreThink: ledge holds taken and let go (vr_climb.cpp)
