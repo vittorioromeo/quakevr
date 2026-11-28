@@ -6750,6 +6750,9 @@ QVR_SLIDER(vr_flat_holster_menu_xhair_fade, "Holster Menu Crosshair Fade", 0.f, 
     "How far the crosshair fades out while the holster menu is open: 1 gone, 0 kept (vr_flat_holster_menu_xhair_fade).")
 QVR_SLIDER(vr_flat_holster_menu_size, "Holster Menu Size", 0.3f, 1.f, 0.02f, "%.2f", noExt,
     "The holster menu's height, a share of the screen's (vr_flat_holster_menu_size).")
+QVR_TOGGLE(vr_flat_holster_menu_levelbar, "Holster Menu Level Bar",
+    "While the holster menu is open (MMB or TAB held), a bar at the bottom of the screen shows the level's name, kills, "
+    "secrets, skill and time (a deathmatch: everyone's frags): TAB's old scoreboard (vr_flat_holster_menu_levelbar).")
 QVR_SLIDER(vr_flat_holster_menu_fade_time, "Holster Menu Fade Time", 0.f, 0.5f, 0.02f, "%.2f s", noExt,
     "How long the holster menu takes to fade in and out (vr_flat_holster_menu_fade_time).")
 QVR_SLIDER(vr_flat_holster_menu_cursor_speed, "Holster Menu Cursor Speed", 0.2f, 3.f, 0.1f, "x%.1f", noExt,
