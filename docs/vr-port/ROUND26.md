@@ -5759,3 +5759,70 @@ into the empty slots, a flick of the wrist closes it. Reload phase 3 on reloadsy
 - **Open**: the drawn rocket meets the port a hand's width past the rocket launcher's drawn muzzle in the strips (the server's
   test passes: the port is the Load Point's `vr_reload_port_rl_*`; worth his eye and a Load Point tweak); strips for his review:
   worktree `scratch/rm_strip_rl.png`, `scratch/rm_strip_rv.png` (real reloads, before the merge: the same poses).
+
+## pcperf: PC flat and VR profiled after 11-27/28's features; the holster menu's body and the beasts' armour made cheaper (branch agent/pcperf, 2026-11-28)
+
+His words (2026-11-28): "a profiling and optimization job for the PC flat screen and PC VR versions ... the new armors,
+the flashlight dazzling ... see if you can find any [regressions or hotspots] and optimize them."
+
+**Method.** The 11-27 baseline (326223ab3, the kit's last stored `core` baseline `refactor_20261127_041946`) built in its
+own kit tree (`new_agent.sh pcbase 326223ab3`, ThinLTO) and run against next (55c516c65 + this branch) by the new
+`Misc/quakevr/bench/ab_trees.py`: the same scenarios interleaved, each run exclusive and paced at 90 Hz, 900 frames, 2048
+eyes, 2 repeats, each started only once the machine was idle. First lesson: the first `bench.sh core` run read 15-25%
+slower everywhere with 100-500 ms hitches (combat_48 p99 184 ms): 25 clang-cl of other workers' builds at 100% CPU
+during the "exclusive" runs (`--exclusive` keeps other games out, not compiles). On an idle machine none of that is there.
+Second: `bench.sh`'s flat scenarios are `vr_enabled 0` without `-flatscreenmode`, so flat play's own systems (holster
+menu, flat body) never run in them; `ab_trees.py` passes it (BENCHMARKS.md).
+
+**New bench group `pcperf`** (qvrbench.py; scenes `bench_beasts_armour`, `bench_beasts_bare`): armoured beasts (10 ogres,
+2 rottweilers, 2 scrags, 2 fiends, full armour, hostile) and bare, VR and flat; `armed_mix16` with the flashlight in
+their faces, dazzle off, flat; `armed_mix32` killed (32 guns lying with bayonet mounts), mounts off; the weapon wheel
+open; the flat holster menu open. Validated (`bench.sh --validate`): 9 same, `dazzle_armed16` decals 44/40 (a fight's
+blood: as `combined`'s).
+
+**Regression table** (CPU busy avg ms, 11-27 -> next; idle machine, paced 90 Hz; frame p99 within 1% of the 11.11 ms
+refresh everywhere):
+
+| scene | 11-27 | next before | next after | note |
+|---|---|---|---|---|
+| idle_e1m1 | 0.919 | 0.924 | | flat |
+| idle_range | 1.156 | 1.215 | | +18 alias: the racks' guns' bayonet mounts (bayomounts) |
+| teleporter_start / loop_r2 | 1.386 / 1.921 | 1.374 / 2.030 | | loop: +20 draw calls |
+| combat_48 | 3.531 | 3.399 | | GPU 3.05 -> 2.65, heap 10.4 -> 4.6 a frame |
+| combined | 8.538 | 8.792 | | +3% |
+| lights_32 | 1.330 | 1.415 | | +34 alias (mounts, range) |
+| gore_slash_32, ragdolls, props, particles, decals | | +1..4% | | within noise to +0.15 ms |
+| armour_beasts16 | 2.318 | 3.393 | **3.173** | +546 alias a frame (more pieces: split plates, tail segments, shins), debris, relink |
+| armour_beasts16_flat | 2.118 | 2.876 | **2.641** | |
+| armour_beasts16_bare | 1.836 | 2.129 | | debris and hits physics (box3d) |
+| dazzle_armed16 / _off / _flat | 2.557 / 2.563 / 2.402 | 2.657 / 2.629 / 2.525 | | the dazzle itself ~0.03 ms (on vs off) |
+| rails_dropped32 / _off | 1.526 / 1.522 | 1.643 / 1.588 | | 32 lying guns' mounts: 0.055 ms |
+| wheel_open_e1m1 | 0.896 | 0.958 | | +58 draw calls (bindings panel) |
+| holster_menu_open_flat | 0.851 (stick figure) | (2.5 ms body raster) | **1.071** | p99 2.77: the frames that still raster |
+| MP soak (dm3, 16 players, Release) | server 4.42 / 4.19 | | server 3.84 / 3.68 | clients A+B 3.17 / 3.65 -> 3.71 / 2.65 (who watches the fights); B's link 52-54 KB/s -> under 45 |
+
+**Fixes** (each its own commit; behaviour the same):
+1. **The flat holster menu's body preview** (vr_flatholster.cpp `posedBody`, wheelui): the posed body (6019 triangles)
+   was rasterised on the CPU every frame the menu showed: **2.38 ms a frame** (raster 2.23, mesh 0.05, upload 0.01).
+   (a) The rasteriser (vr_toolgun_icons.cpp, also the toolgun thumbnails'): the barycentric numerators stepped along
+   each row, the row ended past the triangle's run: raster 2.23 -> 1.44 ms; the menu's screenshot against before: 54
+   pixels of 260k differ by 1 level. (b) The picture kept while every vertex stays within 0.05 picture pixels of the body
+   it shows (measured against the drawn vertices, never the last frame's: the menu's slowed time drifts the pose by
+   ~0.03 px a frame): made 17 times in 149 frames. Menu 2.49 -> **0.23 ms** a frame (fast profile). Profile scopes
+   `holster menu`, `holster menu body` (mesh, raster), `mesh raster`/`mesh upload`, `weapon wheel`;
+   `vr_flat_holster_menu_dump` prints the preview's made/kept counts, last movement and triangles.
+2. **The beasts' armour relink** (vr_beastarmour.cpp `relinkBody`): each piece is placed once a relink; the leather's
+   junctions asked for both of their pieces again (456 placements a frame for 167 pieces, ~1.2 us each):
+   `relink: rig2 swap` 0.54 -> **0.27 ms** for 16 armoured beasts (scope `beast armour`, `beast armour leather`).
+   Shared by PC and Quest.
+
+**Looked at, left:** the flashlight dazzle (early-outs before its line: ~0.03 ms with 16 armed in the beam); lying guns'
+mounts (`setupWorldRails`: nearest 32, 0.055 ms for 32); the wheel (+0.06 ms); `place`'s remaining cost (points 0.68 us,
+the rigid fit's Jacobi 0.6 us a piece: a warm start would change the numbers); broken plates' debris props flying
+(`box3d before step` 0.03 -> 0.17 ms: `touchNearby` for each moving debris); the armour's draws (each piece an alias
+entity: 1960 alias draws a frame in armour_beasts16, +0.34 ms GPU against 11-27): batching the pieces is a renderer job.
+
+**Tests:** flatholster_test 54/0, weaponwheel_test vr 26/0, bindpanel_test 37/0, agarmor 21 (doglerp) 30/0, 15 71/0, 23 1/0,
+vr_beastarmour_lookcheck 78/0, MP soak 15/0. **Failing on origin/next without this branch** (checked on the merge
+commit): weaponwheel_test flat (times out at "the tap's cycle") and toolgun_panel_test ("X/A + stick press: not back to
+Brush").
