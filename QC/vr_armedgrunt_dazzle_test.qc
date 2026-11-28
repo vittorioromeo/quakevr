@@ -6,7 +6,12 @@
 //   lit:      its dazzle builds, its shielding hand comes up before its eyes, its shots' error and spread grow;
 //   lamp off: the dazzle fades over the fade time (not at once), then nothing: its aim as before, exactly;
 //   off-axis (25 degrees), behind a solid box, its back to the lens: nothing;
-//   each other kind (the enforcer, the knight, the death knight; AD's two with AD): its hand comes up before its eyes.
+//   each other kind (the enforcer, the knight, the death knight; AD's two with AD): its hand comes up before its eyes;
+//   every kind's shielding forearm as drawn (the client's solved arm, weapondrawnpose 58 / 59) across its eyes' line to
+//   the lens: near it, more across it than along it, roughly level (dazzlepose);
+//   a dual wielder (two revolvers): vr_agrunt_dazzle_dual 1 its left gun's hand up before its eyes, the gun pointing up,
+//   not fired; 0 no shield.
+// scratch1 232: nearer, a screenshot of each kind shielding and of the dual wielder (his review).
 // Each check `agtest: PASS|FAIL dazzle ...`; ends on `agtest: test 232 over: P passed, F failed`.
 // ----------------------------------------------------------------------------
 
@@ -17,6 +22,58 @@ float vr_agdz_kind;    // the kinds' step: the row now
 float vr_agdz_keepkind; // vr_agrunt_test_kind before
 float vr_agdz_mid;     // the fade's dazzle 0.4 s in
 entity vr_agdz_box;    // the blocker
+float vr_agdz_shot;    // scratch1 232: when its picture was asked for (each kind's, then the dual wielder's)
+float vr_agdz_keepdual; // vr_agrunt_dazzle_dual before
+float vr_agdz_fa_off;  // VR_AGDZ_Forearm: its forearm's nearest to the line from its eyes to the lens (units),
+float vr_agdz_fa_ang;  // ... its angle off square across that line (degrees: 0 across, 90 along it),
+float vr_agdz_fa_tilt; // ... its angle off level (degrees)
+
+// Units down the beam it is held: nearer for his pictures (scratch1 232).
+float() VR_AGDZ_Dist = { return cvar_hget(cvarh_scratch1) == 232 ? 64 : 120; };
+
+// Its shielding forearm as drawn (its elbow to its hand's grip: weapondrawnpose 58 / 59, the client's solved arm) against
+// the line from its eyes to the lens (out: vr_agdz_fa_*). False: its arm not drawn lately.
+float(entity g, float side) VR_AGDZ_Forearm =
+{
+    vector el = weapondrawnpose(g, side, 58);
+    vector hd = weapondrawnpose(g, side, 59);
+    vr_agdz_fa_off = -1;
+    vr_agdz_fa_ang = 90;
+    vr_agdz_fa_tilt = 90;
+    if(el == '0 0 0' || hd == el)
+    {
+        return FALSE;
+    }
+    vector eye = VR_AG_DazzleEye(g);
+    vector d = normalize(flashlightbeam(vr_agt_player, 0) - eye);
+    float best = 999;
+    float i;
+    for(i = 0; i <= 10; i++)
+    {
+        vector q = el + (hd - el) * (i / 10);
+        float a = (q - eye) * d;
+        if(a > 1)
+        {
+            best = min(best, vlen(q - eye - d * a));
+        }
+    }
+    vector f = normalize(hd - el);
+    float along = fabs(f * d);
+    vr_agdz_fa_off = best;
+    vr_agdz_fa_ang = atan2(along, sqrt(max(0, 1 - along * along))) * (180 / 3.14159265);
+    vr_agdz_fa_tilt = atan2(fabs(f_z), sqrt(max(0, 1 - f_z * f_z))) * (180 / 3.14159265);
+    return TRUE;
+};
+
+// The forearm check: across the line of sight within `most` units of it, more across it than along (under 50 degrees off
+// square: the old elbow's, down and back, left the knights' at 56..65, a punch held up), roughly level (under 50).
+void(entity g, string who, float most) VR_AGDZ_CheckForearm =
+{
+    float drawn = VR_AGDZ_Forearm(g, 1);
+    VR_AGT_Check(sprintf("dazzle: %s: its forearm before its eyes: %.1f off their line, %.0f deg off across it, %.0f off level",
+        who, vr_agdz_fa_off, vr_agdz_fa_ang, vr_agdz_fa_tilt),
+        drawn && vr_agdz_fa_off >= 0 && vr_agdz_fa_off < most && vr_agdz_fa_ang < 50 && vr_agdz_fa_tilt < 50);
+};
 
 // Its accuracy now (the layer's shots divide their error by it).
 float(entity g) VR_AGDZ_Acc =
@@ -89,7 +146,10 @@ void() VR_AGDZ_Frame =
         p.flags = p.flags | FL_NOTARGET;
         VR_AGPT_Clear();
         vr_agdz_keepkind = cvar_hget(cvarh_vr_agrunt_test_kind);
+        vr_agdz_keepdual = cvar_hget(cvarh_vr_agrunt_dazzle_dual);
+        vr_agdz_shot = 0;
         cvar_set("vr_agrunt_test_kind", "0");
+        localcmd("tune vr_agrunt_dazzle_dual 0\n"); // (a tunable: set by `tune`)
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 120);
         if(!VR_AGDZ_LampOn())
         {
@@ -126,7 +186,7 @@ void() VR_AGDZ_Frame =
     if(vr_agt_step == 2)
     {
         // Lit on its face: dazzled, its hand up, its aim worse (and its two-handed gun in one hand: worse still).
-        VR_AGDZ_Hold(g, 0, 120, FALSE);
+        VR_AGDZ_Hold(g, 0, VR_AGDZ_Dist(), FALSE);
         if(t < 1.2)
         {
             return;
@@ -140,10 +200,12 @@ void() VR_AGDZ_Frame =
             VR_AGDZ_HandUp(g, 10));
         VR_AGT_Check(sprintf("dazzle: its aim error and spread x%.2f (at least x%.2f)", vr_agdz_base / acc, want),
             vr_agdz_base / acc >= want);
+        VR_AGDZ_CheckForearm(g, "grunt", 4);
         if(cvar_hget(cvarh_scratch1) == 232)
         {
-            localcmd("screenshot\n"); // (scratch1 232: his picture of a shielding grunt, the test ends here)
-            VR_AGDZ_Step(9);
+            // (scratch1 232: his pictures: each kind shielding (the grunt's first, this one), then the dual wielder's)
+            vr_agdz_kind = VR_AM_GRUNT;
+            VR_AGDZ_Step(7);
             return;
         }
         localcmd("vr_flashlight_toggle\n");
@@ -239,21 +301,45 @@ void() VR_AGDZ_Frame =
             }
             return;
         }
-        VR_AGDZ_Hold(g, 0, 120, FALSE);
+        VR_AGDZ_Hold(g, 0, VR_AGDZ_Dist(), FALSE);
         if(t < 1.2)
         {
             return;
         }
-        VR_AM_Row(vr_agdz_kind);
-        VR_AGT_Check(sprintf("dazzle: %s lit: dazzle %.2f, hand %.2f, %.1f from its eyes", vr_am_spawnname, g.vr_ag_dazzle,
-            g.vr_ag_shieldw, vlen(g.vr_ag_shield_at - VR_AG_DazzleEye(g))), g.vr_ag_shieldw > 0.95 && VR_AGDZ_HandUp(g, 14));
+        if(!vr_agdz_shot)
+        {
+            VR_AM_Row(vr_agdz_kind);
+            VR_AGT_Check(sprintf("dazzle: %s lit: dazzle %.2f, hand %.2f, %.1f from its eyes", vr_am_spawnname, g.vr_ag_dazzle,
+                g.vr_ag_shieldw, vlen(g.vr_ag_shield_at - VR_AG_DazzleEye(g))), g.vr_ag_shieldw > 0.95 && VR_AGDZ_HandUp(g, 14));
+            if(vr_agdz_kind != VR_AM_GRUNT)
+            {
+                VR_AGDZ_CheckForearm(g, vr_am_spawnname, 4);
+            }
+            if(cvar_hget(cvarh_scratch1) == 232)
+            {
+                localcmd("screenshot\n");
+                vr_agdz_shot = time;
+                return;
+            }
+        }
+        else if(time < vr_agdz_shot + 0.25)
+        {
+            return; // (its picture taken before it goes)
+        }
+        vr_agdz_shot = 0;
         VR_AGT_Remove(g);
         vr_agt_grunt = world;
         vr_agdz_kind = vr_agdz_kind + 1;
         float last = cvar_hget(cvarh_vr_ad_mounted) ? VR_AM_ROWS : VR_AM_COUNT;
         if(vr_agdz_kind >= last)
         {
-            VR_AGDZ_Step(9);
+            // The dual wielder (two revolvers): vr_agrunt_dazzle_dual on, then off.
+            localcmd("tune vr_agrunt_dazzle_dual 1\n");
+            cvar_set("vr_agrunt_test_kind", "0");
+            vr_agt_weapon2 = WID_REVOLVER;
+            vr_agt_grunt = VR_AGT_Spawn(WID_REVOLVER, 120);
+            vr_agt_weapon2 = 0;
+            VR_AGDZ_Step(8);
             return;
         }
         cvar_set("vr_agrunt_test_kind", ftos(vr_agdz_kind));
@@ -261,7 +347,59 @@ void() VR_AGDZ_Frame =
         VR_AGDZ_Step(7);
         return;
     }
+    if(vr_agt_step == 8 || vr_agt_step == 10)
+    {
+        // Two revolvers lit: with vr_agrunt_dazzle_dual its left one's hand comes up before its eyes, the revolver still
+        // in it pointing up, not fired while raised; without (step 10, the same one lit on): both stay up, no shield.
+        if(!VR_AGDZ_Ready(g) || !g.vr_ag_prop2 || weapondrawnpose(g.vr_ag_prop2, 0, 31) == '0 0 0')
+        {
+            vr_agdz_t0 = time;
+            if(time > vr_agdz_until)
+            {
+                VR_AGT_Check(sprintf("dazzle: dual: timed out (weapons %g %g)", g.vr_ag_prop != world, g.vr_ag_prop2 != world), FALSE);
+                VR_AGDZ_Step(9);
+            }
+            return;
+        }
+        VR_AGDZ_Hold(g, 0, VR_AGDZ_Dist(), FALSE);
+        if(t < 1.2)
+        {
+            return;
+        }
+        if(vr_agt_step == 10)
+        {
+            VR_AGT_Check(sprintf("dazzle: dual, vr_agrunt_dazzle_dual 0: no shield (dazzle %.2f, hand %g), both fired %g",
+                g.vr_ag_dazzle, g.vr_ag_shieldw, !VR_AG_ShieldingLeft(g)), g.vr_ag_dazzle > 0.95 && g.vr_ag_shieldw == 0 &&
+                !VR_AG_ShieldingLeft(g));
+            VR_AGDZ_Step(9);
+            return;
+        }
+        if(!vr_agdz_shot)
+        {
+            vector up = weapondrawnpose(g.vr_ag_prop2, 0, 31);
+            VR_AGT_Check(sprintf("dazzle: dual, vr_agrunt_dazzle_dual 1: its left hand %.2f up, %.1f from its eyes; its left gun "
+                "held (%g), drawn pointing up (%.2f), not fired (%g)", g.vr_ag_shieldw, vlen(g.vr_ag_shield_at - VR_AG_DazzleEye(g)),
+                g.vr_ag_prop2 != world, up_z, VR_AG_ShieldingLeft(g)), g.vr_ag_shieldw > 0.95 && VR_AGDZ_HandUp(g, 14) &&
+                g.vr_ag_prop2 != world && up_z > 0.5 && VR_AG_ShieldingLeft(g));
+            VR_AGDZ_CheckForearm(g, "dual wielder", 6.5); // (its hand round the gun's grip, its forearm below it: a little lower)
+            if(cvar_hget(cvarh_scratch1) == 232)
+            {
+                localcmd("screenshot\n");
+                vr_agdz_shot = time;
+                return;
+            }
+        }
+        else if(time < vr_agdz_shot + 0.25)
+        {
+            return;
+        }
+        vr_agdz_shot = 0;
+        localcmd("tune vr_agrunt_dazzle_dual 0\n");
+        VR_AGDZ_Step(10);
+        return;
+    }
     // (step 9) the end
+    localcmd(sprintf("tune vr_agrunt_dazzle_dual %g\n", vr_agdz_keepdual));
     if(vr_agdz_box)
     {
         remove(vr_agdz_box);

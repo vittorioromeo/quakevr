@@ -657,7 +657,8 @@ constexpr int sparseConfigVersion = 218;
 // The version markers (always written): a missing one would read as its default, which a later version can pass.
 [[nodiscard]] bool alwaysSaved(const cvar_t* var)
 {
-    return var == &vr_cfg_version || var == &vr_wofs_version || var == &vr_props_version || var == &vr_bindings_version;
+    return var == &vr_cfg_version || var == &vr_wofs_version || var == &vr_props_version || var == &vr_bindings_version ||
+           var == &vr_flat_pad_defaults_version;
 }
 
 // "vr_config_defaults" (a sparse config's first settings line): every Quake VR setting back to its default, so the lines
@@ -1151,7 +1152,7 @@ void buildKindRows()
 // Per-player or bookkeeping settings, never shipped.
 [[nodiscard]] bool personal(const cvar_t* var)
 {
-    return var == &vr_cfg_version || var == &vr_installer_applied || var == &vr_tutorial_started|| var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
+    return var == &vr_cfg_version || var == &vr_installer_applied || var == &vr_tutorial_started|| var == &vr_bindings_version || var == &vr_flat_pad_defaults_version || var == &vr_wofs_version || var == &vr_height_calibration
         || var == &vr_seated_height // (one's chair)
         || var == &vr_props_version || var == &vr_menu_positions
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye

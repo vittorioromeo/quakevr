@@ -17,6 +17,7 @@
 #include "vr_backend.hpp"
 #include "vr_bindpanel.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_flatplay.hpp"
@@ -39,6 +40,7 @@
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -1712,6 +1714,22 @@ bool flatMouse(int dx, int dy)
     const float k = za::max(vr_flat_holster_menu_cursor_speed.value, 0.f) / za::max(ws.scale, 0.1f);
     ws.cursor.x = za::clamp(ws.cursor.x + static_cast<float>(dx) * k, -flatCursorMargin, panelW + flatCursorMargin);
     ws.cursor.y = za::clamp(ws.cursor.y + static_cast<float>(dy) * k, -flatCursorMargin, panelH + flatCursorMargin);
+    return true;
+}
+
+bool flatStick(float x, float y)
+{
+    if(ws.hand < 0 || !ws.flat)
+    {
+        return false;
+    }
+    // A gamepad's stick (padflat) points at a slot: past vr_pad_wheel_deadzone the cursor on the ring that way; back in the
+    // middle it stays on the slot it last pointed at (letting go of the shoulder button takes it).
+    const float len = za::sqrt(x * x + y * y);
+    if(len > za::clamp(vr_pad_wheel_deadzone.value, 0.05f, 0.95f))
+    {
+        ws.cursor = ringMid + glm::vec2{x / len * ringR.x, y / len * ringR.y};
+    }
     return true;
 }
 

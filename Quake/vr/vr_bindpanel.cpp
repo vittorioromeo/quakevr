@@ -24,28 +24,38 @@ namespace
 
 // An action: its flat key cvar (its keys, up to two), or a bind's command (the first two keys bound to it: fire and aim
 // are binds), or the weapon wheel's pair (the first keys of the two cycle keys, held).
+// panelfix: the main actions first (drawn large), then the minor ones (smaller) in groups, a group's first row carrying
+// its title.
 struct Action
 {
     const char* label;
     const cvar_t* key;    // nullptr: by `command`
     const char* command;  // the bind's command ("" none)
-    const cvar_t* second; // the wheel: the other hand's key (its first)
+    const cvar_t* second; // a left / right pair (the wheel, cycle, holster, drop): the right hand's key (each its first)
+    bool minor;
+    const char* header;
 };
 const Action actions[] = {
-    {"Fire", nullptr, "+attack", nullptr},
-    {"Aim / off hand", nullptr, "+offhandattack", nullptr},
-    {"Reload", &vr_flat_key_reload, "", nullptr},
-    {"Wheel (hold)", &vr_flat_key_cycle_left, "", &vr_flat_key_cycle_right},
-    {"Holster menu", &vr_flat_key_holster_menu, "", nullptr},
-    {"Swap hands", &vr_flat_key_swap, "", nullptr},
-    {"Grab / pull", &vr_flat_key_pull, "", nullptr},
-    {"Force grab", &vr_flat_key_grab, "", nullptr},
-    {"Throw / drop", &vr_flat_key_throw, "", nullptr},
-    {"Shove", &vr_flat_key_shove, "", nullptr},
-    {"Punch", &vr_flat_key_punch, "", nullptr},
-    {"Grenade", &vr_flat_key_grenade, "", nullptr},
-    {"Crouch / slide", &vr_flat_key_crouch, "", nullptr},
-    {"Flashlight", &vr_flat_key_flashlight, "", nullptr},
+    {"Fire", nullptr, "+attack", nullptr, false, ""},
+    {"Aim / off hand", nullptr, "+offhandattack", nullptr, false, ""},
+    {"Reload", &vr_flat_key_reload, "", nullptr, false, ""},
+    {"Wheel (hold)", &vr_flat_key_cycle_left, "", &vr_flat_key_cycle_right, false, ""},
+    {"Holster menu", &vr_flat_key_holster_menu, "", nullptr, false, ""},
+    {"Grab / pull", &vr_flat_key_pull, "", nullptr, false, ""},
+    {"Throw / drop", &vr_flat_key_throw, "", nullptr, false, ""},
+    {"Grenade", &vr_flat_key_grenade, "", nullptr, false, ""},
+    {"Crouch / slide", &vr_flat_key_crouch, "", nullptr, false, ""},
+    {"Cycle L / R", &vr_flat_key_cycle_left, "", &vr_flat_key_cycle_right, true, "Hands"},
+    {"Holster L / R", &vr_flat_key_holster_left, "", &vr_flat_key_holster_right, true, ""},
+    {"Drop L / R", &vr_flat_key_drop_left, "", &vr_flat_key_drop_right, true, ""},
+    {"Swap hands", &vr_flat_key_swap, "", nullptr, true, ""},
+    {"Next ammo", &vr_flat_key_ammo, "", nullptr, true, ""},
+    {"Attach / detach", &vr_flat_key_attach, "", nullptr, true, ""},
+    {"Force grab", &vr_flat_key_grab, "", nullptr, true, "More"},
+    {"Shove", &vr_flat_key_shove, "", nullptr, true, ""},
+    {"Punch", &vr_flat_key_punch, "", nullptr, true, ""},
+    {"Lie down", &vr_flat_key_prone, "", nullptr, true, ""},
+    {"Flashlight", &vr_flat_key_flashlight, "", nullptr, true, ""},
 };
 static_assert(za::getArraySize(actions) <= maxRows, "maxRows holds them");
 
@@ -147,6 +157,8 @@ int controllerRows(bindsetup::Model m, gadget::BindPanelRow* out, int max)
         r.keys[1] = "";
         r.glyphs[0] = b.glyph;
         r.glyphs[1] = nullptr;
+        r.minor = false; // (a pad's bound buttons: one group, all large)
+        r.header = "";
     }
     return n;
 }
@@ -218,13 +230,13 @@ int rows(gadget::BindPanelRow* out, int max)
         int keys[2] = {-1, -1};
         if(a.second)
         {
-            keys[0] = flatplay::keyNum(*a.key, 0);
-            keys[1] = flatplay::keyNum(*a.second, 0);
+            keys[0] = flatplay::keyNumKeyboard(*a.key, 0); // (a gamepad's buttons: the pad's own rows, controllerRows)
+            keys[1] = flatplay::keyNumKeyboard(*a.second, 0);
         }
         else if(a.key)
         {
-            keys[0] = flatplay::keyNum(*a.key, 0);
-            keys[1] = flatplay::keyNum(*a.key, 1);
+            keys[0] = flatplay::keyNumKeyboard(*a.key, 0);
+            keys[1] = flatplay::keyNumKeyboard(*a.key, 1);
         }
         else
         {
@@ -233,6 +245,8 @@ int rows(gadget::BindPanelRow* out, int max)
         gadget::BindPanelRow& r = out[n];
         texts.glyphNames[n] = nullptr;
         r.action = a.label;
+        r.minor = a.minor;
+        r.header = a.header;
         for(int s = 0; s < 2; s++)
         {
             keyName(keys[s], texts.keys[n][s]);
@@ -390,8 +404,9 @@ void report_f()
     for(int i = 0; i < n; i++)
     {
         glyphs += r[i].glyphs[0] ? 1 : 0;
-        Con_Printf("bindpanel: row %d \"%s\" keys \"%s\" \"%s\"%s%s%s\n", i, r[i].action, r[i].keys[0], r[i].keys[1],
-            texts.glyphNames[i] ? " glyph \"" : "", texts.glyphNames[i] ? texts.glyphNames[i] : "", texts.glyphNames[i] ? "\"" : "");
+        Con_Printf("bindpanel: row %d \"%s\" keys \"%s\" \"%s\"%s%s%s%s%s%s\n", i, r[i].action, r[i].keys[0], r[i].keys[1],
+            texts.glyphNames[i] ? " glyph \"" : "", texts.glyphNames[i] ? texts.glyphNames[i] : "", texts.glyphNames[i] ? "\"" : "",
+            r[i].minor ? " minor" : "", r[i].header[0] ? " group " : "", r[i].header);
     }
     menuui::bindPanelReport();
     // The headset's panel (bindpanel2): its view now (the controller the weapon wheel would show) and how often it was made.

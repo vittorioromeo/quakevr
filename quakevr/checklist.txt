@@ -19,6 +19,11 @@ Flat-screen: open Tunables > Flatscreen > Procedural Reload, set Lock Pose (or u
 Flat-screen or VR: take a grenade from the back pouch (the wheel's BACK POUCH, or G flat), then pick a gun on that hand's wheel or EMPTY HAND: the grenade goes back (the rocket count +1) and the gun comes into the hand. {test:wheel_grenade}
 Flat-screen or VR: holding a grenade, pick the other kind on the wheel's BACK POUCH: it is swapped (cluster for grenade); arm one and pick EMPTY HAND: a dull knock and "The grenade is armed: throw it or drop it.", it stays in the hand. {test:wheel_grenade}
 Flat-screen: holding an unarmed grenade, open the MMB holster menu and press a holster button for that hand: the grenade goes back and the holster's weapon comes into the hand. {test:wheel_grenade}
+Flat-screen: open the menu and go through a few pages (main menu, Options, Controls): the bindings reminder shows bottom left on every page where it fits, a clear margin from the menu's left border, above the Recording and OBS buttons, and hovering Setup Bindings lights only Setup Bindings. {test:hub_start}
+Flat-screen: in the menu, the bindings reminder lists the main actions large, then smaller "Hands" (cycle 1/2, holster 4/5, drop 6/7, swap, next ammo, attach) and "More" (force grab, shove, punch, lie down, flashlight) groups; with a pad in use its panel sits in the same bottom-left corner as the keyboard's. {test:hub_start}
+Flat-screen: hold 1 (weapon wheel) and press MMB (holster menu): the reminder panel above shows the main actions in the left column and the Hands / More groups smaller on the right; the slots' holster titles read clearly (less faded than before). {test:weapon_wheel}
+Flat-screen: with both hands empty, jab with the left button at a grunt that is off to one side: each fist, left and right, should travel to whatever the crosshair is on and hit it. {test:flat_fists}
+Flat-screen or VR: in Run Setup, the Starting melee weapon row should read Axe, Dagger, Spear, Nothing (Nothing last, like the gun row), and a pick you saved before should still be the same weapon. {test:run_setup_newgame}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -54,6 +59,10 @@ On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution
 ## Grab, hold and push
 ## Spear and Crystal Lance
 Flat-screen: with the shotgun in one hand and the other empty, fire then press R: the free hand goes to the ammo pouch on your belt, brings a taped pair to the port under the shotgun (tilted to meet it) and back, two shells a trip until full; say how the speed, the tilt and the hand's path feel. {test:flat_proc_reload}
+Flat-screen: with a gamepad every common action has a button: RT/LT fire, A jump, B crouch, X reload, Y shove, R3 punch, LB/RB tap to cycle or hold for that hand's weapon wheel, L3 held the holster menu, the d-pad flashlight/grenade/throw/force grab, and Back held a second layer (lie down, grab/pull, next ammo, swap hands, attach, bullet time, scoreboard); check each feels natural. {test:flat_gamepad}
+Flat-screen: with a gamepad, the weapon wheel (LB/RB held) picks the slot the right stick points at, and the holster menu (L3 held) moves its cursor with the right stick; check the view does not turn meanwhile. {test:flat_gamepad}
+Flat-screen: in the menus a gamepad's left stick moves a cursor (A clicks what it is on), the d-pad still steps the rows and hides the cursor, and moving the mouse hides it too; check its speed and feel. {test:hub_start}
+Flat-screen: the Controller Bindings screen with a pad shows its flat-play actions (Crouch / slide, Cycle right hand, ...), drag swaps them and Reset to Defaults brings back the new layout. {test:hub_start}
 
 [3. Tutorial and VR interface]
 ## Tutorial
@@ -84,6 +93,8 @@ Stab a grunt with the bayonet shotgun so it sticks, keep your hand on it, and br
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
 Heavy revolver: fire a few shots, swing the cylinder out and press B/Y (or push it back): only the spent shells drop and the live ones stay; eject again and the live ones drop too (Spent Shells First, on by default). {test:revolver_reload}
 Heavy revolver: the pouch gives a taped pair of blue slugs that loads two chambers at once with the two-shell sound; with only one chamber empty one goes in and the other stays in your hand (Slug Pairs, on by default). {test:revolver_reload}
+Flat-screen or VR: put a bayonet on the nailgun: it sits on its mount, centred where you moved the mount (your Mount Left tweak, converted); put the dagger on it: it moved across with the mount too. {test:attach_bayomounts}
+Flat-screen or VR: Weapon Offsets > Attachments: Mount Forward, Left and Up move a gun's rail with its bayonet and dagger; the Every Weapon's Bayonet and Every Weapon's Dagger rows move the bayonet or dagger on every gun from its mount at once. {test:attach_bayomounts}
 
 [5. Ropes and chains]
 ## Climbing
@@ -103,6 +114,8 @@ Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, a
 ## Lifts
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
 Armour skins restyled toward your "after" image: muted olive, ochre and brick-red plates under grime, chipped and rusted edges, blood and dirt specks, dark gaps between the rows; check each type still reads at a glance next to the bare grunt, and on enforcers, knights and the armoured beasts too. {test:armour_lineup}
+Take the flashlight and shine it straight in an armed knight's or death knight's face: it raises its free forearm across its eyes with the elbow out to its side, not a fist held up like a punch; armed grunts shield as before. {test:arena_gunknights}
+In Tunables > Flashlight Dazzle turn Dual Wielders Shield on, then shine the flashlight in a dual-wielding grunt's face: it raises its left gun, still held and pointing up, in front of its eyes and fires only its right one; with it off both guns stay up. {test:agrunt_dual_guns}
 
 [7. Armoured beasts]
 ## Armour on the body

@@ -747,7 +747,7 @@ int VR_FlatKeyOwned (int key); // Key_Event: a key flatscreen play reads itself 
 // The flat keys (vr_flat_key_*; vr_flatmove.cpp), Options > Controls' "Quake VR (flat screen)" group (menu.c): index i in the
 // menu's order, each with VR_FLATKEY_SLOTS keys (slot 0, 1). Get: a slot's key (-1 none); Set: a slot's key, -1 clears it (the
 // slots stay packed); For: the flat key on `key` other than `skip` (-1 none).
-#define VR_FLATKEY_SLOTS 2 // (flatplay::keySlots)
+#define VR_FLATKEY_SLOTS 2 // (the keyboard's: flatplay::keySlots less the gamepad's button, which these leave as it is; padflat)
 int VR_FlatKeyCount (void);
 const char *VR_FlatKeyLabel (int i);
 const char *VR_FlatKeyCvarName (int i);
@@ -755,6 +755,10 @@ int VR_FlatKeyGet (int i, int slot);
 void VR_FlatKeySet (int i, int slot, int key);
 int VR_FlatKeyFor (int key, int skip);
 void VR_FlatKeysReset (void); // every flat key back to its default
+int VR_FlatStickCursor (float x, float y, float dt); // IN_JoyMove: 1 the right stick is flatscreen play's open holster menu's or weapon wheel's cursor (padflat): the view does not turn
+int VR_MenuPadStick (float x, float y, float dt); // IN_Commands in a menu: 1 the left stick moved the menu's gamepad cursor (vr_pad_cursor; vr_menuui.cpp): no emulated arrow keys
+int VR_MenuPadKey (int key, int down); // IN_JoyKeyEvent: the key a gamepad button sends (in a menu A: the left mouse button while the cursor shows, its release too; -1 none); the d-pad hides the cursor
+void VR_MenuPadHide (void); // the mouse moved or a key was pressed in a menu: the gamepad cursor hidden
 void M_Menu_Keys_At (const char *row); // menu.c: Options > Controls with the cursor on a row (a command, a name, a vr_flat_key_* cvar): the VR menu's Flat Keys button
 int VR_FlatToolgunMouse (int dx, int dy); // IN_MouseMotion: 1 the mouse is flatscreen play's toolgun's (its panel's cursor, its adjust key held; vr_flatplay.cpp): the view does not turn
 int VR_FlatToolgunEscape (void); // Key_Event's Esc in the game: 1 it closed flatscreen play's toolgun panel (no menu)
