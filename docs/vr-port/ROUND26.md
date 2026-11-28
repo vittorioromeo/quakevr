@@ -6264,4 +6264,4 @@ His item 17 (fb1127n). Full notes: `RAGFIRE.md`. Verdict: feasible and cheap; pr
   no convergence, no drawn-line turn); off, nothing changes.
 - Measured: a lying ragdoll's gun stays 36-59 deg off the player with the arm reach on (limp wrist, arm on the floor); a
   shotgun lying muzzle down holds every shot (blocked). Next: drive the hand bone, then cut the steer to ~10 deg.
-- Test `vr_agrunt_test 236` (vr_armedgrunt_ragfire_test.qc): 5/0. Scene `agrunt_ragfire`.
+- Test `vr_agrunt_test 237` (vr_armedgrunt_ragfire_test.qc): 5/0. Scene `agrunt_ragfire`.

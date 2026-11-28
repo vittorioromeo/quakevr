@@ -68,11 +68,11 @@ gun's (a visible mismatch at close range) and holds its fire when even that woul
 - **Saves**: fields `.vr_ag_rf_next`, `.vr_ag_rf_since`, `.vr_ag_rf_shots`, `.vr_ag_rf_corr` (saved by name, all
   harmless when stale); the engine's aim state is not saved (re-asked every frame).
 
-## 3. Results (test 236, headless, vrtesthall, the gun holder toppled 80 units ahead)
+## 3. Results (test 237, headless, vrtesthall, the gun holder toppled 80 units ahead)
 
 | Case | Shots while down (6 s) |
 | --- | --- |
-| grunt, revolver | 2 (passes at 2) |
+| grunt, revolver | 1 to 2 (passes at 1; 10 of 11 due shots blocked after the origin/next merge: it lay with its line into the floor) |
 | enforcer, nail pistol | 2 |
 | grunt, nail pistol | 2 |
 | grunt, rocket launcher | 0 (excluded) |
@@ -106,7 +106,7 @@ about once in 6 s.
 
 `vr_agrunt_ragfire 1` (VR Settings > Armed Grunts > Loadout: Fire While Down (Experimental)), the tunables under
 Debug > Tunables (search "Ragfire"), the checklist scene `agrunt_ragfire` (a revolver and a nail pistol grunt, a
-shotgun enforcer, a rocket launcher grunt that must never fire while down). Test: `vr_agrunt_test 236`.
+shotgun enforcer, a rocket launcher grunt that must never fire while down). Test: `vr_agrunt_test 237`.
 
 Files: QC `vr_armedgrunt_ragfire.qc` (the rules), `vr_armedgrunt_ragfire_test.qc`, hooks in `vr_armedgrunt.qc`
 (`VR_AG_PropThink`, `VR_AG_ShootProp`, `VR_AG_DrawnMuzzle`), `vr_armedrepl.qc` (`VR_AGR_NativeShot`), `weapons.qc`

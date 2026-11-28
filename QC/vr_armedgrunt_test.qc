@@ -1641,7 +1641,7 @@ void() VR_AGTest_Frame =
     else if(t == 86) { VR_AGAIT_Frame(); } // (the AI behaviour knobs: vr_armedgrunt_ai_test.qc)
     else if(t == 87) { VR_AGLT_Frame(); } // (the strafe lean: vr_armedgrunt_ai_test.qc)
     else if(t == 88) { VR_AGRW_Frame(); } // (the held weapon on an active ragdoll's hand: vr_armedgrunt_ragweapon_test.qc)
-    else if(t == 236) { VR_AGRF_Frame(); } // (firing as a ragdoll, vr_agrunt_ragfire: vr_armedgrunt_ragfire_test.qc)
+    else if(t == 237) { VR_AGRF_Frame(); } // (firing as a ragdoll, vr_agrunt_ragfire: vr_armedgrunt_ragfire_test.qc)
     else if(t == 95) { VR_AKNT_Frame(); } // (knights as armed humanoids: vr_armedknight_test.qc)
     else if(t >= 70 && t <= 73) { VR_AGRT_Frame(t); } // (armed humanoid replacements: vr_armedrepl_test.qc)
     else if(t == 80) { VR_RST_Frame(); } // (the Rig Studio's sequences played by QC: vr_rigseq_test.qc)

@@ -686,7 +686,7 @@ vr_armedgrunt_second_test.qc
 vr_ogre_friends_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
-vr_armedgrunt_ragfire_test.qc // vr_agrunt_test 236: firing as a ragdoll (vr_agrunt_ragfire)
+vr_armedgrunt_ragfire_test.qc // vr_agrunt_test 237: firing as a ragdoll (vr_agrunt_ragfire)
 vr_armedknight_test.qc
 vr_footstep_test.qc
 vr_armedgrunt_range_test.qc
