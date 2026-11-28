@@ -5,53 +5,41 @@
 # A flat-only line starts "Flat-screen:"; a line that works in either mode starts "Flat-screen or VR:" (try it in either); the rest are for the headset.
 # New lines from a ship land in a [New: not yet sorted] section at the top (or in the section a lines file names on its first line, "[section: <name>]"); the next sort moves them into place and drops that section.
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); every line ends in one (at least a minimal scene: the map, where you stand, what is given). Multiplayer lines' scenes start a local game with bots (passive: stand still, never attack, take hits; or active), nothing opened on the network. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
-# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-25, sixth pass: 13 ticked lines retired, the [New] section sorted, near-duplicates merged; before that 2026-11-24, fifth pass: ticked lines retired, the [New] section sorted, near-duplicates merged, sections reordered; before that 2026-11-23, third pass: 51 more ticked lines retired, the [New] section sorted, near-duplicates merged, wordy lines cut; before that 2026-11-23: 51 ticked lines retired, the [New] section sorted; before that 2026-11-22: 12 ticked or superseded lines retired, the [New] section sorted into Ropes and chains, Arcane Dimensions and Tutorial and VR interface, empty sections dropped; before that 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every line has a tag, every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
-
-[New: not yet sorted]
-Flat-screen or VR: point the switched-on flashlight straight at an armed grunt's face from a few metres; after a moment it raises its free hand in front of its eyes (a shotgun goes into one hand) and its shots spray wider, and it lowers the hand a second or two after the beam leaves its face. Check the hand looks like it shields the eyes and nothing happens with the beam off to the side or at its back. {test:agrunt_flashblind}
-Flat-screen or VR: Options > Controller Bindings shows your controller (the name says "detected") with each button labelled by its binding; drag a label onto another and the two bindings swap, click one and pick an action from the list (typing searches it), then Reset to Defaults puts the shipped ones back. {test:hub_start}
-Flat-screen or VR: step through the controller pictures with the arrows beside the name (Quest 3, Quest 2, Quest Pro, Rift, Index, Vive, WMR, Steam Frame, Xbox, PlayStation, Switch Pro, generic pad) and say which pictures, labels or glyphs need work. {test:hub_start}
-Flat-screen: with a gamepad as the last device used, the main menu's bindings panel and the one over the holster menu and the weapon wheel list the pad's buttons with that pad's icons (Xbox, PlayStation, Switch) and what each does; touch the keyboard or mouse and the keys come back. Setup Bindings then opens the controller screen for the pad. {test:hub_start}
-Ragdoll climbs: knock a knight off a ledge so it falls past the lip: when it grabs the lip its fall is caught softly (no sudden jolt) and both hands stay on (no hand yanked off the lip), then it pulls itself up. {test:knight_ledge}
-Flat-screen: open Tunables > Flatscreen > Procedural Reload, set Lock Pose (or use Next Key / Previous Key) and walk through the key poses (rest, gun tilted, hand at pouch, gripping the pair, at the port's mouth, inserted, returning); change a pose's sliders and see the held pose follow at once; set Lock Pose back to Off and R reloads as normal. {test:flat_proc_reload}
-Flat-screen or VR: take a grenade from the back pouch (the wheel's BACK POUCH, or G flat), then pick a gun on that hand's wheel or EMPTY HAND: the grenade goes back (the rocket count +1) and the gun comes into the hand. {test:wheel_grenade}
-Flat-screen or VR: holding a grenade, pick the other kind on the wheel's BACK POUCH: it is swapped (cluster for grenade); arm one and pick EMPTY HAND: a dull knock and "The grenade is armed: throw it or drop it.", it stays in the hand. {test:wheel_grenade}
-Flat-screen: holding an unarmed grenade, open the MMB holster menu and press a holster button for that hand: the grenade goes back and the holster's weapon comes into the hand. {test:wheel_grenade}
-Flat-screen: open the menu and go through a few pages (main menu, Options, Controls): the bindings reminder shows bottom left on every page where it fits, a clear margin from the menu's left border, above the Recording and OBS buttons, and hovering Setup Bindings lights only Setup Bindings. {test:hub_start}
-Flat-screen: in the menu, the bindings reminder lists the main actions large, then smaller "Hands" (cycle 1/2, holster 4/5, drop 6/7, swap, next ammo, attach) and "More" (force grab, shove, punch, lie down, flashlight) groups; with a pad in use its panel sits in the same bottom-left corner as the keyboard's. {test:hub_start}
-Flat-screen: hold 1 (weapon wheel) and press MMB (holster menu): the reminder panel above shows the main actions in the left column and the Hands / More groups smaller on the right; the slots' holster titles read clearly (less faded than before). {test:weapon_wheel}
-Flat-screen: with both hands empty, jab with the left button at a grunt that is off to one side: each fist, left and right, should travel to whatever the crosshair is on and hit it. {test:flat_fists}
-Flat-screen or VR: in Run Setup, the Starting melee weapon row should read Axe, Dagger, Spear, Nothing (Nothing last, like the gun row), and a pick you saved before should still be the same weapon. {test:run_setup_newgame}
-Flat-screen: empty the shotgun, then press R while running, strafing, jumping, sliding and crouch-walking: every pair goes into the loading port at the bottom and the gun fills, with no reload cancelled or shell dropped. {test:flat_proc_reload}
-Flat-screen: during the procedural reload, look at the reloading hand: its fingers close round the taped pair from the pouch to the port, as in VR, and open again on the way back. {test:flat_proc_reload}
-Flat-screen: in Tunables > Flatscreen > Procedural Reload, lock the pose at the port's mouth or inserted and move Hand at Port: Forward / Right / Up: the hand and its pair move along the gun. {test:flat_proc_reload}
-- [ ] The menu's bindings reminder is larger: main rows and the Hands / More groups, in two columns, still clear of the corner rows; try the main menu and Options, keyboard and pad {test:hub_start}
-Flat-screen or VR: stab the ogre with the bayonet nailgun and hold fire: it fires as fast as in the hand, both barrels in turn, the barrels animate on the stuck gun with its muzzle flash and sparks. {test:attach_bayomounts}
-Flat-screen or VR: stuck by its bayonet, the thunderbolt plays its start sound once and then its loop, its beam from the stuck gun's muzzle; the burst rifle bursts and the revolver fires a shot each pull. {test:attach_bayomounts}
-Flat-screen: with a bayonet on the grenade launcher, the proximity launcher and the rocket launcher (held in both hands, the other hand free), V thrusts the gun forward with both hands and sticks it in the ogre by the bayonet's point; fire it stuck. {test:attach_bayomounts}
-Flat-screen or VR: put your dagger on the nailgun, the launchers, the thunderbolt, the Plasma Gun, the burst rifle, the laser rifle and the revolver (Daggers as Bayonets): the blade runs level under the muzzle, its guard just behind the gun's front, nothing sinking into the gun. {test:attach_bayomounts}
-Flat-screen or VR: an elite armed humanoid reads at a glance next to ordinary ones: dark gold clothes pulsing towards bright gold, its backpack still in its weapon's colour; check it also reads next to armoured ones and in dim light. {test:elite_pair}
-Flat-screen or VR: fight an elite (the scene's nearer one, notarget off): it fires much more often, reacts at once, aims true, walks a quarter faster, swings quicker, rarely flinches; say if it is too hard or not hard enough (Debug > Tunables > Armed Humanoids > Elite). {test:elite_pair}
-Flat-screen or VR: the toolgun's Armed Humanoid page has Elite: On/Off beside Infected With; spawn an elite that is also infected: dark gold, and killed it bursts into a zombie that is not an elite. {test:elite_pair}
-Flat-screen or VR: Combat > Armed Grunts > AI Behaviour > Elites in Hard and Nightmare on, a map on Hard: about one armed humanoid in seven is an elite; off, none. {test:elite_pair}
-Flat-screen or VR: the Survival Arena from wave 4 sends some elites among the armed humanoids (about one in five). {test:arena_run}
-Flat-screen or VR: in co-op, an elite the host makes (vr_attr_set elite 1) shows its dark gold dye on the other player's screen too. {test:mp_coop_bot}
-Flat-screen: the visor HUD boots at every map start, level change, loaded save and respawn: no panels at first, a power-up sound, the panels fading in with a short subtle glitch, then the scanline sweep; check the timing and the glitch's strength feel right (Debug > Tunables > Visor Boot) and the sound's level against the other UI sounds. {test:flat_visor_boot}
-Flat-screen: open the Reload Studio (Debug > Tools, or vr_reloadstudio) with the shotgun in your right hand and the left empty; click the keys in the list: the hands hold each key's pose (the gun tilted, the hand at the pouch, the pair at the port's mouth, in the port); drag the gizmo on the hand or a slider and the pose follows at once; Play shows the whole reload; Save, then R for a real reload with your change. {test:flat_proc_reload}
-Flat-screen: fire the super shotgun empty, then R: it is already broken open, your left hand brings a taped pair from the belt pouch into both barrels and the gun flicks up shut; fire one barrel only, then R: it flicks open (the spent shell out, the live one kept), one shell goes in, it flicks shut. {test:flat_proc_reload}
-Flat-screen: reload the shotgun and the super shotgun while running in circles, jumping, crouching and sliding: every pair goes in, the reload never gives up half way. {test:flat_proc_reload}
-Quest standalone, SpaceWarp on (VR Settings > Scaling): walk, strafe and turn round the hub and in a fight; the black floating squares should be gone, and the wrist gadget's screen should stay on the gadget when you move your hand. {test:quest_gibfight}
-Quest standalone, Render Scale 0.6: open the menu; the menu should be as sharp as at scale 1 while the world behind it stays at its own resolution (no frame-rate drop when the menu opens). {test:hub_start}
-Quest standalone, VR Settings > Scaling > FOV Reduction 10 and 20: the far edges of the view go black, the rest looks the same, and the game should run lighter. {test:quest_foveation}
-Flat-screen: take the nailgun (or the thunderbolt) in one hand, fire a few shots and press R: the gun tilts its well towards the free hand, lets the magazine out, the hand brings a fresh magazine from the belt pouch up into the well from below and the gun is full; nothing lost from the count. {test:flat_proc_reload}
-Flat-screen: the same with the super nailgun (its magazine goes in on its side) and the nail pistol (up into its grip); fire one empty first: no eject, its empty magazine already dropped, the new one goes straight in. {test:flat_proc_reload}
-Flat-screen: reload a magazine gun while running, jumping, crouching and sliding: the magazine still goes in every time; fire mid-reload: it stops and the magazine goes back in the pouch. {test:flat_proc_reload}
-Flat-screen: Debug > Tools > Flatscreen: Reload Studio lists the nailgun, super nailgun, thunderbolt and nail pistol; Hold This Gun on each, lock the carry and insert keys: the gun's magazine is in the free hand, and the tilts can be tuned and saved. {test:flat_proc_reload}
-On the Quest, play Scourge of Armagon's first map with the flashlight on, into its first fights: it should run smoother than before, and the flashlight's light on the walls should look exactly the same. {test:campaign_music}
-On the Quest, in Scourge of Armagon's first map, toggle Debug > Profiling and Memory > Lightmap Lights Only Where They Reach Off and On while the flashlight lights a wall: no visible change in the light. {test:campaign_music}
-Flat-screen: fire the rocket launcher or the grenade launcher empty and press R: the gun turns its muzzle up and across to the free hand, which pushes rockets or grenades into the muzzle one at a time until it is full; the pose is a start for tuning in the Reload Studio. {test:flat_proc_reload}
-Flat-screen: fire the heavy revolver and press R: a wrist flick swings the cylinder out, the muzzle tips up while the spent shells drop out, then taped pairs go into the empty chambers and a flick back closes it. Does each pair look like it goes into its own chambers? {test:flat_proc_reload}
-Flat-screen: during the rocket launcher's reload, watch the rocket meet the muzzle: is it right at the drawn muzzle, or a hand's width out past it? {test:flat_proc_reload}
+# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-28, seventh pass: no ticked line left to retire (none of his 2681 ticks matches a current line), the [New] section (45 lines) sorted, 24 lines merged into the lines that cover the same flow, 1 superseded line dropped, sub-headings merged and split by mode, 182 item lines down to 157; before that 2026-11-25, sixth pass: 13 ticked lines retired, the [New] section sorted, near-duplicates merged; before that 2026-11-24, fifth pass: ticked lines retired, the [New] section sorted, near-duplicates merged, sections reordered; before that 2026-11-23, third pass: 51 more ticked lines retired, the [New] section sorted, near-duplicates merged, wordy lines cut; before that 2026-11-23: 51 ticked lines retired, the [New] section sorted; before that 2026-11-22: 12 ticked or superseded lines retired, the [New] section sorted into Ropes and chains, Arcane Dimensions and Tutorial and VR interface, empty sections dropped; before that 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every line has a tag, every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
+## Setup and Quest install
+## Setup options and updates
+## Start-up and platforms
+## Loading and collision cache
+## Quest performance and options
+## Grab, hold and push
+## Spear and Crystal Lance
+## Tutorial
+## Holsters and the flashlight
+## Gun sounds
+## Spear and Crystal Lance
+## Bayonet and attachments
+## Thrown weapons and the hook
+## Climbing
+## Two players
+## Ragdolls and props
+## Armed humanoids
+## Lifts
+## Armour on the body
+## Armour Studio
+## Setup and maps
+## Levels and enemies
+## Monsters
+## Knights
+## Waves and weapons
+## Budget director
+## Wave editor
+## Hosting and joining
+## Seeing the other player
+## Bodies and ragdolls
+## Bots
+## Debug views
+## Takes
+## Studios and debug tools
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
@@ -60,38 +48,55 @@ Setup on the PC with the Quest plugged in (developer mode, USB allowed): pick In
 With Dwell or Quoth in your Quake folder (not installed by Setup), a Quest install puts them on the headset and they show in its mod list. {test:hub_start}
 Quest install after Doom was opened before its WADs were copied: Setup copies everything else and names the folder the game made itself (quakevr/doom) instead of failing. {test:hub_start}
 ## Setup options and updates
+Flat-screen or VR: the game's exe, taskbar, Setup's square and wide logos and the main menu's vertical logo all show the new Quake VR art. {test:hub_start}
 Installer: the desktop also gets a "Quake VR Unleashed (Flat Screen)" shortcut (own checkbox on the options page, on by default; see the Start menu, desktop and an uninstall). {test:hub_start}
 Installer: install into a fresh folder with Snap 45, Left-handed and Medium on "Set up the game": the game has them. Change Turning in the game, run Update, change only Turn Speed: Turning stays yours. {test:hub_start}
 Installer with Arcane Dimensions 1.80 patch 1 in your Quake folder: the expansions list shows it "ready (experimental)" with a check mark; an older AD copy shows a warning. {test:hub_start}
 Install with the relight on: it relights Quake and the mission packs only (Map Library and AD keep their lighting; Graphics > Relighting does them on demand), big maps first; the log shows the total time; Skip stops it at once. {test:hub_start}
 Setup with Dwell or Quoth installed: Options has "Make reliefs for Dwell and Quoth" ticked (greyed when neither is there); the status line shows progress, the Done page says how many were made, Cancel skips only that step. Run Update: it makes nothing and says they were kept; uninstall removes the reliefs folder. {test:hub_start}
-Run Setup (install, update or repair): Options shows "Prepare collision for Quake's maps" (ticked by default), and after the relight the Install page's bar shows "Preparing collision for e1m1 (1 of 65)" and on through Quake's and the mission packs' maps, about a minute, then logs how many maps were prepared. {test:hub_start}
-After an install with that box ticked, the first visit to any Quake or mission-pack map (e1m1, hip1m1, r1m5) loads without the collision build, on the PC and, after Setup's Quest step, on the Quest too. {test:hub_start}
 After updating over an older install, the Start menu folder and the shortcuts (Start menu and desktop) are named "Quake VR UNLEASHED" (all caps), with no second old-named copy; the setup window, Apps & Features entry and the game window title say "Quake VR: UNLEASHED". {test:hub_start}
-Flat-screen or VR: the game's exe, taskbar, Setup's square and wide logos and the main menu's vertical logo all show the new Quake VR art. {test:hub_start}
+## Loading and collision cache
+Run Setup (install, update or repair): Options shows "Prepare collision for Quake's maps" (ticked by default), and after the relight the Install page's bar shows "Preparing collision for e1m1 (1 of 65)" and on through Quake's and the mission packs' maps, about a minute, then logs how many maps were prepared; afterwards the first visit to any Quake or mission-pack map (e1m1, hip1m1, r1m5) loads without the collision build, on the PC and, after Setup's Quest step, on the Quest too. {test:hub_start}
 ## Start-up and platforms
+Flat-screen or VR: start once with -glsafe; the game starts, vr_glsafe_status lists "vertex-only depth programs (an empty fragment shader instead) off (safe mode)", and e1m1 looks the same as without it. {test:hub_start}
 Start the game and open the console: the start-up steps are listed as "[startup +Xs] ... begin / end (took X ms)" with the slowest at the end; quakevr/startup.log has the same; Debug > Startup > Startup Trace Summary repeats it. {test:hub_start}
 -window opens a normal draggable window, even with Borderless Window on; without -window it stays borderless. {test:hub_start}
 Linux #82: Flatpak with SteamVR running: VR starts, or qvr_openxr.txt has OpenXR loader output for the report. {test:hub_start}
-Take the headset off during a single player game for a few seconds, then put it back on: the view freezes and the game pauses while it is off and resumes once it is back on (SteamVR or any runtime with a wear sensor; nothing changes on one without). {test:headset_off}
 On a Steam Frame (or streaming to one), the controllers get their own buttons: A and B on the right, the left d-pad's down and up as X and Y, the left view button or the right menu button opens the menu. {test:hub_start}
-Flat-screen or VR: start once with -glsafe; the game starts, vr_glsafe_status lists "vertex-only depth programs (an empty fragment shader instead) off (safe mode)", and e1m1 looks the same as without it. {test:hub_start}
 Play Dwell's d1m1 and Quoth's kellbase1 up close: brick walls, door frames and pillar panels have depth (Setup's reliefs), no shimmering or wrong-way lighting; if in doubt turn Generated Companion Maps (VR Settings > Graphics) off and load the next map. {test:hub_start}
-## Loading and collision cache
-## Quest performance and options
+Take the headset off during a single player game for a few seconds, then put it back on: the view freezes and the game pauses while it is off and resumes once it is back on (SteamVR or any runtime with a wear sensor; nothing changes on one without). {test:headset_off}
+## Quest standalone
+Quest standalone, SpaceWarp on (VR Settings > Scaling): walk, strafe and turn round the hub and in a fight; the black floating squares should be gone, and the wrist gadget's screen should stay on the gadget when you move your hand. {test:quest_gibfight}
+Quest standalone, Render Scale 0.6: open the menu; the menu should be as sharp as at scale 1 while the world behind it stays at its own resolution (no frame-rate drop when the menu opens). {test:hub_start}
+Quest standalone, VR Settings > Scaling > FOV Reduction 10 and 20: the far edges of the view go black, the rest looks the same, and the game should run lighter. {test:quest_foveation}
+On the Quest, play Scourge of Armagon's first map with the flashlight on, into its first fights: it should run smoother than before, and the flashlight's light on the walls should look exactly the same; toggle Debug > Profiling and Memory > Lightmap Lights Only Where They Reach Off and On while the flashlight lights a wall: no visible change in the light. {test:campaign_music}
 
 [2. Flat screen]
-## Grab, hold and push
-## Spear and Crystal Lance
-Flat-screen: with the shotgun in one hand and the other empty, fire then press R: the free hand goes to the ammo pouch on your belt, brings a taped pair to the port under the shotgun (tilted to meet it) and back, two shells a trip until full; say how the speed, the tilt and the hand's path feel. {test:flat_proc_reload}
+## Gamepad, menus and bindings
 Flat-screen: with a gamepad every common action has a button: RT/LT fire, A jump, B crouch, X reload, Y shove, R3 punch, LB/RB tap to cycle or hold for that hand's weapon wheel, L3 held the holster menu, the d-pad flashlight/grenade/throw/force grab, and Back held a second layer (lie down, grab/pull, next ammo, swap hands, attach, bullet time, scoreboard); check each feels natural. {test:flat_gamepad}
 Flat-screen: with a gamepad, the weapon wheel (LB/RB held) picks the slot the right stick points at, and the holster menu (L3 held) moves its cursor with the right stick; check the view does not turn meanwhile. {test:flat_gamepad}
+Flat-screen: hold 1 (weapon wheel) and press MMB (holster menu): the reminder panel above shows the main actions in the left column and the Hands / More groups smaller on the right, the slots' holster titles read clearly (less faded than before); with a gamepad the panel over the holster menu and the weapon wheel lists the pad's buttons. {test:weapon_wheel}
 Flat-screen: in the menus a gamepad's left stick moves a cursor (A clicks what it is on), the d-pad still steps the rows and hides the cursor, and moving the mouse hides it too; check its speed and feel. {test:hub_start}
-Flat-screen: the Controller Bindings screen with a pad shows its flat-play actions (Crouch / slide, Cycle right hand, ...), drag swaps them and Reset to Defaults brings back the new layout. {test:hub_start}
+Flat-screen: go through a few menu pages (main menu, Options, Controls): the bindings reminder shows bottom left on every page where it fits, a clear margin from the menu's left border and above the Recording and OBS buttons, the main actions large and smaller "Hands" (cycle 1/2, holster 4/5, drop 6/7, swap, next ammo, attach) and "More" (force grab, shove, punch, lie down, flashlight) groups in two columns; hovering Setup Bindings lights only Setup Bindings. With a gamepad as the last device used the panel sits in the same corner and lists the pad's buttons with that pad's icons (Xbox, PlayStation, Switch) and what each does; touch the keyboard or mouse and the keys come back; Setup Bindings then opens the controller screen for the pad. {test:hub_start}
+Flat-screen or VR: Options > Controller Bindings shows your controller (the name says "detected") with each button labelled by its binding (with a pad, its flat-play actions: Crouch / slide, Cycle right hand, ...); drag a label onto another and the two bindings swap, click one and pick an action from the list (typing searches it), then Reset to Defaults puts the shipped ones back; step through the controller pictures with the arrows beside the name (Quest 3, Quest 2, Quest Pro, Rift, Index, Vive, WMR, Steam Frame, Xbox, PlayStation, Switch Pro, generic pad) and say which pictures, labels or glyphs need work. {test:hub_start}
+## Fists and visor
+Flat-screen: with both hands empty, jab with the left button at a grunt that is off to one side: each fist, left and right, should travel to whatever the crosshair is on and hit it. {test:flat_fists}
+Flat-screen: the visor HUD boots at every map start, level change, loaded save and respawn: no panels at first, a power-up sound, the panels fading in with a short subtle glitch, then the scanline sweep; check the timing and the glitch's strength feel right (Debug > Tunables > Visor Boot) and the sound's level against the other UI sounds. {test:flat_visor_boot}
+## Procedural reload (R) by gun family
+Flat-screen: with the shotgun (and the super shotgun) in one hand and the other empty, fire then press R: the free hand goes to the ammo pouch on your belt, brings a taped pair to the port under the shotgun (tilted to meet it) and back, its fingers closed round the pair from the pouch to the port and open again on the way back, two shells a trip until full; say how the speed, the tilt and the hand's path feel. Then empty it and press R while running in circles, strafing, jumping, sliding and crouch-walking: every pair goes in, no reload is cancelled or shell dropped. {test:flat_proc_reload}
+Flat-screen: fire the super shotgun empty, then R: it is already broken open, your left hand brings a taped pair from the belt pouch into both barrels and the gun flicks up shut; fire one barrel only, then R: it flicks open (the spent shell out, the live one kept), one shell goes in, it flicks shut. {test:flat_proc_reload}
+Flat-screen: take the nailgun (or the thunderbolt) in one hand, fire a few shots and press R: the gun tilts its well towards the free hand, lets the magazine out, the hand brings a fresh magazine from the belt pouch up into the well from below and the gun is full, nothing lost from the count; the same with the super nailgun (its magazine goes in on its side) and the nail pistol (up into its grip), and fire one empty first: no eject, its empty magazine already dropped, the new one goes straight in. Reload a magazine gun while running, jumping, crouching and sliding: the magazine still goes in every time; fire mid-reload: it stops and the magazine goes back in the pouch. {test:flat_proc_reload}
+Flat-screen: fire the rocket launcher or the grenade launcher empty and press R: the gun turns its muzzle up and across to the free hand, which pushes rockets or grenades into the muzzle one at a time until it is full; watch the rocket meet the muzzle: is it right at the drawn muzzle, or a hand's width out past it? The pose is a start for tuning in the Reload Studio. {test:flat_proc_reload}
+Flat-screen: fire the heavy revolver and press R: a wrist flick swings the cylinder out, the muzzle tips up while the spent shells drop out, then taped pairs go into the empty chambers and a flick back closes it. Does each pair look like it goes into its own chambers? {test:flat_proc_reload}
+## Procedural reload tuning
+Flat-screen: open Tunables > Flatscreen > Procedural Reload, set Lock Pose (or use Next Key / Previous Key) and walk through the key poses (rest, gun tilted, hand at pouch, gripping the pair, at the port's mouth, inserted, returning); change a pose's sliders and see the held pose follow at once, and with the pose at the port's mouth or inserted move Hand at Port: Forward / Right / Up: the hand and its pair move along the gun; set Lock Pose back to Off and R reloads as normal. {test:flat_proc_reload}
+Flat-screen: open the Reload Studio (Debug > Tools, or vr_reloadstudio) with the shotgun in your right hand and the left empty; click the keys in the list: the hands hold each key's pose (the gun tilted, the hand at the pouch, the pair at the port's mouth, in the port); drag the gizmo on the hand or a slider and the pose follows at once; Play shows the whole reload; Save, then R for a real reload with your change. Debug > Tools > Flatscreen: Reload Studio also lists the nailgun, super nailgun, thunderbolt and nail pistol: Hold This Gun on each, lock the carry and insert keys: the gun's magazine is in the free hand, and the tilts can be tuned and saved. {test:flat_proc_reload}
 
 [3. Tutorial and VR interface]
 ## Tutorial
 Flat-screen or VR: climb the tutorial's lesson 3 ladder: each hand closes round its round rung (the rung through the fist, the fingers over its top) instead of sitting on top of it; square rungs elsewhere (vrtesthall's) are still held like ledges. Hand Round Thin Rungs (Climbing settings, Hand on a Hold) switches it off. {test:tutorial_ladder}
+## Menus and Run Setup
+Flat-screen or VR: in Run Setup, the Starting melee weapon row should read Axe, Dagger, Spear, Nothing (Nothing last, like the gun row), and a pick you saved before should still be the same weapon. {test:run_setup_newgame}
 
 [4. Weapons and holsters]
 ## Holsters and the flashlight
@@ -99,27 +104,30 @@ Reach for the belt flashlight quickly and grip as your hand passes it, without s
 Close your hand on the way to the belt flashlight and arrive with it already closed: it does not take the torch; open and press the grip at it and it comes at once, moving or not. {test:start_shotgun}
 Holster Setup: the belt flashlight shows as a box; grip it and drag it somewhere else, turn your hand to turn it, push the stick to grow its grab zone (the torch itself stays the same size); after Done, grabbing it works at the new place and the new size. {test:start_shotgun}
 Set Flashlight Side to Right after placing the torch in Holster Setup: it hangs at the mirrored place and turn on the right hip. {test:start_shotgun}
+## Grenades and the weapon wheel
+Flat-screen or VR: take a grenade from the back pouch (the wheel's BACK POUCH, or G flat), then pick a gun on that hand's wheel or EMPTY HAND: the grenade goes back (the rocket count +1) and the gun comes into the hand; holding a grenade, pick the other kind on BACK POUCH: it is swapped (cluster for grenade); arm one and pick EMPTY HAND: a dull knock and "The grenade is armed: throw it or drop it.", it stays in the hand. Flat-screen: holding an unarmed grenade, a holster button in the MMB holster menu puts it back and brings that holster's weapon into the hand. {test:wheel_grenade}
 ## Gun sounds
 Fire the shotgun indoors in a small stone room and in a big hall: its crack is clear and sharp over the room's ring, not muffled under a boomy wash; Sound > Walls and Rooms > Your Sounds' Reverb at 1 brings the old wash back to compare (0.25 the default). {test:start_shotgun}
 ## Spear and Crystal Lance
 Take the spear and grab its shaft with your other hand a little off the shaft (above or beside it): the drawn hand snaps so the shaft lies in the palm with the fingers wrapped round it, at the point along the shaft where you grabbed. {test:spear}
-With the spear or the Crystal Lance held in both hands, move your other hand up and down the shaft while gripping: the drawn hand stays where it grabbed (Other Hand Fixed on Poles, on by default); turn the option off in Physics and Interaction and it slides again. {test:spear}
-Thrust the spear held in both hands into the grunt so it sticks: your other hand stays on the shaft where it was, round it, and does not let go or jump to another spot; the same with the Crystal Lance. {test:spear}
+With the spear or the Crystal Lance held in both hands, move your other hand up and down the shaft while gripping: the drawn hand stays where it grabbed (Other Hand Fixed on Poles, on by default; turn the option off in Physics and Interaction and it slides again); thrust it into the grunt so it sticks: your other hand stays on the shaft where it was, round it, and does not let go or jump to another spot. {test:spear}
 Swing the spear (and the Crystal Lance) so its shaft, not the head, hits a grunt: a wooden knock and a dent, nothing stuck in it, less damage than the head; swing the shaft low and level across its shins and it is swept off its feet, while a sweep with the spear's head cuts instead; the head still stabs and sticks. {test:spear}
-## Bayonet and attachments
-Hold a bayonet in your left hand and bring its socket under the shotgun's muzzle: it snaps on, nothing comes off by itself and the two-handed grip works; grip it with the empty hand and press B/Y there: it comes off into that hand. The same on the super shotgun. {test:attach_bayonet}
-With the bayonet on, stab a grunt or an ogre: it goes a bit deeper than before (Combat > Embedded Blades > Stab > Bayonet Depth tunes it), hurts and sticks; keep your hand on the gun and fire (shotgun, then super shotgun): it fires there, the gun stays in your hand and the body barely moves; reload and (super shotgun) break it open while it is stuck. {test:attach_bayonet}
-Hold a dagger in your off hand and a shotgun in the other, lay the dagger under the barrel with its tip just past the muzzle: it snaps on as a bayonet and the blade lines up with the barrels (check the shotgun's pump and the super shotgun's guard); grip its handle with the empty hand and press B/Y to get the same dagger back. {test:attach_dagger}
-Holster, drop, throw and re-take a shotgun with its bayonet, change level and load a save: the bayonet stays on it everywhere and looks right on the gun. {test:attach_bayonet}
-Weapon Offsets > Attachments with the shotgun in hand: the bayonet shows on the gun; move it with the sliders until it sits right under the barrel. {test:attach_bayonet}
+## Bayonet and dagger mounts (nailgun, launchers, other guns)
+Flat-screen: with a bayonet on the grenade launcher, the proximity launcher and the rocket launcher (held in both hands, the other hand free), V thrusts the gun forward with both hands and sticks it in the ogre by the bayonet's point; fire it stuck. {test:attach_bayomounts}
+Flat-screen or VR: put a bayonet on the nailgun: it sits on its mount, centred where you moved the mount (your Mount Left tweak, converted); put the dagger on it: it moved across with the mount too. Weapon Offsets > Attachments: Mount Forward, Left and Up move a gun's rail with its bayonet and dagger; the Every Weapon's Bayonet and Every Weapon's Dagger rows move the bayonet or dagger on every gun from its mount at once. {test:attach_bayomounts}
+Flat-screen or VR: stab the ogre with the bayonet nailgun and hold fire: it fires as fast as in the hand, both barrels in turn, the barrels animate on the stuck gun with its muzzle flash and sparks; stuck by its bayonet the thunderbolt plays its start sound once and then its loop, its beam from the stuck gun's muzzle, the burst rifle bursts and the revolver fires a shot each pull. {test:attach_bayomounts}
+Flat-screen or VR: put your dagger on the nailgun, the launchers, the thunderbolt, the Plasma Gun, the burst rifle, the laser rifle and the revolver (Daggers as Bayonets): the blade runs level under the muzzle, its guard just behind the gun's front, nothing sinking into the gun. {test:attach_bayomounts}
+## Bayonet and dagger on the shotguns
 Flat-screen or VR: put the bayonet on the shotgun and throw it point first at a grunt: it flies and hits by the bayonet and sticks by its point, and dropped on the floor it lies on the bayonet instead of passing it through the floor. {test:attach_bayonet}
-Stab a grunt with the bayonet shotgun so it sticks, keep your hand on it, and bring a shell from the pouch to its port with the other hand: the shell goes in and the gun stays stuck. {test:attach_bayonet}
-## Thrown weapons and the hook
-Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
+Hold a bayonet in your left hand and bring its socket under the shotgun's muzzle: it snaps on, nothing comes off by itself and the two-handed grip works; grip it with the empty hand and press B/Y there: it comes off into that hand. The same on the super shotgun. Weapon Offsets > Attachments with the shotgun in hand: the bayonet shows on the gun; move it with the sliders until it sits right under the barrel. {test:attach_bayonet}
+With the bayonet on, stab a grunt or an ogre: it goes a bit deeper than before (Combat > Embedded Blades > Stab > Bayonet Depth tunes it), hurts and sticks; keep your hand on the gun and fire (shotgun, then super shotgun): it fires there, the gun stays in your hand and the body barely moves; reload and (super shotgun) break it open while it is stuck. Stuck, keep your hand on the gun and bring a shell from the pouch to its port with the other hand: the shell goes in and the gun stays stuck. {test:attach_bayonet}
+Holster, drop, throw and re-take a shotgun with its bayonet, change level and load a save: the bayonet stays on it everywhere and looks right on the gun. {test:attach_bayonet}
+Hold a dagger in your off hand and a shotgun in the other, lay the dagger under the barrel with its tip just past the muzzle: it snaps on as a bayonet and the blade lines up with the barrels (check the shotgun's pump and the super shotgun's guard); grip its handle with the empty hand and press B/Y to get the same dagger back. {test:attach_dagger}
+## Heavy revolver
 Heavy revolver: fire a few shots, swing the cylinder out and press B/Y (or push it back): only the spent shells drop and the live ones stay; eject again and the live ones drop too (Spent Shells First, on by default). {test:revolver_reload}
 Heavy revolver: the pouch gives a taped pair of blue slugs that loads two chambers at once with the two-shell sound; with only one chamber empty one goes in and the other stays in your hand (Slug Pairs, on by default). {test:revolver_reload}
-Flat-screen or VR: put a bayonet on the nailgun: it sits on its mount, centred where you moved the mount (your Mount Left tweak, converted); put the dagger on it: it moved across with the mount too. {test:attach_bayomounts}
-Flat-screen or VR: Weapon Offsets > Attachments: Mount Forward, Left and Up move a gun's rail with its bayonet and dagger; the Every Weapon's Bayonet and Every Weapon's Dagger rows move the bayonet or dagger on every gun from its mount at once. {test:attach_bayomounts}
+## The grappling hook
+Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
 
 [5. Ropes and chains]
 ## Climbing
@@ -130,31 +138,38 @@ Flat-screen or VR: in multiplayer watch another player climb a rope, hang on it 
 
 [6. Armed humanoids, ragdolls and physics]
 ## Ragdolls and props
-Blades in props: stab a sword into a crate and pick it up by the handle: the crate hangs from the blade by a joint at the handle, the other hand can take the crate; a re-grip off the handle works and the blade stays in.
+Blades in props: stab a sword into a crate and pick it up by the handle: the crate hangs from the blade by a joint at the handle, the other hand can take the crate; a re-grip off the handle works and the blade stays in. {test:embed_stab}
 Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg still on top) pulls itself up instead of falling. {test:ogre_hall}
 Watch an ogre walk, run and swing his chainsaw up close: his limbs and belly should ripple much less from frame to frame than before, his shape the same; Debug > Reports > Rebuild Joints From Two Bones Off shows the old look to compare. {test:ogre_hall}
-## Armed humanoids
+Ragdoll climbs: knock a knight off a ledge so it falls past the lip: when it grabs the lip its fall is caught softly (no sudden jolt) and both hands stay on (no hand yanked off the lip), then it pulls itself up. {test:knight_ledge}
+## Armed humanoids: poses and hits
 Pose Studio on the spear holders: a frozen armed enforcer, knight and death knight, each with the spear, stand spaced apart in the hall's open middle and the Pose Studio is already open; tune each one's spear poses (Port Arms, Ready, Run, Pickup, Thrust, Shove) as for the spear grunt. {test:pose_spear_humanoids}
 Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, and the knight with a rifle carries it your way: look at the spear grunt in each pose. {test:pose_grunt_pole}
-## Lifts
-Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
-Armour skins restyled toward your "after" image: muted olive, ochre and brick-red plates under grime, chipped and rusted edges, blood and dirt specks, dark gaps between the rows; check each type still reads at a glance next to the bare grunt, and on enforcers, knights and the armoured beasts too. {test:armour_lineup}
-Take the flashlight and shine it straight in an armed knight's or death knight's face: it raises its free forearm across its eyes with the elbow out to its side, not a fist held up like a punch; armed grunts shield as before. {test:arena_gunknights}
-In Tunables > Flashlight Dazzle turn Dual Wielders Shield on, then shine the flashlight in a dual-wielding grunt's face: it raises its left gun, still held and pointing up, in front of its eyes and fires only its right one; with it off both guns stay up. {test:agrunt_dual_guns}
 Throw a crate or a weapon hard at an armed grunt's gun: it still knocks the gun out of its hand, and shooting a gun out of a grunt's hand with nails still works as before. {test:grunts_to_throw}
 Lean out from behind a wall with grunts beyond it: they still spot you after a short delay and shoot at the part of you that shows, as before. {test:grunts_to_throw}
+## Flashlight dazzle
+Flat-screen or VR: point the switched-on flashlight straight at an armed grunt's face from a few metres; after a moment it raises its free hand in front of its eyes (a shotgun goes into one hand) and its shots spray wider, and it lowers the hand a second or two after the beam leaves its face. Check the hand looks like it shields the eyes and nothing happens with the beam off to the side or at its back. {test:agrunt_flashblind}
+Take the flashlight and shine it straight in an armed knight's or death knight's face: it raises its free forearm across its eyes with the elbow out to its side, not a fist held up like a punch; armed grunts shield as before. {test:arena_gunknights}
+In Tunables > Flashlight Dazzle turn Dual Wielders Shield on, then shine the flashlight in a dual-wielding grunt's face: it raises its left gun, still held and pointing up, in front of its eyes and fires only its right one; with it off both guns stay up. {test:agrunt_dual_guns}
+## Elites
+Flat-screen or VR: an elite armed humanoid reads at a glance next to ordinary ones: dark gold clothes pulsing towards bright gold, its backpack still in its weapon's colour (check it also reads next to armoured ones and in dim light); fight one (the scene's nearer one, notarget off): it fires much more often, reacts at once, aims true, walks a quarter faster, swings quicker, rarely flinches; say if it is too hard or not hard enough (Debug > Tunables > Armed Humanoids > Elite). {test:elite_pair}
+Flat-screen or VR: the toolgun's Armed Humanoid page has Elite: On/Off beside Infected With; spawn an elite that is also infected: dark gold, and killed it bursts into a zombie that is not an elite. With Combat > Armed Grunts > AI Behaviour > Elites in Hard and Nightmare on, a map on Hard has about one armed humanoid in seven an elite; off, none. {test:elite_pair}
+Flat-screen or VR: the Survival Arena from wave 4 sends some elites among the armed humanoids (about one in five). {test:arena_run}
+Flat-screen or VR: in co-op, an elite the host makes (vr_attr_set elite 1) shows its dark gold dye on the other player's screen too. {test:mp_coop_bot}
+## Lifts
+Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
 
 [7. Armoured beasts]
 ## Armour on the body
-## Armour Studio
-Wake the armoured ogre and let it swing its chainsaw at you; shoot its pauldrons, bracers and helmet mid-swing: the piece you aim at should be the one that cracks, and its broken pieces should fly from where the plate was drawn, not a few units off. {test:armour_beasts}
 Flat-screen or VR: shoot armoured rottweilers and scrags while they leap and fly; a shot at the middle of a plate you can see should strike that plate (Debug > Reports > Shots Meet The Drawn Body off brings back the old, looser hits for comparison). {test:armour_beasts}
+Armour skins restyled toward your "after" image: muted olive, ochre and brick-red plates under grime, chipped and rusted edges, blood and dirt specks, dark gaps between the rows; check each type still reads at a glance next to the bare grunt, and on enforcers, knights and the armoured beasts too. {test:armour_lineup}
+Wake the armoured ogre and let it swing its chainsaw at you; shoot its pauldrons, bracers and helmet mid-swing: the piece you aim at should be the one that cracks, and its broken pieces should fly from where the plate was drawn, not a few units off. {test:armour_beasts}
 
 [8. Quoth]
 ## Setup and maps
+Flat-screen or VR: the Quoth metmon Test button without the metmon1d map package installed says to install metmon1d from the Map Library (no "no map" error); install it there and press Test again: metmon starts in Quoth. {test:quoth_metmon}
 Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason. {test:hub_start}
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:quoth_ne_marb}
-Flat-screen or VR: the Quoth metmon Test button without the metmon1d map package installed says to install metmon1d from the Map Library (no "no map" error); install it there and press Test again: metmon starts in Quoth. {test:quoth_metmon}
 ## Levels and enemies
 Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun. {test:quoth_kellbase_buttons}
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:quoth_lpqsp1}
@@ -169,14 +184,14 @@ Look round AD's death guards and crossbow knights in a fight (they now take thei
 With Arcane Dimensions installed, open the Rig Studio on a death guard and a crossbow knight and raise each arm high and forward: the tabard stays on the hips, no sheet of it pulled up to the hand. {test:ad_knights_armed}
 With Arcane Dimensions installed, in the Rig Studio's Pose Studio Data window (subject a death guard or crossbow knight) change the Knight's main hand Place in the Grips tab: the AD knights' weapons move in their hands with the knight's, and Reset puts them back. {test:ad_knights_armed}
 In the Rig Studio or Pose Studio pick a death guard or a crossbow knight: the menu bar and Data window say AD Knight, shared by both; key a pose, an override or a grip on one and the other moves the same way at once, after Save both read it back; the regular knight at the back is left as he is. {test:ad_knights_armed}
-In the Armour Studio, pick the Death Guard and then the Crossbow Knight (AD mounted): the status line says their tweaks are shared, and a tweak on one shows on the other. {test:beaststudio}
 With AD's data, open the toolgun's Spawn > Monsters > Armed Humanoid page and pick Kind Death Guard, then Crossbow Knight: each shows its own picture in the kind box (and on the Armed Humanoid tile), like the other kinds. {test:ad_knights_armed}
+In the Armour Studio, pick the Death Guard and then the Crossbow Knight (AD mounted): the status line says their tweaks are shared, and a tweak on one shows on the other. {test:beaststudio}
 
 [10. Survival Arena (Select Campaign > Arena Mode)]
 ## Waves and weapons
 Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}
-Survival Arena from wave 6 (Normal): grunts and enforcers bring the heavy revolver, burst rifle, laser rifle, the knights' swords, chainsaw, Mjolnir and the Super Axe, each first on one foe at its wave; their drops are yours to fire. {test:arena_newguns}
 Survival Arena with Arcane Dimensions' data: from wave 11 (Normal) the waves also bring AD's soldiers' guns, the Widowmaker, Shadow Axe and Plasma Gun, and AD's swords, hammer and mace. {test:arena_run}
+Survival Arena from wave 6 (Normal): grunts and enforcers bring the heavy revolver, burst rifle, laser rifle, the knights' swords, chainsaw, Mjolnir and the Super Axe, each first on one foe at its wave; their drops are yours to fire. {test:arena_newguns}
 ## Budget director
 Survival Arena budget director (on by default: Combat > Survival Arena > Budget Director; docs/vr-port/ARENA_DIRECTOR.md): {test:arena_run}
 - Start a run without changing anything: each countdown names the wave's theme ("Wave 3 in 3... Melee Rush"); with Budget Director off the next run plays the classic waves. {test:arena_run}
@@ -190,55 +205,56 @@ Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, 
 
 [11. Multiplayer and bots]
 ## Hosting and joining
+Flat-screen or VR: choose Dissolution of Eternity in Select Campaign, then join a friend's Quake coop server: you load Quake's start map (no "Model not found") and Load Autosave lists the server's coop saves; after Leave Game, Dissolution is your campaign again. {test:mp_coop_passive}
+Flat-screen or VR: join a server running a campaign you don't have (e.g. Quoth or Dwell): you are refused with a message naming it, not an error; joining a Quoth server with Quoth installed reconnects once by itself and plays. {test:mp_coop_passive}
+Flat-screen or VR: a Dwell deathmatch (Select Campaign > Dwell): no error, players spawn at start's coop spots. {test:mp_dm_passive}
 Host and join a coop game over the room service and play a level together: voice, held weapons and melee look right on both sides. {test:mp_coop_bot}
 Host Game says whether your port 26000 is reachable (and shows the net HUD while hosting); forward UDP 26000 on your router and host again: it reads reachable. {test:mp_coop_bot}
 Multiplayer menu: Join Game and Host Game open their page directly (no IPX / TCP/IP page), no 'untested' note. {test:mp_coop_bot}
 mp_local.ps1: the host and the joining game open side by side, centred on the screen. {test:mp_coop_bot}
-Flat-screen or VR: choose Dissolution of Eternity in Select Campaign, then join a friend's Quake coop server: you load Quake's start map (no "Model not found") and Load Autosave lists the server's coop saves; after Leave Game, Dissolution is your campaign again. {test:mp_coop_passive}
-Flat-screen or VR: join a server running a campaign you don't have (e.g. Quoth or Dwell): you are refused with a message naming it, not an error; joining a Quoth server with Quoth installed reconnects once by itself and plays. {test:mp_coop_passive}
 Join a server without Arcane Dimensions after playing an AD map locally: the wrist gadget offers no AD page. {test:mp_coop_bot}
-Flat-screen or VR: a Dwell deathmatch (Select Campaign > Dwell): no error, players spawn at start's coop spots. {test:mp_dm_passive}
 ## Seeing the other player
-In a game on another machine, walk round your play space quickly and lean far out: your own view never snaps back. {test:mp_coop_passive}
+Flat-screen: in mp_local.ps1 aim down the sights (shotgun, nailgun, rocket launcher) level, up and down, standing, crouched and sliding while the other window watches from the side: head behind the rear sight, cheek on the stock, arms holding the gun from below, nothing crossing the face. {test:mp_coop_guns}
 Flat-screen or VR: in mp_local.ps1 slide (run then crouch) as one player and watch from the other game: his body leans back with the legs out in front, and you hear his slide and mantle grunt. {test:mp_coop_bot}
+In a game on another machine, walk round your play space quickly and lean far out: your own view never snaps back. {test:mp_coop_passive}
 Look at the other player standing still: his holster sheaths, wrist gadget and straps, grenade and ammo pouches are where he wears them; his pouch's shells go down as he reloads from it; his wrist gadget lights his hand faintly. {test:mp_coop_passive}
-Coop: pick a holstered weapon with the weapon wheel: the other player sees it drawn in your hand. {test:mp_coop_guns}
 Switch your flashlight on and off: the other player sees the torch in your hand and its light where you point it. {test:mp_coop_passive}
+Coop: pick a holstered weapon with the weapon wheel: the other player sees it drawn in your hand. {test:mp_coop_guns}
 The other player fires the shotgun near you: flash, sparks and smoke at his muzzle, the spent shell tinking on the floor, the clack after the shot, his ammo screen and barrel glowing; a shotgun bot (mp_dm_hostile) pumps with the clacks the same. {test:mp_coop_guns}
 Swing the heavy revolver's cylinder out, break a super shotgun open and drop a nailgun's magazine with B/Y: the other game shows the cylinder out with its shells, the barrels open and the magazine gone; your ammo screen shows your clip. {test:mp_coop_guns}
 Dwell's Crystal Lance in a game with another player: he sees the gathering sparks, light and hum at its tip as you charge, and his bolt when he fires. {test:mp_coop_bot}
-In multiplayer with a friend, each of you moves your holsters (VR Settings > Holster Calibration): his copy of you wears your holsters where you put them, yours of him where he put his, never your own places; a bot's holstered guns and sheaths stay at the shipped places whatever your settings. {test:mp_dm_passive}
 mp_local.ps1: one player takes Quad Damage, the Pentagram, then the Ring from Debug > Cheats: the other sees the glow on his hands and body and Quad's arcs on his forearms; under the Ring his whole body, hands, weapons and gear fade as he sees himself. {test:mp_coop_bot}
-Flat-screen: in mp_local.ps1 aim down the sights (shotgun, nailgun, rocket launcher) level, up and down, standing, crouched and sliding while the other window watches from the side: head behind the rear sight, cheek on the stock, arms holding the gun from below, nothing crossing the face. {test:mp_coop_guns}
+In multiplayer with a friend, each of you moves your holsters (VR Settings > Holster Calibration): his copy of you wears your holsters where you put them, yours of him where he put his, never your own places; a bot's holstered guns and sheaths stay at the shipped places whatever your settings. {test:mp_dm_passive}
 A hit player's copy shows the wound (both arms share one); it clears when he respawns. {test:mp_dm_passive}
 ## Bodies and ragdolls
+Flat-screen or VR: change one player's body build and skin tone, kill him whole and let him respawn: his corpse is his own (shape, size, tone, gloves) in both games, limbs bending like a person's; a tall player's corpse is longer than a short one's. {test:mp_dm_passive}
+Flat-screen or VR: in a deathmatch with a bot, wear armour, die (not gibbed), respawn and pick up different armour: your old body keeps the plates it died in. {test:mp_dm_hostile}
 Coop, as a client: kill a grunt, knock one down near both players and get a player killed: you see the same fall, stagger, get-up and body tumble as the host, no death animation. {test:mp_coop_bodies}
 Coop: throw a crate and a sword between the players while ragdolls move nearby: both see them tumble the same, smoothly. {test:mp_coop_bodies}
 Coop, as a client: hold a corpse's arm and swing it: the limb stays in your hand. {test:mp_coop_bodies}
-Flat-screen or VR: change one player's body build and skin tone, kill him whole and let him respawn: his corpse is his own (shape, size, tone, gloves) in both games, limbs bending like a person's; a tall player's corpse is longer than a short one's. {test:mp_dm_passive}
 Set a long arm length (VR Settings > body, arm length 1.3, or Body Calibration) and get killed with another player in the game: your corpse's arms are as long as your living body's, hands at its wrists; the same for the other player. {test:mp_coop_bodies}
-Flat-screen or VR: in a deathmatch with a bot, wear armour, die (not gibbed), respawn and pick up different armour: your old body keeps the plates it died in. {test:mp_dm_hostile}
 ## Bots
+Flat-screen or VR: shoot a passive armed bot squarely at its helmet from the front, side and behind: every shot is a headshot; a shot a hand's width beside its arm, or only at its weapon's barrel from the side, does not hurt it. {test:mp_dm_hitzones}
+Flat-screen or VR: kill a bot or player holding a dagger (hand or holster): the dropped prop is a dagger, guns keep their magazine; dropped weapons lie 20 seconds before vanishing. {test:mp_dm_dagger}
+Flat-screen or VR: in mp_local.ps1 type vr_nav_follow next in the client's console (or Debug > Network: Follow the Next Player): it follows the host along the navmesh through doors, stops a few steps short; your own key or mouse takes over at once; vr_nav_follow 0 stops it; Show Navmesh draws its path. {test:mp_coop_bot}
 Game with a bot (impulse 100): press the wrist gadget's outer button until the scoreboard shows: every player with colours, frags and name, most frags first, your row lit, ((o)) beside whoever talks, updating as someone scores; in single player the button never reaches it. {test:mp_coop_bot}
 Walk round a bot (mp_dm_passive, or a coop bot from impulse 100) and look at its holsters up close: only its two hands (no floating fists, gun or shovel), the sheaths on its hips, belly and chest turning with its body, its guns hanging in them as yours do. {test:mp_dm_passive}
 mp_dm_passive (a bot that stands still facing you): shoot it: blood pours from where it was hit and you hear the pour land; kill it and it comes back to the same spot, still passive. {test:mp_dm_passive}
 Bots at skill 0-1 miss, hesitate and pause between bursts and are your height; with the revolver loadout (mp_local.ps1 -Mode dm -Bots 1), or holding your heavy revolver, a bot fires it a slug at a time. {test:mp_dm_hostile}
 mp_local.ps1 -Mode dm -Melee: a bot duels you with melee: its sword swing is held up before it comes down, lands on you, and you can parry it. {test:mp_dm_melee}
 Grab a bot's weapon where you see it (gun and sword): it comes away in your hand; grabbing beside it does nothing. {test:mp_dm_disarm}
-Flat-screen or VR: shoot a passive armed bot squarely at its helmet from the front, side and behind: every shot is a headshot; a shot a hand's width beside its arm, or only at its weapon's barrel from the side, does not hurt it. {test:mp_dm_hitzones}
-Flat-screen or VR: kill a bot or player holding a dagger (hand or holster): the dropped prop is a dagger, guns keep their magazine; dropped weapons lie 20 seconds before vanishing. {test:mp_dm_dagger}
 vr_bot_navmesh 1 (host console) in deathmatch with bots: a bot that saw you follows you through doors out of sight, still goes for items, powerups and health by its waypoints and stays on waypoints in water; Show Navmesh draws each path in magenta with a white post at its next corner, on the host and as a client. {test:mp_dm_navmesh}
-Flat-screen or VR: in mp_local.ps1 type vr_nav_follow next in the client's console (or Debug > Network: Follow the Next Player): it follows the host along the navmesh through doors, stops a few steps short; your own key or mouse takes over at once; vr_nav_follow 0 stops it; Show Navmesh draws its path. {test:mp_coop_bot}
-## Debug views
-Debug > Reports > Network: Drawn Near Me (vr_mp_near) in mp_local.ps1's client lists the other player's drawn models, lights and recent sounds. {test:mp_coop_bot}
-Debug > Show Disarm Volumes in a deathmatch with a bot and another player (host, then join): orange outlines along each one's held weapon (the grab), magenta on it and cyan on the hand (shots), none on your own. {test:mp_dm_disarmviz}
-Flat-screen or VR: Debug > Show Hit Zones in a deathmatch with a bot and another player (host, then join): a red sphere on each head, green torso, yellow arms and blue legs, following and turning with them; none on you. {test:mp_dm_hitzones}
-Flat-screen or VR: host a game on one device and, on the other, type vr_net_test_version 1 in the console, then open Multiplayer > Join Game > Server Browser: the host's row shows v48 instead of a ping and the line under the list says which Quake VR release it needs. {test:hub_start}
-Flat-screen or VR: join that row anyway: you're back at the browser with one plain reason under the list ("This server runs Quake VR ... update to ..."), and the console has it once, with no Host_Error or stack trace. After a failed join, quitting right away flashes no console text over the background. {test:hub_start}
-Host a deathmatch on the PC with a few bots and join it from the Quest standalone; mid-game take the headset off for 20-30 s (or sit in the Quest system menu), then put it back on: you are still in the game and catch up, and neither console says "overflow" (if one ever does, the line now says which buffer and its sizes: note it). {test:mp_dm_passive}
-Join a coop game from the Quest standalone and have the PC host change level: your slower map load no longer drops you; with voice chat and the weapon wheel in use over a weak Wi-Fi spot, no disconnect either. {test:mp_coop_passive}
+## Second device
+Flat-screen or VR: host a game on one device and, on the other, type vr_net_test_version 1 in the console, then open Multiplayer > Join Game > Server Browser: the host's row shows v48 instead of a ping and the line under the list says which Quake VR release it needs; join that row anyway: you're back at the browser with one plain reason under the list ("This server runs Quake VR ... update to ..."), and the console has it once, with no Host_Error or stack trace. After a failed join, quitting right away flashes no console text over the background. {test:hub_start}
 Flat-screen or VR: host a coop game on vrtesthall and join it from a second device with Show Melee Arcs on there (the host's own may be off); when an armed sword or axe grunt swings at either of you, the joined device draws its fading swing trail too (white winding up, yellow in the swing, red when it lands), as the host's view does. {test:agrunt_melee_arcs}
 Host a coop game with armoured beasts and join it from your Quest or a second PC: the joined game shows the ogre's and the scrag's armour as the host does (every plate, the leather between them, the tail segments), and a piece shot off on either side drops on both with its debris. {test:mp_coop_beasts}
+## Quest standalone and the PC
+Host a deathmatch on the PC with a few bots and join it from the Quest standalone; mid-game take the headset off for 20-30 s (or sit in the Quest system menu), then put it back on: you are still in the game and catch up, and neither console says "overflow" (if one ever does, the line now says which buffer and its sizes: note it). {test:mp_dm_passive}
+Join a coop game from the Quest standalone and have the PC host change level: your slower map load no longer drops you; with voice chat and the weapon wheel in use over a weak Wi-Fi spot, no disconnect either. {test:mp_coop_passive}
+## Debug views
+Flat-screen or VR: Debug > Show Hit Zones in a deathmatch with a bot and another player (host, then join): a red sphere on each head, green torso, yellow arms and blue legs, following and turning with them; none on you. {test:mp_dm_hitzones}
+Debug > Reports > Network: Drawn Near Me (vr_mp_near) in mp_local.ps1's client lists the other player's drawn models, lights and recent sounds. {test:mp_coop_bot}
+Debug > Show Disarm Volumes in a deathmatch with a bot and another player (host, then join): orange outlines along each one's held weapon (the grab), magenta on it and cyan on the hand (shots), none on your own. {test:mp_dm_disarmviz}
 
 [12. Recording and dev tools]
 ## Takes
