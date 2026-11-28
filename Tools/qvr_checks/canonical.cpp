@@ -371,7 +371,9 @@ Found scan(const Ctx& ctx, const za::Vector<Family>& fams)
         za::Vector<za::String> cpp;
         for(auto& p : globPosix(ctx, "Quake/vr", {".cpp", ".hpp", ".h", ".inc", ".c"}, true))
         {
-            if(p.find("/external/") == npos)
+            // Quake/vr/iw: blocks of Ironwail's C files, compiled inside them (its README.md): C, without the module's
+            // C++ helpers, so checked as Ironwail's files are (not at all).
+            if(p.find("/external/") == npos && p.find("Quake/vr/iw/") == npos)
             {
                 cpp.pushBack(ZA_MOVE(p));
             }
