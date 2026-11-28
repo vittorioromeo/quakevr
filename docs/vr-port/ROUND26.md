@@ -5872,3 +5872,41 @@ entity: 1960 alias draws a frame in armour_beasts16, +0.34 ms GPU against 11-27)
 vr_beastarmour_lookcheck 78/0, MP soak 15/0. **Failing on origin/next without this branch** (checked on the merge
 commit): weaponwheel_test flat (times out at "the tap's cycle") and toolgun_panel_test ("X/A + stick press: not back to
 Brush").
+
+## qcnative: the armed humanoids' quiet weapon checks by the engine (agstruck, agparry); the Quest's tunables are fixed (branch agent/qcnative, 2026-11-28)
+
+- **What**: two QuakeC steps of the weapon props' think (`VR_AG_PropThink`) answered by the engine on frames where nothing
+  comes at the weapon, the agpose pattern (vr_builtins_agthink.inc): QuakeC asks a builtin first; the engine answers only
+  when QuakeC's own steps would end there, writes exactly what they write, and hands every other case back before writing
+  anything. `agstruck` (QC `VR_AG_WeaponStruck` -> `VR_AG_WeaponStruckQC`): no flight within the shot scan's first look
+  (its `findradiusmoving`, the same call), no roll due, no tug, no player within `VR_AG_StrikeFrame`'s 160, the throw scan
+  settled (vr_qc_scan_share 1) or empty. `agparry` (`VR_AGPar_Frame` -> `VR_AGPar_FrameQC`): the guard (`VR_AGG_Frame`)
+  idle or recovering with no raise due, no player within the wind-up reach (`VR_AGG_ReadReach` already worked out this
+  frame) nor a preventive check due, no player within 160, no monster melee begun in 1.5 s. Players walked as
+  find(classname "player") does (edictindex::nextClassname).
+- **Switch**: `vr_qc_native_think` (cvar, default 1; Debug > the armed humanoids' rows "Quiet Weapon Checks in the
+  Engine"); 0 QuakeC throughout (the A/B); 2 the engine's answer, then QuakeC's run compared field for field
+  (`vr_agthink_compare` prints counts and PASS/FAIL).
+- **Exact**: hip1m1 fight (skill 2, god, all 69 woken, 40 armed): PC 93,895 compared over 720 frames (+48,978 later), Quest
+  65,752 (agstruck 41,025, agparry 24,727), 0 differed. On the PC fight agstruck answers 100% of its calls, agparry 73%.
+- **Tests**: agrunt group 221 PASS, agrunt_71 FAIL 8/2 (its balance checks; the same with vr_qc_native_think 0: on the
+  run_baseline FLAKY list).
+- **Measured** (interleaved blocks in one launch, medians):
+
+| function | QC ms (off) | native ms (on) | Quest / PC |
+|---|---|---|---|
+| QuakeC a frame, profiler (`profile_qc`, 4+4 blocks of 432/720 frames) | Quest 4.38, PC 1.305 | Quest 3.88, PC 1.123 | Quest -0.50 (the profiler's own clock reads of the calls removed included), PC -0.18 |
+| QuakeC a frame, no profiler (perf recorder `ev_qc_ms`, 5+5 blocks of 432) | Quest 2.95 | Quest 2.83 | Quest -0.12 ms (-4%) |
+| `VR_AG_WeaponStruck` incl. (PC) | 0.193 | 0.092 (agstruck, ~0.085 of it the same findradiusmoving) | |
+| `VR_AGPar_Frame` incl. (PC) | 0.126 | 0.045 (the 27% left to QuakeC) | |
+| CPU busy a frame (Quest, perf recorder) | 8.37 | 8.36 | within the fight's noise (+-0.3) |
+
+- **Found on the way**: the Quest's release APK makes every tunable a constant (vr_tunables.hpp, QVR_RELEASE): setting
+  one there does nothing. So questopt2's Quest A/B of `vr_qc_scan_share` (a tunable) ran "on" in every block: its "no
+  gain measured" is not a measurement. Quest A/B switches must be cvars (this one is).
+- **Not done** (the brief's order, each would pay less than measured here or needs its own profiling first): `agpose`'s own
+  cost (16.6 us a call on the Quest, 5 on PC); the worn packs' `limbpiece` for wearers in view (5.6 us PC a wearer);
+  `navsteer` (16 us PC a call: Detour queries, already staggered repaths). The remaining `findradiusmoving` (~1 us PC a
+  call, 35 candidates a search, nothing found) is now most of agstruck.
+- Headset: beta6 put back (APK 9261565a, progs a0bfe11a), his 31 autosaves and 3 saves restored (35 sums match). Scripts:
+  worktree `scratch/qn_*` (not committed).
