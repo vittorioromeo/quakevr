@@ -26,6 +26,7 @@
 #include "vr_rig2.hpp"
 #include "vr_rigpose.hpp"
 #include "vr_geom.hpp"
+#include "vr_tunables.hpp"
 
 #include "vr_lines.hpp"
 
@@ -5335,6 +5336,11 @@ struct PackRestCached
     glm::mat3 restAxes{1.f};
     glm::vec3 mid{0.f};
     glm::vec3 half{0.f};
+    // packWhere's frame on the chest bone for a body out of view (frameOnBone: three walks of the shell's vertices, the
+    // same answer every frame for one shell, bone and rest middle; questopt): -2 none made since the rest was made
+    int frameBone{-2};
+    glm::vec3 frameMid{0.f};
+    PlateFrame frame;
 };
 za::Vector<PackRestCached> packRestCache;
 constexpr za::SizeT maxPackRestCached = 64; // more than the packs worn at once; all dropped when it would hold more
@@ -5389,6 +5395,7 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
     cached->hash = s->hash;
     cached->verts = s->verts.size();
     ZA_MEMCPY(cached->fit, fitNow, sizeof(fitNow));
+    cached->frameBone = -2;
     cached->ok = packRestMake(*s, fit, cached->restOrigin, cached->restAxes, cached->mid, cached->half);
     restOrigin = cached->restOrigin;
     restAxes = cached->restAxes;
@@ -5471,7 +5478,29 @@ bool packWhere(edict_t* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid,
     const Shell* s = serverShell(baseOf(ent));
     PlateFrame near;
     near.mid = restOrigin + restAxes * mid;
-    PlateFrame pf = chest >= 0 ? frameOnBone(*s, chest, near) : PlateFrame{};
+    PackRestCached* cached = nullptr;
+    if(chest >= 0 && vr_hitmodel_points_subset.value != 0.f && !packBaked(ent))
+    {
+        for(PackRestCached& c : packRestCache)
+        {
+            cached = c.shell == s ? &c : cached; // (packRest above made or checked it)
+        }
+    }
+    PlateFrame pf;
+    if(cached && cached->frameBone == chest && !ZA_MEMCMP(&cached->frameMid, &near.mid, sizeof(near.mid)))
+    {
+        pf = cached->frame;
+    }
+    else
+    {
+        pf = chest >= 0 ? frameOnBone(*s, chest, near) : PlateFrame{};
+        if(cached)
+        {
+            cached->frameBone = chest;
+            cached->frameMid = near.mid;
+            cached->frame = pf;
+        }
+    }
     pf = pf.ok ? pf : plateFrameOf(*s, Cuirass);
     if(!pf.ok)
     {
