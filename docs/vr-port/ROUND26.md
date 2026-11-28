@@ -5196,6 +5196,27 @@ then "the hand grabbing the shells doesn't use the same finger pose as VR" and "
   reload_test 112/4: the 4 are BACKLOG section 1's known baseline failures (0/5 on 11-27), VR paths this doesn't touch.
 - **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
   the pair); his eyes on the drawn pair at the port while running.
+## alwaysfail: the tests that failed every run of the flaky sweep (branch agent/alwaysfail, 2026-11-28)
+
+Tests and one test aid only, no gameplay change. Found on origin/next 2ea7ac94e (Release; the author's game running, so
+low-impact runs).
+
+| test | cause | action | result |
+|---|---|---|---|
+| agrunt_3 (yank) | harness: the test's header says its script holds +grabmain; the baseline's script (`vr_agrunt_test 3` alone) holds nothing, so the yanked shotgun went into the hand and was let go of 0.12 s later (grip up), and the grunt picked it up again | the test presses `+grabmain` itself at its start and lets go at the verdict | 1/0, 3 of 3 |
+| agrunt_60 (agparry "weapon") | stale: the sword grunt spawns wearing armour plates (vr_agarmor, Plate Blocks All); the parried blow's kept 5 lands on its chest and the plate takes all of it: 0 damage | `VR_AGPT2_Hold` strips the plates (`vr_ar_type`/`vr_ar_mask` 0, vr_agarmor_test's way) | 6/0, 3 of 3; off `test_flaky.txt` |
+| reload: "the lying shell taken again by the fist", "let go of at the pouch: refunded (37)" | harness: the mock put the hand's point 1 unit over the shell's origin; the fist's spheres sit off that point, and how near they come depends on how the shell lies: 3.60 cm off, allowed 3 (passed 11-25, failed from 11-27: most likely the Box3D update's other rest pose, box3dup3 11-26). The refund failed only because nothing was in the hand | `vr_mock_hand_to <hand> nearest <class> <units> palm` (new: the palm's middle there, `hands::palmPoint`, as magpalm does); the test aims the palm: the fist -0.64 cm, touching | both PASS (2 full runs) |
+| reload: "a prop held in the other hand hits the barrels ... (the fist as far off: 1, want 0)" | harness: the fist alone stopping 20 cm over the barrels came to 6.0 units off their front, Hit Reach (vr_reload_ssg_hit_reach 6) itself, so it opened them (since 11-25). Both cases are within a unit of the reach: with both at 24 cm the head no longer opened them either | the fist-alone run stops 22 cm over; the head stays at 20 | head 10 (as in both full runs), fist alone at 22: not opened. Last full run before that change 115/1 |
+| vr_runlaunch_test "Arena Mode right under Arcane Dimensions" | stale: pageCampaigns puts Arena Mode after the last campaign; Dwell (7) and Quoth (8) came after AD (6) | the check wants it under the last campaign's row (`VR_CampaignCount() - 1`) | 92/0 |
+| teleporters_chase (the framed_sill32 dog) | not found. Not chance: seeds 1-8 all fail the same way, the dog ends near (1400-1440, 510-570) and never takes the sill-16 gate (its expected way since the test was written) | none; stays on `test_flaky.txt` | 0/8 |
+| agrunt_16 (hunt: the drawn grip 2.73 off the drawn hand hull, limit 2.5) | not looked into (failing since about 11-10; mean 2.13 over 72 frames, while the limit's note says the shotgun's grip point is 1.44 out of the palm's hull: the grip or hull moved about 0.7) | none | 273/1 |
+| rigstudio_posekeys case 5 (right elbow) | not reached (the one run gave no output: lane lock) | none | |
+| vr_agarmor_look_check's 26 | not looked into: the coverage/shape checks on the player and monster bodies (vrgrunt 0% of covered skin under plates at rest and bent, the others 50-59% against 85/80%, hknight thigh_l width 8.89 against 7.5 and taper 0.46 against 0.45) | none | 88/26 |
+
+- **Test aid**: `vr_mock_hand_to <main|off> nearest <class> <units> palm` (vr_backend_mock.cpp handToNearest).
+- **Not run 3x**: the reload test (two full runs, about 15 min each, plus the fist case alone); runlaunch once.
+- **Open**: teleporters_chase's sill-32 dog (AI/nav: why it no longer slides to the sill-16 gate, since about 11-14), agrunt
+  16, rigstudio_posekeys 5, the armour look check's 26.
 
 ## beastmp: remote multiplayer clients draw the beasts' armour (branch agent/beastmp, 2026-11-28)
 

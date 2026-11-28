@@ -39,9 +39,8 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Random run to run** (re-run 3 times each on 2026-11-12, ROUND25.md "Test triage B"; flatpose and flatswing seeded
   and read earlier, ROUND25.md "testfix": flatpose's last version unrun): `vr_systems_test 15` (2/5 on 11-27: the
   blast's body never knocks the torch off; the body's flight varies: UNKNOWN), ragdoll_ragtest (4/5 on 11-27: "catch: NOT begun in 3.0 s"), ragdoll_guard
-  (4/5: "guard stagger: guards its head (staggering)"), **reload is now a real failure, 0/5 on 11-27** ("a prop held in the other hand hits the
-  barrels open and shut by its surface (prop 10, want 10; the fist as far off: 1, want 0)" in all 5; also "the lying shell taken again by the fist" and
-  "let go of at the pouch: refunded" in 4, the SSG sights' colour in 2; the old "a hit: the old one knocked out" check did not show).
+  (4/5: "guard stagger: guards its head (staggering)"); reload's lying shell, pouch refund and fist-alone barrel hit fixed
+  2026-11-28 (the test's aims: ROUND26 "alwaysfail"); its SSG sights' colour failed 2 of 5 on 11-27 (not seen since).
 - **ragdoll_stagger: what is left** (the lip fixed, ROUND25.md "realfix_stagger"): the grunt's beaten backpedal falls
   at 0.43 s after 2 steps instead of giving way after 3 (F, not G; on level ground, every trial); in one combined
   batched run (lip rates steady backpedal) the 8th steady grunt (balance 0.52) and monster 2's 8th fell, and the lip
@@ -58,7 +57,8 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   agrunt 66 4/5 ("lying (as shipped): walked up and reached for its weapon: it holds nothing, 1 dropped"), agrunt 67 4/5 ("grabtable normal
   time ...: 101/128 taken (90% or more)"), agrunt 209 4/5 ("grabtable bullet time ...: 137/153 taken"), agrunt 71 3/5 ("balance grunt: damage a
   second within 25%"), ragdoll_guard 4/5. **Real failure: `teleporters_chase` 0/5** ("chase dog at framed_sill32: never reached the north
-  room ... (try 3 of 3, seed 3)", the same text every run) and agrunt 60 0/5 (agparry: "weapon: parried 1, 0 damage (kept 5 of 20), still armed 1").
+  room ... (try 3 of 3, seed 3)", the same text every run; 0/8 on seeds 1-8 on 11-28: not chance, ROUND26 "alwaysfail"); agrunt 60 fixed 11-28
+  (its grunt's armour plates took the parry's share).
 - **Embedded blades** (`vr_embed` on since 2026-11-08): real heavy monsters, saves, level change and multiplayer
   unproven (tests 14-20 written); tests 24 and 33 as above.
 - **Embedded blades, the handle hold** (2026-11-12, ROUND25.md "embedgrip"): his VR check of the handle staying in the
@@ -72,7 +72,7 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Baseline 2026-11-12, still failing alone** (ROUND25.md "basefix1112": first-bad merges by bisect, alone, seed 1):
   agrunt 16's hunt check (the drawn grip 2.7-2.8 units off the drawn hand hull, limit 2.5; its vertex checks fixed,
   ROUND25.md "agfails2"; 0/5 on 11-27, 2.73-2.76), stealth props_round (5/5 on 11-27 in the full stealth run: steady). Older (11-27, 5 runs): agrunt 3
-  0/5 ("yank: your main hand Fist, the grunt holds Shotgun": the hand does not take the gun), agrunt 91 3/5 ("raggrab: 8/9 won" / "9/10 won"), agrunt 92
+  fixed 11-28 (the test now holds its own grip: ROUND26 "alwaysfail"), agrunt 91 3/5 ("raggrab: 8/9 won" / "9/10 won"), agrunt 92
   5/5; 213 fixed 2026-11-13 (adtests).
 - **vrtrailer: the test's swing, not the game** (ROUND25.md "testenv", 2026-11-21): it has failed since 11-10 (passed
   only in the 11-07 lanes; release12's "3 of 3 on 2026-11-12" was weapon_catch's, not this test's). Its mock (10-08)
