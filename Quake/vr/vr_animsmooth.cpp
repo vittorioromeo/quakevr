@@ -889,7 +889,7 @@ namespace qvr::animsmooth::detail
 // The swings of `m`'s bones between poses `poses` along `s`, into `out` (3 rows a bone, `stride` rows apart; all zeros
 // for a bone not swung): false if none swings (`out` then untouched); `now`, if given, the bones' motion along `s`.
 bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, glm::vec4* out, int stride,
-    rigpose::Rigid* nowOut)
+    rigpose::Rigid* nowOut, uint32_t want)
 {
     const ragdoll::Rig& rig = *m.rig;
     uint32_t still = 0;
@@ -897,28 +897,43 @@ bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, 
     {
         still |= m.unfit[static_cast<za::SizeT>(poses[i])];
     }
+    // Whether each bone swings: its keys in the lerp's two poses. The bones made (`want`) first; the others only while
+    // those all stay still (none swinging at all: nothing to make). The outer two poses' keys only for the bones made.
+    const uint32_t all = (1u << rig.numBones) - 1u;
     rigpose::Rigid keys[4][ragdoll::maxBones];
-    for(int i = 0; i < 4; i++)
+    const auto stillTest = [&](uint32_t which) {
+        for(int b = 0; b < rig.numBones; b++)
+        {
+            if(which & (1u << b))
+            {
+                keys[1][b] = rigpose::key(rig, poses[1], b);
+                keys[2][b] = rigpose::key(rig, poses[2], b);
+                still |= za::abs(glm::dot(keys[1][b].rot, keys[2][b].rot)) < maxTurn ? 1u << b : 0u;
+            }
+        }
+    };
+    stillTest(want & all);
+    if((still & want & all) == (want & all))
+    {
+        stillTest(~want & all);
+    }
+    for(int i = 0; i < 4; i += 3)
     {
         for(int b = 0; b < rig.numBones; b++)
         {
-            keys[i][b] = rigpose::key(rig, poses[i], b);
+            if(want & (1u << b))
+            {
+                keys[i][b] = rigpose::key(rig, poses[i], b);
+            }
         }
     }
-    for(int b = 0; b < rig.numBones; b++)
-    {
-        if(za::abs(glm::dot(keys[1][b].rot, keys[2][b].rot)) < maxTurn)
-        {
-            still |= 1u << b;
-        }
-    }
-    const bool none = (still & ((1u << rig.numBones) - 1u)) == ((1u << rig.numBones) - 1u);
+    const bool none = (still & all) == all;
     if(none && !nowOut)
     {
         return false;
     }
     rigpose::Rigid now[ragdoll::maxBones];
-    rigpose::alongSlots(rig, keys, s, still, now); // (the keys made above: not looked up again per bone)
+    rigpose::alongSlots(rig, keys, s, still, now, want); // (the keys made above: not looked up again per bone)
     if(nowOut)
     {
         ZA_MEMCPY(static_cast<void*>(nowOut), now, sizeof(rigpose::Rigid) * static_cast<za::SizeT>(rig.numBones));
@@ -929,6 +944,10 @@ bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, 
     }
     for(int b = 0; b < rig.numBones; b++)
     {
+        if(!(want & (1u << b)))
+        {
+            continue;
+        }
         glm::vec4* rows = out + stride * b;
         if(still & (1u << b))
         {
@@ -959,22 +978,31 @@ namespace
 // rest place to the poses' bytes, its turn (the normal's) with its share in the first's w: the fits of the lerp's two
 // poses blended by `blend` (a bone fitted badly in a pose isn't rebuilt there, and fades in and out across the lerps on
 // either side of it).
-void rebuildRows(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, float blend, bool swing, glm::vec4* out)
+// `want` (bits): only these bones' rows (with their parents: rigpose::wantWithParents); the others' left as they were.
+void rebuildRows(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, float blend, bool swing, glm::vec4* out,
+    uint32_t want = ~0u)
 {
     const ragdoll::Rig& rig = *m.rig;
     rigpose::Rigid now[ragdoll::maxBones];
-    rigpose::along(rig, m.rebuildKeys.data(), poses, s, 0u, now);
-    if(!(swing && swings(m, poses, s, out, rebuildRowsPerBone)))
+    rigpose::along(rig, m.rebuildKeys.data(), poses, s, 0u, now, want);
+    if(!(swing && swings(m, poses, s, out, rebuildRowsPerBone, nullptr, want)))
     {
         for(int b = 0; b < rig.numBones; b++)
         {
-            glm::vec4* rows = out + rebuildRowsPerBone * b;
-            rows[0] = rows[1] = rows[2] = glm::vec4{0.f};
+            if(want & (1u << b))
+            {
+                glm::vec4* rows = out + rebuildRowsPerBone * b;
+                rows[0] = rows[1] = rows[2] = glm::vec4{0.f};
+            }
         }
     }
     const uint32_t unfit1 = m.rebuildUnfit[static_cast<za::SizeT>(poses[1])], unfit2 = m.rebuildUnfit[static_cast<za::SizeT>(poses[2])];
     for(int b = 0; b < rig.numBones; b++)
     {
+        if(!(want & (1u << b)))
+        {
+            continue;
+        }
         glm::vec4* rows = out + rebuildRowsPerBone * b;
         const glm::mat3 r = glm::mat3_cast(now[b].rot);
         const glm::vec3 t = now[b].pos - m.origin;
@@ -1485,6 +1513,24 @@ bool animsmooth::drawnPoints(const entity_s* e, int pose1, int pose2, float blen
     return true;
 }
 
+namespace
+{
+// serverPoints's vertices `verts`: the bones whose rows drawnVertex reads for them, with their parents (all ones: every
+// bone, as before: no rig yet, or a bone past it).
+[[nodiscard]] uint32_t pointBones(SmoothModel& m, const aliashdr_t* hdr, const int* verts, int n, bool rebuild);
+// serverPoints's work past its tests: the rows of the bones in `want` (rebuildRows, swings), then the vertices.
+bool serverPointsMade(qmodel_t* model, const aliashdr_t* hdr, SmoothModel& m, const animsmooth::ServerLerp& l, bool rebuild,
+    bool splined, glm::vec3* out, int n, const int* verts, uint32_t want);
+// vr_qc_builtin_fast 2's check (the bones' rows made alone against the whole rig's, for the same vertices)
+struct PointBonesCheck
+{
+    int compared{0};
+    int differed{0};
+};
+PointBonesCheck pointBonesCheck;
+constexpr int maxCheckedPoints = 16;
+} // namespace
+
 bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* out, int n, const int* verts)
 {
     if(!model || model->type != mod_alias)
@@ -1517,6 +1563,62 @@ bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* o
     {
         return false;
     }
+    // (vr_qc_builtin_fast: a few vertices asked for (a worn pack's anchors a frame for each wearer out of view, limbpiece):
+    // only their bones' rows made, with their parents', not the whole rig's; 2: the whole rig's too, compared bit for bit)
+    const float fast = vr_qc_builtin_fast.value;
+    const uint32_t want = verts && fast != 0.f ? pointBones(m, hdr, verts, n, rebuild) : ~0u;
+    if(want != ~0u && fast == 2.f && n <= maxCheckedPoints)
+    {
+        glm::vec3 whole[maxCheckedPoints];
+        const bool a = serverPointsMade(model, hdr, m, l, rebuild, splined, whole, n, verts, ~0u);
+        const bool b = serverPointsMade(model, hdr, m, l, rebuild, splined, out, n, verts, want);
+        pointBonesCheck.compared++;
+        pointBonesCheck.differed += a == b && !ZA_MEMCMP(whole, out, sizeof(glm::vec3) * static_cast<za::SizeT>(n)) ? 0 : 1;
+        if(pointBonesCheck.compared % 2000 == 0)
+        {
+            Con_Printf("vr_qc_builtin_fast point bones check: %d compared, %d differed\n", pointBonesCheck.compared,
+                pointBonesCheck.differed);
+        }
+        return b;
+    }
+    return serverPointsMade(model, hdr, m, l, rebuild, splined, out, n, verts, want);
+}
+
+namespace
+{
+uint32_t pointBones(SmoothModel& m, const aliashdr_t* hdr, const int* verts, int n, bool rebuild)
+{
+    if(!m.rig)
+    {
+        return ~0u;
+    }
+    const za::Vector<int>& vbo = vboOfVert(m, hdr);
+    const int bones = m.rig->numBones;
+    uint32_t want = 0u;
+    const auto add = [&](float w) {
+        const int b = static_cast<int>(za::floor(w));
+        want |= b >= 0 && b < bones ? 1u << b : ~0u; // (a bone past the rig's: all made, as before)
+    };
+    for(int i = 0; i < n; i++)
+    {
+        const int vi = vbo[static_cast<za::SizeT>(verts[i])];
+        if(vi < 0 || static_cast<za::SizeT>(vi + 1) * restStride > m.rest.size())
+        {
+            continue; // (drawnVertex reads no rows for it)
+        }
+        const glm::vec4* r = m.rest.data() + static_cast<za::SizeT>(vi) * restStride;
+        add(r[0].w);
+        if(rebuild && r[2].w > 0.f)
+        {
+            add(r[2].w); // (a joint's vertex: its second bone's rows too)
+        }
+    }
+    return want == ~0u ? want : rigpose::wantWithParents(*m.rig, want);
+}
+
+bool serverPointsMade(qmodel_t* model, const aliashdr_t* hdr, SmoothModel& m, const animsmooth::ServerLerp& l, bool rebuild,
+    bool splined, glm::vec3* out, int n, const int* verts, uint32_t want)
+{
     serverRows.rows.resize(static_cast<za::SizeT>(rebuildRowsPerBone * ragdoll::maxBones));
     glm::vec4* rows = serverRows.rows.data();
     int poses[4] = {l.pose1, l.pose1, l.pose2, l.pose2};
@@ -1529,7 +1631,7 @@ bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* o
         s.w[1] = 1.f - b;
         s.w[2] = b;
         s.rot[1] = b;
-        rebuildRows(m, poses, s, b, false, rows);
+        rebuildRows(m, poses, s, b, false, rows, want);
         swung = true;
     }
     else
@@ -1557,12 +1659,12 @@ bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* o
         const bool rigged = vr_anim_smooth_rig.value != 0.f && rigData(m, model, hdr);
         if(rebuild)
         {
-            rebuildRows(m, poses, s, l.blend, rigged, rows);
+            rebuildRows(m, poses, s, l.blend, rigged, rows, want);
             swung = true;
         }
         else
         {
-            swung = rigged && swings(m, poses, s, rows);
+            swung = rigged && swings(m, poses, s, rows, 3, nullptr, want);
         }
     }
     const za::Vector<int>& vbo = vboOfVert(m, hdr);
@@ -1584,6 +1686,7 @@ bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* o
     }
     return true;
 }
+} // namespace
 
 void animsmooth::captureDraws(const entity_s* e)
 {

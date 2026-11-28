@@ -182,6 +182,6 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr);
 
 inline constexpr float maxTurn = 0.2588190f; // cos(150 / 2 degrees): a bone turning further between the lerp's poses isn't swung
 bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, glm::vec4* out, int stride = 3,
-    rigpose::Rigid* nowOut = nullptr);
+    rigpose::Rigid* nowOut = nullptr, uint32_t want = ~0u); // (want: only these bones' rows, with their parents: rigpose::wantWithParents)
 
 } // namespace qvr::animsmooth::detail
