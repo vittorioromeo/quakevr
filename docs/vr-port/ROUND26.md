@@ -6072,3 +6072,43 @@ Brush").
 - Headset: beta6 put back (1.2.0-beta6, progs a0bfe11a), his 31 autosaves and 3 top-level saves restored (35 sums match).
   Scripts: worktree `scratch/qcb_*` (not committed): `qcb_q.sh` (backup/install/launch/restore), `qcb_mkcfg.py`,
   `qcb_parse.py`, `qcb_q2.cfg` (the profile A/B).
+
+## dazzlestudio: the dazzle shield's pose tweaked per armed humanoid kind, one weapon and two, in an ImGui Dazzle Studio with gizmos (branch agent/dazzlestudio, 2026-11-28)
+
+His words 2026-11-28 (item 14): per-kind offsets/rotations on top of the base dazzle pose, elbow and forearm adjustments,
+how far the gun arm moves away, dual-wielding ones; an imgui studio with gizmos. Follows "flashblind" and "dazzlepose".
+- **Data** `quakevr/data/dazzle.txt` (`vr_dazzle_file`; vr_dazzledata.hpp/.cpp): per kind (grunt, enforcer, knight,
+  death knight, AD's death guard, crossbow knight) a `single` set (one weapon or none) and a `dual` set (two weapons), one
+  line a non-zero field: `hand` (the shielding grip moved: forward, left, up in its body, units), `hand_turn` (two weapons:
+  the left weapon turned in that hand, pitch yaw roll), `elbow` (added to its elbow's way '0.3 1 -0.45', normalized),
+  `twist` (degrees: the elbow turned about the shoulder-to-hand line, its forearm rolled across the face), `gun` (the gun
+  hand moved away while it shields, times the shield's share). Shipped file: the header only, all zero = the dazzlepose
+  pose exactly. `vr_dazzle_load` / `vr_dazzle_save`.
+- **The game** (QC vr_armedgrunt_dazzle.qc `VR_AGP_Shield`, through the new builtin `dazzletweak(kind, dual, field)`):
+  the hand's place = `VR_AGP_ShieldAt` + `hand` (after the bend's clamp: an offset moves it by exactly that much);
+  the pole `VR_AG_ShieldPole` (elbow + twist); the right hand's `vr_agp_v` + `gun` x share (single and dual); the dual
+  shield's weapon frame turned by `hand_turn` (`VR_AG_DazzleTurn`, makevectors, v_* kept). The server's pose: it goes out
+  in the existing pose message (`vr_agp_v`, `vr_agp_vl`, the left pole in `vr_agp_ell`): MP clients and both agpose paths
+  (QC and native, which calls the QC shield) draw it; nothing new on the wire.
+- **The single hand has no turn**: a bare hand is the arm IK's Point goal (it points along its forearm; the pose message
+  has no wrist turn, `freeOff` only applies to a hanging hand). Its look is set by the forearm's twist and the elbow;
+  `hand_turn` is the two-weapon set's only (the studio greys it out for one weapon).
+- **Dazzle Studio** (vr_dazzlestudio.hpp/.cpp; `vr_dazzlestudio [open|close|toggle|test]`; Debug > Tools, Tunables >
+  Armed Humanoids > Flashlight Dazzle): the Reload Studio's ImGui window pattern, the shared gizmo (vr_gizmo.hpp) and the
+  Armour Studio's subject spawner, now shared: QC `VR_StudioSubject(kind, ahead, wid, wid2)` (vr_armourstudio.qc;
+  `VR_ArmourStudio_Spawn` calls it, as before) and `VR_DazzleStudio_Spawn`. The subject: the kind with its own weapon
+  (shotgun, nailgun, sword, crossbow) or two revolvers (`vr_dazzlestudio_kind`, `_dual`), `_ahead` (56) units ahead, every
+  armed humanoid frozen while open (`vr_agrunt_freeze`, put back on closing), held in its shield pose by the new field
+  `.vr_ag_dazzle_hold` (`VR_AG_DazzleTick`: held at it whatever lights it; `VR_AG_ShieldDual` true for it): frozen at full
+  or Live (`_live`: rises and falls over 3 s). Right-drag turns it (`_turn`), as the Armour Studio's. Gizmo on the target
+  picked (its dot clicked, or 1 2 3): the hand sent (`vr_ag_shield_at`), the drawn elbow and the drawn gun hand
+  (`hitreact::drawnArm`); W moves, E turns (the hand, two weapons). Sliders for every field; Save, Revert, Reset This Set,
+  Copy to Other Set. Edits are live for every dazzled humanoid of that kind.
+- **Test** `vr_dazzlestudio test` (flat screen, a level loaded; Debug > Tests): 18/0. Zero data, a settled pose; a hand
+  tweak 3 -2 1 moves the hand sent by exactly that (0.0000 off); gun 0 -4 0: the gun hand 4.00 to its right; elbow 0 0 -1:
+  the elbow 2.18 lower; twist 40: the elbow 2.28 away, the hand kept; the gizmo's turn math; saved, cleared, read back;
+  cleared: the hand, elbow and gun hand as with no tweaks (within 0.001 / 0.01); two revolvers: the dual set alone moves
+  it; closed: the subject gone, vr_agrunt_freeze back. `test shots`: a screenshot per gizmo (worktree
+  scratch/dazzlestudio_hand/_gunarm/_elbow/_dual_turn.png). `vr_agrunt_test 232` 23/0 (as dazzlepose's), armourwin 17/0.
+- **Open**: the subject's pitch is not offered (the Armour Studio's right-drag pitch: the pose's body math is yaw only);
+  no undo beyond Revert; "mirrored preview" read as the live edit on the subject.
