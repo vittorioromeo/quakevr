@@ -976,6 +976,7 @@ float(entity g, entity p) VR_AG_StrikeFrame =
     {
         if(pl.health > 0 && vlen(pl.origin - g.origin) < 160)
         {
+            vr_ags_quiet = world; // (a player's blow may move things: the throw scan looks for itself)
             float h;
             for(h = 0; h < 2; h++)
             {
