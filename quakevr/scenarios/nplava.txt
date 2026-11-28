@@ -1,0 +1,10 @@
+# nplava: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The nail pistol's lava nails (ROUND26.md
+# "nplava"): the pistol in the main hand, every ammo (lava nails too), a nailgun beside it for its lava look.
+title The nail pistol's lava nails: its inner-side ammo button, its lava look, its lava magazine
+map vrtesthall
+god
+notarget
+cmd impulse 9
+give "Nail Pistol" main
+spawn "Nailgun" 64 14
+hint Press the small button on the nail pistol's inner side (under its slide) with your other hand's finger (flat-screen: N): it turns to its lava look and fires lava nails. Reload it to see the lava magazine; press again for its nails.

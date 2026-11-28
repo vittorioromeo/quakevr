@@ -6148,3 +6148,44 @@ His words 2026-11-28, items 2, 7, 8.
 - Disk: moved to F:\QVR-Parked‚6-11-28\diskclean\: worktrees pcbase and unionmerge (3.3 GB, worktree prune), the kit base
   bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
   renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
+
+## nplava: the nail pistol fires lava nails: an inner-side ammo button, a lava look, a lava magazine (branch agent/nplava, 2026-11-28)
+
+His words (kit `scratch/fb1127n/words_1128b.md` item 19): lava nails for the nail pistol with a new lava magazine, a button
+on its inner side for the simple/no-reloading modes, a lava look in the lava nailguns' style.
+- **Firing** (QC `vr_nailpistol.qc` `W_FireNailPistol`): with `QVR_WPNFLAG_USE_SECONDARY_AMMO` (its button, N) it uses a
+  lava nail (`AID_LAVA_NAILS`) and fires `launch_lava_spike` (class `lava_spike`: Rogue's model, trail, light) with its own
+  touch, speed and spread; the crack keeps, the nailguns' lava whoosh (`rocket1i`) replaces the spike layer. Its hit
+  (`VR_NailPistol_SpikeTouch`, a lava nail by its class): its damage `vr_dmg_nailpistol` x `vr_dmg_lava_nail` /
+  `vr_dmg_nail` (12 x 15 / 9 = 20 to a monster; a player hit takes 3/5 of that, as Rogue's give a player), the lava man
+  unhurt, what it hits set on fire (`VR_Burn_LavaNail`). A plain pistol nail through a torch's flame now stays the
+  pistol's (its touch, the lava damage above; it took the nailgun's lava touch before), and a pistol lava nail put out by
+  water becomes the pistol's plain nail (vr_burning.qc). Weapon table row: `ammo2` lava nails, `model2`
+  `progs/v_nailpistol_lava.mdl`, `VR_WROW_SECONDARY`; `VR_Pack_WeaponFlags` drops it without Rogue's lava spike.
+  Armed humanoids: none of them use lava nails (the nailguns' armed users have none: `vr_armedgrunt.qc` zeroes
+  `ammo_lava_nails`), so neither do the nail pistol's.
+- **The button**: weapons.txt slot 36 `wpnbtnmode 1`, `wpnbtn_av "3.6 1.15 2.3"` (the frame band under the slide on its
+  +y side: the side facing the other hand; mirrored for the left hand), `wpnbtn_roll -90` (its face out of that side). On
+  the frame, so it doesn't ride the slide. Shown in every reload mode like the other guns' buttons (the later ammomags
+  work hides them all under immersive reloading). Settings version 82 (`takeNailPistolLava82`): slot 39 reset (unused
+  before), the button's mode/roll/anchor taken where a config holds the old placeholder (0, 0, "-1.4 1.2 4.6").
+- **The lava look** (one model per gun): `vr_gunvariants.inc` `v_nailpistol_lava` (weapons.txt slot 39, inheriting slot
+  36), skin `src_models/blend/v_nailpistol/v_nailpistol_skin_v_nailpistol_lava.png` written by
+  `Misc/quakevr/make_nailpistol_lava.py` from the shipped skin: tan/copper paint and brown wear to a deep lava red, the
+  side vents' slots (found by the model's geometry) molten (amber floors, red walls). The gun's skin is a sighted one
+  (vr_sights.cpp, vr_sightalign.cpp read fire texels as its sights), so its glow uses the non-fire fullbrights (240,
+  247-251); the sight inserts stay. Engine: `modelmeta::Id::VNailPistolLava` in the slide (vr_nailslide.cpp), the seated
+  magazine mount and load port (vr_view.cpp, vr_view_internal.hpp), gun fx, sights, the lava gun glow light
+  (`emissive::isLavaGun`) and the ammo-switch morph pair (kind 0, lava); flat holster ammo table (29: nails / lava).
+- **The lava magazine**: `vr_mag_npistol.mdl` gains skin 1 (QC `VR_Reload_MakeRound` already gives a lava magazine skin 1;
+  the pouch's kind 2 + 16 + 8), and the seated one `vr_mag_on_v_nailpistol_lava.mdl`: red paint, the nails in its window
+  glowing (fire indices: the magazines aren't sighted). `make_gun_variants.py` `PROP_SKINS` writes the prop's skin 1 from
+  `src_models/blend/vr_mag_npistol/vr_mag_npistol_skin1.png` on every build (a prop re-exported from its .blend gets it back).
+- **Tests**: `vr_np_test 8` (QC/vr_nplava_test.qc; Debug > Tests > Nail Pistol Lava Nails Test): headset 16/0 (the mock's
+  finger presses the button), flat-screen 13/0 (N; the flat switch ejects the magazine, the test seats the new one).
+  `mp_test.py wpnsync` 17/0 (a remote draws B's pistol in its lava look and back; its button shown). `vr_np_test 1` 39/0,
+  `vr_nail_test 4` 17/0. Scenario `nplava`. Screenshots for his review: worktree `scratch/nplava_review.png` (inner side
+  plain with the button, lava; outer side lava; a lava magazine in the off hand) and `scratch/nplava_button.png` (the
+  button close: roll -90 face out, +90 its back, from above).
+- **Open**: the button's size is the shared `wpnbutton.mdl`'s (bigger than the frame band; no per-weapon scale key):
+  tune `wpnbtn_*_37` in the weapon studio if it should sit elsewhere. Flat R after N wasn't exercised by the test.
