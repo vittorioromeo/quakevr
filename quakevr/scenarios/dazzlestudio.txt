@@ -1,0 +1,7 @@
+# dazzlestudio: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) Dazzle Studio: the flashlight dazzle's shield pose tweaked per armed humanoid kind (ROUND26.md "dazzlestudio").
+title Flat-screen Dazzle Studio: a grunt shielding its eyes ahead of you, gizmos on its hand, elbow and gun hand
+hint Play with -flatscreenmode. The studio opens with a shotgun grunt holding its free hand before its eyes. Click the Hand, Elbow or Gun Arm dot (or 1 2 3) and drag the gizmo's arrows: the pose follows at once. Two Weapons gives it two revolvers (the dual-wielding set; E turns the left one in its hand). Live makes the hand rise and fall; the right mouse button turns it. Save writes quakevr/data/dazzle.txt, and every dazzled humanoid of that kind then shields that way.
+map e1m1
+god
+notarget
+cmd vr_dazzlestudio open

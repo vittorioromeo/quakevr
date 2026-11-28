@@ -1292,6 +1292,8 @@ struct BindPanelMenu
     static constexpr float gap = 8.f;   // from the corner's buttons above, the rows right of it, the corner's rows under it
     static constexpr float margin = 20.f; // from the panel's left edge at least (menu x)
     static constexpr float glyph = 1.5f; // a pad button's glyph (bindpanel2), in letters
+    static constexpr float glyphGrow = 1.3f; // (flatmenu3) drawn this much larger round its place's middle, the layout kept
+    static constexpr glm::vec4 glyphPlate{0.f, 0.f, 0.f, 0.85f}; // ... on a dark plate
     static constexpr float step = 1.6f;  // a row, in its letters
     static constexpr float headerStep = 1.4f; // a group's title's row (in minor letters), and the space over it (in letters)
     static constexpr float headerGap = 0.5f;
@@ -1489,9 +1491,13 @@ void drawBindPanel(const Painter& p, const ToolbarLayout& l)
             const char* key = r.keys[slot];
             if(const void* g = r.glyphs[slot])
             {
-                // A pad's button (bindpanel2): its glyph, square on the stretched canvas, centred on the row.
+                // A pad's button (bindpanel2): its glyph, square on the stretched canvas, centred on the row. flatmenu3 (his
+                // words 2026-11-28: hard to read, too small): drawn BindPanelMenu::glyphGrow larger round the same middle,
+                // on a dark plate; its place in the row (gw) unchanged.
                 const float gw = BindPanelMenu::glyph * sz, k = Draw_MenuStretch();
-                Draw_SubPic(kx, yc - gw * 0.5f / k - gw * (1.f - 1.f / k) * 0.5f, gw, gw,
+                const float big = gw * BindPanelMenu::glyphGrow, bx = kx - (big - gw) * 0.5f;
+                p.rounded(bx - 1.f, bx + big + 1.f, yc, big * 0.5f + 1.f, 2.f, BindPanelMenu::glyphPlate);
+                Draw_SubPic(bx, yc - big * 0.5f / k - big * (1.f - 1.f / k) * 0.5f, big, big,
                     static_cast<qpic_t*>(const_cast<void*>(g)), 0.f, 0.f, 1.f, 1.f, nullptr, 1.f);
                 kx += gw + sz * 0.5f;
                 continue;

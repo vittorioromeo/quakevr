@@ -518,7 +518,13 @@ float(entity e, float begin) ragdolldrown = #0;
 // A living monster's ragdoll (a stagger, knocked down, getting up) guarding its head from a blow coming from `at`
 // (vr_ragdoll_active_guard; vr_hitreact.qc VR_Guard_Raise): its arms up before its face for `hold` s. 0: it can't (not
 // one of the kinds driven alive, Active Deaths off).
-float(entity e, vector at, float hold) ragdollguard = #0;
+float(entity e, vector at, float hold, optional vector grip, optional float strength) ragdollguard = #0;
+// An armed one's ragdoll (staggering, down, held) aiming its gun arm, the hand nearest `grip`, at `at` for `hold` s at
+// `strength` 0..1 (vr_agrunt_ragfire's prototype: vr_armedgrunt_ragfire.qc). 0: it can't (not of the kinds driven alive).
+float(entity e, vector at, float hold, vector grip, float strength) ragdollaim =
+{
+    return ragdollguard(e, at, hold, grip, strength);
+};
 // (ragdollstagger's optional `recover`: up again that many seconds on, however it stands (a parry's stagger); `sure`:
 // it never goes over by itself, level ground; `far`: its travel's limit (4 m) times this, at least 1: a two-hand or a
 // running shove's, VR_Bash_Hit. `sure` 2: a backpedal over a ledge, VR_Knockdown_LedgeBackpedal: `reach` its carry in
@@ -819,6 +825,7 @@ float() highlighting = #0; // a highlight log is running (vr_highlights; vr_high
 void(string kind, float score, entity subject, string detail, float since) highlight = #0;
 float(vector at) stealthlight = #0; // QVR: the light at a point (128: Quake's full light; the dynamic lights too, not the host's own flashlight's); -1 unknown (vr_stealth.cpp)
 vector(entity player, float what) flashlightbeam = #0; // QVR: the player's flashlight as his client lit it (each coop player's own): what 0 its lens, 1 its axis, 2 '<on> <range> <cos of its cone's half angle>' ('0 0 0' off)
+vector(float kind, float dual, float field) dazzletweak = #0; // QVR: the Dazzle Studio's tweak of an armed humanoid kind's shield pose (quakevr/data/dazzle.txt; vr_dazzledata.cpp): its single (0) or dual-wielding (1) set, field 0 the hand's offset, 1 the hand's turn, 2 the elbow's pole, 3 '<twist> 0 0', 4 the gun hand's offset ('0 0 0' none)
 float(entity player) clientlight = #0; // QVR: the light on that player as his own client measured it (as stealthlight); -1 unknown (vr_stealth.cpp)
 void(float what) stealthprofile = #0; // QVR: 1 begins, 0 ends the stealth AI's work as the profiler's "stealth" scope (vr_profile); -1 at a frame's start (vr_stealth.cpp)
 float(vector a, vector b) pvsvisible = #0; // QVR: whether b is in a's potentially visible set (a noise round a corner, not through solid walls)

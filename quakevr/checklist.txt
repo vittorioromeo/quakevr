@@ -41,6 +41,22 @@
 ## Takes
 ## Studios and debug tools
 
+[New: not yet sorted]
+Flat-screen: holster both guns and walk while looking at your belt: the hip holsters and the ammo pouch bob with the legs as before; Tunables > Flatscreen > Looks, Holster Bob Horizontal and Holster Bob Vertical at 0 keep them still on the belt, each way on its own. {test:flat_holster_bob}
+Flat-screen: both hands empty, crouch, look down at the floor and jab: the fists stop on the floor with a thud instead of going through it. {test:flat_fists}
+The spear and the Crystal Lance in the hip, shoulder and upper holsters sit as you set them (your offsets are now the defaults). {test:flat_spear}
+A grunt holding two guns, lit in the face by your lamp, shields its eyes with its left gun's hand (Dual Wielders Shield on by default now). {test:agrunt_flashblind}
+Flat-screen: hold TAB (as well as MMB): the holster menu opens with the bindings reminder above it and a level bar at the bottom (level name, kills, secrets, skill, time) in the menus' look; letting go closes it, and the old TAB scoreboard no longer appears in flat play. {test:wheel_grenade}
+Flat-screen: in the holster menu, BACK POUCH over the hands: GRENADE and CLUSTER, each with L and R buttons; L/R takes one into that hand, the other kind swaps it, the same kind puts it back (as the weapon wheel's BACK POUCH). {test:wheel_grenade}
+Flat-screen: with the right hand holding a shotgun and the left hand empty on it, hold 1: the left weapon wheel opens low on the left, where it opens with both hands empty, not at the screen's edge. {test:weapon_wheel}
+Flat-screen or VR: the pad's button glyphs in the holster menu's bindings panel, the VR weapon wheel's controller panel and the main menu's reminder are larger and readable (LB, RT, LS letters clear, no glow over them); rows and places unchanged. {test:flat_gamepad}
+Flat-screen: open the Dazzle Studio (Debug > Tools, or Tunables > Armed Humanoids > Flashlight Dazzle): a grunt stands ahead shielding its eyes; click the Hand, Elbow or Gun Arm dot and drag the gizmo, or move the sliders: the pose follows at once; try each kind and Two Weapons (E turns the left revolver in the hand), Live to see the hand rise, then Save and shine your flashlight at a real grunt of that kind: it shields the way you set. {test:dazzlestudio}
+Flat-screen or VR: kill or knock down a grunt standing right beside another, and drop a body onto one from about head height: the other should at most stagger, never fall over. {test:grunts_to_throw}
+Flat-screen or VR: shove a grunt hard into the other grunt, and throw or swing a body into a grunt fast: both should go down; thrown at the ogre it only staggers or shrugs it off. {test:grunts_to_throw}
+Flat-screen or VR: an elite armed humanoid now glows soft gold round its outline (its armour too) and stands out in dim light; its armour plates have gold-trimmed edges while their faces keep their green, yellow or red. Check the glow reads as subtle but clear and the armour tier is still easy to tell. {test:elite_marker}
+Flat-screen or VR: Run Setup has an All Elites mutator (Enemies group, and on Arena Mode's screen): with it on, every armed humanoid in the campaign or the arena spawns as a gold elite. {test:run_allelites}
+Fire While Down prototype (VR Settings > Armed Grunts > Loadout, on in this scene): shove the revolver, nail pistol and shotgun holders over or pick one up; lying, staggering or held they keep firing at you, gun arm reaching towards you, slower and less accurate, never through the floor, and the rocket launcher holder never fires while down. Judge the look (shots can leave up to 30 degrees off the drawn gun), the rate and whether being shot while holding one feels fair. {test:agrunt_ragfire}
+
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -75,20 +91,11 @@ On the Quest, play Scourge of Armagon's first map with the flashlight on, into i
 ## Gamepad, menus and bindings
 ## Fists and visor
 ## Procedural reload (R) by gun family
-Flat-screen: with the shotgun (and the super shotgun) in one hand and the other empty, fire then press R: the free hand goes to the ammo pouch on your belt, brings a taped pair to the port under the shotgun (tilted to meet it) and back, its fingers closed round the pair from the pouch to the port and open again on the way back, two shells a trip until full; say how the speed, the tilt and the hand's path feel. Then empty it and press R while running in circles, strafing, jumping, sliding and crouch-walking: every pair goes in, no reload is cancelled or shell dropped. {test:flat_proc_reload}
-Flat-screen: fire the super shotgun empty, then R: it is already broken open, your left hand brings a taped pair from the belt pouch into both barrels and the gun flicks up shut; fire one barrel only, then R: it flicks open (the spent shell out, the live one kept), one shell goes in, it flicks shut. {test:flat_proc_reload}
-Flat-screen: take the nailgun (or the thunderbolt) in one hand, fire a few shots and press R: the gun tilts its well towards the free hand, lets the magazine out, the hand brings a fresh magazine from the belt pouch up into the well from below and the gun is full, nothing lost from the count; the same with the super nailgun (its magazine goes in on its side) and the nail pistol (up into its grip), and fire one empty first: no eject, its empty magazine already dropped, the new one goes straight in. Reload a magazine gun while running, jumping, crouching and sliding: the magazine still goes in every time; fire mid-reload: it stops and the magazine goes back in the pouch. {test:flat_proc_reload}
-Flat-screen: fire the rocket launcher or the grenade launcher empty and press R: the gun turns its muzzle up and across to the free hand, which pushes rockets or grenades into the muzzle one at a time until it is full; watch the rocket meet the muzzle: is it right at the drawn muzzle, or a hand's width out past it? The pose is a start for tuning in the Reload Studio. {test:flat_proc_reload}
-Flat-screen: fire the heavy revolver and press R: a wrist flick swings the cylinder out, the muzzle tips up while the spent shells drop out, then taped pairs go into the empty chambers and a flick back closes it. Does each pair look like it goes into its own chambers? {test:flat_proc_reload}
 ## Procedural reload tuning
-Flat-screen: open Tunables > Flatscreen > Procedural Reload, set Lock Pose (or use Next Key / Previous Key) and walk through the key poses (rest, gun tilted, hand at pouch, gripping the pair, at the port's mouth, inserted, returning); change a pose's sliders and see the held pose follow at once, and with the pose at the port's mouth or inserted move Hand at Port: Forward / Right / Up: the hand and its pair move along the gun; set Lock Pose back to Off and R reloads as normal. {test:flat_proc_reload}
-Flat-screen: open the Reload Studio (Debug > Tools, or vr_reloadstudio) with the shotgun in your right hand and the left empty; click the keys in the list: the hands hold each key's pose (the gun tilted, the hand at the pouch, the pair at the port's mouth, in the port); drag the gizmo on the hand or a slider and the pose follows at once; Play shows the whole reload; Save, then R for a real reload with your change. Debug > Tools > Flatscreen: Reload Studio also lists the nailgun, super nailgun, thunderbolt and nail pistol: Hold This Gun on each, lock the carry and insert keys: the gun's magazine is in the free hand, and the tilts can be tuned and saved. {test:flat_proc_reload}
 
 [3. Tutorial and VR interface]
 ## Tutorial
-Flat-screen or VR: climb the tutorial's lesson 3 ladder: each hand closes round its round rung (the rung through the fist, the fingers over its top) instead of sitting on top of it; square rungs elsewhere (vrtesthall's) are still held like ledges. Hand Round Thin Rungs (Climbing settings, Hand on a Hold) switches it off. {test:tutorial_ladder}
 ## Menus and Run Setup
-Flat-screen or VR: in Run Setup, the Starting melee weapon row should read Axe, Dagger, Spear, Nothing (Nothing last, like the gun row), and a pick you saved before should still be the same weapon. {test:run_setup_newgame}
 
 [4. Weapons and holsters]
 ## Holsters and the flashlight
@@ -140,22 +147,13 @@ Spear-wielding grunts now use your tuned Ready, Run, Overhead and Shove poses, a
 Throw a crate or a weapon hard at an armed grunt's gun: it still knocks the gun out of its hand, and shooting a gun out of a grunt's hand with nails still works as before. {test:grunts_to_throw}
 Lean out from behind a wall with grunts beyond it: they still spot you after a short delay and shoot at the part of you that shows, as before. {test:grunts_to_throw}
 ## Flashlight dazzle
-Flat-screen or VR: point the switched-on flashlight straight at an armed grunt's face from a few metres; after a moment it raises its free hand in front of its eyes (a shotgun goes into one hand) and its shots spray wider, and it lowers the hand a second or two after the beam leaves its face. Check the hand looks like it shields the eyes and nothing happens with the beam off to the side or at its back. {test:agrunt_flashblind}
-Take the flashlight and shine it straight in an armed knight's or death knight's face: it raises its free forearm across its eyes with the elbow out to its side, not a fist held up like a punch; armed grunts shield as before. {test:arena_gunknights}
-In Tunables > Flashlight Dazzle turn Dual Wielders Shield on, then shine the flashlight in a dual-wielding grunt's face: it raises its left gun, still held and pointing up, in front of its eyes and fires only its right one; with it off both guns stay up. {test:agrunt_dual_guns}
 ## Elites
-Flat-screen or VR: an elite armed humanoid reads at a glance next to ordinary ones: dark gold clothes pulsing towards bright gold, its backpack still in its weapon's colour (check it also reads next to armoured ones and in dim light); fight one (the scene's nearer one, notarget off): it fires much more often, reacts at once, aims true, walks a quarter faster, swings quicker, rarely flinches; say if it is too hard or not hard enough (Debug > Tunables > Armed Humanoids > Elite). {test:elite_pair}
-Flat-screen or VR: the toolgun's Armed Humanoid page has Elite: On/Off beside Infected With; spawn an elite that is also infected: dark gold, and killed it bursts into a zombie that is not an elite. With Combat > Armed Grunts > AI Behaviour > Elites in Hard and Nightmare on, a map on Hard has about one armed humanoid in seven an elite; off, none. {test:elite_pair}
-Flat-screen or VR: the Survival Arena from wave 4 sends some elites among the armed humanoids (about one in five). {test:arena_run}
 Flat-screen or VR: in co-op, an elite the host makes (vr_attr_set elite 1) shows its dark gold dye on the other player's screen too. {test:mp_coop_bot}
 ## Lifts
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
 
 [7. Armoured beasts]
 ## Armour on the body
-Flat-screen or VR: shoot armoured rottweilers and scrags while they leap and fly; a shot at the middle of a plate you can see should strike that plate (Debug > Reports > Shots Meet The Drawn Body off brings back the old, looser hits for comparison). {test:armour_beasts}
-Armour skins restyled toward your "after" image: muted olive, ochre and brick-red plates under grime, chipped and rusted edges, blood and dirt specks, dark gaps between the rows; check each type still reads at a glance next to the bare grunt, and on enforcers, knights and the armoured beasts too. {test:armour_lineup}
-Wake the armoured ogre and let it swing its chainsaw at you; shoot its pauldrons, bracers and helmet mid-swing: the piece you aim at should be the one that cracks, and its broken pieces should fly from where the plate was drawn, not a few units off. {test:armour_beasts}
 
 [8. Quoth]
 ## Setup and maps

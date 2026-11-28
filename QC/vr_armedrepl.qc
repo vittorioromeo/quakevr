@@ -891,12 +891,13 @@ void() VR_AGR_NativeAttack =
 void(entity p) VR_AGR_NativeShot =
 {
     vector from = '0 0 0';
-    if(self.vr_ag_prop2)
+    if(self.vr_ag_prop2 || vr_ag_rf_dir != '0 0 0')
     {
         // A gun in each hand: each one's shot from its own muzzle (its monster's own place, the enforcer's at its right
-        // and the grunt's at its middle, had both guns' shots come out of the right one).
+        // and the grunt's at its middle, had both guns' shots come out of the right one). A ragdoll's shot
+        // (vr_agrunt_ragfire): from its gun's muzzle as it lies, along vr_ag_rf_dir.
         VR_AG_PlaceProp(self, p);
-        from = VR_AG_DrawnMuzzle(p, normalize(VR_AI_Origin(self.enemy) - p.origin));
+        from = VR_AG_DrawnMuzzle(p, vr_ag_rf_dir != '0 0 0' ? vr_ag_rf_dir : normalize(VR_AI_Origin(self.enemy) - p.origin));
     }
     makevectors(self.angles);
     vr_agr_native_fire = 1;
@@ -915,8 +916,8 @@ void(entity p) VR_AGR_NativeShot =
                 VR_AG_Expose(FALSE);
                 aimAt = VR_AI_Origin(self.enemy) + self.vr_ag_xofs; // (the part of you it can hit: vr_agrunt_aim_exposed)
             }
-            vector ldir = aimAt - org;
-            if(VR_AGAI_Accuracy() < 1)
+            vector ldir = vr_ag_rf_dir != '0 0 0' ? vr_ag_rf_dir : aimAt - org; // (a ragdoll's: VR_AG_RagFire's line)
+            if(VR_AGAI_Accuracy() < 1 && vr_ag_rf_dir == '0 0 0')
             {
                 ldir = VR_AGAI_LaserError(ldir); // (vr_agrunt_ai_accuracy under 1: off by some of its aim error)
                 makevectors(self.angles);

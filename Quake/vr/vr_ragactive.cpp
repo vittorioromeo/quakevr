@@ -2233,6 +2233,79 @@ void guardFrame(State& s, const Parts& p, const Context& c)
     }
 }
 
+// ---- An armed one's gun arm aimed (vr_agrunt_ragfire, a prototype; vr_ragactive.hpp, Aim; docs/vr-port/RAGFIRE.md) ----
+// A living armed one firing as a ragdoll (QC VR_AG_RagFire, asked every frame while it may fire): the arm whose hand is
+// nearest the gun's grip reaches from its shoulder along the way to its target, nearly straight, over what leads its
+// arms (a stagger's wheeling, a fall's bracing, a struggle's), eased in over aimIn and out over aimOut. A guard runs
+// over it (its head before its gun).
+constexpr float aimIn = 0.2f;  // s
+constexpr float aimOut = 0.3f; // s
+
+void aimFrame(State& s, const Parts& p, const Context& c)
+{
+    Aim& a = s.aim;
+    if(!a.on)
+    {
+        return;
+    }
+    const auto drop = [&s, &a] {
+        if(a.arm >= 0)
+        {
+            s.reach[static_cast<za::SizeT>(a.arm)].weight = 0.f;
+        }
+        a.arm = -1;
+    };
+    if(c.now > a.until + aimOut || s.mode == Mode::Dying || s.mode == Mode::Climbing)
+    {
+        drop();
+        a.on = false;
+        return;
+    }
+    int arm = -1;
+    float best = 1e30f;
+    for(int i = 0; i < 2; i++)
+    {
+        if(!limbWhole(s, p, i))
+        {
+            continue;
+        }
+        const float d = glm::length(limbEnd(s, p, i) - a.grip);
+        if(d < best)
+        {
+            best = d;
+            arm = i;
+        }
+    }
+    if(arm != a.arm)
+    {
+        drop();
+    }
+    if(arm < 0)
+    {
+        return;
+    }
+    a.arm = arm;
+    const int u = s.chain[static_cast<za::SizeT>(arm)][0];
+    const glm::vec3 shoulder = worldPoint(p, u, p.rig->bones[u].pivot);
+    glm::vec3 to = a.target - shoulder;
+    if(glm::length(to) < 1e-3f)
+    {
+        return;
+    }
+    to = glm::normalize(to);
+    const float w = smooth01(static_cast<float>(c.now - a.from) / aimIn) *
+                    (1.f - smooth01(static_cast<float>(c.now - a.until) / aimOut));
+    Reach& r = s.reach[static_cast<za::SizeT>(arm)];
+    r.goal = shoulder + to * (0.95f * limbLength(s, p, arm));
+    r.weight = za::max(r.weight * (1.f - w), w);
+    r.strength = za::max(r.strength, za::clamp(a.strength, 0.f, 1.f));
+    if(vr_debug_ragdoll.value >= 2.f)
+    {
+        Con_Printf("ragaim: arm %d mode %d weight %.2f strength %.2f hand %.2f m from its goal, base %.2f\n", arm,
+            static_cast<int>(s.mode), r.weight, r.strength, glm::length(limbEnd(s, p, arm) - r.goal), s.base);
+    }
+}
+
 // A living one's fall (drive(): a shove's knockdown, a stagger gone over, a throw; fallFrame's arms bracing): another
 // monster near a hand as it goes, the first second (by vr_ragdoll_active_grab's chance, rolled once a fall): it grabs at
 // it (fallFrame takes that arm's reach from its hand), held a moment, let go once it lands. Its hands' other holds let go
@@ -2709,7 +2782,8 @@ void envReaches(EnvWork& wk, State& s, const Parts& p, const Context& c, za::Arr
         const float rate = h.want > h.weight ? 0.1f : 0.25f;
         h.weight += (h.want - h.weight) * (1.f - za::exp(-c.dt / rate));
         h.weight = h.want == 0.f && h.weight < 0.01f ? 0.f : h.weight;
-        if(h.weight > 0.f && limbWhole(s, p, arm))
+        // (An armed one's aimed gun arm, vr_agrunt_ragfire: aimFrame's reach, not this one's.)
+        if(h.weight > 0.f && limbWhole(s, p, arm) && !(s.aim.on && s.aim.arm == arm))
         {
             apply(arm, h.goal, h.weight, h.strength * za::max(vr_ragdoll_active_env_arms.value, 0.f));
         }
@@ -2731,7 +2805,7 @@ void envReaches(EnvWork& wk, State& s, const Parts& p, const Context& c, za::Arr
     for(int limb = 0; limb < limbCount; limb++)
     {
         const uint8_t bit = static_cast<uint8_t>(1u << limb);
-        if(!(e.reached & bit) || (reached & bit))
+        if(!(e.reached & bit) || (reached & bit) || (s.aim.on && s.aim.arm == limb))
         {
             continue;
         }
@@ -3442,6 +3516,21 @@ void weaken(State& s, float keep)
     s.base *= za::clamp(keep, 0.f, 1.f); // (a stagger's pin too: its balance goes with it)
 }
 
+void aim(State& s, const glm::vec3& target, const glm::vec3& grip, double now, float hold, float strength)
+{
+    Aim& a = s.aim;
+    if(!a.on)
+    {
+        a.from = now;
+        a.arm = -1;
+    }
+    a.on = true;
+    a.until = now + static_cast<double>(za::max(hold, 0.f));
+    a.target = target;
+    a.grip = grip;
+    a.strength = strength;
+}
+
 void guard(State& s, const glm::vec3& threat, double now, float hold)
 {
     Guard& g = s.guard;
@@ -3592,6 +3681,10 @@ void driveFrames(DriveWork& w, State& s, const Parts& p, const Context& c)
     if(s.mode == Mode::Falling) // (still: not a climb now)
     {
         fallFrame(s, p, c, t);
+    }
+    if(s.aim.on && s.mode != Mode::Swimming)
+    {
+        aimFrame(s, p, c); // (its gun arm at its target, vr_agrunt_ragfire: under the guard)
     }
     if(s.guard.on && s.mode != Mode::Swimming)
     {

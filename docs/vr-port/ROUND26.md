@@ -6141,3 +6141,213 @@ His words: "Profile the whole frame" (what sets the Quest's frame rate, beyond Q
   hub's GPU (dynres holds 0.80: SpaceWarp or foveation are his calls); vr view setup ~1.0-1.1 ms everywhere; models
   0.6-1.8; the hub's ui/hud 1.06 ms; a worn session (his play adds the flashlight's and rig's lightmap lights:
   questopt) not reproducible unattended.
+## elite2: elites easy to spot (gold rim glow, gold-trimmed plates) and the All Elites mutator (branch agent/elite2, 2026-11-28)
+
+His words 2026-11-28 (items 15, 16): the elite colouring is not easily visible, armoured elites harder still; a glow or aura; a
+Run Setup mutator making every enemy spawn elite. Then (his addition): a gold trim on an armoured elite's plates, the tier's
+colour still clearly read.
+- **The marker** (`vr_elite_glow` 0.55, `vr_elite_glow_fill` 0.12; Tunables > Armed Humanoids > Elite): a gold fresnel rim
+  (1 - |n.v|)^2 plus a small fill, unlit (added after the model's light, before fog): an elite reads in the dark. On its body
+  and on its armour's plates and joints' leather (`agarmor::sourceOf` maps them to the wearer); the plates get the outline
+  alone (no fill: their tier's colour kept). Pulses with the dye (`vr_elite_pulse`, same phase). `humlook::eliteGlow` fills a
+  new instance vec4 `Elite` (vraliasinstance_t.elite); the term lives in `ModelRimReflect`, so an elite's instance sets the
+  rim bit (128) of `VR_AliasPlainNeeds`: no new plain-form bit, no extra pass. AD's death guard and crossbow knight now carry
+  the elite bit too (QC VR_Attr_Look: kind * 16 + 8192; no dye masks there: keyOf -1, the marker alone; dyetest skips them).
+- **The gold trim** (`vr_elite_trim` 1): make_agarmor.py paints 9 more skins (9..17: the same nine with the plates' trim, sides
+  and lower edge, a bright gold quantised with Quake's tan-gold and yellow rows, not the tier's: no green or red speckle); the
+  faces are untouched. relink draws an elite's plates with skin + 9 (the leather keeps its own). The first nine skins and the
+  relief are byte-identical; vragarmor.mdl 295 KB -> 590 KB. On red the gold reads orange-gold (the palette's limit).
+- **Cost**: per elite fragment one dot, an abs and three mads under a per-instance branch; 16 bytes more per alias instance;
+  the trim a skin swap (9 more 256x128 skins in memory). Not measured on the Quest (no headset run here), nor timed on PC.
+- **All Elites** (`allelites`, Run Setup's Enemies group and Arena Mode's screen): `vr_run_allelites.qc` through the new hook
+  `VR_Run_ForcesElite(e)` in VR_Attr_Spawned (VR_AM_Spawn's end): every armed humanoid the map, a replacement, Enemy Count or
+  Randomized Enemies spawns, and the arena's waves (its held roll, preset waves too); never the tools' (vr_agr_hold) or
+  deathmatch's. Not held by Armed Humanoids (decision: Arena Mode always has them; without them it changes nothing). Saved
+  with the run through the registry like the others.
+- **Debug**: `vr_humlook_glowtest [elites] [plates]` (Debug > Tools > Enemy Attributes > Check the Elites' Marker); the client
+  elite lines of `vr_humlook_info` print the marker.
+- **Tests**: `vr_agrunt_test 234` 4/0 (three screenshots now: plain, armoured a tier per pair, dim light; glowtest 10/0, then
+  26/0 with the plates and their skins); `vr_run_elites_check` 4/0 (e1m2: 17 of 17 armed humanoids elite, 0 of 7 others; off:
+  none; the hook's rules); vr_runsetup_test 91/0; `mp_test.py suite --only mp_elite` 10/0 (B's marker 0.45); tunables_test
+  passes. Scene: elite_marker.
+
+## ragknock: ragdolls knock living monsters down only when it convinces (branch agent/ragknock, 2026-11-28)
+
+His note (words_1128b item 1): bodies with smaller forces floored enemies too easily. The one path where a ragdoll
+(corpse, knocked-down or staggering one, thrown, swung or flung by anything) knocks a living monster over is the Thrown
+Body trigger: the engine's `callBodyHits` (vr_box3d_step.cpp) -> QC `VR_KdTrig_BodyHit` -> `VR_KdTrig_Bump`
+(vr_kdtrig.qc). (A gun or prop falling on one is the hit stagger's, vr_hitstagger.qc: not changed.)
+
+| | before | now (`vr_ragknock` 1) |
+|---|---|---|
+| meeting | the whole body's box (grown 4 u) overlapping the monster's box | only the parts whose own boxes meet it |
+| momentum | whole mass x the middle's whole speed (falling included) | meeting parts' mass x their speed into it (towards its middle, relative to its velocity) + `_body` 0.6 of the rest behind the pelvis/chest (`_limb` 0.15 behind limbs alone); a stagger's backpedal: all of it x `_driven` 1.75 |
+| when | every frame it overlaps | once a meeting: its hardest within `_wait` 0.15 s (sooner when all of it is in it or it stops striking); its speed capped at the closing speed as they met (falling on through one gains nothing); a new throw starts a new meeting |
+| floor | middle speed >= 40 u/s; strike >= `vr_kdtrig_thrown_least` 0.05 | also parts into it >= `_min_speed` 60 u/s, strike >= `_stagger` 0.35 |
+| tiers | strike 0.05..1: chance of down grows 0..full, else stagger | < 0.35 nothing; 0.35..0.9 stagger; 0.9..1.5 down at half to full chance, else stagger; >= 1.5 full chance |
+| victim | weight 80 x group resistance; weight classes | same, strike also / stance: off the ground x`_air` 0.6, a low wide box (height/width < `_low_ratio` 1.45: ogre, dog, spider) x`_low` 1.6 |
+
+Strike = momentum / (its weight x `vr_kdtrig_thrown_speed` 160), as before; the weight classes (`vr_kdtrig_weight_*`), the
+chance (`vr_kdtrig_thrown`), the push and the cooldowns keep their meaning. `vr_ragknock 0` is the old rule. Tunables
+under Combat > Ragdoll Triggers - Thrown Bodies. `vr_kdtrig_debug 2` prints the engine's measure each frame a pair meets
+(`ragknock: 47 of 84 kg meet it (trunk, driven) at 113 u/s into it, the body 120: ... as 93 u/s`).
+
+Measured (headless): a hard two-hand shove's backpedal into a grunt 1.3-1.6 (down), a corpse flung at a grunt at 380
+u/s 1.4-2.1 (a glancing one, a leg first, 0.4-0.8: a stagger), a body falling 140 units onto one 3.1, a grunt's
+ragdoll falling from its head through it: nothing, a corpse falling over beside it: nothing or 0.66 (stagger), a corpse
+at 380 u/s at an ogre 0.15-0.62 (nothing or a stagger; it is never toppled: its weight class).
+
+- Files: vr_box3d_step.cpp (`ragKnockStrike`, `callBodyHits`), vr_box3d_internal.hpp (`RagdollBodies::Meet`),
+  vr_kdtrig.qc (`VR_KdTrig_Bump`'s tiers, `VR_RagKnock_Stance`), vr_tunables*.inc (`vr_ragknock*`).
+- Test: `vr_agrunt_test 236` (QC/vr_ragknock_test.qc, map vrragtriggers): 6 cases x 3 trials, seeds 1-3 7/0 each; the
+  old rule (`tune vr_ragknock 0`) fails the light drop (1 of 3 down, 2 staggered).
+  `sv_random_seed 1;map vrragtriggers;wait30;god;vr_agrunt_test 236` -QuitOn "test 236 over".
+- Open: `vr_kdtrig_test 44` (the thrown trials) is confounded: its corpse is killed between you and the target, and the
+  kill push throws it into the target before the fling (down then, counted "stands"). Not changed.
+## dazzlestudio: the dazzle shield's pose tweaked per armed humanoid kind, one weapon and two, in an ImGui Dazzle Studio with gizmos (branch agent/dazzlestudio, 2026-11-28)
+
+His words 2026-11-28 (item 14): per-kind offsets/rotations on top of the base dazzle pose, elbow and forearm adjustments,
+how far the gun arm moves away, dual-wielding ones; an imgui studio with gizmos. Follows "flashblind" and "dazzlepose".
+- **Data** `quakevr/data/dazzle.txt` (`vr_dazzle_file`; vr_dazzledata.hpp/.cpp): per kind (grunt, enforcer, knight,
+  death knight, AD's death guard, crossbow knight) a `single` set (one weapon or none) and a `dual` set (two weapons), one
+  line a non-zero field: `hand` (the shielding grip moved: forward, left, up in its body, units), `hand_turn` (two weapons:
+  the left weapon turned in that hand, pitch yaw roll), `elbow` (added to its elbow's way '0.3 1 -0.45', normalized),
+  `twist` (degrees: the elbow turned about the shoulder-to-hand line, its forearm rolled across the face), `gun` (the gun
+  hand moved away while it shields, times the shield's share). Shipped file: the header only, all zero = the dazzlepose
+  pose exactly. `vr_dazzle_load` / `vr_dazzle_save`.
+- **The game** (QC vr_armedgrunt_dazzle.qc `VR_AGP_Shield`, through the new builtin `dazzletweak(kind, dual, field)`):
+  the hand's place = `VR_AGP_ShieldAt` + `hand` (after the bend's clamp: an offset moves it by exactly that much);
+  the pole `VR_AG_ShieldPole` (elbow + twist); the right hand's `vr_agp_v` + `gun` x share (single and dual); the dual
+  shield's weapon frame turned by `hand_turn` (`VR_AG_DazzleTurn`, makevectors, v_* kept). The server's pose: it goes out
+  in the existing pose message (`vr_agp_v`, `vr_agp_vl`, the left pole in `vr_agp_ell`): MP clients and both agpose paths
+  (QC and native, which calls the QC shield) draw it; nothing new on the wire.
+- **The single hand has no turn**: a bare hand is the arm IK's Point goal (it points along its forearm; the pose message
+  has no wrist turn, `freeOff` only applies to a hanging hand). Its look is set by the forearm's twist and the elbow;
+  `hand_turn` is the two-weapon set's only (the studio greys it out for one weapon).
+- **Dazzle Studio** (vr_dazzlestudio.hpp/.cpp; `vr_dazzlestudio [open|close|toggle|test]`; Debug > Tools, Tunables >
+  Armed Humanoids > Flashlight Dazzle): the Reload Studio's ImGui window pattern, the shared gizmo (vr_gizmo.hpp) and the
+  Armour Studio's subject spawner, now shared: QC `VR_StudioSubject(kind, ahead, wid, wid2)` (vr_armourstudio.qc;
+  `VR_ArmourStudio_Spawn` calls it, as before) and `VR_DazzleStudio_Spawn`. The subject: the kind with its own weapon
+  (shotgun, nailgun, sword, crossbow) or two revolvers (`vr_dazzlestudio_kind`, `_dual`), `_ahead` (56) units ahead, every
+  armed humanoid frozen while open (`vr_agrunt_freeze`, put back on closing), held in its shield pose by the new field
+  `.vr_ag_dazzle_hold` (`VR_AG_DazzleTick`: held at it whatever lights it; `VR_AG_ShieldDual` true for it): frozen at full
+  or Live (`_live`: rises and falls over 3 s). Right-drag turns it (`_turn`), as the Armour Studio's. Gizmo on the target
+  picked (its dot clicked, or 1 2 3): the hand sent (`vr_ag_shield_at`), the drawn elbow and the drawn gun hand
+  (`hitreact::drawnArm`); W moves, E turns (the hand, two weapons). Sliders for every field; Save, Revert, Reset This Set,
+  Copy to Other Set. Edits are live for every dazzled humanoid of that kind.
+- **Test** `vr_dazzlestudio test` (flat screen, a level loaded; Debug > Tests): 18/0. Zero data, a settled pose; a hand
+  tweak 3 -2 1 moves the hand sent by exactly that (0.0000 off); gun 0 -4 0: the gun hand 4.00 to its right; elbow 0 0 -1:
+  the elbow 2.18 lower; twist 40: the elbow 2.28 away, the hand kept; the gizmo's turn math; saved, cleared, read back;
+  cleared: the hand, elbow and gun hand as with no tweaks (within 0.001 / 0.01); two revolvers: the dual set alone moves
+  it; closed: the subject gone, vr_agrunt_freeze back. `test shots`: a screenshot per gizmo (worktree
+  scratch/dazzlestudio_hand/_gunarm/_elbow/_dual_turn.png). `vr_agrunt_test 232` 23/0 (as dazzlepose's), armourwin 17/0.
+- **Open**: the subject's pitch is not offered (the Armour Studio's right-drag pitch: the pose's body math is yaw only);
+  no undo beyond Revert; "mirrored preview" read as the live edit on the subject.
+## flatmenu3: the holster menu on TAB with the level bar, its BACK POUCH, legible pad glyphs, the off hand's wheel (branch agent/flatmenu3, 2026-11-28)
+
+His words 2026-11-28 (items 3-6 of the afternoon's flat-screen notes).
+- **Off hand's wheel** (3: "When both hands are holding the same weapon, the weapon wheel for the off-hand appears near the
+  edge of the screen"): an empty hand steadying the other hand's weapon (flat play's two-handed hold) is drawn on the gun,
+  but the game's hand hangs behind the eye, so its projection was the fallback or anywhere on the window as the look went.
+  `flatHandOnWindow` (vr_weaponwheel.cpp) now places such a hand's wheel at `restSpot` (0.33 W, 0.80 H, the right hand's
+  mirrored), measured where the left wheel opens with both hands empty at a level look; the same spot is the off-view
+  fallback (was 0.28, 0.68). Rule: that hand empty (WID_FIST), the other holding a weapon, not holding a thing.
+- **TAB** (4): `vr_flat_key_holster_menu` "mouse3 TAB LTHUMB" (both keyboard slots and the pad's); MMB keeps it (nothing
+  clashed). In flat play TAB is now a flat key (VR_FlatKeyOwned: its +showscores bind is not run); in VR, the console and
+  the menus TAB is as before. Configs are sparse since 218, so a player who never changed the key gets TAB.
+- **Level bar** (4): under the open menu, `vr_flat_holster_menu_levelbar` (1; VR Settings, under Holster Menu Size): a
+  gadget image (`gadget::renderLevelBar`, vr_gadget_holster.inc: the menu's face, frame, corner ticks, palette and font)
+  480 x 25 menu pixels at the menu's scale, at the window's bottom (2 % margin): the level's name and map (Sbar's), then
+  KILLS, SECRETS, SKILL, TIME (cl.time). Deathmatch: everyone's frags, the most first, yours lit, then TIME (the
+  scoreboard TAB showed there); the full ranking stays on `+showscores` (a pad's right stick click with its alt
+  modifier, padflat's default) and on dying. The menu is a little smaller (`vr_flat_holster_menu_size` 0.58, was 0.62)
+  and the bindings panel + menu are centred in the room above the bar; all of it is fitted to the window's height.
+- **BACK POUCH in the menu** (5): over the hands, GRENADE (left) and CLUSTER (right), each a compact slot (thumbnail, count)
+  between its L and R buttons (`pouch g l` .. `pouch c r`), "BACK POUCH" over them (`HolsterMenuView::caption`). Both kinds
+  always shown while the pouch is on (greyed with none left, lit while that kind is in a hand), so nothing moves. A press
+  is the wheel's own pick: `weaponwheel::pickPouch` (vr_wheel_pick -5 / -6, QC VR_Wheel_Grenade: take, swap the kind,
+  put back, armed refused); lit by `weaponwheel::pouchKind` (the wheel's rule, shared). Off with `vr_handgrenade` 0.
+- **Pad glyphs** (6): `padGlyph` (vr_gadget_holster.inc) draws a button glyph 1.3x its place round the same middle on a
+  dark plate, dimmed to 0.6 (the screen's glow makes whitish cores and halos from near-white strokes: the white caps'
+  black letters drowned): the bindings panel's rows (holster menu, flat wheel) and the VR wheel's controller callouts. The
+  main menu's panel (vr_menuui.cpp) draws its glyph 1.3x on a dark rounded plate (no glow there; not dimmed). Row heights,
+  advances and places unchanged.
+- **Tests**: flatholster_test 61/0 (new: the pouch's four buttons lit; R GRENADE takes one, R CLUSTER swaps it, again puts it
+  back; TAB held by vr_mock_key opens the menu, the level bar's name and KILLS, no scoreboard, the menu above the bar; let
+  go closes it); `weaponwheel_test.sh <agent> flatpos` 2/0 (new: the left wheel two-handed at 317 432 and with both hands
+  empty at 316 438 on 960 x 540). weaponwheel_test flat 21/0, flatgrenade 16/0, vr 26/0, grenade 15/0; bindpanel_test 37/0;
+  flatkeybind_test 31/0. Fixed on the way: the flat wheel test's `flatKey` sent the whole cvar ("1 LSHOULDER") to
+  vr_mock_key, which then did nothing (one key name now).
+- Screenshots for his review (worktree scratch): flatmenu3_menu_tab.png (TAB: menu, pouch, bar), flatmenu3_glyphs_before_after.png
+  (left before, right after: the holster menu's panel with an Xbox pad, the main menu's), flatmenu3_offwheel.png.
+## flatmisc3: flat holster/pouch leg-bob sliders, crouched jabs stop on the floor, his 11-28 values promoted (branch agent/flatmisc3, 2026-11-28)
+
+His words 2026-11-28, items 2, 7, 8.
+- **Holster bob (2)**: flat-screen only, `vr_flat_holster_bob_h` / `_v` (0..1, default 1 = as before; Tunables > Flatscreen >
+  Looks, "Holster Bob Horizontal / Vertical"): the share of the legs' move of the hip holsters (`onTheThigh`,
+  `vr_holster_leg_follow`) and the ammo pouch (`onBothThighs`, `vr_ammo_pouch_leg_follow`) kept, world xy and z apart
+  (vr_body.cpp `flatLegMove`); a hip holster's plate turns with the thigh by the larger of the two. With a headset: all of
+  it. The body's own bob (vr_flat_body_bob) is untouched. `vr_flat_holster_bob_report` (Debug > Debug Views: Print Holster
+  Leg Bob): how far the legs carry each now, across and up and down. Walking at 1 1: hips up to ~1.5 across, ~2 up and down;
+  the pouch ~0.2 / ~0.4.
+- **Jabs into the floor (7)**: `handOffWall` (vr_flatplay.cpp) held an empty hand off walls only (`pointWallDepth` skips
+  floors and ceilings), so a jab aimed down while crouched (to `jabThrough` past the floor) went in. A punch or a shove now
+  uses `handpose::pointSurfaceDepth` (any surface; a hand at rest still walls only): it stops on the floor
+  `vr_flat_punch_wall_margin` (-0.5) in, at once, and QC's world blow lands (`melee event: punch ... a wall`). The fist
+  ends where it stops, pulled back along its way to the shoulder (so a little off the crosshair, as at a wall).
+- **Promoted (8)**: source his `ironwail.cfg` (14:42) exec'd over the test baseline, `vr_propose_defaults` against this
+  branch's defaults, and his `tunables.cfg`.
+  - `weapons.txt` (weapons_data.py promote): spear (slot 57) and Crystal Lance (slot 55) hip / shoulder / upper holster
+    offsets (31 keys); nailgun (slot 3) `mnt_y` -1.48 -> -0.0636.
+  - `vr_agrunt_dazzle_dual` 0 -> 1 (dual wielders shield their eyes with the left gun's hand; the dazzle test sets it itself).
+  - Already defaults: `vr_flat_visor_boot_glitch` 2, `vr_agrunt_poses` (every key in `shipped[]`), `vr_agrunt_ik_stretch`.
+  - Skipped: personal (handedness, comfort, height, xr runtime, motion button, spectator/window view, notes, toolgun,
+    volume, alwaysrun, autosave list, tutorial_started, graphics/flat block: fov, gamma, contrast, crosshair, hudstyle,
+    scr_*, sensitivity, viewsize, host_maxfps, vid_borderless, vr_gore_dents, vr_flat_taa), studio/tool state
+    (armour/texture studio, grip editor), the test baseline's own (vr_backend mock, vr_fixed_frames, vr_mock_fast,
+    vr_log_flush_frames, vr_gameplayfix_*, vr_pickup_scale), the old table's prop ids 72-80 (as promote1127), float noise
+    (`att2_pitch` -0.743 / 0.757 from the version-80 conversion).
+- **Tests**: new `flatholsterbob_test.sh` 14/0 (four walks: 1 1, 0 0, 1 0, 0 1; each of lhip, rhip, pouch), new
+  `flatpunchfloor_test.sh` 6/0 (crouched, 70 down: each jab's pose 1.9 into the floor, stops 0.4 in, the world blow; level
+  jabs meet nothing); flatfists_test 21/0. Scene `flat_holster_bob`.
+## diskclean (2026-11-28)
+
+- Retired 18 checklist lines he ticked Pass (cl_retire_ticks.py, no voice notes) and removed 6 scenes nothing used any more:
+  agrunt_flashblind, armour_lineup, elite_pair, flat_proc_reload, run_setup_newgame, tutorial_ladder (agrunt_dual_guns and
+  armour_beasts kept: a QC test comment / test_numbers.txt / ARMED_MONSTERS.md still name them). checklist_tests_check 97/0.
+- Disk: moved to F:\QVR-Parked‚6-11-28\diskclean\: worktrees pcbase and unionmerge (3.3 GB, worktree prune), the kit base
+  bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
+  renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
+
+## Armed ragdolls keep firing one-handed guns: research and prototype (branch agent/ragfire, 2026-11-28)
+
+His item 17 (fb1127n). Full notes: `RAGFIRE.md`. Verdict: feasible and cheap; prototype done behind `vr_agrunt_ragfire`
+0 (VR Settings > Armed Grunts > Loadout: "Fire While Down (Experimental)"); looks need a wrist drive (about a day).
+- A staggering, downed or held armed humanoid with a shotgun, nailgun, nail pistol, revolver, burst rifle or laser rifle
+  fires at its target from its gun as it lies: its gun arm reaches towards the target (new active-ragdoll drive
+  `ragactive::Aim`, QC `ragdollaim` = `ragdollguard`'s optional grip/strength), it fires while the gun points within
+  `vr_agrunt_ragfire_cone` 60 deg, the shot turned by at most `_steer` 30 and off by `_error` 5, every `_interval` 1.6 s
+  (nails `_nail_interval` 0.6), never with its muzzle in the floor or its line blocked; `_held` 1 fires in your hands too;
+  `_aim` 0.7 the arm's strength (tunables, Debug > Tunables "Ragfire").
+- Shared shot path: `VR_AG_ShootProp`, `EnemyFireBullets`, `VR_AGR_NativeShot` take a global `vr_ag_rf_dir` (no AI aim,
+  no convergence, no drawn-line turn); off, nothing changes.
+- Measured: a lying ragdoll's gun stays 36-59 deg off the player with the arm reach on (limp wrist, arm on the floor); a
+  shotgun lying muzzle down holds every shot (blocked). Next: drive the hand bone, then cut the steer to ~10 deg.
+- Test `vr_agrunt_test 237` (vr_armedgrunt_ragfire_test.qc): 5/0. Scene `agrunt_ragfire`.
+## blcheck: BACKLOG items checked against the code and ROUND26 (branch agent/blcheck, 2026-11-28)
+
+Every open BACKLOG.md bullet (about 79) read against ROUND26/ROUND25 sections and the code (greps; no tests run: docs only).
+Counts: closed 1 (a sub-item), trimmed 5, kept the rest (about 73), added 3.
+
+- **Closed:** the flat `weaponwheel_test` failure (section 1): flatmenu3 ran weaponwheel_test flat 21/0 (the wheel's tap cycle).
+- **Trimmed to what is left:** section 1 hip1m1 (QuakeC profiled and cut: questopt2, qcnative, aglod, qcbuiltins, qcvm; the unworn
+  headset's pauses explained by questopt2; left: props' think native port, agpose, limbpiece, navsteer); section 3 procedural
+  reloads (reloadsys, reloadmags, reloadmuzzle did the super shotgun, magazine guns, nailguns, launchers, heavy revolver); section 6
+  AD humanoids (adknights armed the death guard and crossbow knight and their worn packs; his look and the other AD kinds left);
+  section 8 the dagger's flight (its Dagger Settling tunables shipped in ROUND25; values and refinement left); section 1's toolgun
+  panel line (its sibling fixed).
+- **Checked, still open:** agent/split is not in origin/next; `vr_physsound.cpp` still has its surface-hold copy (line ~403);
+  `vr_main.cpp` still registers many test commands; flat left-handed mode has no mirrored `routeFire`; the ammomags work is not
+  in yet ("Ammo type follows the loaded magazine" stays).
+- **Added (section 11):** mixed ammo loads in launchers (placeholder for the ammomags worker), `vr_menu_pad_test` hang on agent/split,
+  the unused scenes `agrunt_dual_guns` and `armour_beasts`.

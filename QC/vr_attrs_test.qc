@@ -12,11 +12,15 @@
 // `vr_agrunt_test 234` (his review): an ordinary and an elite grunt (rocket launcher), enforcer (lightning gun), knight
 //   and death knight (sword) in a row ahead, unarmoured, held still (the script's vr_agrunt_freeze 1); after VR_ATL_SHOT
 //   frames a screenshot and `vr_humlook_dyetest 4` (each elite's clothes as drawn, warmer than its stock skin: its own
-//   verdict line `humlook dyetest: P passed, F failed`); ends the same way (test 234 over).
+//   verdict line `humlook dyetest: P passed, F failed`) and `vr_humlook_glowtest 4 0` (the elite marker: each elite's
+//   instance lit, the others' dark); then all armoured (red, every piece): a second screenshot and the glow test with
+//   each elite's plates lit; then the hall's light dimmed (lightstyle 0 "b"): a third screenshot (elite2: plain,
+//   armoured, dim, for his review); ends the same way (test 234 over).
 // VR_Attr_TestOne: the toolgun's elite test's look at each spawn (vr_toolgun.cpp vr_toolgun_armed_elite_test).
 
 float VR_ATL_SHOT = 40; // frames before test 234's screenshot (their spawns' starts, their idle poses)
 float VR_ATL_COUNT = 8; // the lineup: an ordinary and an elite of each armed kind
+float VR_ATL_ARMOUR = 30; // frames from a phase's change (armoured, dim) to its screenshot (the plates made and drawn, the light)
 float vr_atl_frames;
 float vr_att_dist; // VR_ATT_Spawn's distance ahead (0: 160) (the lineup's further: all eight in view)
 entity vr_atl_ents[8];
@@ -221,13 +225,16 @@ void() VR_ATL_Frame =
         VR_AGT_Print("elite lineup: ordinary and elite grunt (rockets), enforcer (lightning), knight and death knight (sword), left to right");
     }
     vr_atl_frames = vr_atl_frames + 1;
+    float glowFails;
     if(vr_atl_frames == VR_ATL_SHOT)
     {
         localcmd("screenshot\n");
         cvar_set("vr_test_humlook_dye", "-1");
+        cvar_set("vr_test_humlook_glow", "-1");
         localcmd(sprintf("vr_humlook_dyetest %g\n", VR_ATL_COUNT / 2)); // (each elite's clothes as drawn: its failures into vr_test_humlook_dye)
+        localcmd(sprintf("vr_humlook_glowtest %g 0\n", VR_ATL_COUNT / 2)); // (the elite marker: each elite lit, the rest dark)
     }
-    if(vr_atl_frames >= VR_ATL_SHOT + 4)
+    if(vr_atl_frames == VR_ATL_SHOT + 4)
     {
         float made = 0;
         float bare = 0;
@@ -235,14 +242,47 @@ void() VR_ATL_Frame =
         {
             made = made + (vr_atl_ents[i] != world && ((vr_atl_ents[i].vr_hum_look & VR_HUM_LOOK_ELITE) != 0) == (i & 1));
             bare = bare + (vr_atl_ents[i] != world && vr_atl_ents[i].vr_ar_mask == 0);
-            VR_AGT_Remove(vr_atl_ents[i]);
-            vr_atl_ents[i] = world;
         }
         VR_AGT_Check(sprintf("elite lineup: %g of %g as they should be (every second one an elite), %g unarmoured, the screenshot taken",
             made, VR_ATL_COUNT, bare), made == VR_ATL_COUNT && bare == VR_ATL_COUNT);
         float dyeFails = cvar_hget(cvarh_vr_test_humlook_dye);
         VR_AGT_Check(sprintf("elite lineup: every elite's clothes drawn gold (vr_humlook_dyetest: %g failed; -1 not run)", dyeFails),
             dyeFails == 0);
+        glowFails = cvar_hget(cvarh_vr_test_humlook_glow);
+        VR_AGT_Check(sprintf("elite lineup: the marker on every elite, none on the others (vr_humlook_glowtest: %g failed; -1 not run)",
+            glowFails), glowFails == 0);
+        // (elite2: now armoured all over, each pair its tier: green, yellow, red, green; the elites' plates with the gold trim,
+        // their faces the tier's colour, the marker on them too)
+        for(i = 0; i < VR_ATL_COUNT; i++)
+        {
+            VR_AgArmor_Give(vr_atl_ents[i], 1 + (floor(i / 2) - 3 * floor(floor(i / 2) / 3)), 1023);
+        }
+    }
+    if(vr_atl_frames == VR_ATL_SHOT + VR_ATL_ARMOUR)
+    {
+        localcmd("screenshot\n");
+        cvar_set("vr_test_humlook_glow", "-1");
+        localcmd(sprintf("vr_humlook_glowtest %g %g\n", VR_ATL_COUNT / 2, VR_ATL_COUNT / 2)); // (each elite's plates lit too)
+    }
+    if(vr_atl_frames == VR_ATL_SHOT + VR_ATL_ARMOUR + 4)
+    {
+        glowFails = cvar_hget(cvarh_vr_test_humlook_glow);
+        VR_AGT_Check(sprintf("elite lineup, armoured: the marker on every elite's body and plates, none on the others' (%g failed)",
+            glowFails), glowFails == 0);
+        lightstyle(0, "b"); // (dim light: the hall's lights nearly out)
+    }
+    if(vr_atl_frames == VR_ATL_SHOT + VR_ATL_ARMOUR * 2)
+    {
+        localcmd("screenshot\n");
+    }
+    if(vr_atl_frames >= VR_ATL_SHOT + VR_ATL_ARMOUR * 2 + 2)
+    {
+        lightstyle(0, "m");
+        for(i = 0; i < VR_ATL_COUNT; i++)
+        {
+            VR_AGT_Remove(vr_atl_ents[i]);
+            vr_atl_ents[i] = world;
+        }
         vr_atl_frames = 0;
         cvar_set("vr_agrunt_test", "0");
     }
