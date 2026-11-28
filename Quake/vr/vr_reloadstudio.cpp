@@ -568,8 +568,8 @@ void drawWindow()
     }
     if(shown)
     {
-        const char* guns[8];
-        const int n = za::min(reloadsys::count(), 8);
+        const char* guns[16];
+        const int n = za::min(reloadsys::count(), 16);
         for(int i = 0; i < n; i++)
         {
             guns[i] = reloadsys::at(i).gun;
@@ -582,7 +582,11 @@ void drawWindow()
         ImGui::SameLine();
         if(ImGui::Button("Hold This Gun"))
         {
-            Cbuf_AddText(cur().weapon == WID_SUPER_SHOTGUN ? "impulse 155\n" : "impulse 154\n");
+            // (impulse 150 + its id: loaded, in the main hand; past 19, the nail pistol: vr_test_give_wid and impulse 149)
+            char give[64];
+            q_snprintf(give, sizeof(give), cur().weapon < 20 ? "impulse %d\n" : "vr_test_give_wid %d; impulse 149\n",
+                cur().weapon < 20 ? 150 + cur().weapon : cur().weapon);
+            Cbuf_AddText(give);
         }
         ImGui::SameLine();
         const bool unsaved = reloadsys::revision() != reloadsys::savedRevision();
@@ -750,6 +754,24 @@ void testFrame()
                 const Reload* ssg = reloadsys::forWeapon(WID_SUPER_SHOTGUN);
                 t.check(ssg && reloadsys::takeKey(*ssg) >= 0 && reloadsys::insertKey(*ssg) > reloadsys::takeKey(*ssg), testName,
                     "the super shotgun's reload: a take and an insert");
+                // reloadmags: the magazine guns listed, each a magazine to its receiver, its eject before its take.
+                for(const int w : {WID_NAILGUN, WID_SUPER_NAILGUN, WID_LIGHTNING, WID_NAILPISTOL})
+                {
+                    bool listed = false;
+                    for(int i = 0; i < reloadsys::count(); i++)
+                    {
+                        listed = listed || reloadsys::at(i).weapon == w;
+                    }
+                    const Reload* mr = reloadsys::forWeapon(w);
+                    int eject = -1;
+                    for(int i = 0; mr && i < mr->keyCount; i++)
+                    {
+                        eject = eject < 0 && mr->keys[i].action == reloadsys::Action::Eject ? i : eject;
+                    }
+                    t.check(listed && mr && mr->item == reloadsys::Item::Magazine && mr->dest == reloadsys::Dest::Receiver && eject >= 0 &&
+                                eject < reloadsys::takeKey(*mr) && reloadsys::insertKey(*mr) > reloadsys::takeKey(*mr),
+                        testName, mr ? mr->gun : "a magazine gun (none)");
+                }
                 next();
             }
             break;
