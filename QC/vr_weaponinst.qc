@@ -212,19 +212,34 @@ entity(entity e, float xHand) VRGetEntWeaponInst =
 // none), part of its record so it goes with the weapon everywhere (hands, holsters, props, saves; a level change: parm77).
 .float wi_attach;
 float VR_ATT_BAYONET = 1;
+float VR_ATT_DAGGER = 2; // the player's dagger put on as a bayonet (daggerattach; vr_attach_daggers)
+// A dagger on the gun (VR_ATT_DAGGER): its own record, kept while it is on (the engine's sweep counts this reference), so
+// taken off it is the same dagger (its id, its heat, its blood). world: a fresh one when it comes off (one carried across a
+// level change, a quick slot's copy).
+.entity wi_attach_inst;
 // The attachment on the record `xInst`'s weapon, and on the weapon in `xHand` of `p`.
 float(entity xInst) VR_Attach_Of = { return xInst != world ? xInst.wi_attach : 0; };
 float(entity p, float xHand) VR_Attach_Hand = { return VR_Attach_Of(VRGetEntWeaponInst(p, xHand)); };
+// Whether attachment `xKind` strikes as a blade (the bayonet, the dagger): the gun stabs, sticks by its point.
+float(float xKind) VR_Attach_Strikes = { return xKind == VR_ATT_BAYONET || xKind == VR_ATT_DAGGER; };
+// The weapons.txt key that says attachment `xKind` fits a weapon.
+string(float xKind) VR_Attach_OkKey = { return xKind == VR_ATT_DAGGER ? "att2_ok" : "att1_ok"; };
+// Whether the record `xInst`'s attachment is a blade on the weapon drawn with `xModel`, which it fits.
+float(string xModel, entity xInst) VR_Attach_BladeOn =
+{
+    float k = VR_Attach_Of(xInst);
+    return VR_Attach_Strikes(k) && weaponvalue(xModel, VR_Attach_OkKey(k)) > 0;
+};
 // How the weapon drawn with `xModel` whose record is `xInst` sticks (weapons.txt embed: 0 not, 1 by its point, 2 by its
-// edge): a bayonet on a gun it fits makes it a point (the engine's vr_axestick.cpp attachBlade: the bayonet's tip).
+// edge): a bayonet (or a dagger) on a gun it fits makes it a point (the engine's vr_axestick.cpp attachBlade: its tip).
 float(string xModel, entity xInst) VR_Attach_Embed =
 {
-    return (VR_Attach_Of(xInst) == VR_ATT_BAYONET && weaponvalue(xModel, "att1_ok") > 0) ? 1 : weaponvalue(xModel, "embed");
+    return VR_Attach_BladeOn(xModel, xInst) ? 1 : weaponvalue(xModel, "embed");
 };
 // Whether it fires where it is stuck (weapons.txt embed_fire; a gun with a bayonet: yes, it is a gun).
 float(string xModel, entity xInst) VR_Attach_EmbedFire =
 {
-    return (VR_Attach_Of(xInst) == VR_ATT_BAYONET && weaponvalue(xModel, "att1_ok") > 0) ? 1 : weaponvalue(xModel, "embed_fire");
+    return VR_Attach_BladeOn(xModel, xInst) ? 1 : weaponvalue(xModel, "embed_fire");
 };
 void(entity p) VR_Attach_Frame;      // (vr_attach.qc)
 void(entity p) VR_Attach_Key;

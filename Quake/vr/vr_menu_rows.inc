@@ -951,8 +951,11 @@ QVR_TOGGLE(vr_agrunt_repl_variants, "AD and Quoth Variants",
     "soldiers as grunts, defenders, eliminators, pyros and fumigators as enforcers, crossbow knights as knights, with "
     "their health (where replacements play in AD's maps; vr_agrunt_repl_variants).")
 QVR_TOGGLE(vr_agrunt_repl_crossbow, "AD Crossbow Knights",
-    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed knights holding the crossbow too. Off "
-    "(the default for now): they stay as AD made them (vr_agrunt_repl_crossbow).")
+    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed humanoids in their own look holding "
+    "the crossbow: they can be disarmed and take up any weapon. Off: they stay as AD made them (vr_agrunt_repl_crossbow).")
+QVR_TOGGLE(vr_agrunt_repl_dguard, "AD Death Guards",
+    "With AD and Quoth Variants on, Arcane Dimensions' death guards are armed humanoids in their own look holding their "
+    "sword: they can be disarmed and take up any weapon. Off: they stay as AD made them (vr_agrunt_repl_dguard).")
 QVR_TOGGLE(vr_humlook, "Recolour by Weapon",
     "Armed humanoids wear the colour of the weapon they came with: rockets and grenades red, lightning and plasma blue, "
     "flamethrowers orange, poison green; their backpacks too (quakevr/humlook.txt; vr_humlook).")
@@ -1562,6 +1565,10 @@ QVR_SLIDER(vr_snd_falloff, "Distance Falloff", 0.f, 2.f, 0.05f, "%.2fx", noExt,
 QVR_SLIDER(vr_snd_reverb, "Room Reverb", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 2.f),
     "The reverb of the space around your head, simulated from the map (a small room rings short, a big hall "
     "long): how loud. 0 off.")
+QVR_SLIDER(vr_snd_reverb_own, "Your Sounds' Reverb", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
+    "How much of your own gun's and hands' sounds (from your hand, a step from your ears) goes into the room's "
+    "reverb, against any other sound's: 1 the same; 0.25 (the default) your shot's crack stays over the room's "
+    "wash instead of muffled under it.")
 QVR_CYCLE(vr_snd_reverb_quality, "Reverb Quality",
     "Low: a reverb driven by the simulated decay times (cheapest, no echoes). Medium: the simulated response "
     "itself (2 s). High: 3 s from twice the rays.",
@@ -3278,6 +3285,12 @@ QVR_TOGGLE_BYNAME(vr_revolver_eject_rod, "Ejector Rod",
     "Out, the other hand pushing the ejector rod's head (in front of the cylinder) back drops them.")
 QVR_SLIDER_BYNAME(vr_revolver_eject_rod_reach, "Ejector Rod Reach", 0.f, 8.f, 0.25f, "%.2f units", ext(0.f, 40.f), "How near its head the other hand must be.")
 QVR_SLIDER_BYNAME(vr_revolver_eject_rod_speed, "Ejector Rod Push", 0.f, 3.f, 0.05f, "%.2f m/s", ext(0.f, 10.f), "How fast it must push back along the cylinder.")
+QVR_TOGGLE_BYNAME(vr_revolver_spent_first, "Spent Shells First",
+    "Out, the eject (B/Y, the hand's push or the ejector rod) drops only the spent shells while any are in it; eject "
+    "again to drop the live ones too. Off: all of them at once.")
+QVR_TOGGLE_BYNAME(vr_revolver_shell_pairs, "Slug Pairs",
+    "The pouch gives two slugs taped together, as the shotgun's pair: both go into two empty chambers at once (one, "
+    "the other kept in your hand, if only one chamber is empty). Off: one at a time.")
 QVR_TOGGLE_BYNAME(vr_revolver_spin, "Spin by Hand",
     "Out, the other hand swiping across the cylinder spins it: it slows and stops on a chamber, which changes "
     "which chamber comes under the hammer next.")
@@ -4829,8 +4842,12 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
 QVR_CYCLE(vr_xr_foveation, "Quest Foveation",
     "Quest standalone: the headset draws the edges of each eye's view, which the lenses blur anyway, at a lower "
     "resolution (fixed foveated rendering): faster, near-invisible through the lenses. Higher levels blur more of "
-    "the edges.",
-    {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"})
+    "the edges. High (Top) is the most aggressive: High with more of the top of the view (sky, ceilings) blurred "
+    "and the lower middle, where you mostly look, kept sharp.",
+    {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "High (Top)"})
+QVR_SLIDER(vr_xr_foveation_offset, "Quest Foveation: Shift", -30.f, 30.f, 5.f, "%+.0f deg", noExt,
+    "Moves Quest Foveation's pattern vertically by this many degrees (the headset's own setting). On a Quest 3, +30 "
+    "was faster in a fight and -15 slower on the hub; 0 (centred) is the safe choice. Changing it can blink the view.")
 QVR_TOGGLE(vr_xr_spacewarp, "SpaceWarp",
     "Quest standalone: the game draws every other frame and the headset makes up the ones between from the motion "
     "of what it drew (Application SpaceWarp): twice the time for each frame, smoother in big fights. Moving things "
@@ -6398,6 +6415,11 @@ QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
     "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
     "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "
     "The same picture, fewer draws.")
+QVR_TOGGLE(vr_gl_world_lit_reuse, "Fast Lit Textures' Walk (Quest)",
+    "vr_gl_world_lit_reuse: with Skip Empty Lit Commands, the walk that finds the textures a reaching light touches "
+    "looks only at the leaves round each light (a grid made at the map's load) and its answer is given again while "
+    "the view's leaves and the lights stay the same (the second eye: On), or walks every leaf for each view (Off, the "
+    "A/B). The same picture, less CPU. vr_gl_world_lit_stats counts the walks (2: both walks, compared).")
 QVR_TOGGLE(vr_gl_quake_dlights, "Quake-Style Dynamic Lights (Quest)",
     "vr_gl_quake_dlights: under the ES profile (the Quest), the dynamic lights as Quake added them, once a frame: on "
     "the world summed into a texture at the lightmap's 16-unit grid, on your body added to its light as one colour "
@@ -7106,6 +7128,9 @@ QVR_SLIDER(vr_flat_flycam_accel, "Fly Camera Acceleration", 0.f, 8000.f, 100.f, 
     "How quickly the fly camera speeds up and brakes, units a second each second; 0 at once (vr_flat_flycam_accel).")
 QVR_SLIDER(vr_flat_flycam_fast, "Fly Camera Shift Speed", 1.f, 10.f, 0.5f, "x%.1f", noExt,
     "The fly camera's speed with Shift held, times its speed (vr_flat_flycam_fast).")
+QVR_TOGGLE(vr_flat_attach_debug, "Flatscreen Attach Print",
+    "vr_flat_attach_debug: the flat-screen Attach key's (J) hand trip printed step by step (the press and what it will do, "
+    "the impulse as the hand gets to the gun, the slide, the hand back, a cancel and why).")
 QVR_TOGGLE(vr_flat_reload_debug, "Flatscreen Reload Print",
     "vr_flat_reload_debug: the flat-screen reload's drawn trip printed step by step (R, the trip's start, the hand at the hip "
     "with its distance and pitch, the hand back); with developer 1 the game's own steps too (flat reload: ...).")

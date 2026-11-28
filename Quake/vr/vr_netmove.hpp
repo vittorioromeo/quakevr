@@ -72,6 +72,7 @@ void clientClear();
 // The moves sent on this connection the server has not acknowledged (the harness's lockstep: vr_mp_lockstep_ahead).
 [[nodiscard]] za::U32 clientPending();
 [[nodiscard]] za::U32 clientSent(); // the moves sent since clientClear
+[[nodiscard]] int clientPeakBytes(); // (mpoverflow) the largest QVR_CLC_MOVES written (vr_net_stats)
 
 // Server: QVR_CLC_MOVES's body from client slot `slot`; `apply` runs each move it has not run yet, in order. False: a
 // malformed message (the client dropped).

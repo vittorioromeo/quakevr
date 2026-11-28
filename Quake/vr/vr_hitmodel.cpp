@@ -4,6 +4,7 @@
 #include "vr_tracy.h"
 #include "vr_hitmodel_internal.hpp"
 #include "vr_ad.hpp" // AD support: small pellets retain precise model/corpse impacts.
+#include "vr_animsmooth.hpp"
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_box3d.hpp"
@@ -24,6 +25,7 @@
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_region_shared.h"
+#include "vr_render.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
@@ -431,10 +433,124 @@ void refit(const Mesh& m, const glm::vec3* pos, const glm::vec3* nor, za::Vector
     return t->nodes.data();
 }
 
+// The entity's own scale as drawn: QC's `scale` (as the network carries it) times a prop's Size; not its model's.
+float entityScale(edict_t* ent)
+{
+    float es = 1.f;
+    if(const eval_t* val = GetEdictFieldValue(ent, qcvm->extfields.scale); val && val->_float)
+    {
+        es = ENTSCALE_DECODE(ENTSCALE_ENCODE(val->_float));
+    }
+    return es * props::drawnSize(modelOf(ent)); // a prop's Size (Held Object Offsets)
+}
+
+// The drawn shapes (vr_hitmodel_drawn; shapeOf): each entity's last, in the world, kept while its lerp, place and time are
+// the same (a frame's shots, blows and armour queries share one; lag compensation's rewound pose is another).
+struct ShapeKey
+{
+    const Mesh* mesh{nullptr};
+    double time{-1.};
+    int frame{-1};
+    int pose0{-1}, pose1{0}, pose2{0};
+    float blend{0.f}, span0{0.f}, span1{0.f};
+    glm::mat3 A{1.f};
+    glm::vec3 b{0.f};
+    [[nodiscard]] bool operator==(const ShapeKey& o) const
+    {
+        return mesh == o.mesh && time == o.time && frame == o.frame && pose0 == o.pose0 && pose1 == o.pose1 && pose2 == o.pose2 &&
+               blend == o.blend && span0 == o.span0 && span1 == o.span1 && A == o.A && b == o.b;
+    }
+};
+struct Shape
+{
+    ShapeKey key;
+    bool drawn{false};         // false: Quake's blend now (no spline, no rebuild): the bytes' lerp
+    za::U32 build{0};
+    za::Vector<glm::vec3> pos, nor; // world: the vertices and their normals (the posed triangles', area-weighted)
+};
+[[nodiscard]] za::SizeT heldBytes(const Shape& x) // (vr_mem.hpp)
+{
+    return mem::heldBytes(x.pos) + mem::heldBytes(x.nor);
+}
+struct Shapes
+{
+    za::Vector<Shape> byNum;
+    za::U32 builds{0};
+    auto members() { return mem::list(byNum, builds); }
+};
+mem::Cache<Shapes> shapes{"hit model drawn shapes", mem::MapChange | mem::ModelReload}; // seat-shared: the drawn shapes by entity number (model data)
+
+// d (drawnOf's lerp of the bytes) as the renderer draws it: its vertices from animsmooth::serverPoints, carried as a
+// skinned body (`shaped`) so the hierarchy is refit to them once a making (skinBoundsOf). Quake's blend now: d unchanged.
+void shapeOf(edict_t* ent, Drawn& d)
+{
+    const int num = d.num;
+    if(num <= 0 || d.mesh->numverts <= 0)
+    {
+        return;
+    }
+    za::Vector<Shape>& all = shapes.byNum;
+    if(all.size() <= static_cast<za::SizeT>(num))
+    {
+        all.resize(static_cast<za::SizeT>(num) + 1);
+    }
+    Shape& s = all[static_cast<za::SizeT>(num)];
+    const ShapeKey key{d.mesh, poseNow(), host_framecount, d.pose0, d.pose1, d.pose2, d.blend, d.span0, d.span1, d.A, d.b};
+    if(!(s.key == key))
+    {
+        QVR_TRACY_SCOPE(zoneShape, "hit model: drawn shape");
+        const double t0 = Sys_DoubleTime();
+        s.key = key;
+        const za::SizeT nv = static_cast<za::SizeT>(d.mesh->numverts);
+        s.pos.resize(nv);
+        animsmooth::ServerLerp l;
+        l.pose0 = d.pose0;
+        l.pose1 = d.pose1;
+        l.pose2 = d.pose2;
+        l.blend = d.blend;
+        l.span0 = d.span0;
+        l.span1 = d.span1;
+        s.drawn = animsmooth::serverPoints(const_cast<qmodel_t*>(modelOf(ent)), l, s.pos.data(), d.mesh->numverts);
+        if(s.drawn)
+        {
+            for(glm::vec3& p : s.pos)
+            {
+                p = d.A * p + d.b;
+            }
+            s.nor.assign(nv, glm::vec3{0.f});
+            for(const auto& t : d.mesh->tris)
+            {
+                const glm::vec3 n = glm::cross(s.pos[t[1]] - s.pos[t[0]], s.pos[t[2]] - s.pos[t[0]]) * d.mesh->winding;
+                s.nor[t[0]] += n;
+                s.nor[t[1]] += n;
+                s.nor[t[2]] += n;
+            }
+            for(glm::vec3& n : s.nor)
+            {
+                const float len = glm::length(n);
+                n = len > 1e-9f ? n / len : glm::vec3{0.f, 0.f, 1.f};
+            }
+            shapes.builds = (shapes.builds + 1u) & 0x7fffffffu;
+            s.build = 0x80000000u | shapes.builds; // (never an armed body's making: skinBoundsOf keeps one an entity)
+        }
+        stats.shapes++;
+        stats.shapesDrawn += s.drawn ? 1 : 0;
+        stats.shapeNs += (Sys_DoubleTime() - t0) * 1e9;
+    }
+    if(!s.drawn)
+    {
+        return;
+    }
+    d.skinned = s.pos.data();
+    d.skinnedN = s.nor.data();
+    d.build = vr_hitmodel_skin_keep.value != 0.f ? s.build : 0u;
+    d.shaped = true;
+}
+
 } // namespace
 namespace detail
 {
-bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
+bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn, bool shape)
 {
     const int index = static_cast<int>(ent->v.modelindex);
     d.mesh = meshOf(index, modelOf(ent), d.hdr);
@@ -457,6 +573,9 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
             const bool lerpModels = r_lerpmodels.value && !((model->flags & MOD_NOLERP) && r_lerpmodels.value != 2);
             d.pose1 = t.prevPose;
             d.pose2 = t.pose;
+            d.pose0 = t.pose0;
+            d.span0 = t.span0;
+            d.span1 = t.poseDur;
             d.blend = lerpModels ? za::clamp(static_cast<float>(now - t.poseStart) / za::max(t.poseDur, 1e-3f), 0.f, 1.f) : 1.f;
             if(t.step && r_lerpmove.value)
             {
@@ -488,12 +607,7 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
     const glm::vec3 ns = glm::vec3{1.f} + fieldVec(ent, f.model_scale);
     const glm::vec3 so = fieldVec(ent, f.model_scale_origin);
     const glm::vec3 off = fieldVec(ent, f.model_offset);
-    float es = 1.f;
-    if(const eval_t* val = GetEdictFieldValue(ent, qcvm->extfields.scale); val && val->_float)
-    {
-        es = ENTSCALE_DECODE(ENTSCALE_ENCODE(val->_float));
-    }
-    es *= props::drawnSize(modelOf(ent)); // a prop's Size (Held Object Offsets)
+    const float es = entityScale(ent);
     const glm::vec3 hs{d.hdr->scale[0], d.hdr->scale[1], d.hdr->scale[2]};
     const glm::vec3 ho{d.hdr->scale_origin[0], d.hdr->scale_origin[1], d.hdr->scale_origin[2]};
     d.L = es * ns * hs;
@@ -537,9 +651,8 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
             d.pose2 = d.pose1;
             d.blend = 0.f;
         }
-        return true;
     }
-    if(ragdoll::skinnedView(NUM_FOR_EDICT(ent), skinPos, skinNor, skinCount, skinBuild) &&
+    else if(ragdoll::skinnedView(NUM_FOR_EDICT(ent), skinPos, skinNor, skinCount, skinBuild) &&
         skinCount >= static_cast<za::SizeT>(d.mesh->numverts))
     {
         d.skinned = skinPos;
@@ -560,6 +673,12 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
         d.build = skinBuild;
         d.pose2 = d.pose1;
         d.blend = 0.f;
+    }
+    // Any other body: its lerp as the renderer draws it (the spline, the skeleton rebuild), not the stored bytes' blend:
+    // a shot at the drawn arm meets that arm, the armour's pieces and debris start where drawn (ROUND26.md "drawnhits")
+    if(!d.skinned && asDrawn && shape && !checkNoLerp && vr_hitmodel_drawn.value != 0.f)
+    {
+        shapeOf(ent, d);
     }
     return true;
 }
@@ -1238,12 +1357,95 @@ bool vertexPoint(edict_t* ent, int vert, glm::vec3& point)
     return true;
 }
 
+float drawnScale(edict_t* ent)
+{
+    using namespace progs;
+    const glm::vec3 ns = glm::vec3{1.f} + fieldVec(ent, fields().model_scale);
+    return entityScale(ent) * (ns.x + ns.y + ns.z) / 3.f;
+}
+
 bool drawnVertexPoints(edict_t* ent, const int* verts, int n, glm::vec3* out)
 {
     Drawn d;
     if(!drawnOf(ent, d))
     {
         return false;
+    }
+    const Verts vs = vertsOf(d);
+    for(int i = 0; i < n; i++)
+    {
+        if(verts[i] < 0 || verts[i] >= d.mesh->numverts)
+        {
+            return false;
+        }
+        out[i] = vs.at(d, verts[i], 0.f);
+    }
+    return true;
+}
+
+bool detail::relerp(Drawn& d, const DrawnLerp& lerp)
+{
+    if(d.skinned && !d.shaped)
+    {
+        return true; // (a ragdoll's parts, an armed humanoid's skinned body: drawn as the hit model has them)
+    }
+    d.skinned = d.skinnedN = nullptr; // (the server's drawn shape: another lerp now)
+    d.shaped = false;
+    d.build = 0u;
+    if(lerp.pose1 < 0 || lerp.pose2 < 0 || lerp.pose1 >= d.hdr->numposes || lerp.pose2 >= d.hdr->numposes)
+    {
+        return false;
+    }
+    d.pose1 = lerp.pose1;
+    d.pose2 = lerp.pose2;
+    d.blend = lerp.blend;
+    d.origin = lerp.origin;
+    d.angles = lerp.angles;
+    d.R = held::axesFromAngles(&d.angles[0], false);
+    d.A = d.R * glm::mat3{glm::vec3{d.L.x, 0.f, 0.f}, glm::vec3{0.f, d.L.y, 0.f}, glm::vec3{0.f, 0.f, d.L.z}};
+    if(za::fabs(glm::determinant(d.A)) < 1e-9f)
+    {
+        return false;
+    }
+    d.Ainv = glm::inverse(d.A);
+    d.b = d.origin + d.R * d.l;
+    return true;
+}
+
+bool clientLerp(entity_t* e, DrawnLerp& out)
+{
+    if(!e || !e->model || e->model->type != mod_alias)
+    {
+        return false;
+    }
+    VR_AliasLerpNow(e, &out.pose1, &out.pose2, &out.blend);
+    if(out.pose1 == out.pose2)
+    {
+        out.blend = 0.f; // (as R_AliasTransform)
+    }
+    render::drawnPlace(*e, out.origin, out.angles);
+    out.entity = e;
+    return true;
+}
+
+bool drawnVertexPoints(edict_t* ent, const DrawnLerp& lerp, const int* verts, int n, glm::vec3* out)
+{
+    Drawn d;
+    if(!drawnOf(ent, d, true, false) || !relerp(d, lerp))
+    {
+        return false;
+    }
+    // The vertices as the shader draws them (the spline, the swing, the rebuild: the renderer's own rows), when the client
+    // entity is drawn with this model (a listen server's: the same model, the same header)
+    if(!d.skinned && lerp.entity && vr_armour_on_drawn.value != 0.f && lerp.entity->model &&
+        Mod_Extradata(lerp.entity->model) == static_cast<const void*>(d.hdr) &&
+        animsmooth::drawnPoints(lerp.entity, lerp.pose1, lerp.pose2, lerp.blend, verts, n, out))
+    {
+        for(int i = 0; i < n; i++)
+        {
+            out[i] = d.A * out[i] + d.b;
+        }
+        return true;
     }
     const Verts vs = vertsOf(d);
     for(int i = 0; i < n; i++)
@@ -1471,8 +1673,9 @@ void serverFrame()
         float interval = 0.f;
         const int pose = poseAt(hdr, ent->v.frame, now, &interval);
         const glm::vec3 origin = vec(ent->v.origin), angles = vec(ent->v.angles);
-        // The client's lerp time: a framegroup's interval; else the think's (U_LERPFINISH), or 0.1 s.
-        const float lerpTime = ent->sendinterval ? za::max(0.01f, static_cast<float>(ent->v.nextthink - ent->oldthinktime)) : 0.1f;
+        // The client's lerp time: a framegroup's interval; else to its next think (U_LERPFINISH: the time left to it, as the
+        // message says; a think begun out of turn, a pain's, ends its lerp there too), or 0.1 s.
+        const float lerpTime = ent->sendinterval ? za::max(0.01f, static_cast<float>(ent->v.nextthink - now)) : 0.1f;
         if(t.model != model || t.seen < now - 0.25 || t.seen < ent->freetime)
         {
             t = Track{};
@@ -1485,6 +1688,13 @@ void serverFrame()
         {
             if(pose != t.pose)
             {
+                // The lerp ending here is the next one's history if it ran about its time (R_AnimHistoryPush): the drawn
+                // shape's spline key before (shapeOf)
+                const float since = static_cast<float>(now - t.poseStart);
+                const bool history = t.poseStart > 0. && since >= t.poseDur * 0.5f && since <= t.poseDur * 1.6f + 0.02f &&
+                                     t.prevPose != t.pose;
+                t.pose0 = history ? t.prevPose : -1;
+                t.span0 = history ? since : 0.f;
                 t.prevPose = t.pose;
                 t.pose = pose;
                 t.poseStart = now;
@@ -1492,12 +1702,24 @@ void serverFrame()
             }
             if(origin != t.origin || angles != t.angles)
             {
-                t.prevOrigin = t.origin; // (the client lerps a step of any length: a dog's 64-unit bound, a 70-degree turn)
-                t.prevAngles = t.angles;
+                // (the client lerps a step of any length: a dog's 64-unit bound, a 70-degree turn) From where it is drawn
+                // now (R_MoveLerpStart, vr_monster_lerp_continue), over the frame when it moves every frame (in the air:
+                // U_QVR_MOVEFRAME, VR_StepMovesEveryFrame), else to its next think: the renderer's rule, so the armour
+                // placed from this model keeps to the drawn body (ROUND26.md, "doglerp").
+                const float mb = vr_monster_lerp_continue.value != 0.f && t.moveStart > 0.
+                                     ? za::clamp(static_cast<float>(now - t.moveStart) / za::max(t.moveDur, 1e-3f), 0.f, 1.f)
+                                     : 1.f;
+                glm::vec3 da = t.angles - t.prevAngles;
+                for(int i = 0; i < 3; i++)
+                {
+                    da[i] = da[i] > 180.f ? da[i] - 360.f : da[i] < -180.f ? da[i] + 360.f : da[i];
+                }
+                t.prevOrigin = t.prevOrigin + (t.origin - t.prevOrigin) * mb;
+                t.prevAngles = t.prevAngles + da * mb;
                 t.origin = origin;
                 t.angles = angles;
                 t.moveStart = now;
-                t.moveDur = lerpTime;
+                t.moveDur = VR_StepMovesEveryFrame(ent) ? za::clamp(static_cast<float>(host_frametime), 0.001f, 0.1f) : lerpTime;
             }
         }
         t.step = static_cast<int>(ent->v.movetype) == MOVETYPE_STEP;
@@ -1615,6 +1837,12 @@ void afterLoad()
         }
     }
     Con_DPrintf("hit models: %d made (%d triangles) in %.1f ms, hash %08x\n", built, tris, ms, static_cast<unsigned>(hash));
+    // The drawn shape's rig data (shapeOf: animsmooth::serverPoints) made now on a dedicated server, as a client's map load
+    // makes it (animsmooth::prepare: the same data, shared by a listen server): no first shot's hitch (5 ms a kind)
+    if(cls.state == ca_dedicated && vr_hitmodel_drawn.value != 0.f)
+    {
+        animsmooth::prepareModels(sv.models);
+    }
 }
 
 void reset()

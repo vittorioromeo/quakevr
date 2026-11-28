@@ -28,6 +28,10 @@ inline constexpr int U_QVR_NOMAG = 1 << 30;        // no data: a weapon prop wit
 // The bits above are full (1 << 31 is the sign: sv_main.c's "bits >= 1 << 24" test); this one is the protocol's spare
 // U_UNUSED21, set only by the VR server (VR_EntityUpdateBits) and read only by the VR client (VR_ParseEntityUpdate).
 inline constexpr int U_QVR_SSGOPEN = 1 << 21;      // byte: a super shotgun prop broken open (QC QVR_WPNFLAG_SSG_OPEN), its chambers loaded (0-2)
+// The protocol's spare U_UNUSED22, likewise: no data. A stepping monster moved every server frame (in the air: a leap, a
+// shove, a fall; VR_StepMovesEveryFrame): its move drawn over the time between messages (LERP_MOVEFRAME), not to its
+// next think; U_LERPFINISH keeps its think's time, for its frames' lerp.
+inline constexpr int U_QVR_MOVEFRAME = 1 << 22;
 
 // Server -> client.
 inline constexpr int svc_quakevr = 39;
@@ -91,6 +95,7 @@ enum SvcQuakeVr : int
     QVR_SVC_LANCECHARGE = 56,     // [short player entity][byte hand][byte 1 charging, 0 let go short, 2 fired][byte charge seconds * 50]: Dwell's Crystal Lance's charge (QC dw_items.qc DW_LanceChargeSend, MSG_ALL; vr_lancecharge.cpp draws it at his Lance's crystal tip)
     QVR_SVC_WEAPONATTACH = 58,    // [long weapon id, -1 all forgotten][byte attachment kind, 0 none]: that weapon's attachment (QC vr_attach.qc .wi_attach on its record; vr_attach.cpp serverFrame on a change, serverWriteAll with the spawn state), reliable
     QVR_SVC_CAMPAIGN = 57,        // [string campaign folder, "" none]: the campaign the server's map is played in (VR_ActiveCampaign's folder: "id1", "rogue", "ad"...), before QVR_SVC_PACKAGE and its svc_serverinfo, to each remote client (vr_mpdownload.cpp: a client makes it its active one, in place or leaving and joining again, or is refused when it lacks its data; its own campaign back after it left); read whatever protocol the last server had, reliable
+    QVR_SVC_MELEEARC = 59,        // [byte count] x ([short weapon entity][byte what | 128 fast][coord3 a], what 0: [coord3 b]): Show Melee Arcs' armed humanoids' swings this server frame (QC meleeshowfoe's what 0 the grip a, the tip b; 1 the butt a; 6 its blow landed at a), to the remote clients drawing them (their vr_enemy_melee_arc_show on: the "vr_meleearcs_want 1" client command; vr_meleeshow.cpp serverWrite), unreliable, mparcs
     QVR_SVC_RIGSEQ = 37,     // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
 };
 inline constexpr int ADHUD_DATA = 1 << 13; // STAT_QVR_ADHUD: AD's data in play on the server (vr_ad.cpp clientDataInPlay)

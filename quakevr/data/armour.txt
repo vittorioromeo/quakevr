@@ -10,6 +10,7 @@
 //   offset   "x y z"   units along the model's forward, left and up (its rest pose)
 //   rotate   "p y r"   degrees about the model's left, up and forward axes, round the piece's middle
 //   scale    "s"       its size round its middle (1 as made)
+//   scale_x / scale_y / scale_z "s"  its size along the model's forward, left and up alone, times scale (1 as made)
 //   standoff "u"       units further off the skin (below 0 closer)
 //   start    "u"       units its first row of plates starts further along it (towards the waist, hand or foot)
 //   end      "u"       units its last row ends further along it
@@ -20,6 +21,22 @@
 //   hero     "0"       its hero plates off, every plate its own (1 or unset: the breastplate, the pauldrons' top row,
 //                      the elbows' and knees' cops each one plate over several columns; vr_agarmor_hero 0: off everywhere)
 // (start, end, rows and the tapers: the cuirass and the limbs' plates; not the helmet or the sleeves; leather: the sleeves)
+// ad_knight: AD's death guard and crossbow knight, one set for both (their rigs' bones the same; else each by its path).
+// A beast by its model's path ("progs/dog.mdl"; Quake/vr/vr_beastarmour.cpp): its pieces cuirass, helmet, pauldron,
+// bracer, thigh (_l / _r as above), plate8 and plate9 (slots 8 and 9: the rottweiler's croup and collar, the ogre's back
+// plate and faulds...): offset, rotate, scale, standoff (pushed out from its middle), taper_start / taper_end (along its
+// bone). Each piece's <part>_sleeve is its leather junction to the piece it joins: leather "0" off, taper_start /
+// taper_end its width at this piece's end and the other's, standoff its thickness, folds, fold_depth, and
+//   sag      "u"       the junction's middle dropped this far (below 0 raised)
+// Any sleeve (a humanoid's too), its ends: "start" the end on the sleeve's own piece, "end" the one on the piece it
+// joins (a humanoid's joint: each end its own piece's sleeve's start_ value, else the other sleeve's end_ value):
+//   start_offset / end_offset "x y z"  that end's ring moved (units along the model's forward, left and up; it rides its piece)
+//   start_radius / end_radius "s"      that end's ring's size round its middle (1 as made)
+//   start_edge / end_edge "1"          a beast's: that end on its piece's far edge (0 or unset: the edge facing the other)
+//   twist    "deg"     the joined piece's end ring turned round the line between the ends (the leather's columns spiral)
+//   bulge    "x y z"   the junction's middle pushed this far this way (the model's axes; nothing at its ends)
+//   segments "n"       its rings less one, 1-8 (0 or unset: as made, from its folds)
+//   fill     "1"       a beast's junction closed all round (its open columns laid round from their neighbours' reach)
 
 kind "grunt"
 {
@@ -311,5 +328,277 @@ kind "progs/vrbody_brawny.mdl"
     cuirass
     {
         rows "7"
+    }
+}
+
+kind "progs/dog.mdl"
+{
+    cuirass
+    {
+        offset "0 1.5 2"
+        rotate "-5 0 0"
+        standoff "-0.5"
+    }
+    helmet
+    {
+        rotate "0 0 0"
+        taper_end "0.65"
+    }
+    pauldron
+    {
+        offset "1.7 2 -4"
+        rotate "-6 0 -15"
+        taper_end "0.5"
+    }
+    pauldron_l
+    {
+        offset "-0.34398 2.16674 -6.0076"
+        rotate "1.27346 -0.61761 -27.6119"
+    }
+    pauldron_r
+    {
+        offset "1.7 -0.7 -4"
+        rotate "-6 0 8"
+    }
+    thigh
+    {
+        offset "0 -0.98 -6"
+        rotate "0 0 -15"
+        scale "1"
+        taper_end "0.5"
+    }
+    plate8
+    {
+        offset "-2.5 0 0.25"
+        scale "1"
+        standoff "1"
+        taper_start "0.9"
+        taper_end "1.1"
+    }
+}
+
+kind "progs/wizard.mdl"
+{
+    cuirass
+    {
+        offset "1.06945 -0.564524 -0.628338"
+        rotate "-2.18604 6.31704 -4.98605"
+        scale "0.772"
+        standoff "0"
+        taper_start "1.12"
+        scale_y "1.13246"
+        scale_z "1.26525"
+    }
+    helmet
+    {
+        offset "0.958583 0.282778 0.757286"
+        scale_y "0.825526"
+    }
+    pauldron
+    {
+        offset "0 0.185912 1.14676"
+        rotate "0 0 -9.20863"
+        scale "0.837"
+        scale_z "1.3488"
+    }
+    pauldron_r
+    {
+        offset "-0.382505 -1.07144 -0.171966"
+        scale "0.81"
+    }
+    bracer
+    {
+        offset "0.345516 0.233157 -2.70109"
+        rotate "0 0 1.9891"
+        scale "0.76"
+        standoff "-0.25"
+    }
+    bracer_l
+    {
+        offset "1.14078 0.071736 -2.92339"
+        scale "0.646"
+    }
+    bracer_r
+    {
+        offset "0.111013 -2.2521 -2.41901"
+        rotate "0 12.7 0"
+        scale "0.651"
+    }
+    plate8
+    {
+        offset "0.510862 -0.442659 0.957597"
+        rotate "0 5.81991 0"
+        scale "0.858"
+        standoff "0.05"
+        taper_start "0.745"
+        taper_end "1.119"
+        scale_x "1.071"
+        scale_y "1.08876"
+    }
+    plate9
+    {
+        offset "-5.82293 0.461923 -5.01548"
+        rotate "-15.4744 0.352146 -5.881"
+        scale "0.924"
+    }
+    tail
+    {
+        offset "0.98 0.008732 -1.24"
+        rotate "-7.7 0 0"
+        scale "0.913"
+        standoff "0.26"
+        taper_start "0.952"
+        taper_end "0.967"
+        scale_x "1.087"
+        scale_y "1"
+        scale_z "1.005"
+    }
+    plate8_back
+    {
+        offset "-2.21 -2.3302 0.064573"
+        scale "0.858"
+        standoff "0.05"
+        taper_start "0.674"
+        taper_end "1.201"
+    }
+}
+
+kind "progs/demon.mdl"
+{
+    cuirass
+    {
+        scale "0.935"
+        taper_start "0.908"
+        taper_end "1.027"
+    }
+    helmet
+    {
+        offset "-1.42673 0 1.78218"
+        rotate "8.3 0 0"
+        scale "1"
+        standoff "0"
+        taper_start "0.978"
+        taper_end "0.63"
+        scale_x "0.850913"
+    }
+    pauldron
+    {
+        offset "0.59 0 0"
+        scale "0.641"
+    }
+    bracer
+    {
+        scale "0.766"
+    }
+    bracer_l
+    {
+        offset "-0.812281 0.187736 -1.5258"
+    }
+    thigh
+    {
+        offset "-0 0 0.4408"
+        scale "0.788"
+    }
+    thigh_l
+    {
+        offset "1.41819 2.62544 -0.876925"
+        rotate "0 0 -13.0305"
+    }
+    plate8
+    {
+        offset "1.43461 1.0372 2.94589"
+        rotate "23.5 0 -3.9"
+        scale "0.934"
+        taper_start "0.734"
+        taper_end "0.946"
+    }
+}
+
+kind "progs/ogre.mdl"
+{
+    cuirass
+    {
+        offset "-1.03959 1.70739 -3.00309"
+        rotate "2.0993 -4.4319 5.73315"
+        scale "0.929"
+        taper_start "0.859"
+        scale_y "1.09328"
+        scale_z "0.854265"
+    }
+    helmet
+    {
+        offset "1.06452 -1.35442 -0.437469"
+        rotate "15.2231 0 8.5302"
+        scale_x "0.886889"
+        scale_y "0.717"
+        scale_z "0.902578"
+    }
+    pauldron
+    {
+        scale "0.875"
+    }
+    bracer
+    {
+        offset "-0.719148 1.97414 0.404399"
+        rotate "0 0 8.73472"
+        scale "0.891"
+    }
+    bracer_l
+    {
+        offset "-1.80072 1.86124 -0.650012"
+        rotate "-11.3415 -1.76593 8.91009"
+    }
+    bracer_r
+    {
+        offset "4.09017 2.29139 -2.4493"
+        rotate "-32.5157 -3.83496 6.84535"
+        scale "0.826"
+    }
+    thigh
+    {
+        scale "1"
+    }
+    thigh_l
+    {
+        scale "0.9"
+    }
+    thigh_r
+    {
+        scale "0.9"
+    }
+    shin
+    {
+        scale "0.832"
+    }
+    shin_l
+    {
+        offset "0.146046 0.657742 -1.057"
+        rotate "-3.08195 0.253426 -9.17474"
+    }
+    shin_r
+    {
+        offset "-0.073816 0.187265 0.137881"
+    }
+    shin_sleeve
+    {
+        fill "1"
+    }
+    helmet_sleeve
+    {
+        leather "0"
+    }
+    plate8
+    {
+        offset "-0.302872 2.06897 -2.43401"
+        rotate "-2.03312 0.731561 8.20451"
+        scale "0.826"
+        scale_y "0.834566"
+        scale_z "0.966811"
+    }
+    plate9
+    {
+        offset "-0.058179 -0.057642 0.142054"
+        rotate "-3.69556 0.222952 -3.83045"
+        scale "0.924"
     }
 }

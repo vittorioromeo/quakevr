@@ -77,11 +77,44 @@ const Row fieldRows[NumFields] = {
     {"Leather Folds", &vr_armourstudio_folds, 0.f, 4.f, 1.f, "%.0f"},
     {"Fold Depth", &vr_armourstudio_fold_depth, 0.f, 1.f, 0.02f, "%.2f"},
     {"Hero Plates", &vr_armourstudio_hero, 0.f, 1.f, 1.f, "%.0f"},
+    {"Sag", &vr_armourstudio_sag, -4.f, 4.f, 0.1f, "%.2f"},
+    {"Size Fwd", &vr_armourstudio_scale_x, 0.5f, 1.5f, 0.02f, "%.3fx"},
+    {"Size Left", &vr_armourstudio_scale_y, 0.5f, 1.5f, 0.02f, "%.3fx"},
+    {"Size Up", &vr_armourstudio_scale_z, 0.5f, 1.5f, 0.02f, "%.3fx"},
+    {"Own End Fwd", &vr_armourstudio_start_offset_x, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Own End Left", &vr_armourstudio_start_offset_y, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Own End Up", &vr_armourstudio_start_offset_z, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Joined End Fwd", &vr_armourstudio_end_offset_x, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Joined End Left", &vr_armourstudio_end_offset_y, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Joined End Up", &vr_armourstudio_end_offset_z, -6.f, 6.f, 0.1f, "%.2f"},
+    {"Own End Size", &vr_armourstudio_start_radius, 0.5f, 2.f, 0.02f, "%.3fx"},
+    {"Joined End Size", &vr_armourstudio_end_radius, 0.5f, 2.f, 0.02f, "%.3fx"},
+    {"Own End Far Edge", &vr_armourstudio_start_edge, 0.f, 1.f, 1.f, "%.0f"},
+    {"Joined End Far Edge", &vr_armourstudio_end_edge, 0.f, 1.f, 1.f, "%.0f"},
+    {"Twist", &vr_armourstudio_twist, -90.f, 90.f, 1.f, "%.0f deg"},
+    {"Bulge Fwd", &vr_armourstudio_bulge_x, -4.f, 4.f, 0.1f, "%.2f"},
+    {"Bulge Left", &vr_armourstudio_bulge_y, -4.f, 4.f, 0.1f, "%.2f"},
+    {"Bulge Up", &vr_armourstudio_bulge_z, -4.f, 4.f, 0.1f, "%.2f"},
+    {"Segments", &vr_armourstudio_segments, 0.f, 8.f, 1.f, "%.0f"},
+    {"Closed All Round", &vr_armourstudio_fill, 0.f, 1.f, 1.f, "%.0f"},
 };
-constexpr const char* kindLabels[NumKinds] = {"Grunt", "Enforcer", "Knight", "Death Knight", "Player (Your Body)"};
+// The subject's place and tilt (vr_armourstudio_subject_*: a look from another angle; never in armour.txt).
+const Row subjectRows[5] = {
+    {"Away", &vr_armourstudio_subject_x, -48.f, 48.f, 1.f, "%.0f"},
+    {"Left", &vr_armourstudio_subject_y, -48.f, 48.f, 1.f, "%.0f"},
+    {"Up", &vr_armourstudio_subject_z, -32.f, 48.f, 1.f, "%.0f"},
+    {"Pitch", &vr_armourstudio_subject_pitch, -90.f, 90.f, 1.f, "%.0f deg"},
+    {"Roll", &vr_armourstudio_subject_roll, -90.f, 90.f, 1.f, "%.0f deg"},
+};
+constexpr int maxSubjects = 32;
 constexpr const char* tierLabels[3] = {"Green", "Yellow", "Red"};
 constexpr const char* partLabels[NumParts] = {"Cuirass", "Helmet", "Pauldrons (Upper Arms)", "Bracers (Forearms)", "Thighs",
-    "Shins", "Elbow Sleeves (Upper Arm's)", "Elbow Sleeves (Forearm's)", "Knee Sleeves (Thigh's)", "Knee Sleeves (Shin's)"};
+    "Shins", "Elbow Sleeves (Upper Arm's)", "Elbow Sleeves (Forearm's)", "Knee Sleeves (Thigh's)", "Knee Sleeves (Shin's)",
+    "Cuirass's Leather Junction", "Helmet's Leather Junction", "Plate 8", "Plate 9", "Plate 8's Leather Junction", "Plate 9's Leather Junction",
+    "Tail", "Tail's Leather Junctions", "Plate 8 Back", "Plate 8 Back's Leather Junction"};
+// (a beast's limb parts' junctions: to the piece each joins)
+constexpr const char* beastSleeveLabels[4] = {"Pauldrons' Leather Junctions", "Bracers' Leather Junctions", "Thighs' Leather Junctions",
+    "Knee Leather (Shins' Junctions)"};
 constexpr const char* sideLabels[NumSides] = {"Both (Mirrored)", "Left Only", "Right Only"};
 
 constexpr float winMinW = 420.f, winMinH = 320.f;
@@ -254,13 +287,13 @@ void valueRow(const Row& r, const int field)
 // The tweaks' table for the part picked: each side's own values and the both-sides ones, and which one each side uses.
 void fileValues()
 {
-    const int kind = cvarIndex(vr_armourstudio_kind, 0, NumKinds - 1);
+    const char* name = subjectEntry();
     const int part = cvarIndex(vr_armourstudio_part, 0, NumParts - 1);
-    const bool limb = part >= PartPauldron;
-    const Override* both = entry(kindNames[kind], part, SideBoth, false);
-    const Override* left = limb ? entry(kindNames[kind], part, SideLeft, false) : nullptr;
-    const Override* right = limb ? entry(kindNames[kind], part, SideRight, false) : nullptr;
-    ImGui::TextDisabled("kind \"%s\", %s: the table (the file as read, with any edits not saved yet)", kindNames[kind], partNames[part]);
+    const bool limb = limbPart(part);
+    const Override* both = entry(name, part, SideBoth, false);
+    const Override* left = limb ? entry(name, part, SideLeft, false) : nullptr;
+    const Override* right = limb ? entry(name, part, SideRight, false) : nullptr;
+    ImGui::TextDisabled("kind \"%s\", %s: the table (the file as read, with any edits not saved yet)", name, partNames[part]);
     const int cols = limb ? 6 : 2;
     if(!ImGui::BeginTable("filevalues", cols, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit))
     {
@@ -277,7 +310,7 @@ void fileValues()
     }
     ImGui::TableHeadersRow();
     const auto cell = [](const Override* o, const int f) {
-        if(o && (o->has & (1u << static_cast<unsigned>(f))))
+        if(o && (o->has & (fieldBit(f))))
         {
             ImGui::Text("%.3f", o->v[f]);
         }
@@ -288,14 +321,14 @@ void fileValues()
     };
     // What a side uses: its own value wins, else the both-sides one (the right's mirrored), else the generator's.
     const auto uses = [&](const Override* own, const bool rightSide, const int f) {
-        const uint32_t bit = 1u << static_cast<unsigned>(f);
+        const uint64_t bit = fieldBit(f);
         if(own && (own->has & bit))
         {
             ImGui::TextColored(ImVec4{0.4f, 1.f, 0.6f, 1.f}, "own %.3f", own->v[f]);
         }
         else if(both && (both->has & bit))
         {
-            const bool mirror = rightSide && (f == OffsetY || f == Yaw || f == Roll);
+            const bool mirror = rightSide && mirrored(f);
             ImGui::Text("both %.3f", mirror ? -both->v[f] : both->v[f]);
         }
         else
@@ -442,13 +475,51 @@ void drawWindow()
         commandButton("Print the Tweaks", "vr_armour_print", "print", "the tweaks as the file would have them, to the console");
 
         ImGui::SeparatorText("Subject");
-        comboRow("Kind", vr_armourstudio_kind, kindLabels, NumKinds, 0);
+        {
+            // (the subjects: the humanoids' kinds, AD's knights, the beasts)
+            const char* labels[maxSubjects];
+            const int n = za::min(subjectCount(), maxSubjects);
+            for(int i = 0; i < n; i++)
+            {
+                labels[i] = subjectLabel(i);
+            }
+            comboRow("Kind", vr_armourstudio_kind, labels, n, 0);
+        }
         comboRow("Tier", vr_armourstudio_tier, tierLabels, 3, 1);
         float turn = vr_armourstudio_turn.value;
         ImGui::SetNextItemWidth(220.f);
         if(ImGui::SliderFloat("Turn", &turn, -180.f, 180.f, "%.0f deg"))
         {
             Cvar_SetValueQuick(&vr_armourstudio_turn, turn);
+        }
+        if(ImGui::TreeNode("Place and Tilt"))
+        {
+            // (its place moved from where it was put, tipped and rolled: its sides, top and underside in view)
+            ImGui::PushID("subject");
+            for(int i = 0; i < 5; i++)
+            {
+                const Row& r = subjectRows[i];
+                float v = r.cvar->value;
+                ImGui::SetNextItemWidth(220.f);
+                if(ImGui::SliderFloat(r.label, &v, r.lo, r.hi, r.format))
+                {
+                    Cvar_SetValueQuick(r.cvar, v);
+                }
+                if(ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("%s (Ctrl+click to type; not saved in armour.txt)", r.cvar->name);
+                }
+            }
+            if(ImGui::Button("Put Back"))
+            {
+                for(const Row& r : subjectRows)
+                {
+                    Cvar_SetValueQuick(r.cvar, 0.f);
+                }
+                Cvar_SetValueQuick(&vr_armourstudio_turn, 0.f); // (the right-button drag's yaw)
+            }
+            ImGui::PopID();
+            ImGui::TreePop();
         }
         float ghost = vr_armourstudio_ghost.value;
         ImGui::SetNextItemWidth(220.f);
@@ -463,8 +534,40 @@ void drawWindow()
         }
 
         ImGui::SeparatorText("Part");
-        comboRow("Part", vr_armourstudio_part, partLabels, NumParts, 0);
-        if(cvarIndex(vr_armourstudio_part, 0, NumParts - 1) >= PartPauldron)
+        const int subject = cvarIndex(vr_armourstudio_kind, 0, subjectCount() - 1);
+        {
+            // (the parts on this subject alone: a beast's slots and the junctions made from them)
+            const char* labels[NumParts];
+            int parts[NumParts];
+            int n = 0, chosen = -1;
+            const bool beast = subject >= 7;
+            // (a plate 8 split in two, the scrag's: its own part the front half)
+            const bool split = beast && partValid(subject, PartPlate8Back);
+            for(int p = 0; p < NumParts; p++)
+            {
+                if(!partValid(subject, p))
+                {
+                    continue;
+                }
+                chosen = p == cvarIndex(vr_armourstudio_part, 0, NumParts - 1) ? n : chosen;
+                labels[n] = beast && p >= PartPauldronSleeve && p <= PartShinSleeve ? beastSleeveLabels[p - PartPauldronSleeve]
+                    : split && p == PartPlate8                                     ? "Plate 8 Front"
+                    : split && p == PartPlate8Sleeve                               ? "Plate 8 Front's Leather Junction"
+                                                                                   : partLabels[p];
+                parts[n++] = p;
+            }
+            ImGui::SetNextItemWidth(220.f);
+            int pick = chosen;
+            if(n > 0 && ImGui::Combo("Part", &pick, labels, n) && pick >= 0)
+            {
+                Cvar_SetValueQuick(&vr_armourstudio_part, static_cast<float>(parts[pick]));
+            }
+            if(ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("%s", vr_armourstudio_part.name);
+            }
+        }
+        if(limbPart(cvarIndex(vr_armourstudio_part, 0, NumParts - 1)))
         {
             comboRow("Side", vr_armourstudio_side, sideLabels, NumSides, 0);
         }
@@ -472,29 +575,31 @@ void drawWindow()
         {
             ImGui::TextDisabled("Side: one piece (no sides)");
         }
+        gizmoRows(); // (the handle on the part in the view: vr_armourstudio_gizmo.cpp)
         const int partNow = cvarIndex(vr_armourstudio_part, 0, NumParts - 1);
         for(int f = 0; f < NumFields; f++)
         {
-            // (the plates' rows: not the helmet's or a sleeve's; the tapers: not the helmet's (a sleeve's leather tapers too);
-            // leather: the sleeves' alone; hero plates: the parts that have them)
-            const bool plates = partNow != PartHelmet && partNow < PartPauldronSleeve;
-            const bool heroPart = partNow == PartCuirass || partNow == PartPauldron || partNow == PartBracer || partNow == PartShin;
-            if(((f == Leather || f == Folds || f == FoldDepth) && partNow < PartPauldronSleeve) || ((f == Start || f == End || f == Rows) && !plates) ||
-                ((f == TaperStart || f == TaperEnd) && partNow == PartHelmet) || (f == Hero && !heroPart))
+            // (the values that apply to the part: armourstudio::fieldShown)
+            if(!partValid(subject, partNow) || !fieldShown(subject, partNow, f))
             {
                 continue;
             }
             valueRow(fieldRows[f], f);
         }
 
+        // (each section its own ID scope: the Animation header and its Animation combo were one ID, his screenshot 2026-11-27)
         if(ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            ImGui::PushID("anim");
             animRows();
+            ImGui::PopID();
         }
 
         if(ImGui::CollapsingHeader("The file's values (this part)", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            ImGui::PushID("file");
             fileValues();
+            ImGui::PopID();
         }
         ImGui::TextDisabled("Escape or the X closes this window, and the studio with it (vr_armourstudio_autoclose 0: it keeps running); the menu page is the same studio.");
     }
@@ -554,6 +659,7 @@ void closeWindow()
         win.keyPhase = 0;
     }
     win.clickPhase = 0;
+    gizmoEdit(false); // (a handle's drag cut short ends here)
     imgui::want(false);
     IN_Activate();
     Con_Printf("armourstudio: window closed\n");
@@ -634,7 +740,7 @@ void feedMock()
 [[nodiscard]] bool tableHas(const int f, const float v)
 {
     const Override* o = bracerBoth();
-    return o && (o->has & (1u << static_cast<unsigned>(f))) && za::abs(o->v[f] - v) < 1e-4f;
+    return o && (o->has & (fieldBit(f))) && za::abs(o->v[f] - v) < 1e-4f;
 }
 
 // One step a frame, each on its own condition; a step that waits too long fails as timed out.
@@ -837,6 +943,7 @@ void windowInit()
 
 void windowFrame()
 {
+    gizmoTestFrame(); // (its steps: before the window opens too)
     if(!win.open)
     {
         if(win.step != 0)
@@ -853,6 +960,7 @@ void windowFrame()
     imgui::setPanel(0, 0, 0, 1.f); // (the screen only: no headset panel)
     imgui::want(true);
     feedMock();
+    gizmoFeed();
     if(!imgui::beginFrame())
     {
         return;
@@ -871,6 +979,7 @@ void windowFrame()
         return; // (the test's verdict closed it)
     }
     drawWindow();
+    gizmoFrame(); // (the handle on the part, over the game's view: after the window, so its hover is known)
     if(win.askClose)
     {
         closeWindowByPlayer(); // (after ImGui::End)

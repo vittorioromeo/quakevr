@@ -29,7 +29,8 @@
 // its bone's place by both shares (RigRebuild). The loops' seams are the dequantised poses' (smoothed round the loop). Your weapons are never smoothed (their flashes, mounts and
 // shells follow Quake's blend: vr_anchor.cpp), nor skeletal models (IQM, a ragdoll's skinned model). What the game
 // tests against a model's shape (vr_hitmodel.cpp, vr_modelcollide.cpp) keeps Quake's blend: the drawn shape between
-// frames is a few units off it at most mid-swing (vr_anim_smooth_check).
+// frames is a few units off it at most mid-swing (vr_anim_smooth_check). What is drawn on the body (the beasts' armour)
+// reads the drawn shape itself: drawnPoints, the same memo and rows as the draw (ROUND26.md "armourrebuild").
 
 #include "vr_animsmooth_internal.hpp"
 #include "vr_geom.hpp"
@@ -110,6 +111,7 @@ mem::Scratch<SmoothBatches> batches{"anim smooth"};
 
 constexpr int rebuildRowsPerBone = 9;   // the rebuild's rows a bone: its swing (3), its motion (3), its turn (3; the share in the first's w)
 constexpr float rebuildMinShare = 0.5f; // a model with fewer of its vertices rebuilt fully than this isn't rebuilt
+constexpr float rebuildPoseLimit = 2.f; // (the blend) a bone is rebuilt in a pose its refit fits within this times the swing's limit
 
 // What an entity's spline was last worked out for, and what came of it: drawn again so (the other eye, each shadow
 // map's light, the next frame paused) it is copied. By the entity (the renderer's thread; a map change frees it, and a
@@ -151,6 +153,13 @@ struct SmoothMemos
     auto members() { return mem::list(entities); }
 };
 mem::Cache<SmoothMemos> memos{"anim smooth entities", mem::MapChange | mem::ModelReload};
+// serverPoints' rows (the server's drawn shape: no memo, the hit model keeps the points it makes)
+struct ServerRows
+{
+    za::Vector<glm::vec4> rows;
+    auto members() { return mem::list(rows); }
+};
+mem::Scratch<ServerRows> serverRows{"anim smooth server rows"}; // seat-shared: the server's rows, rebuilt before each use
 // The rig data's rebuild (rigData) on the pool: its places by vertex, its refits by pose (vr_jobs_sites).
 jobs::Site placesSite{"anim smooth rebuild places"};
 jobs::Site refitSite{"anim smooth rebuild refits"};
@@ -324,13 +333,15 @@ bool rigStale(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, bool& rigg
     }
     const float rebuildError = za::max(vr_anim_smooth_rebuild_error.value, 0.01f);
     const int dequant = hdr->dequant && hdr->dequantready ? 1 : 0;
-    if(m.rigError == error && m.rebuildError == rebuildError && m.rebuildDequant == dequant)
+    const int blend = vr_anim_smooth_rebuild_blend.value != 0.f ? 1 : 0;
+    if(m.rigError == error && m.rebuildError == rebuildError && m.rebuildDequant == dequant && m.rebuildBlend == blend)
     {
         return false;
     }
     m.rigError = error;
     m.rebuildError = rebuildError;
     m.rebuildDequant = dequant;
+    m.rebuildBlend = blend;
     return true;
 }
 
@@ -427,11 +438,17 @@ void rigFit(SmoothModel& m, const aliashdr_t* hdr, RigFit& out)
                 keys[static_cast<za::SizeT>(p * rig.numBones + b)] = rigpose::key(rig, p, b);
             }
         }
-        const auto fits = [&](int p, int b) { return !(m.unfit[static_cast<za::SizeT>(p)] & (1u << b)); };
+        // The poses each bone is rebuilt in: at first those its stored fit fits (m.unfit); with
+        // vr_anim_smooth_rebuild_blend, after each refit, those its refit fits (any it isn't folded away in): the stored
+        // fits miss many of the ogre's (his chest in 84 of 149 poses, his left thigh in 140), which drew as the frames.
+        za::Vector<uint32_t>& rfit = m.rebuildUnfit;
+        rfit = m.unfit;
+        const auto fits = [&](int p, int b) { return !(rfit[static_cast<za::SizeT>(p)] & (1u << b)); };
         za::Vector<glm::vec3> place(nv), normal(nv);
         za::Vector<int> count(nv);
         za::Vector<float> share(nv, 1.f);
         za::Vector<float> sum(nv);
+        float vertLimit = rebuildError; // (a vertex's share: 1 within it, 0 at twice it)
         // Each vertex's place, normal and share from the poses its bone fits (vertices in chunks on the pool: each
         // vertex's sums over the poses in the same order whichever thread runs it, so the same numbers).
         const auto places = [&]() {
@@ -483,7 +500,7 @@ void rigFit(SmoothModel& m, const aliashdr_t* hdr, RigFit& out)
                 {
                     // (a vertex its bone fits in no pose: not rebuilt)
                     rebuildRms[k] = count[k] ? za::sqrt(sum[k] / static_cast<float>(count[k])) : 1e9f;
-                    share[k] = za::clamp(2.f - rebuildRms[k] / rebuildError, 0.f, 1.f);
+                    share[k] = za::clamp(2.f - rebuildRms[k] / vertLimit, 0.f, 1.f);
                 }
             });
         };
@@ -560,19 +577,195 @@ void rigFit(SmoothModel& m, const aliashdr_t* hdr, RigFit& out)
                 {
                     for(int b = 0; b < rig.numBones; b++)
                     {
-                        if(fits(p, b))
+                        if(m.rebuildBlend ? !ragdoll::collapsed(rig, p, b) : fits(p, b))
                         {
                             refit(p, b);
                         }
                     }
                 }
             });
+            if(m.rebuildBlend)
+            {
+                // which poses each bone's refit fits: its vertices' rms off it (weighted by their shares) within twice
+                // the swing's limit (the ogre's limbs bend, 1.5-3 units rms in many of his frames: his chest in 84 of 149
+                // at the swing's limit, 3 at twice it; only a frame a bone truly isn't in is left as the frames')
+                for(int p = 0; p < m.numPoses; p++)
+                {
+                    uint32_t mask = 0u;
+                    for(int b = 0; b < rig.numBones; b++)
+                    {
+                        if(ragdoll::collapsed(rig, p, b))
+                        {
+                            mask |= 1u << b;
+                            continue;
+                        }
+                        const rigpose::Rigid& k = keys[static_cast<za::SizeT>(p * rig.numBones + b)];
+                        float e2 = 0.f, wSum = 0.f;
+                        for(int i = boneFirst[static_cast<za::SizeT>(b)]; i < boneFirst[static_cast<za::SizeT>(b) + 1u]; i++)
+                        {
+                            const int v = boneVerts[static_cast<za::SizeT>(i)];
+                            const float w = 0.05f + share[static_cast<za::SizeT>(v)];
+                            const glm::vec3 d = x(p, v) - rigpose::apply(k, place[static_cast<za::SizeT>(v)]);
+                            e2 += w * glm::dot(d, d);
+                            wSum += w;
+                        }
+                        if(wSum > 0.f && za::sqrt(e2 / wSum) > rebuildPoseLimit * error)
+                        {
+                            mask |= 1u << b;
+                        }
+                    }
+                    rfit[static_cast<za::SizeT>(p)] = mask;
+                }
+                // The vertices' limit: the model's own median fit if over vr_anim_smooth_rebuild_error (the ogre's
+                // frames bend his limbs by about a unit everywhere, so at half a unit few of his vertices were rebuilt
+                // and the rest kept the frames' warping; every other monster's median is within it, its limit as before)
+                za::Vector<float> sorted;
+                for(za::SizeT k = 0; k < nv; k++)
+                {
+                    if(count[k])
+                    {
+                        sorted.pushBack(rebuildRms[k]);
+                    }
+                }
+                if(!sorted.empty())
+                {
+                    za::quickSort(sorted.begin(), sorted.end());
+                    vertLimit = za::max(rebuildError, sorted[sorted.size() / 2u]);
+                }
+            }
             places();
+        }
+        // Two bones (vr_anim_smooth_rebuild_blend; ROUND26 "ogredequant"): a vertex its bone fits badly (round a joint,
+        // and most of the ogre's skin: his frames bend him, so a vertex on one bone stays 0.5-2 units off it and the
+        // model, under half rebuilt, used to be drawn as its frames, warping and all) tried on its bone and its parent or
+        // a child blended (the blend's turn and move, weight w on the other, applied to one place in pose 0's frame:
+        // linear blend skinning). Per candidate and weight the place is a linear least squares over the poses both fit
+        // (3x3 normal equations); the best kept if it fits the vertex in under 0.8x the rms its bone alone does.
+        za::Vector<float> blendW(nv, 0.f);
+        za::Vector<int> blendBone(nv, -1);
+        if(m.rebuildBlend)
+        {
+            za::Vector<glm::mat3> rots(keys.size());
+            for(za::SizeT i = 0; i < keys.size(); i++)
+            {
+                rots[i] = glm::mat3_cast(keys[i].rot);
+            }
+            jobs::parallelFor(placesSite, nv, 0, [&](za::SizeT v0, za::SizeT v1) {
+                for(za::SizeT k = v0; k < v1; k++)
+                {
+                    if(share[k] >= 1.f || !count[k])
+                    {
+                        continue;
+                    }
+                    const int a = rig.vertBone[k];
+                    // (rms the fit leaves for bone b at weight w, its place; -1: too few poses both fit)
+                    const auto solve = [&](int b, float w, glm::vec3& at) -> float {
+                        glm::dmat3 aa{0.0};
+                        glm::dvec3 g{0.0};
+                        double c = 0.0;
+                        int n = 0;
+                        for(int p = 0; p < m.numPoses; p++)
+                        {
+                            if(!fits(p, a) || !fits(p, b))
+                            {
+                                continue;
+                            }
+                            const za::SizeT ia = static_cast<za::SizeT>(p * rig.numBones + a);
+                            const za::SizeT ib = static_cast<za::SizeT>(p * rig.numBones + b);
+                            const glm::dmat3 mm{(1.f - w) * rots[ia] + w * rots[ib]};
+                            const glm::dvec3 d{x(p, static_cast<int>(k)) - ((1.f - w) * keys[ia].pos + w * keys[ib].pos)};
+                            aa += glm::transpose(mm) * mm;
+                            g += glm::transpose(mm) * d;
+                            c += glm::dot(d, d);
+                            n++;
+                        }
+                        if(2 * n < count[k] || za::abs(glm::determinant(aa)) < 1e-9)
+                        {
+                            return -1.f;
+                        }
+                        const glm::dvec3 sol = glm::inverse(aa) * g;
+                        at = glm::vec3{sol};
+                        return za::sqrt(static_cast<float>(za::max(c - 2.0 * glm::dot(sol, g) + glm::dot(sol, aa * sol), 0.0) / n));
+                    };
+                    float bestRms = rebuildRms[k] * 0.8f;
+                    float bestW = 0.f;
+                    int bestB = -1;
+                    glm::vec3 bestAt{0.f};
+                    for(int b = 0; b < rig.numBones; b++)
+                    {
+                        // (any bone at all fits the ogre no better: measured, ROUND26 "ogredequant")
+                        if(b == a || (rig.bones[b].parent != a && rig.bones[a].parent != b))
+                        {
+                            continue;
+                        }
+                        // the weight on a grid of tenths, then a twentieth either side of the best
+                        float candW = 0.f, candRms = 1e9f;
+                        glm::vec3 candAt{0.f};
+                        const auto tryW = [&](float w) {
+                            glm::vec3 at{0.f};
+                            const float rms = solve(b, w, at);
+                            if(rms >= 0.f && rms < candRms)
+                            {
+                                candRms = rms;
+                                candW = w;
+                                candAt = at;
+                            }
+                        };
+                        for(int step = 1; step <= 10; step++)
+                        {
+                            tryW(0.1f * static_cast<float>(step));
+                        }
+                        if(candRms < 1e9f)
+                        {
+                            const float mid = candW;
+                            tryW(mid - 0.05f);
+                            if(mid < 0.99f)
+                            {
+                                tryW(mid + 0.05f);
+                            }
+                        }
+                        if(candRms < bestRms)
+                        {
+                            bestRms = candRms;
+                            bestW = candW;
+                            bestB = b;
+                            bestAt = candAt;
+                        }
+                    }
+                    if(bestB < 0)
+                    {
+                        continue;
+                    }
+                    // its normal: each pose's taken back by the blend's turn (near enough its inverse's transpose)
+                    glm::vec3 nsum{0.f};
+                    for(int p = 0; p < m.numPoses; p++)
+                    {
+                        if(fits(p, a) && fits(p, bestB))
+                        {
+                            const glm::mat3 mm = (1.f - bestW) * rots[static_cast<za::SizeT>(p * rig.numBones + a)] +
+                                                 bestW * rots[static_cast<za::SizeT>(p * rig.numBones + bestB)];
+                            const trivertx_t& t = base[static_cast<za::SizeT>(p) * nv + k];
+                            nsum += glm::transpose(mm) * geom::vec(r_avertexnormals[za::min<int>(t.lightnormalindex, NUMVERTEXNORMALS - 1)]);
+                        }
+                    }
+                    const float len = za::sqrt(glm::dot(nsum, nsum));
+                    if(len > 1e-4f)
+                    {
+                        normal[k] = nsum / len;
+                    }
+                    place[k] = bestAt;
+                    rebuildRms[k] = bestRms;
+                    share[k] = za::clamp(2.f - bestRms / vertLimit, 0.f, 1.f);
+                    blendW[k] = bestW;
+                    blendBone[k] = bestB;
+                }
+            });
         }
         for(za::SizeT k = 0; k < nv; k++)
         {
             rebuilt[2u * k] = glm::vec4{place[k], share[k]};
-            rebuilt[2u * k + 1u] = glm::vec4{normal[k], 0.f};
+            // (the second bone + half its weight: 0 none)
+            rebuilt[2u * k + 1u] = glm::vec4{normal[k], blendBone[k] >= 0 ? static_cast<float>(blendBone[k]) + 0.5f * za::min(blendW[k], 0.999f) : 0.f};
         }
     }
 }
@@ -595,7 +788,7 @@ void rigRest(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, const RigFi
     m.armSkin = false;
     m.legSkin = false;
     m.swungVerts = m.fadedVerts = 0;
-    m.rebuiltVerts = m.rebuildFaded = 0;
+    m.rebuiltVerts = m.rebuildFaded = m.blendedVerts = 0;
     za::Vector<float> rms(static_cast<za::SizeT>(hdr->numverts_vbo));
     for(int i = 0; i < hdr->numverts_vbo; i++)
     {
@@ -621,6 +814,7 @@ void rigRest(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, const RigFi
         }
         m.rebuiltVerts += r[1].w >= 1.f ? 1 : 0;
         m.rebuildFaded += r[1].w > 0.f && r[1].w < 1.f ? 1 : 0;
+        m.blendedVerts += r[2].w > 0.f ? 1 : 0;
         rms[static_cast<za::SizeT>(i)] = za::min(rebuildRms[static_cast<za::SizeT>(v)], 99.f);
     }
     za::quickSort(rms.begin(), rms.end());
@@ -628,8 +822,10 @@ void rigRest(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, const RigFi
     m.rebuildMedian = pct(0.5f);
     m.rebuildP90 = pct(0.9f);
     m.rebuildMost = pct(1.f);
+    // (with the blend every model is rebuilt, each vertex by its own share: the ogre's and the shambler's skin bends, so
+    // under half their vertices fit within the limit, and the rest of them were drawn as their frames' warping too)
     m.rebuildOk = hdr->numverts_vbo > 0 &&
-                  static_cast<float>(m.rebuiltVerts) >= rebuildMinShare * static_cast<float>(hdr->numverts_vbo);
+                  (m.rebuildBlend || static_cast<float>(m.rebuiltVerts) >= rebuildMinShare * static_cast<float>(hdr->numverts_vbo));
 }
 
 jobs::Site rigsSite{"anim smooth rigs"}; // (prepare's: each model's rigFit at once)
@@ -776,7 +972,7 @@ void rebuildRows(const SmoothModel& m, const int poses[4], const rigpose::Spline
             rows[0] = rows[1] = rows[2] = glm::vec4{0.f};
         }
     }
-    const uint32_t unfit1 = m.unfit[static_cast<za::SizeT>(poses[1])], unfit2 = m.unfit[static_cast<za::SizeT>(poses[2])];
+    const uint32_t unfit1 = m.rebuildUnfit[static_cast<za::SizeT>(poses[1])], unfit2 = m.rebuildUnfit[static_cast<za::SizeT>(poses[2])];
     for(int b = 0; b < rig.numBones; b++)
     {
         glm::vec4* rows = out + rebuildRowsPerBone * b;
@@ -813,13 +1009,54 @@ void rebuildRows(const SmoothModel& m, const int poses[4], const rigpose::Spline
     const glm::vec4* row = rows + (rebuild ? rebuildRowsPerBone : 3) * static_cast<int>(bone);
     const glm::vec4 q{r[0].x, r[0].y, r[0].z, 1.f};
     p += (r[0].w - bone) * 2.f * glm::vec3{glm::dot(row[0], q), glm::dot(row[1], q), glm::dot(row[2], q)};
-    const float k = rebuild ? r[1].w * row[6].w : 0.f;
+    float k = rebuild ? r[1].w * row[6].w : 0.f;
     if(k > 0.f)
     {
         const glm::vec4 c{r[1].x, r[1].y, r[1].z, 1.f};
-        p = glm::mix(p, glm::vec3{glm::dot(row[3], c), glm::dot(row[4], c), glm::dot(row[5], c)}, k);
+        glm::vec3 bp{glm::dot(row[3], c), glm::dot(row[4], c), glm::dot(row[5], c)};
+        if(r[2].w > 0.f)
+        {
+            // a joint's vertex (vr_anim_smooth_rebuild_blend): rest row 2's w its second bone + half that bone's weight
+            const float b2 = za::floor(r[2].w);
+            const glm::vec4* row2 = rows + rebuildRowsPerBone * static_cast<int>(b2);
+            k *= row2[6].w;
+            bp = glm::mix(bp, glm::vec3{glm::dot(row2[3], c), glm::dot(row2[4], c), glm::dot(row2[5], c)}, (r[2].w - b2) * 2.f);
+        }
+        p = glm::mix(p, bp, k);
     }
     return p;
+}
+
+// What the shader adds to a VBO vertex for a hit reaction's kick (RigKick: `kick` 3 rows a bone, after the rebuild).
+[[nodiscard]] glm::vec3 kickOf(const SmoothModel& m, int i, const glm::vec4* kick)
+{
+    if(static_cast<za::SizeT>(i + 1) * restStride > m.rest.size())
+    {
+        return glm::vec3{0.f};
+    }
+    const glm::vec4* r = m.rest.data() + static_cast<za::SizeT>(i) * restStride;
+    const glm::vec4* row = kick + 3 * static_cast<int>(za::floor(r[0].w));
+    const glm::vec4 q{r[0].x, r[0].y, r[0].z, 1.f};
+    return glm::vec3{glm::dot(row[0], q), glm::dot(row[1], q), glm::dot(row[2], q)};
+}
+
+// Each .mdl vertex's first VBO vertex (its rest rows: the warp check's choice), made once a model.
+[[nodiscard]] const za::Vector<int>& vboOfVert(SmoothModel& m, const aliashdr_t* hdr)
+{
+    if(static_cast<int>(m.vboOfVert.size()) != hdr->numverts)
+    {
+        const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+        m.vboOfVert.assign(static_cast<za::SizeT>(hdr->numverts), -1);
+        for(int i = hdr->numverts_vbo - 1; i >= 0; i--)
+        {
+            const int v = desc[i].vertindex;
+            if(v >= 0 && v < hdr->numverts)
+            {
+                m.vboOfVert[static_cast<za::SizeT>(v)] = i;
+            }
+        }
+    }
+    return m.vboOfVert;
 }
 
 } // namespace
@@ -900,41 +1137,37 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
 
 void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo, int pose1, int pose2, int poses[4], float span[3]);
 
-[[nodiscard]] int smoothInstance(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
-    int batchindex, int channel, int smooth[4], float weights[4])
+// The entity's smoothing for this lerp (its memo: the spline's four keys and weights, its swing or rebuild rows), made
+// when its key changed since it was last drawn or read; null: drawn as Quake's blend (not smoothed, not rebuilt). The
+// draw's (smoothInstance) and the armour's (drawnPoints: the same rows, whichever comes first in the frame).
+[[nodiscard]] const Memo* instanceMemo(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, int zeroblend)
 {
-    za::Vector<glm::vec4>& swing = swingsOf(channel);
-    if(batchindex == 0)
-    {
-        swing.clear();
-    }
-    const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
     if(!e->model || hdr->poseverttype == aliashdr_t::PV_IQM)
     {
-        return 0;
+        return nullptr;
     }
     // (not your weapons: their muzzle flashes, mounts and shells follow the gun's vertices by Quake's blend: vr_anchor.cpp,
     // the steadied recoil's reference vertex)
     if(zeroblend || VR_IsViewEntity(e))
     {
-        return 0;
+        return nullptr;
     }
     if(pose1 < 0 || pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes)
     {
-        return 0;
+        return nullptr;
     }
     const bool splined = r_lerpmodels.value == 3.f && pose1 != pose2 && blend > 0.f && blend < 1.f &&
                          !(cls.demoplayback && cls.demospeed < 0.f);
     const bool rebuildOn = vr_anim_smooth_rebuild.value != 0.f && hdr->poseverttype == aliashdr_t::PV_QUAKE1;
     if(!splined && !rebuildOn)
     {
-        return 0;
+        return nullptr;
     }
     SmoothModel& m = modelData(e->model, hdr);
     const bool rebuild = rebuildOn && rigData(m, e->model, hdr) && m.rebuildOk;
     if(!splined && !rebuild)
     {
-        return 0;
+        return nullptr;
     }
     Memo& memo = memos.entities[e];
     if(!splined)
@@ -956,19 +1189,7 @@ void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo
             memo.numRows = rebuildRowsPerBone * m.rig->numBones;
             stats.rebuilt++;
         }
-        smooth[0] = pose1;
-        smooth[1] = pose2;
-        smooth[3] = 1;
-        for(int i = 0; i < 4; i++)
-        {
-            weights[i] = memo.spline.w[i];
-        }
-        za::Vector<glm::vec4>& rowsOut = swingsOf(channel);
-        const za::SizeT at = rowsOut.size();
-        rowsOut.resize(at + static_cast<za::SizeT>(memo.numRows));
-        ZA_MEMCPY(static_cast<void*>(rowsOut.data() + at), memo.rows, sizeof(glm::vec4) * static_cast<za::SizeT>(memo.numRows));
-        smooth[2] = -1 - static_cast<int>(at);
-        return 1;
+        return &memo;
     }
 
     // The four keys and their times
@@ -1001,21 +1222,38 @@ void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo
         stats.ahead += poses[3] != poses[2] ? 1 : 0;
         stats.swung += memo.swung ? 1 : 0;
     }
-    smooth[0] = poses[0];
-    smooth[1] = poses[3];
+    return &memo;
+}
+
+[[nodiscard]] int smoothInstance(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
+    int batchindex, int channel, int smooth[4], float weights[4])
+{
+    za::Vector<glm::vec4>& swing = swingsOf(channel);
+    if(batchindex == 0)
+    {
+        swing.clear();
+    }
+    const Memo* memo = instanceMemo(e, static_cast<const aliashdr_t*>(aliashdr), pose1, pose2, blend, zeroblend);
+    if(!memo)
+    {
+        return 0;
+    }
+    // (Quake's blend rebuilt: its keys pose1, pose1, pose2, pose2)
+    smooth[0] = memo->key.poses[0];
+    smooth[1] = memo->key.poses[3];
     smooth[2] = 0;
     smooth[3] = 1;
     for(int i = 0; i < 4; i++)
     {
-        weights[i] = memo.spline.w[i];
+        weights[i] = memo->spline.w[i];
     }
-    if(memo.swung)
+    if(memo->swung)
     {
-        // B: the limbs' swings
+        // B: the limbs' swings, or C: the rebuild's rows
         const za::SizeT at = swing.size();
-        swing.resize(at + static_cast<za::SizeT>(memo.numRows));
-        ZA_MEMCPY(swing.data() + at, memo.rows, sizeof(glm::vec4) * static_cast<za::SizeT>(memo.numRows));
-        smooth[2] = rebuild ? -1 - static_cast<int>(at) : 1 + static_cast<int>(at);
+        swing.resize(at + static_cast<za::SizeT>(memo->numRows));
+        ZA_MEMCPY(static_cast<void*>(swing.data() + at), memo->rows, sizeof(glm::vec4) * static_cast<za::SizeT>(memo->numRows));
+        smooth[2] = memo->key.mode != 0 ? -1 - static_cast<int>(at) : 1 + static_cast<int>(at);
     }
     return 1;
 }
@@ -1198,6 +1436,197 @@ bool animsmooth::splineOf(const entity_s* e, const void* aliashdr, int pose1, in
     return true;
 }
 
+bool animsmooth::drawnPoints(const entity_s* e, int pose1, int pose2, float blend, const int* verts, int n, glm::vec3* out)
+{
+    if(!e || !e->model || e->model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || pose1 < 0 || pose2 < 0 || pose1 >= hdr->numposes || pose2 >= hdr->numposes)
+    {
+        return false;
+    }
+    const double t0 = Sys_DoubleTime();
+    stats.pointCalls++;
+    stats.points += n;
+    // The draw's own memo (its key the same this frame: the draw then reuses what is made here, or this what it made)
+    const Memo* memo = instanceMemo(e, hdr, pose1, pose2, blend, 0);
+    SmoothModel* m = memo && memo->swung ? &modelData(e->model, hdr) : nullptr;
+    const float b = pose1 == pose2 ? 0.f : blend;
+    const int quake[4] = {pose1, pose1, pose2, pose2};
+    const float lerp[4] = {0.f, 1.f - b, b, 0.f};
+    const int* poses = memo ? memo->key.poses : quake;
+    const float* w = memo ? memo->spline.w : lerp;
+    const glm::vec4* rows = m ? memo->rows : nullptr;
+    const bool rebuild = memo && memo->key.mode != 0;
+    const za::Vector<int>* vbo = m ? &vboOfVert(*m, hdr) : nullptr;
+    for(int i = 0; i < n; i++)
+    {
+        const int v = verts[i];
+        if(v < 0 || v >= hdr->numverts)
+        {
+            return false;
+        }
+        const int vi = vbo ? (*vbo)[static_cast<za::SizeT>(v)] : -1;
+        if(vi >= 0)
+        {
+            out[i] = drawnVertex(m, hdr, vi, poses, w, rows, rebuild);
+            continue;
+        }
+        glm::vec3 p{0.f};
+        for(int k = 0; k < 4; k++)
+        {
+            p += w[k] == 0.f ? glm::vec3{0.f} : w[k] * mdldequant::poseVertex(hdr, poses[k], v);
+        }
+        out[i] = p;
+    }
+    stats.pointSeconds += Sys_DoubleTime() - t0;
+    return true;
+}
+
+bool animsmooth::serverPoints(qmodel_t* model, const ServerLerp& l, glm::vec3* out, int n)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || n != hdr->numverts || l.pose1 < 0 || l.pose2 < 0 ||
+        l.pose1 >= hdr->numposes || l.pose2 >= hdr->numposes)
+    {
+        return false;
+    }
+    // instanceMemo's choices, with the server's lerp in place of the client entity's
+    const bool splined = r_lerpmodels.value == 3.f && l.pose1 != l.pose2 && l.blend > 0.f && l.blend < 1.f;
+    const bool rebuildOn = vr_anim_smooth_rebuild.value != 0.f;
+    if(!splined && !rebuildOn)
+    {
+        return false;
+    }
+    SmoothModel& m = modelData(model, hdr);
+    const bool rebuild = rebuildOn && rigData(m, model, hdr) && m.rebuildOk;
+    if(!splined && !rebuild)
+    {
+        return false;
+    }
+    serverRows.rows.resize(static_cast<za::SizeT>(rebuildRowsPerBone * ragdoll::maxBones));
+    glm::vec4* rows = serverRows.rows.data();
+    int poses[4] = {l.pose1, l.pose1, l.pose2, l.pose2};
+    rigpose::Spline s;
+    bool swung = false;
+    if(!splined)
+    {
+        // Rebuilt on Quake's blend (instanceMemo's mode 2)
+        const float b = l.pose1 == l.pose2 ? 0.f : za::clamp(l.blend, 0.f, 1.f);
+        s.w[1] = 1.f - b;
+        s.w[2] = b;
+        s.rot[1] = b;
+        rebuildRows(m, poses, s, b, false, rows);
+        swung = true;
+    }
+    else
+    {
+        // keysOf's keys: the lerp before (R_AnimHistoryPush's rule, the server's track), the frame after by the names
+        const float d1 = l.span1 > 0.001f ? l.span1 : 0.1f;
+        float span[3] = {d1, d1, d1};
+        if(l.pose0 >= 0 && l.pose0 < hdr->numposes && l.span0 > 0.f)
+        {
+            poses[0] = l.pose0;
+            span[0] = za::clamp(l.span0, d1 * 0.5f, d1 * 2.f);
+        }
+        const int frame = m.frameOfPose[static_cast<za::SizeT>(l.pose2)];
+        int next = -1;
+        if(frame < 0)
+        {
+            next = nextPose(m, hdr, l.pose2); // (a framegroup's cycle: no learning in it)
+        }
+        else if(m.next[static_cast<za::SizeT>(frame)] >= 0)
+        {
+            next = hdr->frames[m.next[static_cast<za::SizeT>(frame)]].firstpose;
+        }
+        poses[3] = next >= 0 && next < hdr->numposes ? next : l.pose2;
+        s = rigpose::spline(l.blend, span, za::clamp(vr_anim_smooth_tension.value, 0.f, 1.f));
+        const bool rigged = vr_anim_smooth_rig.value != 0.f && rigData(m, model, hdr);
+        if(rebuild)
+        {
+            rebuildRows(m, poses, s, l.blend, rigged, rows);
+            swung = true;
+        }
+        else
+        {
+            swung = rigged && swings(m, poses, s, rows);
+        }
+    }
+    const za::Vector<int>& vbo = vboOfVert(m, hdr);
+    for(int v = 0; v < n; v++)
+    {
+        const int vi = vbo[static_cast<za::SizeT>(v)];
+        if(vi >= 0)
+        {
+            out[v] = drawnVertex(swung ? &m : nullptr, hdr, vi, poses, s.w, swung ? rows : nullptr, rebuild);
+            continue;
+        }
+        glm::vec3 p{0.f};
+        for(int k = 0; k < 4; k++)
+        {
+            p += s.w[k] == 0.f ? glm::vec3{0.f} : s.w[k] * mdldequant::poseVertex(hdr, poses[k], v);
+        }
+        out[v] = p;
+    }
+    return true;
+}
+
+void animsmooth::captureDraws(const entity_s* e)
+{
+    capture = Capture{};
+    capture.ent = e;
+}
+
+bool animsmooth::capturedPoints(double time, const int* verts, int n, glm::vec3* out)
+{
+    const Capture& c = capture;
+    if(!c.ent || !c.model || c.time != time)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(c.model)));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1)
+    {
+        return false;
+    }
+    SmoothModel& m = modelData(c.model, hdr);
+    const za::Vector<int>& vbo = vboOfVert(m, hdr);
+    const bool rebuild = c.on && c.smooth[2] < 0;
+    const glm::vec4* rows = c.on && c.smooth[2] != 0 ? c.rows.data() + (rebuild ? -c.smooth[2] - 1 : c.smooth[2] - 1) : nullptr;
+    const glm::vec4* kick = c.on && c.smooth[3] > 1 && !m.armSkin && !m.legSkin ? c.rows.data() + (c.smooth[3] - 2) : nullptr;
+    const float b = c.pose1 == c.pose2 ? 0.f : c.blend;
+    const int poses[4] = {c.on ? c.smooth[0] : c.pose1, c.pose1, c.pose2, c.on ? c.smooth[1] : c.pose2};
+    const float lerp[4] = {0.f, 1.f - b, b, 0.f};
+    for(int i = 0; i < n; i++)
+    {
+        const int v = verts[i];
+        if(v < 0 || v >= hdr->numverts)
+        {
+            return false;
+        }
+        const int vi = vbo[static_cast<za::SizeT>(v)];
+        if(vi < 0)
+        {
+            // (on no triangle: never drawn; its poses blended, as drawnPoints has it)
+            out[i] = glm::vec3{0.f};
+            for(int k = 0; k < 4; k++)
+            {
+                const float wk = c.on ? c.weights[k] : lerp[k];
+                out[i] += wk == 0.f ? glm::vec3{0.f} : wk * mdldequant::poseVertex(hdr, poses[k], v);
+            }
+            continue;
+        }
+        out[i] = drawnVertex(&m, hdr, vi, poses, c.on ? c.weights : lerp, rows, rebuild) + (kick ? kickOf(m, vi, kick) : glm::vec3{0.f});
+    }
+    return true;
+}
+
 bool animsmooth::rigged(const entity_s* e)
 {
     if(!e || !e->model || e->model->type != mod_alias)
@@ -1209,6 +1638,11 @@ bool animsmooth::rigged(const entity_s* e)
 }
 
 void animsmooth::prepare()
+{
+    prepareModels(cl.model_precache);
+}
+
+void animsmooth::prepareModels(qmodel_t* const* models)
 {
     const bool rebuildOn = vr_anim_smooth_rebuild.value != 0.f;
     if(r_lerpmodels.value != 3.f && !rebuildOn)
@@ -1228,9 +1662,9 @@ void animsmooth::prepare()
     };
     za::Vector<Job> work;
     const double t0 = Sys_DoubleTime();
-    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+    for(int i = 1; i < MAX_MODELS && models[i]; i++)
     {
-        qmodel_t* model = cl.model_precache[i];
+        qmodel_t* model = models[i];
         if(model->type != mod_alias)
         {
             continue;
@@ -1336,6 +1770,28 @@ extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1,
     const double t0 = Sys_DoubleTime();
     int on = smoothInstance(e, aliashdr, pose1, pose2, blend, zeroblend, batchindex, channel, smooth, weights);
     on = kickInstance(e, aliashdr, pose1, pose2, blend, zeroblend, channel, on, smooth, weights);
+    if(capture.ent == e && channel == 0 && capture.time != cl.time)
+    {
+        // (vr_drawnlerp_watch: what this draw hands the shader, for capturedPoints)
+        Capture& c = capture;
+        c.model = e->model;
+        c.time = cl.time;
+        c.on = on;
+        c.pose1 = pose1;
+        c.pose2 = pose2;
+        c.blend = blend;
+        const za::Vector<glm::vec4>& rows = swingsOf(channel);
+        c.rows.resize(rows.size());
+        if(!rows.empty())
+        {
+            ZA_MEMCPY(static_cast<void*>(c.rows.data()), rows.data(), sizeof(glm::vec4) * rows.size());
+        }
+        for(int i = 0; i < 4 && on; i++)
+        {
+            c.smooth[i] = smooth[i];
+            c.weights[i] = weights[i];
+        }
+    }
     stats.calls++;
     stats.seconds += Sys_DoubleTime() - t0;
     if(trace.ent >= 0 && channel == 0)

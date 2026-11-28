@@ -192,6 +192,31 @@ void probeLook()
     removeTarget(NUM_FOR_EDICT(e), true);
 }
 
+// The toolgun's armour on the monster just spawned (QC VR_AgArmor_Toolgun: `armour` 0 none, the skill's roll stripped
+// too, 1-3 a type, 4 one at random; `pieces` 0 the core, 1 all, 2 random): the Armed Humanoid page's and the Monsters
+// page's on a beast (a beast's slots of them: VR_AgArmor_Give).
+void toolArmour(edict_t* e, float armour, float pieces)
+{
+    const func_t fn = qvr::progs::findFunction("VR_AgArmor_Toolgun");
+    if(!fn || e->free)
+    {
+        return;
+    }
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+    G_FLOAT(OFS_PARM1) = static_cast<float>(za::clamp(static_cast<int>(armour), 0, 4));
+    G_FLOAT(OFS_PARM2) = static_cast<float>(za::clamp(static_cast<int>(pieces), 0, 2));
+    PR_ExecuteProgram(fn);
+}
+
+// The Monsters page's armour on a beast (vr_toolgun_beast_armor 0-4, _pieces; 5 as the skill rolls: its own roll, not
+// held): whether the choice is a beast kind's (vr_beastarmour.cpp) and the toolgun's armour, not the skill's.
+[[nodiscard]] bool beastArmourChosen(const Selection& sel)
+{
+    return sel.valid && !sel.armed && static_cast<int>(vr_toolgun_beast_armor.value) < 5 && beastarmour::kindNamed(sel.model);
+}
+
 // The Armed Humanoid page's armour (vr_toolgun_armed_armor, _pieces) on the armed monster just spawned (QC
 // VR_AgArmor_Toolgun: None strips the skill's roll too).
 void armedArmour(edict_t* e)
@@ -201,17 +226,11 @@ void armedArmour(edict_t* e)
         return;
     }
     const progs::ServerVm vm;
-    const func_t fn = qvr::progs::findFunction("VR_AgArmor_Toolgun");
-    if(!fn || e->free)
+    if(e->free)
     {
         return;
     }
-    pr_global_struct->time = qcvm->time;
-    pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
-    G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
-    G_FLOAT(OFS_PARM1) = static_cast<float>(za::clamp(static_cast<int>(vr_toolgun_armed_armor.value), 0, 4));
-    G_FLOAT(OFS_PARM2) = static_cast<float>(za::clamp(static_cast<int>(vr_toolgun_armed_pieces.value), 0, 2));
-    PR_ExecuteProgram(fn);
+    toolArmour(e, vr_toolgun_armed_armor.value, vr_toolgun_armed_pieces.value);
     // And what it is infected with (QC VR_Infect_Toolgun: its outcome precached now, the spawn tool's late precache).
     if(const func_t infect = qvr::progs::findFunction("VR_Infect_Toolgun"); infect && !e->free)
     {
@@ -226,11 +245,28 @@ void armedArmour(edict_t* e)
 [[nodiscard]] edict_t* spawnChoice(const Selection& sel, const glm::vec3& origin, const glm::vec3& angles)
 {
     const progs::ToolSpawn plain; // (the toolgun's Grunt, Enforcer, Knight plain ones; its armed ones are their own entries)
+    // A beast with the Monsters page's armour: its own skill roll held (as the arena holds a wave foe's: QC
+    // vr_ar_hold_roll), the page's armour on it after.
+    const bool beast = beastArmourChosen(sel);
+    float* const hold = beast ? progs::bindings().arHoldRoll : nullptr;
+    const float held = hold ? za::exchange(*hold, 1.f) : 0.f;
     edict_t* e = box3d::spawnClass(sel.classname, origin, angles, sel.setModel ? sel.model : nullptr, sel.key[0] ? sel.key : nullptr,
         sel.value, false, sel.weaponFlags, sel.key2[0] ? sel.key2 : nullptr, sel.value2);
+    if(hold)
+    {
+        *hold = held;
+    }
     if(e && sel.armed)
     {
         armedArmour(e);
+    }
+    else if(e && beast && sv.active)
+    {
+        const progs::ServerVm vm;
+        if(!e->free && beastarmour::wears(e))
+        {
+            toolArmour(e, vr_toolgun_beast_armor.value, vr_toolgun_beast_pieces.value);
+        }
     }
     return e;
 }

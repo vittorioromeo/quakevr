@@ -61,6 +61,10 @@ QVR_MODEL_ID(VrGrunt, "progs/vrgrunt.mdl") // the armed grunt: the grunt without
 QVR_MODEL_ID(VrEnforcer, "progs/vrenforcer.mdl") // the armed enforcer: the enforcer without its rifle (make_vrgrunt.py)
 QVR_MODEL_ID(VrKnight, "progs/vrknight.mdl") // the armed knight (vr_agknight): the knight without his sword (make_vrgrunt.py)
 QVR_MODEL_ID(VrHknight, "progs/vrhknight.mdl") // the armed death knight (vr_agdknight): the hell knight without his sword (make_vrgrunt.py)
+// AD's death guard and crossbow knight as armed knights (vr_agknight; QC vr_armedmon.qc rows 4 and 5): AD's models without
+// their weapons, their frames in the knight's order, made as they load (vr_monstermods.cpp VR_AdArmedModelFile; never a file)
+QVR_MODEL_ID(VrDguard, "progs/vrdguard.mdl")
+QVR_MODEL_ID(VrDcrossbow, "progs/vrdcrossbow.mdl")
 QVR_MODEL_ID(Enforcer, "progs/enforcer.mdl")
 QVR_MODEL_ID(Knight, "progs/knight.mdl")
 QVR_MODEL_ID(Hknight, "progs/hknight.mdl")
@@ -172,6 +176,8 @@ QVR_MODEL_TRAIT(Submodel, Prefix, "*")
 QVR_MODEL_TRAIT(Ragdoll, Suffix, "#rag")
 QVR_MODEL_TRAIT(AuthoredRig, Suffix, "#rig2") // the Rig Studio's subject on the authored rig (vr_rig2.cpp): a skinned copy of its .mdl, its skins
 QVR_MODEL_TRAIT(Limb, Contains, "#limb") // a monster's limb cut off (vr_limbmodel.cpp): a gib
+QVR_MODEL_TRAIT(ArmourShaped, Suffix, "#tweak") // a beast's armour piece shaped by armour.txt (vr_beastarmour.cpp): its .mdl's skins
+QVR_MODEL_TRAIT(ArmourLeather, Suffix, "#bridge") // the armour's joints' leather (vr_agarmor_bridge.cpp, vr_beastarmour.cpp): vragarmor.mdl's skins
 QVR_MODEL_TRAIT(AmmoBoxInsensitive, PrefixInsensitive, "maps/b_")
 QVR_MODEL_TRAIT(RigHandInsensitive, ExactInsensitive, "progs/hand_rig.mdl")
 QVR_MODEL_TRAIT(RigHandFInsensitive, ExactInsensitive, "progs/hand_rig_f.mdl")

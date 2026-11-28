@@ -271,6 +271,20 @@ void menuBar()
     }
     ImGui::Separator();
     ImGui::TextDisabled("%s%s", st.model ? st.model->name : "(no subject yet)", dirtyAny() ? "  * unsaved" : "");
+    if(st.model && !st.sharers.empty())
+    {
+        // (shared poses: its files are also the others'; a save writes theirs, an edit moves them at once)
+        za::String with;
+        for(const za::String& s : st.sharers)
+        {
+            char b[64];
+            rigdata::baseName(s.cStr(), b, sizeof(b));
+            with += with.empty() ? "" : ", ";
+            with += b;
+        }
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4{0.95f, 0.8f, 0.4f, 1.f}, "  poses shared with %s (files: %s)", with.cStr(), st.doc.base.cStr());
+    }
     if(st.status[0] && realtime - st.statusAt < 6.0)
     {
         ImGui::SameLine();
@@ -1460,6 +1474,20 @@ void poseDataWindow()
     if(st.pdFollow && st.tool == Tool::PoseKeys)
     {
         ImGui::EndDisabled();
+    }
+    if(st.note.ent == st.subject && st.subject > 0)
+    {
+        // (which kind the subject's keys and grips are: AD's knights share theirs; adrigfix, adposekind)
+        const char* rowName = st.note.row == 4 ? "Death Guard" : st.note.row == 5 ? "Crossbow Knight" : nullptr;
+        if(st.note.kind == agpose::adKnight)
+        {
+            ImGui::TextWrapped("AD Knight: shared by Death Guard and Crossbow Knight (the subject: %s). Seeded from the "
+                               "Knight's keys; an edit here moves both, never the Knight.", rowName ? rowName : "?");
+        }
+        else
+        {
+            ImGui::TextWrapped("%s: the subject's own kind.", agpose::kindTitle(st.note.kind));
+        }
     }
     ImGui::Checkbox("Follow the Subject", &st.pdFollow);
     helpMarker("With the Pose Keys tool: the key is the subject's own kind and weapon class (and, when the tool is picked, "

@@ -733,6 +733,24 @@ gamepadtype_t IN_GetGamepadType (void)
 	return joy_primary->type;
 }
 
+// QVR: SDL's own type of the gamepad in use (SDL_GameControllerType; -1: none, 0: unknown): the Controller Bindings
+// screen's picture (vr/vr_bindsetup.cpp). split20: the current seat's pad (seat 0: the keyboard player's own pad, pad 0
+// with one seat); a mock pad (the tests') is an unknown one (0).
+int IN_GetGamepadSdlType (void)
+{
+	joypad_t *pad = IN_SeatPad (CL_SeatIndex ());
+
+	if (!pad)
+		return -1;
+	if (!pad->controller)
+		return pad->mock ? 0 : -1;
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+	return (int) SDL_GameControllerGetType (pad->controller);
+#else
+	return 0;
+#endif
+}
+
 void IN_UseNextGamepad (int dir, qboolean allow_disable)
 {
 	int i, j, numiter, numdev;

@@ -312,9 +312,20 @@ constexpr za::SizeT maxSamples = 256;
 
 // A pointed blade's length for its stab's depth shares (its tip to its Blade Start, `drawn`): Dwell's Crystal Lance
 // (lance3; his note vrtesthall_2026-11-23_23-00-45: a very shallow stab by the pointed bits at the top of its head)
-// counts only vr_dw_lance_embed_length units of it, so it goes in a sword's share of those (held or thrown).
+// counts only vr_dw_lance_embed_length units of it, so it goes in a sword's share of those (held or thrown). A gun's
+// bayonet (attachBlade: its base to its tip, about 5 units) counts times vr_embed_bayonet_depth (bayonet2, his VR note
+// 2026-11-27: "a bit too shallow"; 1.25: 37-100% of it in by speed, a sword's 30-80%).
 [[nodiscard]] float pointLength(edict_t* ent, float drawn)
 {
+    const int kind = attach::kindOfRef(ent, progs::fields().weaponinst);
+    if(kind == attach::Bayonet)
+    {
+        return drawn * za::max(0.1f, vr_embed_bayonet_depth.value);
+    }
+    if(kind == attach::Dagger) // (daggerattach: its blade about 7 units, base to tip)
+    {
+        return drawn * za::max(0.1f, vr_embed_attdagger_depth.value);
+    }
     const qmodel_t* m = modelOf(ent);
     return m && ZA_STRSTR(m->name, "dw_lance") ? za::min(drawn, za::max(0.5f, vr_dw_lance_embed_length.value)) : drawn;
 }

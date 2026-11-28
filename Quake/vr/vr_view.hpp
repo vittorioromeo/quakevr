@@ -257,6 +257,9 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 // in the world (the same as setupSsgParts draws them by: ssgWorldTurn), to carry it down with them about the hinge
 // (pos' = hinge + turn (pos - hinge), its rotation turned by `turn`). False: shut, not a super shotgun, or on the frame.
 [[nodiscard]] bool ssgBarrelsCarry(int hand, const glm::vec3& on, glm::vec3& hinge, glm::mat3& turn);
+// The same for any super shotgun entity `gun` (a holstered, lying or another player's one) drawn with its barrels `deg`
+// degrees down (holsterattach).
+[[nodiscard]] bool ssgCarry(const ViewEntity& gun, float deg, const glm::vec3& on, glm::vec3& hinge, glm::mat3& turn);
 // The heavy revolver in `hand` (QC vr_revolver.qc): how far (degrees, 0..95) its crane is drawn swung out now (0: home,
 // or not a revolver), and a point of its model (its Body's frame) on the crane turned with it (vr_shells.cpp: its spent
 // shells out of the chambers). Its load point (the cylinder's back face's middle) turns with it (modelLoadPort's
@@ -303,11 +306,17 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 
 // Weapon attachments (vr_attach.hpp): `out` drawn as attachment `kind` on the gun entity `gun` (held, holstered, lying,
 // another player's), at its Weapon Offsets mount, following the gun's frame (its muzzle's anchor) and, `ssgHand` >= 0, that
-// hand's super shotgun's barrels as they drop open; false (hidden) if none, or it doesn't fit that gun.
-bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand);
+// hand's super shotgun's barrels as they drop open (else, holsterattach, `ssgOpen` > 0: a super shotgun not in your hands
+// drawn with its barrels that many degrees down: ssgCarry); false (hidden) if none, or it doesn't fit that gun.
+bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand, float ssgOpen = 0.f);
 // The attachment drawn on the gun in your `hand` last frame: its mount (its model's origin) and its tip (its striking point)
 // in the world; false if none is drawn there (the two-handed grip leaves a hand pulling one off alone: vr_twohand.cpp).
 [[nodiscard]] bool drawnAttachment(int hand, glm::vec3& mount, glm::vec3& tip);
+// Where attachment `kind` would be drawn on the gun drawn in your `hand` now (on it or not): its mount and its tip in the
+// world; false if that gun isn't drawn or doesn't take it (flatattachanim: the flat Attach key's hand goes there).
+[[nodiscard]] bool attachSpot(int hand, int kind, glm::vec3& mount, glm::vec3& tip);
+// The model origin of the weapon drawn in your `hand` (a held dagger's: its attachment mount), in the world.
+[[nodiscard]] bool drawnWeaponOrigin(int hand, glm::vec3& out);
 // The turn of a weapon's model from the hand holding it (its Weapon Offsets Pitch, Yaw, Roll; unmirrored) as axes
 // (forward, left, up): a point in the gun's axes as the hand's (the server's attachment points: QC attachinfo).
 [[nodiscard]] glm::mat3 weaponTurnInHand(int slot);

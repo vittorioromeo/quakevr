@@ -38,6 +38,8 @@ struct Features
     float occlusion{0.f};    // strength (0 off)
     bool air{false};
     float reverb{0.f};       // wet mix (0 off)
+    float reverbOwn{1.f};    // an attached voice's (the player's own, from his hand) send to the reverb: a share of
+                             // any other's (vr_snd_reverb_own)
     float doppler{0.f};      // scale (0 off)
     float nearfield{0.f};    // strength (0 off)
     float unitsPerMetre{26.25f};
@@ -190,7 +192,7 @@ private:
     void prepare(Voice& v, const Listener& l, const Features& f) const;
     void processSource(Voice& v, int blocks, const Features& f);              // read, gain, direct effect: v.send
     void processEars(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf); // HRTF, near field: v.outL, v.outR
-    void reverbConvolve(int blocks, const int* list, int active, const IPLReflectionEffectParams& params);
+    void reverbConvolve(int blocks, const int* list, int active, const IPLReflectionEffectParams& params, float own);
     void reverbDecode(int blocks, const Features& f, float* toL, float* toR, float* roomL, float* roomR, AntiAlias* roomFilter);
     void read(Voice& v, float* out, float step0, float step1, bool fullBand);
 

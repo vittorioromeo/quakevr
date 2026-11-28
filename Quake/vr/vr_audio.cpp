@@ -103,6 +103,7 @@ Features featuresFromCvars()
     f.occlusion = za::clamp(vr_snd_occlusion.value, 0.f, 2.f);
     f.air = vr_snd_air.value != 0.f;
     f.reverb = za::clamp(vr_snd_reverb.value, 0.f, 2.f);
+    f.reverbOwn = za::clamp(vr_snd_reverb_own.value, 0.f, 1.f);
     f.doppler = za::clamp(vr_snd_doppler.value, 0.f, 4.f);
     f.nearfield = za::clamp(vr_snd_nearfield.value, 0.f, 2.f);
     f.unitsPerMetre = units::metresToUnits();
@@ -752,7 +753,9 @@ Mixer::Times Mixer::takeTimes()
 // its wet mix to toL/toR, then `roomFilter` on that block of roomL/roomR). The decode waits for each block's convolution
 // (reverbConvolved); the convolution never waits, and parallelFor hands out its tasks in order (the convolution's, task 0,
 // is taken first), so the wait always ends. Run on one thread, one after the other, it is the same.
-void Mixer::reverbConvolve(int blocks, const int* list, int active, const IPLReflectionEffectParams& params)
+// `own`: an attached voice's share (Features::reverbOwn: the player's own sounds, a step from his ears, heard over the
+// room's wash as they are: ROUND26.md, "muffled").
+void Mixer::reverbConvolve(int blocks, const int* list, int active, const IPLReflectionEffectParams& params, float own)
 {
     reverbStarted = timing ? Sys_DoubleTime() : 0.0;
     IPLReflectionEffectParams p = params; // (Steam Audio's takes it mutable: one copy for the call, as it was)
@@ -762,10 +765,22 @@ void Mixer::reverbConvolve(int blocks, const int* list, int active, const IPLRef
         za::fill(reverbIn, 0.f);
         for(int k = 0; k < active; k++)
         {
-            const float* s = voices[list[k]].send.data() + b * frame;
-            for(int i = 0; i < frame; i++)
+            const Voice& v = voices[list[k]];
+            const float* s = v.send.data() + b * frame;
+            const float share = v.in.attached ? own : 1.f;
+            if(share == 1.f)
             {
-                reverbIn[i] += s[i];
+                for(int i = 0; i < frame; i++)
+                {
+                    reverbIn[i] += s[i];
+                }
+            }
+            else
+            {
+                for(int i = 0; i < frame; i++)
+                {
+                    reverbIn[i] += s[i] * share;
+                }
             }
             silent = false;
         }
@@ -909,7 +924,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         {
             if(withReverb)
             {
-                reverbConvolve(blocks, list, active, params);
+                reverbConvolve(blocks, list, active, params, f.reverbOwn);
                 reverbDecode(blocks, f, revToL, revToR, roomL, roomR, roomFilter);
                 filtered = true;
             }
@@ -932,7 +947,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
             {
                 return false;
             }
-            reverbConvolve(blocks, list, active, params);
+            reverbConvolve(blocks, list, active, params, f.reverbOwn);
             return true;
         };
         const auto takeDecode = [&]() {
@@ -1747,6 +1762,7 @@ void init()
     Cmd_AddCommand("vr_snd_play", play_f);
     Cmd_AddCommand("vr_snd_burst", burst_f);
     Cmd_AddCommand("vr_snd_play_dir", playDir_f);
+    Cmd_AddCommand("vr_snd_play_own", playOwn_f);
     Cmd_AddCommand("vr_snd_dump", dump_f);
     Cmd_AddCommand("vr_snd_bench", bench_f);
     Cmd_AddCommand("vr_snd_wav_check", wavCheck_f);

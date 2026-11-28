@@ -53,7 +53,7 @@ void(string s) VR_WP_Log =
 // Its size by its wearer's kind (.vr_ag_kind: the pack keeps it, its wearer may be gone).
 float(entity pk) VR_WP_Scale =
 {
-    float s = pk.vr_ag_kind == VR_AM_KNIGHT ? cvar_hget(cvarh_vr_worn_backpack_knight_scale) :
+    float s = VR_AM_KnightBody(pk.vr_ag_kind) ? cvar_hget(cvarh_vr_worn_backpack_knight_scale) :
         pk.vr_ag_kind == VR_AM_DKNIGHT ? cvar_hget(cvarh_vr_worn_backpack_dknight_scale) : cvar_hget(cvarh_vr_worn_backpack_grunt_scale);
     return min(2, max(0.1, s));
 };

@@ -67,6 +67,9 @@ using qvr::menupaint::Painter;
 // after the block that declared them has ended (a block-scope array there was a dangling pointer: a crash).
 constexpr const char* armedArmours[] = {"None", "Green", "Yellow", "Red", "Random"};
 constexpr const char* armedPieceSets[] = {"Chest+Helmet", "Full", "Random"};
+// The Monsters page's for a beast (vr_toolgun_beast_armor, _pieces): the same, and its own skill's roll (5: by skill).
+constexpr const char* beastArmours[] = {"None", "Green", "Yellow", "Red", "Random", "By Skill"};
+constexpr const char* beastPieceSets[] = {"Core", "Full", "Random"};
 
 constexpr float panelWidth = 256.f; // its virtual pixels
 constexpr float panelHeight = 192.f;
@@ -756,6 +759,13 @@ void infoLine(Ui& ui)
     textFit(panelWidth * 0.5f, 38.f, panelWidth - pad * 2.f, 6.f, line, false);
 }
 
+// A grid tile's picture size: 36 in a full tile, smaller in the Monsters tab's shorter ones (its beasts' armour row under
+// them), its name's lines under it kept clear.
+[[nodiscard]] float tilePicture(const Rect& r)
+{
+    return za::min(36.f, r.h() - 16.f);
+}
+
 // A thumbnail tile: the entry's picture, its name under it (two lines if it is long).
 bool thumbTile(Ui& ui, const Rect& r, int entry)
 {
@@ -778,7 +788,7 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
         tile(r, chosen, hover);
         const bool side = !ZA_STRCMP(toolgun::spawnableSection(entry), "Weapons");
         const gfx::Picture* pic = toolgun::icons::get(toolgun::spawnableModel(entry), toolgun::spawnableSkin(entry), side);
-        const float size = 36.f;
+        const float size = tilePicture(r);
         if(pic)
         {
             gfx::draw2D::picture(*pic, r.cx() - size * 0.5f, r.y0 + 2.f, size, size);
@@ -952,7 +962,8 @@ bool armedTile(Ui& ui, const Rect& r)
         const gfx::Picture* pic = toolgun::icons::get(model[0] ? model : "progs/vrgrunt.mdl", 0, false);
         if(pic)
         {
-            gfx::draw2D::picture(*pic, r.cx() - 18.f, r.y0 + 2.f, 36.f, 36.f);
+            const float size = tilePicture(r);
+            gfx::draw2D::picture(*pic, r.cx() - size * 0.5f, r.y0 + 2.f, size, size);
         }
         textFit(r.cx(), r.y1 - 14.f, r.w() - 3.f, 6.f, "Armed", !chosen && !hover);
         textFit(r.cx(), r.y1 - 7.5f, r.w() - 3.f, 6.f, "Humanoid", !chosen && !hover);
@@ -1226,7 +1237,8 @@ void spawnPage(Ui& ui)
     int& page = ps().gridPage[ps().section];
     page = za::clamp(page, 0, pages - 1);
     const float cw = (panelWidth - pad * 2.f - gap * (gridColumns - 1)) / gridColumns;
-    const float ch = 52.f;
+    const bool monsters = ps().section == 0;
+    const float ch = monsters ? 46.f : 52.f; // (Monsters: shorter tiles, the beasts' armour row under them)
     int ropeCells = 0, pageCells = 0;
     for(int k = 0; k < perPage; k++)
     {
@@ -1262,6 +1274,26 @@ void spawnPage(Ui& ui)
         button(ui, Rect{pad + 30.f, 125.f, panelWidth - pad - 30.f, 141.f}, "Rope and Pole Settings (length, span, ...)", false, 6.f))
     {
         ps().rope = true;
+    }
+    // Monsters: a beast's armour (the rottweiler, ogre, scrag, fiend: vr_beastarmour.cpp; QC VR_AgArmor_Toolgun on each
+    // one spawned, its own skill roll held), as the Armed Humanoid page's Armour and Pieces; By Skill: its own roll.
+    // Dimmed while the choice is not a beast.
+    if(monsters)
+    {
+        const bool beast = toolgun::beastChosen();
+        const int armour = za::clamp(static_cast<int>(vr_toolgun_beast_armor.value), 0, 5);
+        const float x0 = pad, x1 = panelWidth - pad, xm = (x0 + x1) * 0.5f;
+        const int ar = dropdown(ui, Rect{x0, 161.f, xm - 2.f, 173.f}, "Armour", beastArmours, 6, armour, beast);
+        if(ar >= 0)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_beast_armor, static_cast<float>(ar));
+        }
+        const int ap = dropdown(ui, Rect{xm + 2.f, 161.f, x1, 173.f}, "Pieces", beastPieceSets, 3,
+            za::clamp(static_cast<int>(vr_toolgun_beast_pieces.value), 0, 2), beast && armour >= 1 && armour <= 4);
+        if(ap >= 0)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_beast_pieces, static_cast<float>(ap));
+        }
     }
     // The pages, and the spawn tool's commands.
     const Rect bar{pad, 175.f, panelWidth - pad, 189.f};

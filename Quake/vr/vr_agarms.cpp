@@ -88,7 +88,7 @@ constexpr float secondEase = 0.25f; // ... taken and let go over this (seconds; 
 constexpr float reachFar = 1.6f;    // vr_agarms_reach_ease: a weapon lying this many arm's lengths off: the hand hanging,
 constexpr float reachNear = 1.15f;  // ... this near: reaching for it wholly
 
-constexpr int maxModels = 4;
+constexpr int maxModels = 8; // (the armed rows' models: vr_hitreact_internal.hpp armedRigs)
 constexpr int maxEnts = 64;
 constexpr float lodRadius = 40.f; // vr_agarms_lod: an armed humanoid's size round its origin (units: its weapon held out)
 constexpr int lodEveryMost = 30;  // ... solved at least every this many frames
@@ -148,6 +148,7 @@ struct Err
     float grow{0.f};          // ... the most an edge grew (units: a flap)
     float torso{0.f};         // the elbows and forearms inside the torso (units)
     float miss[2]{0.f, 0.f};  // the hands' grips off their goals (reach)
+    glm::vec3 missBy[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // ... the most's way (model space; adposekind's retarget)
     float second{0.f};        // the off hand off its second grip
     float slid{0.f};          // ... slid back along the weapon from its hotspot (out of its reach)
     float bend{0.f};          // the wrists' bend (degrees; the right, the left: bendL)
@@ -1128,6 +1129,7 @@ struct ArmOut
 {
     rigpose::Rigid U, F, H;
     float miss{0.f};  // the wrist's goal out of reach (units it was brought in)
+    glm::vec3 missBy{0.f}; // ... the way it was brought (model space: where the wrist went less its goal)
     float bend{0.f};  // the wrist's bend wanted (degrees)
     float turned{0.f}; // ... past its most: the hand turned back by this (degrees)
     glm::vec3 elbow{0.f};
@@ -1237,6 +1239,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
     {
         const glm::vec3 shift = S1 + dir0 * want - W1;
         o.miss = glm::length(shift);
+        o.missBy = shift;
         if(lim.debug >= 5.f && o.miss > (lim.debug >= 6.f ? 0.5f : 4.f)) // (6: the small ones too)
         {
             Con_Printf("agarms reach: side %d shoulder %.1f %.1f %.1f (on the chest %.1f %.1f %.1f) wrist wanted %.1f %.1f %.1f: %.1f "
@@ -1627,6 +1630,7 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
         const float gap = za::max(glm::length(rigpose::apply(b[0], eOn0) - rigpose::apply(b[1], sd.E)),
             glm::length(rigpose::apply(b[1], wOn1) - rigpose::apply(b[2], sd.W)));
         e.gap = za::max(e.gap, gap);
+        e.missBy[s] = arms[s].miss > e.miss[s] ? arms[s].missBy : e.missBy[s];
         e.miss[s] = za::max(e.miss[s], arms[s].miss);
         (s == 0 ? e.bend : e.bendL) = za::max(s == 0 ? e.bend : e.bendL, arms[s].bend - arms[s].turned); // (as drawn)
         // In the torso: the elbow, the forearm's middle.
@@ -3017,6 +3021,24 @@ void clearErr()
     }
 }
 
+bool reachErr(int tag, float& missR, float& missL, float& second, glm::vec3* by)
+{
+    if(tag < 0 || tag >= errTags || state.errs[tag].n == 0)
+    {
+        return false;
+    }
+    const Err& e = state.errs[tag];
+    missR = e.miss[0];
+    missL = e.miss[1];
+    second = e.second;
+    if(by)
+    {
+        by[0] = e.missBy[0];
+        by[1] = e.missBy[1];
+    }
+    return true;
+}
+
 void printErr()
 {
     Err t;
@@ -3231,8 +3253,31 @@ void qvr::agarms::resetModels()
     state = State{};
 }
 
+extern "C" byte* VR_AdArmedModelFile(const char* name, unsigned int* path_id); // (vr_monstermods.cpp)
+
 void qvr::agarms::registerCommands()
 {
+    // vr_adarmed_dump <progs/vrdguard.mdl|progs/vrdcrossbow.mdl> <file>: the armed death guard's or crossbow knight's model as
+    // made from AD's (vr_monstermods.cpp) written to a file, for make_rig2.py --mesh (never shipped: AD's mesh)
+    Cmd_AddCommand("vr_adarmed_dump", [] {
+        if(Cmd_Argc() < 3)
+        {
+            Con_Printf("usage: vr_adarmed_dump <model> <file>\n");
+            return;
+        }
+        byte* data = VR_AdArmedModelFile(Cmd_Argv(1), nullptr);
+        if(!data)
+        {
+            Con_Printf("adarmed dump: %s: not made (AD's data missing?)\n", Cmd_Argv(1));
+            return;
+        }
+        const int n = com_filesize;
+        FILE* f = fopen(Cmd_Argv(2), "wb");
+        const bool ok = f && fwrite(data, 1, static_cast<size_t>(n), f) == static_cast<size_t>(n);
+        if(f) { fclose(f); }
+        VR_HeapFree(data);
+        Con_Printf("adarmed dump: %s: %d bytes to %s: %s\n", Cmd_Argv(1), n, Cmd_Argv(2), ok ? "ok" : "FAIL");
+    });
     Cmd_AddCommand("vr_agarms_cost", cost_f);
     Cmd_AddCommand("vr_agarms_info", info_f);
     Cmd_AddCommand("vr_agarms_dump", dump_f);

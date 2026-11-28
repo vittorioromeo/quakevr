@@ -24,24 +24,111 @@ namespace qvr::beastarmour
 // Whether `ent`'s model is a beast kind's (it may wear this armour), and `name`'s (a client entity's model).
 [[nodiscard]] bool wears(struct edict_s* ent);
 [[nodiscard]] bool kindNamed(const char* model);
-// Its kind's slots (bits; 0 not a kind) and its cuirass group (the slots the roll's cuirass gives).
+// Its kind's worn-mask bits (its slots and its parts that break on their own, past the ten: agarmor::NumMaskBits; 0 not a
+// kind) and its cuirass group (the slots the roll's cuirass gives).
 [[nodiscard]] int slots(struct edict_s* ent);
 [[nodiscard]] int cuirassGroup(struct edict_s* ent);
-// Piece `slot`'s model ("" none), a string kept for good.
-[[nodiscard]] const char* pieceModel(struct edict_s* ent, int slot);
+// QC's piece codes for the debris (pieceModel, plateWhere): a worn-mask bit + entryStride x n, its nth piece (a bit may
+// have several; since "scragtail" each part has its bit, the scrag's tail's four segments too: n is 0).
+inline constexpr int entryStride = 16;
+inline constexpr int maxEntryCodes = entryStride * 16;
+// Piece `code`'s model ("" none), a string kept for good; how many pieces bit `bit` has (the debris to drop).
+[[nodiscard]] const char* pieceModel(struct edict_s* ent, int code);
+[[nodiscard]] int bitEntries(struct edict_s* ent, int bit);
+// The slot worn-mask bit `bit` is worn with (its own for a slot; a part's that breaks on its own its slot's; -1 none).
+[[nodiscard]] int bitOwner(struct edict_s* ent, int bit);
+// How many ways bit `bit`'s slot's share is split for it (QC VR_AgArmor_ShareOf): the slot and each armour.txt part of
+// it alike, then a part's share evenly among its bits (the scrag's plate 8: front, back half, tail 3 ways; the tail's
+// four segments a quarter each: 12); 1 a slot with no parts, or not a beast.
+[[nodiscard]] int bitSplit(struct edict_s* ent, int bit);
 
 // agarmor's queries for a beast (agarmor::shotPiece, pieceAt, pieceBones, plateWhere).
 [[nodiscard]] int shotPiece(struct edict_s* ent, const float* at, const float* dir, int mask);
 [[nodiscard]] int pieceAt(struct edict_s* ent, const float* at);
 [[nodiscard]] uint32_t pieceBones(struct edict_s* ent, int slot);
-void plateWhere(struct edict_s* ent, int slot, int what, float* out);
+void plateWhere(struct edict_s* ent, int code, int what, float* out);
 
 // The client (agarmor::relink): begin a frame's entities, then each beast entity `e` (number `num`) wearing `type` on
-// `pieces` (wear bits as agarmor's: 0-9 at two thirds, 10-19 at a third) gets its pieces' entities.
+// `pieces` (wear bits as agarmor's: 0-11 at two thirds, 12-23 at a third) gets its pieces' entities (a piece armour.txt
+// shapes drawn as "<piece model>#tweak") and one for its leather junctions ("<model>#bridge", its bones the pieces').
 void beginRelink();
-void relinkEntity(const struct entity_s* e, int num, int type, int pieces, int wear);
-// How many pieces' entities were drawn this frame (the tests).
-[[nodiscard]] int drawnCount();
+void relinkEntity(struct entity_s* e, int num, int type, int pieces, int wear);
+// How many pieces were drawn this frame (`parts`: every entity, a slot's parts on other bones too), and junctions'
+// entities (the tests).
+[[nodiscard]] int drawnCount(bool parts = false);
+[[nodiscard]] int leatherDrawn();
+// A junctions' entity's bones (VR_AliasBonePoses through agarmor::bonePoses; 0 not one), and the models made here
+// ("#tweak", "#bridge"; through agarmor::makeModel).
+[[nodiscard]] int bonePoses(const struct entity_s* e, const float** matrices);
+[[nodiscard]] bool makeModel(struct qmodel_s* mod);
+
+// ---- armour.txt's tweaks (vr_armourdata.hpp: a beast by its model's path, its pieces by slot as armourdata::beastPart;
+// each piece's sleeve its leather junction to the piece it joins) and the Armour Studio (vr_armourstudio.cpp) ----
+// The kinds (beastarmour.txt's order), each one's model, its slots worn (bits), the slot a piece's junction joins (-1
+// none), whether it is made (its leather on, edges to join), its bone, the model its piece is drawn with.
+[[nodiscard]] int kindCount();
+[[nodiscard]] const char* kindModel(int kind);
+[[nodiscard]] int kindIndex(const char* model);
+[[nodiscard]] int kindSlots(int kind);
+[[nodiscard]] int joins(int kind, int slot);
+[[nodiscard]] bool junctionMade(int kind, int slot);
+[[nodiscard]] const char* boneOf(int kind, int slot);
+[[nodiscard]] const char* drawnModel(int kind, int slot);
+// A piece's box in its own space (its shape tweaks on it).
+bool pieceExtent(int kind, int slot, float* lo, float* hi);
+// The studio's subject (0 none): its body drawn `bodyAlpha` see-through, the plates and leather whole; the piece(s) picked
+// (or their junctions: `sleeve`) outlined (agarmor::debugDraw).
+void studioView(int ent, float bodyAlpha);
+void outline(struct edict_s* ent, int pieces, bool sleeve);
+// The studio's part (armourdata Part; -1 none): outline draws its pieces alone (a slot's tail apart from its belt), and
+// partFrame takes its own piece; `alone` (wear the part alone): the subject draws that part's pieces alone, not the rest of
+// their slot (the scrag's back half without his front half and tail; a junction's part: its slots whole).
+void studioPart(int part, bool alone = false);
+// The slots (bits) whose pieces or parts are armour.txt's `part` (a sleeve: their junctions) on `side` (a limb part's): the
+// scrag's tail its belt's slot 8, the ogre's shins the thighs' 6/7 (ROUND26.md, "beastfit").
+[[nodiscard]] int partPieces(int kind, int part, int side);
+// The first piece of `pieces` on `ent` as placed now: its middle (world) and the map from its tweaks' space to the world's
+// (agarmor::studioPartFrame).
+bool partFrame(struct edict_s* ent, int pieces, glm::vec3& centre, glm::mat3& parent);
+// The tests: piece `slot`'s junction on `ent` wearing `pieces` as posed now: its end rings' furthest from where their
+// pieces' places carry them, its longest edge along it, its middle ring's middle.
+struct JunctionCheck
+{
+    bool found{false};
+    int verts{0};
+    float endError{0.f};
+    float longestEdge{0.f};
+    float middle[3]{};
+    // (its end rings as posed, 0 the piece's own, 1 the joined piece's: their middles, their mean radii round them, their
+    // first corner off the middle; vr_beaststudio_test's sleeve-end steps, ROUND26.md "ogresleeves")
+    float end[2][3]{};
+    float endRadius[2]{};
+    float endCorner[2][3]{};
+    int cols{0}; // (its columns: those both pieces have an edge in, or all round with `fill`)
+};
+// A hash of kind `kind`'s junctions' leather as made (vertices, normals, weights, triangles): the tests' "as before".
+[[nodiscard]] uint32_t leatherHash(int kind);
+[[nodiscard]] JunctionCheck checkJunction(struct edict_s* ent, int slot, int pieces);
+// The tests (ROUND26.md, "armourlook"): piece `slot` of kind `kind` made shaped ("<piece model>#tweak") against its own .mdl,
+// drawn as client entity `num` is: the same skins (so their normal maps, mipmaps and filtering), the same triangles, each
+// vertex's texture place, and every value the renderer hands the shader for it (VR_AliasInstance).
+struct LookCheck
+{
+    bool found{false};
+    bool skins{false};     // every skin and fullbright texture the .mdl's
+    bool normalMap{false}; // ... the first skin's normal map the .mdl's (and a real one, not the flat stand-in)
+    bool triangles{false}; // the same vertex and index counts, the same indexes
+    float stError{0.f};    // texels: the furthest a vertex's texture place is from the .mdl's
+    int instanceDiffs{0};  // the instance's values that differ (0: drawn alike)
+    int firstDiff{-1};     // ... the first one's float index in vraliasinstance_t
+    int skinWidth{0}, skinHeight{0};
+    char skinName[64]{};
+    char normalName[64]{};
+};
+[[nodiscard]] LookCheck lookCheck(int kind, int slot, int num);
+// A piece's debris model (QC VR_AgArmor_Model, limbmodel QVR_ARMOR_BEAST_MODEL): the one it is drawn with while worn, its
+// shape tweaks on ("<piece model>#tweak"), else its .mdl; and that model's box (the tests: the debris is the worn piece).
+bool modelBox(const char* model, float* lo, float* hi);
 
 void init(); // vr_beastarmour_info
 

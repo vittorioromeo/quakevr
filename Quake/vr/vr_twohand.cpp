@@ -44,6 +44,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_flatfgrab.hpp"
 #include "vr_flatgrenade.hpp"
+#include "vr_flatattach.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
 #include "vr_flatswim.hpp"
@@ -437,7 +438,7 @@ void poleTurn(const FreeGrip& g, const RelPose& now, RelPose& on)
 [[nodiscard]] bool flatLetsGo(int holding, int helping)
 {
     return flatplay::punching(helping) || flatplay::shoving(helping) || flatreload::busy(holding) || flatgrenade::letsGo(holding, helping) ||
-           flatswap::gripBlocked() || flatfgrab::busy(helping) || flatswim::freesHand() || // (swimming: vr_flatswim.cpp)
+           flatswap::gripBlocked() || flatfgrab::busy(helping) || flatattach::busy(helping) || flatswim::freesHand() || // (swimming: vr_flatswim.cpp)
            (flatplay::active() && flatplay::oneHandOnly(holding)); // (flatgrip3: a dagger, an axe, by their options: never two-handed)
 }
 
@@ -1296,9 +1297,10 @@ void applyFixed(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     else if(th().grabStart[helping] == vr_gametime)
     {
-        // (A grip closed on the gun's attachment pulls it off (QC vr_attach.qc VR_Attach_Frame): never the gun's grip too.)
+        // (vr_attach_pull_button 0: a grip closed on the gun's attachment pulls it off (QC vr_attach.qc VR_Attach_Frame),
+        // never the gun's grip too. 1, the default: the pull is the grip and B/Y, so a grip there is the gun's as ever.)
         glm::vec3 mount, tip;
-        const bool onAttachment = view::drawnAttachment(holding, mount, tip) &&
+        const bool onAttachment = !vr_attach_pull_button.value && view::drawnAttachment(holding, mount, tip) &&
                                   glm::distance(s.pos[helping], mount) <= vr_attach_pull_radius.value;
         th().gripArmed[helping] = goodDistance && goodDot && !onAttachment;
     }

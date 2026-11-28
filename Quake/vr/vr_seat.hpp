@@ -122,7 +122,13 @@ enum class Part
     AdSpins,       // vr_adweapons.cpp: the Widowmaker's barrels' spins in the seat's hands, as drawn
     AdMotor,       // vr_adweapons.cpp: the Widowmaker's motor sound
     GunSfx,        // vr_gunsfx.cpp: the seat's guns' haptics and sounds
-    BeastArmour,   // vr_beastarmour.cpp: the armour pieces the seat's relink added to its visible entities
+    BeastArmour,   // vr_beastarmour.cpp: the armour pieces (and the junctions' leather) the seat's relink added
+    // split20 (next merged with its bindings screens):
+    HeldCommands,  // vr_client.cpp: the seat's reliable commands held while its cls.message was full
+    FlatAttach,    // vr_flatattach.cpp: the flat Attach key's trip
+    HolsterBody,   // vr_flatholster.cpp: the holster menu's picture of the seat's body
+    BindPanel,     // vr_bindpanel.cpp: the bindings reminder's rows and image (the seat's own binds)
+    BindSetup,     // vr_bindsetup.cpp: the Controller Bindings screen (the seat's own pad's binds)
     Count
 };
 
@@ -248,5 +254,14 @@ void poseProbe(const entity_t* e, int pose1, int pose2, float blend, const float
 void registerMenuCommands();
 void menuTestFrame();
 void closeMenu(int i); // seat i's menu shut (a seat joining or leaving)
+
+// split20 (vr_seat.cpp): each seat's own controller bindings, saved per seat (seat_bind, seat_unbindall in the config,
+// written by Key_WriteBindings through Key_SeatWriteBindings). bindsEdited: the current seat's player changed its
+// bindings (its Controller Bindings screen): a seat 2-4's are then saved and laid over its next join's copy.
+void registerBindCommands();
+void bindsEdited();
+[[nodiscard]] bool bindsSaved(int s);
+// split20 (vr_seatmenu.cpp): vr_seat_bind_test, its per-frame step (menuTestFrame's).
+void bindTestFrame();
 
 } // namespace qvr::seat

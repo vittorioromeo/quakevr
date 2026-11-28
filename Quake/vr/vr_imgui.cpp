@@ -1,9 +1,11 @@
 // vr_imgui.cpp -- Dear ImGui in the game: see vr_imgui.hpp.
 
 #include "vr_imgui.hpp"
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
 #include "thirdparty/imgui/imgui.h"
+#include "thirdparty/imgui/imgui_internal.h"
 #include "thirdparty/imgui/imgui_impl_opengl3.h"
 #include "thirdparty/imgui/imgui_impl_sdl2.h"
 #include "vr_api.h"
@@ -39,9 +41,72 @@ struct ImState
     float fedX{0.f};
     float fedY{0.f};
     bool fedDown{false};
+    bool fedRight{false};
     float fedWheel{0.f};
 };
 ImState im;
+
+// The ID check's (vr_imgui_idcheck): a frame's items by ID and label (ImGui's item hooks, IMGUI_ENABLE_TEST_ENGINE).
+constexpr int maxCheckItems = 4096;
+constexpr int maxCheckNamed = 64; // conflicts named on the console (each once)
+struct CheckItem
+{
+    ImGuiID id;
+    char label[40];
+};
+struct IdCheck
+{
+    bool on{false};      // a test's
+    bool running{false}; // this frame's hooks on
+    CheckItem items[maxCheckItems]{};
+    int count{0};
+    int last{0};         // conflicts in the last frame checked
+    int seen{0};         // ... in every frame since it began
+    ImGuiID named[maxCheckNamed]{};
+    int namedCount{0};
+};
+IdCheck idc; // seat-shared: the debug UI's
+
+[[nodiscard]] bool checkWanted()
+{
+    return idc.on || vr_imgui_idcheck.value != 0.f;
+}
+
+// The frame's items: any ID twice (an item allowed to repeat its ID not counted), named once on the console.
+void checkFrame()
+{
+    if(!idc.running)
+    {
+        return;
+    }
+    idc.running = false;
+    int conflicts = 0;
+    for(int i = 0; i < idc.count; i++)
+    {
+        for(int j = 0; j < i; j++)
+        {
+            if(idc.items[j].id != idc.items[i].id)
+            {
+                continue;
+            }
+            conflicts++;
+            bool named = false;
+            for(int k = 0; k < idc.namedCount; k++)
+            {
+                named = named || idc.named[k] == idc.items[i].id;
+            }
+            if(!named && idc.namedCount < maxCheckNamed)
+            {
+                idc.named[idc.namedCount++] = idc.items[i].id;
+                Con_Printf("imgui: ID conflict: \"%s\" and \"%s\" (0x%08X): PushID or \"##\" one of them\n", idc.items[j].label,
+                    idc.items[i].label, static_cast<unsigned>(idc.items[i].id));
+            }
+            break;
+        }
+    }
+    idc.last = conflicts;
+    idc.seen += conflicts;
+}
 
 void endOpenFrame()
 {
@@ -132,8 +197,9 @@ void setPanel(unsigned framebuffer, int width, int height, float texels)
     im.panelTexels = texels;
 }
 
-void feedMouse(float x, float y, bool down, float wheel)
+void feedMouse(float x, float y, bool down, float wheel, bool right)
 {
+    im.fedRight = right;
     im.fed = true;
     im.fedX = x;
     im.fedY = y;
@@ -180,12 +246,16 @@ bool beginFrame()
     {
         io.AddMousePosEvent(im.fedX, im.fedY);
         io.AddMouseButtonEvent(ImGuiMouseButton_Left, im.fedDown);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Right, im.fedRight);
         if(im.fedWheel != 0.f)
         {
             io.AddMouseWheelEvent(0.f, im.fedWheel);
         }
         im.fed = false;
     }
+    idc.running = checkWanted();
+    idc.count = 0;
+    ImGui::GetCurrentContext()->TestEngineHookItems = idc.running;
     ImGui::NewFrame();
     im.frameOpen = true;
     return true;
@@ -303,6 +373,7 @@ extern "C" void VR_ImGuiRender(void)
         return;
     }
     im.frameOpen = false;
+    checkFrame(); // (every window of the frame submitted)
     ImGui::Render();
     ImDrawData* data = ImGui::GetDrawData();
     if(!data || data->CmdListsCount == 0)
@@ -359,4 +430,53 @@ extern "C" void VR_ImGuiRender(void)
     }
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(drawFb));
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(readFb));
+}
+
+namespace qvr::imgui
+{
+
+void idCheck(bool on)
+{
+    idc.on = on;
+    idc.last = idc.seen = idc.namedCount = 0;
+}
+
+int idConflicts()
+{
+    return idc.last;
+}
+
+int idConflictsSeen()
+{
+    return idc.seen;
+}
+
+} // namespace qvr::imgui
+
+// ImGui's item hooks (IMGUI_ENABLE_TEST_ENGINE, imconfig.h): only the ID check's. Called only while it runs.
+void ImGuiTestEngineHook_ItemAdd(ImGuiContext*, ImGuiID id, const ImRect&, const ImGuiLastItemData* item)
+{
+    if(!idc.running || id == 0 || idc.count >= maxCheckItems || (item && (item->ItemFlags & ImGuiItemFlags_AllowDuplicateId)))
+    {
+        return;
+    }
+    CheckItem& c = idc.items[idc.count++];
+    c.id = id;
+    c.label[0] = 0;
+}
+
+void ImGuiTestEngineHook_ItemInfo(ImGuiContext*, ImGuiID id, const char* label, ImGuiItemStatusFlags)
+{
+    // (an item's label, given after its ItemAdd)
+    if(idc.running && idc.count > 0 && idc.items[idc.count - 1].id == id && label)
+    {
+        q_strlcpy(idc.items[idc.count - 1].label, label, sizeof(idc.items[0].label));
+    }
+}
+
+void ImGuiTestEngineHook_Log(ImGuiContext*, const char*, ...) {}
+
+const char* ImGuiTestEngine_FindItemDebugLabel(ImGuiContext*, ImGuiID)
+{
+    return nullptr;
 }

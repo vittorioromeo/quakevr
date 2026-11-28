@@ -268,6 +268,11 @@ extern "C" int VR_WorldLitSkip()
     return vr_gl_world_lit_skip.value != 0.f ? 1 : 0;
 }
 
+extern "C" int VR_WorldLitReuse()
+{
+    return CLAMP(0, static_cast<int>(vr_gl_world_lit_reuse.value), 2);
+}
+
 extern "C" int VR_AliasBatchPosed()
 {
     return vr_alias_batch_posed.value != 0.f ? 1 : 0;

@@ -298,6 +298,22 @@ constexpr ShippedRow shipped[] = {
     {21010, {2.53f, 6.18f, 6.25f, -3.1f, 1.6f, -1.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, -0.47f, -0.88f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 2.63f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, the Widowmaker, Run
     {21020, {0.74f, 0.03f, 0.63f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.54f, 0.f, 0.09f, 47.f, -37.7f, -17.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Ready
+    {22010, {1.77f, -3.41f, -0.31f, 0.7f, 2.8f, 7.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Run
+    {22020, {3.f, 0.44f, 4.04f, -0.8f, -8.2f, 16.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Overhead, wind-up
+    {22140, {-4.78f, 2.37f, 3.11f, -14.5f, 3.f, 0.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Overhead, blow
+    {22141, {11.68f, 5.43f, 3.67f, -28.3f, -6.2f, -17.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Overhead, follow-through
+    {22142, {6.51f, 3.27f, 2.77f, -28.8f, -14.7f, -8.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Shove, wind-up
+    {22200, {3.31f, 7.95f, 7.07f, 62.7f, 18.4f, 80.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Shove, push
+    {22201, {16.99f, 3.14f, 8.34f, 24.2f, 24.9f, 77.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pole weapon, Shove, recover
+    {22202, {5.71f, 4.42f, 7.22f, 41.7f, 31.6f, 74.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, fists, Idle
     {100000, {6.47f, 3.7f, 1.68f, 0.f, 0.f, 0.f, 1.77f, -3.42f, 1.48f, 0.f, 0.f, 0.f, -0.36f, -0.83f, -0.42f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, fists, Guard
@@ -527,7 +543,7 @@ constexpr ShippedRow shipped[] = {
     // knight, fists, Cross, follow-through
     {200112, {-0.24f, 0.93f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.9f, 0.f, 0.f}},
     // knight, a rifle, Idle / Carry
-    {201000, {10.55f, 6.97f, 7.12f, -24.9f, 8.1f, 58.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.51f, -0.43f, -0.75f, -0.41f, 0.54f, -0.74f, 0.f, 0.f, 0.f, -0.86f, -1.82f, -1.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {201000, {30.93f, 3.24f, 5.03f, -20.2f, -12.9f, 86.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.51f, -0.43f, -0.75f, -0.41f, 0.54f, -0.74f, 0.f, 0.f, 0.f, -0.86f, -1.82f, -1.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // knight, a rifle, Aim
     {201010, {11.85f, 7.46f, 12.16f, 15.9f, 3.6f, -2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.48f, 0.78f, -0.39f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, -3.87f, -2.03f, -1.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // knight, a rifle, Run
@@ -778,6 +794,110 @@ constexpr ShippedRow shipped[] = {
     {321020, {4.06f, 1.38f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.54f, 0.f, 0.09f, 30.9f, 20.7f, -38.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // death knight, the Widowmaker, Shove, wind-up
     {321200, {-1.88f, -2.3f, -4.35f, 0.f, 0.f, 63.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, -0.75f, 1.61f, 0.f, 0.2f, 0.f, 0.7f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD's knights (agpose::adKnight; adposekind, 2026-11-27): the keys where the knight's, retargeted (fitKey), left a
+    // hand out of reach on the death guard or the crossbow knight (vr_agrunt_test 231): the knight's key with its target
+    // moved by the wrist's shortfall (both rows' averaged), Misc/quakevr's adposekind retarget (ROUND26.md, "adposekind").
+    // AD knight, class 0, pose 1, phase 0 (the knight's retargeted: its reach brought in)
+    {400010, {1.27f, 1.85f, 6.09f, 0.f, 0.f, 0.f, 0.61f, -2.39f, 5.41f, 0.f, 0.f, 0.f, 0.33f, -0.08f, -0.94f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 10, phase 0 (the knight's retargeted: its reach brought in)
+    {400100, {0.38f, 0.88f, -0.07f, 0.f, 0.f, 0.f, 3.49f, 5.46f, -1.70f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.95f, 0.73f, 0.12f, 20.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 10, phase 1 (the knight's retargeted: its reach brought in)
+    {400101, {1.08f, 0.52f, -0.18f, 0.f, 0.f, 0.f, 6.65f, -1.68f, 0.02f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.02f, 1.f, -0.05f, -17.30f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 10, phase 2 (the knight's retargeted: its reach brought in)
+    {400102, {1.43f, 0.27f, -0.49f, 0.f, 0.f, 0.f, 5.54f, 0.32f, 2.28f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.06f, 0.93f, -0.37f, -21.40f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 11, phase 0 (the knight's retargeted: its reach brought in)
+    {400110, {7.15f, -4.93f, -0.92f, 0.f, 0.f, 0.f, 0.39f, -0.52f, 0.27f, 0.f, 0.f, 0.f, 1.09f, -0.52f, -0.24f, 0.f, 0.f, 0.f, -8.50f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 11, phase 1 (the knight's retargeted: its reach brought in)
+    {400111, {3.63f, 3.25f, -1.58f, 0.f, 0.f, 0.f, 1.39f, -0.33f, 0.44f, 0.f, 0.f, 0.f, 0.19f, -0.80f, -0.57f, 0.f, 0.f, 0.f, 20.70f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 11, phase 2 (the knight's retargeted: its reach brought in)
+    {400112, {-0.24f, 0.83f, 0.f, 0.f, 0.f, 0.f, 2.81f, -0.45f, -0.46f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.90f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 12, phase 0 (the knight's retargeted: its reach brought in)
+    {400120, {3.03f, -2.23f, -10.24f, 0.f, 0.f, 0.f, 0.40f, -0.62f, 0.26f, 0.f, 0.f, 0.f, -0.64f, 0.36f, -0.76f, 0.f, 0.f, 0.f, -6.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 12, phase 1 (the knight's retargeted: its reach brought in)
+    {400121, {1.63f, 6.80f, -4.13f, 0.f, 0.f, 0.f, 1.14f, -0.46f, 0.43f, 0.f, 0.f, 0.f, 0.13f, -0.40f, -0.91f, 0.f, 0.f, 0.f, 11.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 12, phase 2 (the knight's retargeted: its reach brought in)
+    {400122, {-4.56f, 6.82f, -2.03f, 0.f, 0.f, 0.f, 2.93f, 0.39f, -0.73f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 13, phase 0 (the knight's retargeted: its reach brought in)
+    {400130, {-5.57f, -4.15f, -4.38f, 0.f, 0.f, 0.f, 0.99f, -1.f, 0.19f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 13, phase 1 (the knight's retargeted: its reach brought in)
+    {400131, {-1.76f, 4.60f, 5.62f, 0.f, 0.f, 0.f, 1.12f, -0.50f, 0.43f, 0.f, 0.f, 0.f, 0.08f, 0.32f, -0.84f, 0.f, 0.f, 0.f, 9.40f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 13, phase 2 (the knight's retargeted: its reach brought in)
+    {400132, {-11.47f, 3.90f, 9.25f, 0.f, 0.f, 0.f, 0.93f, -0.16f, 0.52f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 6.20f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 0, pose 20, phase 0 (the knight's retargeted: its reach brought in)
+    {400200, {-0.78f, 0.49f, -1.90f, 0.f, 0.f, 0.f, -1.77f, -3.13f, -1.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 1, pose 20, phase 0 (the knight's retargeted: its reach brought in)
+    {401200, {-3.26f, -1.20f, -3.67f, -17.40f, -21.70f, 72.70f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.89f, -1.67f, 0.20f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, -4.39f, -2.31f, -0.15f, 0.50f, 1.20f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 1, pose 20, phase 1 (the knight's retargeted: its reach brought in)
+    {401201, {3.56f, -0.43f, -5.77f, -40.f, -88.90f, 64.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, -2.91f, 1.62f, -0.18f, 0.f, -0.30f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 2, pose 14, phase 1 (the knight's retargeted: its reach brought in)
+    {402141, {1.90f, -0.52f, -13.28f, 12.40f, 8.f, -4.10f, 2.78f, 0.f, 3.25f, 0.f, 0.f, 0.f, -0.17f, -0.94f, 0.29f, 0.09f, 0.14f, -0.02f, 0.f, 6.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 2, pose 14, phase 2 (the knight's retargeted: its reach brought in)
+    {402142, {-2.94f, -0.98f, -10.79f, 43.40f, -34.70f, -20.30f, 5.74f, 0.f, 5.54f, 0.f, 0.f, 0.f, -0.26f, -0.86f, -0.43f, 0.63f, 0.44f, -0.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 2, pose 15, phase 2 (the knight's retargeted: its reach brought in)
+    {402152, {-0.94f, -2.79f, -9.57f, -0.40f, -4.20f, -4.10f, 0.30f, -1.60f, -0.29f, 0.f, 0.f, 0.f, 0.81f, -0.50f, 0.31f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 2, pose 16, phase 1 (the knight's retargeted: its reach brought in)
+    {402161, {2.87f, -1.35f, -7.77f, -7.30f, 4.60f, -33.60f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.40f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 2, pose 16, phase 2 (the knight's retargeted: its reach brought in)
+    {402162, {2.32f, -1.62f, -13.43f, -32.60f, 127.10f, -10.f, -0.42f, 5.61f, -0.14f, 0.f, 0.f, 0.f, 0.55f, -0.83f, 0.09f, 0.f, 0.f, 0.f, 8.50f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 2, pose 17, phase 0 (the knight's retargeted: its reach brought in)
+    {402170, {3.51f, -3.44f, -6.64f, 3.80f, 9.f, -17.50f, -9.79f, 3.49f, -4.63f, 0.f, 0.f, 0.f, 0.36f, -0.18f, -0.35f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 2, pose 20, phase 0 (the knight's retargeted: its reach brought in)
+    {402200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.80f, -3.08f, 12.02f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.53f, -0.06f, -0.34f, 8.f, -3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 4, pose 20, phase 1 (the knight's retargeted: its reach brought in)
+    {404201, {8.31f, -0.13f, -0.33f, 0.f, 0.f, 85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 0, phase 0 (the knight's retargeted: its reach brought in)
+    {405000, {2.97f, 2.43f, -2.50f, -27.80f, -25.10f, 4.10f, 2.09f, 2.88f, -0.84f, 28.10f, -25.10f, 9.30f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 2, phase 0 (the knight's retargeted: its reach brought in)
+    {405020, {9.05f, 0.55f, 10.76f, -6.80f, -47.40f, -2.20f, 8.47f, -2.89f, 10.69f, 18.80f, -46.60f, 7.10f, 0.f, 0.f, 0.f, -0.55f, 0.78f, -0.30f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 14, phase 1 (the knight's retargeted: its reach brought in)
+    {405141, {-3.41f, 1.96f, -1.69f, 19.20f, -20.50f, 9.60f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.34f, -0.58f, -0.74f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 14, phase 2 (the knight's retargeted: its reach brought in)
+    {405142, {-5.91f, 0.18f, -7.88f, 50.80f, -28.60f, -43.40f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.07f, -0.98f, -0.22f, 0.f, 0.f, 0.f, 9.40f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 15, phase 0 (the knight's retargeted: its reach brought in)
+    {405150, {3.67f, -9.92f, -3.63f, 26.90f, 30.40f, 33.30f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 15, phase 1 (the knight's retargeted: its reach brought in)
+    {405151, {-3.23f, 1.97f, -3.99f, 14.40f, 5.50f, 8.10f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 15, phase 2 (the knight's retargeted: its reach brought in)
+    {405152, {-2.73f, -0.79f, -8.25f, 16.60f, -14.f, -10.60f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.42f, -0.88f, 0.22f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 16, phase 1 (the knight's retargeted: its reach brought in)
+    {405161, {-3.11f, -0.66f, -6.92f, 3.40f, -5.50f, -18.60f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 15.40f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 16, phase 2 (the knight's retargeted: its reach brought in)
+    {405162, {3.44f, 0.12f, -11.10f, -44.10f, 60.f, -5.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.25f, -0.97f, -0.07f, 0.f, 0.f, 0.f, 7.90f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 17, phase 0 (the knight's retargeted: its reach brought in)
+    {405170, {2.81f, -3.32f, -4.33f, 27.20f, 10.70f, -20.50f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 17, phase 1 (the knight's retargeted: its reach brought in)
+    {405171, {-4.98f, -6.05f, -6.01f, 30.20f, 2.20f, -14.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.11f, -0.95f, 0.29f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 17, phase 2 (the knight's retargeted: its reach brought in)
+    {405172, {-9.70f, -6.28f, -16.08f, 20.90f, -8.50f, -11.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.53f, -0.82f, -0.23f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 19, phase 0 (the knight's retargeted: its reach brought in)
+    {405190, {5.42f, 8.67f, 11.10f, -41.60f, 68.f, -82.50f, 1.91f, -7.35f, 11.83f, 31.70f, 59.50f, 52.40f, 1.19f, 0.33f, -0.18f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 19, phase 1 (the knight's retargeted: its reach brought in)
+    {405191, {-6.96f, -1.24f, -15.42f, -112.70f, -34.60f, -27.90f, -2.36f, -2.06f, -16.69f, 100.20f, -27.80f, 23.50f, 0.17f, -0.77f, 0.61f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 19, phase 2 (the knight's retargeted: its reach brought in)
+    {405192, {-5.81f, -11.23f, -18.69f, -15.10f, 41.30f, -68.20f, -5.17f, 9.86f, -21.60f, 27.70f, 49.70f, 53.20f, -0.26f, -0.92f, -0.31f, -0.54f, 0.32f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 20, phase 1 (the knight's retargeted: its reach brought in)
+    {405201, {0.95f, -0.14f, 5.64f, -69.30f, -69.30f, -69.30f, 7.27f, -0.85f, 4.27f, 69.30f, -69.30f, 69.30f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 5, pose 20, phase 2 (the knight's retargeted: its reach brought in)
+    {405202, {-0.14f, 2.72f, 5.69f, -69.30f, -65.f, -67.50f, 3.44f, -3.21f, 4.29f, 81.10f, -63.40f, 68.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 6, pose 2, phase 0 (the knight's retargeted: its reach brought in)
+    {406020, {1.51f, 3.51f, 5.04f, 0.f, 0.f, 0.f, -4.28f, -1.86f, 2.12f, 0.f, 0.f, 0.f, 0.13f, 0.06f, -0.28f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 6, pose 20, phase 1 (the knight's retargeted: its reach brought in)
+    {406201, {1.67f, 0.43f, 4.53f, -68.40f, -65.40f, -62.70f, 0.55f, -1.29f, 5.91f, 53.60f, -60.20f, 56.60f, 0.10f, -0.22f, -0.97f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 7, pose 3, phase 0 (the knight's retargeted: its reach brought in)
+    {407030, {-4.91f, 2.43f, 14.83f, -7.40f, 23.20f, 25.80f, 7.83f, -7.42f, -5.44f, 0.f, 0.f, -0.30f, 0.83f, -0.26f, 0.49f, -0.80f, 0.35f, -0.48f, 9.f, -46.80f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 17, pose 0, phase 0 (the knight's retargeted: its reach brought in)
+    {417000, {5.11f, 6.06f, -3.28f, 0.f, 25.50f, 0.f, 2.47f, -1.99f, -2.84f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.24f, 0.95f, -0.19f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 17, pose 20, phase 1 (the knight's retargeted: its reach brought in)
+    {417201, {-1.11f, -1.53f, -2.01f, 0.f, 0.f, 0.f, 14.67f, -12.76f, 13.86f, 88.50f, -104.70f, 52.f, 0.f, 0.f, 0.f, 0.f, 0.60f, -0.30f, -36.60f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 17, pose 20, phase 2 (the knight's retargeted: its reach brought in)
+    {417202, {0.74f, -0.34f, -3.01f, 0.f, 0.f, 0.f, 7.73f, -3.28f, 3.88f, 77.f, -124.70f, 25.70f, 0.f, 0.f, 0.f, 0.48f, 0.08f, -0.21f, -4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 18, pose 20, phase 0 (the knight's retargeted: its reach brought in)
+    {418200, {-0.15f, 0.10f, -2.02f, 0.f, 0.f, 80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 2.99f, -3.f, 0.f, 0.f, 0.f, 0.70f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 18, pose 20, phase 1 (the knight's retargeted: its reach brought in)
+    {418201, {9.12f, 0.01f, 0.82f, 0.f, 0.f, 85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.23f, 0.f, -0.30f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // AD knight, class 20, pose 20, phase 1 (the knight's retargeted: its reach brought in)
+    {420201, {10.86f, -2.55f, 10.23f, -56.50f, -61.50f, 70.90f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.12f, 0.49f, -0.62f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, -0.83f, 0.21f, -0.30f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // (AD's knights' rows end)
     {-1, {}}, // (the end)
 };
 
@@ -785,7 +905,7 @@ constexpr ShippedRow shipped[] = {
 // enforcer's.
 // (the death knight: his shoulders 26.5 apart (the grunt's 18.4, the enforcer's 24), his arm 16.4 (15.2, 15))
 constexpr glm::vec3 fitScale[agpose::numKinds] = {glm::vec3{1.f, 1.f, 1.f}, glm::vec3{1.f, 1.35f, 1.1f},
-    glm::vec3{1.f, 1.06f, 1.f}, glm::vec3{1.f, 1.44f, 1.15f}};
+    glm::vec3{1.f, 1.06f, 1.f}, glm::vec3{1.f, 1.44f, 1.15f}, glm::vec3{1.f, 0.95f, 1.f}};
 
 // The kind whose shipped keys and IK stretch each kind ships (its own: itself): a kind with none of its own, the knight,
 // ships the grunt's, fitted to its body as the Pose Studio's "Copy to the other kind" fits them (fitKey: its places by
@@ -794,7 +914,13 @@ constexpr glm::vec3 fitScale[agpose::numKinds] = {glm::vec3{1.f, 1.f, 1.f}, glm:
 // 1.05), the grunt's rest hold put his sword 8 units from his own fist, the enforcer's 16 (test 95's spawn check; the
 // Pose Keys test 9/3 either way; ROUND23.md, "Death knights as armed humanoids"). A row of the kind's own (his keys of
 // 2026-10-31) replaces the followed kind's for its code alone (shippedOf, shippedStretchOf).
-constexpr int shippedFrom[agpose::numKinds] = {0, 1, 0, 0};
+// AD's knights (agpose::adKnight; adposekind) ship the knight's keys as he has them (its own rows, else the grunt's fitted
+// to him: shippedOf follows the chain), retargeted to their bodies by fitKey: QC's fits put the poses' base on their
+// shoulders (vr_am_fit_scale 1 0.95 1 and their shifts), the keys' places scale by width (0.95 / 1.06), their turns and
+// the elbows' poles (the chest's frame, the same axes on both rigs) carry as they are. The knight's rig is the closest
+// (adrigfix's bone lengths and rest angles: 28 against the grunt's 31); their arms (17.6, 15.1) against his 16.7: the
+// IK stretch carries the crossbow knight's shorter reach (shippedStretch's AD rows).
+constexpr int shippedFrom[agpose::numKinds] = {0, 1, 0, 0, 2};
 
 // Key `k` of code `code`, made for kind `from`'s body, fitted to kind `to`'s (its places scaled; its turns as they are).
 void fitKey(agpose::Key& k, int code, int from, int to)
@@ -953,18 +1079,23 @@ namespace
 {
     const int kind = agpose::kindOf(code);
     const int from = kind >= 0 && kind < agpose::numKinds ? shippedFrom[kind] : kind;
-    if(from != kind && shippedRow(code, out))
+    if(from != kind)
     {
+        // (its own row; else the followed kind's as that kind ships it (AD's knights: the knight's, his own row or the
+        // grunt's fitted to him), fitted)
+        if(shippedRow(code, out))
+        {
+            return true;
+        }
+        if(!shippedOf(from * agpose::kindStride + agpose::withinKind(code), out))
+        {
+            return false;
+        }
+        fitKey(out, code, from, kind);
         return true;
     }
-    const int c = from == kind ? code : from * agpose::kindStride + agpose::withinKind(code);
-    const int rifle = rifleOf(c);
-    const bool has = shippedRow(c, out) || (rifle >= 0 && shippedRow(rifle, out));
-    if(has && from != kind)
-    {
-        fitKey(out, code, from, kind);
-    }
-    return has;
+    const int rifle = rifleOf(code);
+    return shippedRow(code, out) || (rifle >= 0 && shippedRow(rifle, out));
 }
 
 [[nodiscard]] float rounded(float f, float per)
@@ -1101,7 +1232,7 @@ constexpr StretchRow shippedStretch[] = {
     {0, 19, 1.25f}, // grunt, a sprayer
     {0, 20, 1.20f}, // grunt, the laser cannon
     {0, 21, 1.25f}, // grunt, the Widowmaker
-    {0, 22, 1.23f}, // grunt, a pole weapon (the two-handed melee weapon's: as it was before its own class)
+    {0, 22, 1.25f}, // grunt, a pole weapon (his, 2026-11-27; was the two-handed melee weapon's 1.23)
     {1, 0, 1.15f}, // enforcer, fists
     {1, 1, 1.25f}, // enforcer, a rifle
     {1, 2, 1.15f}, // enforcer, a one-handed melee weapon
@@ -1113,7 +1244,7 @@ constexpr StretchRow shippedStretch[] = {
     {1, 20, 1.34f}, // enforcer, the laser cannon
     {1, 21, 1.20f}, // enforcer, the Widowmaker
     {2, 0, 1.20f}, // knight, fists
-    {2, 1, 1.35f}, // knight, a rifle
+    {2, 1, 1.26f}, // knight, a rifle
     {2, 2, 1.25f}, // knight, a one-handed melee weapon
     {2, 3, 1.20f}, // knight, a two-handed melee weapon
     {2, 6, 1.20f}, // knight, two guns
@@ -1143,9 +1274,10 @@ StretchState stretchState;
 
 [[nodiscard]] float shippedStretchOf(int kind, int klass)
 {
-    // (its own row, else the kind it ships the keys of: the knight's, the grunt's)
+    // (its own row, else the kind it ships the keys of: the knight's, the grunt's; AD's knights the knight's, his the grunt's)
     const int from = kind >= 0 && kind < agpose::numKinds ? shippedFrom[kind] : kind;
-    for(const int k : {kind, from})
+    const int from2 = from >= 0 && from < agpose::numKinds ? shippedFrom[from] : from;
+    for(const int k : {kind, from, from2})
     {
         for(const StretchRow& r : shippedStretch)
         {
@@ -1923,17 +2055,17 @@ void dumpText(za::String& out)
 
 const char* kindName(int kind)
 {
-    return kind == 0 ? "grunt" : kind == 1 ? "enforcer" : kind == 2 ? "knight" : kind == 3 ? "death knight" : "?";
+    return kind == 0 ? "grunt" : kind == 1 ? "enforcer" : kind == 2 ? "knight" : kind == 3 ? "death knight" : kind == 4 ? "AD knight" : "?";
 }
 
 const char* kindsName(int kind)
 {
-    return kind == 0 ? "grunts" : kind == 1 ? "enforcers" : kind == 2 ? "knights" : kind == 3 ? "death knights" : "?";
+    return kind == 0 ? "grunts" : kind == 1 ? "enforcers" : kind == 2 ? "knights" : kind == 3 ? "death knights" : kind == 4 ? "AD knights" : "?";
 }
 
 const char* kindTitle(int kind)
 {
-    return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : kind == 2 ? "Knight" : kind == 3 ? "Death Knight" : "?";
+    return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : kind == 2 ? "Knight" : kind == 3 ? "Death Knight" : kind == 4 ? "AD Knight" : "?";
 }
 
 const char* offModeName(int mode)

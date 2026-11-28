@@ -39,14 +39,64 @@ enum Field : int
     FoldDepth,  // ... how deep they stand on the inside of a bend (units; not set: vr_agarmor_fold_depth)
     Hero,       // its hero plates (a row's plates merged into one: the breastplate, the pauldrons' top row, the elbows' and knees'
                 // cops; vr_agarmor_hero): 1 (as made) or 0, every plate its own; the cuirass's and the limbs' plates
+    Sag,        // a beast's leather junction's middle dropped this far (units, below 0 raised; vr_beastarmour.cpp): its sleeve parts'
+    ScaleX,     // its size along the model's forward, left and up (its rest pose), round its middle, times Scale (1 as made):
+    ScaleY,     // a piece made wider than it is deep, or longer (studioui, 2026-11-27)
+    ScaleZ,
+    // A sleeve's (a leather junction's) two ends and its shape (ROUND26.md, "ogresleeves"; humanoids and beasts alike unless
+    // said). "start" is the end on the sleeve's own piece, "end" the one on the piece it joins (a humanoid joint: each end the
+    // value of its own piece's sleeve, else the other sleeve's for it).
+    StartOffsetX, // that end's ring moved (units along the model's forward, left and up, its rest pose; it rides its piece)
+    StartOffsetY,
+    StartOffsetZ,
+    EndOffsetX,
+    EndOffsetY,
+    EndOffsetZ,
+    StartRadius, // that end's ring's size round its middle (1 as made)
+    EndRadius,
+    StartEdge,   // which edge of the piece the end takes: 0 the one facing the other piece (as made), 1 its far edge (beasts')
+    EndEdge,
+    Twist,       // degrees: the joined piece's end ring turned round the line between the ends (the columns spiral)
+    BulgeX,      // units: the junction's middle pushed this way (the model's forward, left and up; eased to nothing at the ends)
+    BulgeY,
+    BulgeZ,
+    Segments,    // its rings less one (0: as made, from the folds)
+    Fill,        // 1: a beast's junction closed all round (the columns one piece has no edge in laid round its end from its
+                 // neighbours' reach; 0 as made: only the columns both pieces have)
     NumFields
 };
 inline constexpr const char* fieldNames[NumFields] = {"offset_x", "offset_y", "offset_z", "pitch", "yaw", "roll", "scale",
-    "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather", "folds", "fold_depth", "hero"};
+    "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather", "folds", "fold_depth", "hero", "sag",
+    "scale_x", "scale_y", "scale_z", "start_offset_x", "start_offset_y", "start_offset_z", "end_offset_x", "end_offset_y",
+    "end_offset_z", "start_radius", "end_radius", "start_edge", "end_edge", "twist", "bulge_x", "bulge_y", "bulge_z", "segments",
+    "fill"};
 // A field's value where nothing is set.
 [[nodiscard]] constexpr float fieldDefault(int field)
 {
-    return field == Scale || field == TaperStart || field == TaperEnd || field == Leather || field == Hero ? 1.f : 0.f;
+    return field == Scale || field == ScaleX || field == ScaleY || field == ScaleZ || field == TaperStart || field == TaperEnd || field == Leather ||
+            field == Hero || field == StartRadius || field == EndRadius
+        ? 1.f
+        : 0.f; // (Sag 0)
+}
+// A field's bit in Override::has.
+[[nodiscard]] constexpr uint64_t fieldBit(int field)
+{
+    return uint64_t{1} << static_cast<unsigned>(field);
+}
+// The fields written as one "x y z" key (offset, rotate, start_offset, end_offset, bulge): the first of its three, else -1;
+// and the key's name.
+[[nodiscard]] constexpr int tripleFirst(int field)
+{
+    return field <= OffsetZ ? OffsetX : field <= Roll ? Pitch : field >= StartOffsetX && field <= StartOffsetZ ? StartOffsetX :
+        field >= EndOffsetX && field <= EndOffsetZ ? EndOffsetX : field >= BulgeX && field <= BulgeZ ? BulgeX : -1;
+}
+inline constexpr int tripleFields[5] = {OffsetX, Pitch, StartOffsetX, EndOffsetX, BulgeX};
+inline constexpr const char* tripleNames[5] = {"offset", "rotate", "start_offset", "end_offset", "bulge"};
+// Whether a field's value is negated on the right side's mirror image of a both-sides value (the left's): a move's left,
+// a turn's yaw and roll, the junction's twist.
+[[nodiscard]] constexpr bool mirrored(int field)
+{
+    return field == OffsetY || field == Yaw || field == Roll || field == StartOffsetY || field == EndOffsetY || field == BulgeY || field == Twist;
 }
 
 enum Part : int
@@ -61,10 +111,39 @@ enum Part : int
     PartBracerSleeve,
     PartThighSleeve,
     PartShinSleeve,
+    // The beasts' alone (vr_beastarmour.hpp: a beast's pieces are the slots 0-9, its cuirass, helmet, pauldrons, bracers and
+    // thighs those parts; slots 8 and 9 body plates of its own: the rottweiler's croup and collar, the ogre's back plate and
+    // faulds...). Each beast piece's sleeve is its leather junction to the piece it joins (vr_beastarmour.cpp).
+    PartCuirassSleeve,
+    PartHelmetSleeve,
+    PartPlate8,
+    PartPlate9,
+    PartPlate8Sleeve,
+    PartPlate9Sleeve,
+    // A beast's part of a slot on another bone with its own tweaks (beastarmour.txt's last word; ROUND26.md, "beastfit"): the
+    // scrag's tail (parts of his belt's slot 8) and its junctions. The ogre's shins (with their knee cops) are PartShin, by side.
+    PartTail,
+    PartTailSleeve,
+    // The scrag's lower body's back half (ROUND26.md, "scragsplit"): his slot 8's plate in two, its front the slot's own plate8
+    // ("Plate 8 Front" on him), its back this one, each with its junction.
+    PartPlate8Back,
+    PartPlate8BackSleeve,
     NumParts
 };
 inline constexpr const char* partNames[NumParts] = {"cuirass", "helmet", "pauldron", "bracer", "thigh", "shin", "pauldron_sleeve",
-    "bracer_sleeve", "thigh_sleeve", "shin_sleeve"};
+    "bracer_sleeve", "thigh_sleeve", "shin_sleeve", "cuirass_sleeve", "helmet_sleeve", "plate8", "plate9", "plate8_sleeve", "plate9_sleeve",
+    "tail", "tail_sleeve", "plate8_back", "plate8_back_sleeve"};
+inline constexpr int humanParts = PartShinSleeve + 1; // (the humanoids' parts: the first ten)
+// Whether a part is a limb's (both sides, mirrored, or one side's own), and whether a sleeve (leather).
+[[nodiscard]] constexpr bool limbPart(int part)
+{
+    return part >= PartPauldron && part <= PartShinSleeve;
+}
+[[nodiscard]] constexpr bool sleevePart(int part)
+{
+    return (part >= PartPauldronSleeve && part <= PartHelmetSleeve) || part == PartPlate8Sleeve || part == PartPlate9Sleeve ||
+        part == PartTailSleeve || part == PartPlate8BackSleeve;
+}
 
 enum Side : int
 {
@@ -81,18 +160,55 @@ enum Kind : int
     KindKnight,
     KindDeathKnight,
     KindPlayer,
+    KindAdKnight, // AD's death guard and crossbow knight (progs/vrdguard.mdl, vrdcrossbow.mdl): one set of tweaks for both while
+                  // their authored rigs have the same bones (adShared); else each its model's own (by its path)
     NumKinds
 };
-inline constexpr const char* kindNames[NumKinds] = {"grunt", "enforcer", "knight", "death_knight", "player"};
+inline constexpr const char* kindNames[NumKinds] = {"grunt", "enforcer", "knight", "death_knight", "player", "ad_knight"};
 
 struct Override
 {
     float v[NumFields]{};
-    uint32_t has{0}; // (1 << Field)
+    uint64_t has{0}; // (fieldBit: 1 << Field)
 };
+
+// A piece's size along the model's forward, left and up (its rest pose): scale times scale_x / _y / _z, each set one
+// clamped to 0.2 .. 3 (unset: 1). Whether any is set and not 1 (the piece's shape changed by its size).
+inline bool scaleAxes(const Override& o, float out[3])
+{
+    const auto value = [&](int f) {
+        const float x = ((o.has >> static_cast<unsigned>(f)) & 1u) != 0u ? o.v[f] : 1.f;
+        return x < 0.2f ? 0.2f : x > 3.f ? 3.f : x;
+    };
+    const float s = value(Scale);
+    bool changed = false;
+    for(int i = 0; i < 3; i++)
+    {
+        out[i] = s * value(ScaleX + i);
+        changed = changed || out[i] != 1.f;
+    }
+    return changed;
+}
 
 // The kind a wearer's model is (-1 none).
 [[nodiscard]] int kindOf(const char* model);
+// Whether AD's two knights share their tweaks (KindAdKnight): both authored rigs read and their bones the same (names,
+// parents, joints; pivots and limits may differ, the tweaks being relative to each body's pieces).
+[[nodiscard]] bool adShared();
+
+// A beast's piece (vr_beastarmour.hpp: slot 0-9) as a part and side: slot 0 the cuirass, 1 the helmet, 2-7 the limb parts
+// (left, right), 8 and 9 plate8 and plate9; `sleeve` its leather junction.
+void beastPart(int slot, bool sleeve, int& part, int& side);
+// What applies to a beast's piece `slot` of `model` (its own path's entry; the limbs' both-sides values mirrored), as resolve.
+bool resolveBeast(const char* model, int slot, bool sleeve, Override& out);
+// What applies to a beast's part of a slot with a part of its own (PartTail, PartShin: beastarmour.txt's last word) on `side`
+// (a limb part's left or right, SideBoth else; the both-sides values mirrored on the right); `sleeve` its junction.
+bool resolveBeastPart(const char* model, int part, int side, bool sleeve, Override& out);
+// A beast part's sleeve (its junction's part): PartShin's PartShinSleeve, PartTail's PartTailSleeve, PartPlate8Back's
+// PartPlate8BackSleeve; itself if one already.
+[[nodiscard]] int beastSleeve(int part);
+// A hash of everything that applies to beast `model`'s pieces (0: nothing).
+[[nodiscard]] uint32_t beastSignature(const char* model);
 // What applies to agarmor piece `piece` (vr_agarmor.hpp Piece) of `model`: its plates, or its sleeve. Values not set are 0
 // (fieldDefault: Scale, the tapers and Leather 1); `has` which are set. False: nothing set.
 bool resolve(const char* model, int piece, bool sleeve, Override& out);

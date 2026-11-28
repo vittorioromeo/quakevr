@@ -132,7 +132,8 @@ enum PicId : int
     PicAdArtifact = 33,  // AD support: Arcane Dimensions' artifact icons, its own files (STAT_QVR_ADHUD's bits 0-5)
     PicAdKey = 39,       // AD support: its custom keys' icons, by HUD skin (adib_ckey1 .. 14)
     PicNumColon = 53,    // num_colon
-    PicCount = 54
+    PicRogueAmmo = 54,   // the mission pack's lava nails, multi-rockets, plasma (r_ammolava ..: Rogue's gfx.wad only; else none)
+    PicCount = 57
 };
 
 constexpr const char* picNames[PicCount] = {"num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
@@ -142,7 +143,7 @@ constexpr const char* picNames[PicCount] = {"num_0", "num_1", "num_2", "num_3", 
     "gfx/adib_lshield.lmp", "gfx/adib_atank.lmp", "gfx/adib_bbelt.lmp", "gfx/adib_jboots.lmp", "gfx/adib_sharp.lmp",
     "gfx/adib_nailp.lmp", "gfx/adib_ckey1.lmp", "gfx/adib_ckey2.lmp", "gfx/adib_ckey3.lmp", "gfx/adib_ckey4.lmp",
     "gfx/adib_ckey5.lmp", "gfx/adib_ckey6.lmp", "gfx/adib_ckey7.lmp", "gfx/adib_ckey8.lmp", "gfx/adib_ckey9.lmp",
-    "gfx/adib_ckey10.lmp", "gfx/adib_ckey11.lmp", "gfx/adib_ckey12.lmp", "gfx/adib_ckey13.lmp", "gfx/adib_ckey14.lmp", "num_colon"};
+    "gfx/adib_ckey10.lmp", "gfx/adib_ckey11.lmp", "gfx/adib_ckey12.lmp", "gfx/adib_ckey13.lmp", "gfx/adib_ckey14.lmp", "num_colon", "r_ammolava", "r_ammomulti", "r_ammoplasma"};
 
 // The grey pictures (made from the game's gfx.wad when first drawn; again after a game change: onGameDirChanged).
 struct GreyPics
@@ -1515,6 +1516,16 @@ void renderCenterPanel(const char* text, float boot)
 VisorImage renderHolsterMenu(const HolsterMenuView& view)
 {
     return holsterMenuRender(view); // (vr_gadget_holster.inc)
+}
+
+glm::vec2 bindPanelSize(const BindPanelView& view)
+{
+    return bindPanelLayoutSize(view); // (vr_gadget_holster.inc)
+}
+
+VisorImage renderBindPanel(const BindPanelView& view)
+{
+    return bindPanelRender(view);
 }
 
 VisorImage visorImage(int panel)

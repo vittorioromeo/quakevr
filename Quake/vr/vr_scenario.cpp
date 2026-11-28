@@ -101,6 +101,10 @@ struct Scenario
     // sha when installed, "" when not (packageMissing: the package line said so, the map line adds nothing).
     za::String packageSha;
     bool packageMissing{false};
+    // Errors that are only an add-on not here (its `campaign` not installed, its `package` not installed): a scene with
+    // no other error is skipped by validate and runall (SCNSKIP, SCNRUN SKIP), not failed (ROUND26 "basefix1").
+    int notInstalled{0};
+    bool campaignMissing{false}; // the `campaign` line's campaign is not installed: the map line adds nothing
     float start[3]{};
     float startYaw{0.f};
     bool hasStartYaw{false};
@@ -177,6 +181,7 @@ bool runAllQuit = false;    // and the game quit after it
 int runAllFrames = 0;       // its frames since the current one was placed
 // seat-shared: the scenario runner's counts (a test's own, one at a time)
 int runAllCount = 0, runAllFailed = 0, runAllSkipped = 0;
+bool startNotInstalled = false; // the last start() failed only on an add-on not installed (runall: SKIP, not FAIL) // seat-shared: the game install's notice
 float givenWeapon[2] = {-1.f, -1.f}; // per QC hand (0 off, 1 main): the weapon its give left there (-1: none given)
 double placedAt = 0.0;      // the server's time when the current one was placed
 // runall: each scene runs this long in game time; a hand given a weapon must still hold it then (it stays until let go).
@@ -462,6 +467,8 @@ bool read(const char* id, Scenario& out)
             if(VR_ActiveCampaign() != idx && !VR_SelectCampaignNoMapNative(idx))
             {
                 error(lineNo, va("campaign %s is not installed or cannot be played here", w[1].cStr()));
+                out.campaignMissing = true;
+                out.notInstalled++;
                 return;
             }
             out.campaignSet = true;
@@ -481,6 +488,7 @@ bool read(const char* id, Scenario& out)
             if(out.packageMissing)
             {
                 error(lineNo, packageMissingText(w[1], rest(rest(l))).cStr());
+                out.notInstalled++;
             }
         }
         else if(!q_strcasecmp(d, "map"))
@@ -491,9 +499,9 @@ bool read(const char* id, Scenario& out)
                 return;
             }
             out.map = w[1];
-            if(out.packageMissing)
+            if(out.packageMissing || out.campaignMissing)
             {
-                return; // (the package line said what to install)
+                return; // (the package or campaign line said what to install)
             }
             if(out.packageSha.size() && mapinstall::packageFor(w[1].cStr()) != out.packageSha)
             {
@@ -730,6 +738,13 @@ void printErrors(const char* id)
     {
         Con_Printf("SCNERR|%s|%s\n", id, e.cStr());
     }
+}
+
+// The file just read failed only because an add-on it needs is not here (its campaign or Map Library package not
+// installed): validate and runall skip it instead of failing it; a Test started by hand still says what to install.
+[[nodiscard]] bool onlyNotInstalled(const Scenario& s)
+{
+    return s.notInstalled > 0 && s.notInstalled == static_cast<int>(state.errors.size());
 }
 
 // The settings changed put back.
@@ -972,6 +987,29 @@ void keepBots()
     }
 }
 
+// The yaw of the spawn spot the player was just put at (the nearest info_player_*: start, coop, deathmatch), else the
+// player's own (a map with none).
+[[nodiscard]] float spawnSpotYaw(const edict_t* p)
+{
+    float best = -1.f;
+    float yaw = p->v.angles[YAW];
+    for(int n = 1; n < qcvm->num_edicts; n++)
+    {
+        const edict_t* e = EDICT_NUM(n);
+        if(e->free || e == p || ZA_STRNCMP(PR_GetString(e->v.classname), "info_player_", 12) != 0)
+        {
+            continue;
+        }
+        const float d = glm::distance(geom::vec(e->v.origin), geom::vec(p->v.origin));
+        if(best < 0.f || d < best)
+        {
+            best = d;
+            yaw = e->v.angles[YAW];
+        }
+    }
+    return yaw;
+}
+
 // Everything placed: you, your hands, what stands around you, the commands; the hint shown.
 void place()
 {
@@ -1005,6 +1043,11 @@ void place()
     {
         return;
     }
+    // Facing: the `start` line's yaw, else the map's spawn spot's (the scene's spawns are laid out from it), never the
+    // player's own: the client keeps its turn across a map load with snap turning on, so a scene run after another
+    // (vr_scenario runall, or one Test after another) faced wherever the last left you (ROUND26 "lanescene": monsters
+    // placed in vrtesthall's walls).
+    const float yaw = s.hasStartYaw ? s.startYaw : spawnSpotYaw(p);
     if(s.hasStart)
     {
         for(int k = 0; k < 3; k++)
@@ -1014,7 +1057,6 @@ void place()
             p->v.velocity[k] = 0.f;
         }
     }
-    const float yaw = s.hasStartYaw ? s.startYaw : p->v.angles[YAW];
     p->v.angles[PITCH] = p->v.angles[ROLL] = 0.f;
     p->v.angles[YAW] = yaw;
     p->v.v_angle[PITCH] = p->v.v_angle[ROLL] = 0.f;
@@ -1156,9 +1198,9 @@ void place()
     {
         SCR_CenterPrintFor(state.hint.cStr(), vr_scenario_hint_time.value);
     }
-    Con_Printf("SCNPLACED|%s|%d of %d spawned|%d given|%d problems|hands: main %.0f, off %.0f\n", s.id.cStr(), made,
-        static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(state.notes.size()),
-        p->v.weapon, weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f);
+    Con_Printf("SCNPLACED|%s|%d of %d spawned|%d given|%d problems|hands: main %.0f, off %.0f|facing yaw %.0f\n", s.id.cStr(),
+        made, static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(state.notes.size()),
+        p->v.weapon, weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f, yaw);
     if(s.mp != Mp::None)
     {
         Con_Printf("SCNMP|%s|%s|%d slots|deathmatch %.0f coop %.0f|%d of %d bots %s\n", s.id.cStr(),
@@ -1186,8 +1228,16 @@ void runNext()
     runAllCount++;
     if(!start(id.cStr(), ""))
     {
-        runAllFailed++;
-        Con_Printf("SCNRUN|%s|FAIL|%s\n", id.cStr(), state.error.cStr());
+        if(startNotInstalled)
+        {
+            runAllSkipped++;
+            Con_Printf("SCNRUN|%s|SKIP|%s\n", id.cStr(), state.error.cStr());
+        }
+        else
+        {
+            runAllFailed++;
+            Con_Printf("SCNRUN|%s|FAIL|%s\n", id.cStr(), state.error.cStr());
+        }
         runNext();
     }
 }
@@ -1217,7 +1267,7 @@ void validate()
 {
     za::Vector<za::String> ids;
     allIds(ids);
-    int bad = 0;
+    int bad = 0, notHere = 0;
     Scenario s;
     for(const za::String& id : ids)
     {
@@ -1226,6 +1276,14 @@ void validate()
             Con_Printf("SCNOK|%s|%s|%d spawns|%d gives|%d cvars|%d cmds\n", id.cStr(), s.map.cStr(),
                 static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(s.cvars.size()),
                 static_cast<int>(s.cmds.size()));
+        }
+        else if(onlyNotInstalled(s))
+        {
+            notHere++;
+            for(const za::String& e : state.errors)
+            {
+                Con_Printf("SCNSKIP|%s|%s\n", id.cStr(), e.cStr());
+            }
         }
         else
         {
@@ -1271,8 +1329,8 @@ void validate()
             Con_Printf("SCNERR|%s|0|checklist item %d's tag: no file scenarios/%s.txt\n", id, i, id);
         }
     }
-    Con_Printf("SCNSUM|%d files|%d with errors|%d checklist tags|%d missing\n", static_cast<int>(ids.size()), bad, tags,
-        missing);
+    Con_Printf("SCNSUM|%d files|%d with errors|%d not installed|%d checklist tags|%d missing\n",
+        static_cast<int>(ids.size()), bad, notHere, tags, missing);
 }
 
 // vr_scenario where: where you stand and face (a start line), how far the walls are, the nearest water.
@@ -1355,10 +1413,16 @@ void where()
 bool start(const char* id, const char* hint)
 {
     Scenario s;
+    startNotInstalled = false;
     if(!read(id, s))
     {
-        printErrors(id);
         state.error = state.errors.empty() ? za::String{"errors"} : state.errors.front();
+        startNotInstalled = onlyNotInstalled(s);
+        if(runAll && startNotInstalled)
+        {
+            return false; // (runNext says SCNRUN SKIP with the reason)
+        }
+        printErrors(id);
         Con_Printf("vr_scenario: %s not started: %s\n", id, state.error.cStr());
         return false;
     }
@@ -1510,6 +1574,14 @@ void frame()
         {
             Con_Printf("vr_scenario: %s abandoned: %s loaded instead\n", state.run.id.cStr(), sv.name);
             end(); // (another map asked for meanwhile: the settings back)
+            if(runAll)
+            {
+                // (A Host_Error in its map's load falls back to the start map: a failure, and runall goes on instead of
+                // waiting for its timeout.)
+                runAllFailed++;
+                Con_Printf("SCNRUN|%s|FAIL|abandoned: %s loaded instead (a Host_Error in the load?)\n", state.run.id.cStr(), sv.name);
+                runNext();
+            }
             return;
         }
         if(reloaded && sv.active && cls.signon == SIGNONS && !q_strcasecmp(sv.name, state.run.map.cStr()) && sv.qcvm.time >= 1.5)

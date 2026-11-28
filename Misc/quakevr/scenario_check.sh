@@ -18,6 +18,9 @@ OUT=$(bash $KIT/run.sh $AGENT -ExtraArgs "-loopbackonly" -Games "-game hipnotic 
     -Filter "^SCN|not started|vr_scenario: |rror|CRASH|TIMEOUT|exit=" 2>&1 | grep -v "^$")
 LOG=C:/OHWorkspace/qvr-agents/$AGENT/scratch/scenario_check.log
 echo "$OUT" > $LOG # (every line: SCNPLACED, SCNKEPT, SCNHANDS per scene)
+# A scene whose campaign (`campaign quoth`) or Map Library package (`package` line) isn't installed here is skipped by
+# the engine, not failed: validate says SCNSKIP (counted in SCNSUM's "not installed"), runall SCNRUN SKIP (ROUND26
+# "basefix1"; it never downloads). A real error in such a scene still fails it.
 echo "$OUT" | grep -v "^SCNOK|\|^SCNRUN|.*|OK|\|^SCNHANDS|.*|HELD|\|^SCNPLACED|\|^SCNKEPT|\|^SCNMP|\|^SCNBOT|\|loading\|put back\|^The crucial error\|^exit=0"
 fail=0
 if echo "$OUT" | grep -q "^SCNERR|\|not started\|^SCNRUN|.*|FAIL|\|^SCNHANDS|.*|LOST|\|ENGINE\|TIMEOUT"; then fail=1; fi

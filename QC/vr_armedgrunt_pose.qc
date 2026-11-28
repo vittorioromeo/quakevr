@@ -196,7 +196,7 @@ float(entity g, entity p) VR_AGH_Hands =
     {
         return 0;
     }
-    vector h = weapondrawnpose(world, g.vr_ag_kind * 1000 + VR_AGH_Code(p), 24);
+    vector h = weapondrawnpose(world, VR_AM_PoseKind(g.vr_ag_kind) * 1000 + VR_AGH_Code(p), 24);
     vr_agh_set = h_y;
     return h_x;
 };
@@ -391,6 +391,7 @@ void(entity g, vector org, vector grip, float by) VR_AGP_CastVolley =
 };
 
 void(entity p) VR_MeleeArc_ShowLanded; // (vr_meleerules.qc)
+float() VR_MeleeArc_Shown;              // (... the swings sent: here or to a remote client, mparcs)
 
 // A blow from `from` along `dir` (world), with its weapon `p` (world: a punch): that weapon's own melee, `g` striking.
 void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
@@ -404,7 +405,7 @@ void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
             g.enemy.classname));
         return;
     }
-    if(p && cvar_hget(cvarh_vr_enemy_melee_arc_show))
+    if(p && VR_MeleeArc_Shown())
     {
         VR_MeleeArc_ShowLanded(p); // QVR: Show Melee Arcs: its swing red, a dot at its tip (vr_meleerules.qc)
     }
@@ -1550,6 +1551,7 @@ float vr_agk_hpose;         // the studio's hold this frame (VR_AGK_Query): the 
 float vr_agk_hphase;
 float vr_agk_hplay;
 float vr_agk_test_hold;     // test 90 (vr_armedgrunt_guard_test.qc): its pose + 1 held as the studio holds it (0 none)
+float vr_agk_test_phase;    // ... and its phase (test 231, vr_armedgrunt_adpose_test.qc: a strike's keys)
 .float vr_agk_held;        // held in a pose by the studio (put back when let go)
 .float vr_agk_play;         // its Play count seen
 .float vr_agk_play_end;     // its strike played until
@@ -1575,7 +1577,7 @@ float(entity g, entity p) VR_AGK_Class =
         return p.weapon == WID_CHAINSAW ? VR_AGK_SAW : (VR_AGP_TwoHanded(p) ? VR_AGK_MELEE2 : VR_AGK_MELEE);
     }
     // (one gun: its pose category, the Weapon Holds' Pose Category for its kind; a gun with no row a rifle)
-    vector h = weapondrawnpose(world, g.vr_ag_kind * 1000 + VR_AGH_Code(p), 24);
+    vector h = weapondrawnpose(world, VR_AM_PoseKind(g.vr_ag_kind) * 1000 + VR_AGH_Code(p), 24);
     return h_z ? h_z : VR_AGK_GUN;
 };
 
@@ -1693,8 +1695,8 @@ void(entity g, entity p) VR_AGK_Keys =
     vr_agk_rep = g.vr_agk_live;
     vr_agk_repent = g;
     float cls = VR_AGK_Class(g, p);
-    float base = g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS;
-    vector st = weapondrawnpose(world, g.vr_ag_kind * 100 + cls, 28);
+    float base = VR_AM_PoseKind(g.vr_ag_kind) * VR_AGK_KIND + cls * VR_AGK_CLASS;
+    vector st = weapondrawnpose(world, VR_AM_PoseKind(g.vr_ag_kind) * 100 + cls, 28);
     vr_agk_stretch = st_x * VR_AGK_TugStretch(g);
     float wc = 0; // (the cast's: its Cast key, his off hand's palm at you; VR_AGP_CAST)
     if(g.vr_ag_act == VR_AGP_CAST)
@@ -1806,7 +1808,7 @@ void(entity g, entity p) VR_AGK_Keys =
         float sb = base;
         if(vr_agk_gun && cls != VR_AGK_PISTOL && VR_AGH_Hands(g, p) == 1)
         {
-            sb = g.vr_ag_kind * VR_AGK_KIND + VR_AGK_PISTOL * VR_AGK_CLASS;
+            sb = VR_AM_PoseKind(g.vr_ag_kind) * VR_AGK_KIND + VR_AGK_PISTOL * VR_AGK_CLASS;
         }
         sb = sb + VR_AGK_SHOVE * VR_AGK_POSE;
         VR_AGK_Blend(g, sb);
@@ -1830,7 +1832,7 @@ void(entity g, entity p) VR_AGK_Keys =
 // told.
 void(entity g, entity p) VR_AGK_Query =
 {
-    vector h = weapondrawnpose(g, g.vr_ag_kind * 100 + VR_AGK_Class(g, p), 19);
+    vector h = weapondrawnpose(g, VR_AM_PoseKind(g.vr_ag_kind) * 100 + VR_AGK_Class(g, p), 19);
     vr_agk_hpose = h_x;
     vr_agk_hphase = h_y;
     vr_agk_hplay = h_z;
@@ -1966,7 +1968,7 @@ void(entity g, entity p) VR_AGK_Hold =
     g.vr_agk_play = vr_agk_hplay;
     if(time >= g.vr_agk_play_end)
     {
-        g.vr_ag_act_at = time - VR_AGK_KeyTime(g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS + pose * VR_AGK_POSE +
+        g.vr_ag_act_at = time - VR_AGK_KeyTime(VR_AM_PoseKind(g.vr_ag_kind) * VR_AGK_KIND + cls * VR_AGK_CLASS + pose * VR_AGK_POSE +
             vr_agk_hphase);
     }
 };
@@ -2269,11 +2271,12 @@ void(entity g, entity p) VR_AGP_PoseQC;
 void(entity g) VR_MeleeArc_ShowSwings; // (Show Melee Arcs: its swing drawn, vr_meleerules.qc)
 void(entity g, entity p) VR_AGP_Pose =
 {
+    VR_AG_DazzleTick(g); // (a flashlight in its eyes: vr_armedgrunt_dazzle.qc)
     if(!agpose(g, p))
     {
         VR_AGP_PoseQC(g, p);
     }
-    if(cvar_hget(cvarh_vr_enemy_melee_arc_show))
+    if(VR_MeleeArc_Shown())
     {
         VR_MeleeArc_ShowSwings(g);
     }
@@ -2289,6 +2292,7 @@ void(entity g, entity p) VR_AGP_PoseQC =
         if(vr_agk_test_hold)
         {
             vr_agk_hpose = vr_agk_test_hold - 1; // (test 90: the studio's hold without the studio)
+            vr_agk_hphase = vr_agk_test_phase;
         }
     }
     float frozen = VR_AG_Still(g);
@@ -2459,6 +2463,7 @@ void(entity g, entity p) VR_AGP_PoseQC =
             vr_agp_flags = keepFl | VR_AGP_LEFT | VR_AGP_LEFTWPN;
         }
     }
+    VR_AGP_Shield(g, p); // (dazzled by a flashlight: its off hand before its eyes; vr_armedgrunt_dazzle.qc)
     // (its run's sway on its hands; placed from its anchor)
     vector bob = VR_AGP_RunBob(g);
     vr_agp_v = vr_agp_v + bob;

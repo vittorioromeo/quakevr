@@ -113,6 +113,9 @@ edict_t* spawnEntryAt(int i, const glm::vec3& feet, float yaw);
 // The Armed Humanoid page's armour (vr_toolgun_armed_armor, _pieces) on armed monster `e` just made, as the spawn tool
 // puts it on its armed spawns (None strips the skill's roll too): the checklist scenes' armour (vr_scenario.cpp).
 void armArmedSpawn(edict_t* e);
+// Whether the spawn tool's choice is a beast's (the rottweiler, ogre, scrag, fiend: vr_beastarmour.cpp), which wears the
+// Monsters page's armour (vr_toolgun_beast_armor, _pieces) as it spawns.
+[[nodiscard]] bool beastChosen();
 [[nodiscard]] int selectedSpawnable();
 void selectSpawnable(int i, bool say = true); // (-1: nothing; say: print what is selected)
 

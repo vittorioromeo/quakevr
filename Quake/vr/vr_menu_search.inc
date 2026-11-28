@@ -28,7 +28,36 @@ struct SearchEntry
     int level{0};         // the Menu Detail it shows from
     bool isPage{false};
     bool tunable{false};  // on the Tunables pages (a development build's: vr_menu_tunables.inc), the page itself too
+    bool ranged{false};   // a slider's or a cycle's row: the values it can set, lo..hi (menu::forEachSettingRange)
+    float lo{0.f};
+    float hi{0.f};
 };
+
+// The values a slider (its extent and a negative step's label included) or a cycle (its choices) can set; false: none.
+[[nodiscard]] bool itemRange(const Item& item, float& lo, float& hi)
+{
+    if(item.kind == Item::Slider)
+    {
+        lo = item.extendable ? q_min(item.min, item.hardMin) : item.min;
+        hi = item.extendable ? q_max(item.max, item.hardMax) : item.max;
+        if(item.negativeLabel)
+        {
+            lo = q_min(lo, -1.f); // (any value below 0 shows the label)
+        }
+        return lo <= hi;
+    }
+    if(item.kind == Item::Cycle && !item.choices.empty())
+    {
+        lo = hi = item.choices[0].value;
+        for(const Choice& c : item.choices)
+        {
+            lo = q_min(lo, c.value);
+            hi = q_max(hi, c.value);
+        }
+        return true;
+    }
+    return false;
+}
 
 // The filter row over the text box (Show: Both, Cvars, Tunables): only a development build's, which has tunables (a
 // release build's are constants: no Tunables pages, no row, every result shown). Cvars: every result not a tunable
@@ -509,6 +538,7 @@ void buildSearchIndex()
             e.lowPath = lowered(e.path.cStr());
             e.lowCvar = item.cvar ? lowered(item.cvar->name) : za::String{};
             e.cvar = item.kind != Item::Action && item.kind != Item::Key ? item.cvar : nullptr;
+            e.ranged = e.cvar && itemRange(item, e.lo, e.hi);
             search.index.pushBack(ZA_MOVE(e));
         }
     }

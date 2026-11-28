@@ -210,6 +210,8 @@ vr_foveated|0|VR Settings - Display and Graphics|Foveated Rendering|VR Settings 
 vr_foveated_gaze|1|VR Settings - Display and Graphics|Eye-Tracked Foveation|VR Settings > Display and Graphics > Eye-Tracked Foveation
 vr_xr_foveation|0|VR Settings - Display and Graphics|Quest Foveation|VR Settings > Display and Graphics > Quest Foveation
 vr_xr_foveation_dynamic|1|VR Settings - Display and Graphics|Quest Foveation: Dynamic|VR Settings > Display and Graphics > Quest Foveation: Dynamic
+vr_xr_foveation_offset|1|VR Settings - Display and Graphics|Quest Foveation: Shift|VR Settings > Display and Graphics > Quest Foveation: Shift
+vr_xr_spacewarp|0|VR Settings - Display and Graphics|SpaceWarp|VR Settings > Display and Graphics > SpaceWarp
 vr_retro|0|VR Settings - Display and Graphics|Retro Textures|VR Settings > Display and Graphics > Retro Textures
 vr_retrolight|0|VR Settings - Display and Graphics|Retro Lighting|VR Settings > Display and Graphics > Retro Lighting
 vid_fsaa|0|VR Settings - Display and Graphics|Antialiasing|VR Settings > Display and Graphics > Antialiasing
@@ -287,6 +289,7 @@ vr_snd_occlusion_radius|1|Sound|Sound Source Size|Advanced VR Options > Sound > 
 vr_snd_air|1|Sound|Air Absorption|Advanced VR Options > Sound > Air Absorption
 vr_snd_falloff|1|Sound|Distance Falloff|Advanced VR Options > Sound > Distance Falloff
 vr_snd_reverb|1|Sound|Room Reverb|Advanced VR Options > Sound > Room Reverb
+vr_snd_reverb_own|1|Sound|Your Sounds' Reverb|Advanced VR Options > Sound > Your Sounds' Reverb
 vr_snd_reverb_quality|1|Sound|Reverb Quality|Advanced VR Options > Sound > Reverb Quality
 vr_snd_reverb_interval|1|Sound|Reverb Update|Advanced VR Options > Sound > Reverb Update
 snd_waterfx|1|Sound|Underwater Muffle|Advanced VR Options > Sound > Underwater Muffle
@@ -1139,6 +1142,7 @@ vr_agrunt_repl_mp|1|Armed Humanoid Replacements|Mission Packs|Advanced VR Option
 vr_agrunt_repl_ad|1|Armed Humanoid Replacements|Arcane Dimensions|Advanced VR Options > Combat > Armed Humanoid Replacements > Arcane Dimensions
 vr_agrunt_repl_variants|1|Armed Humanoid Replacements|AD and Quoth Variants|Advanced VR Options > Combat > Armed Humanoid Replacements > AD and Quoth Variants
 vr_agrunt_repl_crossbow|1|Armed Humanoid Replacements|AD Crossbow Knights|Advanced VR Options > Combat > Armed Humanoid Replacements > AD Crossbow Knights
+vr_agrunt_repl_dguard|1|Armed Humanoid Replacements|AD Death Guards|Advanced VR Options > Combat > Armed Humanoid Replacements > AD Death Guards
 vr_humlook|1|Armed Humanoid Replacements|Recolour by Weapon|Advanced VR Options > Combat > Armed Humanoid Replacements > Recolour by Weapon
 |1|Armed Humanoid Replacements|Reset This Page|Advanced VR Options > Combat > Armed Humanoid Replacements > Reset This Page
 @page|1|Armed Grunts - AI Behaviour||Advanced VR Options > Combat > Armed Humanoids' AI Behaviour
@@ -4283,6 +4287,9 @@ vr_heap_load_hold|2|Tunables|Heap: Hold During Loads|Advanced VR Options > Debug
 vr_image_cache_mb|2|Tunables|Decoded Image Cache|Advanced VR Options > Debug > Tunables > Decoded Image Cache
 vr_anim_smooth_rig_error|2|Tunables|Limb Fit Limit|Advanced VR Options > Debug > Tunables > Limb Fit Limit
 vr_anim_smooth_rebuild_error|2|Tunables|Rebuild Fit Limit|Advanced VR Options > Debug > Tunables > Rebuild Fit Limit
+vr_anim_smooth_rebuild_blend|2|Tunables|Rebuild Joints From Two Bones|Advanced VR Options > Debug > Tunables > Rebuild Joints From Two Bones
+vr_hitmodel_drawn|2|Tunables|Shots Meet The Drawn Body|Advanced VR Options > Debug > Tunables > Shots Meet The Drawn Body
+vr_armour_on_drawn|2|Tunables|Beast Armour On The Drawn Body|Advanced VR Options > Debug > Tunables > Beast Armour On The Drawn Body
 vr_gore_streams_chance|2|Tunables|Stream Chance|Advanced VR Options > Debug > Tunables > Stream Chance
 vr_gore_streams_melee_blunt|2|Tunables|Melee Blunt Chance|Advanced VR Options > Debug > Tunables > Melee Blunt Chance
 vr_gore_streams_per_body|2|Tunables|Streams per Body|Advanced VR Options > Debug > Tunables > Streams per Body
@@ -4397,6 +4404,10 @@ vr_flat_gun_near|2|Tunables|Gun With The Crosshair|Advanced VR Options > Debug >
 vr_flat_reach|2|Tunables|Hand Reach|Advanced VR Options > Debug > Tunables > Hand Reach
 vr_flat_pose_pitch|2|Tunables|Hand Pitch|Advanced VR Options > Debug > Tunables > Hand Pitch
 vr_flat_arm_hold|2|Tunables|Arm Hold|Advanced VR Options > Debug > Tunables > Arm Hold
+vr_flat_attach_reach_time|2|Tunables|Attach: Reach Time|Advanced VR Options > Debug > Tunables > Attach: Reach Time
+vr_flat_attach_slide_time|2|Tunables|Attach: Slide Time|Advanced VR Options > Debug > Tunables > Attach: Slide Time
+vr_flat_attach_return_time|2|Tunables|Attach: Return Time|Advanced VR Options > Debug > Tunables > Attach: Return Time
+vr_flat_attach_slide|2|Tunables|Attach: Slide Distance|Advanced VR Options > Debug > Tunables > Attach: Slide Distance
 vr_flat_reload_down|2|Tunables|Reload: Down Time|Advanced VR Options > Debug > Tunables > Reload: Down Time
 vr_flat_reload_hold|2|Tunables|Reload: Hold Time|Advanced VR Options > Debug > Tunables > Reload: Hold Time
 vr_flat_reload_up|2|Tunables|Reload: Up Time|Advanced VR Options > Debug > Tunables > Reload: Up Time
@@ -4520,6 +4531,7 @@ vr_flat_grab_drag_hertz|2|Tunables|Grab / Pull: Drag Stiffness|Advanced VR Optio
 vr_flat_grab_drag_letgo|2|Tunables|Grab / Pull: Drag Let Go|Advanced VR Options > Debug > Tunables > Grab / Pull: Drag Let Go
 vr_flat_grab_push|2|Tunables|Grab / Pull: Push Held Props|Advanced VR Options > Debug > Tunables > Grab / Pull: Push Held Props
 vr_flat_grab_push_force|2|Tunables|Grab / Pull: Push Strength|Advanced VR Options > Debug > Tunables > Grab / Pull: Push Strength
+vr_flat_grab_push_mass|2|Tunables|Grab / Pull: Push Mass|Advanced VR Options > Debug > Tunables > Grab / Pull: Push Mass
 vr_flat_grab_push_angle|2|Tunables|Grab / Pull: Push Max Angle|Advanced VR Options > Debug > Tunables > Grab / Pull: Push Max Angle
 vr_flat_grab_cone|2|Tunables|Grab / Pull: Cone|Advanced VR Options > Debug > Tunables > Grab / Pull: Cone
 vr_flat_grab_carry_dist|2|Tunables|Grab / Pull: Carry Distance|Advanced VR Options > Debug > Tunables > Grab / Pull: Carry Distance
@@ -4671,6 +4683,7 @@ vr_flat_swing_cam_down|2|Tunables|Swing View Tip Down|Advanced VR Options > Debu
 vr_flat_swing_torso_up|2|Tunables|Swing Chest Back|Advanced VR Options > Debug > Tunables > Swing Chest Back
 vr_flat_swing_torso_down|2|Tunables|Swing Chest Forward|Advanced VR Options > Debug > Tunables > Swing Chest Forward
 vr_flat_melee_grip|2|Tunables|Two-Handed Melee On The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee On The Grip
+vr_flat_melee_grip_below|2|Tunables|Two-Handed Sword Grip Below|Advanced VR Options > Debug > Tunables > Two-Handed Sword Grip Below
 vr_flat_melee_letgo|2|Tunables|Two-Handed Melee Eased Off The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee Eased Off The Grip
 vr_flat_overhand|2|Tunables|Empty-Hand V Overhand|Advanced VR Options > Debug > Tunables > Empty-Hand V Overhand
 vr_flat_overhand_wind|2|Tunables|Overhand Windup Time|Advanced VR Options > Debug > Tunables > Overhand Windup Time
@@ -4704,9 +4717,33 @@ vr_flat_parry_roll|2|Tunables|Guard Roll|Advanced VR Options > Debug > Tunables 
 vr_flat_parry_in_time|2|Tunables|Guard In Time|Advanced VR Options > Debug > Tunables > Guard In Time
 vr_flat_parry_out_time|2|Tunables|Guard Out Time|Advanced VR Options > Debug > Tunables > Guard Out Time
 vr_flat_parry_unflip_time|2|Tunables|Guard Unflip Time|Advanced VR Options > Debug > Tunables > Guard Unflip Time
+vr_flat_parry_rev|2|Tunables|Reverse-Grip Guard|Advanced VR Options > Debug > Tunables > Reverse-Grip Guard
+vr_flat_parry_rev_fwd|2|Tunables|Reverse Guard Ahead|Advanced VR Options > Debug > Tunables > Reverse Guard Ahead
+vr_flat_parry_rev_up|2|Tunables|Reverse Guard Up|Advanced VR Options > Debug > Tunables > Reverse Guard Up
+vr_flat_parry_rev_out|2|Tunables|Reverse Guard Out|Advanced VR Options > Debug > Tunables > Reverse Guard Out
+vr_flat_parry_rev_pitch|2|Tunables|Reverse Guard Pitch|Advanced VR Options > Debug > Tunables > Reverse Guard Pitch
+vr_flat_parry_rev_yaw|2|Tunables|Reverse Guard Yaw|Advanced VR Options > Debug > Tunables > Reverse Guard Yaw
+vr_flat_parry_rev_roll|2|Tunables|Reverse Guard Roll|Advanced VR Options > Debug > Tunables > Reverse Guard Roll
+vr_flat_parry_rev_in_time|2|Tunables|Reverse Guard In Time|Advanced VR Options > Debug > Tunables > Reverse Guard In Time
+vr_flat_parry_rev_out_time|2|Tunables|Reverse Guard Out Time|Advanced VR Options > Debug > Tunables > Reverse Guard Out Time
 vr_flat_parry_shaft_at|2|Tunables|Guard Shaft Grip At|Advanced VR Options > Debug > Tunables > Guard Shaft Grip At
 vr_flat_parry_shaft_reach|2|Tunables|Guard Shaft Grip Most Apart|Advanced VR Options > Debug > Tunables > Guard Shaft Grip Most Apart
 vr_flat_parry_cone|2|Tunables|Guard Parries From The Front|Advanced VR Options > Debug > Tunables > Guard Parries From The Front
+vr_flat_jab_alternate|2|Tunables|Left Mouse Jabs Alternate|Advanced VR Options > Debug > Tunables > Left Mouse Jabs Alternate
+vr_flat_jab_repeat|2|Tunables|Jab Repeat (Held)|Advanced VR Options > Debug > Tunables > Jab Repeat (Held)
+vr_flat_fist_guard|2|Tunables|Right Mouse Crossed-Arms Guard|Advanced VR Options > Debug > Tunables > Right Mouse Crossed-Arms Guard
+vr_flat_fist_guard_fwd|2|Tunables|Fist Guard Ahead|Advanced VR Options > Debug > Tunables > Fist Guard Ahead
+vr_flat_fist_guard_up|2|Tunables|Fist Guard Up|Advanced VR Options > Debug > Tunables > Fist Guard Up
+vr_flat_fist_guard_cross|2|Tunables|Fist Guard Crossed|Advanced VR Options > Debug > Tunables > Fist Guard Crossed
+vr_flat_fist_guard_stagger|2|Tunables|Fist Guard Right Ahead|Advanced VR Options > Debug > Tunables > Fist Guard Right Ahead
+vr_flat_fist_guard_pitch|2|Tunables|Fist Guard Pitch|Advanced VR Options > Debug > Tunables > Fist Guard Pitch
+vr_flat_fist_guard_yaw|2|Tunables|Fist Guard Yaw In|Advanced VR Options > Debug > Tunables > Fist Guard Yaw In
+vr_flat_fist_guard_roll|2|Tunables|Fist Guard Roll|Advanced VR Options > Debug > Tunables > Fist Guard Roll
+vr_flat_fist_guard_in_time|2|Tunables|Fist Guard In Time|Advanced VR Options > Debug > Tunables > Fist Guard In Time
+vr_flat_fist_guard_out_time|2|Tunables|Fist Guard Out Time|Advanced VR Options > Debug > Tunables > Fist Guard Out Time
+vr_flat_fist_guard_cone|2|Tunables|Fist Guard Parries From The Front|Advanced VR Options > Debug > Tunables > Fist Guard Parries From The Front
+vr_flat_fist_guard_reduction|2|Tunables|Fist Guard Damage Taken Off|Advanced VR Options > Debug > Tunables > Fist Guard Damage Taken Off
+vr_flat_fist_guard_push|2|Tunables|Fist Guard Push On You x|Advanced VR Options > Debug > Tunables > Fist Guard Push On You x
 vr_flat_bash|2|Tunables|Fire In The Guard Bashes|Advanced VR Options > Debug > Tunables > Fire In The Guard Bashes
 vr_flat_bash_wind_time|2|Tunables|Bash Windup Time|Advanced VR Options > Debug > Tunables > Bash Windup Time
 vr_flat_bash_push_time|2|Tunables|Bash Push Time|Advanced VR Options > Debug > Tunables > Bash Push Time
@@ -4808,6 +4845,11 @@ vr_flat_revgrip_pole_yaw|2|Tunables|Flipped Spear Yaw|Advanced VR Options > Debu
 vr_flat_revgrip_pole_roll|2|Tunables|Flipped Spear Roll|Advanced VR Options > Debug > Tunables > Flipped Spear Roll
 vr_flat_revgrip_pole_down|2|Tunables|Flipped Spear Stab Down|Advanced VR Options > Debug > Tunables > Flipped Spear Stab Down
 vr_flat_revgrip_pole_off_along|2|Tunables|Flipped Spear Other Hand Along|Advanced VR Options > Debug > Tunables > Flipped Spear Other Hand Along
+vr_flat_revgrip_pole_off_up|2|Tunables|Flipped Spear Other Hand Up|Advanced VR Options > Debug > Tunables > Flipped Spear Other Hand Up
+vr_flat_revgrip_pole_off_out|2|Tunables|Flipped Spear Other Hand Out|Advanced VR Options > Debug > Tunables > Flipped Spear Other Hand Out
+vr_flat_revgrip_pole_off_pitch|2|Tunables|Flipped Spear Other Hand Pitch|Advanced VR Options > Debug > Tunables > Flipped Spear Other Hand Pitch
+vr_flat_revgrip_pole_off_yaw|2|Tunables|Flipped Spear Other Hand Yaw|Advanced VR Options > Debug > Tunables > Flipped Spear Other Hand Yaw
+vr_flat_revgrip_pole_off_roll|2|Tunables|Flipped Spear Other Hand Roll|Advanced VR Options > Debug > Tunables > Flipped Spear Other Hand Roll
 vr_flat_revgrip_swing_wind|2|Tunables|Flipped Swing Windup|Advanced VR Options > Debug > Tunables > Flipped Swing Windup
 vr_flat_revgrip_swing_top|2|Tunables|Flipped Swing Top Hold|Advanced VR Options > Debug > Tunables > Flipped Swing Top Hold
 vr_flat_revgrip_swing_strike|2|Tunables|Flipped Swing Strike Time|Advanced VR Options > Debug > Tunables > Flipped Swing Strike Time
@@ -5005,6 +5047,11 @@ vr_embed_stab_tip|2|Tunables|Stab: Point Length|Advanced VR Options > Debug > Tu
 vr_embed_sword_depth_min|2|Tunables|Depth at Least Speed|Advanced VR Options > Debug > Tunables > Depth at Least Speed
 vr_embed_sword_depth_max|2|Tunables|Depth at Full Speed|Advanced VR Options > Debug > Tunables > Depth at Full Speed
 vr_embed_sword_depth_speed|2|Tunables|Full Depth Speed|Advanced VR Options > Debug > Tunables > Full Depth Speed
+vr_embed_bayonet_depth|2|Tunables|Bayonet Depth|Advanced VR Options > Debug > Tunables > Bayonet Depth
+vr_embed_attdagger_depth|2|Tunables|Dagger Bayonet Depth|Advanced VR Options > Debug > Tunables > Dagger Bayonet Depth
+vr_embed_fire_push|2|Tunables|Stuck Gun Fired: Shove|Advanced VR Options > Debug > Tunables > Stuck Gun Fired: Shove
+vr_embed_fire_letgo|2|Tunables|Stuck Gun Fired: Hold Margin|Advanced VR Options > Debug > Tunables > Stuck Gun Fired: Hold Margin
+vr_embed_fire_hold_time|2|Tunables|Stuck Gun Fired: Margin Time|Advanced VR Options > Debug > Tunables > Stuck Gun Fired: Margin Time
 vr_embed_throw_kill_depth|2|Tunables|Thrown Kill: Depth|Advanced VR Options > Debug > Tunables > Thrown Kill: Depth
 vr_embed_enter_time|2|Tunables|Stab: Time Going In|Advanced VR Options > Debug > Tunables > Stab: Time Going In
 vr_embed_skewer_most|2|Tunables|Skewered Gibs: Most on a Blade|Advanced VR Options > Debug > Tunables > Skewered Gibs: Most on a Blade
@@ -5251,11 +5298,25 @@ vr_hit_player_fatten|2|Tunables|Body Hit Fattening|Advanced VR Options > Debug >
 vr_monster_lean|2|Tunables|Monsters See Leaning|Advanced VR Options > Debug > Tunables > Monsters See Leaning
 vr_monster_lean_spread|2|Tunables|Lean Spread|Advanced VR Options > Debug > Tunables > Lean Spread
 vr_monster_lean_react|2|Tunables|Lean Reaction|Advanced VR Options > Debug > Tunables > Lean Reaction
-vr_flat_xhair_thrust_path|2|Tunables|Flipped Spear Crosshair|Advanced VR Options > Debug > Tunables > Flipped Spear Crosshair
+vr_flat_xhair_throw_aim|2|Tunables|Throw Crosshair|Advanced VR Options > Debug > Tunables > Throw Crosshair
+vr_flat_xhair_thrust_path|2|Tunables|Melee Crosshair|Advanced VR Options > Debug > Tunables > Melee Crosshair
 vr_flat_xhair_melee_kick|2|Tunables|Melee Crosshair Kick|Advanced VR Options > Debug > Tunables > Melee Crosshair Kick
 vr_flat_xhair_melee_mass|2|Tunables|Melee Kick Weight|Advanced VR Options > Debug > Tunables > Melee Kick Weight
 vr_flat_xhair_melee_fist|2|Tunables|Fist Kick Share|Advanced VR Options > Debug > Tunables > Fist Kick Share
 vr_flat_xhair_melee_decay|2|Tunables|Melee Kick Decay|Advanced VR Options > Debug > Tunables > Melee Kick Decay
+vr_agrunt_dazzle|2|Tunables|Flashlight Dazzle|Advanced VR Options > Debug > Tunables > Flashlight Dazzle
+vr_agrunt_dazzle_cone|2|Tunables|Cone|Advanced VR Options > Debug > Tunables > Cone
+vr_agrunt_dazzle_near|2|Tunables|Full Strength Within|Advanced VR Options > Debug > Tunables > Full Strength Within
+vr_agrunt_dazzle_range|2|Tunables|Range|Advanced VR Options > Debug > Tunables > Range
+vr_agrunt_dazzle_dark|2|Tunables|Darkness Bonus|Advanced VR Options > Debug > Tunables > Darkness Bonus
+vr_agrunt_dazzle_build|2|Tunables|Build Time|Advanced VR Options > Debug > Tunables > Build Time
+vr_agrunt_dazzle_fade|2|Tunables|Fade Time|Advanced VR Options > Debug > Tunables > Fade Time
+vr_agrunt_dazzle_threshold|2|Tunables|Hand Up From|Advanced VR Options > Debug > Tunables > Hand Up From
+vr_agrunt_dazzle_spread|2|Tunables|Aim Spread|Advanced VR Options > Debug > Tunables > Aim Spread
+vr_agrunt_dazzle_pose|2|Tunables|Hand Pose|Advanced VR Options > Debug > Tunables > Hand Pose
+vr_agrunt_dazzle_hand_fwd|2|Tunables|Hand Forward|Advanced VR Options > Debug > Tunables > Hand Forward
+vr_agrunt_dazzle_hand_left|2|Tunables|Hand Left|Advanced VR Options > Debug > Tunables > Hand Left
+vr_agrunt_dazzle_hand_up|2|Tunables|Hand Up|Advanced VR Options > Debug > Tunables > Hand Up
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -5499,6 +5560,7 @@ vr_alias_batch_posed|2|Debug - Profiling and Memory|Batch Posed Models|Advanced 
 |2|Debug - Profiling and Memory|Hide Gibs, Heads and Limbs|Advanced VR Options > Debug > Profiling and Memory > Hide Gibs, Heads and Limbs
 |2|Debug - Profiling and Memory|Show Every Model|Advanced VR Options > Debug > Profiling and Memory > Show Every Model
 vr_profile_overlay|2|Debug - Profiling and Memory|Profiler Panel|Advanced VR Options > Debug > Profiling and Memory > Profiler Panel
+vr_spacewarp_test|2|Debug - Profiling and Memory|SpaceWarp Test Images|Advanced VR Options > Debug > Profiling and Memory > SpaceWarp Test Images
 vr_profile_csv|2|Debug - Profiling and Memory|CSV Capture|Advanced VR Options > Debug > Profiling and Memory > CSV Capture
 vr_profile_hitch|2|Debug - Profiling and Memory|Hitch Log|Advanced VR Options > Debug > Profiling and Memory > Hitch Log
 vr_profile_slow_ms|2|Debug - Profiling and Memory|Slow Frames Kept|Advanced VR Options > Debug > Profiling and Memory > Slow Frames Kept
@@ -5508,6 +5570,7 @@ vr_profile_slow_ms|2|Debug - Profiling and Memory|Slow Frames Kept|Advanced VR O
 |2|Debug - Profiling and Memory|Rig Lights Off the Walls (Quest)|Advanced VR Options > Debug > Profiling and Memory > Rig Lights Off the Walls (Quest)
 |2|Debug - Profiling and Memory|Rig Lights on the Walls|Advanced VR Options > Debug > Profiling and Memory > Rig Lights on the Walls
 vr_gl_world_lit_skip|2|Debug - Profiling and Memory|Skip Empty Lit Commands (Quest)|Advanced VR Options > Debug > Profiling and Memory > Skip Empty Lit Commands (Quest)
+vr_gl_world_lit_reuse|2|Debug - Profiling and Memory|Fast Lit Textures' Walk (Quest)|Advanced VR Options > Debug > Profiling and Memory > Fast Lit Textures' Walk (Quest)
 vr_gl_quake_dlights|2|Debug - Profiling and Memory|Quake-Style Dynamic Lights (Quest)|Advanced VR Options > Debug > Profiling and Memory > Quake-Style Dynamic Lights (Quest)
 vr_gl_world_dlmap|2|Debug - Profiling and Memory|Dynamic Lights in the Lightmap (Quest)|Advanced VR Options > Debug > Profiling and Memory > Dynamic Lights in the Lightmap (Quest)
 vr_gl_world_dlmap_batch|2|Debug - Profiling and Memory|Batch Lightmap Uploads (Quest)|Advanced VR Options > Debug > Profiling and Memory > Batch Lightmap Uploads (Quest)
@@ -5680,7 +5743,9 @@ vr_startup_log|2|Debug - Profiling and Memory|Startup Trace in the Console|Advan
 |2|Debug - Profiling and Memory|Eye Probe: Red Where Nothing Drew|Advanced VR Options > Debug > Profiling and Memory > Eye Probe: Red Where Nothing Drew
 |2|Debug - Profiling and Memory|Eye Probe: the World's Data in Green|Advanced VR Options > Debug > Profiling and Memory > Eye Probe: the World's Data in Green
 |2|Debug - Profiling and Memory|Android: Export Eye Images|Advanced VR Options > Debug > Profiling and Memory > Android: Export Eye Images
+|2|Debug - Profiling and Memory|Android: Open the Game's Files to adb|Advanced VR Options > Debug > Profiling and Memory > Android: Open the Game's Files to adb
 |2|Debug - Profiling and Memory|Game Code and Folders|Advanced VR Options > Debug > Profiling and Memory > Game Code and Folders
+|2|Debug - Profiling and Memory|Preview: Game Data Missing Notice|Advanced VR Options > Debug > Profiling and Memory > Preview: Game Data Missing Notice
 vr_diagnostics|2|Debug - Profiling and Memory|Diagnostics Mode|Advanced VR Options > Debug > Profiling and Memory > Diagnostics Mode
 |2|Debug - Profiling and Memory|Run Logs Status|Advanced VR Options > Debug > Profiling and Memory > Run Logs Status
 |2|Debug - Profiling and Memory|Diagnostics Status|Advanced VR Options > Debug > Profiling and Memory > Diagnostics Status
@@ -5692,6 +5757,9 @@ vr_xr_debug|2|Debug - Profiling and Memory|OpenXR Loader Log|Advanced VR Options
 |2|Debug - Profiling and Memory|Reset This Page|Advanced VR Options > Debug > Profiling and Memory > Reset This Page
 @page|2|Debug - Reports||Advanced VR Options > Debug > Reports
 |2|Debug - Reports|Flatscreen Play Status|Advanced VR Options > Debug > Reports > Flatscreen Play Status
+|2|Debug - Reports|Held Hands on Arms: Start|Advanced VR Options > Debug > Reports > Held Hands on Arms: Start
+|2|Debug - Reports|Held Hands on Arms: Start, Each Frame Logged|Advanced VR Options > Debug > Reports > Held Hands on Arms: Start, Each Frame Logged
+|2|Debug - Reports|Held Hands on Arms: Report|Advanced VR Options > Debug > Reports > Held Hands on Arms: Report
 |2|Debug - Reports|Flatscreen Status Bar Report|Advanced VR Options > Debug > Reports > Flatscreen Status Bar Report
 |2|Debug - Reports|Visor HUD Report|Advanced VR Options > Debug > Reports > Visor HUD Report
 |2|Debug - Reports|Visor: Hit Glitch|Advanced VR Options > Debug > Reports > Visor: Hit Glitch
@@ -5703,11 +5771,13 @@ vr_xr_debug|2|Debug - Profiling and Memory|OpenXR Loader Log|Advanced VR Options
 |2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
+|2|Debug - Reports|Flatscreen Attach Report|Advanced VR Options > Debug > Reports > Flatscreen Attach Report
 |2|Debug - Reports|Flatscreen Swim Report|Advanced VR Options > Debug > Reports > Flatscreen Swim Report
 |2|Debug - Reports|Flatscreen Swim Probe|Advanced VR Options > Debug > Reports > Flatscreen Swim Probe
 |2|Debug - Reports|Flatscreen Force Grab Report|Advanced VR Options > Debug > Reports > Flatscreen Force Grab Report
 |2|Debug - Reports|Flatscreen Force Grab: Press E|Advanced VR Options > Debug > Reports > Flatscreen Force Grab: Press E
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
+vr_flat_attach_debug|2|Debug - Reports|Flatscreen Attach Print|Advanced VR Options > Debug > Reports > Flatscreen Attach Print
 |2|Debug - Reports|Holster Menu Dump|Advanced VR Options > Debug > Reports > Holster Menu Dump
 |2|Debug - Reports|Holster Menu: Hold Open|Advanced VR Options > Debug > Reports > Holster Menu: Hold Open
 |2|Debug - Reports|Holster Menu: Let Go|Advanced VR Options > Debug > Reports > Holster Menu: Let Go
@@ -5783,6 +5853,7 @@ vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Option
 |2|Debug - Reports|Smooth Animation Check|Advanced VR Options > Debug > Reports > Smooth Animation Check
 |2|Debug - Reports|Monsters' Blow Lines|Advanced VR Options > Debug > Reports > Monsters' Blow Lines
 |2|Debug - Reports|Steady Vertices Check|Advanced VR Options > Debug > Reports > Steady Vertices Check
+|2|Debug - Reports|Skeleton Warp Check|Advanced VR Options > Debug > Reports > Skeleton Warp Check
 |2|Debug - Reports|Smooth Animation Rig Hashes|Advanced VR Options > Debug > Reports > Smooth Animation Rig Hashes
 |2|Debug - Reports|Smooth Animation Models|Advanced VR Options > Debug > Reports > Smooth Animation Models
 |2|Debug - Reports|Trace Nearest Monster's Motion|Advanced VR Options > Debug > Reports > Trace Nearest Monster's Motion
@@ -5791,6 +5862,7 @@ vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Option
 |2|Debug - Reports|Corpse Poses|Advanced VR Options > Debug > Reports > Corpse Poses
 |2|Debug - Reports|Corpses in the Physics|Advanced VR Options > Debug > Reports > Corpses in the Physics
 |2|Debug - Reports|Held Props|Advanced VR Options > Debug > Reports > Held Props
+|2|Debug - Reports|Drawn in the Hands|Advanced VR Options > Debug > Reports > Drawn in the Hands
 |2|Debug - Reports|Props in Floors|Advanced VR Options > Debug > Reports > Props in Floors
 |2|Debug - Reports|Props in Walls|Advanced VR Options > Debug > Reports > Props in Walls
 |2|Debug - Reports|Prop Approach|Advanced VR Options > Debug > Reports > Prop Approach
@@ -5834,6 +5906,8 @@ vr_debug_screen_offhand|2|Debug - Reports|Off Hand's Ammo Screen|Advanced VR Opt
 |2|Debug - Reports|Sound Counter Wrap|Advanced VR Options > Debug > Reports > Sound Counter Wrap
 |2|Debug - Reports|Network: Entities Sent|Advanced VR Options > Debug > Reports > Network: Entities Sent
 |2|Debug - Reports|Server Rules|Advanced VR Options > Debug > Reports > Server Rules
+|2|Debug - Reports|Server Rules: Self-Test|Advanced VR Options > Debug > Reports > Server Rules: Self-Test
+|2|Debug - Reports|Network: Control Reply Budget|Advanced VR Options > Debug > Reports > Network: Control Reply Budget
 |2|Debug - Reports|Network: Players Seen|Advanced VR Options > Debug > Reports > Network: Players Seen
 |2|Debug - Reports|Network: Drawn Near Me|Advanced VR Options > Debug > Reports > Network: Drawn Near Me
 |2|Debug - Reports|Network: Other Players' Gear|Advanced VR Options > Debug > Reports > Network: Other Players' Gear
@@ -6155,6 +6229,7 @@ vr_test_pile_crates|2|Debug - Tests|Crates in the Wall|Advanced VR Options > Deb
 |2|Debug - Tests|Voice Transform Test|Advanced VR Options > Debug > Tests > Voice Transform Test
 |2|Debug - Tests|Export Voice Samples|Advanced VR Options > Debug > Tests > Export Voice Samples
 |2|Debug - Tests|Five Explosions at Once|Advanced VR Options > Debug > Tests > Five Explosions at Once
+|2|Debug - Tests|Your Shotgun's Report|Advanced VR Options > Debug > Tests > Your Shotgun's Report
 |2|Debug - Tests|A Sound 45 Degrees Right|Advanced VR Options > Debug > Tests > A Sound 45 Degrees Right
 |2|Debug - Tests|A Sound 45 Degrees Left|Advanced VR Options > Debug > Tests > A Sound 45 Degrees Left
 |2|Debug - Tests|A 22 kHz Sound Behind You|Advanced VR Options > Debug > Tests > A 22 kHz Sound Behind You
@@ -6168,7 +6243,12 @@ vr_test_spawn_yaw|2|Debug - Tests|Box Turned|Advanced VR Options > Debug > Tests
 vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Tests > Box Tilted
 |2|Debug - Tests|Put It There|Advanced VR Options > Debug > Tests > Put It There
 |2|Debug - Tests|Armour on Armed Grunts|Advanced VR Options > Debug > Tests > Armour on Armed Grunts
+|2|Debug - Tests|Armour on Beasts|Advanced VR Options > Debug > Tests > Armour on Beasts
+|2|Debug - Tests|Beasts' Shaped Armour: Look and Debris Check|Advanced VR Options > Debug > Tests > Beasts' Shaped Armour: Look and Debris Check
+|2|Debug - Tests|Beasts Drawn Smoothly (Slow Motion)|Advanced VR Options > Debug > Tests > Beasts Drawn Smoothly (Slow Motion)
+|2|Debug - Tests|Beast Armour On The Drawn Body: Cost (Ten Ogres)|Advanced VR Options > Debug > Tests > Beast Armour On The Drawn Body: Cost (Ten Ogres)
 |2|Debug - Tests|Armour Studio: ImGui Window Test (Flat Screen)|Advanced VR Options > Debug > Tests > Armour Studio: ImGui Window Test (Flat Screen)
+|2|Debug - Tests|Armour Studio: Window Handle (Gizmo) Test (Flat Screen)|Advanced VR Options > Debug > Tests > Armour Studio: Window Handle (Gizmo) Test (Flat Screen)
 |2|Debug - Tests|Armour Studio: Your Clone's Armour Test|Advanced VR Options > Debug > Tests > Armour Studio: Your Clone's Armour Test
 |2|Debug - Tests|Armour Tweaks: Data File Test|Advanced VR Options > Debug > Tests > Armour Tweaks: Data File Test
 |2|Debug - Tests|Armour Plates: Pop-through Check|Advanced VR Options > Debug > Tests > Armour Plates: Pop-through Check
@@ -6192,6 +6272,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Your Armour Plates: Full|Advanced VR Options > Debug > Tests > Your Armour Plates: Full
 |2|Debug - Tests|Your Armour Plates: Half|Advanced VR Options > Debug > Tests > Your Armour Plates: Half
 |2|Debug - Tests|Your Armour Plates: Torso Only|Advanced VR Options > Debug > Tests > Your Armour Plates: Torso Only
+|2|Debug - Tests|Armoured Beasts There|Advanced VR Options > Debug > Tests > Armoured Beasts There
 |2|Debug - Tests|Armoured Enforcers There|Advanced VR Options > Debug > Tests > Armoured Enforcers There
 |2|Debug - Tests|Armour Damage Marks There|Advanced VR Options > Debug > Tests > Armour Damage Marks There
 |2|Debug - Tests|Helmets There: Grunt and Enforcer|Advanced VR Options > Debug > Tests > Helmets There: Grunt and Enforcer
@@ -6442,6 +6523,7 @@ vr_nailslide_debug|2|Debug - Tests|Slide: Print|Advanced VR Options > Debug > Te
 |2|Debug - Tests|A Heavy Revolver Swung Out|Advanced VR Options > Debug > Tests > A Heavy Revolver Swung Out
 |2|Debug - Tests|An Armed Grunt With One|Advanced VR Options > Debug > Tests > An Armed Grunt With One
 |2|Debug - Tests|Heavy Revolver Self-Test|Advanced VR Options > Debug > Tests > Heavy Revolver Self-Test
+|2|Debug - Tests|Reload Options Self-Test|Advanced VR Options > Debug > Tests > Reload Options Self-Test
 |2|Debug - Tests|A Crowbar in Your Hand|Advanced VR Options > Debug > Tests > A Crowbar in Your Hand
 |2|Debug - Tests|Drop a Crowbar Ahead|Advanced VR Options > Debug > Tests > Drop a Crowbar Ahead
 |2|Debug - Tests|Take the Nearest Crowbar|Advanced VR Options > Debug > Tests > Take the Nearest Crowbar
@@ -6693,6 +6775,7 @@ vr_ar_play_scale|2|Animation Recorder|Scale|Advanced VR Options > Debug > Animat
 |2|Debug - Automation & Self-Tests|Arena Presets: Format Test|Advanced VR Options > Debug > Automation & Self-Tests > Arena Presets: Format Test
 |2|Debug - Automation & Self-Tests|Arena Wave Editor: Click Through Test|Advanced VR Options > Debug > Automation & Self-Tests > Arena Wave Editor: Click Through Test
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Infection Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Infection Test
+|2|Debug - Automation & Self-Tests|Armed Humanoids: Preview Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Preview Test
 |2|Debug - Automation & Self-Tests|Jump to Wave 6|Advanced VR Options > Debug > Automation & Self-Tests > Jump to Wave 6
 |2|Debug - Automation & Self-Tests|Perk Card Panel Test|Advanced VR Options > Debug > Automation & Self-Tests > Perk Card Panel Test
 |2|Debug - Automation & Self-Tests|Spatial Audio Tests|Advanced VR Options > Debug > Automation & Self-Tests > Spatial Audio Tests
@@ -6739,6 +6822,8 @@ vr_ar_play_scale|2|Animation Recorder|Scale|Advanced VR Options > Debug > Animat
 |2|Debug - Automation & Self-Tests|Armed Grunts: Dual Guns' Muzzles|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Dual Guns' Muzzles
 |2|Debug - Automation & Self-Tests|Armed Grunts: Print Their State|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Print Their State
 |2|Debug - Automation & Self-Tests|Armed Grunts: AD's Weapons|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: AD's Weapons
+|2|Debug - Automation & Self-Tests|AD Knights: Their Own Grips|Advanced VR Options > Debug > Automation & Self-Tests > AD Knights: Their Own Grips
+|2|Debug - Automation & Self-Tests|AD Knights: Hands on the Weapon in Every Key|Advanced VR Options > Debug > Automation & Self-Tests > AD Knights: Hands on the Weapon in Every Key
 |2|Debug - Automation & Self-Tests|Armed Grunts: Launchers by Walls|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Launchers by Walls
 |2|Debug - Automation & Self-Tests|Armed Grunts: Shooting Weapons Out|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Shooting Weapons Out
 |2|Debug - Automation & Self-Tests|Armed Grunts: Aim|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Aim
@@ -9461,6 +9546,8 @@ vr_revolver_eject_impulse|1|Reloading - Heavy Revolver|Eject Push Force|Advanced
 vr_revolver_eject_rod|1|Reloading - Heavy Revolver|Ejector Rod|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Ejector Rod
 vr_revolver_eject_rod_reach|1|Reloading - Heavy Revolver|Ejector Rod Reach|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Ejector Rod Reach
 vr_revolver_eject_rod_speed|1|Reloading - Heavy Revolver|Ejector Rod Push|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Ejector Rod Push
+vr_revolver_spent_first|1|Reloading - Heavy Revolver|Spent Shells First|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Spent Shells First
+vr_revolver_shell_pairs|1|Reloading - Heavy Revolver|Slug Pairs|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Slug Pairs
 vr_revolver_spin|1|Reloading - Heavy Revolver|Spin by Hand|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Spin by Hand
 vr_revolver_spin_speed|1|Reloading - Heavy Revolver|Swipe Speed|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Swipe Speed
 vr_revolver_spin_hold|1|Reloading - Heavy Revolver|Wait After Loading|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Wait After Loading
@@ -9903,6 +9990,11 @@ vr_armourstudio_kind|2|Armour Studio|Kind|Advanced VR Options > Debug > Tools > 
 vr_armourstudio_tier|2|Armour Studio|Tier|Advanced VR Options > Debug > Tools > Armour Studio > Tier
 vr_armourstudio_turn|2|Armour Studio|Turn|Advanced VR Options > Debug > Tools > Armour Studio > Turn
 vr_armourstudio_ghost|2|Armour Studio|Body Ghost|Advanced VR Options > Debug > Tools > Armour Studio > Body Ghost
+vr_armourstudio_subject_x|2|Armour Studio|Subject Away|Advanced VR Options > Debug > Tools > Armour Studio > Subject Away
+vr_armourstudio_subject_y|2|Armour Studio|Subject Left|Advanced VR Options > Debug > Tools > Armour Studio > Subject Left
+vr_armourstudio_subject_z|2|Armour Studio|Subject Up|Advanced VR Options > Debug > Tools > Armour Studio > Subject Up
+vr_armourstudio_subject_pitch|2|Armour Studio|Subject Pitch|Advanced VR Options > Debug > Tools > Armour Studio > Subject Pitch
+vr_armourstudio_subject_roll|2|Armour Studio|Subject Roll|Advanced VR Options > Debug > Tools > Armour Studio > Subject Roll
 vr_armourstudio_alone|2|Armour Studio|Wear the Part Alone|Advanced VR Options > Debug > Tools > Armour Studio > Wear the Part Alone
 vr_armourstudio_autoclose|2|Armour Studio|Close With the Menu or Window|Advanced VR Options > Debug > Tools > Armour Studio > Close With the Menu or Window
 vr_armourstudio_part|2|Armour Studio|Part|Advanced VR Options > Debug > Tools > Armour Studio > Part
@@ -9914,6 +10006,9 @@ vr_armourstudio_pitch|2|Armour Studio|Pitch|Advanced VR Options > Debug > Tools 
 vr_armourstudio_yaw|2|Armour Studio|Yaw|Advanced VR Options > Debug > Tools > Armour Studio > Yaw
 vr_armourstudio_roll|2|Armour Studio|Roll|Advanced VR Options > Debug > Tools > Armour Studio > Roll
 vr_armourstudio_scale|2|Armour Studio|Scale|Advanced VR Options > Debug > Tools > Armour Studio > Scale
+vr_armourstudio_scale_x|2|Armour Studio|Size Forward|Advanced VR Options > Debug > Tools > Armour Studio > Size Forward
+vr_armourstudio_scale_y|2|Armour Studio|Size Left|Advanced VR Options > Debug > Tools > Armour Studio > Size Left
+vr_armourstudio_scale_z|2|Armour Studio|Size Up|Advanced VR Options > Debug > Tools > Armour Studio > Size Up
 vr_armourstudio_standoff|2|Armour Studio|Stand-off|Advanced VR Options > Debug > Tools > Armour Studio > Stand-off
 vr_armourstudio_start|2|Armour Studio|Start Along|Advanced VR Options > Debug > Tools > Armour Studio > Start Along
 vr_armourstudio_end|2|Armour Studio|End Along|Advanced VR Options > Debug > Tools > Armour Studio > End Along
@@ -9921,6 +10016,23 @@ vr_armourstudio_rows|2|Armour Studio|Rows|Advanced VR Options > Debug > Tools > 
 vr_armourstudio_taper_start|2|Armour Studio|Taper at Start|Advanced VR Options > Debug > Tools > Armour Studio > Taper at Start
 vr_armourstudio_taper_end|2|Armour Studio|Taper at End|Advanced VR Options > Debug > Tools > Armour Studio > Taper at End
 vr_armourstudio_leather|2|Armour Studio|Leather Sleeve Shown|Advanced VR Options > Debug > Tools > Armour Studio > Leather Sleeve Shown
+vr_armourstudio_sag|2|Armour Studio|Leather Sag (Beasts)|Advanced VR Options > Debug > Tools > Armour Studio > Leather Sag (Beasts)
+vr_armourstudio_start_offset_x|2|Armour Studio|Sleeve: Own End Forward|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Own End Forward
+vr_armourstudio_start_offset_y|2|Armour Studio|Sleeve: Own End Left|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Own End Left
+vr_armourstudio_start_offset_z|2|Armour Studio|Sleeve: Own End Up|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Own End Up
+vr_armourstudio_end_offset_x|2|Armour Studio|Sleeve: Joined End Forward|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Joined End Forward
+vr_armourstudio_end_offset_y|2|Armour Studio|Sleeve: Joined End Left|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Joined End Left
+vr_armourstudio_end_offset_z|2|Armour Studio|Sleeve: Joined End Up|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Joined End Up
+vr_armourstudio_start_radius|2|Armour Studio|Sleeve: Own End Size|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Own End Size
+vr_armourstudio_end_radius|2|Armour Studio|Sleeve: Joined End Size|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Joined End Size
+vr_armourstudio_start_edge|2|Armour Studio|Sleeve: Own End on Far Edge (Beasts)|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Own End on Far Edge (Beasts)
+vr_armourstudio_end_edge|2|Armour Studio|Sleeve: Joined End on Far Edge (Beasts)|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Joined End on Far Edge (Beasts)
+vr_armourstudio_twist|2|Armour Studio|Sleeve: Twist|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Twist
+vr_armourstudio_bulge_x|2|Armour Studio|Sleeve: Bulge Forward|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Bulge Forward
+vr_armourstudio_bulge_y|2|Armour Studio|Sleeve: Bulge Left|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Bulge Left
+vr_armourstudio_bulge_z|2|Armour Studio|Sleeve: Bulge Up|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Bulge Up
+vr_armourstudio_segments|2|Armour Studio|Sleeve: Segments|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Segments
+vr_armourstudio_fill|2|Armour Studio|Sleeve: Closed All Round (Beasts)|Advanced VR Options > Debug > Tools > Armour Studio > Sleeve: Closed All Round (Beasts)
 vr_armourstudio_hero|2|Armour Studio|Hero Plates|Advanced VR Options > Debug > Tools > Armour Studio > Hero Plates
 vr_armourstudio_anim|2|Armour Studio|Play an Animation|Advanced VR Options > Debug > Tools > Armour Studio > Play an Animation
 vr_armourstudio_anim_group|2|Armour Studio|Animation|Advanced VR Options > Debug > Tools > Armour Studio > Animation

@@ -1008,6 +1008,20 @@ extern "C" int VR_OwnPropMeets(edict_t* mover, edict_t* touch)
     return num >= 1 && num <= svs.maxclients && solidProp(NUM_FOR_EDICT(touch));
 }
 
+// SV_ClipToLinks, a body's move: a player's own box passes a prop or a body he drags with H and keeps at the grab's arm
+// (vr_flat_grab_push; dragsProp), as his Box3D capsule does (preSolve). Walking into it pushes it through his hands; met
+// by Quake's hull, his walk stopped at it and never pushed it (realpush, ROUND26 "flatpush"). Let go of, a prop he ends
+// up in lets him out (VR_PropLetsOut).
+extern "C" int VR_DragPasses(edict_t* mover, edict_t* touch)
+{
+    if(!world || !mover || !touch)
+    {
+        return 0;
+    }
+    const int num = NUM_FOR_EDICT(mover);
+    return num >= 1 && num <= svs.maxclients && dragsProp(num, NUM_FOR_EDICT(touch)) ? 1 : 0;
+}
+
 // SV_ClipToLinks: a player's own box (his move's; mins, maxs) against a solid prop meets its drawn box as it is turned,
 // as a round column (boxmins, boxmaxs: his box against entities, vr_hull_ent_width). See propShape.
 extern "C" int VR_PropClip(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,

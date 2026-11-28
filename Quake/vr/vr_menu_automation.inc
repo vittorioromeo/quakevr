@@ -105,6 +105,8 @@ za::Vector<Item> pageDebugAutomation()
             .help("Every button, list and popup of the editor clicked by the test's mouse (waveeditor test: N passed, M failed)."),
         command("Armed Humanoids: Infection Test", "vr_toolgun_armed_infected_test")
             .help("Each armed kind with each outcome from the toolgun's page, spawned, killed, rising (toolgun infected test: N passed, M failed)."),
+        command("Armed Humanoids: Preview Test", "vr_toolgun_armed_icons_test")
+            .help("Every kind the toolgun's Armed Humanoid page lists has its preview picture, AD's knights too (toolgun armed icons test: N passed, M failed)."),
         command("Jump to Wave 6", "vr_arena_goto 6")
             .help("The arena clears the field and starts wave 6 at once (no rest or countdown): armed foes mid-ladder. "
                   "vr_arena_goto N jumps to any wave."),
@@ -267,6 +269,14 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Grunts: AD's Weapons", "vr_agrunt_test 12")
             .help("vr_agrunt_test 12 (with Arcane Dimensions' data): as Every Weapon, AD's soldiers' guns, the Shadow "
                   "Axe, Widowmaker and Plasma Gun, AD's swords, hammer and mace."),
+        command("AD Knights: Their Own Grips", "vr_adgrip_test; wait10; vr_adgrip_test check")
+            .help("vr_adgrip_test (with Arcane Dimensions' data and AD's armed knights in view: scene ad_knights_armed): "
+                  "the AD Knight kind's main grip moved 3 units, each death guard's and crossbow knight's hand moves 3 "
+                  "along its weapon, the regular knight's not at all, then put back (adgrip: N passed, M failed)."),
+        command("AD Knights: Hands on the Weapon in Every Key", "vr_agrunt_test 231")
+            .help("vr_agrunt_test 231 (with Arcane Dimensions' data, vrtesthall): the death guard, then the crossbow "
+                  "knight, through ten weapon sets and every key of their AD Knight pose kind, held as the Pose Studio "
+                  "holds it: each key's hands within 2.5 units of their grips (adpose: N passed, M failed)."),
         command("Armed Grunts: Launchers by Walls", "vr_agrunt_test 11")
             .help("vr_agrunt_test 11: 36 launcher grunts in turn (grenades, rockets, mines) on headings all round you, "
                   "often with their backs to a wall, 8 s each: how many killed themselves (vr_agrunt_blast_safe off "

@@ -1301,16 +1301,21 @@ void Cmd_ForwardToServer (void)
 	if (cls.demoplayback)
 		return;		// not really connected
 
-	MSG_WriteByte (&cls.message, clc_stringcmd);
-	if (q_strcasecmp(Cmd_Argv(0), "cmd") != 0)
+	// QVR: (mpoverflow) written with no check, it overflowed cls.message (4096 B) when the client's own commands, or
+	// many forwarded ones while the server had not acknowledged the last message, had filled it: a Host_Error, the game
+	// gone. Now one whole command, held for a later frame while it does not fit (vr/vr_client.cpp).
 	{
-		SZ_Print (&cls.message, Cmd_Argv(0));
-		SZ_Print (&cls.message, " ");
+		const qboolean named = q_strcasecmp (Cmd_Argv(0), "cmd") != 0;
+		const char *args = Cmd_Argc() > 1 ? Cmd_Args() : "\n";
+		char text[4000];
+		const int n = q_snprintf (text, sizeof (text), "%s%s%s", named ? Cmd_Argv(0) : "", named ? " " : "", args ? args : "");
+		if (n < 0 || n >= (int) sizeof (text))
+		{
+			Con_Printf ("\x02" "\"%s\" not sent: %d characters, more than a message holds\n", Cmd_Argv(0), n);
+			return;
+		}
+		VR_ForwardToServer (text);
 	}
-	if (Cmd_Argc() > 1)
-		SZ_Print (&cls.message, Cmd_Args());
-	else
-		SZ_Print (&cls.message, "\n");
 }
 
 

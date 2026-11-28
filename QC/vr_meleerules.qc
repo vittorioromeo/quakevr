@@ -68,6 +68,12 @@ float(entity m) VR_MeleeRule_Reach =
 // (a swing or a saw, after a player) sends its blade's line as drawn (VR_AG_WeaponLine: butt to tip), yellow in its
 // blow's swing-through, white in its wind-up; VR_MeleeArc_ShowLanded marks its blow landed (red, a dot at the tip).
 // Its punches and gun butts have no blade: their floor arc alone (VR_MeleeArc_ShowFrame).
+// VR_MeleeArc_Shown: the swings are sent: the option on here, or a remote client's own on (mparcs: the engine sends them
+// to him, QVR_SVC_MELEEARC; a builtin call only with the host's option off).
+float() VR_MeleeArc_Shown =
+{
+    return cvar_hget(cvarh_vr_enemy_melee_arc_show) || meleeshowfoe(world, -2, '0 0 0', '0 0 0', 0);
+};
 float vr_meleearc_swing_sent; // the frames sent (the test, vr_meleerules_test.qc 216)
 float vr_meleearc_swing_fast; // ... in a blow's swing-through
 void(entity g, entity w) VR_MeleeArc_ShowSwing =

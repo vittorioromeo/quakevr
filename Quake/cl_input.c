@@ -394,11 +394,13 @@ void CL_SendMove (const usercmd_t *cmd)
 	int		i;
 	int		bits;
 	sizebuf_t	buf;
-	byte	data[1024]; // QVR: was 128
+	byte	data[QVR_MOVE_BUFFER]; // QVR: was 128 (then 1024: mpoverflow, vr/vr_api.h)
 
 	buf.maxsize = sizeof (data); // QVR
 	buf.cursize = 0;
 	buf.data = data;
+	buf.allowoverflow = false; // QVR: (mpoverflow) set: they were the stack's garbage (an overflow cleared the moves half
+	buf.overflowed = false;    // written and sent the rest, or was a Host_Error, by chance)
 
 	if (cmd) 
 	{
@@ -451,6 +453,7 @@ void CL_SendMove (const usercmd_t *cmd)
 		in->impulse = 0;
 	}
 
+	buf.maxsize = q_max (buf.cursize, 1024); // QVR: (mpoverflow) the voice's room as before the larger buffer
 	VR_WriteVoice (&buf); // QVR: voice chat's frames (vr/vr_voicechat.cpp, B10v)
 
 //

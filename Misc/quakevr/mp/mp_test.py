@@ -163,10 +163,19 @@ Tests:
     botnavdebug (flakehunt, 2026-11-21, not in the suite) the bots' navmesh paths in vr_nav_debug on a client: a
              deathmatch server on e1m1, A (remote; botnavdebug_listen: the host) with vr_nav_debug 2 adds a bot; the
              server's vr_dm_test 19 has it chase A by the navmesh: A's client has its path and draws it; off drops it.
+    meleearcs  (mparcs, 2026-11-27) Show Melee Arcs on a remote client: a listen host A on vrtesthall, B turns the
+             option on; A's vr_agrunt_test 216 has an armed sword grunt swing at A: B's client draws its swing trail
+             (frames and segments, QVR_SVC_MELEEARC) whatever A's option says; B's option off: the server stops sending.
     roomnonce  (review 2026-11-18, finding 11) the room service's replies to a host checked (a stand-in service):
              REFUSED, BADVERSION and REGISTERED with another nonce change nothing; COOKIE (protocol version 2) with
              his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
              nonce is taken.
+    overflow  (mpoverflow) a Quest client dropped with "overflow": a flat listen host on dm1 with 2 bots, B (VR, through
+             a proxy) joins mid-game; his game silent both ways 8 s while the host writes him 180 KB of reliable
+             messages and he forwards 300 commands: all arrive in order, nobody dropped, no overflow (his stream's
+             backlog, his held commands); then his rejoin with his link up silent 6 s from his connect (a slow load).
+    overflow_coop  (mpoverflow, not in the suite) coop e1m1 -> e1m3 with B's link up silent 8 s from the
+             changelevel (a Quest's slow load): the host's backlog for him and his reliable bytes by kind.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab, guard,
              teleport, held, ground, campaign, campaign_listen, campfollow, flow, rejoin, rejoin_keep, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, cmdguard, disarm, voice, voice with B 50 ms (30 ms
@@ -695,12 +704,42 @@ def version(s):
     srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
     srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
     c = s.client("C", extra=["+vr_net_test_version", "1"]).start()
+    # (netmismatch) C's server browser marks the server (its search reply says its network version and release): not
+    # joinable, the release it needs under the list
+    here = "127.0.0.1:%d" % s.port
+    since = c.mark()
+    c.cmd('vr_mp_recent ""; vr_mp_favourites ""; vr_mp_favourite %s' % here)
+    c.wait(r"mp_browser: favourite %s on" % re.escape(here), 60, since, "C's favourite set")
+    since = c.mark()
+    rows, _ = browse(c, "C's search")
+    r = row_of(rows, here)
+    note = next((l.strip() for l in c.lines[since:] if l.startswith("mp_browser_note: row=")), "")
+    s.check("C's browser marks the server of another network version (its version and release, not joinable)",
+            r is not None and r["answered"] == "1" and int(r["qvr"]) > 1 and r["release"] != "-" and
+            r["joinable"] == "0", "%s" % r)
+    s.check("C's browser says the release it needs", "Needs Quake VR %s" % (r or {}).get("release", "?") in note, note)
+    since = c.mark()
     c.cmd(s.connect_cmd(c))
-    _, why = c.wait(r"network version \d+, your game 1", 60, what="C's reject")
-    s.check("a client of another network version is told why", True, why.strip())
+    _, why = c.wait(r"Couldn't join .*: This server runs Quake VR \S+ \(network version \d+\), newer than your game "
+                    r"\(network version 1\): update to Quake VR \S+ to join\.", 60, since, "C's refusal")
+    s.check("a client of another network version is told why, plainly (the release to install)", True, why.strip())
+    c.cmd("echo mp_version_refused_done")  # (a definite end: a Host_Error of the refusal would be before it)
+    c.wait(r"mp_version_refused_done", 30, since, "C's console after the refusal")
+    after = c.lines[since:]
+    noisy = [l.strip() for l in after if l.startswith("Host_Error") or l.startswith("  from ") or
+             l.startswith("Server          Map")]
+    s.check("the refusal is no Host_Error (no stack trace, no server list after it)", not noisy, "%s" % noisy[:3])
+    s.check("the refusal is said once", sum(1 for l in after if "This server runs Quake VR" in l) == 1,
+            "%s" % [l.strip() for l in after if "Quake VR" in l][:4])
     _, logged = srv.wait(r"Rejected a connection", 10, what="the server's note of it")
     s.check("the server notes the rejected client", True, logged.strip())
     a = s.client("A").start()
+    since = a.mark()
+    a.cmd('vr_mp_recent ""; vr_mp_favourites ""; vr_mp_favourite %s' % here)
+    a.wait(r"mp_browser: favourite %s on" % re.escape(here), 60, since, "A's favourite set")
+    r = row_of(browse(a, "A's search")[0], here)
+    s.check("A's browser has the server joinable (the same network version)",
+            r is not None and r["answered"] == "1" and r["joinable"] == "1" and int(r["qvr"]) > 1, "%s" % r)
     a.cmd(s.connect_cmd(a))
     a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined e1m1")
     s.check("a client of the same network version joins", True)
@@ -4220,6 +4259,59 @@ def botnavdebug(s, listen=False):
             break
     s.check("vr_nav_debug 0: the bots' paths dropped (asked=0, paths=0)", st.get("asked") == 0 and st.get("paths") == 0,
             str(st))
+
+
+def meleearc_status(inst):
+    """`vr_enemy_melee_arc_status` on `inst` -> (armed swing frames drawn, their trail's segments drawn, remote wanted)."""
+    since = inst.mark()
+    inst.cmd("vr_enemy_melee_arc_status")
+    _, line = inst.wait(r"meleearcviz: remote wanted \d", 10, since, "%s's melee arcs status" % inst.name)
+    swings = inst.find(r"armed swings drawn \d+ frames \d+ segments", since)
+    m = re.search(r"armed swings drawn (\d+) frames (\d+) segments", swings[1]) if swings else None
+    return (int(m.group(1)) if m else -1, int(m.group(2)) if m else -1,
+            int(re.search(r"remote wanted (\d)", line).group(1)))
+
+
+def meleearcs(s):
+    """(mparcs) Show Melee Arcs' armed humanoids' swings on a remote client: a listen host A on vrtesthall, B (a remote
+    client) turns his own Show Melee Arcs on (the server learns he draws them: "vr_meleearcs_want 1"); A's QC test
+    vr_agrunt_test 216 has an armed sword grunt swing at A with A's option on (case 0) and off (case 1). B's client is sent
+    each frame's swing (QVR_SVC_MELEEARC) and draws its trail (frames and segments drawn > 0) whatever A's option says;
+    B's option off: the server stops (remote wanted 0)."""
+    srv, a, b, ea, eb = join(s, listen=True, level="vrtesthall", srv_first="developer 1",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, (-260.0, HALL_START_Y - 60.0, HALL_Z), 90))
+    a.cmd("god")
+    b.cmd("god; notarget")
+    put_at(srv, b, eb, ARMED_B, 90)
+    f0, g0, _ = meleearc_status(b)
+    b.cmd("vr_enemy_melee_arc_show 1")
+    wanted = 0
+    for _ in range(40):
+        wanted = meleearc_status(srv)[2]
+        if wanted:
+            break
+    s.check("B's Show Melee Arcs on: the server sends him the swings (remote wanted 1)", wanted == 1, "remote wanted %d" % wanted)
+    since = srv.mark()
+    srv.cmd("vr_agrunt_test 216")
+    _, over = srv.wait(r"test 216 over", 120, since, "vr_agrunt_test 216's end")
+    verdict = [l for l in srv.lines[since:] if "meleerules: Show Melee Arcs" in l]
+    s.note("A's vr_agrunt_test 216: %s | %s" % (over.strip(), " | ".join(v.strip() for v in verdict)))
+    s.check("A's own test: its sword grunt swung and A drew it (case 0 PASS)",
+            any("PASS" in v and "Show Melee Arcs on" in v for v in verdict), str(verdict))
+    f1, g1, _ = (-1, -1, 0)
+    for _ in range(20):
+        f1, g1, _ = meleearc_status(b)
+        if f1 > f0 and g1 > g0:
+            break
+    s.metric("meleearcs_b", {"frames": f1 - f0, "segments": g1 - g0})
+    s.check("B (a remote client) drew the grunt's swing trail (frames and segments drawn)", f1 > f0 and g1 > g0,
+            "B drew %d frames, %d segments of armed swings" % (f1 - f0, g1 - g0))
+    b.cmd("vr_enemy_melee_arc_show 0")
+    for _ in range(40):
+        wanted = meleearc_status(srv)[2]
+        if not wanted:
+            break
+    s.check("B's option off: the server stops sending them (remote wanted 0)", wanted == 0, "remote wanted %d" % wanted)
 
 
 def coopbots(s):
@@ -9450,6 +9542,190 @@ def add_bots(a, since=0):
             a.wait(r"mp_frags: .*named=1", 15, a.mark(), "bot %d named at A" % (i + 1))
 
 
+OVERFLOW_MAP = "dm1"
+OVERFLOW_BOTS = 2        # FrikBot bots fighting on the host meanwhile (A, 2 bots and B: the listen host's 4 slots)
+OVERFLOW_PLAY_S = 5.0    # the window B's reliable stream is measured in, his link up (no backlog: a metric)
+OVERFLOW_STALL_S = 8.0   # B's game silent both ways (a Quest's headset off, its system menu, a Wi-Fi stall)
+OVERFLOW_BIG = 30000     # each reliable message the host writes to B meanwhile...
+OVERFLOW_BIGS = 6        # ... 180 KB: almost three times his 64000 B buffer (it overflowed: he was dropped)
+OVERFLOW_CMDS = 300      # B's forwarded commands meanwhile, about 21 KB: five times cls.message's 4096 B (a Host_Error)
+OVERFLOW_LOAD_S = 6.0    # B's rejoin with his link up silent from his connect (a Quest's slow map load)
+OVERFLOW_LOAD_BIGS = 4   # the host's 30000 B messages to him meanwhile
+OVERFLOW_COOP_MAP = "e1m3"  # overflow_coop: the level the host changes to, B loading it
+
+
+def overflow_lines(inst, since):
+    """Lines from `since` that tell of an overflow or a drop (none expected)."""
+    rx = re.compile(r"overflow|Host_Error|dropped|not sent:|Server disconnected|lost server connection")
+    return [l.strip() for l in inst.lines[since:] if rx.search(l) and not l.startswith("vr_net_stats")]
+
+
+def overflow_coop(s):
+    """(mpoverflow, diagnostic: not in the suite) The natural reliable traffic a Quest's slow map load meets in coop: a
+    flat listen host A and B (VR) on e1m1 (coop, skill 3); the host changes level to OVERFLOW_COOP_MAP and B's link up
+    is silent for OVERFLOW_STALL_S from it (his load). His stream's backlog then (metrics: its peak, the most a frame),
+    and B's reliable bytes by kind (mp_netbytes_rel). Checks: B arrives, no overflow or drop on either console."""
+    srv, a, b, ea, eb = join(s, listen=True, flat="A", srv_first="skill 3")
+    b.cmd("vr_mp_client_timeout 60; vr_net_bytes reset")
+    since_s, since_b = srv.mark(), b.mark()
+    srv.cmd("vr_net_stats reset; changelevel %s" % OVERFLOW_COOP_MAP)
+    b.proxy.blackout_up = True
+    time.sleep(OVERFLOW_STALL_S)  # (the load's length: the scenario's input)
+    held = reliable_stats(srv, eb)
+    b.proxy.blackout_up = False
+    joined = wait_quietly(b, r"mp_event: .*joined map=%s" % OVERFLOW_COOP_MAP, 120, since_b, "B on %s" % OVERFLOW_COOP_MAP)
+    s.metric("overflow_coop_load", held)
+    since = b.mark()
+    b.cmd("vr_net_bytes")
+    _, rel = b.wait(r"mp_netbytes_rel: ", 10, since, "B's reliable bytes by kind")
+    s.note("B's %g s load on %s: the host's backlog %s; B's %s" % (OVERFLOW_STALL_S, OVERFLOW_COOP_MAP, held, rel.strip()))
+    s.check("B arrives on %s after his link's %g s silence" % (OVERFLOW_COOP_MAP, OVERFLOW_STALL_S), joined is not None)
+    bad = overflow_lines(srv, since_s) + overflow_lines(b, since_b)
+    s.check("no overflow, error or drop on either console", not bad, "; ".join(bad[:4]))
+
+
+def wait_count(inst, pattern, n, timeout, since):
+    """Up to `n` lines matching `pattern` from `since`, each waited for in turn (each within `timeout`) -> the hits."""
+    got = []
+    for i in range(n):
+        hit = wait_quietly(inst, pattern, timeout, (got[-1][0] + 1) if got else since, "%s #%d" % (pattern, i + 1))
+        if not hit:
+            break
+        got.append(hit)
+    return got
+
+
+def reliable_stats(srv, slot):
+    """The host's vr_net_stats "reliable:" fields for client `slot` (1-based) -> dict (peak, frame, wait, times)."""
+    since = srv.mark()
+    srv.cmd("vr_net_stats")
+    srv.wait(r"vr_net_stats: \d+ entities", 10, since)
+    srv.quiet(r"^    reliable:", 0.3, 10)
+    lines = srv.lines[since:]
+    for i, l in enumerate(lines):
+        if l.startswith("  client %d " % slot) and i + 1 < len(lines) and lines[i + 1].startswith("    reliable:"):
+            m = re.search(r"peak (\d+) B .*backlog now (\d+) B.*most a frame (\d+) B, longest wait ([\d.]+) s, "
+                          r"backlogged (\d+) times", lines[i + 1])
+            if m:
+                return {"peak": int(m.group(1)), "now": int(m.group(2)), "frame": int(m.group(3)),
+                        "wait": float(m.group(4)), "times": int(m.group(5))}
+    return {}
+
+
+def overflow(s):
+    """(mpoverflow, 2026-11-27) A Quest standalone client kept being dropped from a PC host, "overflow" on the console.
+    A listen host A (flat, the PC) on dm1 (deathmatch) with OVERFLOW_BOTS FrikBot bots fighting; B (VR, the Quest's
+    settings: the same limits as every platform, through a proxy) joins mid-game. His reliable stream in play is
+    measured (metrics). Then his game goes silent both ways for OVERFLOW_STALL_S (the proxy's blackout) while the host
+    writes him OVERFLOW_BIGS reliable messages of OVERFLOW_BIG B and he forwards OVERFLOW_CMDS commands: once his link is
+    back every message reaches him in order, every command the host, nobody dropped, no overflow on either console
+    (his 64000 B stream went on to its backlog: vr_net_stats "backlogged"; his commands held, none dropped). Then he
+    rejoins with his link up silent from his connect for OVERFLOW_LOAD_S (a Quest's slow map load) while the host writes
+    him OVERFLOW_LOAD_BIGS more: he joins and has them all."""
+    a = srv = s.server(dedicated=False, flat=True, name="A")
+    srv.start()
+    srv.cmd("disconnect; maxplayers 4; listen 1; coop 0; deathmatch 1; fraglimit 0; timelimit 0; skill 3; map %s; "
+            "vr_mp_status" % OVERFLOW_MAP)
+    srv.wait(r"mp_server: map=%s" % OVERFLOW_MAP, 120, what="the host on %s" % OVERFLOW_MAP)
+    for i in range(OVERFLOW_BOTS):
+        a.cmd("impulse 100")
+        while len(frag_table(a)) < 2 + i:  # (A's own line, then each bot's)
+            a.wait(r"mp_frags: .*named=1", 15, a.mark(), "bot %d named at A" % (i + 1))
+    b = s.client("B", proxy=True).start()
+    b.cmd("vr_mp_client_timeout 60")
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % OVERFLOW_MAP, 120, what="B joined mid-game")
+    eb = int(fields(jb)["self"])
+    s.check("B (VR) joins the host's deathmatch mid-game, %d bots fighting" % OVERFLOW_BOTS, eb > 1, "B is entity %d" % eb)
+
+    # His reliable stream in play (no stall): the natural traffic's size
+    srv.cmd("vr_net_stats reset")
+    time.sleep(OVERFLOW_PLAY_S)  # (the window measured: the scenario's input, real time by nature)
+    play = reliable_stats(srv, eb)
+    s.metric("overflow_play", play)
+    since = b.mark()
+    b.cmd("vr_net_bytes")
+    _, rel = b.wait(r"mp_netbytes_rel: ", 10, since, "B's reliable bytes by kind")
+    s.note("B's reliable stream in %g s of play: peak %s B, most a frame %s B, longest wait %s s; since his join %s" % (
+        OVERFLOW_PLAY_S, play.get("peak"), play.get("frame"), play.get("wait"), rel.strip()))
+
+    # The stall: his game silent both ways
+    since_s, since_b = srv.mark(), b.mark()
+    srv.cmd("developer 1; vr_net_stats reset")
+    b.proxy.blackout = b.proxy.blackout_up = True
+    cut = time.monotonic()
+    srv.cmd("; wait; ".join(["vr_net_reliable_test %d %d" % (eb, OVERFLOW_BIG)] * OVERFLOW_BIGS))
+    fill = "x" * 48
+    for k in range(0, OVERFLOW_CMDS, 50):
+        b.cmd("; ".join("cmd qvrfill_%03d_%s" % (i, fill) for i in range(k, min(k + 50, OVERFLOW_CMDS))))
+    srv.wait(r"vr_net_reliable_test: \d+ bytes to player %d" % eb, 10, since_s, "the host's writes")
+    left = OVERFLOW_STALL_S - (time.monotonic() - cut)
+    if left > 0:
+        time.sleep(left)  # (the stall's length: the scenario's input)
+    held = reliable_stats(srv, eb)
+    b.proxy.blackout = b.proxy.blackout_up = False
+    back = time.monotonic()
+    got = wait_count(b, r"mp_reliable: %d bytes" % OVERFLOW_BIG, OVERFLOW_BIGS, 30, since_b)
+    caught = time.monotonic() - back
+    wrote = [int(m) for m in re.findall(r"vr_net_reliable_test: (\d+) bytes to player %d" % eb,
+                                         "\n".join(srv.lines[since_s:]))]
+    last_cmd = wait_quietly(srv, r"tried to qvrfill_%03d_" % (OVERFLOW_CMDS - 1), 30, since_s, "B's last command")
+    cmds = [int(m) for m in re.findall(r"tried to qvrfill_(\d+)_", "\n".join(srv.lines[since_s:]))]
+    srv.cmd("developer 0")
+    s.metric("overflow_stall", held)
+    s.metric("overflow_catchup_s", round(caught, 2))
+    s.check("the host wrote B %d messages of %d B in his stall (%d B: past his 64000 B buffer)" % (
+        OVERFLOW_BIGS, OVERFLOW_BIG, OVERFLOW_BIGS * OVERFLOW_BIG), wrote == [OVERFLOW_BIG] * OVERFLOW_BIGS, "%s" % wrote)
+    s.check("his stream went on to its backlog (vr_net_stats: backlogged, its peak past 64000 B)",
+            held.get("times", 0) >= 1 and held.get("peak", 0) > 64000, "%s" % held)
+    s.check("once his link is back B has all %d, in order" % OVERFLOW_BIGS, len(got) == OVERFLOW_BIGS,
+            "%d in %.1f s" % (len(got), caught))
+    s.check("the host has all %d of B's commands, in order (none dropped)" % OVERFLOW_CMDS,
+            last_cmd is not None and cmds == list(range(OVERFLOW_CMDS)),
+            "%d, first %s, last %s" % (len(cmds), cmds[:1], cmds[-1:]))
+    since = b.mark()
+    b.cmd("vr_net_stats")
+    _, cl = b.wait(r"vr_net_stats: client: ", 10, since, "B's own reliable stream")
+    m = re.search(r"peak (\d+) B of (\d+), (\d+) commands held now .* (\d+) held ever, (\d+) dropped", cl)
+    s.check("B's commands were held, none dropped, his buffer never past its %s B" % (m.group(2) if m else "?"),
+            m is not None and int(m.group(1)) <= int(m.group(2)) and int(m.group(3)) == 0 and
+            int(m.group(4)) >= OVERFLOW_CMDS // 2 and int(m.group(5)) == 0, cl.strip())
+    # (his moves in the stall: no base acknowledged after 0.9 s, each packet's first move whole: they keep to 1 KB)
+    mv = re.search(r"moves peak (\d+) B", cl)
+    s.metric("overflow_moves_peak", int(mv.group(1)) if mv else -1)
+    s.check("B's move packets in his stall (whole moves, no base) kept to 1 KB", mv is not None and
+            0 < int(mv.group(1)) <= 1024, mv.group(0) if mv else cl.strip())
+    bad = overflow_lines(srv, since_s) + overflow_lines(b, since_b)
+    s.check("no overflow, error or drop on either console", not bad, "; ".join(bad[:4]))
+    since = b.mark()
+    srv.cmd("vr_net_reliable_test %d 50" % eb)
+    s.check("B is still in the game (a message after it reaches him)",
+            wait_quietly(b, r"mp_reliable: 50 bytes", 10, since, "B's message after") is not None)
+
+    # The slow load: B rejoins with his link up silent from his connect
+    since_s, since_b = srv.mark(), b.mark()
+    b.cmd("disconnect")
+    srv.wait(r"Client .* removed|left the game", 20, since_s, "B gone")
+    srv.cmd("developer 1")
+    since_s = srv.mark()
+    b.cmd(s.connect_cmd(b))
+    srv.wait(r"Client .* connected", 20, since_s, "B's connection at the host")
+    b.proxy.blackout_up = True
+    cut = time.monotonic()
+    srv.cmd("; wait; ".join(["vr_net_reliable_test %d %d" % (eb, OVERFLOW_BIG)] * OVERFLOW_LOAD_BIGS))
+    left = OVERFLOW_LOAD_S - (time.monotonic() - cut)
+    if left > 0:
+        time.sleep(left)  # (the load's length: the scenario's input)
+    b.proxy.blackout_up = False
+    joined = wait_quietly(b, r"mp_event: .*joined map=%s" % OVERFLOW_MAP, 60, since_b, "B rejoined")
+    got = len(wait_count(b, r"mp_reliable: %d bytes" % OVERFLOW_BIG, OVERFLOW_LOAD_BIGS, 30, since_b))
+    srv.cmd("developer 0")
+    s.check("B rejoins after %g s of silence from his connect, the host's %d messages meanwhile all his" % (
+        OVERFLOW_LOAD_S, OVERFLOW_LOAD_BIGS), joined is not None and got == OVERFLOW_LOAD_BIGS, "%d arrived" % got)
+    bad = overflow_lines(srv, since_s) + overflow_lines(b, since_b)
+    s.check("no overflow, error or drop in the rejoin", not bad, "; ".join(bad[:4]))
+
+
 def soak(s):
     """(B13) The CPU of many players: a dedicated deathmatch server (no frag or time limit) on dm3 with A, B (through a
     proxy: his link counted) and 14 FrikBot bots: 16 players. Once all are listed, a window of 10 s of the server's game
@@ -10649,6 +10925,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             retransmit(s)
         elif test == "mp_version":
             version(s)
+        elif test == "mp_overflow":
+            overflow(s)
+        elif test == "mp_overflow_coop":
+            overflow_coop(s)
         elif test in ("mp_pole", "mp_pole_vr"):
             pole(s, vr_viewer=test == "mp_pole_vr")
         elif test in ("mp_monkey", "mp_monkey_flat"):
@@ -10801,6 +11081,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             deathlook(s)
         elif test == "mp_botgrab":
             botgrab(s)
+        elif test == "mp_meleearcs":
+            meleearcs(s)
         elif test == "mp_debugviz":
             debugviz(s, False)
         elif test == "mp_debugviz_listen":
@@ -10844,6 +11126,7 @@ SUITE = [
     ("mp_armed", ()),
     ("mp_retransmit", ()),
     ("mp_version", ()),
+    ("mp_overflow", ()),
     ("mp_dedicated", ()),
     ("mp_avatar", ()),
     ("mp_avatarcal", ()),
@@ -10899,6 +11182,7 @@ SUITE = [
     ("mp_variantowned", ()),
     ("mp_botrevolver", ()),
     ("mp_debugviz", ()),
+    ("mp_meleearcs", ()),
     ("mp_debugviz_listen", ()),
     ("mp_wristscore", ()),
     ("mp_lockstep", ()),
@@ -10929,7 +11213,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "meleearcs", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "overflow", "overflow_coop"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10998,7 +11282,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach"):
+                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "meleearcs", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat", "attach", "overflow", "overflow_coop"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

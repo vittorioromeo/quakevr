@@ -105,7 +105,7 @@ constexpr float agc_VR_AGK_TUG_EASE = 0.25f;
    
 #define AGP_FUNCS(X) \
     X(VR_AGP_PoseQC) X(VR_AM_Row) X(VR_AGP_Geo) X(VR_AGP_Strike) X(VR_DRP_Frame) X(VR_AGPar_Pose) X(VR_AGPar_Meet) \
-    X(VR_AGP_Saw) X(VR_AGP_Demo) X(VR_AGP_CastLands) X(VR_AGP_ShoveLands) X(VR_AI_Origin)
+    X(VR_AGP_Saw) X(VR_AGP_Demo) X(VR_AGP_CastLands) X(VR_AGP_ShoveLands) X(VR_AI_Origin) X(VR_AGP_Shield)
 #define AGP_CVARS(X) \
     X(vr_agrunt_debug) X(vr_agrunt_freeze) X(vr_agrunt_tug_ik_stretch) X(vr_agrunt_upper) X(vr_agrunt_aim_twist) \
     X(vr_agrunt_take_bend) X(vr_agrunt_take_bend_kneel) X(vr_aglegs) X(vr_agarms_shoulder) X(vr_agrunt_second_reach) \
@@ -285,6 +285,14 @@ void agSetOrigin(edict_t* e, AgV o) // PF_setorigin
 // ---------------------------------------------------------------------------------------------------------------------
 // The helpers (vr_armedgrunt_pose.qc, vr_armedmon.qc, vr_armedgrunt.qc), each as its QC.
 
+// VR_AM_PoseKind: the kind whose pose keys, grips and holds row `k` takes (AD's knights, rows 4 and 5: their shared kind
+// 4, agpose::adKnight; without AD's data the knight's, as VR_AM_Resolve; adposekind: before, this read the row itself,
+// so in the game AD's rows took no keys at all)
+[[nodiscard]] float agPoseKind(float k)
+{
+    return k >= 4.f ? (vr_ad_mounted.value != 0.f ? 4.f : 2.f) : k;
+}
+
 void agRow(float k) // VR_AM_Row (filled: at once)
 {
     if(AG(vr_am_filled) != 0.f && k == AG(vr_am_kind))
@@ -409,7 +417,7 @@ void agBody(edict_t* g) // VR_AGP_Body
     {
         return 0.f;
     }
-    const AgV h = agWdp(agWorld(), AF(g, vr_ag_kind) * 1000.f + agHoldCode(p), 24.f);
+    const AgV h = agWdp(agWorld(), agPoseKind(AF(g, vr_ag_kind)) * 1000.f + agHoldCode(p), 24.f);
     AG(vr_agh_set) = h.y;
     return h.x;
 }
@@ -1332,7 +1340,7 @@ void agPhase(edict_t* g) // VR_AGP_Phase
         }
         return p->v.weapon == WID_CHAINSAW ? VR_AGK_SAW : (agTwoHanded(p) ? VR_AGK_MELEE2 : VR_AGK_MELEE);
     }
-    const AgV h = agWdp(agWorld(), AF(g, vr_ag_kind) * 1000.f + agHoldCode(p), 24.f);
+    const AgV h = agWdp(agWorld(), agPoseKind(AF(g, vr_ag_kind)) * 1000.f + agHoldCode(p), 24.f);
     return h.z != 0.f ? h.z : static_cast<float>(VR_AGK_GUN);
 }
 [[nodiscard]] float agkTugStretch(edict_t* g) // VR_AGK_TugStretch
@@ -1442,7 +1450,7 @@ void agkKeys(edict_t* g, edict_t* p) // VR_AGK_Keys
     AG(vr_agk_rep) = AF(g, vr_agk_live);
     *reinterpret_cast<int*>(agp.g_vr_agk_repent) = EDICT_TO_PROG(g);
     const float kclass = agkClass(g, p);
-    const float kind = AF(g, vr_ag_kind);
+    const float kind = agPoseKind(AF(g, vr_ag_kind));
     const float base = kind * VR_AGK_KIND + kclass * VR_AGK_CLASS;
     const AgV st = agWdp(agWorld(), kind * 100.f + kclass, 28.f);
     AG(vr_agk_stretch) = st.x * agkTugStretch(g);
@@ -1568,7 +1576,7 @@ void agkKeys(edict_t* g, edict_t* p) // VR_AGK_Keys
 }
 void agkQuery(edict_t* g, edict_t* p) // VR_AGK_Query
 {
-    const AgV h = agWdp(g, AF(g, vr_ag_kind) * 100.f + agkClass(g, p), 19.f);
+    const AgV h = agWdp(g, agPoseKind(AF(g, vr_ag_kind)) * 100.f + agkClass(g, p), 19.f);
     AG(vr_agk_hpose) = h.x;
     AG(vr_agk_hphase) = h.y;
     AG(vr_agk_hplay) = h.z;
@@ -1810,6 +1818,7 @@ AgpCoverage agpCov; // (the server's VM: the main thread)
             AG(vr_agp_flags) = agOr(agOr(keepFl, agfLeft), agfLeftWpn);
         }
     }
+    agCallGE(agp.fn_VR_AGP_Shield, g, p); // (dazzled by a flashlight: its off hand before its eyes; QC vr_armedgrunt_dazzle.qc)
     const AgV bob = agRunBob(g);
     AGSET(vr_agp_v, AGV(vr_agp_v) + bob);
     AGSET(vr_agp_vl, AGV(vr_agp_vl) + bob * AG(vr_agp_wl));

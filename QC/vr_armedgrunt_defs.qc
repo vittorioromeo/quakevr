@@ -226,7 +226,8 @@ float VR_HUM_V_ELIMINATOR = 5; // the eliminator, monster_eliminator
 float VR_HUM_V_PYRO = 6;       // the pyro, monster_pyro
 float VR_HUM_V_FUMIGATOR = 7;  // the fumigator, monster_fumigator
 float VR_HUM_V_CROSSBOW = 8;   // the crossbow knight, monster_dcrossbow
-float VR_HUM_V_COUNT = 9;
+float VR_HUM_V_DGUARD = 9;     // the death guard, monster_dguard
+float VR_HUM_V_COUNT = 10;
 float(float variant) VR_HUM_Replace;                                       // AD's variant spawns (ad_monster_army_rocket, ...): TRUE: done
 void(entity e) VR_HUM_Look;                                                // VR_AM_Spawn, VR_AGR_Resolve: its look by what it holds
 void() VR_AGR_Precache;                                                    // worldspawn: the replacements' models
@@ -247,9 +248,10 @@ float(entity g) VR_AG_Still = { return cvar_hget(cvarh_vr_agrunt_freeze) && g.he
 // Armour for armed humanoids (vr_agarmor.qc; ROUND23.md, "Armour for armed humanoids, P1"): the fields (the engine sends
 // .vr_ar_type and .vr_ar_mask to the clients: vr_agarmor.cpp) and the hooks combat.qc, weapons.qc and player.qc call.
 .float vr_ar_type;     // 0 none, 1 green, 2 yellow, 3 red
-.float vr_ar_mask;     // the pieces still on (bits: 1 the cuirass, 2 the helmet, 4/8 pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins)
-.float vr_ar_hp[10];   // each piece's pool left
-.float vr_ar_wear;     // the damage marks (P2; sent with the rest): bits 0-9 the pieces at two thirds of their pool or under, 10-19 at a third or under
+.float vr_ar_mask;     // the pieces still on (bits: 1 the cuirass, 2 the helmet, 4/8 pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins; 1024-16384 a beast's own parts, VR_AR_SLOTS)
+.float vr_ar_hp[15];   // each piece's pool left
+.float vr_ar_wear;     // the damage marks (P2; sent with the rest): the pieces (worn-mask bits) at two thirds of their pool or under
+.float vr_ar_wear2;    // ... at a third or under (two fields: 2 x 15 bits in one float would not be exact; ROUND26.md, "scragtail")
 void(entity e, float armour, float pieces) VR_AgArmor_Toolgun; // the toolgun's Armed Humanoid page's armour on what it spawned
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) VR_AgArmor_Damage; // T_DamageDeal: the damage left
 float(entity targ, vector at, vector dir) VR_AgArmor_PushScale; // VR_ShotPush: a shot a plate meets pushes by vr_agarmor_impulse
@@ -295,3 +297,13 @@ float(entity e) VR_AG_Freed =
     return e != world && !e.modelindex && e.nextthink == -1 && e.solid == SOLID_NOT && e.takedamage == DAMAGE_NO;
 };
 float() VR_WP_DeathLoot;                                                 // VR_AG_SoldierDrop: its loot in its pack (TRUE: no backpack dropped)
+
+// Blinded by a flashlight (vr_armedgrunt_dazzle.qc; ROUND26.md "flashblind").
+.float vr_ag_dazzle;      // its dazzle (0..1): built while a lamp is on its eyes, faded after
+.float vr_ag_dazzle_at;   // ... last eased (VR_AG_DazzleTick: once a server frame)
+.float vr_ag_dazzle_lit;  // ... the strongest lamp on its eyes then (0 none; the tests)
+.float vr_ag_shieldw;     // its shielding hand's share (0..1), eased (VR_AGP_Shield)
+.vector vr_ag_shield_at;  // ... where that hand was sent last (world; the tests)
+void(entity g) VR_AG_DazzleTick;          // VR_AGP_Pose: its dazzle eased
+float(entity g) VR_AG_DazzleAim;          // VR_AGAI_Accuracy: its shots' error and spread times this
+void(entity g, entity p) VR_AGP_Shield;   // VR_AGP_PoseQC (and the engine's agpose): its off hand before its eyes

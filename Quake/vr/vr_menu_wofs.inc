@@ -1138,6 +1138,37 @@ za::Vector<Item> pageWofsAttachments()
             .help("How big the bayonet is drawn, times the weapon's own size: 1 / the weapon's Scale draws it at its real "
                   "size (the shotgun's 2.27, the super shotgun's 2.08).")
     );
+    // daggerattach (his 2026-11-27): the dagger put on as a bayonet, the same way; its own mount (kind 2: att2_*).
+    const char* dgMoveHelp = "Moves the dagger's mount on this weapon (the weapon model's own units): forward along the barrel, "
+                             "left, up. The dagger's origin is by its grip; its blade lies along under the barrel. Drawn on "
+                             "the weapon in your hand while this page is open with Preview on the dagger.";
+    const char* dgTurnHelp = "Turns the dagger on its mount (degrees, as the bayonet's). Its blade runs up its own model: "
+                             "Pitch -76.5 lays it along the barrel, Roll 180 puts its edge down.";
+    list.pushBackMultiple(
+        header("Dagger"),
+        toggle("Daggers as Bayonets", vr_attach_daggers)
+            .help("Whether the dagger goes on a gun as its bayonet (every weapon that fits it: Dagger Fits below): the dagger "
+                  "in one hand brought along under the gun in the other, its tip to where the drawn one's would be (flat "
+                  "play: the Attach key). On, it is the gun's: it stabs, sticks by its point and fires stuck as the bayonet "
+                  "does; pulled off (or the Attach key with that hand empty) it is your dagger again. Off: none goes on (one "
+                  "already on still comes off). On by default for testing."),
+        action("Preview: Bayonet or Dagger",
+            [] { wofsAttachKind = wofsAttachKind == attach::Dagger ? attach::Bayonet : attach::Dagger; })
+            .help("Which attachment is drawn on the weapon in your hand while this page is open: the bayonet or the dagger."),
+        info([]() -> const char* { return wofsAttachKind == attach::Dagger ? "Previewing: the dagger" : "Previewing: the bayonet"; }),
+        cycle("Dagger Fits", weapons::cvar(slot, Key::Att2Ok), {{0.f, "No"}, {1.f, "Yes"}})
+            .help("Whether a dagger can be put on this weapon as its bayonet (Daggers as Bayonets). The shotgun and the "
+                  "super shotgun by default."),
+        s("Dagger Forward", Key::Att2X, -10.f, 60.f, 0.1f, "%+.1f").extend(-200.f, 200.f).help(dgMoveHelp),
+        s("Dagger Left", Key::Att2Y, -10.f, 10.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(dgMoveHelp),
+        s("Dagger Up", Key::Att2Z, -20.f, 20.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(dgMoveHelp),
+        s("Dagger Pitch", Key::Att2Pitch, -180.f, 180.f, 0.5f, "%+.1f deg").help(dgTurnHelp),
+        s("Dagger Yaw", Key::Att2Yaw, -180.f, 180.f, 0.5f, "%+.1f deg").help(dgTurnHelp),
+        s("Dagger Roll", Key::Att2Roll, -180.f, 180.f, 0.5f, "%+.1f deg").help(dgTurnHelp),
+        s("Dagger Scale", Key::Att2Scale, 0.5f, 4.f, 0.01f, "%.3f").extend(0.05f, 20.f)
+            .help("How big the dagger is drawn, times the weapon's own size (its own Scale on top): 1 / the weapon's Scale "
+                  "draws it at the size it has in your hand (the shotgun's 2.27, the super shotgun's 2.08).")
+    );
     return list;
 }
 

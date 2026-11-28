@@ -210,7 +210,10 @@ void write()
                 return true;
             }
         }
-        const int from = agpose::shippedKind(kind);
+        // (AD's knights (adposekind): none, their own zero default: they hold their weapons as their rest frame does, as they
+        // did on the knight's kind with his shipped grips taken off (adrigfix's gripRigidOf); the knight's would turn their
+        // weapons up to 49 degrees, made for his own rest sword)
+        const int from = kind == agpose::adKnight ? kind : agpose::shippedKind(kind);
         if(from == kind || hand == aggrip::Second || !defaultOf(from, slot, hand, out))
         {
             return false;
@@ -323,7 +326,7 @@ void fit_f()
 {
     for(int kind = 0; kind < aggrip::numKinds; kind++)
     {
-        const int from = agpose::shippedKind(kind);
+        const int from = kind == agpose::adKnight ? kind : agpose::shippedKind(kind); // (AD's: no fit, defaultOf)
         for(int hand = aggrip::Main; hand <= aggrip::Off && from != kind; hand++)
         {
             glm::quat aK, gK, aF, gF;
@@ -367,6 +370,13 @@ namespace qvr::aggrip
 Offset global(int kind, int hand)
 {
     return offset(kind, allWeapons, hand);
+}
+
+Offset shipped(int kind, int slot, int hand)
+{
+    Offset d;
+    (void)defaultOf(kind, slot, hand, d);
+    return d;
 }
 
 Offset offset(int kind, int slot, int hand)

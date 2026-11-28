@@ -554,6 +554,7 @@ void armedGripsDragMode()
         row(opt::vr_agrunt_repl_ad),
         row(opt::vr_agrunt_repl_variants),
         row(opt::vr_agrunt_repl_crossbow),
+        row(opt::vr_agrunt_repl_dguard),
         header("Look"),
         row(opt::vr_humlook),
     };
@@ -1034,6 +1035,7 @@ void ikStretchReset()
         row(opt::vr_snd_air),
         row(opt::vr_snd_falloff),
         row(opt::vr_snd_reverb),
+        row(opt::vr_snd_reverb_own),
         row(opt::vr_snd_reverb_quality),
         row(opt::vr_snd_reverb_interval),
         row(opt::snd_waterfx),

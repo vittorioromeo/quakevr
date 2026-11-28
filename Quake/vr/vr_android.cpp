@@ -24,6 +24,8 @@
 #ifdef __ANDROID__
 #include <SDL_system.h>
 #include <android/log.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "Zancle/Chrono/Time.hpp"
@@ -381,6 +383,89 @@ void export_f()
     copyOne(from, slash ? slash + 1 : from);
 }
 
+// vr_android_share's walk: what the game made in its external folder (saves, autosave/, its config, logs, caches,
+// folders such as quakevr/doom) is the app's, 0660/0770 in the app's own group, which adb's shell can't read or
+// write, and an uninstall deletes it all. Opened to Setup's modes (folders 2777, files 0666) in the base folder's
+// group (the shell's ext_data_rw), so that `adb pull` backs it up and adb can replace it; only the app can do this.
+struct ShareCount
+{
+    int folders = 0;
+    int files = 0;
+    int failed = 0;
+};
+
+#ifdef __ANDROID__
+void shareTree(const char* path, gid_t group, ShareCount& n)
+{
+    struct stat st;
+    if(lstat(path, &st) != 0 || S_ISLNK(st.st_mode))
+    {
+        return;
+    }
+    const bool folder = S_ISDIR(st.st_mode);
+    if(st.st_gid != group && chown(path, static_cast<uid_t>(-1), group) != 0)
+    {
+        n.failed++;
+    }
+    if(chmod(path, folder ? 02777 : 0666) != 0)
+    {
+        n.failed++;
+    }
+    (folder ? n.folders : n.files)++;
+    if(!folder)
+    {
+        return;
+    }
+    DIR* d = opendir(path);
+    if(!d)
+    {
+        n.failed++;
+        return;
+    }
+    while(const dirent* e = readdir(d))
+    {
+        if(!ZA_STRCMP(e->d_name, ".") || !ZA_STRCMP(e->d_name, ".."))
+        {
+            continue;
+        }
+        char child[maxPath];
+        q_snprintf(child, sizeof child, "%s/%s", path, e->d_name);
+        shareTree(child, group, n);
+    }
+    closedir(d);
+}
+#endif
+
+// vr_android_share [folder under the base folder] (Debug > Startup): the base folder (the app's external files) or
+// the given folder under it opened to adb, all of it (shareTree): a full backup by `adb pull` before an uninstall
+// (a development APK's switch to a release one, ANDROID_RELEASE.md), in any build.
+void share_f()
+{
+#ifdef __ANDROID__
+    char root[maxPath];
+    if(Cmd_Argc() >= 2)
+    {
+        q_snprintf(root, sizeof root, "%s/%s", android.base, Cmd_Argv(1));
+    }
+    else
+    {
+        copyPath(root, android.base);
+    }
+    struct stat base;
+    if(stat(root, &base) != 0 || stat(android.base, &base) != 0) // (base last: its group is the one given)
+    {
+        Con_Printf("vr_android_share: %s not found\n", root);
+        return;
+    }
+    ShareCount n;
+    shareTree(root, base.st_gid, n);
+    Con_Printf("vr_android_share: %s: %d folders, %d files opened to adb (folders 2777, files 0666), %d failed\n", root,
+        n.folders, n.files, n.failed);
+#else
+    Con_Printf("vr_android_share: Android only\n");
+#endif
+}
+
 } // namespace
 
 // main, after COM_InitArgv, before the crash handler and SDL: on Android (or -fakeandroid on the PC), the base
@@ -560,4 +645,5 @@ extern "C" void VR_AndroidInit(void)
 {
     Cmd_AddCommand("vr_android_test", test_f);
     Cmd_AddCommand("vr_android_export", export_f);
+    Cmd_AddCommand("vr_android_share", share_f);
 }

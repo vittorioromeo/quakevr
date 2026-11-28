@@ -30,6 +30,7 @@
 #include <glm/glm.hpp>
 
 struct edict_s;
+struct entity_s;
 
 namespace qvr::hitmodel
 {
@@ -96,6 +97,27 @@ bool vertexPoint(edict_s* ent, int vert, glm::vec3& point);
 // ... vertices `verts` as shots meet the model (segment's pose: an armed humanoid's on its authored rig, a ragdoll's as
 // its parts carry it), not its animation frame's: the armour's plates (vr_agarmor.cpp). False: no such model or vertex.
 bool drawnVertexPoints(edict_s* ent, const int* verts, int n, glm::vec3* out);
+// A monster's lerp as the client draws it this frame: its two poses, their blend, its place and turn (the renderer's:
+// R_SetupAliasFrame's and R_SetupEntityTransform's, read as drawing it does: clientLerp).
+struct DrawnLerp
+{
+    int pose1{0}, pose2{0};
+    float blend{0.f};
+    glm::vec3 origin{0.f}, angles{0.f};
+    // The client entity drawn (clientLerp's): its vertices then as the shader draws them (animsmooth::drawnPoints: the
+    // spline, the rebuild; vr_armour_on_drawn), not the frames' bytes. Null: the frames' lerp of the bytes.
+    const entity_s* entity{nullptr};
+};
+// Client entity `e`'s drawn lerp now (an alias model; false otherwise). Advances its frame lerp as drawing it would
+// (VR_AliasLerpNow): call it in the frame it is drawn, before or after the draw.
+[[nodiscard]] bool clientLerp(entity_s* e, DrawnLerp& out);
+// drawnVertexPoints with that lerp laid on the model in place of the hit model's own (a ragdoll or an armed humanoid's
+// skinned body: theirs, as drawnVertexPoints): what is drawn on the body keeps to the body drawn (the beasts' armour:
+// the one source of its pose; ROUND26.md, "doglerp").
+bool drawnVertexPoints(edict_s* ent, const DrawnLerp& lerp, const int* verts, int n, glm::vec3* out);
+// `ent`'s size as drawn, one number: QC's `scale`, a prop's Size, the mean of the network's per-axis scale (not its
+// model's, not its animation's): what rides on it keeps this size whatever the frame (the beasts' armour).
+[[nodiscard]] float drawnScale(edict_s* ent);
 // Where the segment a..b first crosses `ent`'s model itself as drawn (no tolerance; not recorded as the last hit):
 // 0..1 along it, -1 none (the armour's "a plate before the skin", vr_agarmor.cpp shotPiece).
 [[nodiscard]] float skinCrossing(edict_s* ent, const glm::vec3& a, const glm::vec3& b);

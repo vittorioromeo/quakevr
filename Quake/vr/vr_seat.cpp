@@ -3,6 +3,7 @@
 #include "vr_seat.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/String/String.hpp"
 
 #include "vr_avatar.hpp"
 #include "vr_engine.hpp"
@@ -678,6 +679,7 @@ void registerCommands()
     Cmd_AddCommand("vr_seat_test", test_f);
     Cmd_AddCommand("+seattest", seattestDown_f);
     Cmd_AddCommand("-seattest", seattestUp_f);
+    registerBindCommands();
 }
 
 } // namespace qvr::seat
@@ -1002,6 +1004,9 @@ const qvr::seat::PadAction* qvr::seat::padLayout(int& count)
     return padDefaults;
 }
 
+void applySavedBinds(int s); // split20 (below)
+extern "C" int Key_StringToKeynum(const char* str); // keys.c
+
 extern "C" void Key_SeatCopyBindings(const int to, const int from)
 {
     if(Key_SeatOf(to) == Key_SeatOf(from))
@@ -1016,6 +1021,156 @@ extern "C" void Key_SeatCopyBindings(const int to, const int from)
     if(to > 0)
     {
         applyPadDefaults(); // (a controller's seat: split11's layout where seat 1's leaves a button free)
+        applySavedBinds(to); // (split20: the buttons its player rebound, as saved)
     }
     CL_SeatSet(prev);
+}
+
+// ---- split20: each seat's own controller bindings, saved per seat ----------------------------------------------------
+//
+// A seat 2-4's pad has its own bind table (seatkeys_t bindings: seat 1's copied at its join, then split11's layout). Once
+// its player changes it (its Controller Bindings screen, from its seat menu: bindsEdited), its pad's buttons are that
+// seat's for good: the config saves them (Key_WriteBindings: "seat_unbindall 2", then "seat_bind 2 KEY command" for each
+// bound pad button) and a later join, in this run or the next, gets them over the copy (Key_SeatCopyBindings). Per seat,
+// not per controller: two pads of one model share SDL's GUID, and the seat ("Player 2") is what the screens name.
+// Keyboard and mouse keys stay seat 1's (the config's binds, Options > Controls).
+
+namespace
+{
+struct SavedBinds
+{
+    bool has{false};               // edited by its player or read from the config: saved, and laid over a join's copy
+    za::String bind[MAX_KEYS]{};   // the pad buttons' (the others unused); "" unbound
+};
+SavedBinds savedBinds[qvr::seat::maxSeats]; // seat-shared: the config's saved bindings by seat number (preferences)
+
+[[nodiscard]] bool padKey(const int k)
+{
+    return (Key_GetDeviceMaskForKeynum(k) & KDM_GAMEPAD) != 0;
+}
+
+void snapshotBinds(const int s)
+{
+    SavedBinds& sb = savedBinds[s];
+    sb.has = true;
+    for(int k = 0; k < MAX_KEYS; k++)
+    {
+        const char* b = Key_SeatOf(s)->bindings[k];
+        sb.bind[k] = padKey(k) && b ? b : "";
+    }
+}
+
+[[nodiscard]] int seatArg(const int i)
+{
+    const int s = Cmd_Argc() > i ? Q_atoi(Cmd_Argv(i)) - 1 : -1;
+    return s >= 1 && s < qvr::seat::maxSeats ? s : -1;
+}
+
+// seat_unbindall <2-4>: that seat's saved pad bindings emptied (the config's line before its seat_bind lines)
+void seatUnbindall_f()
+{
+    const int s = seatArg(1);
+    if(s < 0)
+    {
+        Con_Printf("seat_unbindall <2-%d> : that seat's saved controller bindings emptied\n", qvr::seat::maxSeats);
+        return;
+    }
+    savedBinds[s] = SavedBinds{};
+    savedBinds[s].has = true;
+    if(Key_SeatHasBindings(s))
+    {
+        const int prev = CL_SeatSet(s);
+        for(int k = 0; k < MAX_KEYS; k++)
+        {
+            if(padKey(k))
+            {
+                Key_SetBinding(k, nullptr);
+            }
+        }
+        CL_SeatSet(prev);
+    }
+}
+
+// seat_bind <2-4> <key> <command>: a seat's pad button bound (saved; and at once if the seat has its bindings)
+void seatBind_f()
+{
+    const int s = seatArg(1);
+    const int k = Cmd_Argc() > 2 ? Key_StringToKeynum(Cmd_Argv(2)) : -1;
+    if(s < 0 || k < 0 || !padKey(k))
+    {
+        Con_Printf("seat_bind <2-%d> <controller key> [command] : that seat's own binding of its pad's button\n",
+            qvr::seat::maxSeats);
+        return;
+    }
+    const char* command = Cmd_Argc() > 3 ? Cmd_Argv(3) : "";
+    savedBinds[s].has = true;
+    savedBinds[s].bind[k] = command;
+    if(Key_SeatHasBindings(s))
+    {
+        const int prev = CL_SeatSet(s);
+        Key_SetBinding(k, command[0] ? command : nullptr);
+        CL_SeatSet(prev);
+    }
+}
+} // namespace
+
+void applySavedBinds(const int s)
+{
+    if(s <= 0 || s >= qvr::seat::maxSeats || !savedBinds[s].has)
+    {
+        return;
+    }
+    const int prev = CL_SeatSet(s);
+    for(int k = 0; k < MAX_KEYS; k++)
+    {
+        if(padKey(k))
+        {
+            const za::String& b = savedBinds[s].bind[k];
+            Key_SetBinding(k, b.empty() ? nullptr : b.cStr());
+        }
+    }
+    CL_SeatSet(prev);
+}
+
+void qvr::seat::bindsEdited()
+{
+    const int s = current().index;
+    if(s > 0 && s < maxSeats)
+    {
+        snapshotBinds(s);
+    }
+}
+
+bool qvr::seat::bindsSaved(const int s)
+{
+    return s > 0 && s < maxSeats && savedBinds[s].has;
+}
+
+void qvr::seat::registerBindCommands()
+{
+    Cmd_AddCommand("seat_bind", seatBind_f);
+    Cmd_AddCommand("seat_unbindall", seatUnbindall_f);
+}
+
+extern "C" void Key_SeatWriteBindings(FILE* f)
+{
+    for(int s = 1; s < qvr::seat::maxSeats; s++)
+    {
+        if(!savedBinds[s].has)
+        {
+            continue;
+        }
+        if(Key_SeatHasBindings(s))
+        {
+            snapshotBinds(s); // (the live table: what the seat plays with now)
+        }
+        fprintf(f, "seat_unbindall %d\n", s + 1);
+        for(int k = 0; k < MAX_KEYS; k++)
+        {
+            if(padKey(k) && !savedBinds[s].bind[k].empty())
+            {
+                fprintf(f, "seat_bind %d \"%s\" \"%s\"\n", s + 1, Key_KeynumToString(k), savedBinds[s].bind[k].cStr());
+            }
+        }
+    }
 }

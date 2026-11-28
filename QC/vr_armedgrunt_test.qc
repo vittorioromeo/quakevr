@@ -23,7 +23,7 @@ entity vr_agt_player;
 float VR_AGT_COUNT = 17;
 
 // The armed monster the tests spawn: vr_agrunt_test_kind (vr_armedmon.qc VR_AM_*: 0 the grunt, 1 the enforcer).
-float() VR_AGT_Kind = { return min(VR_AM_COUNT - 1, max(0, rint(cvar_hget(cvarh_vr_agrunt_test_kind)))); };
+float() VR_AGT_Kind = { return min(VR_AM_ROWS - 1, max(0, rint(cvar_hget(cvarh_vr_agrunt_test_kind)))); };
 // ... its classname (its monster's).
 string() VR_AGT_Classname = { VR_AM_Row(VR_AGT_Kind()); return vr_am_classname; };
 
@@ -1537,6 +1537,7 @@ void() VR_AGMZ_Frame; // (vr_armedgrunt_muzzle_test.qc)
 void() VR_AGSC_Frame; // (vr_armedgrunt_shoveclose_test.qc)
 void() VR_AGMR_Frame; // (vr_armedgrunt_reach_test.qc)
 void() VR_AGGD_Frame; // (vr_armedgrunt_guard_test.qc)
+void() VR_AGAP_Frame; // (vr_armedgrunt_adpose_test.qc)
 void() VR_AG2_Frame; // (vr_armedgrunt_twohand_test.qc)
 void() VR_AGRB_Frame; // (vr_armedgrunt_raggrab_test.qc)
 void() VR_AGS_ProjTestFrame; // (vr_armedgrunt_shot_test.qc)
@@ -1552,6 +1553,7 @@ void() VR_MRT_ParryFrame;
 void() VR_MRT_SwingFrame;
 void() VR_AGSP_Frame; // (vr_armedgrunt_spear_test.qc)
 void() VR_AGXT_Frame; // (vr_armedgrunt_extent_test.qc)
+void() VR_AGDZ_Frame; // (vr_armedgrunt_dazzle_test.qc)
 void() VR_AGCD_Frame; // (vr_armedgrunt_coopdisarm_test.qc)
 void() VR_OGFT_Frame; // (vr_ogre_friends_test.qc)
 
@@ -1651,6 +1653,7 @@ void() VR_AGTest_Frame =
     else if(t == 216) { VR_MRT_SwingFrame(); } // (Show Melee Arcs draws an armed humanoid's swing: vr_meleerules_test.qc)
     else if(t == 215) { VR_AGCD_Frame(); } // (a grunt disarmed by shots still dies, coop too: vr_armedgrunt_coopdisarm_test.qc)
     else if(t == 214) { VR_AGXT_Frame(); } // (a held weapon's drawn extent after a tune: vr_armedgrunt_extent_test.qc)
+    else if(t == 232) { VR_AGDZ_Frame(); } // (blinded by the flashlight: vr_armedgrunt_dazzle_test.qc)
     else if(t == 94) { VR_AGST_Frame(); } // (a deliberate strike or throw on its weapon or hand: vr_armedgrunt_strike_test.qc)
     else if(t == 96 || t == 98) { VR_AGPP_Frame(t); } // (its guard: the preventive and wind-up parries: vr_armedgrunt_preparry_test.qc)
     else if(t == 205) { VR_AGL_Frame(); } // (a held gun stays with its body as it walks: vr_armedgrunt_gunlag_test.qc)
@@ -1664,6 +1667,7 @@ void() VR_AGTest_Frame =
     else if(t == 202) { VR_AGIT_Frame(); } // (the impact rule: vr_armedgrunt_impact_test.qc)
     else if(t == 226 || t == 227) { VR_AGLOD_Frame(t); } // (the armed grunts' cost by state: vr_armedgrunt_lod_test.qc)
     else if(t == 228) { VR_AGLOD_WakeFrame(); } // (a far, unseen one wakes and fights as before: vr_armedgrunt_lod_test.qc)
+    else if(t == 231) { VR_AGAP_Frame(); } // (AD's knights' own pose kind: hands on the weapon in every key: vr_armedgrunt_adpose_test.qc)
     else if(t == 230) { VR_AGSP_Frame(); } // (an armed grunt with the spear: vr_armedgrunt_spear_test.qc)
     else if(t == 229) { VR_AGLOD_PackFrame(); } // (a worn pack's LOD as its wearer leaves his PVS: vr_armedgrunt_lod_test.qc)
     else if(t == 210) { VR_LST_Frame(); } // (humanoids shoved off a ledge: vr_ledgeshove_test.qc)

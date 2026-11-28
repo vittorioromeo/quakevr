@@ -42,6 +42,14 @@ enum Piece : int
     NumPieces = 10,
 };
 inline constexpr int allPieces = (1 << NumPieces) - 1;
+// A worn mask's bits past the ten slots: a beast's parts that break on their own (vr_beastarmour.cpp: the ogre's shins
+// by side, the scrag's plate 8 back half and each of his tail's four segments; ROUND26.md, "armourhits", "scragtail").
+// QC's VR_AR_SLOTS; the server's word and QVR_SVC_ARMOR's shorts carry all of them (15 bits: a short's positive range;
+// humanoids never set them). QC keeps the wear's two levels in two fields (.vr_ar_wear, .vr_ar_wear2): 30 bits in one
+// float would not be exact.
+inline constexpr int NumMaskBits = 15;
+inline constexpr int allMaskBits = (1 << NumMaskBits) - 1;
+inline constexpr int exactPieces = 1 << NumMaskBits; // (give's pieces: these exactly, a beast's cuirass not grown to its cuirass group; QC VR_AR_EXACT)
 
 // ---- The server's (P1: vr_agarmor.qc keeps each humanoid's type and pieces in .vr_ar_type and .vr_ar_mask) ----
 // VR_ServerFrameEnd: each entity's armour (its fields) sent to the clients when it changed (QVR_SVC_ARMOR, reliable).
@@ -62,7 +70,8 @@ void debugDraw();
 [[nodiscard]] uint32_t pieceBones(struct edict_s* ent, int piece);
 // Where piece `piece` of `ent` is now as a model of its own ("<model>#plate<piece>", derivedFile): `what` 0 its origin,
 // 1 its angles (an alias model's), as drawn (hitmodel's poses; else its rest pose where the entity stands).
-// 6, 7: half 0 / 1 of its split's middle (halfModel's model's origin; its angles 1's); '0 0 0' none.
+// 6, 7: half 0 / 1 of its split's middle (halfModel's model's origin; its angles 1's); '0 0 0' none. 8 (a beast's
+// piece): {its scale as drawn, its box's diagonal as drawn, 0} (vr_beastarmour.cpp).
 void plateWhere(struct edict_s* ent, int piece, int what, float* out);
 // A broken plate's half (vr_agarmor_split; QC limbmodel(e, QVR_ARMOR_HALF - (2 * piece + half))): the model of half
 // `half` (0, 1) of piece `piece` of `ent` (a player: vrbody.mdl's, its plates' debris) split along its kind's line
@@ -93,7 +102,7 @@ void packModelBoxSized(float size, glm::vec3& mid, glm::vec3& half);
 // QVR_SVC_ARMOR: [short entity, -1 all cleared][byte type][short pieces][short at 2/3 or under][short at 1/3 or under].
 void parseEvent();
 // The client's word on entity `num` (the tests: ragdollbone's QVR_ARMOR_CLIENT): `what` 0 its type, 1 its pieces, 2 its
-// wear (bits 0-9 at two thirds, 10-19 at a third); -1 none heard.
+// wear's pieces at two thirds or under (QC .vr_ar_wear), 3 at a third or under (.vr_ar_wear2); -1 none heard.
 [[nodiscard]] int clientState(int num, int what);
 
 // Mod_LoadModel's "<model>#armor" (vr_ragdoll.cpp VR_SyntheticModel). False: not one (or no rig, no armour for it).
@@ -138,6 +147,10 @@ void overridesChanged();
 // The studio's subject (entity `ent`, 0 none): its body drawn `bodyAlpha` see-through (1 as it is), its pieces `pieces` (a
 // mask of Piece bits, 0 none) outlined as vr_agarmor_debug draws them (their sleeves alone if `sleeve`, else their plates).
 void studioView(int ent, float bodyAlpha, int pieces, bool sleeve);
+// The studio's picked piece as drawn now (the first of its pieces: a both-sides limb part's left one; none for a sleeve):
+// its middle (world), and the map from its tweaks' space to the world's (armour.txt's offset `o` moves it by parent * o;
+// its rotate is the tweaks' turn in that space). The Armour Studio's handle (vr_armourstudio_gizmo.cpp) is put by it.
+[[nodiscard]] bool studioPartFrame(glm::vec3& centre, glm::mat3& parent);
 
 void init(); // the commands (vr_agarmor_info, _check, _rebuild, _set)
 

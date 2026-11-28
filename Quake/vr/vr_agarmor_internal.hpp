@@ -198,6 +198,10 @@ enum Joint : int
     KneeR,
     NumJoints
 };
+// armour.txt's rotate (degrees) as a turn: yaw about the model's up, pitch about its left, roll about its forward (tweakVerts;
+// the beasts' pieces, vr_beastarmour.cpp).
+[[nodiscard]] glm::mat3 tweakTurn(float pitchDeg, float yawDeg, float rollDeg);
+
 inline constexpr int bridgeCols = 6;      // a ring's corners: the limbs' grids' columns
 inline constexpr int bridgeMostFolds = 4; // (the rings within one entity's 256 bones: 4 joints x 9 rings x 7)
 inline constexpr int bridgeMostRings = 9;
@@ -231,6 +235,7 @@ struct Bridge
     int folds{0}, rings{0}, first{0}; // first: its vertices' first in the bridge model
     float depth{0.f}, standoff{0.f}, scale{1.f};
     float taper[4]{1.f, 1.f, 1.f, 1.f}; // armour.txt's: the upper sleeve's taper_start, _end, the lower's
+    glm::vec3 bulge{0.f};               // ... its middle pushed (bulge: the model's axes at rest, turned with each end's bone)
     Skinned under[bridgeMostUnder];      // the skin between the rows (kept under the leather at any bend)
     float underAlong[bridgeMostUnder]{}; // ... each one's place along the leather at rest (0 the upper row, 1 the lower)
     int numUnder{0};

@@ -59,6 +59,9 @@ struct SmoothModel
     // partly, their fits' rms (median, 90th percentile, most: units); off for the model if too few are.
     float rebuildError{-1.f};
     int rebuildDequant{-1};                // whether the poses were dequantised yet when it was made
+    int rebuildBlend{-1};                  // the vr_anim_smooth_rebuild_blend it was made with (1: two-bone vertices)
+    int blendedVerts{0};                   // vertices rebuilt from two bones (rest row 2's w: the second bone + half its weight)
+    za::Vector<uint32_t> rebuildUnfit;     // per pose: the bones (bits) not rebuilt in it (unfit; with the blend: by their refits)
     za::Vector<rigpose::Rigid> rebuildKeys; // [pose * numBones + bone]: the bones refitted to the drawn (dequantised) poses
     int rebuiltVerts{0}, rebuildFaded{0};
     float rebuildMedian{0.f}, rebuildP90{0.f}, rebuildMost{0.f};
@@ -66,12 +69,14 @@ struct SmoothModel
     bool restUploaded{false};         // `rest` is in the model's restBuffers buffer (VR_AnimSmoothBind)
     bool armSkin{false};              // its rest data has arm skin rows (vr_agarms): each instance's kicks then carry its arm rows
     bool legSkin{false};              // ... and leg skin rows (vr_aglegs): its leg rows after the arm rows
+    za::Vector<int> vboOfVert;        // per .mdl vertex: its first VBO vertex (its rest rows), -1 none (drawnPoints'; made when first read)
 };
 
 [[nodiscard]] inline za::SizeT heldBytes(const SmoothModel& m)
 {
     return mem::heldBytes(m.next) + mem::heldBytes(m.prev) + mem::heldBytes(m.seen) + mem::heldBytes(m.votes) + mem::heldBytes(m.frameOfPose) +
-           mem::heldBytes(m.namedNext) + mem::heldBytes(m.unfit) + mem::heldBytes(m.rest) + mem::heldBytes(m.rebuildKeys);
+           mem::heldBytes(m.namedNext) + mem::heldBytes(m.unfit) + mem::heldBytes(m.rest) + mem::heldBytes(m.rebuildKeys) +
+           mem::heldBytes(m.rebuildUnfit) + mem::heldBytes(m.vboOfVert);
 }
 
 // vr_anim_smooth_pin: an entity drawn between two frames at a fixed blend (the comparison strips: ROUND22.md), its
@@ -112,16 +117,37 @@ struct Trace
            mem::heldBytes(t.peak);
 }
 
-// Both name an entity by its number: off at a map change (another map's entity has it).
+// animsmooth::captureDraws (vr_drawnlerp_watch): one entity's shader inputs as VR_AnimSmooth last handed them to the draw
+// (the first view's), for capturedPoints: the GPU's drawing of it replayed on the CPU from what was uploaded.
+struct Capture
+{
+    const entity_t* ent{nullptr};
+    const qmodel_t* model{nullptr};
+    double time{-1.0};        // the client time it was drawn at (-1: none yet)
+    int on{0};                // VR_AnimSmooth's result (0: Quake's blend of pose1 and pose2)
+    int pose1{0}, pose2{0};
+    float blend{0.f};
+    int smooth[4]{0, 0, 0, 0}; // its instance's Smooth (poses 0 and 3, its rows' offsets) and SmoothW
+    float weights[4]{0.f, 0.f, 0.f, 0.f};
+    za::Vector<glm::vec4> rows; // the channel's rows as uploaded (its own at smooth[2], smooth[3])
+};
+[[nodiscard]] inline za::SizeT heldBytes(const Capture& c) // (vr_mem.hpp)
+{
+    return mem::heldBytes(c.rows);
+}
+
+// All name an entity by its number or address: off at a map change (another map's entity has it).
 struct SmoothDebug
 {
     Pin pin;
     Trace trace;
-    auto members() { return mem::list(pin, trace); }
+    Capture capture;
+    auto members() { return mem::list(pin, trace, capture); }
 };
 inline mem::Cache<SmoothDebug> smoothDebug{"anim smooth debug", mem::MapChange};
 inline Pin& pin = smoothDebug.pin;
 inline Trace& trace = smoothDebug.trace;
+inline Capture& capture = smoothDebug.capture; // seat-shared: the anim smooth debug's capture (a debug tool)
 
 // The model's animation data (made when first needed).
 [[nodiscard]] SmoothModel& modelData(const qmodel_t* model, const aliashdr_t* hdr);
@@ -142,6 +168,8 @@ struct Stats
     int rebuilt{0};          // ... instances drawn rebuilt (vr_anim_smooth_rebuild), worked out anew
     int calls{0};            // VR_AnimSmooth's calls, and their time (s)
     double seconds{0.0};
+    int pointCalls{0}, points{0}; // drawnPoints' calls (the armour's), the vertices they read, and their time (s)
+    double pointSeconds{0.0};
 };
 inline Stats stats;
 

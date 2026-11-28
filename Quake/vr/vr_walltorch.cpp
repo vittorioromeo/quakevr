@@ -10,6 +10,8 @@
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
 
+extern "C" byte* VR_AdArmedModelFile(const char* name, unsigned int* path_id); // (vr_monstermods.cpp)
+
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_held.hpp"
@@ -433,6 +435,17 @@ namespace
 
 } // namespace
 
+// A model's file read as Mod_LoadModel reads it: a model made as it loads (the armed death guard's progs/vrdguard.mdl is
+// no file: its limbs are built from this, limbfix 2026-11-27), else the game's file.
+extern "C" byte* VR_LoadModelFile(const char* name, unsigned int* path_id)
+{
+    if(byte* made = VR_DerivedModelFile(name, path_id))
+    {
+        return made;
+    }
+    return COM_LoadMallocFile(VR_ModelFile(name), path_id);
+}
+
 // Mod_LoadModel: the file of a model made from another's, or NULL. progs/vrtorch.mdl: ours with the wall torch's skin
 // (stickWithWallSkin). progs/vrtorch_fire.mdl: id's wall torch
 // (progs/flame.mdl) without its stick: the triangles whose corners all move in its animation (its flame; the stick
@@ -446,6 +459,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     }
     if(byte* gun = adguns::derivedFile(name, path_id)) { return gun; } // AD support: an AD soldier's gun (vr_adguns.cpp)
     if(byte* melee = admelee::derivedFile(name, path_id)) { return melee; } // AD support: an AD melee weapon (vr_admelee.cpp)
+    if(byte* body = VR_AdArmedModelFile(name, path_id)) { return body; } // AD support: the armed death guard and crossbow knight (vr_monstermods.cpp)
     if(byte* weapon = adweapons::derivedFile(name, path_id)) { return weapon; } // AD support: AD's upgraded weapons (vr_adweapons.cpp)
     const auto id = modelmeta::identifyPath(name);
     if(id == modelmeta::Id::Vrtorch)

@@ -2997,6 +2997,30 @@ float(entity p, vector to) VR_Parry_FlatGuard =
     return h;
 };
 
+// Flat-screen play's crossed-arms guard (flatfists, his words 2026-11-27: "When both hands are empty ... RMB should parry
+// (use the crossed arms pose ...)"): both empty fists up (the right mouse button: VR_FlatFistGuard), the blow from within
+// vr_flat_fist_guard_cone degrees (all of it, centred on his view's yaw) of where he looks (`to`: towards the attacker,
+// level, unit): parried by the crossed arms whatever its way, as the headset's crossed arms (VR_Parry_ArmsCrossed) parry,
+// its blow cut by vr_flat_fist_guard_reduction and its push on him times vr_flat_fist_guard_push. From the sides and behind:
+// the headset's rules (the pose may still be the crossed arms).
+float vr_flatfists_parries; // the blows the crossed-arms guard parried so far (a "flatfists: parry N" line each: the tests)
+float(entity p, vector to) VR_Parry_FlatFists =
+{
+    float cone = cvar_hget(cvarh_vr_flat_fist_guard_cone);
+    if(cone <= 0 || !VR_FlatFistGuard(p))
+    {
+        return FALSE;
+    }
+    float off = fabs(anglemod(vectoyaw(to) - p.v_viewangle_y + 180) - 180);
+    if(off > min(180, cone * 0.5))
+    {
+        dprint(sprintf("parry: flat fists: the blow from %g degrees off the view (the cone %g): not in front\n", rint(off), cone));
+        return FALSE;
+    }
+    dprint(sprintf("parry: flat fists: crossed arms, the blow from %g degrees off the view\n", rint(off)));
+    return TRUE;
+};
+
 float vr_parry_pvp; // T_Damage_VRMelee: the blow VR_Parry judges is a player's on another player (multiplayer)
 float vr_melee_blowhand; // 1 + the hand whose blow PlayerVRMeleeImpl (client.qc) is dealing; 0: none (a chainsaw's chain...)
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
@@ -3052,6 +3076,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     // Flat-screen play's guard: what comes from the front is parried, whatever its way (VR_Parry_FlatGuard); a blow with a
     // line is then met as a directional parry met it (its damage through, its swing stopped), without its sparks' meeting.
     float flatGuard = FALSE;
+    float flatFists = FALSE; // (the crossed-arms guard of flat play's empty hands: VR_Parry_FlatFists)
     if(drp && VR_DRP_Done(attacker) && !vr_drp_forced)
     {
         if(!baked)
@@ -3066,6 +3091,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     {
         flatGuard = TRUE;
         hand = VR_FlatGuardHand(targ);
+    }
+    else if(!vr_parry_test_force && VR_Parry_FlatFists(targ, to))
+    {
+        flatFists = TRUE; // (no hand: the crossed arms, below)
     }
     else if(drp)
     {
@@ -3091,7 +3120,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
             lagcompend();
         }
     }
-    if(hand < 0)
+    if(hand < 0 && !flatFists)
     {
         // Why not (developer 1): where the blow came from (0 ahead, 90 on the left) and how far.
         float fromYaw = anglemod(vectoyaw(to) - targ.v_viewangle_y + 180) - 180;
@@ -3105,8 +3134,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     float armsCrossed = FALSE;
     if(hand < 0)
     {
-        armsCrossed = VR_Parry_ArmsCrossed(targ, to);
+        armsCrossed = (flatFists || VR_Parry_ArmsCrossed(targ, to));
     }
+    // (The crossed arms' share of the blow taken off and their push on him: flat play's guard its own, vr_flat_fist_guard_*.)
+    float armsCut = flatFists ? cvar_hget(cvarh_vr_flat_fist_guard_reduction) : cvar_hget(cvarh_vr_parry_unarmed_reduction);
+    float armsPush = flatFists ? max(0, cvar_hget(cvarh_vr_flat_fist_guard_push)) : 1;
     // A test's forced parry (vr_kdtrig_test_parry: 1 the arms crossed, 2 and 3 the main hand's weapon), the pose not
     // looked at.
     if(vr_parry_test_force)
@@ -3184,7 +3216,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         VR_Push(attacker, to, pushE * pushK, liftE * pushK);
         if(!attacker.vr_eshove_striking) // (a shove pushes you its own way: VR_EnemyShove_Hit)
         {
-            float pushP = armsCrossed ? 200 : 180;
+            float pushP = armsCrossed ? 200 * armsPush : 180;
             VR_Push(targ, to * -1, pushP * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
         }
         VR_Motion_Event("parry", armsCrossed ? "arms" : VR_Motion_HandSub(hand), armsCrossed ? -1 : hand, damage,
@@ -3193,7 +3225,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         v_forward = oldForward;
         v_right = oldRight;
         v_up = oldUp;
-        float cut = armsCrossed ? cvar_hget(cvarh_vr_parry_unarmed_reduction) : cvar_hget(cvarh_vr_parry_reduction);
+        float cut = armsCrossed ? armsCut : cvar_hget(cvarh_vr_parry_reduction);
         if(drp && hand >= 0)
         {
             if(!baked && !flatGuard)
@@ -3221,14 +3253,22 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         VR_Push(attacker, to, 260 * cvar_hget(cvarh_vr_parry_push_enemy), 90 * cvar_hget(cvarh_vr_parry_push_enemy));
         if(!attacker.vr_eshove_striking) // (a shove pushes you its own way: VR_EnemyShove_Hit)
         {
-            VR_Push(targ, to * -1, 200 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
+            VR_Push(targ, to * -1, 200 * armsPush * cvar_hget(cvarh_vr_parry_push_player),
+                40 * armsPush * cvar_hget(cvarh_vr_parry_push_player));
         }
         dprint("parry: "); dprint(attacker.classname); dprint(" with crossed arms\n");
         VR_Motion_Event("parry", "arms", -1, damage, VRGetHandPos(cVR_MainHand), attacker, "");
         vr_parried = 2;
         VR_Highlight_Parry(targ, attacker, -1);
         VR_Counter_Open(targ, -1);
-        damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_unarmed_reduction))));
+        float armsIn = damage;
+        damage = damage * (1 - min(1, max(0, armsCut)));
+        if(flatFists)
+        {
+            vr_flatfists_parries = vr_flatfists_parries + 1;
+            dprint(sprintf("flatfists: parry %g (%s), damage %g -> %g\n", vr_flatfists_parries, attacker.classname, armsIn,
+                damage)); // (flatfists_test.sh)
+        }
     }
 
     if(hand >= 0)
@@ -3391,10 +3431,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     if(r && !corpse && (targ.flags & FL_MONSTER) && (attacker.flags & FL_CLIENT))
     {
         vector from = inflictor == attacker ? attacker.origin : (inflictor.absmin + inflictor.absmax) * 0.5;
-        float hitPush = cvar_hget(cvarh_vr_hit_push);
+        // (A gun stuck in it, fired (vr_propfire.qc: vr_fire_prop): its shove and throw times vr_embed_fire_push, so the body
+        // stays on the hand holding the gun (bayonet2: a super shotgun's point-blank 56 shoved it 336 u/s away, off the hand).)
+        float stuckShot = (vr_fire_prop != world && vr_fire_prop.vr_stick_ent == targ) ? max(0, cvar_hget(cvarh_vr_embed_fire_push)) : 1;
+        float hitPush = cvar_hget(cvarh_vr_hit_push) * stuckShot;
         if(targ.health <= 0)
         {
-            float killPush = cvar_hget(cvarh_vr_kill_push) * VR_KillPush_Mult(inflictor);
+            float killPush = cvar_hget(cvarh_vr_kill_push) * VR_KillPush_Mult(inflictor) * stuckShot;
             if(cvar_hget(cvarh_vr_debug_shots))
             {
                 dprint(sprintf("kill push: %s by %s (%g damage): x%.2f\n", targ.classname, inflictor.classname, damage, killPush));

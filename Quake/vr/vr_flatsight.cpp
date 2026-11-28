@@ -55,6 +55,7 @@
 #include "vr_flatsight.hpp"
 #include "vr_flatfgrab.hpp"
 #include "vr_flatgrenade.hpp"
+#include "vr_flatattach.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
 #include "vr_flatswim.hpp"
@@ -352,6 +353,7 @@ constexpr float tiltStep = 10.f;     // the tilt's search: tried in steps this b
 constexpr int tiltHalvings = 3;
 constexpr float tiltTimeMax = 1.5f;  // vr_flat_wall_tilt_time's range (seconds)
 constexpr float tiltPitchEase = 4.f; // in the pose, its pitch follows the least that clears at this many over vr_flat_wall_tilt_time (1/s)
+constexpr float tiltRateMost = 450.f; // the drawn tilt turns at most this fast (degrees a second: 6.25 a frame at 72 Hz)
 constexpr float tiltYawMax = 60.f;   // vr_flat_wall_tilt_yaw's range (degrees)
 constexpr float tiltRollMax = 90.f;  // vr_flat_wall_tilt_roll's range (degrees)
 constexpr float tiltBlocksFire = 5.f; // a gun turned more than this out of a wall does not fire (flatsight::wallBlocksFire; degrees)
@@ -1869,7 +1871,7 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
         st().lookFar = soft >= 1.f;
     }
     // E: a force grab takes the free hand off the gun to turn its palm out (vr_flatfgrab.cpp), and back on after.
-    const bool reaching = (st().helping >= 0 && flatfgrab::busy(st().helping)) || (st().helping == HAND_OFF && glm::length(reach) > 0.f);
+    const bool reaching = (st().helping >= 0 && (flatfgrab::busy(st().helping) || flatattach::busy(st().helping))) || (st().helping == HAND_OFF && glm::length(reach) > 0.f);
     // The hands' swap (vr_flatswap.cpp; his words 2026-11-12: "The rocket launcher is the only one where it looks good. Please
     // look at what the rocket launcher does, and use the same logic for other similar 2H weapons"): the rocket launcher's free
     // hand is on a real grip, which the swap blocks until the weapon has changed hands (flatswap::gripBlocked), so it lets go
@@ -2031,7 +2033,11 @@ void frame()
         // (The wall state comes on faster than it goes: wallInShare of the time.)
         st().wallOn[h] = za::clamp(st().wallOn[h] + (st().wallWanted[h] ? onStep / wallInShare : -onStep), 0.f, 1.f);
         st().freeBack[h] += (st().freeNeed[h] - st().freeBack[h]) * ease(st().freeNeed[h] > st().freeBack[h] ? backIn : backOut, dt);
-        st().tilt[h] = geom::smooth01(st().tiltOn[h]) * st().tiltPitch[h];
+        // (At most tiltRateMost a second either way: walked into a wall sighted, pressed on it, the gun 10 units in, the
+        // least that clears is 82 degrees, and the ease's middle took it up 9.4 degrees a frame; realpush, ROUND26 "flatpush".)
+        const float tiltTo = geom::smooth01(st().tiltOn[h]) * st().tiltPitch[h];
+        const float tiltRate = tiltTime > 0.f ? tiltRateMost * dt : wallTiltMax; // (0: at once)
+        st().tilt[h] += za::clamp(tiltTo - st().tilt[h], -tiltRate, tiltRate);
         // Along a wall (vr_flat_wall_slide): the share follows the angle the wall is met at, and the level turn its need,
         // over about vr_flat_wall_slide_time, both ways (the push out, eased as the way back, keeps it out meanwhile).
         const float slideTime = za::clamp(vr_flat_wall_slide_time.value, 0.f, slideTimeMax);
@@ -2145,7 +2151,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // 2026-11-10) never goes to the grip: the gun is held one-handed (emptyHand: no stance either), as dual wielding.
     st().gripWanted = carryToGrip && !flatplay::punching(st().helping) && !flatplay::shoving(st().helping) &&
                     !flatreload::busy(st().holding) && !flatgrenade::letsGo(st().holding, st().helping) && !flatswap::gripBlocked() &&
-                    !flatfgrab::busy(st().helping) && !flatplay::holdsThing(st().helping) &&
+                    !flatfgrab::busy(st().helping) && !flatattach::busy(st().helping) && !flatplay::holdsThing(st().helping) &&
                     flatplay::bladeShare(st().holding) <= 0.f && // (the guard's blade grip takes it: flatplay::bladePin)
                     !flatswim::freesHand(); // (swimming: the free hand swims, vr_flatswim.cpp)
     // A grip no pose carries the free hand to (a melee weapon's hs1 up the handle: the axe's, Mjolnir's, the super axe's;

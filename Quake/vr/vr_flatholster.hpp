@@ -28,6 +28,14 @@ struct HolsterSlot
     const char* title{""};
     const char* name{""};
     const char* model{""};
+    // Its gun's ammunition (wheelui; the menus' line under the name: gadget::HolsterMenuSlot's): the rounds in its magazine
+    // and its size (0: no magazine, or reloading off), its ammo type (QC's AID_*, 0 none) and that ammo's reserve (-1 none),
+    // and its attachment (attach::Kind, 0 none).
+    int clip{0};
+    int clipSize{0};
+    int ammoType{0};
+    int reserve{-1};
+    int attach{0};
 };
 [[nodiscard]] HolsterSlot holsterSlot(int i);
 // The weapon (and model's file) in hand `hand` (0 the left, the off hand; 1 the right), "" none.

@@ -21,7 +21,10 @@ float VR_AM_GRUNT = 0;    // monster_vr_grunt: a grunt (monster_army)
 float VR_AM_ENFORCER = 1; // monster_vr_enforcer: an enforcer (monster_enforcer)
 float VR_AM_KNIGHT = 2;   // monster_vr_knight: a knight (monster_knight) with a sword (vr_agknight: vr_armedknight.qc)
 float VR_AM_DKNIGHT = 3;  // monster_vr_hknight: a death knight (monster_hell_knight) with his sword and his spell (vr_agdknight)
-float VR_AM_COUNT = 4;
+float VR_AM_DGUARD = 4;   // monster_vr_dguard: AD's death guard as an armed knight (its own look: vr_monstermods.cpp; AD's data)
+float VR_AM_DCROSSBOW = 5; // monster_vr_dcrossbow: AD's crossbow knight likewise
+float VR_AM_COUNT = 4;    // (the kinds every loop over the table covers: the last two need AD's data)
+float VR_AM_ROWS = 6;     // (every row)
 float VR_AM_GUN_KINDS = 2; // (the kinds before it: the gun holders, the replacements' and the pose categories')
 
 // Weapon classes a row may hold (vr_am_classes; VR_AG_CLASS_* bits: 1 << class).
@@ -92,6 +95,10 @@ void() VR_AM_AfterLoad =
 
 void(float k) VR_AM_Row =
 {
+    if(k >= VR_AM_DGUARD && !cvar_hget(cvarh_vr_ad_mounted))
+    {
+        k = VR_AM_KNIGHT; // (AD's armed knights without AD's data: the knight; VR_AM_Resolve)
+    }
     if(vr_am_filled && k == vr_am_kind)
     {
         return;
@@ -99,6 +106,83 @@ void(float k) VR_AM_Row =
     vr_am_filled = 1;
     vr_am_kind = k;
     vr_am_spell = SUB_Null;
+    if(k == VR_AM_DGUARD || k == VR_AM_DCROSSBOW)
+    {
+        // AD's death guard and crossbow knight (adknights, 2026-11-27): AD's own meshes and skins without their weapons, their
+        // frames laid out as the knight's and their living frames turned square (vr_monstermods.cpp VR_AdArmedModelFile:
+        // made from AD's files as they load), so the knight's own code (monster_knight: health, sounds, AI, pains, deaths)
+        // plays them and every frame number below is the knight's. Their authored rigs (quakevr/rigs/vrdguard.rig2.txt,
+        // vrdcrossbow.rig2.txt); their own shared pose keys and grips (VR_AM_PoseKind: "AD Knight", seeded from the
+        // knight's), fitted to their shoulders. One body, vertex for vertex (the crossbow knight's arms posed otherwise): the chest's front 51.
+        vr_am_classname = "monster_knight";
+        vr_am_spawn = monster_knight;
+        vr_am_f_stand = 0; vr_am_n_stand = 9; // stand1..9 (AD's stand)
+        vr_am_f_run = 9; // runb1..8 (AD's run1..6, blended)
+        vr_am_rund[0] = 16; vr_am_rund[1] = 20; vr_am_rund[2] = 13; vr_am_rund[3] = 7;
+        vr_am_rund[4] = 16; vr_am_rund[5] = 20; vr_am_rund[6] = 14; vr_am_rund[7] = 6;
+        vr_am_f_atk = 0;
+        vr_am_atk_stand = 1;
+        vr_am_f_shove = 42;  // attackb1..6 (AD's slice)
+        vr_am_f_reload = 0;
+        vr_am_n_reload = 9;
+        vr_am_f_take = 66;   // kneel1..5 (AD's forward death's first frames: a stoop, the hand 11-15 units over the floor)
+        vr_am_n_take = 5;
+        vr_am_pain1 = "knight/khurt.wav";
+        vr_am_pain2 = "knight/khurt.wav";
+        vr_am_loot_aid = AID_SHELLS;
+        vr_am_loot_n = 5;
+        vr_am_classes = VR_AM_CLASSES_ALL;
+        vr_am_takes_ranged = VR_AM_TAKES_KNIGHTS;
+        vr_am_back_lo = '133 300 0'; // (the back at the belt, x -3.7, z 7)
+        vr_am_back_hi = '284 179 0'; // (... at the shoulder blades, x -2.4, z 17)
+        vr_am_anchor = 51;
+        vr_am_range = 1;
+        vr_am_range_threat = 1.2;
+        if(k == VR_AM_DGUARD)
+        {
+            // progs/vrdguard.mdl (AD's mon_dguard.mdl): the sword 544..584, its pommel 566/571, its tip 554/565, its guard's
+            // ends 575/578; his fist 511, 519, 521 (0.3 units rms in the sword's space over his living frames).
+            vr_am_name = "Death Guard";
+            vr_am_spawnname = "monster_vr_dguard";
+            vr_am_model = "progs/vrdguard.mdl";
+            vr_am_hand = '511 519 521';
+            vr_am_gun_rear = '566 571 0';
+            vr_am_gun_muzzle = '554 565 0';
+            vr_am_gun_roll = '575 578 0';
+            vr_am_anchor_at = '8.4 -0.8 16.9';
+            // The authored rig's shoulders; his right arm shoulder to wrist (upper arm 6.1, forearm 11.5: his fist at the wrist).
+            vr_am_sh_r = '3.5 -9 17.5';
+            vr_am_sh_l = '3.5 8.5 17';
+            vr_am_arm = 17.6;
+            // The grunt-made poses moved so the grunt's shoulders land on his (a little narrower, higher and forward).
+            vr_am_fit_scale = '1 0.95 1';
+            vr_am_fit_shift = '3.2 -0.06 2.05';
+            vr_am_grip_r = '9.4 -12.5 0.1';
+            vr_am_grip_l = '6.3 12.5 1.2';
+            vr_am_gun_fw = '0.698 -0.132 0.704';
+            return;
+        }
+        // progs/vrdcrossbow.mdl (AD's mon_dcrossbow.mdl, its rest 40 degrees side-on turned square): the crossbow 772..1119,
+        // its stock 1008/1068, its bow's front 917/817, its top and bottom 924/1007; his fist 494, 495, 502 (0.4 rms).
+        vr_am_name = "Crossbow Knight";
+        vr_am_spawnname = "monster_vr_dcrossbow";
+        vr_am_model = "progs/vrdcrossbow.mdl";
+        vr_am_hand = '494 495 502';
+        vr_am_gun_rear = '1008 1068 0';
+        vr_am_gun_muzzle = '917 817 0';
+        vr_am_gun_roll = '924 1007 0';
+        vr_am_anchor_at = '7.4 0.8 16.6';
+        // The authored rig's shoulders (the death guard's moved with the chest); his right arm shoulder to wrist.
+        vr_am_sh_r = '2.5 -7.4 17.2';
+        vr_am_sh_l = '2.5 10.1 16.7';
+        vr_am_arm = 15.1;
+        vr_am_fit_scale = '1 0.95 1';
+        vr_am_fit_shift = '2.2 1.54 1.75';
+        vr_am_grip_r = '7.1 -7.8 6.2';
+        vr_am_grip_l = '11.1 1.5 3';
+        vr_am_gun_fw = '0.452 0.686 -0.57';
+        return;
+    }
     if(k == VR_AM_DKNIGHT)
     {
         // Quake VR's hknight.mdl: his sword's blade and guard 42..58, 332..365, 525..532 (vr_monstermods.cpp knownSwords),
@@ -300,6 +384,30 @@ void(float k) VR_AM_Row =
     vr_am_gun_fw = '0.394 0.888 -0.235';
     vr_am_range = 1;
     vr_am_range_threat = 1.5;
+};
+
+// Row `k` as it can be made here: AD's armed knights (VR_AM_DGUARD, VR_AM_DCROSSBOW) need AD's data (their models are
+// made from AD's): without it, the knight.
+float(float k) VR_AM_Resolve =
+{
+    return (k >= VR_AM_DGUARD && !cvar_hget(cvarh_vr_ad_mounted)) ? VR_AM_KNIGHT : k;
+};
+
+// The kind whose pose keys, grips and holds row `k` takes (the engine's armedRigs poseKind, agpose's kinds): AD's armed
+// knights their shared kind, VR_AM_POSE_ADKNIGHT (adposekind, 2026-11-27: the Pose Studio's "AD Knight", seeded from the
+// knight's keys; before, the knight's own); without AD's data the knight's (VR_AM_Resolve). The engine's native pose the
+// same (vr_builtins_agpose.inc agPoseKind).
+float VR_AM_POSE_ADKNIGHT = 4;
+float(float k) VR_AM_PoseKind =
+{
+    k = VR_AM_Resolve(k);
+    return k >= VR_AM_DGUARD ? VR_AM_POSE_ADKNIGHT : k;
+};
+
+// A knight's body: the knight or one of AD's armed knights (their deaths, their worn packs).
+float(float k) VR_AM_KnightBody =
+{
+    return k == VR_AM_KNIGHT || k >= VR_AM_DGUARD;
 };
 
 // An armed one with a ranged attack of its own beside its weapons (its row's spell: the death knight's fireballs).

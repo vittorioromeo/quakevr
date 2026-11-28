@@ -115,7 +115,9 @@ struct Wearer
 // vertices are left out of the guards' fit, so nothing held them out and they sank into his cheeks; they are plates now, down each
 // side of his face to 0.42, outside the head's real width (0.53 at its most, at 0.2 forward), their front edges following his face as it widens down (0.35
 // out at 0.53 forward at the cheek row, 0.46 at 0.4 at the jaw row), so they sweep back to a point. Outside 11.7 deep, 11.1 wide (the crown 10.3, his head 10.65 at its widest).
-constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {.model = "progs/vrenforcer.mdl", .backCut = -10.5f, .hipFrom = -0.5f},
+constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f},
+    // (AD's death guard and crossbow knight as armed knights: their authored rigs, as the knight's; vr_monstermods.cpp)
+    {"progs/vrdguard.mdl", -1e9f}, {"progs/vrdcrossbow.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {.model = "progs/vrenforcer.mdl", .backCut = -10.5f, .hipFrom = -0.5f},
     {.model = "progs/enforcer.mdl", .backCut = -10.5f, .hipFrom = -0.5f},
     // The knight's red shoulder pads stand up to 2.5 units off his upper arms' skin, weighing on them 0.2-0.4 (the rest on his
     // chest): his upper arms' plates go out over them (his note, 2026-11-06: "exposed knight shoulder").
@@ -2404,7 +2406,8 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, bool 
     const auto has = [&](int field) { return ((o.has >> static_cast<unsigned>(field)) & 1u) != 0u; };
     const bool pushed = has(armourdata::Standoff) && push;
     const bool moved = has(armourdata::OffsetX) || has(armourdata::OffsetY) || has(armourdata::OffsetZ) || has(armourdata::Pitch) ||
-        has(armourdata::Yaw) || has(armourdata::Roll) || has(armourdata::Scale);
+        has(armourdata::Yaw) || has(armourdata::Roll) || has(armourdata::Scale) || has(armourdata::ScaleX) || has(armourdata::ScaleY) ||
+        has(armourdata::ScaleZ);
     if(from >= to || (!pushed && !moved))
     {
         return;
@@ -2424,14 +2427,10 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, bool 
             at(s.verts, i).p += geom::safeNormalize(d, glm::vec3{0.f}, 1e-6f) * o.v[armourdata::Standoff];
         }
     }
-    const float deg = pi / 180.f;
-    const float p = o.v[armourdata::Pitch] * deg, y = o.v[armourdata::Yaw] * deg, r = o.v[armourdata::Roll] * deg;
-    // (yaw about up, pitch about left, roll about forward: the model's z, y, x)
-    const glm::mat3 yawM{za::cos(y), za::sin(y), 0.f, -za::sin(y), za::cos(y), 0.f, 0.f, 0.f, 1.f};
-    const glm::mat3 pitchM{za::cos(p), 0.f, -za::sin(p), 0.f, 1.f, 0.f, za::sin(p), 0.f, za::cos(p)};
-    const glm::mat3 rollM{1.f, 0.f, 0.f, 0.f, za::cos(r), za::sin(r), 0.f, -za::sin(r), za::cos(r)};
-    const glm::mat3 turn = yawM * pitchM * rollM;
-    const float scale = has(armourdata::Scale) ? za::clamp(o.v[armourdata::Scale], 0.2f, 3.f) : 1.f;
+    const glm::mat3 turn = tweakTurn(o.v[armourdata::Pitch], o.v[armourdata::Yaw], o.v[armourdata::Roll]);
+    float axes[3];
+    (void)armourdata::scaleAxes(o, axes); // (scale, times scale_x / _y / _z along the model's axes)
+    const glm::vec3 scale{axes[0], axes[1], axes[2]};
     const glm::vec3 move{o.v[armourdata::OffsetX], o.v[armourdata::OffsetY], o.v[armourdata::OffsetZ]};
     for(int i = from; i < to; i++)
     {
@@ -2513,6 +2512,50 @@ bool skinRingOf(const Body& b, const PieceFrame& f, const PlateGrid& g, int ring
     e.bone = bone;
     e.ok = true;
     return true;
+}
+
+// armour.txt's sleeve ends on a joint's bridge (ROUND26.md, "ogresleeves"): each end's ring (the plates' row and the skin's
+// there) moved (start_offset on its own piece's sleeve, else end_offset on the other's) and sized round its middle
+// (start_radius / end_radius alike), in the rest pose (the ring rides its bones); the lower end's ring turned round its line
+// by the joint's twist (the upper sleeve's, else the lower's). Nothing set: nothing touched.
+void sleeveEnds(Bridge& br, const armourdata::Override& tu, const armourdata::Override& tl)
+{
+    using namespace armourdata;
+    const auto set = [](const Override& o, int field) { return (o.has & fieldBit(field)) != 0u; };
+    for(int e = 0; e < 2; e++)
+    {
+        const Override& own = e == 0 ? tu : tl;
+        const Override& other = e == 0 ? tl : tu;
+        // (each value: the end's own sleeve's start_, else the other sleeve's end_)
+        const auto value = [&](int start, int end, bool& any) {
+            any = any || set(own, start) || set(other, end);
+            return set(own, start) ? own.v[start] : set(other, end) ? other.v[end] : fieldDefault(start);
+        };
+        bool moved = false, sized = false;
+        const glm::vec3 offset{value(StartOffsetX, EndOffsetX, moved), value(StartOffsetY, EndOffsetY, moved), value(StartOffsetZ, EndOffsetZ, moved)};
+        const float radius = za::clamp(value(StartRadius, EndRadius, sized), 0.1f, 4.f);
+        const bool twisted = e == 1 && (set(tu, Twist) || set(tl, Twist));
+        const float twist = (set(tu, Twist) ? tu.v[Twist] : tl.v[Twist]) * pi / 180.f;
+        if(!moved && !sized && !twisted)
+        {
+            continue;
+        }
+        for(BridgeEnd* E : {&br.plates[e], &br.skin[e]})
+        {
+            glm::vec3 m{0.f};
+            for(const Skinned& c : E->ring)
+            {
+                m += c.p / static_cast<float>(bridgeCols);
+            }
+            const glm::vec3 ax = E->z;
+            for(Skinned& c : E->ring)
+            {
+                glm::vec3 d = (c.p - m) * (sized ? radius : 1.f);
+                d = twisted ? d * za::cos(twist) + glm::cross(ax, d) * za::sin(twist) + ax * glm::dot(ax, d) * (1.f - za::cos(twist)) : d;
+                c.p = m + d + (moved ? offset : glm::vec3{0.f});
+            }
+        }
+    }
 }
 
 // Each joint's bridge from its two parts' grids (the plates' end rings already captured in `rows`), the skin under it and
@@ -2617,6 +2660,11 @@ void bridgesOf(Shell& s, const rig2::Rig& rig, const PieceFrame* frames, const P
         br.taper[1] = tweaked(tu, armourdata::TaperEnd) ? za::clamp(tu.v[armourdata::TaperEnd], 0.2f, 3.f) : 1.f;
         br.taper[2] = tweaked(tl, armourdata::TaperStart) ? za::clamp(tl.v[armourdata::TaperStart], 0.2f, 3.f) : 1.f;
         br.taper[3] = tweaked(tl, armourdata::TaperEnd) ? za::clamp(tl.v[armourdata::TaperEnd], 0.2f, 3.f) : 1.f;
+        sleeveEnds(br, tu, tl);
+        // (segments: its rings less one, else from the folds as above; bulge: its middle pushed, the model's axes at rest)
+        const float segments = pick(armourdata::Segments, 0.f);
+        br.rings = segments >= 0.5f ? za::clamp(static_cast<int>(segments + 0.5f) + 1, 2, bridgeMostRings) : br.rings;
+        br.bulge = glm::vec3{pick(armourdata::BulgeX, 0.f), pick(armourdata::BulgeY, 0.f), pick(armourdata::BulgeZ, 0.f)};
         // The skin between the two rows (on the limb's two bones, near their line): kept under the leather at any bend.
         glm::vec3 p0{0.f}, p1{0.f};
         float mean = 0.f;
@@ -2685,6 +2733,18 @@ void bridgesOf(Shell& s, const rig2::Rig& rig, const PieceFrame* frames, const P
 
 namespace detail
 {
+
+glm::mat3 tweakTurn(float pitchDeg, float yawDeg, float rollDeg)
+{
+    const float deg = pi / 180.f;
+    const float p = pitchDeg * deg, y = yawDeg * deg, r = rollDeg * deg;
+    // (yaw about up, pitch about left, roll about forward: the model's z, y, x)
+    const glm::mat3 yawM{za::cos(y), za::sin(y), 0.f, -za::sin(y), za::cos(y), 0.f, 0.f, 0.f, 1.f};
+    const glm::mat3 pitchM{za::cos(p), 0.f, -za::sin(p), 0.f, 1.f, 0.f, za::sin(p), 0.f, za::cos(p)};
+    const glm::mat3 rollM{1.f, 0.f, 0.f, 0.f, za::cos(r), za::sin(r), 0.f, -za::sin(r), za::cos(r)};
+    return yawM * pitchM * rollM;
+}
+
 
 const rig2::Rig* rigOfShell(qmodel_t* src)
 {
@@ -3214,40 +3274,44 @@ namespace
     return nullptr;
 }
 
-// An entity's armour in a word (the server's, the client's): its type (bits 30-31), its worn pieces' wear (bits 20-29
-// at a third of their pool or under, 10-19 at two thirds or under; P2's damage marks), its pieces (0-9).
-[[nodiscard]] uint32_t packState(int type, int pieces, int wear)
+// An entity's armour in a word (the server's, the client's): its type (bits 45-46), its worn pieces' wear (bits 30-44
+// at a third of their pool or under, 15-29 at two thirds or under; P2's damage marks), its pieces (0-14: the ten slots
+// and a beast's own parts, NumMaskBits).
+constexpr unsigned wearShift = NumMaskBits;
+constexpr unsigned typeShift = 3 * NumMaskBits;
+constexpr uint64_t allWearBits = (uint64_t{1} << (2 * NumMaskBits)) - 1u;
+[[nodiscard]] uint64_t packState(int type, int pieces, int wear)
 {
-    pieces &= allPieces;
-    wear &= pieces | pieces << NumPieces;
-    return type > 0 && pieces ? static_cast<uint32_t>(type) << 30u | static_cast<uint32_t>(wear) << 10u | static_cast<uint32_t>(pieces) : 0u;
+    pieces &= allMaskBits;
+    wear &= pieces | pieces << NumMaskBits;
+    return type > 0 && pieces ? static_cast<uint64_t>(type) << typeShift | static_cast<uint64_t>(static_cast<uint32_t>(wear)) << wearShift | static_cast<uint64_t>(pieces) : 0u;
 }
-[[nodiscard]] int stateType(uint32_t s)
+[[nodiscard]] int stateType(uint64_t s)
 {
-    return static_cast<int>(s >> 30u);
+    return static_cast<int>(s >> typeShift);
 }
-[[nodiscard]] int statePieces(uint32_t s)
+[[nodiscard]] int statePieces(uint64_t s)
 {
-    return static_cast<int>(s & static_cast<uint32_t>(allPieces));
+    return static_cast<int>(s & static_cast<uint64_t>(allMaskBits));
 }
-[[nodiscard]] int stateWear(uint32_t s)
+[[nodiscard]] int stateWear(uint64_t s)
 {
-    return static_cast<int>((s >> 10u) & 0xfffffu);
+    return static_cast<int>((s >> wearShift) & allWearBits);
 }
 
 // The server's word on each entity (QVR_SVC_ARMOR: packState); and how many are armoured.
-za::Vector<uint32_t> served;
+za::Vector<uint64_t> served;
 int numServed = 0;
 
 // Who wears what: vr_agarmor_set's entities, else vr_agarmor (debug: everyone, forced), else the server's word; `wear`
-// its pieces' wear (packState's bits 10-29, shifted down: the server's word only, or vr_agarmor_wear's debug look).
+// its pieces' wear (packState's bits 12-35, shifted down: the server's word only, or vr_agarmor_wear's debug look).
 void wornBy(int num, int& type, int& pieces, int& wear)
 {
     type = za::clamp(static_cast<int>(vr_agarmor.value), 0, 4);
     type = type == 4 ? 1 + num % 3 : type;
     pieces = static_cast<int>(vr_agarmor_pieces.value) & allPieces;
     const int forced = za::clamp(static_cast<int>(vr_agarmor_wear.value), 0, 2);
-    wear = forced == 0 ? 0 : forced == 1 ? allPieces : allPieces << NumPieces | allPieces;
+    wear = forced == 0 ? 0 : forced == 1 ? allPieces : allPieces << NumMaskBits | allPieces;
     if(type == 0 && num >= 0 && num < count(served))
     {
         type = stateType(at(served, num));
@@ -3523,6 +3587,7 @@ void studioView(int ent, float bodyAlpha, int pieces, bool sleeve)
     studio.alpha = bodyAlpha;
     studio.pieces = pieces & allPieces;
     studio.sleeve = sleeve;
+    beastarmour::studioView(ent, bodyAlpha); // (a beast subject's body ghost: vr_beastarmour.cpp)
 }
 
 bool give(int num, int type, int pieces)
@@ -3572,6 +3637,10 @@ void setWorn(int num, int type, int pieces)
 
 bool makeModel(qmodel_t* mod)
 {
+    if(beastarmour::makeModel(mod))
+    {
+        return true; // a beast's piece shaped by armour.txt, its leather junctions (vr_beastarmour.cpp)
+    }
     // "<model>#bridge": the joints' leather (vr_agarmor_bridge.cpp)
     if(const za::SizeT len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(bridgeSuffix); len > suffix && !ZA_STRCMP(mod->name + len - suffix, bridgeSuffix))
     {
@@ -3788,7 +3857,7 @@ void relink()
         // 3 x wear: make_agarmor.py's nine), an entity each (the pieces of the others collapsed). An old vragarmor.mdl
         // of three skins: all whole.
         const int numSkins = armor->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(armor))->numskins : 0;
-        const int w66 = wear & allPieces, w33 = (wear >> NumPieces) & allPieces;
+        const int w66 = wear & allPieces, w33 = (wear >> NumMaskBits) & allPieces;
         const int byWear[3] = {numSkins >= 9 ? pieces & ~w66 & ~w33 : pieces, numSkins >= 9 ? pieces & w66 & ~w33 : 0,
             numSkins >= 9 ? pieces & w33 : 0};
         for(int level = 0; level < 3 && numWorn < maxWorn && cl_numvisedicts < MAX_VISEDICTS; level++)
@@ -3847,6 +3916,10 @@ void relink()
 
 int bonePoses(const entity_t* e, const float** matrices)
 {
+    if(const int beast = beastarmour::bonePoses(e, matrices))
+    {
+        return beast; // a beast's leather junctions (vr_beastarmour.cpp)
+    }
     if(numBridges > 0 && e >= &bridgeEnts[0] && e < &bridgeEnts[numBridges])
     {
         // The joints' leather: made from its body's bones as drawn, once a frame (a vertex a bone: vr_agarmor_bridge.cpp)
@@ -3915,9 +3988,9 @@ const entity_t* sourceOf(const entity_t* e)
 // ---- P1: the server's armour (QC's .vr_ar_type, .vr_ar_mask) sent to the clients ----
 namespace
 {
-za::Vector<uint32_t> sent; // per entity: what the clients were last told (packState)
+za::Vector<uint64_t> sent; // per entity: what the clients were last told (packState)
 
-[[nodiscard]] uint32_t stateOf(edict_t* e, bool player)
+[[nodiscard]] uint64_t stateOf(edict_t* e, bool player)
 {
     const progs::FieldOffsets& f = progs::fields();
     if(e->free || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
@@ -3933,20 +4006,22 @@ za::Vector<uint32_t> sent; // per entity: what the clients were last told (packS
             packState(za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_pp_type)), 0, 3), static_cast<int>(progs::fieldFloat(e, f.vr_pp_mask)) & allPieces, 0);
     }
     const int type = za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)), 0, 3);
-    const int mask = static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) & allPieces;
-    const int wear = f.vr_ar_wear >= 0 ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_wear)) : 0;
-    return packState(type, mask, wear);
+    const int mask = static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) & allMaskBits;
+    // (the two levels in two fields: .vr_ar_wear at two thirds or under, .vr_ar_wear2 at a third)
+    const int w66 = f.vr_ar_wear >= 0 ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_wear)) & allMaskBits : 0;
+    const int w33 = f.vr_ar_wear2 >= 0 ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_wear2)) & allMaskBits : 0;
+    return packState(type, mask, w66 | w33 << NumMaskBits);
 }
 
-void writeState(sizebuf_t* msg, int num, uint32_t state)
+void writeState(sizebuf_t* msg, int num, uint64_t state)
 {
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_ARMOR);
     MSG_WriteShort(msg, num);
     MSG_WriteByte(msg, stateType(state));
     MSG_WriteShort(msg, statePieces(state));
-    MSG_WriteShort(msg, stateWear(state) & allPieces);
-    MSG_WriteShort(msg, stateWear(state) >> NumPieces);
+    MSG_WriteShort(msg, stateWear(state) & allMaskBits);
+    MSG_WriteShort(msg, stateWear(state) >> NumMaskBits);
 }
 
 // ---- A piece as a model of its own (the broken plate's debris) ----
@@ -4135,7 +4210,7 @@ void serverFrame()
     }
     for(int i = 1; i < count(sent); i++)
     {
-        const uint32_t now = i < n ? stateOf(EDICT_NUM(i), i <= svs.maxclients) : 0u;
+        const uint64_t now = i < n ? stateOf(EDICT_NUM(i), i <= svs.maxclients) : 0u;
         if(now != at(sent, i) && sv.reliable_datagram.cursize + 16 < sv.reliable_datagram.maxsize)
         {
             writeState(&sv.reliable_datagram, i, now);
@@ -4167,9 +4242,9 @@ void parseEvent()
 {
     const int num = MSG_ReadShort();
     const int type = MSG_ReadByte();
-    const int pieces = MSG_ReadShort() & allPieces;
-    const int w66 = MSG_ReadShort() & allPieces;
-    const int w33 = MSG_ReadShort() & allPieces;
+    const int pieces = MSG_ReadShort() & allMaskBits;
+    const int w66 = MSG_ReadShort() & allMaskBits;
+    const int w33 = MSG_ReadShort() & allMaskBits;
     if(num < 0)
     {
         served.clear();
@@ -4181,7 +4256,7 @@ void parseEvent()
     {
         served.resize(static_cast<za::SizeT>(num + 1), 0u);
     }
-    const uint32_t now = packState(za::clamp(type, 0, 3), pieces, w66 | w33 << NumPieces);
+    const uint64_t now = packState(za::clamp(type, 0, 3), pieces, w66 | w33 << NumMaskBits);
     numServed += (now != 0u ? 1 : 0) - (at(served, num) != 0u ? 1 : 0);
     at(served, num) = now;
 }
@@ -4239,8 +4314,8 @@ int clientState(int num, int what)
     {
         return -1;
     }
-    const uint32_t s = at(served, num);
-    return what == 0 ? stateType(s) : what == 1 ? statePieces(s) : stateWear(s);
+    const uint64_t s = at(served, num);
+    return what == 0 ? stateType(s) : what == 1 ? statePieces(s) : what == 2 ? stateWear(s) & allMaskBits : stateWear(s) >> NumMaskBits;
 }
 
 // The point of triangle a, b, c nearest `p`.
@@ -4370,7 +4445,7 @@ void posePlates(edict_t* ent, const Shell& s, int mask, PlatePoses& out)
     {
         return 0;
     }
-    return static_cast<int>(progs::fieldFloat(ent, f.vr_ar_mask)) & allPieces;
+    return static_cast<int>(progs::fieldFloat(ent, f.vr_ar_mask)) & allMaskBits;
 }
 
 int entityPieces(int num)
@@ -4508,6 +4583,15 @@ void debugDraw()
         }
         edict_t* e = EDICT_NUM(i);
         const int mask = wornMask(e);
+        if(beastarmour::wears(e))
+        {
+            // (a beast: its rigid pieces, the studio's picked piece or junction alone)
+            if(picked && i == studio.ent)
+            {
+                beastarmour::outline(e, studio.pieces, studio.sleeve);
+            }
+            continue;
+        }
         const Shell* s = mask ? serverShell(baseOf(e)) : nullptr;
         if(!s)
         {
@@ -4544,6 +4628,63 @@ void debugDraw()
             lines::line(w[2], w[0], width, col, col);
         }
     }
+}
+
+bool studioPartFrame(glm::vec3& centre, glm::mat3& parent)
+{
+    if(studio.ent <= 0 || studio.pieces == 0 || studio.sleeve || !sv.active || studio.ent >= sv.qcvm.num_edicts)
+    {
+        return false;
+    }
+    const progs::ServerVm vm; // (as debugDraw: the server's entities)
+    edict_t* e = EDICT_NUM(studio.ent);
+    if(e->free)
+    {
+        return false;
+    }
+    if(beastarmour::wears(e))
+    {
+        return beastarmour::partFrame(e, studio.pieces, centre, parent);
+    }
+    const int mask = wornMask(e) & studio.pieces;
+    const Shell* s = mask ? serverShell(baseOf(e)) : nullptr;
+    if(!s)
+    {
+        return false;
+    }
+    int piece = 0;
+    while(piece < NumPieces && !((mask >> piece) & 1))
+    {
+        piece++;
+    }
+    if(piece >= NumPieces)
+    {
+        return false;
+    }
+    PlatePoses pp;
+    posePlates(e, *s, 1 << piece, pp);
+    if(!pp.ok[piece])
+    {
+        return false;
+    }
+    // (its middle: its plates' box, tweaked, in the shell's space; the shell's space is the tweaks')
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    for(int i = 0; i < count(s->verts); i++)
+    {
+        const Vert& v = at(s->verts, i);
+        if(v.piece == piece)
+        {
+            lo = glm::min(lo, v.p);
+            hi = glm::max(hi, v.p);
+        }
+    }
+    if(lo.x > hi.x)
+    {
+        return false;
+    }
+    centre = pp.origin[piece] + pp.turn[piece] * ((lo + hi) * 0.5f);
+    parent = pp.turn[piece];
+    return true;
 }
 
 // The limb whose plates enclose `p` as `ent` is drawn (-1 none): by each piece's grid, its point taken back to the rest pose by

@@ -790,7 +790,8 @@ extern "C" void VR_LockstepFrameBegin(void)
             in++;
             // (B14e) his next move read, and every reliable message sent him acknowledged: a step's reliable messages go
             // right after its datagram, so he reads them before the next step's, every run
-            ready = ready && qvr::netmove::serverHasNext(i) && c.message.cursize == 0 && NET_CanSendMessage(c.netconnection);
+            ready = ready && qvr::netmove::serverHasNext(i) && c.message.cursize == 0 && VR_ReliableBacklogBytes(i) == 0 &&
+                    NET_CanSendMessage(c.netconnection);
         }
     }
     const za::U64 until = static_cast<za::U64>(q_max(qvr::vr_mp_lockstep_until.value, 0.f));

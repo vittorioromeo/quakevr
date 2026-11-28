@@ -1,3 +1,4 @@
+#include "vr_client.hpp"
 #include "vr_alloccount.h"
 #include "vr_seat.hpp"
 // vr_voicechat.cpp -- see vr_voicechat.hpp (the client: capture, encoding, sending, receiving, playing out, indicators;
@@ -1711,8 +1712,7 @@ void tellListen()
     {
         return;
     }
-    MSG_WriteByte(&cls.message, clc_stringcmd);
-    MSG_WriteString(&cls.message, va("vr_voicechat_listen %u %d", bits, off ? 1 : 0));
+    qvr::client::forwardCommand(va("vr_voicechat_listen %u %d", bits, off ? 1 : 0)); // (mpoverflow: held while full)
     seatListen().listenSent = ListenSent{true, bits, off};
 }
 

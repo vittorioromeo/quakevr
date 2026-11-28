@@ -10,9 +10,11 @@
 #include "vr_weaponvalues.hpp"
 #include "vr_slottable.hpp"
 #include "vr_hands.hpp"
+#include "vr_attach.hpp"
 #include "vr_protocol.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
@@ -265,7 +267,9 @@ namespace
 // (takeLavaSngHousing78).
 // 79: one model per gun (vr_gunvariants.inc): the gun variants' slots (11, 12, 14, 15) only his differences, the rest
 // their gun's; a config's values still those they shipped with to the new defaults (takeGunVariants79).
-constexpr int settingsVersion = 79;
+// 80: the dagger as a bayonet mounted in its frame (blade forward, guard across): a config's own att2 mounts converted,
+// the blade kept, its guard level (takeDaggerFrame80).
+constexpr int settingsVersion = 80;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -1188,6 +1192,59 @@ void takeGunVariants79()
     Con_DPrintf("Weapon settings: the gun variants' slots took their gun's values for %d shipped values\n", taken);
 }
 
+// 80: the dagger as a bayonet (att2_*) mounted in its frame (attach::KindInfo: blade forward, guard across; flatbayonet):
+// a config's own dagger mount (any of its place and turn not today's default; the rest the old defaults: his of
+// 2026-11-27 on the shotguns, slots 1 and 2) converted to the frame, the blade where it was and its guard level
+// (attach::convertOldMount).
+void takeDaggerFrame80()
+{
+    constexpr Key keys[6] = {Key::Att2X, Key::Att2Y, Key::Att2Z, Key::Att2Pitch, Key::Att2Yaw, Key::Att2Roll};
+    struct Old
+    {
+        int slot;
+        float v[6];
+    };
+    constexpr Old olds[] = {{1, {26.56f, 0.f, -2.5f, -70.f, 0.f, 180.f}}, {2, {20.19f, 0.f, 0.95f, -68.5f, 0.f, 180.f}}};
+    const int daggerSlot = 51; // (progs/v_dagger.mdl: its Scale is the drawn dagger's)
+    const float own = cvarAt(daggerSlot, Key::Scale).value > 0.f ? cvarAt(daggerSlot, Key::Scale).value : 1.f;
+    int taken = 0;
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        bool own6[6]{};
+        bool any = false;
+        for(int i = 0; i < 6; i++)
+        {
+            const cvar_t& var = cvarAt(slot, keys[i]);
+            own6[i] = !sameSetting(var.string, var.default_string);
+            any = any || own6[i];
+        }
+        if(!any)
+        {
+            continue;
+        }
+        float v[6];
+        for(int i = 0; i < 6; i++)
+        {
+            v[i] = cvarAt(slot, keys[i]).value;
+            for(const Old& o : olds)
+            {
+                v[i] = o.slot == slot && !own6[i] ? o.v[i] : v[i];
+            }
+        }
+        glm::vec3 pos{v[0], v[1], v[2]};
+        glm::vec3 angles{v[3], v[4], v[5]};
+        const float scale = cvarAt(slot, Key::Att2Scale).value > 0.f ? cvarAt(slot, Key::Att2Scale).value : 1.f;
+        attach::convertOldMount(attach::Dagger, pos, angles, scale * own);
+        const float out[6] = {pos.x, pos.y, pos.z, angles.x, angles.y, angles.z};
+        for(int i = 0; i < 6; i++)
+        {
+            Cvar_SetValueQuick(&cvarAt(slot, keys[i]), za::floor(out[i] * 1000.f + 0.5f) / 1000.f);
+        }
+        taken++;
+    }
+    Con_DPrintf("Weapon settings: %d dagger bayonet mounts turned into the dagger's frame\n", taken);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -1234,6 +1291,7 @@ constexpr Step steps[] = {
     {77, takeMultiRocketHousing77},
     {78, takeLavaSngHousing78},
     {79, takeGunVariants79},
+    {80, takeDaggerFrame80},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

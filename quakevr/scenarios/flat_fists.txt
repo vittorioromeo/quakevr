@@ -1,0 +1,10 @@
+# flat_fists: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode):
+# both hands empty, the left button's alternating jabs and the right button's crossed-arms guard (vr_flat_jab_*,
+# vr_flat_fist_guard_*); flatfists_test.sh. Both hands empty (impulse 150 / 170: the fists), a knight ahead.
+title Flat-screen: empty hands' jabs and crossed-arms guard
+map vrtesthall
+notarget
+cmd impulse 150
+cmd impulse 170
+cmd vr_physics_spawn monster_knight 160 0
+hint Play with -flatscreenmode, both hands empty. Left mouse: a jab, right hand then left hand in turn; hold it for a series. Right mouse held: the forearms cross before your face; the knight's blows from the front are parried (less damage, his attack knocked back). Let go: the hands drop back. Tunables: Debug > Tunables > Flatscreen > Fists: Jabs and Guard.

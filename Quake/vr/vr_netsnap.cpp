@@ -1674,6 +1674,8 @@ struct ByteCounts
     long long svc[256]{};       // the unreliable messages' bytes by command (an entity's update: U_SIGNAL's)
     long long qvr[256]{};       // ... svc_quakevr's by its sub-command
     long long snap[keyClasses]{}; // a snapshot's entries by their keys' class (its own header: the rest of qvr's)
+    long long relSvc[256]{};    // (mpoverflow) the reliable messages' bytes by command ...
+    long long relQvr[256]{};    // ... svc_quakevr's by its sub-command ("mp_netbytes_rel:")
     bool reliableMsg{false};
     int openAt{-1}, openCmd{0}, openSub{0}; // the command being read: where it began
 };
@@ -1980,6 +1982,10 @@ void noteCommand(int at)
     {
         (b.openCmd == protocol::svc_quakevr ? b.qvr[b.openSub] : b.svc[b.openCmd]) += at - b.openAt;
     }
+    else if(b.openAt >= 0 && at > b.openAt)
+    {
+        (b.openCmd == protocol::svc_quakevr ? b.relQvr[b.openSub] : b.relSvc[b.openCmd]) += at - b.openAt;
+    }
     b.openAt = -1;
     if(at >= 0 && at < net_message.cursize)
     {
@@ -2047,6 +2053,39 @@ void bytesReport()
         snap - snapEntries, pose, avatar, ent, cd, sound, tent, voice, rest, top[0] >= 256 ? "q" : "", top[0] & 255, topN[0],
         top[1] >= 256 ? "q" : "", top[1] & 255, topN[1], top[2] >= 256 ? "q" : "", top[2] & 255, topN[2], seatSnapPoses().entOps[0][0], seatSnapPoses().entOps[0][1],
         seatSnapPoses().entOps[1][0], seatSnapPoses().entOps[1][1], seatSnapPoses().entOps[2][0], seatSnapPoses().entOps[2][1], seatSnapPoses().entOps[3][0], seatSnapPoses().entOps[3][1]);
+    // (mpoverflow) The reliable stream's six biggest kinds ("q<sub>": a svc_quakevr's, else the command's number)
+    constexpr int relTop = 6;
+    int rt[relTop];
+    long long rn[relTop];
+    for(int k = 0; k < relTop; k++)
+    {
+        rt[k] = -1;
+        rn[k] = 0;
+    }
+    for(int i = 0; i < 512; i++)
+    {
+        const long long n = i >= 256 ? b.relQvr[i & 255] : b.relSvc[i];
+        for(int k = 0; k < relTop; k++)
+        {
+            if(n > rn[k])
+            {
+                for(int m = relTop - 1; m > k; m--)
+                {
+                    rt[m] = rt[m - 1];
+                    rn[m] = rn[m - 1];
+                }
+                rt[k] = i;
+                rn[k] = n;
+                break;
+            }
+        }
+    }
+    Con_Printf("mp_netbytes_rel: reliable=%lld top=", b.reliable);
+    for(int k = 0; k < relTop && rt[k] >= 0; k++)
+    {
+        Con_Printf("%s%s%d:%lld", k ? "," : "", rt[k] >= 256 ? "q" : "", rt[k] & 255, rn[k]);
+    }
+    Con_Printf("\n");
 }
 
 bool interpActive()

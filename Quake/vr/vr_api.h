@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				48 // (48: weapon attachments: QVR_SVC_WEAPONATTACH 58, an attachment byte in each gun look and holstered gun of the avatar, attach1; 47: the move's .handsynth a short, 256 the flat two-fisted blow, flatmelee6; 46: each player's holsters' places in his avatar calibration, vr_avatarcal 5 and QVR_SVC_AVATARCAL's 84 fields, holstersync; 45: QVR_SVC_CAMPAIGN 57, the server's campaign to a joining client, mpcampaign; 44: the room-scale budget left in QVR_SVC_PREDICT, onecopy (review B6); 43: QVR_SVC_BOTPATH 53, flakehunt; QVR_SVC_HUMLOOK 54, humrepl; and 42 was two wires: syncfix4 coarsened the worn gear in the move and added QVR_SVC_EJECTOTHER 52 after ragsync had shipped 42, mpopen; 42: the ragdolls' parts in the snapshot, QVR_SVC_RAGPOSE, ragsync; a bot's weapons placed by the server in its avatar, bots3; the players' worn gear in the move and the avatar, their power-ups in its gear byte, a bot's holstered weapons, syncfix; 41: the players' guns' looks and torches in the avatar, their torch in the move, wpnsync; 40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
+#define QVR_NET_VERSION				49 // (49: Show Melee Arcs' armed humanoids' swings to the remote clients drawing them, QVR_SVC_MELEEARC 59 and the "vr_meleearcs_want" client command, mparcs; 48: weapon attachments: QVR_SVC_WEAPONATTACH 58, an attachment byte in each gun look and holstered gun of the avatar, attach1; 47: the move's .handsynth a short, 256 the flat two-fisted blow, flatmelee6; 46: each player's holsters' places in his avatar calibration, vr_avatarcal 5 and QVR_SVC_AVATARCAL's 84 fields, holstersync; 45: QVR_SVC_CAMPAIGN 57, the server's campaign to a joining client, mpcampaign; 44: the room-scale budget left in QVR_SVC_PREDICT, onecopy (review B6); 43: QVR_SVC_BOTPATH 53, flakehunt; QVR_SVC_HUMLOOK 54, humrepl; and 42 was two wires: syncfix4 coarsened the worn gear in the move and added QVR_SVC_EJECTOTHER 52 after ragsync had shipped 42, mpopen; 42: the ragdolls' parts in the snapshot, QVR_SVC_RAGPOSE, ragsync; a bot's weapons placed by the server in its avatar, bots3; the players' worn gear in the move and the avatar, their power-ups in its gear byte, a bot's holstered weapons, syncfix; 41: the players' guns' looks and torches in the avatar, their torch in the move, wpnsync; 40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 // A client's voice frames (vr/vr_voicechat.hpp: Opus, 20 ms each; MP_PLAN.md, B10v), after his move.
@@ -110,6 +110,7 @@ void VR_BrowserRefresh (void);		// a new search
 int VR_BrowserSearching (void);
 int VR_BrowserCount (void);		// the rows (built again from the search's replies and the lists)
 const char *VR_BrowserRowText (int row);	// its 35 columns: name, map, players, ping (or its address, "no reply")
+const char *VR_BrowserRowNote (int row);	// why it can't be joined ("Needs Quake VR 1.2.0-beta7..."), "" it can
 int VR_BrowserRowFavourite (int row);
 int VR_BrowserRowRecent (int row);
 void VR_BrowserToggleFavourite (int row);
@@ -539,6 +540,7 @@ int VR_PushSkips (struct edict_s *ent);		// SV_PushMove: nonzero for an entity i
 void VR_PlayerBumps (struct edict_s *ent, struct edict_s *other, const float *normal); // SV_FlyMove, a move stopped by a plane of `other`: a player walking into a solid prop's side shoves it (vr_box3d_player_shove)
 int VR_PropLetsOut (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
 	const float *end, int shaped); // SV_ClipToLinks, a move (his box mins, maxs; shaped: met by VR_PropClip) starting inside `touch`: nonzero if it doesn't block (a player in a solid prop: vr_box3d_player_unstick; vr_box3d_player_hold: not with his feet a little into its top, nor going deeper)
+int VR_DragPasses (struct edict_s *mover, struct edict_s *touch); // SV_ClipToLinks, a body's move: nonzero if `mover` is a player dragging `touch` (a prop or a body) with H at the grab's arm (vr_flat_grab_push): his box passes it, his walk pushes it through his hands
 int VR_OwnPropMeets (struct edict_s *mover, struct edict_s *touch); // SV_ClipToLinks, `touch` is `mover`'s (Quake's owner rule): nonzero if it still meets it (a player and a solid prop he threw: vr_box3d_player_hold)
 int VR_PropClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
 	const float *boxmins, const float *boxmaxs, const float *end, trace_t *trace); // SV_ClipToLinks: a player's own box (mins, maxs; boxmins, boxmaxs as it meets entities) against a solid prop's drawn box, turned (vr_box3d_player_shape): nonzero if traced
@@ -558,6 +560,7 @@ void VR_WriteMoveExtras (struct sizebuf_s *buf, int forward, int side, int up, i
 void VR_WriteVoice (struct sizebuf_s *buf);			// CL_SendMove: voice chat's frames waiting, after the move (vr_voicechat.cpp)
 int VR_ReadVoice (struct client_s *client);			// SV_ReadClientMessage's QVR_CLC_VOICE: 0 a malformed one
 void VR_WriteVoiceTo (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram: the other players' voices
+void VR_WriteMeleeArcs (struct sizebuf_s *msg, struct client_s *client); // SV_SendClientDatagram: Show Melee Arcs' armed swings this frame, to a remote client drawing them (vr_meleeshow.cpp)
 unsigned char *VR_VoicechatSound (const char *name, int *size); // S_LoadSound: a speaker's looping ring (VR_SndMemory)
 int VR_ReadQvrMoves (struct client_s *client);			// SV_ReadClientMessage's QVR_CLC_MOVES: 0 a malformed one (vr_netmove.cpp)
 int VR_AcceptsStaleMoves (struct client_s *client);		// (B20) a remote client sending QVR_CLC_MOVES under the move buffer: his overtaken datagrams read
@@ -614,7 +617,7 @@ int VR_AmmoStat (struct edict_s *ent);				// SV_WriteClientdataToMessage: the st
 int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage: the active weapon item bit
 int VR_EntityUpdateBits (struct edict_s *ent);			// SV_WriteEntitiesToClient, before U_EXTEND*
 void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits); // after the update
-int VR_StepLerpInterval (struct edict_s *ent);			// SV_WriteEntitiesToClient: U_LERPFINISH's byte for a stepping monster in the air (moved every server frame), -1 else (vr_server.cpp)
+int VR_StepMovesEveryFrame (struct edict_s *ent);		// a stepping monster in the air (moved every server frame): sent with U_QVR_MOVEFRAME, its move drawn over the frame (vr_server.cpp; the hit model's too)
 int VR_StepRidesLift (struct edict_s *ent);				// SV_WriteEntitiesToClient: a stepping monster on a moving lift, sent without U_STEP (drawn as the lift is; vr_server.cpp)
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
@@ -675,6 +678,7 @@ void VR_Rig2Latch (void);								// SV_SpawnServer: vr_rig2 read for the map (th
 void VR_RelinkWornTanks (void);							// ... then their back tanks on their drawn backs (vr_adtank.cpp)
 void VR_RagdollRestore (void);							// CL_ReadFromServer, first: their own models back before the server's messages
 unsigned char *VR_DerivedModelFile (const char *name, unsigned int *path_id); // Mod_LoadModel: a model made from another's file (a taken torch's flame), or NULL
+unsigned char *VR_LoadModelFile (const char *name, unsigned int *path_id); // a model's file as Mod_LoadModel reads it: made (VR_DerivedModelFile), else the game's (relit maps); VR_HeapFree it; NULL: none
 const char *VR_ModelSkinName (const char *name);			// Mod_LoadAllSkins: the model name its external skins are found by
 void VR_TorchLights (void);								// CL_ReadFromServer, after the temp entities: torches and flames flicker a small light onto the room (vr_torch_lights)
 void VR_FlameLights (void);								// CL_ReadFromServer, after VR_TorchLights: the flamethrowers' streams light the room, a few smoothed lights from their flames (vr_flame_lights)
@@ -699,6 +703,19 @@ int VR_BroadcastSendable (int before, int room);		// SV_SendClientDatagram: how 
 void VR_NoteClientSight (const edict_t *clent, const byte *pvs, const float *eye);	// SV_WriteEntitiesToClient: his fat PVS and eye, for his broadcast's culling (B13b)
 void VR_WriteBroadcast (struct sizebuf_s *msg, int local, const edict_t *clent);	// SV_SendClientDatagram: the broadcast, a remote client's culled by his sight (vr_net_cullbroadcast)
 void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable_datagram goes to the clients
+// (mpoverflow) A client's reliable stream backed up (no acknowledgement from him for a while: a Quest paused or loading a
+// map, a Wi-Fi stall) past half its 64000 B goes on to a backlog of whole frames' messages, sent on in parts of at most
+// MAX_MSGLEN as he acknowledges (it overflowed: SZ_GetSpace, the client dropped). vr_server.cpp.
+int VR_ReliableBacklog (struct client_s *client, int maysend); // SV_SendClientMessages, each client at the frame's end: 1 handled (its send done here, or held), 0 the engine's own path
+void VR_ReliableOverflowed (struct client_s *client);	// SV_SendClientMessages: his stream overflowed: why printed, and told to him, before he is dropped
+int VR_ReliableBacklogBytes (int slot);					// bytes waiting in that client's backlog
+void VR_ForwardToServer (const char *text);				// Cmd_ForwardToServer: a typed command onto cls.message, or held for a later frame when it is full (vr_client.cpp)
+void VR_FlushHeldCommands (void);						// CL_SendCmd, before the reliable message goes: held commands that now fit
+void VR_ClientReliableStats (void);						// vr_net_stats: the client's own reliable stream (its peak, the commands held)
+// (mpoverflow) CL_SendMove's buffer: a VR player's whole move (no base acknowledged: after a stall) with its repeats
+// outgrew its 1024 B. The moves keep to about 1 KB by cutting their older repeats (netmove::writeMoves), a lone whole
+// move may take more, up to this; the voice frames after them still keep to 1024 B.
+#define QVR_MOVE_BUFFER	4096
 
 // Server physics (sv_phys.c, sv_user.c, world.c).
 int VR_RunThink2 (struct edict_s *ent);				// start of SV_RunThink: 0 if the entity was freed
@@ -870,6 +887,14 @@ void VR_Menu_Key (int key, int repeat);				// M_Keydown, m_vr (repeat: the key's
 void VR_Menu_Mousemove (float cx, float cy);			// M_Mousemove, m_vr
 void VR_Menu_Char (int key);							// M_Charinput, m_vr: a typed character (the Search page's box)
 int VR_Menu_TextEntry (void);							// M_TextEntry, m_vr: a textmode_t (the Search page takes typing)
+// The Controller Bindings screen (vr_bindsetup.cpp, m_bindsetup). VR_BindSetup_Open: Options > Controller Bindings, the
+// VR menu's Controls, the main menu's Setup Bindings for a controller (the keyboard: Options > Controls).
+void VR_BindSetup_Open (void);
+void VR_BindSetup_Draw (void);
+void VR_BindSetup_Key (int key);
+void VR_BindSetup_Char (int key);
+int VR_BindSetup_TextEntry (void);						// the action list is open: typing searches it
+int IN_GetGamepadSdlType (void);						// in_sdl.c: SDL's type of the gamepad in use (-1: none)
 // The VR menu style's widgets (vr_menuui.cpp): nonzero if they drew it in place of Quake's.
 int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc); // M_DrawSliderWithMarkers (marker < 0: none)
 void VR_MenuPanelInFront (void);						// the death menu opening: the menu panel in front of the head (not where a hand left it)

@@ -189,6 +189,7 @@ QVR_FIELD(weaponinst2) // the off hand's
 QVR_FIELD(wi_uid)      // a record's id (networked: the hands' STAT_QVR_WEAPONUID*, a prop's U_QVR_WEAPONUID)
 QVR_FIELD(wi_clip)     // a record's magazine
 QVR_FIELD(wi_attach)   // a record's attachment (QC vr_attach.qc; vr_attach.cpp: networked by its id, QVR_SVC_WEAPONATTACH)
+QVR_FIELD(wi_attach_inst) // the record of the weapon put on it as its attachment (a dagger: daggerattach), kept while it is on
 QVR_FIELD(weaponclipsize)
 QVR_FIELD(weaponclipsize2)
 QVR_FIELD(currentammo2)
@@ -313,7 +314,8 @@ QVR_FIELD(vr_wp_state) // a worn backpack's (QC vr_wornpack.qc): 1 on a living o
 QVR_FIELD(vr_wp_size) // a worn backpack's (QC vr_wornpack.qc): its size as drawn (its kind's vr_worn_backpack_<kind>_scale)
 QVR_FIELD(vr_wp_wearer) // a worn backpack's or lift zone's wearer (QC vr_wornpack.qc): the Rig Studio's census
 QVR_FIELD(vr_wp_worn) // a monster's worn backpack (QC vr_wornpack.qc): 1 on its back (its ragdoll made with the pack on its chest: vr_box3d_wornpack.cpp), else 0
-QVR_FIELD(vr_ar_wear) // its pieces' damage marks (bits 0-9 at two thirds of their pool or under, 10-19 at a third or under; sent with the rest)
+QVR_FIELD(vr_ar_wear) // its pieces' damage marks: the worn-mask bits at two thirds of their pool or under (sent with the rest)
+QVR_FIELD(vr_ar_wear2) // ... at a third or under (two fields: 2 x 15 bits in one float would not be exact; ROUND26.md, "scragtail")
 QVR_FIELD(vr_pp_type) // the player's armour plates, a look alone (QC vr_playerplates.qc): their colour (0 none, 1 green, 2 yellow, 3 red)
 QVR_FIELD(vr_pp_mask) // ... and the pieces shown (vr_agarmor.hpp's bits; sent as QVR_SVC_ARMOR, never read as a wearer's .vr_ar_*)
 QVR_FIELD(attack_finished) // slow motion with the player in its own time (vr_timescale.cpp: vr_sandevistan, vr_timescale_move_realtime): its timers set in its frame run in its time

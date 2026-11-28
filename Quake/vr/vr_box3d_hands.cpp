@@ -630,13 +630,46 @@ int reachTouchCount()
 
 namespace
 {
-// The weapon `player`'s hand `h` holds: its own mass (kg, Weapon Weights: Mass; 0: none, or not a weapon).
-[[nodiscard]] float heldWeaponMass(edict_t* player, int h)
+// (review C7) A player hand's weapon model: its model's precache index and its weapon slot, looked up when its name
+// changes (a scan of the model precache and the weapon table; once per hand per frame before). Valid while the precache
+// entry it was found at is still that string (a new map makes new ones).
+struct HandModel
+{
+    const char* precache{nullptr}; // sv.model_precache[model] when found (nullptr: none found)
+    int model{0};
+    int slot{-1};
+};
+HandModel handModels[MAX_SCOREBOARD + 1][2]; // by edict number (1..maxclients) and hand // seat-shared: by player edict number: every seat draws the same players
+
+[[nodiscard]] const HandModel& handModelOf(int i, int h, const char* name)
+{
+    HandModel& c = handModels[za::min(za::max(i, 0), MAX_SCOREBOARD)][h & 1];
+    if(c.precache && c.model > 0 && c.model < MAX_MODELS && sv.model_precache[c.model] == c.precache &&
+        !ZA_STRCMP(c.precache, name))
+    {
+        return c;
+    }
+    c = HandModel{};
+    c.slot = weapons::slotForName(name);
+    for(int m = 1; m < MAX_MODELS && sv.model_precache[m]; m++)
+    {
+        if(!ZA_STRCMP(sv.model_precache[m], name))
+        {
+            c.model = m;
+            c.precache = sv.model_precache[m];
+            break;
+        }
+    }
+    return c;
+}
+
+// The weapon `player`'s (edict `i`) hand `h` holds: its own mass (kg, Weapon Weights: Mass; 0: none, or not a weapon).
+[[nodiscard]] float heldWeaponMass(edict_t* player, int i, int h)
 {
     const FieldOffsets& f = fields();
     const char* name = h ? PR_GetString(player->v.weaponmodel)
                          : (f.weaponmodel2 >= 0 ? PR_GetString(fieldInt(player, f.weaponmodel2)) : "");
-    const int slot = name && *name ? weapons::slotForName(name) : -1;
+    const int slot = name && *name ? handModelOf(i, h, name).slot : -1;
     return slot >= 0 ? za::max(weapons::value(slot, weapons::Key::Mass), 0.f) : 0.f;
 }
 
@@ -682,17 +715,10 @@ namespace
     // The weapon as the player's view drew it in his hand (his slot's: this game's own player's view this frame, another's
     // as his client drew it; vr_heldpose.hpp, MP_PLAN.md B3e and B11a), its model the server's of the same name.
     const heldpose::Hand* r = heldpose::slotHand(player, h);
-    if(r && r->drawn && name && *name && r->slot == weapons::slotForName(name))
+    const HandModel* hm = r && r->drawn && name && *name ? &handModelOf(i, h, name) : nullptr;
+    if(hm && r->slot == hm->slot)
     {
-        const qmodel_t* model = nullptr;
-        for(int m = 1; m < MAX_MODELS && sv.model_precache[m]; m++)
-        {
-            if(!ZA_STRCMP(sv.model_precache[m], name))
-            {
-                model = sv.models[m];
-                break;
-            }
-        }
+        const qmodel_t* model = hm->model > 0 ? sv.models[hm->model] : nullptr;
         if(model && model->type == mod_alias)
         {
             key.what = Key::Weapon;
@@ -1258,7 +1284,7 @@ void syncReach(float dt)
             const glm::vec3 angles = live ? fieldVec(player, progs::handFields(h).rot) : glm::vec3{0.f};
             glm::mat4 inHand{1.f};
             const Key key = live && point != glm::vec3{0.f} ? reachKey(player, i, h, hb.key, point, angles, inHand) : Key{};
-            hb.weaponMass = key.what == Key::Weapon || key.what == Key::Capsule ? heldWeaponMass(player, h) : 0.f;
+            hb.weaponMass = key.what == Key::Weapon || key.what == Key::Capsule ? heldWeaponMass(player, i, h) : 0.f;
 
             // Its frame: the hand's (forward, left, up), or the drawn weapon's entity.
             glm::mat4 frame{held::axesFromAngles(&angles[0], true)};

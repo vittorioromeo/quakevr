@@ -54,13 +54,13 @@ about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and Smart
 
 | Option | What |
 |---|---|
-| `--package <zip or folder>` | Install this package (otherwise `QuakeVR.zip`, a `QuakeVR\` folder or another `QuakeVR*.zip` with a `manifest.json` beside the exe, otherwise a download; without one and without a release online, the Options page offers "Use a local package…") |
+| `--package <zip or folder>` | Install this package (otherwise `QuakeVR.zip`, a `QuakeVR\` folder or another `QuakeVR*.zip` with a `manifest.json` beside the exe when it is the installer's own version or newer (an older or unreadable one is not used: the release is downloaded, or offline the player is asked), otherwise a download; without one and without a release online, the Options page offers "Use a local package…") |
 | `--textures <zip>` | The HD texture pack, already downloaded |
 | `--target <dir>` | The install folder (default `%LOCALAPPDATA%\Programs\QuakeVR`) |
 | `--shortcuts-dir <dir>` | Shortcuts go to `<dir>\Desktop` and `<dir>\Programs` instead of the real desktop and Start menu (tests) |
 | `--feed <url>` | Where `latest.json` is read (repeatable; default: the GitHub Latest release's; a prerelease's Setup reads its own tag's first). Also `installer-settings.json` beside the exe |
 | `--downloads <dir>` | Where downloads go (default `%LOCALAPPDATA%\QuakeVR-Installer\downloads`) |
-| `--screenshots <dir>` | Render every page to PNG and exit, no window (the Statement page unanswered, mixed and all YES; exit 1 unless its Continue is enabled exactly with YES to both, or unless both Play buttons mute the installer: a 0.3 s fade, then silence, with the game's start recorded instead of run); `fit.txt` (also printed) says which page would scroll, and by how much, at the default size, on 1366x768 at 100%, on 1080p at 150% and in the window at its minimum size; `7-*-150pct*.png` are renders at 150%, `7c-statement-minimum.png` the Statement page at the minimum size (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
+| `--screenshots <dir>` | Render every page to PNG and exit, no window (the Statement page, `1c-statement.png`; exit 1 unless it has no switches and its Continue is enabled, or unless both Play buttons mute the installer: a 0.3 s fade, then silence, with the game's start recorded instead of run); `fit.txt` (also printed) says which page would scroll, and by how much, at the default size, on 1366x768 at 100%, on 1080p at 150% and in the window at its minimum size; `7-*-150pct*.png` are renders at 150%, `7c-statement-minimum.png` the Statement page at the minimum size (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
 | `--offline` | Never ask the network: the online release counts as unavailable (the "Use a local package" path) |
 | `--no-quake-look` | The generated textures and sounds even when Quake is found (screenshots of the fallback) |
 | `--reduce-motion` | Animations off, as with Windows' "Animation effects" off |
@@ -89,7 +89,7 @@ qvr-setup install --package dist\QuakeVR.zip --hd [--no-feed] --dry-run   # what
 qvr-setup install ... --ad [--ad-zip <zip>] [--no-stores]   # Arcane Dimensions (experimental, opt-in): see "Arcane Dimensions" below
 qvr-setup serve --dir out\release\<v>-local\assets --port 8517 [--drop-after <bytes>]   # a local release over HTTP (Range), 127.0.0.1 only
 qvr-setup settings --target <dir> [--set <cvar>=<value>]...   # the settings page without its window (docs/vr-port/INSTALLER.md, section 14)
-qvr-setup statement                                # the author's statement on AI usage (install exits 3 without --accept-statement)
+qvr-setup statement                                # the author's statement on AI usage (install prints it too and goes on; --accept-statement is accepted and ignored)
 qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--assume-missing] [--file <exe>]]   # the VC++ runtime (without --dry-run: installs it, one UAC prompt)
 qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
 qvr-setup quest --target <install dir> --apk QuakeVR.apk [--quake <dir>] [--serial <s>] [--adb <adb.exe> | --no-fetch] [--dry-run]   # the Quest target (see "Quest")

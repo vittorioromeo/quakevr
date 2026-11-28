@@ -6,7 +6,8 @@
 //     (key_dest is his);
 //   - a seat 2-4's Start opens its seat menu, drawn in its tile and driven by its own pad only (keys.c routes a seat's
 //     keys by Key_SeatDest: its seat menu, or the game; never the full menu or the console): Resume, Look Sensitivity
-//     and Invert Look (the seat's own, on its stick), Controls (its pad's buttons), Leave Seat (asked twice);
+//     and Invert Look (the seat's own, on its stick), Controls (its pad's buttons), Controller Bindings (split20: the
+//     Controller Bindings screen for its own pad's bindings, vr_bindsetup.cpp, in its tile), Leave Seat (asked twice);
 //   - scr_splitmenu (archived, default 0): 1 gives every seat's Start the full menu (one menu, as before phase 9);
 //   - scr_splitpause (archived, default 1): a menu open (seat 1's full menu or any seat menu) holds the local game while
 //     more than one seat plays: 0 never, 1 in coop (deathmatch runs on), 2 in coop and deathmatch. Only a game of local
@@ -23,7 +24,11 @@
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 
+#include "vr_bindpanel.hpp"
+#include "vr_bindsetup.hpp"
 #include "vr_engine.hpp"
 #include "vr_testkit.hpp"
 
@@ -44,6 +49,7 @@ enum Item
     ItemSens,
     ItemInvert,
     ItemControls,
+    ItemBindings, // split20: the Controller Bindings screen, the seat's own (bindsetup::openInSeat)
     ItemLeave,
     ItemCount
 };
@@ -57,6 +63,7 @@ struct SeatMenuState
     bool open = false;
     int cursor = ItemResume;
     bool controls = false;     // the Controls page shown
+    bool bindings = false;     // split20: the seat's Controller Bindings screen shown (its pad drives it)
     bool confirmLeave = false; // Leave Seat asked once: A again leaves, anything else not
     bool leaveArmed = false;   // A pressed on the question: the seat leaves on its release (no press carried to seat 1)
     float lookScale = 1.f;     // the seat's stick look sensitivity (its own; phase 12's profiles take the cvars)
@@ -77,6 +84,7 @@ void shut(SeatMenuState& m)
 {
     m.open = false;
     m.controls = false;
+    m.bindings = false;
     m.confirmLeave = false;
     m.leaveArmed = false;
 }
@@ -100,6 +108,11 @@ void menuKeyDown(const int s, const int key)
     SeatMenuState& m = stateOf(s);
     const bool back = isKey(key, K_ESCAPE, K_BBUTTON);
     const bool enter = isKey(key, K_ENTER, K_ABUTTON) || key == K_KP_ENTER;
+    if(m.bindings)
+    {
+        m.bindings = bindsetup::seatKey(key); // (the seat's own bindings; Back returns here)
+        return;
+    }
     if(m.controls)
     {
         if(back || enter)
@@ -155,6 +168,12 @@ void menuKeyDown(const int s, const int key)
                     m.controls = true;
                 }
                 break;
+            case ItemBindings:
+                if(enter)
+                {
+                    m.bindings = bindsetup::openInSeat();
+                }
+                break;
             case ItemLeave:
                 if(enter)
                 {
@@ -182,6 +201,11 @@ void drawItem(const int y, const char* label, const char* value, const bool sele
 void drawMenu(const int s, const SeatMenuState& m)
 {
     GL_SetCanvas(CANVAS_MENU);
+    if(m.bindings && bindsetup::seatScreenOpen())
+    {
+        bindsetup::seatDraw(); // (the seat's current: its own bindings, its pad's picture)
+        return;
+    }
     if(m.controls)
     {
         // split11: flat play's whole controller layout (seat::padLayout), each with the seat's own button for it
@@ -201,20 +225,21 @@ void drawMenu(const int s, const SeatMenuState& m)
         M_Print(48, y + 4, "B: back");
         return;
     }
-    M_DrawTextBox(64, 48, 24, 10);
+    M_DrawTextBox(64, 48, 24, 11);
     M_PrintWhite(80, 60, va("seat %d", s + 1));
     drawItem(76, "Resume", nullptr, m.cursor == ItemResume);
     drawItem(88, "Look Sensitivity", va("x%.2f", static_cast<double>(m.lookScale)), m.cursor == ItemSens);
     drawItem(100, "Invert Look", m.invertLook ? "on" : "off", m.cursor == ItemInvert);
     drawItem(112, "Controls", nullptr, m.cursor == ItemControls);
-    drawItem(124, "Leave Seat", nullptr, m.cursor == ItemLeave);
+    drawItem(124, "Controller Bindings", nullptr, m.cursor == ItemBindings);
+    drawItem(136, "Leave Seat", nullptr, m.cursor == ItemLeave);
     if(m.confirmLeave)
     {
-        M_PrintWhite(80, 140, "leave? A: yes  B: no");
+        M_PrintWhite(80, 152, "leave? A: yes  B: no");
     }
     else if(VR_SeatMenusPause())
     {
-        M_Print(80, 140, "the game is paused");
+        M_Print(80, 152, "the game is paused");
     }
 }
 
@@ -728,12 +753,310 @@ void menuTestFrame()
     testStage();
 }
 
+// ---- vr_seat_bind_test (split20) ------------------------------------------------------------------------------------
+//
+// Each seat's own controller bindings: seat 2 joins by mock pad 1, opens its seat menu (Start), goes down to Controller
+// Bindings and opens it (A): its own screen, its pad's picture; X picks the selected button, the d-pad moves, X swaps the
+// two. Seat 2's two bindings swapped, seat 1's pad bindings unchanged, seat 2's bindings panel shows the swap; B back to
+// the seat menu, B shuts it; then "writeconfig seatbind_test" (quakevr/seatbind_test.cfg). `vr_seat_bind_test check`
+// (the next run, after "exec seatbind_test.cfg": a restart): the config's seat_bind lines read, seat 2 joins again and
+// gets them: against a fresh join's copy (seat 3's), exactly two pad buttons differ, swapped. Verdict "seat_bind_test: N
+// passed, M failed" (Misc/quakevr/seat_bind_test.sh runs both).
+
+namespace
+{
+
+// seat-shared: vr_seat_bind_test's own state machine
+struct BindTest
+{
+    testkit::Tally tally;
+    bool on = false;
+    bool checkRun = false; // the second run: the saved bindings read back
+    int stage = 0;
+    int frames = 0;
+    int wait = 0;
+    int releaseButton = -1;
+    int keyA = -1, keyB = -1;
+    za::String bindA, bindB;
+    za::String host[MAX_KEYS]; // seat 1's pad bindings as the test began
+} bindTest;
+
+bool bcheck(const bool ok, const char* what)
+{
+    if(bindTest.tally.check(ok, "seat_bind_test", what))
+    {
+        Con_Printf("seat_bind_test: PASS %s\n", what);
+    }
+    return ok;
+}
+
+void bpress(const int button)
+{
+    IN_MockPadButton(seatPad, button, true);
+    bindTest.releaseButton = button;
+    bindTest.wait = 4;
+}
+
+[[nodiscard]] bool isPadKey(const int k)
+{
+    return (Key_GetDeviceMaskForKeynum(k) & KDM_GAMEPAD) != 0;
+}
+
+[[nodiscard]] const char* bindOf(const int s, const int k)
+{
+    const char* b = k >= 0 ? Key_SeatOf(s)->bindings[k] : nullptr;
+    return b ? b : "";
+}
+
+void bfinish()
+{
+    for(int b = 0; b < SDL_CONTROLLER_BUTTON_MAX; b++)
+    {
+        IN_MockPadButton(seatPad, b, false);
+    }
+    if(plays(1))
+    {
+        Cbuf_AddText("seat_leave 2\n");
+    }
+    IN_MockPad(seatPad, false);
+    bindTest.on = false;
+    bindTest.tally.verdict("seat_bind_test");
+}
+
+void bnext()
+{
+    bindTest.stage++;
+    bindTest.frames = 0;
+}
+
+// seat 2's bindings panel row for `command` (its pad layout's) names `key`; true when the layout has no such row
+[[nodiscard]] bool panelShows(const char* command, const int key)
+{
+    int count = 0;
+    const PadAction* layout = padLayout(count);
+    const Scope in(at(1));
+    gadget::BindPanelRow r[bindpanel::maxRows];
+    const int n = bindpanel::rows(r, bindpanel::maxRows);
+    for(int i = 0; i < count && i < n; i++)
+    {
+        if(!ZA_STRCMP(layout[i].command, command))
+        {
+            const char* name = Key_KeynumToFriendlyString(key);
+            return !ZA_STRCMP(r[i].keys[0], name) || !ZA_STRCMP(r[i].keys[1], name);
+        }
+    }
+    Con_Printf("seat_bind_test: (no panel row for \"%s\")\n", command);
+    return true;
+}
+
+void bindEditStage()
+{
+    BindTest& t = bindTest;
+    SeatMenuState& m = stateOf(1);
+    switch(t.stage)
+    {
+        case 0:
+            if(!sv.active || !signedOn(0))
+            {
+                return;
+            }
+            for(int k = 0; k < MAX_KEYS; k++)
+            {
+                t.host[k] = isPadKey(k) ? bindOf(0, k) : "";
+            }
+            bcheck(!bindsSaved(1), "a fresh run: seat 2 has no saved bindings");
+            IN_MockPad(seatPad, true);
+            Cbuf_AddText(va("seat_join %d\n", seatPad));
+            bnext();
+            return;
+        case 1:
+            if(!signedOn(1))
+            {
+                return;
+            }
+            bcheck(Key_SeatHasBindings(1), "seat 2 joined with its own bindings (seat 1's copied)");
+            bpress(SDL_CONTROLLER_BUTTON_START);
+            bnext();
+            return;
+        case 2:
+            if(m.cursor != ItemBindings && m.open)
+            {
+                bpress(SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+                return;
+            }
+            bcheck(m.open && m.cursor == ItemBindings, "seat 2's menu: down to Controller Bindings");
+            bpress(SDL_CONTROLLER_BUTTON_A);
+            bnext();
+            return;
+        case 3:
+        {
+            const Scope in(at(1));
+            bcheck(m.bindings && bindsetup::seatScreenOpen() && key_dest == key_game,
+                "A opens seat 2's own Controller Bindings screen (in its tile; the full menu stays shut)");
+            t.wait = 3; // (its tile draws it: the labels laid out)
+            bnext();
+            return;
+        }
+        case 4:
+        {
+            const Scope in(at(1));
+            Cbuf_AddText("screenshot\n"); // (seat 2's screen in its tile: run.sh -Out composes it)
+            t.keyA = bindsetup::cursorKey();
+            t.bindA = bindOf(1, t.keyA);
+            bpress(SDL_CONTROLLER_BUTTON_X);
+            bnext();
+            return;
+        }
+        case 5:
+            bpress(SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+            bnext();
+            return;
+        case 6:
+        {
+            const Scope in(at(1));
+            t.keyB = bindsetup::cursorKey();
+            t.bindB = bindOf(1, t.keyB);
+            bcheck(t.keyA >= 0 && t.keyB >= 0 && t.keyA != t.keyB && !(t.bindA == t.bindB),
+                va("X picked %s (\"%s\"), the d-pad moved to %s (\"%s\")", Key_KeynumToString(t.keyA), t.bindA.cStr(),
+                    t.keyB >= 0 ? Key_KeynumToString(t.keyB) : "-", t.bindB.cStr()));
+            bpress(SDL_CONTROLLER_BUTTON_X);
+            bnext();
+            return;
+        }
+        case 7:
+        {
+            bcheck(t.bindB == bindOf(1, t.keyA) && t.bindA == bindOf(1, t.keyB), "X again: seat 2's two bindings swapped");
+            int changed = 0;
+            for(int k = 0; k < MAX_KEYS; k++)
+            {
+                changed += isPadKey(k) && !(t.host[k] == bindOf(0, k)) ? 1 : 0;
+            }
+            bcheck(changed == 0, va("seat 1's pad bindings unchanged (%d differ)", changed));
+            bcheck(bindsSaved(1), "seat 2's bindings now its own (saved)");
+            bcheck(panelShows(t.bindA.cStr(), t.keyB), "seat 2's bindings panel shows the swap");
+            bpress(SDL_CONTROLLER_BUTTON_B);
+            bnext();
+            return;
+        }
+        case 8:
+            bcheck(!m.bindings && m.open, "B: back to seat 2's menu");
+            bpress(SDL_CONTROLLER_BUTTON_B);
+            bnext();
+            return;
+        case 9:
+            bcheck(!m.open, "B again shuts it");
+            Cbuf_AddText("writeconfig seatbind_test\n");
+            Con_Printf("seat_bind_test: swapped %s and %s, written to seatbind_test.cfg\n", Key_KeynumToString(t.keyA),
+                Key_KeynumToString(t.keyB));
+            t.wait = 2;
+            bnext();
+            return;
+        default: bfinish(); return;
+    }
+}
+
+void bindCheckStage()
+{
+    BindTest& t = bindTest;
+    switch(t.stage)
+    {
+        case 0:
+            if(!sv.active || !signedOn(0))
+            {
+                return;
+            }
+            bcheck(bindsSaved(1) && !bindsSaved(2), "the restart read seat 2's saved bindings (and none for seat 3)");
+            bcheck(!Key_SeatHasBindings(1), "seat 2 not yet joined: no bindings");
+            IN_MockPad(seatPad, true);
+            Cbuf_AddText(va("seat_join %d\n", seatPad));
+            bnext();
+            return;
+        case 1:
+        {
+            if(!signedOn(1))
+            {
+                return;
+            }
+            const bool seat3Had = Key_SeatHasBindings(2);
+            Key_SeatCopyBindings(2, 0); // (a fresh join's copy: seat 3, never saved)
+            int diff[3] = {-1, -1, -1};
+            int n = 0;
+            for(int k = 0; k < MAX_KEYS; k++)
+            {
+                if(isPadKey(k) && ZA_STRCMP(bindOf(1, k), bindOf(2, k)))
+                {
+                    diff[za::min(n, 2)] = k;
+                    n++;
+                }
+            }
+            bcheck(n == 2 && !ZA_STRCMP(bindOf(1, diff[0]), bindOf(2, diff[1])) && !ZA_STRCMP(bindOf(1, diff[1]), bindOf(2, diff[0])),
+                va("seat 2 joined with its saved bindings: %d pad buttons differ from a fresh join's (%s, %s), swapped", n,
+                    diff[0] >= 0 ? Key_KeynumToString(diff[0]) : "-", diff[1] >= 0 ? Key_KeynumToString(diff[1]) : "-"));
+            if(!seat3Had)
+            {
+                const Scope in(at(2));
+                for(int k = 0; k < MAX_KEYS; k++)
+                {
+                    Key_SetBinding(k, nullptr);
+                }
+            }
+            bfinish();
+            return;
+        }
+        default: bfinish(); return;
+    }
+}
+
+void bindTest_f()
+{
+    bindTest = BindTest{};
+    bindTest.on = true;
+    bindTest.checkRun = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "check");
+    Con_Printf("seat_bind_test: started%s\n", bindTest.checkRun ? " (check)" : "");
+}
+
+} // namespace
+
+void bindTestFrame()
+{
+    BindTest& t = bindTest;
+    if(!t.on)
+    {
+        return;
+    }
+    if(t.wait > 0)
+    {
+        t.wait--;
+        if(t.wait == 2 && t.releaseButton >= 0)
+        {
+            IN_MockPadButton(seatPad, t.releaseButton, false);
+            t.releaseButton = -1;
+        }
+        return;
+    }
+    if(++t.frames > stageFrames)
+    {
+        bcheck(false, va("timed out (stage %d)", t.stage));
+        bfinish();
+        return;
+    }
+    if(t.checkRun)
+    {
+        bindCheckStage();
+    }
+    else
+    {
+        bindEditStage();
+    }
+}
+
 void registerMenuCommands()
 {
     Cvar_RegisterVariable(&scr_splitmenu);
     Cvar_RegisterVariable(&scr_splitpause);
     Cmd_AddCommand("seat_menu", menuCommand_f);
     Cmd_AddCommand("vr_seat_menu_test", registerTestCommand_f);
+    Cmd_AddCommand("vr_seat_bind_test", bindTest_f);
 }
 
 } // namespace qvr::seat

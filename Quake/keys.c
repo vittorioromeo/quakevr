@@ -980,6 +980,7 @@ void Key_WriteBindings (FILE *f)
 		if (bindings[i] && *bindings[i])
 			fprintf (f, "bind \"%s\" \"%s\"\n", Key_KeynumToString(i), bindings[i]);
 	}
+	Key_SeatWriteBindings (f); // QVR: split20: seats 2-4's own controller bindings, once their players changed them
 }
 
 

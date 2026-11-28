@@ -53,7 +53,8 @@ enum m_state_e {
 	m_credits, // QVR: native official campaign ending
 	m_confirm, // QVR: a question over the menu it came from, with two buttons (M_Confirm)
 	m_autosaves, // QVR: Load Autosave, and the death menu (M_Menu_Autosaves_f, M_CheckDeathMenu)
-	m_splitscreen // QVR: Multiplayer > Splitscreen, the join screen (vr/vr_splitjoin.cpp)
+	m_splitscreen, // QVR: Multiplayer > Splitscreen, the join screen (vr/vr_splitjoin.cpp)
+	m_bindsetup // QVR: the Controller Bindings screen (vr/vr_bindsetup.cpp)
 };
 
 // QVR: splitscreen phase 10 (docs/vr-port/SPLITSCREEN.md): the join screen (vr/vr_splitjoin.cpp)
@@ -69,6 +70,12 @@ qboolean M_Splitscreen_Shown (void);	// Multiplayer has the Splitscreen row (fla
 int M_NetLevelCount (void);				// the Host Game page's levels (the game's own: id1, hipnotic, rogue)
 const char *M_NetLevelName (int i);
 const char *M_NetLevelDesc (int i);
+
+// QVR: the menus' bounds as last laid out (menu x, y; the Controller Bindings screen lays out in them).
+void M_GetBounds (int *left, int *top, int *width, int *height);
+// QVR: every action Options > Controls lists for either device (bindlist.lst's too; not the flat keys), in its order:
+// `add` called with each one's command and name (the strings last until the Controls menu opens again).
+void M_Keys_EachAction (void (*add) (const char *command, const char *name));
 
 extern enum m_state_e m_state;
 extern enum m_state_e m_return_state;

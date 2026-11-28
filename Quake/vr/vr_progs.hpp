@@ -140,6 +140,8 @@ struct Bindings
     float* mapContentSeed{nullptr};
     float* spawnLive{nullptr}; // vr_spawn_live: 1 round a spawn function run in a live game (box3d::spawnClass)
     float* agrHold{nullptr};   // vr_agr_hold: > 0 while a tool spawns (no armed replacement: progs::ToolSpawn)
+    float* arHoldRoll{nullptr};   // vr_ar_hold_roll: 1 while a spawn's armour is its spawner's, not the skill's roll
+    float* arBeastRolls{nullptr}; // vr_ar_beast_rolls: the beasts' skill rolls so far (the toolgun's armour test)
     float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)
     float* handTimeScale{nullptr};    // vr_hand_time_scale: the hands' velocities to real time (timescale::handScale)
     float* arenaWave{nullptr};        // ar_wave: the wave in the field (vr_waveeditor's test: what Play started)

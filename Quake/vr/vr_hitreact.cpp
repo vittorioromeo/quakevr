@@ -620,6 +620,13 @@ namespace hitreact_detail
     return composeRigid(offsetRigid(aggrip::global(kind, hand)), w);
 }
 
+rigpose::Rigid gripRigidOf(const ArmedRig* a, int slot, int hand)
+{
+    // (AD's knights: their own kind's (agpose::adKnight, adposekind), shipping none: held as their own rest weapon is,
+    // the Grips tab's edits of their kind laid on; before, the knight's edits on their zero default: adrigfix)
+    return gripRigid(armedPoseKind(a), slot, hand);
+}
+
 // A pistol carried low (its barrel down past 27 degrees) in one hand: no cup (the other cupping it
 // there reached across the body, its upper arm through the torso).
 [[nodiscard]] bool lowCarry(const agarms::Targets& t)
@@ -799,7 +806,6 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
     }
     // (the hands' grip frames its posed arms held its weapons by, so the weapon stays as it was held: without this its
     // weapons were left to the server's placing, riding the limb nearest them as the ragdoll began, off the hand)
-    const int kind = static_cast<int>(a - armedRigs);
     for(int side = 0; side < 2; side++)
     {
         const int num = side == 0 ? s.prop : ((s.flags & apLeftWeapon) ? s.propL : 0);
@@ -822,7 +828,7 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
         }
         entity_t& p = cl_entities[num];
         rigpose::Rigid w = composeRigid(gripFrame,
-            gripRigid(kind, weapons::slotForModel(p.model), side == 0 ? aggrip::Main : aggrip::Off));
+            gripRigidOf(a, weapons::slotForModel(p.model), side == 0 ? aggrip::Main : aggrip::Off));
         // vr_agarms: the hand as drawn (its vertices' fit, rest -> now), as the posed arms moved those vertices when it
         // held the weapon alive. Its bone alone is not that: the authored rig blends the hand's vertices over the hand and
         // its forearm and fingers (the grunt's weapon was drawn 0.6 units and 20 degrees off its hand by it).
@@ -916,7 +922,6 @@ void ragWeaponMeasure(const ArmPose& s, const entity_t* e)
     }
     const agbody::Proxies* px = chest >= 0 ? agbody::of(src, *rig, chest, a->torsoSides) : nullptr;
     const agbody::Posed q = px && za::abs(scale - 1.f) < 1e-3f ? agbody::pose(*px, posed, nullptr) : agbody::Posed{};
-    const int kind = static_cast<int>(a - armedRigs);
     for(int side = 0; side < 2; side++)
     {
         const int pn = side == 0 ? s.prop : ((s.flags & apLeftWeapon) ? s.propL : 0);
@@ -957,7 +962,7 @@ void ragWeaponMeasure(const ArmPose& s, const entity_t* e)
         const glm::quat wantRot = glm::normalize(H.rot * grip.rot);
         const glm::vec3 wantPos = H.rot * (grip.pos * scale) + H.pos;
         const entity_t& p = cl_entities[pn];
-        const rigpose::Rigid off = gripRigid(kind, weapons::slotForModel(p.model), side == 0 ? aggrip::Main : aggrip::Off);
+        const rigpose::Rigid off = gripRigidOf(a, weapons::slotForModel(p.model), side == 0 ? aggrip::Main : aggrip::Off);
         const glm::quat wr = rotOfAngles(p.angles);
         const glm::quat gr = glm::normalize(wr * glm::inverse(off.rot));
         const glm::vec3 gp = geom::vec(p.origin) - scale * (gr * off.pos);
@@ -1347,7 +1352,6 @@ void relinkAuthored(const ArmPose& s, const entity_t* e, const qmodel_t* src)
     {
         return;
     }
-    const int kind = static_cast<int>(a - armedRigs);
     for(int side = 0; side < 2; side++)
     {
         const int num = side == 0 ? s.prop : ((s.flags & apLeftWeapon) ? s.propL : 0);
@@ -1355,7 +1359,7 @@ void relinkAuthored(const ArmPose& s, const entity_t* e, const qmodel_t* src)
         {
             continue;
         }
-        const rigpose::Rigid offset = gripRigid(kind, weapons::slotForModel(cl_entities[num].model), side == 0 ? aggrip::Main : aggrip::Off);
+        const rigpose::Rigid offset = gripRigidOf(a, weapons::slotForModel(cl_entities[num].model), side == 0 ? aggrip::Main : aggrip::Off);
         rigpose::Rigid w;
         if(rigstudio::authoredWeapon(s.ent, side, num, offset, w) && placeable(w))
         {
@@ -1845,6 +1849,97 @@ void info_f()
     }
 }
 
+// vr_adgrip_test [check] (adrigfix; needs AD's knights armed and drawn, scene ad_knights_armed): the Pose Studio's Grips tab
+// drives AD's death guard and crossbow knight. The first call notes each one's right hand in its weapon's frame (and the
+// regular knight's) and moves the AD Knight kind's global main grip 3 units forward (adposekind: their own kind; before,
+// the knight's); `check`, a few drawn frames later, looks for each AD hand moved along its weapon by about that much and
+// the knight's not at all, puts vr_agrunt_grips back and ends on "adgrip: N passed, M failed".
+struct AdGripTest
+{
+    static constexpr int maxSeen = 8;
+    int ent[maxSeen]{};
+    int row[maxSeen]{};
+    glm::vec3 rel[maxSeen]{};
+    int count{0};
+    char saved[1024]{};
+    bool started{false};
+};
+AdGripTest adGrip; // seat-shared: a test's state
+constexpr float adGripShift = 3.f;
+
+[[nodiscard]] glm::vec3 handInWeapon(const ArmSeen& as)
+{
+    return glm::inverse(as.weapon.rot) * (as.hand[0] - as.weapon.pos);
+}
+
+void adGripTest_f()
+{
+    constexpr int adKind = agpose::adKnight; // (AD's rows' poseKind: their own kind since adposekind)
+    constexpr int knightRow = 2;             // (the regular knight: his hand must not move)
+    const bool check = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "check");
+    if(!check)
+    {
+        adGrip = AdGripTest{};
+        for(const ArmPose& s : armPoses.slots)
+        {
+            const entity_t* b = s.ent > 0 && s.ent < cl.num_entities ? &cl_entities[s.ent] : nullptr;
+            const ArmedRig* a = b ? armedRigOf(b->model) : nullptr;
+            if(!a || s.seenFrame < 0 || host_framecount - s.seenFrame > 36 || s.prop <= 0 || adGrip.count >= AdGripTest::maxSeen)
+            {
+                continue;
+            }
+            const int row = static_cast<int>(a - armedRigs);
+            if(row < agpose::numRowKinds && row != knightRow)
+            {
+                continue;
+            }
+            adGrip.ent[adGrip.count] = s.ent;
+            adGrip.row[adGrip.count] = row;
+            adGrip.rel[adGrip.count] = handInWeapon(armSeen[&s - armPoses.slots]);
+            adGrip.count++;
+        }
+        q_strlcpy(adGrip.saved, vr_agrunt_grips.string, sizeof(adGrip.saved));
+        aggrip::Offset o = aggrip::global(adKind, aggrip::Main);
+        o.pos.x += adGripShift;
+        aggrip::set(adKind, aggrip::allWeapons, aggrip::Main, o);
+        adGrip.started = true;
+        Con_Printf("adgrip: %d armed knights noted (AD's and the knight); the AD Knight kind's main grip moved %.0f forward\n",
+            adGrip.count, adGripShift);
+        return;
+    }
+    testkit::Tally t;
+    t.check(adGrip.started, "adgrip", "started (vr_adgrip_test first)");
+    int rows[3]{0, 0, 0};
+    for(int i = 0; i < adGrip.count; i++)
+    {
+        const ArmPose* found = nullptr;
+        for(const ArmPose& s : armPoses.slots)
+        {
+            found = s.ent == adGrip.ent[i] && host_framecount - s.seenFrame <= 36 ? &s : found;
+        }
+        const float moved = found ? glm::length(handInWeapon(armSeen[found - armPoses.slots]) - adGrip.rel[i]) : -1.f;
+        Con_Printf("adgrip: ent %d (row %d): its hand moved %.2f along its weapon\n", adGrip.ent[i], adGrip.row[i], moved);
+        if(adGrip.row[i] == knightRow)
+        {
+            // (the regular knight: his own kind, untouched)
+            t.check(moved >= 0.f && moved < 0.25f, "adgrip",
+                va("ent %d: the knight's hand moved %.2f in his weapon's frame (want none)", adGrip.ent[i], moved));
+            rows[2]++;
+            continue;
+        }
+        t.check(moved > adGripShift * 0.5f && moved < adGripShift * 1.5f, "adgrip",
+            va("ent %d row %d: the hand moved %.2f in its weapon's frame (the grip %.0f)", adGrip.ent[i], adGrip.row[i], moved, adGripShift));
+        rows[adGrip.row[i] == 4 ? 0 : 1]++;
+    }
+    t.check(rows[0] > 0, "adgrip", "a death guard was seen");
+    t.check(rows[1] > 0, "adgrip", "a crossbow knight was seen");
+    t.check(rows[2] > 0, "adgrip", "a knight was seen");
+    Cvar_Set("vr_agrunt_grips", adGrip.saved);
+    t.check(!ZA_STRCMP(vr_agrunt_grips.string, adGrip.saved), "adgrip", "the grips put back");
+    adGrip = AdGripTest{};
+    t.verdict("adgrip");
+}
+
 constexpr float poleHandOff = 3.5f; // units a hand's grip may be off a pole weapon's shaft (agpole: on it)
 
 // vr_agholds_report (Debug > Armed Humanoids: Weapon Holds Report; ROUND22.md, "Armed humanoids' weapon holds"): each
@@ -2154,6 +2249,7 @@ void registerCommands()
     Cmd_AddCommand("vr_agrunt_armpose_check", armPoseCheck_f);
     Cmd_AddCommand("vr_agholds_report", holdsReport_f);
     Cmd_AddCommand("vr_agholds_pose", holdPose_f);
+    Cmd_AddCommand("vr_adgrip_test", adGripTest_f);
     aggrip::registerCommands();
     agarms::registerCommands();
     aglegs::registerCommands();

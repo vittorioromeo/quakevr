@@ -233,17 +233,17 @@ void PF_ragdollbone()
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::shotPiece(G_EDICT(OFS_PARM0), p, dir));
         return;
     }
-    if(within == -1001.f) // QVR_ARMOR_CLIENT: the client's word on e's armour (p_x: 0 type, 1 pieces, 2 wear; -1 none)
+    if(within == -1001.f) // QVR_ARMOR_CLIENT: the client's word on e's armour (p_x: 0 type, 1 pieces, 2 wear at 2/3, 3 at 1/3; -1 none)
     {
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::clientState(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(p[0])));
         return;
     }
     if(within == -1006.f) // QVR_ARMOR_BEAST: e's beast kind's armour (vr_beastarmour.cpp): p_x 0 its slots (bits; 0 not a
-    {                     // beast), 1 its cuirass group, 2 the pieces' entities drawn this frame (the tests)
-        edict_t* e = G_EDICT(OFS_PARM0);
-        const int what = static_cast<int>(p[0]);
-        G_FLOAT(OFS_RETURN) = static_cast<float>(what == 2 ? beastarmour::drawnCount() : what == 1 ? beastarmour::cuirassGroup(e) :
-            beastarmour::slots(e));
+    {                     // beast), 1 its cuirass group, 2 the pieces drawn this frame (p_y 1: their parts too; the tests),
+        edict_t* e = G_EDICT(OFS_PARM0); // 3 how many pieces worn-mask bit p_y has (its debris), 4 the slot bit p_y is worn
+        const int what = static_cast<int>(p[0]); // with (-1 none), 5 the ways its slot's share is split for bit p_y (1 none)
+        G_FLOAT(OFS_RETURN) = static_cast<float>(what == 5 ? beastarmour::bitSplit(e, static_cast<int>(p[1])) : what == 4 ?beastarmour::bitOwner(e, static_cast<int>(p[1])) : what == 3 ? beastarmour::bitEntries(e, static_cast<int>(p[1])) : what == 2 ? beastarmour::drawnCount(p[1] != 0.f) :
+            what == 1 ? beastarmour::cuirassGroup(e) : beastarmour::slots(e));
         return;
     }
     if(within == -1002.f) // QVR_ARMOR_PIECE_BONES: the rig's bones piece p_x rides (bits, as ragdolllimbs')
@@ -372,7 +372,8 @@ void PF_ragdolllimbs()
 // `what` 10 / 11 (the builtins' table being full): armour piece `bone` of an armed humanoid as its own model
 // ("<model>#plate<piece>", vr_agarmor.cpp): its origin / its angles now, as drawn; 12 / 13 / 14 a point on its outer face
 // near one end / the other / at its middle (15% / 85% / 50% along it: the tests' hits on a plate); 15 the outer face's
-// outward normal at that middle (the tests' line to it).
+// outward normal at that middle (the tests' line to it). 18 (a beast's piece, vr_beastarmour.cpp): {its scale as drawn,
+// its box's diagonal as drawn, 0}.
 // limbpiece 30..33 (QC VR_WP_Place, the server's frame: the main thread): a worn pack's four (20..23) found at once by 25,
 // the other three read back from it (the same entity, frame and time; else found again).
 struct WornPackRead
@@ -406,7 +407,7 @@ void PF_limbpiece()
         o[2] = w.z;
         return;
     }
-    if(what >= 10 && what <= 17) // (16, 17: a split plate's halves' middles: vr_agarmor_split)
+    if(what >= 10 && what <= 18) // (16, 17: a split plate's halves' middles: vr_agarmor_split; 18 a beast's piece's size)
     {
         agarmor::plateWhere(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what - 10, G_VECTOR(OFS_RETURN));
         return;
@@ -453,9 +454,10 @@ void PF_limbmodel()
 {
     // (QVR_ARMOR_HALF - (2 * piece + half): a broken plate's half's model, vr_agarmor_split; the builtins' table is full)
     const int bone = static_cast<int>(G_FLOAT(OFS_PARM1));
-    if(bone <= armorBeastCode && bone > armorBeastCode - agarmor::NumPieces)
+    if(bone <= armorBeastCode && bone > armorBeastCode - beastarmour::maxEntryCodes)
     {
-        // (QVR_ARMOR_BEAST_MODEL - slot: a beast's armour piece's model, vr_beastarmour.cpp; "" none)
+        // (QVR_ARMOR_BEAST_MODEL - code: a beast's armour piece's model, vr_beastarmour.cpp (code: its bit + 16 x n, the
+        // bit's nth piece); "" none)
         G_INT(OFS_RETURN) = PR_SetEngineString(beastarmour::pieceModel(G_EDICT(OFS_PARM0), armorBeastCode - bone));
         return;
     }

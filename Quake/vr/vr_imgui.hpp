@@ -36,12 +36,20 @@ bool beginFrame();
 void setPanel(unsigned framebuffer, int width, int height, float texels);
 // The mouse for the next frame: where it is (-FLT_MAX: nowhere), its button, the wheel's turn. Goes in after the SDL
 // backend's own, so it wins.
-void feedMouse(float x, float y, bool down, float wheel);
+void feedMouse(float x, float y, bool down, float wheel, bool right = false);
 
 // The style: 0 dark, 1 light, 2 classic.
 void setTheme(int theme);
 
 // VR_Shutdown: the backends and the context let go (GL objects with the context still current).
 void shutdown();
+
+// The ID check (vr_imgui_idcheck 1, or a test's `idCheck(true)`): every item of a frame's windows by its ID, two items
+// with one ID ("conflicting ID!", ImGui's own warning only shows under the mouse) found each frame and named on the
+// console once each. idConflicts: the items with another's ID in the last frame checked; idConflictsSeen: all frames'
+// since the check began (or was reset by idCheck(true) again).
+void idCheck(bool on);
+[[nodiscard]] int idConflicts();
+[[nodiscard]] int idConflictsSeen();
 
 } // namespace qvr::imgui

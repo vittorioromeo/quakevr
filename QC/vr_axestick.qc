@@ -449,7 +449,7 @@ float(vector xAt, vector xDir) VR_AxeStick_Plate =
     {
         dprint(sprintf("axestick: %s at %s's piece %g\n", self.netname, other.classname, piece));
     }
-    if(piece < 0 || piece >= VR_AR_PIECES || !VR_AgArmor_On(other, piece))
+    if(piece < 0 || piece >= VR_AR_SLOTS || !VR_AgArmor_On(other, piece))
     {
         return FALSE;
     }

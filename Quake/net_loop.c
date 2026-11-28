@@ -78,6 +78,8 @@ void Loop_SearchForHosts (qboolean xmit)
 	hostcache[0].users = net_activeconnections;
 	hostcache[0].maxusers = svs.maxclients;
 	hostcache[0].driver = net_driverlevel;
+	hostcache[0].qvrNetVersion = 0; // QVR: (netmismatch) this game's own server: always joinable
+	hostcache[0].qvrRelease[0] = 0;
 	Q_strcpy(hostcache[0].cname, "local");
 }
 

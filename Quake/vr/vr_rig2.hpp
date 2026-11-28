@@ -82,6 +82,9 @@ struct Rig
     Bone bones[maxBones];
     za::Vector<Weights> weights; // per .mdl vertex
     int generation{0};           // bumped on every edit (the drawn model's weights made again)
+    // `poses_from <model>`: its Rig Studio poses, override tracks and sequences are that model's (rigdata::filesBase;
+    // used only while both rigs have the same bones: names, parents, joints). Empty: its own.
+    za::String posesFrom;
 };
 
 struct Pose
@@ -91,7 +94,13 @@ struct Pose
 
 // The rig of `model` (its file read on first use; nullptr: none). Kept for the session; reload() reads it again.
 [[nodiscard]] Rig* rigFor(const qmodel_t* model);
+[[nodiscard]] Rig* rigForName(const char* model); // (the same by the model's name: "progs/vrdguard.mdl")
+// A model's rig copied into `out` without keeping it (the kept one if read already, else its file): false none. (For a
+// look at another model's bones: reading it through rigFor would count it in latch's generations.)
+[[nodiscard]] bool peek(const char* model, Rig& out);
 void reload();
+// Whether two rigs have the same bones: count, names, parents and joint types (their places and limits may differ).
+[[nodiscard]] bool sameBones(const Rig& a, const Rig& b);
 
 // A bone by name (-1 none).
 [[nodiscard]] int boneByName(const Rig& rig, const char* name);

@@ -768,7 +768,6 @@ Quake/r_world.c|r_world_litbmodels
 Quake/r_world.c|r_world_litskip
 Quake/r_world.c|r_world_litsplit
 Quake/r_world.c|r_world_littex
-Quake/r_world.c|r_world_littexcap
 Quake/r_world.c|r_world_solid_program
 Quake/r_world.c|worldfragments
 Quake/sbar.c|sb_lines
@@ -3041,7 +3040,6 @@ Quake/vr/vr_runsetup.cpp|armedTally
 Quake/vr/vr_runsetup.cpp|checkTally
 Quake/vr/vr_runsetup.cpp|enemiesCheck
 Quake/vr/vr_runsetup.cpp|state
-Quake/vr/vr_scenario.cpp|givenWeapon
 Quake/vr/vr_scenario.cpp|hintUntil
 Quake/vr/vr_scenario.cpp|phase
 Quake/vr/vr_scenario.cpp|phaseSince

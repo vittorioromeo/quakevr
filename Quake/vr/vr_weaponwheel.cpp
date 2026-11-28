@@ -10,10 +10,12 @@
 // the holster menu's and the number keys' own steps (VR_FlatHolster_DrawInto, _Put), the headset's weapon records,
 // sounds, refusals and messages, and every player sees the weapons' stats and models change as ever.
 
+#include "vr_client.hpp"
 #include "vr_weaponwheel.hpp"
 
 #include "vr_api.h"
 #include "vr_backend.hpp"
+#include "vr_bindpanel.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatholster.hpp"
@@ -155,6 +157,11 @@ int listHolsters(int hand, Choice* out, int max)
         copyText(c.title, sizeof(c.title), s.title);
         copyText(c.name, sizeof(c.name), s.name);
         copyText(c.model, sizeof(c.model), s.model);
+        c.clip = s.clip;
+        c.clipSize = s.clipSize;
+        c.ammoType = s.ammoType;
+        c.reserve = s.reserve;
+        c.attach = s.attach;
         // An empty holster takes the hand's weapon (a quick slot's copy); a full one gives its own (immersive: the same
         // weapon already in the hand is a quick slot's copy only).
         c.usable = s.name[0] ? (immersive || q_strcasecmp(s.model, held.model) != 0) : handFull;
@@ -168,8 +175,7 @@ void pickHolster(int hand, const Choice& c)
     {
         return;
     }
-    MSG_WriteByte(&cls.message, clc_stringcmd);
-    MSG_WriteString(&cls.message, va("vr_wheel_pick %d %d", hand, c.key));
+    qvr::client::forwardCommand(va("vr_wheel_pick %d %d", hand, c.key)); // (mpoverflow: held while full)
 }
 
 const Provider holsters{"holsters", listHolsters, pickHolster};
@@ -1307,6 +1313,11 @@ void render()
         s.title = c.title;
         s.name = c.name;
         s.model = c.model;
+        s.clip = c.clip;
+        s.clipSize = c.clipSize;
+        s.ammoType = c.ammoType;
+        s.reserve = c.reserve;
+        s.attach = c.attach;
         s.hovered = i == ws().hovered;
         s.drop = s.hovered && c.usable ? Drop::Valid : c.usable ? Drop::None : Drop::Invalid;
     }
@@ -1327,7 +1338,6 @@ void render()
     v.buttonCount = buttonCount;
     v.lines = lines;
     v.lineCount = len > innerR * 0.5f ? 3 : 2;
-    v.header = ws().shownHand == HAND_MAIN ? "WEAPON WHEEL - RIGHT HAND" : "WEAPON WHEEL - LEFT HAND";
     const bool lit = ws().hovered >= 0 && ws().choices[ws().hovered].usable;
     const int litKey = lit ? ws().choices[ws().hovered].key : 0;
     v.footer = !lit                 ? (ws().outside ? "Let go here: cancel" : ws().flat ? "Point at a slot" : "Move the hand to a slot")
@@ -1371,8 +1381,18 @@ void drawFlat()
         h = w * panelH / panelW;
     }
     ws().scale = h / panelH;
+    // The bindings panel over it (wheelui; vr_flat_bind_panel), at its scale, the two kept on the window together (the
+    // panel under the wheel when the wheel is too high for it above).
+    const glm::vec2 keys = bindpanel::shown() ? bindpanel::size() : glm::vec2{0.f};
+    const float ks = za::min(ws().scale, W * 0.96f / za::max(keys.x, 1.f));
+    const float above = keys.y > 0.f ? (keys.y + 4.f) * ks : 0.f;
     const float x0 = za::clamp(ws().screenAt.x - w * 0.5f, W * 0.02f, za::max(W * 0.98f - w, W * 0.02f));
-    const float y0 = za::clamp(ws().screenAt.y - h * 0.5f, H * 0.02f, za::max(H * 0.98f - h, H * 0.02f));
+    const float y0 = za::clamp(ws().screenAt.y - h * 0.5f, H * 0.02f + above, za::max(H * 0.98f - h, H * 0.02f + above));
+    if(keys.y > 0.f)
+    {
+        const float kx = za::clamp(x0 + (w - keys.x * ks) * 0.5f, W * 0.02f, za::max(W * 0.98f - keys.x * ks, W * 0.02f));
+        bindpanel::drawOnWindow(kx, y0 - above, ks, ws().fade);
+    }
     flatholster::drawOnWindow(ws().texture, {panelW, panelH}, {x0, y0, w, h}, ws().fade);
     if(ws().hand >= 0)
     {

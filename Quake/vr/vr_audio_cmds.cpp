@@ -249,6 +249,23 @@ void playDir_f()
     playAt(sfx, p, volume, attenuation, -1);
 }
 
+// A sound of the player's own (vr_snd_play_own <sample> [channel] [volume]): on his entity's channel (1, QC
+// CHAN_WEAPON: from the main hand's muzzle in VR, its gunfire layers with it; 0 the middle of the head), as QC's
+// sound() starts one. For his own gun's sound against the mix (ROUND26.md, "muffled"; Debug > Sound).
+void playOwn_f()
+{
+    if(Cmd_Argc() < 2 || cls.state != ca_connected || cl.viewentity <= 0)
+    {
+        Con_Printf("vr_snd_play_own <sample> [channel] [volume]: a sound of yours, on your channel (1 your gun's, from its "
+                   "muzzle in VR)\n");
+        return;
+    }
+    sfx_t* sfx = S_PrecacheSound(Cmd_Argv(1));
+    const int channel = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 1;
+    const float volume = Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 1.f;
+    S_StartSound(cl.viewentity, channel, sfx, cl_entities[cl.viewentity].origin, volume, 1.f);
+}
+
 // Copies of a sound at once (vr_snd_burst <sample> [count] [distance] [spread] [volume]): ahead of the listener,
 // spread round a circle, all started this frame as explosive boxes blowing up together are (Quake's S_StartSound
 // offsets identical sounds started together a little). For the effects' bus's limiter (vr_snd_limiter).

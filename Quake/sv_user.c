@@ -508,7 +508,13 @@ void SV_ReadClientMove (usercmd_t *move)
 // moves run through it too)
 void VR_ApplyClientMove (client_t *client, float time, const float *angle, int forward, int side, int up, int bits, int impulse)
 {
-	client->ping_times[client->num_pings%NUM_PING_TIMES] = qcvm->time - time;
+	// QVR: (review A13) the move's time is the client's: a NaN or huge one clamped to 0..10 s (the status line's int)
+	float	ping = qcvm->time - time;
+	if (!(ping >= 0.f))
+		ping = 0.f;
+	else if (ping > 10.f)
+		ping = 10.f;
+	client->ping_times[client->num_pings%NUM_PING_TIMES] = ping;
 	client->num_pings++;
 
 	VectorCopy (angle, client->edict->v.v_angle);
@@ -664,6 +670,8 @@ nextmsg:
 					ret = 1; // QVR: the headset's weapon wheel's pick: a holster's weapon into a hand (vr_weaponwheel.cpp, QC VR_Wheel_Pick)
 				else if (q_strncasecmp(s, "vr_nav_botpaths ", 16) == 0)
 					ret = 1; // QVR: the bots' navmesh paths sent him for his vr_nav_debug (vr_navfollow.cpp)
+				else if (q_strncasecmp(s, "vr_meleearcs_want ", 18) == 0)
+					ret = 1; // QVR: Show Melee Arcs' armed swings sent him for his vr_enemy_melee_arc_show (vr_meleeshow.cpp)
 				else if (q_strncasecmp(s, "vr_avatarcal ", 13) == 0)
 					ret = 1; // QVR: the player's avatar calibration, kept and passed on (vr_mpavatar.cpp)
 				else if (q_strncasecmp(s, "vr_voicechat_listen ", 20) == 0)

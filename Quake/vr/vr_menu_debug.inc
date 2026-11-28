@@ -568,6 +568,7 @@ za::Vector<Item> pageDebugProfiling()
         command("Rig Lights on the Walls", "vr_rig_lights_world 1")
             .help("vr_rig_lights_world 1 (the default): the rig's small lights light the walls too."),
         row(opt::vr_gl_world_lit_skip),
+        row(opt::vr_gl_world_lit_reuse),
         row(opt::vr_gl_quake_dlights),
         row(opt::vr_gl_world_dlmap),
         row(opt::vr_gl_world_dlmap_batch),
@@ -998,6 +999,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Android: Export Eye Images", "vr_android_export eyeshots")
             .help("vr_android_export eyeshots: the eye images (vr_eyeshot) copied into the app's internal export/ "
                   "folder, which a debuggable APK's `adb shell run-as` reads (Android only)."),
+        command("Android: Open the Game's Files to adb", "vr_android_share")
+            .help("vr_android_share: everything the game made in its folder (saves, autosave, config, logs, caches) "
+                  "opened to adb (folders 2777, files 0666, as Setup's), so `adb pull` backs it all up before an "
+                  "uninstall (Android only)."),
         header("Diagnostics"),
         command("Game Code and Folders", "vr_gamecode")
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
@@ -1037,10 +1042,15 @@ za::Vector<Item> pageDebugReports()
         command("Held Hands on Arms: Start", "vr_hold_arm_probe 1")
             .help("vr_hold_arm_probe 1: from now, every frame a hand is drawn on a held limb or a prop dragged with Grab / Pull, "
                   "how far its wrist is past its arm's reach (it should stay 0: the hand stays on the arm at full stretch until "
-                  "the hold lets go). Hold something, walk away from it, then Held Hands on Arms: Report."),
+                  "the hold lets go), and how smoothly the hand is drawn. Hold something, walk away from it, then Held Hands on "
+                  "Arms: Report."),
+        command("Held Hands on Arms: Start, Each Frame Logged", "vr_hold_arm_probe 2")
+            .help("vr_hold_arm_probe 2: as Start, and every frame prints the held thing as drawn and as the server has it, the "
+                  "hold's point and the drawn hand (holdjit: lines in the console and qconsole.log), for a hand that shakes."),
         command("Held Hands on Arms: Report", "vr_hold_arm_probe report")
             .help("vr_hold_arm_probe report: the frames held since the start or the last report, the most the wrist was past its "
-                  "arm (cm), and how often the drawn hand was pulled in to its arm."),
+                  "arm (cm), how often the drawn hand was pulled in to its arm, and its shake: how far it left a smooth path "
+                  "(cm; it should stay well under 1 on a crate dragged with H) and slid on what it holds a frame."),
         command("Flatscreen Status Bar Report", "vr_flathud_report")
             .help("vr_flathud_report: each hand's ammo counter as the flatscreen status bar draws it (hudstyle 1, "
                   "vr_flat_hud), the ammo pools, the status bar's own ammo number, bullet time's bar and the canvas."),
@@ -1071,6 +1081,10 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Reload Report", "vr_flatreload_report")
             .help("vr_flatreload_report: each hand's reload trip as drawn (the server's bit, the share of the way to the hip, "
                   "which hip, the hand's distance from it, its pitch and hotspot) and R's presses."),
+        command("Flatscreen Attach Report", "vr_flatattach_report")
+            .help("vr_flatattach_report: the Attach key's (J) hand trip as drawn: its phase, putting on or taking off, the hands, "
+                  "the attachment, the hand's share of the way and the slide's, and the presses, trips, impulses sent at once and "
+                  "on arrival, cancels and the last one's reason."),
         command("Flatscreen Swim Report", "vr_flatswim_report")
             .help("vr_flatswim_report: the swimming strokes as drawn (swimming, the stroke's cycle, speed and mix of kinds), each "
                   "hand's share and take-over, and what vr_flatswim_probe measured since: each hand's path and palm."),
@@ -1084,6 +1098,7 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Force Grab: Press E", "vr_flat_fg_press")
             .help("vr_flat_fg_press: E's force grab, as the key presses it (the palm turns out first, then the grab)."),
         row(opt::vr_flat_reload_debug),
+        row(opt::vr_flat_attach_debug),
         command("Holster Menu Dump", "vr_flat_holster_menu_dump")
             .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "
                   "hand holds, and each button's place, whether it does something now and its impulse."),
@@ -1261,6 +1276,7 @@ za::Vector<Item> pageDebugReports()
                   "that animation, read from its model (the directional parry: vr_blowline.cpp): its limb's or weapon's ends, how far "
                   "it sweeps, the direction square to it: what your weapon should lie along. Show Disarm Volumes draws them on the monsters."),
         command("Steady Vertices Check", "vr_mdl_dequant_check").help("vr_mdl_dequant_check [model ...]: each model's vertices dequantised (as drawn): its animation runs and loops, the largest offset from the stored values (at most half a step), how much the vertices' second differences shrink (all of them; the slow parts, where the file's rounding shows), the loops the game's QuakeC plays (their seams: second differences there and inside, stored, as before and now), how far the normals turn from frame to frame, the time it takes, and the load totals."),
+        command("Skeleton Warp Check", "vr_anim_warp_check").help("vr_anim_warp_check [model ...]: each rigged monster's warping (how much its vertices move on their bones from frame to frame, against the rigid limbs: the second difference along its animations, units) in its frames as stored and as drawn now (Rebuild From Skeleton, Rebuild Joints From Two Bones), and how far the drawing departs from the frames; the ogre's must be at most 0.8 of its frames'. Ends with a verdict line."),
         command("Smooth Animation Rig Hashes", "vr_anim_smooth_rig_hash").help("vr_anim_smooth_rig_hash: each rigged model's rig data as made (the poses each bone fits badly in, the rebuilt keys, the rest rows, the fit statistics) hashed, by name: two builds' printouts compare their rig data byte for byte."),
         command("Smooth Animation Models", "vr_anim_smooth_info").help("vr_anim_smooth_info [model [frames]]: the models drawn smoothed: the frames that follow by name or were seen, the rig's bones and how many poses each is fitted too badly in to swing."),
         command("Trace Nearest Monster's Motion", "vr_anim_smooth_trace 180").help("vr_anim_smooth_trace <frames> [<entity> | <model>]: the nearest monster's drawn animation over the next frames (here 180): how much its points' speed changes from frame to frame (median, p95, most), printed at the end. Run it with Model Animation on Quake's Blend, then Smooth, to compare (even frames: vr_fixed_frames 1)."),
@@ -1336,6 +1352,12 @@ za::Vector<Item> pageDebugReports()
             .help("vr_serverrules: the settings the server judges by for every player (every balance page's, the gameplay "
                   "preset's, the melee timing): how many, those off their defaults, and on a remote server's client the "
                   "server's against yours."),
+        command("Server Rules: Self-Test", "vr_serverrules_selftest")
+            .help("vr_serverrules_selftest: a remote server's rule values as a client takes them: not finite or not a "
+                  "number refused, past the menu's range clamped to it; every default and gameplay preset value in range."),
+        command("Network: Control Reply Budget", "vr_net_ctlbudget selftest")
+            .help("vr_net_ctlbudget [selftest]: the server-info, player, rule and reject replies refused so far (each source "
+                  "address has a byte budget: no reflector); selftest: a budget spent, refused, refilled."),
         command("Network: Players Seen", "vr_mp_status")
             .help("vr_mp_status: the players this client sees (entity, name, where, whether the last message carried them) "
                   "and, hosting, the server's clients. The multiplayer harness (Misc/quakevr/mp) reads the same lines."),
@@ -1622,15 +1644,28 @@ za::Vector<Item> pageArmourStudio()
             .help("vr_armourstudio: the kind below put ahead of you with its fists, held still and unhurt, in the tier below, "
                   "the part picked outlined in cyan. The player's kind is your own body (the menu's body clone, a mirror)."),
         cycle("Kind", vr_armourstudio_kind,
-            {{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Player (Your Body)"}})
+            {{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Player (Your Body)"}, {5.f, "Death Guard (AD)"},
+                {6.f, "Crossbow Knight (AD)"}, {7.f, "Rottweiler"}, {8.f, "Ogre"}, {9.f, "Scrag"}, {10.f, "Fiend"}})
             .help("vr_armourstudio_kind: whose armour is edited (quakevr/data/armour.txt's kind: grunt also the plain soldier, "
-                  "enforcer both enforcers, player every body build)."),
+                  "enforcer both enforcers, player every body build; AD's death guard and crossbow knight share one set while "
+                  "their rigs match; a beast by its model, its pieces rigid on its bones, each with a leather junction)."),
         cycle("Tier", vr_armourstudio_tier, {{1.f, "Green"}, {2.f, "Yellow"}, {3.f, "Red"}})
             .help("vr_armourstudio_tier: the subject's armour."),
         slider("Turn", vr_armourstudio_turn, -180.f, 180.f, 15.f, "%.0f deg")
             .help("vr_armourstudio_turn: the subject turned from facing you (180: its back)."),
         slider("Body Ghost", vr_armourstudio_ghost, 0.f, 1.f, 0.05f, "%.2f")
             .help("vr_armourstudio_ghost: how opaque the subject's body is drawn (1 as it is), the plates whole."),
+        slider("Subject Away", vr_armourstudio_subject_x, -48.f, 48.f, 2.f, "%.0f")
+            .help("vr_armourstudio_subject_x: the subject moved this far further from you than where it was put (units; not saved "
+                  "in armour.txt)."),
+        slider("Subject Left", vr_armourstudio_subject_y, -48.f, 48.f, 2.f, "%.0f")
+            .help("vr_armourstudio_subject_y: ... to your left."),
+        slider("Subject Up", vr_armourstudio_subject_z, -32.f, 48.f, 2.f, "%.0f")
+            .help("vr_armourstudio_subject_z: ... up (a beast's back or a helmet's top at your eyes)."),
+        slider("Subject Pitch", vr_armourstudio_subject_pitch, -90.f, 90.f, 5.f, "%.0f deg")
+            .help("vr_armourstudio_subject_pitch: the subject tipped (its top or underside in view)."),
+        slider("Subject Roll", vr_armourstudio_subject_roll, -90.f, 90.f, 5.f, "%.0f deg")
+            .help("vr_armourstudio_subject_roll: the subject rolled onto its side."),
         toggle("Wear the Part Alone", vr_armourstudio_alone)
             .help("vr_armourstudio_alone: the subject wears only the part picked (both sides), the rest of its armour off."),
         toggle("Close With the Menu or Window", vr_armourstudio_autoclose)
@@ -1640,8 +1675,12 @@ za::Vector<Item> pageArmourStudio()
         cycle("Part", vr_armourstudio_part,
             {{0.f, "Cuirass"}, {1.f, "Helmet"}, {2.f, "Pauldrons (Upper Arms)"}, {3.f, "Bracers (Forearms)"}, {4.f, "Thighs"},
                 {5.f, "Shins"}, {6.f, "Elbow Sleeves (Upper Arm's)"}, {7.f, "Elbow Sleeves (Forearm's)"}, {8.f, "Knee Sleeves (Thigh's)"},
-                {9.f, "Knee Sleeves (Shin's)"}})
-            .help("vr_armourstudio_part: the piece edited, outlined on the subject."),
+                {9.f, "Knee Sleeves (Shin's)"}, {10.f, "Cuirass's Leather (Beasts)"}, {11.f, "Helmet's Leather (Beasts)"},
+                {12.f, "Plate 8 (Beasts; the Scrag's Front)"}, {13.f, "Plate 9 (Beasts)"}, {14.f, "Plate 8's Leather (Beasts)"}, {15.f, "Plate 9's Leather (Beasts)"},
+                {16.f, "Tail (Beasts)"}, {17.f, "Tail's Leather (Beasts)"}, {18.f, "Plate 8 Back (Scrag)"},
+                {19.f, "Plate 8 Back's Leather (Scrag)"}})
+            .help("vr_armourstudio_part: the piece edited, outlined on the subject. A beast's sleeves are each piece's leather "
+                  "junction to the piece it joins (the line above names both); a part not on the kind says so."),
         cycle("Side", vr_armourstudio_side, {{0.f, "Both (Mirrored)"}, {1.f, "Left Only"}, {2.f, "Right Only"}})
             .help("vr_armourstudio_side: a limb's part edited on both sides (the left's values, the right the mirror image), or "
                   "one side's own values over them."),
@@ -1655,6 +1694,13 @@ za::Vector<Item> pageArmourStudio()
         slider("Yaw", vr_armourstudio_yaw, -45.f, 45.f, 1.f, "%.0f deg").help("vr_armourstudio_yaw: ... about its up axis."),
         slider("Roll", vr_armourstudio_roll, -45.f, 45.f, 1.f, "%.0f deg").help("vr_armourstudio_roll: ... about its forward axis."),
         slider("Scale", vr_armourstudio_scale, 0.5f, 1.5f, 0.02f, "%.2fx").help("vr_armourstudio_scale: its size round its middle."),
+        slider("Size Forward", vr_armourstudio_scale_x, 0.5f, 1.5f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_scale_x: its size along the body's forward alone (times the scale; scale_x in armour.txt). "
+                  "A piece's, not a sleeve's."),
+        slider("Size Left", vr_armourstudio_scale_y, 0.5f, 1.5f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_scale_y: ... along its left (its width across the body; scale_y)."),
+        slider("Size Up", vr_armourstudio_scale_z, 0.5f, 1.5f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_scale_z: ... along its up (scale_z)."),
         slider("Stand-off", vr_armourstudio_standoff, -1.f, 2.f, 0.05f, "%.2f")
             .help("vr_armourstudio_standoff: units further off the skin (below 0 closer): a plate piece's rows' radii, a sleeve or "
                   "the helmet pushed out from its middle."),
@@ -1676,6 +1722,48 @@ za::Vector<Item> pageArmourStudio()
         toggle("Leather Sleeve Shown", vr_armourstudio_leather)
             .help("vr_armourstudio_leather: a sleeve part's leather (over the elbow or the knee) drawn, or not at all (saved as "
                   "leather \"0\"). Pick a sleeve part and a side to hide one strap alone."),
+        slider("Leather Sag (Beasts)", vr_armourstudio_sag, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_sag: a beast's leather junction's middle dropped this far (units; below 0 raised). Its width "
+                  "at each end is the tapers, its thickness the stand-off; Leather Sleeve Shown turns it off."),
+        slider("Sleeve: Own End Forward", vr_armourstudio_start_offset_x, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_start_offset_x: a sleeve part's (leather junction's) end on its own piece moved along the body's "
+                  "forward (units; start_offset in armour.txt). It rides its piece. A humanoid's joint: the thigh's sleeve moves the "
+                  "thigh's end, the shin's the shin's. 0 as made."),
+        slider("Sleeve: Own End Left", vr_armourstudio_start_offset_y, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_start_offset_y: ... along the body's left (the right side's mirrored)."),
+        slider("Sleeve: Own End Up", vr_armourstudio_start_offset_z, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_start_offset_z: ... along the body's up."),
+        slider("Sleeve: Joined End Forward", vr_armourstudio_end_offset_x, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_end_offset_x: the sleeve's end on the piece it joins moved along the body's forward (units; "
+                  "end_offset). A humanoid's: used when that piece's own sleeve sets none."),
+        slider("Sleeve: Joined End Left", vr_armourstudio_end_offset_y, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_end_offset_y: ... along the body's left."),
+        slider("Sleeve: Joined End Up", vr_armourstudio_end_offset_z, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_end_offset_z: ... along the body's up."),
+        slider("Sleeve: Own End Size", vr_armourstudio_start_radius, 0.5f, 2.f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_start_radius: the end ring on the sleeve's own piece made larger or smaller round its middle "
+                  "(start_radius; 1 as made)."),
+        slider("Sleeve: Joined End Size", vr_armourstudio_end_radius, 0.5f, 2.f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_end_radius: ... the end ring on the piece it joins (end_radius)."),
+        toggle("Sleeve: Own End on Far Edge (Beasts)", vr_armourstudio_start_edge)
+            .help("vr_armourstudio_start_edge: a beast's junction's end on its own piece's far edge instead of the edge facing "
+                  "the other piece (start_edge 1)."),
+        toggle("Sleeve: Joined End on Far Edge (Beasts)", vr_armourstudio_end_edge)
+            .help("vr_armourstudio_end_edge: ... the joined piece's far edge (end_edge 1)."),
+        slider("Sleeve: Twist", vr_armourstudio_twist, -90.f, 90.f, 1.f, "%.0f deg")
+            .help("vr_armourstudio_twist: the joined end's ring turned round the line between the ends, so the leather's columns "
+                  "spiral (degrees; twist)."),
+        slider("Sleeve: Bulge Forward", vr_armourstudio_bulge_x, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_bulge_x: the sleeve's middle pushed along the body's forward, nothing at its ends (units; bulge)."),
+        slider("Sleeve: Bulge Left", vr_armourstudio_bulge_y, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_bulge_y: ... along its left."),
+        slider("Sleeve: Bulge Up", vr_armourstudio_bulge_z, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_bulge_z: ... along its up."),
+        slider("Sleeve: Segments", vr_armourstudio_segments, 0.f, 8.f, 1.f, "%.0f")
+            .help("vr_armourstudio_segments: the sleeve's rings less one (1-8; 0 as made, from its folds)."),
+        toggle("Sleeve: Closed All Round (Beasts)", vr_armourstudio_fill)
+            .help("vr_armourstudio_fill: a beast's junction closed all round: the columns where one piece has no edge (open "
+                  "strips where plates meet at the flanks) laid round its end at their neighbours' reach (fill 1)."),
         toggle("Hero Plates", vr_armourstudio_hero)
             .help("vr_armourstudio_hero: the part's hero plates, a row's plates drawn as one: the cuirass's breastplate, the "
                   "pauldrons' top row as two big plates, the bracers' elbow cop, the shins' knee cop. Off: every plate its own "
@@ -1815,6 +1903,15 @@ za::Vector<Item> pageDebugTools()
         open("Texture Studio", pageIndex(pageTextureStudio))
             .help("The armed humanoids' recolours by weapon: each row's colour, strength, lightness and tint, and which "
                   "texels they dye (palette rows, painted texels), live on a row lined up ahead; saved to quakevr/humlook.txt."),
+        header("Controller Bindings"),
+        command("Controller Bindings Screen", "menu_bindsetup")
+            .help("menu_bindsetup [model]: the Controller Bindings screen for the controller in use (or a model's: quest3, "
+                  "index, vive, xboxone, playstation...; its arrows step through every picture)."),
+        command("Print Controller Bindings", "vr_bindsetup_print")
+            .help("vr_bindsetup_print [model]: the controller detected, and each of its buttons' key and binding."),
+        command("Bindings Screen Tests", "vr_bindsetup_detect_test; vr_bindsetup_test")
+            .help("The detection table (profiles and gamepad types to pictures) and the screen's swap, pick and reset on "
+                  "the binds (put back after): their verdict lines in the console."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),

@@ -404,6 +404,26 @@ void PF_weapondrawnpose()
         progs::returnVec(what == 49 ? rot : shift);
         return;
     }
+    if(what == 54)
+    {
+        // weapondrawnpose(world, tag, 54): the armed humanoids' arms counted under vr_agrunt_ik_tag `tag` since the last
+        // vr_agrunt_ik_err: the right and left hands' grips most off their goals (reach short) and the off hand most off its
+        // second grip (units); '-1 -1 -1' nothing counted (agarms::reachErr; QC test 231, adposekind's keys).
+        glm::vec3 m{-1.f};
+        (void)agarms::reachErr(static_cast<int>(G_FLOAT(OFS_PARM1)), m.x, m.y, m.z);
+        progs::returnVec(m);
+        return;
+    }
+    if(what == 55 || what == 56)
+    {
+        // weapondrawnpose(world, tag, 55): ... the right hand's most's way (where its wrist was brought less its goal, model
+        // space: x forward, y left, z up); 56 the left's; '0 0 0' none.
+        glm::vec3 by[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+        float r = 0.f, l = 0.f, s = 0.f;
+        (void)agarms::reachErr(static_cast<int>(G_FLOAT(OFS_PARM1)), r, l, s, by);
+        progs::returnVec(by[what - 55]);
+        return;
+    }
     if(what == 53)
     {
         // weapondrawnpose(bot, hand, 53): a bot's weapon's muzzle (a blade's tip) as every client draws it (bots3:
@@ -1012,8 +1032,9 @@ void PF_meleeshow()
 }
 
 // float(entity weapon, float what, vector a, vector b, float v) meleeshowfoe: Show Melee Arcs' armed humanoid swings
-// (vr_meleeshow.hpp addFoe; QC vr_meleerules.qc VR_MeleeArc_ShowSwings, sent only while vr_enemy_melee_arc_show is on);
-// world records nothing. Returns the frames the view drew any (meleeshow::foeDrawnFrames: the tests).
+// (vr_meleeshow.hpp addFoe; QC vr_meleerules.qc VR_MeleeArc_ShowSwings, sent only while vr_enemy_melee_arc_show is on, or
+// a remote client draws them); world records nothing. Returns the frames the view drew any (meleeshow::foeDrawnFrames: the
+// tests); world with what -2: 1 if a remote client draws them (meleeshow::remoteWanted: QC VR_MeleeArc_Shown), else 0.
 void PF_meleeshowfoe()
 {
     edict_t* w = G_EDICT(OFS_PARM0);
@@ -1021,6 +1042,11 @@ void PF_meleeshowfoe()
     {
         meleeshow::addFoe(NUM_FOR_EDICT(w), static_cast<int>(G_FLOAT(OFS_PARM1)), geom::vec(G_VECTOR(OFS_PARM2)),
             geom::vec(G_VECTOR(OFS_PARM3)), G_FLOAT(OFS_PARM4));
+    }
+    else if(static_cast<int>(G_FLOAT(OFS_PARM1)) == -2)
+    {
+        G_FLOAT(OFS_RETURN) = meleeshow::remoteWanted() ? 1.f : 0.f;
+        return;
     }
     G_FLOAT(OFS_RETURN) = static_cast<float>(meleeshow::foeDrawnFrames());
 }

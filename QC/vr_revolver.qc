@@ -100,6 +100,7 @@ float vr_rv_ej_spent;    // spent and live shells dropped (tests)
 float vr_rv_ej_live;
 float vr_rv_loaded;      // shells loaded by hand, and the last one's chamber (tests)
 float vr_rv_lastch;
+float vr_rv_lastch2;     // (the pair's second chamber, -1 for a single shell: vr_revolver_shell_pairs)
 float vr_rv_refusals;    // swipes refused right after loading (tests), the last one's time
 float vr_rv_spinrefused;
 float vr_rv_opened;      // times swung out and home (tests)
@@ -551,15 +552,17 @@ void(float xHand, entity r, string xHow) VR_Revolver_Close =
 // velocity (m/s) that threw them out (VR_Revolver_Push; they go that way at that speed x vr_revolver_eject_impulse),
 // '0 0 0' when something else let them drop.
 // With vr_rv_keep_live set (flat-screen play's reload, vr_flatreload.qc: the rounds go in at the hip as any gun's), only
-// the spent ones leave; the live ones stay in their chambers (its clip as it was).
+// the spent ones leave; the live ones stay in their chambers (its clip as it was). So too with vr_revolver_spent_first
+// (his note 2026-11-27) while any spent ones are in it: the next eject, none spent then, drops the live ones.
 vector vr_rv_ej_vel; // (the last live shell's velocity, units a second: the tests)
 // (vr_rv_keep_live: vr_flatreload.qc, before this)
 void(float xHand, entity r, string xHow, vector xPush) VR_Revolver_Eject =
 {
     entity h = VR_Revolver_Hand(self, xHand);
     float spent = VR_Revolver_Count(r, 2);
-    float live = vr_rv_keep_live ? 0 : VR_Revolver_Count(r, 1);
-    if(vr_rv_keep_live)
+    float keep = vr_rv_keep_live || (cvar_hget(cvarh_vr_revolver_spent_first) && spent > 0);
+    float live = keep ? 0 : VR_Revolver_Count(r, 1);
+    if(keep)
     {
         for(float c = 0; c < RV_CHAMBERS; c++)
         {
@@ -615,6 +618,14 @@ void(float xHand, entity r, string xHow, vector xPush) VR_Revolver_Eject =
     VR_Reload_Log(sprintf("the revolver (hand %g): its shells out by %s: %g spent, %g live", xHand, xHow, spent, live));
 };
 
+// Whether a motion (the hand's push, the ejector rod) may eject again from the revolver of hand record `h`: with
+// vr_revolver_spent_first, not while the last eject's rod is still out (one push dropped the spent ones; the same push
+// going on must not drop the live ones a frame later). Off: always, as before.
+float(entity h) VR_Revolver_EjectReady =
+{
+    return !cvar_hget(cvarh_vr_revolver_spent_first) || time >= h.rvh_rod;
+};
+
 // A round `xRound` goes into the revolver in `xGunHand` of self (vr_reload.qc VR_Reload_LoadInto; from the other hand,
 // `xHeld`, else a loose one): a shell into the empty chamber nearest it, if the cylinder is out. TRUE if it is used up.
 float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto =
@@ -639,26 +650,47 @@ float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto =
         return FALSE;
     }
     VR_Revolver_SetChamber(g, i, 1);
+    // A taped pair (vr_revolver_shell_pairs; the pouch's, VR_Reload_Take): its other slug into the empty chamber next
+    // nearest it, at once; none empty, it stays in the fingers (as the shotgun's pair with one place left).
+    float j = -1;
+    if(xRound.vr_ammo_count >= 2 && cvar_hget(cvarh_vr_revolver_shell_pairs))
+    {
+        j = VR_Revolver_ChamberFor(xGunHand, g, VR_Reload_RoundRef(xRound));
+    }
+    float n = 1;
+    if(j >= 0)
+    {
+        VR_Revolver_SetChamber(g, j, 1);
+        n = 2;
+    }
     entity rh = VR_Revolver_Hand(self, xGunHand);
     if(rh) { rh.rvh_held_at = rh.rvh_loaded_at = time; } // (no spin from the swipe away after it, nor a push out: vr_revolver_spin_hold)
     float clip = VRGetEntWeaponClip(self, xGunHand);
-    VRSetEntWeaponClip(self, xGunHand, clip + 1);
-    xRound.vr_ammo_count = xRound.vr_ammo_count - 1;
+    VRSetEntWeaponClip(self, xGunHand, clip + n);
+    xRound.vr_ammo_count = xRound.vr_ammo_count - n;
     VR_Reload_AmmoChanged(self);
-    VR_Reload_ShellsIn(self, VRGetGunChannel(xGunHand), 1);
+    VR_Reload_ShellsIn(self, VRGetGunChannel(xGunHand), n);
     if(xHeld)
     {
         VR_Reload_Haptic(self, xHand, 0.05, 160, 0.8); // the shell pushed home
     }
     VR_Reload_Haptic(self, xGunHand, 0.06, 80, 0.6);
-    vr_rv_loaded++;
+    vr_rv_loaded += n;
     vr_rv_lastch = i;
-    VR_Reload_Log(sprintf("a shell into the revolver's chamber %g (hand %g%s): %s, %g in the reserve", i, xGunHand,
-        xHeld ? "" : ", a loose one by contact", VR_Revolver_Desc(g), VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS)));
+    vr_rv_lastch2 = j;
+    VR_Reload_Log(sprintf("%s into the revolver's chamber %g%s (hand %g%s): %s, %g in the reserve", n == 2 ? "a pair" : "a shell",
+        i, n == 2 ? sprintf(" and %g", j) : "", xGunHand, xHeld ? "" : ", a loose one by contact", VR_Revolver_Desc(g),
+        VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS)));
     if(VR_Revolver_Count(g, 0) == 0)
     {
         VR_Reload_Sound(self, CHAN_AUTO, "vr/reload_full.wav", 0.8);
         VR_Reload_Log("the revolver's chambers are full now");
+    }
+    if(n == 2)
+    {
+        // (The pair drawn as its two slugs, each sliding into its own hole.)
+        VR_Reload_SetModel(xRound);
+        collectfx(xHand, world, QVR_CFX_INTO_CHAMBER + j, xRound.modelindex, xRound.origin, xRound.angles);
     }
     if(xRound.vr_ammo_count <= 0)
     {
@@ -895,7 +927,7 @@ void(float xHand, entity h, entity r) VR_Revolver_OtherHand =
     vector rel = VRGetEntHandVel(self, other) - VRGetEntHandVel(self, xHand); // (m/s)
     // The ejector rod's head, in front of the cylinder on its axis.
     vector tip = vr_rv_port + vr_rv_axis * (RV_ROD_TIP * RV_SCALE);
-    if(cvar_hget(cvarh_vr_revolver_eject_rod) && VR_Revolver_Count(r, 0) < RV_CHAMBERS &&
+    if(cvar_hget(cvarh_vr_revolver_eject_rod) && VR_Revolver_Count(r, 0) < RV_CHAMBERS && VR_Revolver_EjectReady(h) &&
        vlen(hp - tip) <= cvar_hget(cvarh_vr_revolver_eject_rod_reach) &&
        rel * -vr_rv_axis >= cvar_hget(cvarh_vr_revolver_eject_rod_speed))
     {
@@ -1061,7 +1093,7 @@ void(float xHand, entity h, entity r) VR_Revolver_ReloadFrame =
     // The hand's push the way its chambers open: its shells leave with it, whatever the other hand holds (his note
     // dm3_2026-11-22_16-14-25: a shell ready in the off hand, the flick down dropped nothing). Not just after a shell
     // went in, which is when a gun is brought back to it quickly; not two-handed.
-    if(VR_Revolver_Push(h, xHand) && VR_Revolver_Count(r, 0) < RV_CHAMBERS && !VRGet2HAiming(self) &&
+    if(VR_Revolver_Push(h, xHand) && VR_Revolver_Count(r, 0) < RV_CHAMBERS && !VRGet2HAiming(self) && VR_Revolver_EjectReady(h) &&
        time >= h.rvh_loaded_at + max(0, cvar_hget(cvarh_vr_revolver_spin_hold)))
     {
         VR_Revolver_Eject(xHand, r, sprintf("a push of the hand (%.2f m/s over %.0f cm)", h.rvh_ejpeak, h.rvh_ejrun * 100), vr_rv_push);

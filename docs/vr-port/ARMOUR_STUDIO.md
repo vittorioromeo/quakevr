@@ -51,6 +51,30 @@ closes the studio too (`vr_armourstudio_autoclose` 1; 0: the studio keeps runnin
   the menu's way and sees it on the window, clicks Stop, presses Escape: `armourwin: 17 passed, 0 failed` (writes
   `quakevr/data/armour_wintest.txt`, never armour.txt). In a headset it checks the window refuses: `armourwin: 1 passed`.
 
+### The handle (gizmo)
+
+While the window is open and the studio runs, the part picked has a handle on it in the view (the Rig Studio's handle,
+`vr_gizmo.cpp`, shared): at the part's middle, in the part's own frame (its bone as posed, turned by its rotate). The window's
+**Handle** row (or the keys **Q W E R**, `vr_armourstudio_gizmo` 0-3) picks it: Off, **Move** (arrows along the part's forward /
+left / up, plane squares, the centre dot in the view's plane: Forward / Left / Up), **Rotate** (rings about its axes: Pitch /
+Yaw / Roll), **Scale** (arms with box ends: Size Fwd / Left / Up; the centre dot dragged across: Scale, 150 pixels doubling
+it). A drag writes the rows' own cvars, so it is the same edit as a slider's: the menu and the rows follow, Save writes it,
+and the whole drag is one Undo step. Ctrl snaps to the rows' steps (0.1 units, 5 degrees, 0.02x). Arrows and rings follow the mouse exactly under perspective (the
+mouse's ray met with the arrow's line or the ring's plane). The values show by the
+mouse while dragging. `vr_armourstudio_gizmo_size` (pixels, 80) its size. None on a sleeve or junction part, nor in a
+headset (the menu page's sliders there: no hand grab of the part). A both-sides limb part's handle is on its left piece.
+Test: `vr_armourstudio_gizmo_test` (Debug > Tests), `-flatscreenmode` in a map: each mode's drag by a mock mouse makes the
+value it should (2 units along the arrow longest on the screen, 30 degrees round the ring facing the eye most, 1.25x
+along an arm, 1.5x by the centre, and a rottweiler piece's move), each with one undo step, the view first turned to the
+part (the row's **Look at the Part** button, `vr_armourstudio_gizmo_look`; `vr_armourstudio_gizmo_info` prints where the
+handle is): `armourgizmo: 16 passed, 0 failed` (plus the turn step below).
+
+**Turning the subject with the mouse.** In the flat window, a drag with the **right mouse button** on the view turns the subject:
+across is its **Turn** (yaw, 0.5 deg a pixel), down is its **Pitch** (the Subject rows follow; session-only, never in armour.txt).
+It does not begin over the window, nor while the handle drags; **Put Back** resets it; the handle and the part's frame follow the
+turned subject. The window's help line says it (the middle button is free too; the right is the usual drag-to-orbit one). The
+test's last step drags across 80 px and down 40 px: -40 deg Turn, +20 deg Pitch.
+
 ## Animations
 
 The subject plays its model's animations with its plates on, as in play (Animation on the page, the window's Animation
@@ -89,6 +113,33 @@ each tier, then the build switched 2 -> 1 -> 3 -> 2, then the kind another (noth
 | Leather Folds | `folds` | the joint's leather's bellows folds, 0-4 (the upper sleeve part's, else the lower's, else `vr_agarmor_folds`, 4) |
 | Fold Depth | `fold_depth` | how far they stand on the inside of a bend, in units (flat on its outside; else `vr_agarmor_fold_depth`, 0.3) |
 | Hero Plates | `hero` | `"0"`: the part's hero plates off, every plate its own (1 or unset: the cuirass's breastplate, the pauldrons' top row as two plates, the bracers' elbow cop, the shins' knee cop, each one plate over several columns; `vr_agarmor_hero 0` turns them off everywhere) |
+
+### A sleeve's ends (ROUND26.md, "ogresleeves")
+
+When a leather junction does not connect where you expect, these move its two ends and shape it. They are the sleeve parts'
+alone (a humanoid's elbow and knee sleeves, a beast's leather junctions), every one off by default (the leather exactly as
+before). "Own end" (`start_`) is the end on the sleeve's own piece, "joined end" (`end_`) the one on the piece it joins: a
+beast's junction is its child piece's sleeve (the shin's for the ogre's knee); a humanoid's joint has two sleeves, and each end
+takes its own piece's sleeve's `start_` value, else the other sleeve's `end_` value (the thigh's sleeve's start_offset moves the
+thigh's end of the knee; its end_offset the shin's end, unless the shin's sleeve sets its own start_offset).
+
+| Slider | File key | What it does |
+| --- | --- | --- |
+| Own End Fwd / Left / Up | `start_offset "x y z"` | that end's ring moved, units along the model's forward, left and up (rest pose); it still rides its piece |
+| Joined End Fwd / Left / Up | `end_offset "x y z"` | the other end's |
+| Own End Size, Joined End Size | `start_radius`, `end_radius` | that end's ring's size round its middle (1 as made) |
+| Own / Joined End Far Edge | `start_edge`, `end_edge` | `"1"`: a beast's end on its piece's far edge, not the one facing the other piece (a humanoid's end is always its row at the joint) |
+| Twist | `twist` | degrees: the joined end's ring turned round the line between the ends (the columns spiral); for a humanoid the joint's (the upper sleeve's, else the lower's), turning the lower end |
+| Bulge Fwd / Left / Up | `bulge "x y z"` | the middle pushed this far this way (the model's axes; eased to nothing at the ends; a humanoid's turned with the bones) |
+| Segments | `segments` | its rings less one, 1-8 (0: as made, from its folds) |
+| Closed All Round | `fill` | `"1"`: a beast's junction closed all round: the columns where a piece has no edge (open strips where plates meet at the flanks) laid round its end from its neighbours' reach. The ogre's knees ship with it on |
+
+How a beast's junction picks its ends (vr_beastarmour.cpp buildJunctions): 12 columns round the line between the two pieces'
+middles; in each, the outermost vertex within 30% of the piece's end facing the other, tucked 0.35 in and 0.6 under; only
+columns both pieces have are drawn. Where that goes wrong: plates that meet only at the front (few columns: an open strip,
+`fill`), ends that overlap along the line (`vr_beastarmour_info` prints "along" below 0: the leather inside the plates; move
+the ends), radii far apart (one end inside a plate: `start_radius` / `end_radius`). `vr_beastarmour_info` lists each
+junction's ends, length along the line, radii, columns (and each end's edges before `fill`).
 
 The bending leather (the only kind since 2026-11-11; ROUND24.md, "Leather bridge at elbows and knees"): a joint's
 leather is one tube made each frame from the upper part's last row to the lower part's first: a sleeve part's tapers size

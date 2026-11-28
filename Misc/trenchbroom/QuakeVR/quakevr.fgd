@@ -1595,6 +1595,26 @@ delay - seconds after first sighting before it attacks (default 10)"
 ]
 
 @PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) =
+	monster_vr_dcrossbow : "An armed crossbow knight (Arcane Dimensions' data needed; without it an armed knight): AD's crossbow knight in its own look holding a weapon as the armed humanoids hold theirs, a knight to the game. 'weapon': its weapon (unset: the Crossbow Knight's Crossbow; any weapon; -1 its fists). 'weaponflags', 'weapon2', 'weaponflags2' as monster_vr_dguard's."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+	weapon(integer) : "Weapon / kind" :  : "A number: see the help for this entity."
+]
+
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) =
+	monster_vr_dguard : "An armed death guard (Arcane Dimensions' data needed; without it an armed knight): AD's death guard in its own look holding a weapon as the armed humanoids hold theirs, a knight to the game. 'weapon': its weapon (unset: the Death Guard's Sword; any weapon; -1 its fists). 'weaponflags': that weapon's flags. 'weapon2', 'weaponflags2': a second one in its left hand."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+	weapon(integer) : "Weapon / kind" :  : "A number: see the help for this entity."
+]
+
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) =
 	monster_vr_enforcer : "An armed enforcer (experimental): an enforcer holding one of your weapons (its laser rifle's place). 'weapon': its weapon (as monster_vr_grunt's: WID_*, -1 its fists, 0 or unset: one from the pool). 'weaponflags': that weapon's flags.
 'weapon2', 'weaponflags2': a second one-handed weapon in its left hand (as monster_vr_grunt's)."
 [

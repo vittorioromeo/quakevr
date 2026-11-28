@@ -1002,7 +1002,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			if (ent->baseline.scale != ent->scale) bits |= U_SCALE;
 			if (bits & U_FRAME && (int)ent->v.frame & 0xFF00) bits |= U_FRAME2;
 			if (bits & U_MODEL && (int)ent->v.modelindex & 0xFF00) bits |= U_MODEL2;
-			if (ent->sendinterval || VR_StepLerpInterval (ent) >= 0) bits |= U_LERPFINISH; // QVR: (in the air: a server frame)
+			if (ent->sendinterval) bits |= U_LERPFINISH; // QVR: (a stepping monster in the air: U_QVR_MOVEFRAME, VR_EntityUpdateBits)
 			bits |= VR_EntityUpdateBits (ent); // QVR
 			if (bits >= 65536) bits |= U_EXTEND1;
 			if (bits >= 16777216) bits |= U_EXTEND2;
@@ -1069,8 +1069,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			MSG_WriteByte(msg, (int)ent->v.modelindex >> 8);
 		if (bits & U_LERPFINISH)
 		{
-			int steplerp = VR_StepLerpInterval (ent); // QVR: a stepping monster in the air moves every server frame
-			MSG_WriteByte(msg, steplerp >= 0 ? (byte)steplerp : (byte)(Q_rint((ent->v.nextthink-qcvm->time)*255)));
+			MSG_WriteByte(msg, (byte)(Q_rint((ent->v.nextthink-qcvm->time)*255)));
 		}
 		//johnfitz
 		VR_WriteEntityUpdate (msg, ent, bits); // QVR
@@ -1349,6 +1348,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 	}
 	// QVR: the messages about entities it sees (armed humanoids' poses; all of them to the loopback client)
 	VR_WriteScoped (&msg, SV_IsLocalClient (client), snap);
+	VR_WriteMeleeArcs (&msg, client); // QVR: Show Melee Arcs' armed swings, to a remote client drawing them (vr/vr_meleeshow.cpp)
 
 // send the datagram
 	if (NET_SendUnreliableMessage (client->netconnection, &msg) == -1)
@@ -1570,6 +1570,10 @@ void SV_SendClientMessages (void)
 			{
 				if (realtime - host_client->last_message > 5)
 					SV_SendNop (host_client);
+				// QVR: (mpoverflow) what the game sends him while he loads the map (a Quest's load: many seconds of a
+				// busy deathmatch's reliable messages) held on his backlog instead of overflowing his buffer
+				if (!host_client->message.overflowed)
+					VR_ReliableBacklog (host_client, false);
 				continue;	// don't send out non-signon messages
 			}
 			if (host_client->sendsignon == PRESPAWN_SIGNONBUFS)
@@ -1605,8 +1609,29 @@ void SV_SendClientMessages (void)
 		// check for an overflowed message.  Should only happen
 		// on a very fucked up connection that backs up a lot, then
 		// changes level
+		// QVR: (mpoverflow) or a stream backed up (no acknowledgement from him: his game paused, his Wi-Fi stalled):
+		// past half the buffer it goes on to his backlog, sent on in whole parts (vr/vr_server.cpp)
+		if (!host_client->message.overflowed && !host_client->dropasap)
+		{
+			const int backlog = VR_ReliableBacklog (host_client, true);
+			if (backlog < 0)
+			{
+				SV_DropClient (true);	// the message couldn't send
+				continue;
+			}
+			if (backlog == 2) // its last part sent: as the engine's own send below
+			{
+				host_client->serverinfo_unsent = false;
+				host_client->last_message = realtime;
+				if (host_client->sendsignon == PRESPAWN_FLUSH)
+					host_client->sendsignon = PRESPAWN_DONE;
+			}
+			if (backlog)
+				continue;
+		}
 		if (host_client->message.overflowed)
 		{
+			VR_ReliableOverflowed (host_client); // QVR: why, said here and told to him
 			SV_DropClient (true);
 			host_client->message.overflowed = false;
 			continue;

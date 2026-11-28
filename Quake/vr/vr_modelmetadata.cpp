@@ -71,7 +71,7 @@ constexpr const char* propPrefixes[] = {"vr_crate", "vr_rock", "vr_brick", "vr_p
     "candle", "barrel", "vr_barrel"};
 // Quake's monsters, the mission packs' (hipnotic: scorpions, gremlins, the armagon; rogue: mummies, eels, lava men,
 // dragons) and the player's model (other players, statues)
-constexpr const char* monsterFiles[] = {"soldier.", "vrgrunt.", "vrenforcer.", "vrknight.", "vrhknight.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
+constexpr const char* monsterFiles[] = {"soldier.", "vrgrunt.", "vrenforcer.", "vrknight.", "vrhknight.", "vrdguard.", "vrdcrossbow.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
     "shambler.", "zombie.", "shalrath.", "enforcer.", "fish.", "tarbaby.", "boss.", "oldone.", "player.", "scor.",
     "grem.", "armabody.", "armalegs.", "mummy.", "eel.", "lavaman.", "dragon.", "ogre_", "sword.", "frogman",
     "dog_explosive.", "rknight.", "teleporter_eye", "shambler_blood.", // (the last four Dawn of the Machine's: read in place, owned/mg3/progs/)
@@ -431,7 +431,11 @@ bool quakeSkin(const qmodel_t* model, const void* aliashdr)
     {
         return false;
     }
-    return hdr->poseverttype == aliashdr_t::PV_QUAKE1 || skinnedCopy(model);
+    // (the armour's made models: a beast's shaped piece "#tweak" and the joints' leather "#bridge" have a .mdl's 8-bit skins
+    // too; taken for our own IQM's, retro textures drew them in blocks four Quake texels wide: his "much more blocky and
+    // less detailed" plate once scaled, ROUND26.md "armourlook")
+    return hdr->poseverttype == aliashdr_t::PV_QUAKE1 || skinnedCopy(model) || has(model, Trait::ArmourShaped) ||
+        has(model, Trait::ArmourLeather);
 }
 
 bool bodyParts(const qmodel_t* model, float out[4])

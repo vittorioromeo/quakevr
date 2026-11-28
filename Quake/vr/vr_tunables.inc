@@ -1824,6 +1824,9 @@ QVR_TUNABLE(vr_image_cache_mb, "512") // decoded image files (a texture pack's w
 // Debug > Reports
 QVR_TUNABLE(vr_anim_smooth_rig_error, "1.5") // ... a bone whose fit to a frame is off by more than this (rms, units) isn't swung between it and its neighbours; a vertex off its bone by more swings less (none at twice it)
 QVR_TUNABLE(vr_anim_smooth_rebuild_error, "0.5") // ... a vertex off its bone's fits by more than this (rms over the frames, units) is rebuilt less (not at twice it); a model with too few vertices rebuilt draws as before
+QVR_TUNABLE(vr_anim_smooth_rebuild_blend, "1") // ... a vertex its own bone fits badly (round a joint, the ogre's skin) rebuilt from two bones blended (its own and its parent or a child, the weight fitted to the frames) when that fits it much better; 0: one bone each (ROUND26 "ogredequant")
+QVR_TUNABLE(vr_hitmodel_drawn, "1") // shots, blows and the server's armour queries (pieceHit, pieceAt, posedAnchors, the debris' start) meet a monster's body as the renderer draws it (the smooth spline, the limbs' swing, the skeleton rebuild: animsmooth::serverPoints from the server's own lerp); 0: the frames' stored bytes, Quake's blend (before ROUND26 "drawnhits")
+QVR_TUNABLE(vr_armour_on_drawn, "1") // the beasts' armour (pieces, leather) placed on the body as the shader draws it (the smooth spline, the limbs' swing, the skeleton rebuild: vr_animsmooth.cpp's drawnPoints, the renderer's own rows); 0: on the frames' stored bytes, Quake's blend (before ROUND26 "armourrebuild")
 
 // Gore > Blood Streams
 QVR_TUNABLE(vr_gore_streams_chance, "0.6") // the chance a shot or a nail (each pellet) opens one
@@ -1960,6 +1963,10 @@ QVR_TUNABLE(vr_flat_pose_pitch, "65") // how far the hands follow the view up an
 QVR_TUNABLE(vr_flat_arm_hold, "1") // how far a drawn hand may sit from its arm's shoulder, times what the arm can hold it at (0..2; 0: no limit, the hands as placed)
 
 // Flatscreen > Reload
+QVR_TUNABLE(vr_flat_attach_reach_time, "0.25") // the flat-screen Attach key (vr_flatattach.cpp): seconds the free hand takes to the gun's mount (the impulse goes as it gets there); 0: at once, no trip
+QVR_TUNABLE(vr_flat_attach_slide_time, "0.2") // and seconds the blade slides along the barrel, into its mount (on) or out of it in the hand (off)
+QVR_TUNABLE(vr_flat_attach_return_time, "0.25") // and seconds the hand takes back to its pose
+QVR_TUNABLE(vr_flat_attach_slide, "8") // and units the blade slides along the barrel
 QVR_TUNABLE(vr_flat_reload_down, "0.3") // the flat-screen reload (vr_flatreload.cpp): seconds the gun's hand takes to the nearest hip holster (the rounds go in as it gets there)
 QVR_TUNABLE(vr_flat_reload_hold, "0.2") // seconds it stays there
 QVR_TUNABLE(vr_flat_reload_up, "0.3") // seconds it takes back to its pose (it fires again after it)
@@ -2100,6 +2107,7 @@ QVR_TUNABLE(vr_flat_grab_drag_hertz, "4") // Hz: the spring pulling a dragged pr
 QVR_TUNABLE(vr_flat_grab_drag_letgo, "1.2") // m: a dragged prop's held point this far off the hand (caught on something, too heavy) is let go of
 QVR_TUNABLE(vr_flat_grab_push, "1") // 1: a dragged prop or a ragdoll held is kept as far ahead of the body as when it was taken, so walking into it pushes it through the hands and backing away drags it (your body doesn't shove it); 0: it is pulled in to the hands
 QVR_TUNABLE(vr_flat_grab_push_force, "8000") // N: the force each hand's hold on a pushed or dragged prop or ragdoll would need (its mass's share by how far and how fast it lags the hands) above which, for a moment, the hands let go: too heavy for that speed
+QVR_TUNABLE(vr_flat_grab_push_mass, "54") // kg: the most of a pushed prop's or ragdoll's mass each hand pushes at a walk's pace (200 u/s; twice as much at half the pace): its share times your pace into it over a walk's above this, for a moment, and the hands let go: too heavy for that pace (54: a crate pushes at any pace and a dead grunt at a run, 48; a dead ogre at its slowed walk, 60, is let go of)
 QVR_TUNABLE(vr_flat_grab_push_angle, "60") // degrees: a pushed or dragged prop's or ragdoll's held point this far round from where the arm reaches (seen from the eyes, level) is let go of: too steep
 QVR_TUNABLE(vr_flat_grab_cone, "28") // degrees: angular cone around the crosshair when picking a target to grab (5..60)
 QVR_TUNABLE(vr_flat_grab_carry_dist, "30") // units ahead of the hands where a grabbed two-handed prop/crate sits (clamped clear of walls and body)
@@ -2298,12 +2306,30 @@ QVR_TUNABLE(vr_flat_parry_rev_up, "1") // and this far above it (units; negative
 QVR_TUNABLE(vr_flat_parry_rev_out, "6") // and this far out at its own side (units; negative inwards)
 QVR_TUNABLE(vr_flat_parry_rev_pitch, "5") // the weapon's tip this far up off level (degrees; negative down)
 QVR_TUNABLE(vr_flat_parry_rev_yaw, "0") // and this far forward of straight across the view (degrees; negative back towards you)
-QVR_TUNABLE(vr_flat_parry_rev_roll, "0") // and the weapon rolled this far about its own line (degrees; mirrored for the left hand)
+QVR_TUNABLE(vr_flat_parry_rev_roll, "-60") // and the weapon rolled this far about its own line (degrees; mirrored for the left hand)
 QVR_TUNABLE(vr_flat_parry_rev_in_time, "0.2") // seconds into the reverse-grip guard from the raised flipped hold (longer than the upright guard's vr_flat_parry_in_time: a bigger turn; 0 at once)
 QVR_TUNABLE(vr_flat_parry_rev_out_time, "0.2") // seconds back to the flipped hold when the button is let go (0: at once)
 QVR_TUNABLE(vr_flat_parry_shaft_at, "0.8") // flatparry2: in the guard, a sword-mode melee weapon with no Blade hotspot of its own (the ogres' hammer and mace, the fury's sword; a Blade hotspot at share 0 counts as none) has the free hand on its shaft or blade this share of the way from the hand to the tip/head, as a Blade hotspot there would (then held within vr_flat_parry_shaft_reach); 0: none, the hand stays
 QVR_TUNABLE(vr_flat_parry_shaft_reach, "22") // flatparry2: vr_flat_parry_blade_reach for that shaft point: the free hand at most this far from the holding hand (units; longer than the blade's 14 so a hammer's or mace's hand sits near the head; 0 no limit)
 QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
+// Flatscreen > Fists: Jabs and Guard (flatfists, his words 2026-11-27: "When both hands are empty, LMB should alternate
+// between left and right jabs, RMB should parry (use the crossed arms pose, provide cvars/tunables to tweak it)"): both hands
+// empty (no weapon, nothing held); vr_flatplay.cpp pollKeys, fistGuardPose; QC VR_Parry_FlatFists.
+QVR_TUNABLE(vr_flat_jab_alternate, "1") // flatscreen, both hands empty: the left button's jab is thrown by each hand in turn, the right first (held: one after another, vr_flat_jab_repeat); 0 the left button the right hand's punch, the right button the left's (before 2026-11-27)
+QVR_TUNABLE(vr_flat_jab_repeat, "0.4") // the left button held: seconds from one jab's start to the next one's (at least until the last one draws back: one hand at a time, vr_flat_punch_both)
+QVR_TUNABLE(vr_flat_fist_guard, "1") // flatscreen, both hands empty: the right button held crosses the forearms before the face in a guard that parries melee blows from the front (QC VR_Parry_FlatFists); 0 the right button the left hand's punch (before 2026-11-27)
+QVR_TUNABLE(vr_flat_fist_guard_fwd, "9") // the guard: each fist this far ahead of the eye (units)
+QVR_TUNABLE(vr_flat_fist_guard_up, "3") // and this far above it (units; negative below)
+QVR_TUNABLE(vr_flat_fist_guard_cross, "4") // and this far past the middle onto the other side (units: the forearms crossed in an X; negative: each on its own side)
+QVR_TUNABLE(vr_flat_fist_guard_stagger, "1.5") // the right fist this much further ahead than the left (units: the forearms on one another, not in one another)
+QVR_TUNABLE(vr_flat_fist_guard_pitch, "45") // each fist turned up off the level look (degrees: the forearms rising to the fists)
+QVR_TUNABLE(vr_flat_fist_guard_yaw, "45") // and in, across the body (degrees; negative out)
+QVR_TUNABLE(vr_flat_fist_guard_roll, "0") // and rolled, its top out to its own side (degrees; negative in)
+QVR_TUNABLE(vr_flat_fist_guard_in_time, "0.1") // seconds into the guard (0: at once)
+QVR_TUNABLE(vr_flat_fist_guard_out_time, "0.12") // seconds back to the rest when the button is let go (0: at once)
+QVR_TUNABLE(vr_flat_fist_guard_cone, "120") // in the guard, a melee blow from within this many degrees of where you look (the whole cone, centred on the view) is parried by the crossed arms, whatever its way; 0: the headset's crossed arms only (QC VR_Parry_ArmsCrossed)
+QVR_TUNABLE(vr_flat_fist_guard_reduction, "0.45") // the share of a blow the guard takes off (0.45: the headset's crossed arms, vr_parry_unarmed_reduction; 1 all of it); less damage, less of its knockback
+QVR_TUNABLE(vr_flat_fist_guard_push, "1") // the parry's push back on you, times the crossed arms' own (vr_parry_push_player; 0 none)
 
 // Flatscreen > Guard Bash and Blade Grip (his notes 2026-11-23: the fire button in the guard bashes, as the headset's bash;
 // a sword's free hand takes its blade near the tip in the guard; vr_flatplay.cpp startBash, bashPose, bladePin; QC VR_FlatBash)
@@ -2645,6 +2671,11 @@ QVR_TUNABLE(vr_embed_stab_tip, "100") // % of the blade from its tip that may be
 QVR_TUNABLE(vr_embed_sword_depth_min, "30") // % of the blade in at the least speed
 QVR_TUNABLE(vr_embed_sword_depth_max, "80") // % of the blade in at vr_embed_sword_depth_speed
 QVR_TUNABLE(vr_embed_sword_depth_speed, "7") // m/s
+QVR_TUNABLE(vr_embed_bayonet_depth, "1.25") // a gun's bayonet: times its blade the depth shares above take (bayonet2: 1.25, 37-100% of it by speed; 1: as a sword's, the old depth)
+QVR_TUNABLE(vr_embed_attdagger_depth, "1") // a dagger put on a gun as its bayonet (daggerattach): the same (its blade ~7 units to the bayonet's ~5: 1 goes about as deep)
+QVR_TUNABLE(vr_embed_fire_push, "0.1") // a gun stuck in a body and fired into it: times the shove and kill throw (vr_hit_push, vr_kill_push) its shot gives that body (bayonet2: the shove took it off the hand)
+QVR_TUNABLE(vr_embed_fire_letgo, "8") // cm more a hand on a stuck weapon that just fired where it is may be off it before it lets go (the arm's reach and the hand's: the shot's flinch carries the wound; bayonet2)
+QVR_TUNABLE(vr_embed_fire_hold_time, "1") // s after such a shot that margin lasts
 QVR_TUNABLE(vr_embed_throw_kill_depth, "80") // % of a thrown point's blade in when its throw kills (never less than it went in; QC vr_axestick.qc VR_AxeStick_Stuck)
 QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth (by its speed) once it has struck
 QVR_TUNABLE(vr_embed_skewer_most, "3") // gibs a stab may skewer on a blade at once (0: none, a stab bursts them as any blow; QC/vr_skewer.qc)
@@ -2907,3 +2938,16 @@ QVR_TUNABLE(vr_flat_xhair_melee_kick, "10") // a melee blow's feedback: the viso
 QVR_TUNABLE(vr_flat_xhair_melee_mass, "3") // the weapon weight (kg) the kick is for: a heavier one more, by the square root of its weight's share (0.5 .. 2 times)
 QVR_TUNABLE(vr_flat_xhair_melee_fist, "0.5") // a bare fist's (or a prop's) blow: this share of the kick
 QVR_TUNABLE(vr_flat_xhair_melee_decay, "0.15") // and back in over this (seconds: its time constant; 63% of the way back)
+QVR_TUNABLE(vr_agrunt_dazzle, "1") // armed humanoids blinded by a flashlight pointed straight at their face (VR, flat-screen, coop: each player's lamp as his client lit it; QC vr_armedgrunt_dazzle.qc): a dazzle that builds and fades, the off hand raised before the eyes, worse shots; 0 off
+QVR_TUNABLE(vr_agrunt_dazzle_cone, "12") // ... degrees off the beam's axis at its eyes it still counts (full within 0.4 of this, none past it)
+QVR_TUNABLE(vr_agrunt_dazzle_near, "192") // ... units: full strength this near the lens
+QVR_TUNABLE(vr_agrunt_dazzle_range, "640") // ... units: none this far (or past the lamp's own reach), falling off from vr_agrunt_dazzle_near
+QVR_TUNABLE(vr_agrunt_dazzle_dark, "0.5") // ... darker places count more: up to this much more in the dark (none where the light on its face is 160 or more)
+QVR_TUNABLE(vr_agrunt_dazzle_build, "0.5") // ... seconds a full beam on its eyes takes to dazzle it fully
+QVR_TUNABLE(vr_agrunt_dazzle_fade, "1.5") // ... seconds a full dazzle takes to fade once the beam is off its eyes
+QVR_TUNABLE(vr_agrunt_dazzle_threshold, "0.35") // ... the dazzle its hand starts coming up at (fully up at full dazzle)
+QVR_TUNABLE(vr_agrunt_dazzle_spread, "2") // ... its shots' aim error and spread times 1 + this at full dazzle (a two-handed gun held in one hand behind the hand also loses the two-hand spread reduction)
+QVR_TUNABLE(vr_agrunt_dazzle_pose, "1") // ... the shielding hand's share at full (0: no pose, the worse aim only)
+QVR_TUNABLE(vr_agrunt_dazzle_hand_fwd, "11") // ... where the shielding hand goes in the grunt's body (fitted to each kind's): units forward,
+QVR_TUNABLE(vr_agrunt_dazzle_hand_left, "0.5") // ... to its left,
+QVR_TUNABLE(vr_agrunt_dazzle_hand_up, "21.5") // ... and up from its origin

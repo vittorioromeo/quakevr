@@ -1,6 +1,8 @@
 # The portable Linux build: a Flatpak bundle of Quake VR (Release) on every push, kept as a workflow artifact
 # (docs/vr-port/LINUX.md, "Flatpak"; the manifest: Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml). No release
 # is published. Install the downloaded bundle with: flatpak install --user QuakeVR-<branch>-<hash>.flatpak
+# The same build also makes the plain tarball QuakeVR-linux-x86_64.tar.gz (artifact QuakeVR-<branch>-<hash>-linux-x86_64;
+# LINUX.md, "Linux tarball").
 name: Flatpak
 
 on:
@@ -64,5 +66,21 @@ jobs:
           path: ${{ steps.meta.outputs.name }}.flatpak
           if-no-files-found: error
           # A Flatpak bundle is compressed already.
+          compression-level: 0
+          retention-days: 30
+
+      # The plain Linux tarball (LINUX.md, "Linux tarball"): the same engine, loader and game folder, from the build
+      # directory the action leaves (flatpak_app/files is the Flatpak's /app), run unsandboxed with the system's OpenXR
+      # runtime. It prints the glibc it needs.
+      - name: Make the Linux tarball
+        shell: bash
+        run: bash Misc/linux/tarball/make_tarball.sh flatpak_app/files tarball
+
+      - name: Upload the tarball
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.meta.outputs.name }}-linux-x86_64
+          path: tarball/QuakeVR-linux-x86_64.tar.gz
+          if-no-files-found: error
           compression-level: 0
           retention-days: 30

@@ -40,6 +40,9 @@ void swapHands(const char* what);
 // The weapon `h` holds, as its settings' slot; -1 for an empty hand.
 [[nodiscard]] int heldIn(int h);
 
+// Whether `h` holds the dagger (the knight's sword of its kind: QC VR_SWORDKIND_DAGGER).
+[[nodiscard]] bool daggerIn(int h);
+
 // Whether `h` holds anything that is not a weapon: a prop, an item, a torch (STAT_QVR_CARRYMAIN / _CARRYOFF, or drawn in
 // it: held::heldEntity), or a blade stuck in a body (axestick::handOnBlade: still held, drawn on it; his words 2026-11-21: "The
 // hand should instead keep holding onto the embedded blade"). Such a hand is not free to steady the other hand's gun: that gun is

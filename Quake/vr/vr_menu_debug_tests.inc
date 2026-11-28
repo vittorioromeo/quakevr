@@ -552,6 +552,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_snd_burst: five rocket explosions at once 2.5 m ahead of you (as explosive boxes blowing up together): "
                   "with the limiter on (Sound, Advanced: Mix Limiter) a loud bang, off a crackle; Record the Mix and "
                   "Spatial Audio Info tell how far over full scale it went."),
+        command("Your Shotgun's Report", "vr_snd_play_own weapons/guncock.wav")
+            .help("vr_snd_play_own <sample> [channel] [volume]: the shotgun's shot on your gun's channel, as firing plays it "
+                  "(from the main hand's muzzle in VR, with its gunfire layers), without a shot. Against Sound > Walls and Rooms: "
+                  "Your Sounds' Reverb; with Record the Mix (ROUND26.md, \"muffled\")."),
         command("A Sound 45 Degrees Right", "vr_snd_play_dir misc/r_tele1.wav 45")
             .help("vr_snd_play_dir <sample> <azimuth> [elevation] [metres]: a sound from that direction of your head, 2 m "
                   "away (here the teleport's, 45 degrees right). With Record the Mix: its left/right balance (ROUND21.md, "
@@ -593,7 +597,23 @@ za::Vector<Item> pageDebugTests()
             .help("vr_agarmor_test 15: a rottweiler, an ogre, a scrag and a fiend ahead: each kind's pieces, the client told, every "
                   "piece drawn and following the body, shots meeting the cuirass and the helmet, a hit stopped, a helmet broken, "
                   "the skill's roll, two killed (their corpses keep their pieces). Ends on \"beastarmour test: N passed, M failed\"."),
+        command("Beasts' Shaped Armour: Look and Debris Check", "vr_beastarmour_lookcheck")
+            .help("vr_beastarmour_lookcheck (a map loaded): every beast armour piece armour.txt shapes (\"#tweak\") against its .mdl: the same "
+                  "skins and normal map, texture places and shader values (retro textures included); and each piece's debris model (shaped as "
+                  "worn), its box the worn piece's. Ends on \"beastlook: N passed, M failed\"."),
+        command("Beasts Drawn Smoothly (Slow Motion)", "vr_agarmor_test 21")
+            .help("vr_agarmor_test 21: one armoured beast at a time ahead (a rottweiler's leap, run and shoved roll, a scrag, an ogre "
+                  "running and swinging its chainsaw, a bare shambler), at a quarter speed then full: watched frame by frame "
+                  "(vr_drawnlerp_watch; vr_drawnlerp_log 1 prints each frame), no frame drawn still or jumping, the armour on the drawn "
+                  "body: its points within 0.05 units of the shape the shader drew; and shots at each drawn piece's middle every frame "
+                  "strike that piece on the server (vr_drawnhits_check; Shots Meet The Drawn Body in Debug > Reports). Ends on "
+                  "\"doglerp test: N passed, M failed\"."),
+        command("Beast Armour On The Drawn Body: Cost (Ten Ogres)", "vr_agarmor_test 23")
+            .help("vr_agarmor_test 23: ten ogres in full armour running at you, 288 frames measured: the console's \"animsmooth: drawn "
+                  "points\" line is the time the armour spends reading the drawn body (Beast Armour On The Drawn Body in Debug > "
+                  "Reports). Ends on \"armourcost: N passed, M failed\"."),
         command("Armour Studio: ImGui Window Test (Flat Screen)", "vr_armourstudio_window test").help("vr_armourstudio_window test: the Armour Studio's ImGui window opened, its Start, a value's + step, Save, Reset Part and Reload the File clicked with a mock mouse (the grunt's bracer), a change made the menu's way shown on the window, Stop, Escape closes it. In a headset: the window refuses to open. Ends on \"armourwin: N passed, M failed\". It writes quakevr/data/armour_wintest.txt."),
+        command("Armour Studio: Window Handle (Gizmo) Test (Flat Screen)", "vr_armourstudio_gizmo_test").help("vr_armourstudio_gizmo_test: the Armour Studio's ImGui window and its handle on the part, dragged with a mock mouse: the grunt's cuirass moved 2 units along its forward arrow (then undone), turned 30 degrees round its up ring (yaw), sized 1.25x along its forward arm, scaled 1.5x by its centre; a rottweiler's piece moved along its up arrow. Each drag the values it should make and one undo step. Ends on \"armourgizmo: N passed, M failed\". It writes quakevr/data/armour_gizmotest.txt."),
         command("Armour Studio: Your Clone's Armour Test", "vr_armourstudio_clone_test").help("vr_armourstudio_clone_test (a fresh game, no armour on you): Kind = Player shown (flat screen: the ImGui window; in a headset: the menu's page), your body and its mirror image wear the studio's armour, each tier, then the build switched while shown (2 to 1, 3 and 2 again); none again once the kind is another. Ends on \"armourclone: N passed, M failed\"."),
         command("Armour Tweaks: Data File Test", "vr_armour_test").help("vr_armour_test: armour.txt's tweaks on the grunt: a bracer override moves those plates alone (the right mirrored), a sleeve's stand-off, rows; saved and read back, edited on disk and read again by the watcher, kept over a map change (it reloads this map), then the shipped file again. Ends on \"armourtest: N passed, M failed\". It writes quakevr/data/armour_test.txt."),
         command("Armour Plates: Pop-through Check", "vr_agarmor_pop_check").help("The body against the plates on every wearer and your own: poses with bent elbows and knees, each part of the armour worn alone; by region, plates off their neighbours. The console has the numbers; vr_pp_test 14 the same in live poses."),
@@ -1400,6 +1420,10 @@ za::Vector<Item> pageDebugTests()
                   "B/Y out and its shells dropped, single shells into the chambers, a spin, the flicks home and out, chamber "
                   "tracking, the muzzle up dropping spent and live shells, the flicks' thresholds, a grunt to one headshot "
                   "(popped) or two body shots, an ogre to 4-5, an armed grunt firing one (\"rvtest: N passed, M failed\")."),
+        command("Reload Options Self-Test", "vr_rv_test 7")
+            .help("Headless checks of Spent Shells First (the spent ones out first, then the live ones) and Slug Pairs (two "
+                  "chambers at once, one kept in the hand if only one is empty), and both off as before (\"rvreload: N "
+                  "passed, M failed\")."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

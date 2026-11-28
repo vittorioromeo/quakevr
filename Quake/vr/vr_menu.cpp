@@ -40,6 +40,7 @@
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_geom.hpp"
@@ -1177,7 +1178,7 @@ const WeaponOffsetsPartPage weaponOffsetsPartPages[] = {
     {pageWofsEffects, "Effects", "Recoil, a muzzle flash and tracers, for a model without its own; a test."},
     {pageWofsFlashlight, "Flashlight", "Where the flashlight sits clipped on this weapon and how it is turned, on top of "
         "every weapon's place (Flashlight > On a Gun or Head), with a preview."},
-    {pageWofsAttachments, "Attachments", "Which attachments fit this weapon (the bayonet) and where each sits on it: its "
+    {pageWofsAttachments, "Attachments", "Which attachments fit this weapon (the bayonet, the dagger) and where each sits on it: its "
         "mount, shown on the weapon while you tune it."},
 };
 static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0]) == WofsParts - 1);
@@ -3416,10 +3417,10 @@ void goBack()
     return ui().page == PageMain ? -1 : homeOf(ui().page);
 }
 
-// A setting's value as shown: a server rule's is the remote server's (vr_serverrules.cpp), the rest their own.
+// A setting's value as shown: its cvar's (a server rule's holds the remote server's while joined: vr_serverrules.cpp).
 [[nodiscard]] float valueOf(const Item& item)
 {
-    return serverrules::shown(item.cvar);
+    return item.cvar->value;
 }
 
 // A server rule while connected to a remote server: shown, dimmed, not changed from here.
@@ -5424,6 +5425,75 @@ void pageResetTest()
     tally.verdict("pagereset_test");
 }
 
+// flatbayonet: the attachments' mount frame (attach::KindInfo forward / across). The dagger on the shotguns by default:
+// its blade along the barrel (its long axis within 2 degrees of the gun's forward), its guard level (across within 2
+// degrees of horizontal). Each of its Pitch / Yaw / Roll turns about the blade's own axes: a roll keeps the blade where it
+// is, a pitch keeps the guard's line, a yaw keeps up. His old (pre-frame) values convert to today's defaults
+// (attach::convertOldMount, vr_wofs_version 80), and the blade's line and tip are kept by it. Values put back after.
+template <typename Check>
+void attachFrameChecks(const Check& check, int shot, int ssg)
+{
+    const attach::KindInfo* const d = attach::info(attach::Dagger);
+    const glm::vec3 f = glm::normalize(d->forward);
+    const glm::vec3 a = glm::normalize(d->across);
+    const glm::vec3 u = glm::cross(f, a);
+    const auto deg = [](const glm::vec3& p, const glm::vec3& q) {
+        return glm::degrees(za::acos(za::clamp(glm::dot(glm::normalize(p), glm::normalize(q)), -1.f, 1.f)));
+    };
+    const int guns[2] = {shot, ssg};
+    for(const int g : guns)
+    {
+        const attach::Mount m = attach::mount(g, attach::Dagger);
+        const glm::vec3 blade = m.basis * f, across = m.basis * a;
+        char line[200];
+        q_snprintf(line, sizeof(line), "the dagger on %s: its blade along the barrel (%.2f deg off), its guard level (%.2f deg "
+            "off)", g == shot ? "the shotgun" : "the super shotgun", deg(blade, glm::vec3{1.f, 0.f, 0.f}),
+            za::fabs(90.f - deg(across, glm::vec3{0.f, 0.f, 1.f})));
+        check(deg(blade, glm::vec3{1.f, 0.f, 0.f}) < 2.f && za::fabs(90.f - deg(across, glm::vec3{0.f, 0.f, 1.f})) < 2.f, line);
+    }
+    // Each turn about the blade's own axes (on the shotgun's mount, 30 degrees each, the others at their defaults).
+    const weapons::Key keys[3] = {weapons::Key::Att2Pitch, weapons::Key::Att2Yaw, weapons::Key::Att2Roll};
+    const char* const names[3] = {"a pitch turns about the guard: its line kept", "a yaw turns about up: up kept",
+        "a roll turns about the blade: the blade kept"};
+    const attach::Mount was = attach::mount(shot, attach::Dagger);
+    for(int i = 0; i < 3; i++)
+    {
+        cvar_t* const c = weapons::cvar(shot, keys[i]);
+        Cvar_SetValueQuick(c, c->value + 30.f);
+        const attach::Mount m = attach::mount(shot, attach::Dagger);
+        const glm::vec3 kept = i == 0 ? a : i == 1 ? u : f;
+        const glm::vec3 turned = i == 0 ? f : i == 1 ? f : a;
+        // (a yaw is about the gun's up, the frame's own up at no pitch or roll: the defaults' pitch is under a degree)
+        const float keptOff = deg(m.basis * kept, was.basis * kept), turnedBy = deg(m.basis * turned, was.basis * turned);
+        Cvar_SetQuick(c, c->default_string);
+        char line[200];
+        q_snprintf(line, sizeof(line), "dagger mount: %s (%.2f deg), its other axis turned %.1f deg", names[i], keptOff, turnedBy);
+        check(keptOff < (i == 1 ? 1.5f : 0.05f) && za::fabs(turnedBy - 30.f) < 1.5f, line);
+    }
+    // His values before the frame (weapons.txt of 2026-11-27) converted: today's defaults, the blade and its tip kept.
+    struct Old
+    {
+        int slot;
+        glm::vec3 pos, angles;
+    };
+    const Old olds[2] = {{shot, {26.56f, 0.f, -2.5f}, {-70.f, 0.f, 180.f}}, {ssg, {20.19f, 0.f, 0.95f}, {-68.5f, 0.f, 180.f}}};
+    for(const Old& o : olds)
+    {
+        const attach::Mount m = attach::mount(o.slot, attach::Dagger);
+        glm::vec3 pos = o.pos, angles = o.angles;
+        attach::convertOldMount(attach::Dagger, pos, angles, m.scale * m.own);
+        const glm::mat3 oldBasis = view::mountBasis(o.angles);
+        const glm::vec3 oldTip = o.pos + oldBasis * (d->tip * (m.scale * m.own));
+        const float posOff = glm::distance(pos, m.pos), angOff = glm::distance(angles, m.angles);
+        const float tipOff = glm::distance(oldTip, attach::onGun(m, d->tip));
+        const float bladeOff = deg(oldBasis * f, m.basis * f);
+        char line[220];
+        q_snprintf(line, sizeof(line), "his old dagger mount on slot %d converts to the default (%.3f units, %.2f deg off), "
+            "the tip kept (%.3f units), the blade's line kept (%.2f deg)", o.slot, posOff, angOff, tipOff, bladeOff);
+        check(posOff < 0.01f && angOff < 0.05f && tipOff < 0.01f && bladeOff < 0.05f, line);
+    }
+}
+
 // menu_vr attachtest (Misc/quakevr/attach_test.sh; attach2): Weapon Offsets > Attachments pinned to the shotgun's slot (no game
 // needed): its Bayonet Forward row there, a press right on it moves the mount forward by its step and the attachment system
 // reads the new mount (attach::mount), a press left puts it back. A bayonet fits the shotgun and the super shotgun, not the
@@ -5449,6 +5519,10 @@ void attachMenuTest()
     check(attach::mount(shot, attach::Bayonet).fits && attach::mount(ssg, attach::Bayonet).fits &&
               !attach::mount(nail, attach::Bayonet).fits,
         "a bayonet fits the shotgun and the super shotgun, not the nailgun (att1_ok)");
+    check(attach::mount(shot, attach::Dagger).fits && attach::mount(ssg, attach::Dagger).fits &&
+              !attach::mount(nail, attach::Dagger).fits && attach::strikes(attach::Dagger),
+        "a dagger fits the shotgun and the super shotgun as a bayonet, not the nailgun (att2_ok; daggerattach)");
+    attachFrameChecks(check, shot, ssg);
     cvar_t* const x = weapons::cvar(shot, Key::Att1X);
     Cvar_SetQuick(x, x->default_string);
     const float levelWas = vr_menu_level.value;

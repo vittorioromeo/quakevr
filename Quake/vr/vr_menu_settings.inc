@@ -380,7 +380,11 @@ void resetBodyEquipment()
 
 [[nodiscard]] za::Vector<Item> pageVrsControls()
 {
-    return {cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp)};
+    return {cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp),
+        action("Controller Bindings", []() { VR_BindSetup_Open(); })
+            .help("Your controllers drawn with each button labelled by its binding: drag a label onto another to swap "
+                  "them, click one to pick its action from a list; Reset to Defaults for the shipped ones. Also in "
+                  "Options.")};
 }
 
 [[nodiscard]] za::Vector<Item> pageVrsLocomotion()
@@ -586,6 +590,7 @@ void resetBodyEquipment()
         // (qfov: the runtime's fixed foveation, the eyes drawn straight into its images; the PC's runtimes have none)
         row(opt::vr_xr_foveation).unavailableBecause(VR_Android() ? nullptr : "Quest standalone only: on a PC, Foveated Rendering."),
         row(opt::vr_xr_foveation_dynamic).advanced().unavailableBecause(VR_Android() ? nullptr : "Quest standalone only."),
+        row(opt::vr_xr_foveation_offset).advanced().unavailableBecause(VR_Android() ? nullptr : "Quest standalone only."),
         row(opt::vr_xr_spacewarp).unavailableBecause(VR_Android() ? nullptr : "Quest standalone only."),
     };
 }

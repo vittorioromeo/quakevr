@@ -713,5 +713,6 @@ extern "C" void CL_SeatFrame()
     }
     renderTestFrame();
     menuTestFrame();
+    bindTestFrame(); // split20
     joinTestFrame();
 }

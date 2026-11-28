@@ -15,6 +15,16 @@ void frame(); // the sliders against the table, the subject kept, the test's ste
 
 // The page's status line: what is edited, how many parts are set, whether saved.
 [[nodiscard]] const char* status();
+// The subjects (vr_armourstudio_kind): 0-4 the humanoids' kinds (grunt .. the player), 5 and 6 AD's death guard and crossbow
+// knight (one set of tweaks while their rigs' bones match: armourdata::adShared), then the beasts (vr_beastarmour.hpp);
+// each one's label, the table's entry the current one edits, whether a part is on a subject (a beast: its slots, a junction
+// made), and whether a value row applies to a part.
+[[nodiscard]] int subjectCount();
+[[nodiscard]] const char* subjectLabel(int subject);
+[[nodiscard]] const char* subjectEntry();
+[[nodiscard]] bool partValid(int subject, int part);
+[[nodiscard]] bool fieldShown(int subject, int part, int field);
+
 // Whether the studio runs (Start given, not closed): its subject kept ahead of you.
 [[nodiscard]] bool running();
 // Its window closed by the player (its X, Escape, its close command): the studio closed too with vr_armourstudio_autoclose
@@ -43,5 +53,18 @@ void windowInit();     // the commands: vr_armourstudio_window [open|close|toggl
 void windowFrame();    // vr_main's client frame, before the other ImGui tools (it closes when one of them opens)
 void windowShutdown(); // closed (the input grab given back)
 [[nodiscard]] bool windowOpen();
+
+// The window's handle on the part picked (vr_armourstudio_gizmo.cpp; vr_gizmo.hpp's, shared with the Rig Studio): move
+// arrows and planes, rotate rings, scale arms, in the part's own frame (vr_armourstudio_gizmo 0-3; keys Q W E R), its drags
+// writing the same offset / rotate / scale / scale_x-_z cvars as the rows, one undo step a drag.
+void gizmoInit();      // the command: vr_armourstudio_gizmo_test
+void gizmoFeed();      // the test's mock mouse, before ImGui's frame begins
+void gizmoTestFrame(); // the test's steps (each frame, the window open or not)
+void gizmoFrame();     // inside the window's ImGui frame, after the window: hover, drag, draw
+void gizmoRows();      // the window's mode row
+// A drag begins (one undo step for it: the rows' merging of steps held off) or ends.
+void gizmoEdit(bool on);
+// The subject standing now (vr_armourstudio_kind's numbering), -1 none.
+[[nodiscard]] int subjectShown();
 
 } // namespace qvr::armourstudio

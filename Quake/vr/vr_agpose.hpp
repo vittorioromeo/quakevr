@@ -18,7 +18,13 @@ namespace qvr::agpose
 {
 
 // The armed kinds (QC vr_armedmon.qc VR_AM_*: its table's rows, VR_AM_COUNT; aggrip and agholds the same).
-inline constexpr int numKinds = 4; // 0 the grunt, 1 the enforcer, 2 the knight (vr_agknight), 3 the death knight (vr_agdknight)
+// 0 the grunt, 1 the enforcer, 2 the knight (vr_agknight), 3 the death knight (vr_agdknight), 4 AD's knights (2026-11-27,
+// agent/adposekind; ROUND26.md, "adposekind"): the death guard's and the crossbow knight's (QC rows 4 and 5,
+// VR_AM_PoseKind; the engine's armedRigs poseKind) one set of keys and grips, seeded from the knight's (shippedFrom).
+// A pose kind is not a row past 3: rows 4 and 5 share kind 4 (armedPoseKind).
+inline constexpr int numKinds = 5;
+inline constexpr int adKnight = 4;
+inline constexpr int numRowKinds = 4; // (the kinds that are their own row's: QC VR_AM_COUNT)
 [[nodiscard]] const char* kindName(int kind);  // "grunt", "enforcer"
 [[nodiscard]] const char* kindsName(int kind); // "grunts", "enforcers"
 [[nodiscard]] const char* kindTitle(int kind); // "Grunt", "Enforcer"

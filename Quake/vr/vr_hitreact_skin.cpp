@@ -175,7 +175,10 @@ bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* h
     rigpose::Rigid* kick = w.kick;
     const bool kicked = vr_hit_react.value == 1.f && hitreact::reacting(e) && hitreact::boneKicks(e, *rig, posed, kick);
     const rigpose::Rigid chestKick = kicked ? kick[spec.chest] : rigpose::Rigid{};
-    const int kind = spec.kind;
+    // (the grips' and the Pose Studio's kind: AD's knights' rows take their shared kind (agpose::adKnight), as their
+    // pose keys do: adrigfix, adposekind)
+    const int kind = armedPoseKind(&armedRigs[spec.kind]);
+    w.row = spec.kind;
     agarms::Targets& t = w.t;
     t = agarms::Targets{};
     const bool hasR = heldProp(s.prop);
@@ -185,7 +188,7 @@ bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* h
         t.goal[0] = agarms::Goal::Frame;
         t.weapon[0].rot = frameRot(s.fw, s.up);
         t.weapon[0].pos = s.right;
-        t.offset[0] = gripRigid(kind, slot, aggrip::Main);
+        t.offset[0] = gripRigidOf(&armedRigs[w.row], slot, aggrip::Main);
     }
     else if(s.flags & apReach)
     {
@@ -193,7 +196,7 @@ bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* h
         t.goal[0] = agarms::Goal::Frame;
         t.weapon[0].rot = frameRot(s.fw, s.up);
         t.weapon[0].pos = s.right;
-        t.offset[0] = gripRigid(kind, -1, aggrip::Main);
+        t.offset[0] = gripRigidOf(&armedRigs[w.row], -1, aggrip::Main);
         t.reaching = true;
     }
     else
@@ -209,7 +212,7 @@ bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* h
         t.goal[1] = agarms::Goal::Frame;
         t.weapon[1].rot = frameRot(s.fwL, s.upL);
         t.weapon[1].pos = s.left;
-        t.offset[1] = gripRigid(kind, slotL, aggrip::Off);
+        t.offset[1] = gripRigidOf(&armedRigs[w.row], slotL, aggrip::Off);
     }
     else if(s.flags & apLeft)
     {
@@ -224,7 +227,7 @@ bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* h
         int type = 0;
         if(view::secondGrip(cl_entities[s.prop].model, secondPoint, type) && type == 1)
         {
-            t.secondAt = composeRigid(rigpose::Rigid{glm::quat{1.f, 0.f, 0.f, 0.f}, secondPoint}, gripRigid(kind, slot, aggrip::Second));
+            t.secondAt = composeRigid(rigpose::Rigid{glm::quat{1.f, 0.f, 0.f, 0.f}, secondPoint}, gripRigidOf(&armedRigs[w.row], slot, aggrip::Second));
             t.second = true;
         }
         else if(type == 2 && (s.keyGun || !lowCarry(t)))
@@ -371,6 +374,7 @@ void relinkSkinnedEnd(SkinWork& w)
         posestudio::Note n;
         n.ent = s.ent;
         n.kind = kind;
+        n.row = w.row;
         n.slot = slot;
         n.slotL = slotL;
         n.prop = hasR ? s.prop : 0;

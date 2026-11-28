@@ -128,6 +128,70 @@ void holsterTextMid(float cx, float y, float size, const char* s, const glm::vec
     drawText(cx - static_cast<float>(strlen(s)) * size * 0.5f, y, size, s, c, pal);
 }
 
+// wheelui (his words 2026-11-28): a slot's holster title smaller and fainter than its weapon's name; the ammunition's
+// line's characters; the attachment's glyph's width.
+constexpr float holsterTitleSize = 5.f;
+constexpr float holsterTitleInk = 0.55f;
+constexpr float holsterAmmoSize = 5.f;
+constexpr float holsterGlyphW = 8.f;
+
+// A blade lying along the line, pointing right (its grip, guard, blade and point), `cy` its middle: an attachment (the
+// bayonet, a dagger as one) after the weapon's name.
+void holsterBladeGlyph(float x, float cy, const glm::vec3& c)
+{
+    fill(x, cy - 0.5f, 2.f, 1.f, c * 0.8f);       // the grip,
+    fill(x + 2.f, cy - 2.f, 1.f, 4.f, c);         // the guard,
+    fill(x + 3.f, cy - 1.f, 4.f, 2.f, c);         // the blade,
+    fill(x + 7.f, cy - 0.5f, 1.f, 1.f, c * 0.7f); // its point
+}
+
+// The HUD's picture of QC ammo type `aid` (AID_*; -1 none): the mission pack's own lava nails, multi-rockets and plasma
+// when its gfx.wad has them, else as the nails, rockets and cells (the visor's grid's).
+[[nodiscard]] int holsterAmmoPic(int aid)
+{
+    if(aid >= 5 && aid <= 7 && greyPic(PicRogueAmmo + aid - 5))
+    {
+        return PicRogueAmmo + aid - 5;
+    }
+    return aid >= 1 && aid <= 7 ? PicAmmo + (aid <= 4 ? aid - 1 : aid - 4) : -1;
+}
+
+// A slot's ammunition, its middle at cx: "4/8" (in the magazine / its size; red when empty), then the ammo type's icon and
+// the reserve ("4/8 [shells] 32"); either part alone where the other is none.
+void holsterAmmoLine(const HolsterMenuSlot& s, float cx, float y, bool greyed, const Palette& pal)
+{
+    char clip[24] = "", reserve[16] = "";
+    if(s.clipSize > 0)
+    {
+        q_snprintf(clip, sizeof(clip), "%d/%d", s.clip, s.clipSize);
+    }
+    if(s.reserve >= 0)
+    {
+        q_snprintf(reserve, sizeof(reserve), "%d", s.reserve);
+    }
+    const int pic = s.reserve >= 0 ? holsterAmmoPic(s.ammoType) : -1;
+    constexpr float sz = holsterAmmoSize;
+    const float gap = clip[0] && (reserve[0] || pic >= 0) ? 3.f : 0.f;
+    const float picW = pic >= 0 ? sz + 1.f : 0.f;
+    const float clipW = static_cast<float>(strlen(clip)) * sz;
+    const float w = clipW + gap + picW + static_cast<float>(strlen(reserve)) * sz;
+    float x = cx - w * 0.5f;
+    if(clip[0])
+    {
+        drawText(x, y, sz, clip, greyed ? pal.dim : s.clip <= 0 ? pal.warn : pal.value, pal);
+        x += clipW + gap;
+    }
+    if(pic >= 0)
+    {
+        drawPicSized(x, y, pic, sz, sz, 24.f, greyed ? pal.dim : pal.label, pal);
+        x += picW;
+    }
+    if(reserve[0])
+    {
+        drawText(x, y, sz, reserve, greyed || s.reserve <= 0 ? pal.dim : pal.label, pal);
+    }
+}
+
 void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
 {
     const glm::vec4& r = s.rect;
@@ -154,15 +218,25 @@ void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
     fill(r.x + 1.f, r.y + 1.f, 1.f, 3.f, pal.value);
     fill(r.x + r.z - 4.f, r.y + r.w - 2.f, 3.f, 1.f, pal.value);
     fill(r.x + r.z - 2.f, r.y + r.w - 4.f, 1.f, 3.f, pal.value);
-    holsterTextMid(r.x + r.z * 0.5f, r.y + 3.f, 6.f, s.title, pal.label, pal);
-    const float picSize = za::min(r.z - 8.f, r.w - 22.f);
+    // The holster's title smaller and fainter than the weapon's name (wheelui, his words 2026-11-28).
+    holsterTextMid(r.x + r.z * 0.5f, r.y + 3.f, holsterTitleSize, s.title, pal.label * holsterTitleInk, pal);
+    // The name as large as fits (6 pixels a character at most), a blade glyph after it for an attachment; the ammunition's
+    // line under it.
+    const char* name = empty ? "- EMPTY -" : s.name;
+    const bool glyph = !empty && s.attach != 0;
+    const float glyphW = glyph ? holsterGlyphW + 1.f : 0.f;
+    const float size = za::min(6.f, (r.z - 4.f - glyphW) / static_cast<float>(za::max<za::SizeT>(strlen(name), 1)));
+    const bool ammoLine = !empty && (s.clipSize > 0 || s.reserve >= 0);
+    const float nameY = r.y + r.w - 3.f - size - (ammoLine ? holsterAmmoSize + 1.f : 0.f);
+    const float picTop = r.y + 10.f;
+    const float picSize = za::min(r.z - 8.f, nameY - 1.f - picTop);
     if(!empty && s.model[0] && picSize > 4.f)
     {
-        if(const gfx::Picture* pic = toolgun::icons::get(s.model, 0, true))
+        if(const gfx::Picture* pic = toolgun::icons::get(s.model, 0, true, s.attach))
         {
             // On a lit plate, brightened: Quake's dark guns on the dark face read as nothing (Shade::Screen's inkAlpha
             // leaves the dark clear).
-            const float px = r.x + (r.z - picSize) * 0.5f, py = r.y + 11.f;
+            const float px = r.x + (r.z - picSize) * 0.5f, py = picTop;
             const float k = source || invalid ? 0.35f : 1.f; // (dragged away, or greyed)
             fill(px, py + picSize * 0.2f, picSize, picSize * 0.6f, pal.label * 0.45f * k);
             gfx::draw2D::color(glm::vec4{1.8f * k, 1.8f * k, 1.8f * k, 1.f});
@@ -170,10 +244,18 @@ void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
             gfx::draw2D::color(glm::vec4{1.f});
         }
     }
-    // The name as large as fits (6 pixels a character at most).
-    const char* name = empty ? "- EMPTY -" : s.name;
-    const float size = za::min(6.f, (r.z - 4.f) / static_cast<float>(za::max<za::SizeT>(strlen(name), 1)));
-    holsterTextMid(r.x + r.z * 0.5f, r.y + r.w - 3.f - size, size, name, empty || invalid || source ? pal.dim : pal.value, pal);
+    const glm::vec3 nameInk = empty || invalid || source ? pal.dim : pal.value;
+    const float nameW = static_cast<float>(strlen(name)) * size;
+    const float nameX = r.x + (r.z - nameW - glyphW) * 0.5f;
+    drawText(nameX, nameY, size, name, nameInk, pal);
+    if(glyph)
+    {
+        holsterBladeGlyph(nameX + nameW + 1.f, nameY + size * 0.5f, nameInk);
+    }
+    if(ammoLine)
+    {
+        holsterAmmoLine(s, r.x + r.z * 0.5f, nameY + size + 1.f, invalid || source, pal);
+    }
 }
 
 // The weapon being dragged: its thumbnail on a lit plate under the cursor (`at` its middle), its name below.
@@ -247,8 +329,18 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
     gfx::begin2D(t, w, h);
     fill(0.f, 0.f, v.size.x, v.size.y, visorBlack);
     holsterOutline({1.f, 1.f, v.size.x - 2.f, v.size.y - 2.f}, pal.line * 0.6f);
-    drawText(6.f, 4.f, 8.f, v.header, pal.label, pal);
-    fill(6.f, 13.f, v.size.x - 12.f, 1.f, pal.line * 0.5f);
+    if(v.header[0])
+    {
+        drawText(6.f, 4.f, 8.f, v.header, pal.label, pal);
+        fill(6.f, 13.f, v.size.x - 12.f, 1.f, pal.line * 0.5f);
+    }
+    if(v.body)
+    {
+        // The player's body (flatholster's: grey, lit), in the screen's colour.
+        gfx::draw2D::color(glm::vec4{pal.label * 0.35f, 1.f});
+        gfx::draw2D::picture(*v.body, v.bodyRect.x, v.bodyRect.y, v.bodyRect.z, v.bodyRect.w);
+        gfx::draw2D::color(glm::vec4{1.f});
+    }
     for(int i = 0; i < v.lineCount; i++)
     {
         holsterStroke(v.lines[i], pal.line * 0.8f);
@@ -268,5 +360,120 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
     out.size = v.size;
     out.shown = t.tex != 0;
     out.version = ++holsterMenu.version;
+    return out;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Flatscreen play's bindings reminder (wheelui; vr_bindpanel.cpp says what is on it): rows of an action and its keys as key
+// caps, in columns, drawn as the holster menu is, on its own target (both show at once).
+//
+//   Fire          [MOUSE1]           Reload       [R]
+//   Crouch        [C] [CTRL]         Holster menu [MOUSE3]
+
+struct BindPanelState
+{
+    gfx::RenderTarget target;
+    unsigned version{0};
+};
+BindPanelState bindPanel; // seat-shared: the image's target, made and drawn in the same seat's pass (as holsterMenu)
+
+constexpr float bindChar = 6.f; // the text's characters
+constexpr float bindRowH = 11.f;
+constexpr float bindPad = 5.f;
+constexpr float bindColGap = 12.f;
+
+[[nodiscard]] float bindCapW(const char* key)
+{
+    return static_cast<float>(strlen(key)) * bindChar + 4.f;
+}
+
+struct BindPanelMetrics
+{
+    int perColumn{0};
+    float labelW{0.f}; // the actions' column, the keys' caps after it
+    float columnW{0.f};
+};
+
+[[nodiscard]] BindPanelMetrics bindPanelMetrics(const BindPanelView& v)
+{
+    BindPanelMetrics m;
+    const int columns = za::max(v.columns, 1);
+    m.perColumn = (v.rowCount + columns - 1) / columns;
+    float keys = 0.f;
+    for(int i = 0; i < v.rowCount; i++)
+    {
+        const BindPanelRow& r = v.rows[i];
+        m.labelW = za::max(m.labelW, static_cast<float>(strlen(r.action)) * bindChar);
+        float w = 0.f;
+        for(const char* k : r.keys)
+        {
+            w += k[0] ? bindCapW(k) + 2.f : 0.f;
+        }
+        keys = za::max(keys, w);
+    }
+    m.labelW += bindChar;
+    m.columnW = m.labelW + za::max(keys, bindCapW("???"));
+    return m;
+}
+
+glm::vec2 bindPanelLayoutSize(const BindPanelView& v)
+{
+    if(v.rowCount <= 0)
+    {
+        return glm::vec2{0.f};
+    }
+    const BindPanelMetrics m = bindPanelMetrics(v);
+    const int columns = za::max(v.columns, 1);
+    return {bindPad * 2.f + m.columnW * static_cast<float>(columns) + bindColGap * static_cast<float>(columns - 1),
+        bindPad * 2.f + bindRowH * static_cast<float>(m.perColumn) - 2.f};
+}
+
+VisorImage bindPanelRender(const BindPanelView& v)
+{
+    VisorImage out;
+    const glm::vec2 size = bindPanelLayoutSize(v);
+    const int w = static_cast<int>(size.x + 0.5f), h = static_cast<int>(size.y + 0.5f);
+    if(w <= 0 || h <= 0)
+    {
+        return out;
+    }
+    const Palette pal = palette();
+    gfx::RenderTarget& t = bindPanel.target;
+    if(!t.ensure(w * visorTexels, h * visorTexels, gfx::RenderTargetFormat{.mipmaps = true, .fboName = "vr canvas"}, "bindings panel"))
+    {
+        return out;
+    }
+    const BindPanelMetrics m = bindPanelMetrics(v);
+    gfx::begin2D(t, w, h);
+    fill(0.f, 0.f, size.x, size.y, visorBlack);
+    holsterOutline({1.f, 1.f, size.x - 2.f, size.y - 2.f}, pal.line * 0.6f);
+    for(int i = 0; i < v.rowCount; i++)
+    {
+        const BindPanelRow& r = v.rows[i];
+        const int col = m.perColumn > 0 ? i / m.perColumn : 0, row = m.perColumn > 0 ? i % m.perColumn : i;
+        const float x = bindPad + static_cast<float>(col) * (m.columnW + bindColGap);
+        const float y = bindPad + static_cast<float>(row) * bindRowH;
+        drawText(x, y + 1.f, bindChar, r.action, pal.label, pal);
+        float kx = x + m.labelW;
+        const bool none = !r.keys[0][0] && !r.keys[1][0];
+        for(const char* k : r.keys)
+        {
+            if(!k[0] && !(none && k == r.keys[0]))
+            {
+                continue;
+            }
+            const char* shown = k[0] ? k : "???";
+            const float cw = bindCapW(shown);
+            fill(kx, y - 1.f, cw, bindChar + 3.f, pal.dim * 0.15f);
+            holsterOutline({kx, y - 1.f, cw, bindChar + 3.f}, k[0] ? pal.line : pal.dim * 0.5f);
+            drawText(kx + 2.f, y + 1.f, bindChar, shown, k[0] ? pal.value : pal.dim, pal);
+            kx += cw + 2.f;
+        }
+    }
+    gfx::end2D();
+    out.texture = t.tex;
+    out.size = size;
+    out.shown = t.tex != 0;
+    out.version = ++bindPanel.version;
     return out;
 }

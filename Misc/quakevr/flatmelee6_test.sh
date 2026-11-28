@@ -7,7 +7,7 @@
 #      together (a probe line for each, overlapping), the off fist's motion synthesized; one hit on the grunt;
 #   2. vr_flat_overhand_both 0: today's one-fist overhand, the off hand still; one hit, about half the two-fisted one's
 #      damage (vr_flat_overhand_2h_damage 2);
-#   3. a gun in the off hand, the main hand empty: today's one-fist overhand.
+#   3. an axe in the off hand (impulse 172), the main hand empty: V swings the axe (flatfists, his item 9 2026-11-27).
 # The run ends on "flatmelee: done" (-QuitOn); each blow is given 60 frames (the overhand's 0.64 s is 46).
 AGENT=${1:?agent}
 EXTRA=${2:-wait1} # (optional: console commands said before the blows, e.g. "tune vr_flat_overhand_2h_end_out 0")
@@ -41,6 +41,6 @@ check $(ok "$(count 1 '^Damage:.* melee:') == 1") "both empty: one combined hit 
 check $(ok "$(count 2 'overhand blow, both fists') == 0 && $(count 2 '^flatplay: main punch .*overhand blow') == 1 && $(count 2 '^flatmelee: off ') == 0") "option off: today's one-fist overhand, the off hand still"
 check $(ok "$(count 2 '^Damage:.* melee:') == 1") "option off: one hit (${d2:-?})"
 check $(ok "${d1:-0} > 1.4 * ${d2:-99} && ${d1:-0} < 2.8 * ${d2:-0}") "the two-fisted hit about twice one fist's (${d1:-?} vs ${d2:-?}; vr_flat_overhand_2h_damage 2)"
-check $(ok "$(count 3 'overhand blow, both fists') == 0 && $(count 3 '^flatplay: main punch .*overhand blow') == 1 && $(count 3 '^flatmelee: off ') == 0") "a gun in the off hand: today's one-fist overhand"
+check $(ok "$(count 3 'overhand blow') == 0 && $(count 3 '^flatplay: off punch .*overhead swing') == 1 && $(count 3 '^flatplay: main punch') == 0") "an axe in the off hand alone: V swings it (flatfists, his item 9 2026-11-27), no fist's overhand"
 verdict
 exit $fail
