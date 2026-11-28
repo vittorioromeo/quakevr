@@ -3908,6 +3908,16 @@ float thrustOutShare(int h)
     return za::clamp(thrustAlong(h) / za::max(za::clamp(reach.value, -30.f, 40.f), 1.f), 0.f, 1.f);
 }
 
+float bayonetDrive2H(int h)
+{
+    if(!active() || bot != nullptr || h < 0 || h >= HAND_COUNT || twohand::poleWeapon(heldIn(h)) ||
+        !attach::strikes(view::ownGunLook(h).attach))
+    {
+        return 0.f;
+    }
+    return thrustShare(h) * za::clamp(vr_flat_thrust_2h_drive.value, 0.f, 1.f);
+}
+
 float thrustOffSlide(int h)
 {
     // (Drawn back, the other hand stays put, the pole sliding back through it; thrust out, it rides with the pole, sliding

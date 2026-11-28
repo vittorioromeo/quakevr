@@ -399,6 +399,9 @@ void() VR_AGTest_Yank =
         p.weaponflags = 0;
         cvar_set("vr_agrunt_tug", "0"); // (the grab at once: the tug-of-war is vr_agrunt_test 21..23)
         cvar_set("vr_mock_hand_lift", "0");
+        // The grip held from here to the verdict (the test's own +grabmain: the baseline's script has none, and a gun
+        // taken into a hand whose grip is up is let go of 0.12 s later and the grunt picks it up again).
+        localcmd("+grabmain\n");
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 100); // (out of the hand's reach until it is brought there)
         vr_agt_step = 1;
         vr_agt_until = time + 1;
@@ -431,6 +434,7 @@ void() VR_AGTest_Yank =
         return;
     }
     cvar_set("vr_mock_hand_lift", "0");
+    localcmd("-grabmain\n");
     VR_AGT_Check(sprintf("yank:your main hand %s, the grunt holds %s:", VR_AGT_Name(p.weapon),
         g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
     cvar_set("vr_agrunt_tug", "1");

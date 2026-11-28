@@ -1657,8 +1657,10 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
     {
         return;
     }
-    // A gun held in two hands comes in to where the other arm reaches its grip: across the chest, and nearer.
-    s.pos[st.holding] += reachPull(s, st.helping, s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]), share);
+    // A gun held in two hands comes in to where the other arm reaches its grip: across the chest, and nearer. (Not as far
+    // while V thrusts its bayonet: both hands drive it out, the arms' stretch taking the rest: bayofix.)
+    s.pos[st.holding] += reachPull(s, st.helping, s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]),
+        share * (1.f - flatplay::bayonetDrive2H(st.holding)));
     // The hotspot as the view placed it last frame, carried to this frame's pose with the holding hand.
     const glm::vec3 grip = s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]);
     const glm::vec3 out = st.helping == HAND_OFF ? reach * share : glm::vec3{0.f}; // E still reaches out with it
@@ -2277,7 +2279,8 @@ glm::vec3 gripPull(const hands::State& s, int h, float slide)
     }
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.rot[h], fwd, right, up);
-    return reachPull(s, st.helping, s.pos[h] + fwd * local.x + right * local.y + up * local.z, st.pinShare);
+    return reachPull(s, st.helping, s.pos[h] + fwd * local.x + right * local.y + up * local.z,
+        st.pinShare * (1.f - flatplay::bayonetDrive2H(h)));
 }
 
 void noteDrawn(const hands::State& s)

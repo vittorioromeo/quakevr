@@ -1,0 +1,11 @@
+# mp_coop_beasts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The beasts' armour on a remote
+# client (ROUND26.md, "beastmp"): a coop game you host in the test hall, an ogre and a scrag in full yellow armour ahead
+# (vr_agarmor_test 25 makes you notarget); join from a second game to see them as a remote client.
+title Coop host with an armoured ogre and scrag: join from a second game and compare their armour
+mp coop
+map vrtesthall
+start 0 -288 25 90
+god
+give "Shotgun" main
+cmd vr_agarmor_test 25
+hint Join this game from your Quest or a second PC and look at both beasts there: every plate, the leather between them and the scrag's tail segments as on the host. Shoot a piece off on either side: it falls on both. Debug > Tests "Beast Armour Drawn Here" prints what each game draws.

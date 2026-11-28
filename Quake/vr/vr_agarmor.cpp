@@ -3813,12 +3813,12 @@ void relink()
             forgetModels();
         }
     }
+    beastarmour::beginRelink();
     if(cls.state != ca_connected || !cl_entities || (vr_agarmor.value == 0.f && named.empty() && numServed == 0))
     {
         return;
     }
     const int visible = cl_numvisedicts;
-    beastarmour::beginRelink();
     for(int i = 0; i < visible && numWorn < maxWorn && cl_numvisedicts < MAX_VISEDICTS; i++)
     {
         entity_t* e = cl_visedicts[i];

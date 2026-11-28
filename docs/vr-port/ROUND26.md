@@ -5238,3 +5238,112 @@ synced in MP; recognisable by a dye through the weapon-colour system.
   enforcer (lightning) still looks like the stock green although `vr_humlook_info` gives it the elite row with a mask;
   to look at (his eyes, the Texture Studio's Elite rows for the enforcer). The arena tests were not rerun (the rule only
   touches waves 4+).
+## bayofix: flat V drives a two-handed gun's bayonet with both hands; the dagger placed on every new gun (branch agent/bayofix, 2026-11-28)
+
+Open from bayomounts: flat V with a bayonet on the GL, prox and RL (held in both hands once the off hand is free) was no
+stab; the dagger mounts on the new guns untuned. And embedfire2's open "stall" with the launchers.
+- **Why V missed** (measured: the server's blade line per frame): the thrust ran, but flatsight's pinToGrip pulls a
+  two-handed gun in to where the free arm reaches its foregrip (`reachPull`, gripKeep 0.92 of the arm): the launchers'
+  foregrips are far ahead, so the bayonet's point stopped ~10 units short of the grunt (y 288 against 298 one-handed).
+- **Fix** (vr_flatplay.cpp `bayonetDrive2H`, vr_flatsight.cpp pinToGrip / gripPull): while V thrusts a gun's bayonet or
+  dagger, the free arm's pull fades by the thrust's share times `vr_flat_thrust_2h_drive` (1; 0: as before; Tunables row
+  "Two-Handed Bayonet Drive"): both hands go out with the gun, the arms' IK stretch (vr_flat_thrust_arm_stretch, any
+  thrust) keeps the free hand on the grip. Not pole weapons (their grip slides along the pole) nor guns with no blade on.
+  The crosshair's rehearsed strike path (noteStrikePath via gripPull) uses the same share.
+- **The "stall"**: the script's `god` doesn't reach the server before it spawns; the launchers' blasts at the grunt (in
+  the hand and stuck) killed the player, and his death menu paused the game until the run's timeout. Tests 96 and 97 now
+  set FL_GODMODE on the player each case. One-handed launchers (an axe in the off hand) stab and fire stuck fine.
+- **The dagger on the new guns** (weapons.txt att2_x / att2_z, mount units, on top of the every-gun default): measured on
+  the models as drawn (`vr_attach_mdl_dump <gun> <file> 2` now writes the gun and that attachment placed on it, OBJ
+  objects gun / attach). His shotgun's dagger sits 0.2 mount units under the gun, its guard 0.45 behind the gun's front;
+  each new gun solved to the same with no vertex inside the gun: nailgun z -1.13 (it sank 1.9 units into the shroud), GL
+  x 0.75 z 0.15, prox x 0.75 z 0.1, RL x 1 z 1.11 (it hung 3 units under the nose), thunderbolt x 0.65 z -0.99 (2.2 into
+  the body), Plasma Gun x 0.5 z 0.62, burst rifle z 0.76 (its 5 #adv slots the same, not measured), laser rifle z -1.07,
+  revolver z -0.54. The lava nailgun, multi launchers and plasma-look thunderbolt inherit them (checked). Level (pitch 0).
+  Contact sheet (side and from below, the dagger orange): worktree `scratch/bayofix_sheet.png` (scratch bayofix_sheet.py,
+  bayofix_measure.py, bayofix_solve.py). His config keeps only the shotguns' att2 pitches: the new values reach him.
+- **Tests**: `vr_embed_test 96` attachguns 66/0 (no PENDING: the GL, prox and RL "held in both hands as V was pressed"
+  and stuck), attach_guns_check 32/32; `vr_embed_test 97` embedrate 69/0 (the GL, prox, RL added, two-handed;
+  `scratch1 10008; scratch2 1` runs those three one-handed: 21/0); menu attachtest 20/0 (its hierarchy checks expect the
+  new dagger offsets); flat 80 17/0, flat dagger 85 18/0.
+- **Open**: VR stabs with the launchers are hand-driven (not tested per gun). The #adv burst rifles' daggers copy the
+  burst rifle's.
+## alwaysfail: the tests that failed every run of the flaky sweep (branch agent/alwaysfail, 2026-11-28)
+
+Tests and one test aid only, no gameplay change. Found on origin/next 2ea7ac94e (Release; the author's game running, so
+low-impact runs).
+
+| test | cause | action | result |
+|---|---|---|---|
+| agrunt_3 (yank) | harness: the test's header says its script holds +grabmain; the baseline's script (`vr_agrunt_test 3` alone) holds nothing, so the yanked shotgun went into the hand and was let go of 0.12 s later (grip up), and the grunt picked it up again | the test presses `+grabmain` itself at its start and lets go at the verdict | 1/0, 3 of 3 |
+| agrunt_60 (agparry "weapon") | stale: the sword grunt spawns wearing armour plates (vr_agarmor, Plate Blocks All); the parried blow's kept 5 lands on its chest and the plate takes all of it: 0 damage | `VR_AGPT2_Hold` strips the plates (`vr_ar_type`/`vr_ar_mask` 0, vr_agarmor_test's way) | 6/0, 3 of 3; off `test_flaky.txt` |
+| reload: "the lying shell taken again by the fist", "let go of at the pouch: refunded (37)" | harness: the mock put the hand's point 1 unit over the shell's origin; the fist's spheres sit off that point, and how near they come depends on how the shell lies: 3.60 cm off, allowed 3 (passed 11-25, failed from 11-27: most likely the Box3D update's other rest pose, box3dup3 11-26). The refund failed only because nothing was in the hand | `vr_mock_hand_to <hand> nearest <class> <units> palm` (new: the palm's middle there, `hands::palmPoint`, as magpalm does); the test aims the palm: the fist -0.64 cm, touching | both PASS (2 full runs) |
+| reload: "a prop held in the other hand hits the barrels ... (the fist as far off: 1, want 0)" | harness: the fist alone stopping 20 cm over the barrels came to 6.0 units off their front, Hit Reach (vr_reload_ssg_hit_reach 6) itself, so it opened them (since 11-25). Both cases are within a unit of the reach: with both at 24 cm the head no longer opened them either | the fist-alone run stops 22 cm over; the head stays at 20 | head 10 (as in both full runs), fist alone at 22: not opened. Last full run before that change 115/1 |
+| vr_runlaunch_test "Arena Mode right under Arcane Dimensions" | stale: pageCampaigns puts Arena Mode after the last campaign; Dwell (7) and Quoth (8) came after AD (6) | the check wants it under the last campaign's row (`VR_CampaignCount() - 1`) | 92/0 |
+| teleporters_chase (the framed_sill32 dog) | not found. Not chance: seeds 1-8 all fail the same way, the dog ends near (1400-1440, 510-570) and never takes the sill-16 gate (its expected way since the test was written) | none; stays on `test_flaky.txt` | 0/8 |
+| agrunt_16 (hunt: the drawn grip 2.73 off the drawn hand hull, limit 2.5) | not looked into (failing since about 11-10; mean 2.13 over 72 frames, while the limit's note says the shotgun's grip point is 1.44 out of the palm's hull: the grip or hull moved about 0.7) | none | 273/1 |
+| rigstudio_posekeys case 5 (right elbow) | not reached (the one run gave no output: lane lock) | none | |
+| vr_agarmor_look_check's 26 | not looked into: the coverage/shape checks on the player and monster bodies (vrgrunt 0% of covered skin under plates at rest and bent, the others 50-59% against 85/80%, hknight thigh_l width 8.89 against 7.5 and taper 0.46 against 0.45) | none | 88/26 |
+
+- **Test aid**: `vr_mock_hand_to <main|off> nearest <class> <units> palm` (vr_backend_mock.cpp handToNearest).
+- **Not run 3x**: the reload test (two full runs, about 15 min each, plus the fist case alone); runlaunch once.
+- **Open**: teleporters_chase's sill-32 dog (AI/nav: why it no longer slides to the sill-16 gate, since about 11-14), agrunt
+  16, rigstudio_posekeys 5, the armour look check's 26.
+
+## beastmp: remote multiplayer clients draw the beasts' armour (branch agent/beastmp, 2026-11-28)
+
+Approved 2026-11-28 (beastarmour's open note: "a remote MP client draws no beast pieces").
+- **Cause:** not the wire. The server already sends every armoured entity's type, worn mask and wear (QVR_SVC_ARMOR, the
+  humanoids' message: beasts included). The client's `beastarmour::relinkEntity` placed the pieces from the *server's*
+  edict (`ready(ent)`, `place(ent, ...)`: the hit model's body), so it returned at once without a server (`!sv.active`): a
+  remote client drew no piece, no leather. Second, latent: a piece armour.txt shapes has its debris model named
+  "<piece>#tweak" in the server's precache list; a client that had not yet read beastarmour.txt (a remote one joining)
+  could not make it (`makeTweaked` looked only at kinds already read and resolved).
+- **Now:** without a server edict for the entity the pieces sit on the client's own drawing of the body (`ClientBody`,
+  vr_beastarmour.cpp): animated, its drawn lerp (`hitmodel::clientLerp`) and the shader's points for the anchors
+  (`animsmooth::drawnPoints`, as a listen host's armour since armourrebuild) through the renderer's drawn matrix
+  (`render::drawnEntityMatrix`: place, turn, scale, network scale and offset); a corpse or knocked-down beast, the ragdoll
+  the server sent (QVR_SVC_RAGPOSE) skinned as drawn (`ragdoll::skinnedVertices(num, ..., drawn)`: each vertex on its own
+  body, as the drawn skin and the host's hit model have it; per-part `drawnPart` was tried first: the ogre's chest and
+  right forearm pieces came out 3.6-4.7 units off, their anchors' vertices carried by other bodies). The rest is shared with
+  the listen path (`fitPlaced`, `restPlaced`, `junctionBonesBy` taking a placer): pieces, parts with their own bits (shins,
+  the scrag's back half and tail segments), the leather junctions, the wear skins by the server's wear bits, the Armour
+  Studio's ghost. Breaks need nothing new: the mask shrinks, the debris is a server entity with the piece's model.
+  `makeTweaked` reads beastarmour.txt and resolves the piece's kind first.
+- **Whose armour.txt:** each client's own (decision). As the humanoids' MP path (each machine makes the shells from its
+  armour.txt): the shipped file is the same on every install, so everyone sees his promoted tweaks; the server's file
+  decides what a shot hits (the server's placements); a player's own Armour Studio edits stay a local look; no wire bytes.
+  A remote client with a different armour.txt sees its own shapes on bodies that are hit as the server's.
+- **Wire:** unchanged, no QVR_NET_VERSION bump.
+- **Debug:** `vr_beastarmour_drawn` (Debug > Tests "Beast Armour Drawn Here"): each armoured beast drawn last frame, the
+  server's mask, pieces drawn at each wear, leather, the pieces' mean on the body, "server-body" / "client-body" /
+  "client-ragdoll", and the debris in view; `vr_beastarmour_drawn compare` (a listen host) places each beast's pieces both
+  ways for a frame and prints how far apart. Debug > Tests also has "Beast Armour in Multiplayer: Armoured Ogre and Scrag"
+  (`vr_agarmor_test 25`) and "... Break a Part of Each" (26).
+- **Tests:** `mp_test.py beastmp` 19/0 (in the suite): a listen host A on vrtesthall, B remote; the server's QC
+  (`vr_agarmor_test 25`-`27`, test_numbers.txt) dresses an ogre (12 pieces, mask 4095) and a scrag (13, 32575) in yellow:
+  A and B draw every piece and the leather (B "client-body"); B's armour on each body within 0.68 / 0.91 units of A's
+  (pieces' mean, idling; clocks a tick apart); the host placing them B's way off his own by 0.000 units, 0.04 degrees at
+  most; 26 breaks the ogre's left shin and the scrag's tail3 and wears the ogre's breastplate: B drops just those (11 /
+  12), draws the breastplate at two thirds, sees the 2 debris; 27 kills both: B draws the corpses' pieces on the sent
+  ragdolls, 0.66 / 0.09 units from A's once settled (host compare 0.11 units, 0.57 degrees: the drawn pose between the last
+  two steps against the hit model's latest). `beastmp_dedicated` 17/0 (not in the suite): a dedicated server, the beasts
+  dressed before B joins (the "#tweak" debris models in his precache list, the armour in the joining client's state), A and
+  B both remote, the corpses within 0.01 / 0.00 units of each other. `vr_agarmor_test 15` 71/0, `21` 30/0.
+- **Files:** vr_beastarmour.cpp (ClientBody, placeClient, fitPlaced/restPlaced, junctionBonesBy, relinkBody, the report,
+  makeTweaked), vr_agarmor.cpp (beginRelink every frame), vr_menu_debug_tests.inc, QC vr_beastarmour_test.qc
+  (VR_BMP_Frame), vr_agarmor_test.qc, mp_test.py (beastmp), scenario `mp_coop_beasts`.
+- **Open:** a remote client's armour follows its own clock (as its drawing of the body, no kick); the beasts of
+  `beastmp_dedicated` hunt B before his notarget, so their living placement is compared on the listen run only;
+  `vr_armour_on_drawn 0` (debug) is a listen host's comparison alone (a remote client always uses the drawn points).
+
+
+## blclean2: BACKLOG.md keeps only what still needs work (branch agent/blclean2, 2026-11-28)
+
+Docs only; 331 -> about 260 lines. Removed or rewritten:
+- Section 1 rewritten as one list: the three "baseline" lists, "AD-only tests", "Random run to run", "Stale list", "Baseline 2026-11-12/13" folded into "Real failures" and "Flaky" (only failures still seen on 11-27/28).
+- Removed as fixed: agrunt 3 and agrunt 60 (alwaysfail), reload's lying shell, pouch refund, fist-alone barrel hit and SSG sights, agrunt 12/47/63/72/74/76/86/92, nail_1, rv_1, ragdoll_grab, judo, parry_pose, weapon_catch, dead_gear, stealth, recoil (flakysweep), agrunt 213, stealth props_round, mp_coopbots one-off ("don't chase").
+- Added from alwaysfail: `vr_agarmor_look_check`'s 26 failures.
+- Section 3: "Hotkeys for the remaining VR interactions" removed (audit done, FLATPLAY.md "Hotkeys"); "Procedural reloads" cut to the guns beyond the one-handed shotgun (flatprocreload).
+- Section 9: item 2 "Ironwail extraction" removed (iwextract; what is left stays inside Ironwail's functions); the check says melee tests, not the eval.
+- Kept, tightened: the rest of section 1, sections 2, 4-8, 10, 11 (each still open; none found implemented).
