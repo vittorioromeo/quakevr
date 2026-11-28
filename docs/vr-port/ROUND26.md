@@ -5910,3 +5910,20 @@ Brush").
   call, 35 candidates a search, nothing found) is now most of agstruck.
 - Headset: beta6 put back (APK 9261565a, progs a0bfe11a), his 31 autosaves and 3 saves restored (35 sums match). Scripts:
   worktree `scratch/qn_*` (not committed).
+
+## qcjit: is a QuakeC JIT or AOT worth it on the Quest and PC? (research; branch agent/qcjit, 2026-11-28)
+
+- Research and a doc only, no engine change: `docs/vr-port/QC_JIT.md` (existing work, libraries, platforms' JIT rules,
+  AOT design, gain estimate, sources).
+- Measured (PC, hip1m1 fight of questopt2: 69 woken, 720 frames): 96,700 QC statements a frame; the 25 hottest functions
+  run 55% of them; `vr_qcprofile` QuakeC 1.81 ms of which builtins ~1.0. Our progs: 24,910 functions, 822 k statements,
+  4,340 fields (17 KB edicts), vanilla opcodes. The interpreted part is ~0.5-0.6 ms PC / ~1.4 ms Quest, at ~5-6 ns a
+  statement on PC against vr_qcexec's 1.1-1.5 ns dispatch-bound: calls, builtin marshalling and memory dominate, which
+  native code doesn't remove (DarkPlaces' QcNat.hs progs-to-C found "the performance was the same").
+- No maintained QuakeC JIT for x86-64/arm64 exists (FTE's pr_x86.c: x86-32, off); Quake3e's arm64 QVM JIT (GPLv2+) is the
+  reference for executable memory. Android/Horizon allow app JIT (`appdomain self:process execmem`); Meta's policies are
+  silent. Libraries that fit the licence: sljit (BSD-2), AsmJit (zlib), MIR (MIT, no Windows), DynASM, libtcc; not
+  lightning (LGPLv3), LLVM/Cranelift (Apache-2.0), libgccjit (GPLv3).
+- Recommendation: no JIT. Finish the interpreter (qcvm) and the hand ports first; spike a profile-guided AOT of our own
+  progs' hottest functions (qc2c.py, hash-gated, `vr_qc_aot` 0/1/2 compare) only if > ~1 ms of interpreted QuakeC is
+  left on the Quest. Expected AOT gain ~0.4-0.7 ms Quest, ~0.15-0.3 ms PC.
