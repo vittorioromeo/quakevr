@@ -161,7 +161,7 @@ void(float t) VR_AGLOD_Frame =
 float AGLOD_WAKE_DIST = 400;
 float AGLOD_TRIALS = 4;
 float aglod_trial, aglod_t0, aglod_poses, aglod_lastpose, aglod_wake, aglod_attacked, aglod_every, aglod_keepnear;
-float aglod_hash, aglod_react_e, aglod_react_p, aglod_react_t;
+float aglod_hash, aglod_game, aglod_react_e, aglod_react_p, aglod_react_t;
 vector aglod_fw;
 
 void() VR_AGLOD_WakeFrame =
@@ -233,7 +233,15 @@ void() VR_AGLOD_WakeFrame =
             return;
         }
         aglod_every = floor(cvar_hget(cvarh_vr_agrunt_pose_lod_frames)); // (0 or 1: every frame, no LOD)
-        float want = (cvar_hget(cvarh_vr_agrunt_pose_lod) && aglod_every >= 2) ? floor(64 / aglod_every) : 64;
+        aglod_every = (cvar_hget(cvarh_vr_agrunt_pose_lod) && aglod_every >= 2) ? aglod_every : 1;
+        // (the whole think's LOD, vr_agrunt_think_lod: once in vr_agrunt_think_lod_frames at least; aglod_test.sh runs
+        // it off too)
+        float thinkEvery = floor(cvar_hget(cvarh_vr_agrunt_think_lod_frames));
+        if(cvar_hget(cvarh_vr_agrunt_think_lod) && thinkEvery > aglod_every && g.vr_ag_prop) // (armed: its weapon's think)
+        {
+            aglod_every = thinkEvery;
+        }
+        float want = floor(64 / aglod_every);
         VR_AGT_Check(sprintf("trial %g: unseen, posed %g times in 64 frames (%g)", aglod_trial, aglod_poses, want),
             fabs(aglod_poses - want) <= 1 && g.enemy == world);
         // The wake.
@@ -256,6 +264,7 @@ void() VR_AGLOD_WakeFrame =
         aglod_wake = time;
         aglod_attacked = 0;
         aglod_hash = 0;
+        aglod_game = 0;
         aglod_poses = 0;
         aglod_react_e = -1;
         aglod_react_p = -1;
@@ -296,6 +305,10 @@ void() VR_AGLOD_WakeFrame =
     if(s <= 3)
     {
         float k = floor(s * 72 + 0.5);
+        // (the game alone: its place, frame, turn, state, his health; not its weapon's place, which a LOD's skipped pose
+        // leaves where its move carried it: vr_agrunt_think_lod's on and off runs must agree on this one)
+        aglod_game = aglod_game + (g.origin * '1 3 7' + g.frame * 11 + p.health * 19 + g.angles_y * 23 + g.stl_state * 29 +
+            g.vr_ag_shots * 31) * (1 + (k & 7));
         aglod_hash = aglod_hash + (g.origin * '1 3 7' + g.frame * 11 + g.vr_ag_prop.origin * '5 13 17' + p.health * 19 +
             g.angles_y * 23 + g.stl_state * 29) * (1 + (k & 7));
     }
@@ -313,6 +326,7 @@ void() VR_AGLOD_WakeFrame =
     VR_AGT_Check(sprintf("trial %g: posed every frame since (%g of %g)", aglod_trial, aglod_poses, floor(4 * 72 + 0.5)),
         aglod_trial != 0 || aglod_poses >= floor(4 * 72 + 0.5) - 1); // (shot or heard: behind him, alert, posed as before: every other frame till it aims)
     VR_AGT_Print(sprintf("aglod wake %g trace %.3f", aglod_trial, aglod_hash));
+    VR_AGT_Print(sprintf("aglod wake %g game %.3f", aglod_trial, aglod_game));
     aglod_trial = aglod_trial + 1;
     aglod_step = 0;
 };
