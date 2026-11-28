@@ -4558,9 +4558,9 @@ enum RepathWhy
     repathTimer,   // its interval (vr_nav_repath, or the backoff's) ran out
     repathMoved,   // its foe moved vr_nav_repath_move from where the path led
     repathOff,     // it stands on none of its path's polygons
-    repathMesh,    // backoff cut short: the class's gen changed (a door, a lift, a tile)
-    repathHurt,    // backoff cut short: it was hurt
-    repathSight,   // backoff cut short: it no longer sees its foe
+    repathMesh,    // backoff ended past its plain interval: the class's gen changed (a door, a lift, a tile)
+    repathHurt,    // backoff ended past its plain interval: it was hurt
+    repathSight,   // backoff ended past its plain interval: it no longer sees its foe
     repathWhys
 };
 constexpr const char* repathWhyNames[repathWhys] = {"new", "timer", "moved", "off path", "mesh", "hurt", "sight"};
@@ -4844,17 +4844,19 @@ float steer(edict_t* ent, edict_t* goal)
               : glm::length(goalPos - a.goalAt) > vr_nav_repath_move.value             ? repathMoved
               : now >= a.repathAt                                                      ? repathTimer
                                                                                        : -1;
-    // navshare's backoff cut short: the mesh changed (a door opened, a lift moved), it was hurt, or (once its plain
-    // interval is over) it no longer sees its foe.
+    // navshare's backoff ended at once: the mesh changed (a door opened, a lift moved), it was hurt, or (once its plain
+    // interval is over) it no longer sees its foe. It is back on its plain interval: it repaths now if that is over,
+    // else when it ends (never sooner than without the backoff).
     if(why < 0 && a.unreachStreak > 0)
     {
+        int cut = -1;
         if(c->gen != a.unreachGen)
         {
-            why = repathMesh;
+            cut = repathMesh;
         }
         else if(ent->v.health < a.healthAt)
         {
-            why = repathHurt;
+            cut = repathHurt;
         }
         else if(now >= a.repathBase && !a.sightChecked)
         {
@@ -4864,13 +4866,15 @@ float steer(edict_t* ent, edict_t* goal)
             VectorAdd(goal->v.origin, goal->v.view_ofs, to);
             if(SV_Move(eye, vec3_origin, vec3_origin, to, MOVE_NOMONSTERS, ent).fraction < 1.f)
             {
-                why = repathSight;
+                cut = repathSight;
             }
         }
-        if(why >= 0)
+        if(cut >= 0)
         {
             a.unreachStreak = 0;
             a.unreachEnd = 0;
+            a.repathAt = a.repathBase;
+            why = now >= a.repathBase ? cut : -1;
         }
     }
     int from = 0;
