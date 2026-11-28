@@ -55,6 +55,7 @@ Flat-screen or VR: kill or knock down a grunt standing right beside another, and
 Flat-screen or VR: shove a grunt hard into the other grunt, and throw or swing a body into a grunt fast: both should go down; thrown at the ogre it only staggers or shrugs it off. {test:grunts_to_throw}
 Flat-screen or VR: an elite armed humanoid now glows soft gold round its outline (its armour too) and stands out in dim light; its armour plates have gold-trimmed edges while their faces keep their green, yellow or red. Check the glow reads as subtle but clear and the armour tier is still easy to tell. {test:elite_marker}
 Flat-screen or VR: Run Setup has an All Elites mutator (Enemies group, and on Arena Mode's screen): with it on, every armed humanoid in the campaign or the arena spawns as a gold elite. {test:run_allelites}
+Fire While Down prototype (VR Settings > Armed Grunts > Loadout, on in this scene): shove the revolver, nail pistol and shotgun holders over or pick one up; lying, staggering or held they keep firing at you, gun arm reaching towards you, slower and less accurate, never through the floor, and the rocket launcher holder never fires while down. Judge the look (shots can leave up to 30 degrees off the drawn gun), the rate and whether being shot while holding one feels fair. {test:agrunt_ragfire}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install

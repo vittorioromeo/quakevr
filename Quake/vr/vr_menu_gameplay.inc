@@ -739,6 +739,7 @@ void ikStretchReset()
         header("Loadout"),
         row(opt::vr_agrunt_dual_chance),
         row(opt::vr_agrunt_flaregun),
+        row(opt::vr_agrunt_ragfire),
         header("Parrying Your Blows (Experimental)"),
         row(opt::vr_agrunt_parry),
         row(opt::vr_agrunt_parry_strikes_only),

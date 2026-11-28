@@ -1234,7 +1234,8 @@ bool shoulderReach(State& s, const Parts& p, float dt)
         }
         const float now = b3SphericalJoint_GetConeLimit(j);
         float to = now;
-        if(want)
+        // (An armed one's aimed gun arm too, vr_agrunt_ragfire: raised towards its target, over its shoulder.)
+        if(want || (wide > 0.f && s.aim.on && s.aim.arm == arm))
         {
             rigCone = rigCone < 0.f ? now : rigCone;
             to = za::max(rigCone, wide);
