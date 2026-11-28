@@ -16,7 +16,7 @@ QT_NAME=bindpanel_test
 source "$(dirname "$0")/qvrtest.sh"
 S=C:/OHWorkspace/qvr-agents/$AGENT/scratch/bindpanel
 mkdir -p "$S"
-SCRIPT="developer 1; map vrtesthall; wait30; vr_bindpanel_report; togglemenu; wait30; screenshot; echo bindpanel_kb; vr_bindpanel_report; vr_bindpanel_setup; wait5; echo bindpanel_setup; vr_bindpanel_report; vr_bindpanel_device xboxone; menu_main; wait30; screenshot; echo bindpanel_pad; vr_bindpanel_report; vr_bindpanel_device playstation; echo bindpanel_ps; vr_bindpanel_report; vr_bindpanel_device auto; menu_options; wait30; screenshot; echo bindpanel_opts; vr_bindpanel_report; vr_obs_mock 1; menu_main; wait60; echo bindpanel_obs; vr_bindpanel_report; vr_obs_mock 0; echo bindpanel_test_end; toggleconsole; quit"
+SCRIPT="developer 1; map vrtesthall; wait30; vr_bindpanel_report; togglemenu; wait30; screenshot; echo bindpanel_kb; vr_bindpanel_report; vr_bindpanel_setup; wait5; echo bindpanel_setup; vr_bindpanel_report; vr_bindpanel_device xboxone; menu_main; wait30; screenshot; echo bindpanel_pad; vr_bindpanel_report; vr_bindpanel_device playstation; echo bindpanel_ps; vr_bindpanel_report; vr_bindpanel_device auto; menu_options; wait30; screenshot; echo bindpanel_opts; vr_bindpanel_report; vr_obs_mock 1; menu_main; wait60; echo bindpanel_obs; vr_bindpanel_report; vr_obs_mock 0; vr_menu_bind_panel_scale 0.5; wait10; echo bindpanel_small; vr_bindpanel_report; vr_menu_bind_panel_scale 1.5; echo bindpanel_test_end; toggleconsole; quit"
 bash $KIT/run.sh $AGENT -ExtraArgs -flatscreenmode -Script "$SCRIPT" -QuitOn "^bindpanel_test_end" -Timeout 120 \
     -Filter "^(bindpanel)" -Out "$S/main.png" > "$S/run.log" 2>&1
 L=$(cat "$S/run.log")
@@ -43,7 +43,8 @@ check $(has "^bindpanel: Setup Bindings: Options > Controls") "Setup Bindings sa
 # nothing else under Setup Bindings, the keyboard's and the pad's bottom at the same place.
 K=$(part bindpanel_kb bindpanel_setup)
 O=$(part bindpanel_opts bindpanel_obs)
-B=$(part bindpanel_obs bindpanel_test_end)
+B=$(part bindpanel_obs bindpanel_small)
+SM=$(part bindpanel_small bindpanel_test_end)
 P=$(part bindpanel_pad bindpanel_ps)
 kb() { grep -qE "$1" <<<"$K" && echo 1 || echo 0; }
 check $(kb '^bindpanel: menu panel drawn: 20 rows, .* page main, corner hits 0, obs row 0, clear (-0|[0-9])') "main menu: the keyboard's panel drawn, nothing under Setup Bindings, above the corner's rows"
@@ -54,6 +55,25 @@ padBottom=$(grep -oE '^bindpanel: menu panel room .* button [-0-9]+ [-0-9]+ \.\.
 kbLeft=$(grep -oE '^bindpanel: menu panel room .* button [-0-9]+' <<<"$K" | grep -oE '[-0-9]+$' | head -1)
 padLeft=$(grep -oE '^bindpanel: menu panel room .* button [-0-9]+' <<<"$P" | grep -oE '[-0-9]+$' | head -1)
 check $([ -n "$kbBottom" ] && [ "$kbBottom" = "$padBottom" ] && [ "$kbLeft" = "$padLeft" ] && echo 1 || echo 0) "the keyboard's and the pad's panels in the same bottom left corner (Setup Bindings's left and bottom $kbLeft $kbBottom / $padLeft $padBottom)"
+# panelsize: the panel's extent inside its room (left, top, right, bottom), at the main menu (keyboard, OBS's row, a pad)
+# and Options (a stretched canvas); the letters larger than before (8 or more on the main menu); two columns when one
+# is too tall; vr_menu_bind_panel_scale 0.5 halves the letters' limit.
+inside() { # $1 a part: the room line and the extent line
+    local r e
+    r=$(grep -oE 'menu panel room -?[0-9]+ -?[0-9]+ \.\. -?[0-9]+ -?[0-9]+' <<<"$1" | head -1 | grep -oE -- '-?[0-9]+' | tr '\n' ' ')
+    e=$(grep -oE 'menu panel extent -?[0-9]+ -?[0-9]+ \.\. -?[0-9]+ -?[0-9]+' <<<"$1" | head -1 | grep -oE -- '-?[0-9]+' | tr '\n' ' ')
+    if [ -n "$r" ] && [ -n "$e" ]; then echo "$r $e" | awk '{ print ($5>=$1-1 && $7<=$3+1 && $6>=$2-1 && $8<=$4+1) ? 1 : 0 }'; else echo 0; fi
+}
+check $(inside "$K") "main menu (keyboard): the panel inside its room"
+check $(inside "$O") "Options (stretched canvas): the panel inside its room"
+check $(inside "$B") "main menu with OBS's row: the panel inside its room"
+check $(inside "$P") "main menu (a pad): the panel inside its room"
+letters() { grep -oE 'menu panel drawn: [0-9]+ rows, letters [0-9.]+' <<<"$1" | grep -oE '[0-9.]+$' | head -1; }
+LK=$(letters "$K"); LS=$(letters "$SM")
+check $(awk -v a="${LK:-0}" 'BEGIN { print (a >= 8) ? 1 : 0 }') "main menu: the main rows' letters large ($LK menu units)"
+check $(awk -v a="${LK:-0}" -v b="${LS:-0}" 'BEGIN { print (b > 0 && b < a) ? 1 : 0 }') "vr_menu_bind_panel_scale 0.5: smaller letters ($LS)"
+check $(grep -qE 'menu panel extent .*, columns 2' <<<"$K" && echo 1 || echo 0) "the keyboard's twenty rows: two columns (one is too tall)"
+check $(grep -qE 'menu panel extent .*, columns 1' <<<"$P" && echo 1 || echo 0) "a pad's rows: one column"
 # A pad (bindpanel2): its part of the log, between bindpanel_pad and bindpanel_ps.
 pad() { grep -qE "$1" <<<"$P" && echo 1 || echo 0; }
 check $(pad '^bindpanel: row [0-9]+ "[^"]+" keys "RT" "" glyph "xbox_rt"') "an Xbox pad: RT's row with Kenney's Xbox glyph"

@@ -36,6 +36,9 @@
 #   gadget_tap.wav, gadget_tap_on.wav  the wrist gadget's screen tap registering (vr_gadget.cpp tapFeedback,
 #                 vr_bullettime_tap_sound): a double tap's first (a short, dry electronic tick, 40 ms) and the tap that
 #                 starts or stops bullet time (two quick rising blips, brighter, 0.11 s)
+#   visor_boot.wav  the flatscreen visor booting (vr_visor.cpp bootSound, vr_flat_visor_boot_seq): a power-up, 1 s, timed
+#                 to the boot's steps: a hum rising, a whine charging, crackle and blips as the panels glitch in, a double
+#                 blip as the sweep starts
 #   grapple_reel.wav, grapple_taut.wav, grapple_unreel.wav  the grappling hook (QC vr_grapple.qc): the reel winding in
 #                 (a ratchet's clicks over a whirr, played back to back while it reels), the rope snapping taut (a low
 #                 twang, a chink) and the unreel paying it out (the ratchet backwards: reversed clicks, lighter, quicker)
@@ -1303,6 +1306,50 @@ def gadget_tap_on():
     return finish(out, 0.8, 0.01)
 
 
+def visor_boot():
+    """The flatscreen visor booting (vr_visor.cpp bootSound): timed to its default steps (dark 0.3 s, the fade in 0.5 s,
+    then the sweep). A power-up: a low hum swelling and rising, a capacitor's whine charging up (a sine sweeping 220 Hz to
+    1.8 kHz), sparse digital crackle and two stuttering blips through the glitching fade in, and a bright double blip as
+    the sweep starts (the gadget's tap-on, lower and softer)."""
+    rng = random.Random(1128)
+    length = 1.05
+    n = int(RATE * length)
+    out = [0.0] * n
+    hum_phase = 0.0
+    whine_phase = 0.0
+    hp = OnePole(2500)
+    lp = OnePole(5000)
+    for i in range(n):
+        t = i / RATE
+        # The hum: a soft saw-ish tone (three harmonics) from 55 Hz up to 110 Hz, swelling in, gone by the end.
+        f_hum = 55.0 * 2.0 ** min(1.0, t / 0.7)
+        hum_phase += 2 * math.pi * f_hum / RATE
+        hum = math.sin(hum_phase) + 0.45 * math.sin(2 * hum_phase) + 0.2 * math.sin(3 * hum_phase)
+        hum_env = min(1.0, t / 0.18) * max(0.0, 1.0 - max(0.0, t - 0.75) / 0.3)
+        # The whine: charging up from 0.05 s to 0.8 s, louder as it climbs, cut as the sweep starts.
+        whine = 0.0
+        if 0.05 <= t < 0.85:
+            x = (t - 0.05) / 0.75
+            f = 220.0 * (1760.0 / 220.0) ** x
+            whine_phase += 2 * math.pi * f / RATE
+            whine = (math.sin(whine_phase) + 0.15 * math.sin(3 * whine_phase)) * (0.15 + 0.35 * x) * min(1.0, (0.85 - t) / 0.02)
+        # The crackle: sparse high clicks through the fade in (0.3 .. 0.8 s).
+        crackle = 0.0
+        if 0.3 <= t < 0.8 and rng.random() < 0.004:
+            crackle = rng.uniform(-1.0, 1.0) * 1.6
+        x = crackle + 0.05 * rng.uniform(-1.0, 1.0) * (1.0 if 0.3 <= t < 0.8 else 0.0)
+        out[i] = 0.32 * hum * hum_env + 0.5 * whine + lp(x - hp(x))
+    # The glitch's stuttering blips, and the sweep's double blip at 0.8 s.
+    for at, f, dur, tau, amp in ((0.34, 2300.0, 0.025, 0.012, 0.35), (0.37, 2300.0, 0.02, 0.01, 0.25),
+                                 (0.58, 3100.0, 0.02, 0.01, 0.25), (0.8, 1500.0, 0.04, 0.03, 0.5), (0.855, 2250.0, 0.09, 0.05, 0.5)):
+        b = blip(f, dur, tau, 0.35)
+        start = int(RATE * at)
+        for k, s in enumerate(b):
+            if start + k < n:
+                out[start + k] += amp * s
+    return finish(out, 0.7, 0.15)
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "sound", "vr")
@@ -1338,6 +1385,7 @@ def main():
         "sync_beep.wav": sync_beep,
         "gadget_tap.wav": gadget_tap,
         "gadget_tap_on.wav": gadget_tap_on,
+        "visor_boot.wav": visor_boot,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

@@ -2356,6 +2356,19 @@ void() VR_ARENA_BossMidway =
     }
 }
 
+// The wave rule for elites (vr_attrs.qc; vr_elite_arena_wave, vr_elite_arena_chance): from wave `xFrom` on (0 never), the
+// wave's armed humanoid number `xIndex` is an elite with chance `xChance`, by a hash of the two (the same wave the same
+// elites; no draw from the arena's own numbers, so its plan and its spots are as they were).
+float(float xWave, float xIndex, float xChance, float xFrom) VR_ARENA_EliteAt =
+{
+    if(xFrom <= 0 || xWave < xFrom || xChance <= 0) { return FALSE; }
+    float h = VR_ARENA_Mod(xWave * 977 + xIndex * 131 + 17, 30269);
+    h = VR_ARENA_Mod(171 * h + 7, 30269);
+    h = VR_ARENA_Mod(171 * h + 7, 30269);
+    h = VR_ARENA_Mod(171 * h + 7, 30269);
+    return h / 30269 < xChance;
+}
+
 // This wave's next planned foe into the field: TRUE when it came in (its kind's spawn may hold it back).
 float() VR_ARENA_SpawnNext =
 {
@@ -2367,6 +2380,11 @@ float() VR_ARENA_SpawnNext =
     ar_spawn_gun2 = 0;
     ar_spawn_infect = 0;
     if(!m) { return FALSE; }
+    if(VR_ARENA_ArmsHumanoid(ar_plan_kind[i]) && m.vr_ag &&
+       VR_ARENA_EliteAt(ar_wave, i, cvar_hget(cvarh_vr_elite_arena_chance), cvar_hget(cvarh_vr_elite_arena_wave)))
+    {
+        VR_Attr_Set(m, VR_ATTR_ELITE, TRUE); // (the later waves' elites: vr_attrs.qc)
+    }
     m.ar_born = time;
     if(VR_ARENA_DirOn()) { m.ar_cost = arenadirget(0, i, 8); } // (its cost: its score; the threat up)
     ar_plan_left = ar_plan_left - 1;
