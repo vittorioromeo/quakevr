@@ -1051,7 +1051,7 @@ void testFrame()
 // fired), the lock's pose on its take key (the item in the hand at the pouch) and the key after it (the carry, held off the
 // destination by vr_flat_prl_test_miss so nothing goes in), before any real reload of it; then a real reload held on the same
 // keys (vr_flat_prl_hold); each pair compared: the hand placed and drawn off the gun hand, the item in the hand, the grasp's
-// palm, the fingers. The super shotgun's and the revolver's carry is left out: the lock draws them shut, a real reload open.
+// palm, the fingers. (reloadstudio3: the super shotgun's and the revolver's carry too: the lock draws them open, as the game.)
 
 constexpr const char* poseTestName = "reloadstudio_pose";
 constexpr int poseSettle = 50; // frames a pose is let settle before it is sampled (the attach's and the grasp's easing, ~0.3 s)
@@ -1098,6 +1098,11 @@ void poseCompare(const char* what, const flatprocreload::PoseSample& l, const fl
         l.handPos.x, l.handPos.y, l.handPos.z, t.handPos.x, t.handPos.y, t.handPos.z);
     Con_Printf("reloadstudio_pose: %s %s: the item: lock %s %d, real %s %d\n", cur().gun, what, l.itemModel, l.itemFrame, t.itemModel,
         t.itemFrame);
+    Con_Printf("reloadstudio_pose: %s %s: the gun hand: lock %.2f %.2f %.2f (%.1f %.1f %.1f), real %.2f %.2f %.2f (%.1f %.1f %.1f)\n",
+        cur().gun, what, l.gunAt.x, l.gunAt.y, l.gunAt.z, l.gunRot.x, l.gunRot.y, l.gunRot.z, t.gunAt.x, t.gunAt.y, t.gunAt.z, t.gunRot.x,
+        t.gunRot.y, t.gunRot.z);
+    Con_Printf("reloadstudio_pose: %s %s: the free hand: lock %.2f %.2f %.2f, real %.2f %.2f %.2f\n", cur().gun, what, l.freeAt.x,
+        l.freeAt.y, l.freeAt.z, t.freeAt.x, t.freeAt.y, t.freeAt.z);
     char label[96];
     const auto check = [&](bool ok, const char* part) {
         q_snprintf(label, sizeof(label), "%s %s: %s", cur().gun, what, part);
@@ -1234,8 +1239,7 @@ void startPoseTest()
     const Reload& r = cur();
     pt.k1 = reloadsys::takeKey(r);
     const int after = pt.k1 + 1;
-    const bool shutInLock = r.weapon == WID_SUPER_SHOTGUN || r.weapon == WID_REVOLVER;
-    pt.k2 = !shutInLock && after < r.keyCount && (r.keys[after].target == Target::Mouth || r.keys[after].target == Target::Dest) ? after : -1;
+    pt.k2 = after < r.keyCount && (r.keys[after].target == Target::Mouth || r.keys[after].target == Target::Dest) ? after : -1;
     Cvar_SetValueQuick(&vr_flat_prl_test_miss, 6.f);
     win.key = pt.k1;
     lockKey(pt.k1);
