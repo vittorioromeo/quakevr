@@ -345,6 +345,10 @@ za::Vector<Item> pageDebugViews()
             .help("vr_body_crouch_report: how much of the crouched pose (Body > Crouched Pose Offsets) the body takes now, "
                   "the pelvis, chest, shoulders and elbows, the holsters and the ammo pouch: units from your eyes, forward, "
                   "right, up."),
+        command("Print Holster Leg Bob", "vr_flat_holster_bob_report")
+            .help("vr_flat_holster_bob_report: how far the walking legs carry the hip holsters and the ammo pouch now, "
+                  "across and up and down (flatscreen: after Tunables > Flatscreen > Looks, Holster Bob Horizontal / "
+                  "Vertical)."),
         command("Print Torso Direction", "vr_torso_report")
             .help("vr_torso_report: the head's yaw, the torso guess and its target, the hands' pull and weights."),
         command("Print Walking Direction", "vr_move_report")

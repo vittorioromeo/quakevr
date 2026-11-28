@@ -2537,6 +2537,7 @@ extern "C" void VR_Init()
     dlightmap::registerCommands(); // vr_gl_world_dlmap_info
     seated::registerCommands();    // vr_seated_status, vr_crouch_toggle, vr_seated_height_now
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
+    Cmd_AddCommand("vr_flat_holster_bob_report", body::flatHolsterBobReport_f);
     Cmd_AddCommand("vr_holster_zones_report", zones::report_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_stress", decals::stress_f);
