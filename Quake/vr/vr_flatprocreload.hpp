@@ -49,6 +49,15 @@ void attachDrawn(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot
 // The gun in hand `h` posed by a procedural reload (a trip's or the lock's): flat play's open pose of a broken-open super
 // shotgun or a swung-out revolver (vr_flatreload.cpp openFrame) eases out for it, the keys' tilt alone, as the studio shows.
 [[nodiscard]] bool posesGun(int h);
+// The lock's gun in hand `h` drawn open (reloadstudio3): the super shotgun broken open, the revolver's cylinder swung out,
+// on the keys a real reload has it open (from an Open key played to a Close key; or open already), as the game draws it.
+[[nodiscard]] bool lockOpens(int h);
+// The weapon flags (STAT_QVR_WEAPONFLAGS) the game would have for the lock's gun in `h` on the locked key: broken open (the
+// super shotgun), its magazine out (an Eject key played, no Insert since: the magazine drawn out, the magazine's grip gone,
+// so the gun is held as in a real reload); `flags` as they are for any other gun.
+[[nodiscard]] int lockWeaponFlags(int h, int flags);
+// The revolver's state bits (STAT_QVR_REVOLVER) the same: swung out, its spent shells out (flat play's swing-out).
+[[nodiscard]] int lockRevolverBits(int h, int bits);
 // The key-pose lock (vr_flat_prl_lock, prlfix: to tune the poses) holding a taped pair in the free hand: that hand and the
 // pair's size (vr_view.cpp prlPair draws it); false: no pair to draw.
 [[nodiscard]] bool lockPair(int& hand, float& scale);
@@ -117,6 +126,7 @@ struct PoseSample
     float curl[5]{};
     const char* itemModel{""}; // (the item's model's name)
     int itemFrame{0};
+    glm::vec3 gunAt{0.f}, gunRot{0.f}, freeAt{0.f}; // (the gun hand and the free hand off the player's origin; the gun hand's angles)
 };
 bool poseSample(PoseSample& out);
 

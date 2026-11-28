@@ -6510,6 +6510,42 @@ speed). His reloads.txt values are untouched (no frame change forced a conversio
   hand's input curls settle (vr_view_hands.cpp updateGrasp). The super nailgun's take differs 4.5 units (the gun posed
   differently at the take: not found). The lock draws the super shotgun shut and the revolver's cylinder in (the real reload
   opens them), so their carry isn't compared. No frame strips were made (budget).
+
+## reloadstudio3: every gun's studio lock matches the game's real reload; the lock draws the gun open / magazine out; frame strips (branch agent/reloadstudio3, 2026-11-28)
+
+Follow-up to "reloadstudio2" (his notes 2026-11-28, kit `scratch/fb1127n/words_1128b.md` items 9-12). His reloads.txt values
+are untouched. `reloadstudio_pose_test.sh` now passes for all 10 guns (it was 5 of 10).
+- **Two grips for one place** (the super shotgun's and the revolver's taped pairs, the thunderbolt's and nail pistol's
+  magazines): the grasp solve is not continuous there: two solves afresh at rest a few thousandths of a unit apart gave the
+  palm turned 20 or 0 degrees (or moved 1.0 / 0.5 units). The finger input was not the cause (the solve never reads the curls).
+  Now a held prop (not a weapon, not a cup) keeps the grips it was solved afresh for at rest (`Grasp::restGrips`, 8 per hand,
+  by model, frame, settings, finger moves and place): coming to rest within vr_hand_fit_resolve of one, it takes that grip
+  again (vr_view_hands.cpp updateGrasp, restGripFor). The same threshold already kept a grip while the prop moved.
+- **The lock draws the gun as the real reload has it on the locked key** (`flatprocreload::lockWeaponFlags`,
+  `lockRevolverBits`, `lockOpens`: from the server's state, the keys played to the locked one): the super shotgun broken open
+  and the revolver swung out from an Open key to a Close key (its spent shells out, as flat play's swing-out throws them), a
+  magazine gun's magazine out from an Eject key to an Insert key. Used where the gun is drawn and measured (vr_view.cpp
+  ssgHandStep, revolverStep, setupRevolverParts, the gun look; vr_view_weapon.cpp magazineBox) and for the revolver's chamber
+  (measureDest). The pose test now compares the super shotgun's and the revolver's carry too.
+- **The super nailgun's 4.5 units at the take**: with its magazine out the magazine's cup grip is gone, its foregrip takes
+  over, so flat play's stance gives way to the carry to the grip (flatsight carryToGrip) and the gun hand stands 4 units
+  further out; the lock kept the magazine in. The lock's magazine out (above) fixed it.
+- **Frame strips** (his review): `vr_reloadstudio strip` (Debug > Flatscreen: Procedural Reload: Studio vs Game Strip) shoots
+  the lock on each key, then a real reload held at each key's end, from the orbit camera (in front of him to his left, the
+  window's controls hidden). From the take to the insert the game's port is blocked (the gun's vr_reload_port_<gun>_radius at
+  -1000, put back after the insert's shot): the round otherwise goes in on the way (the shotgun's and super shotgun's carry and
+  insert never reach their ends in play), so the game's carry and insert are shot at their ends as the studio shows them.
+  `vr_flat_prl_hold` now holds an ending's key too (the return). `Misc/quakevr/reloadstudio_strip.sh <tree> [guns]` (default
+  ng sg ssg rv) lays them out a row a key, studio left, game right: `<tree>/scratch/reloadstudio3_<gun>.png`; a key the game
+  skips is noted (the super shotgun's "break open": already open; "reach again": full after one pair). Studio and game differ
+  by 0.3-2.3 grey levels a pixel on every shot key (scratch/rs3_diff.py).
+- **Diag**: the pose test also prints the gun hand and the free hand off the player's origin (PoseSample gunAt / freeAt).
+- **Tests**: `reloadstudio_pose_test.sh` 14/0 (10 guns 18/0 each; speed 0.82 / 0.44 / 1.60 s); `flatprocreload_test.sh
+  matrix-<gun>` all 100% (sg ssg gl px rl rv 10/0, ng sng lg np 40/0); `reloadstudio_strip.sh` 4/0; `vr_reloadstudio test`
+  15/0; held_over_props_test PASS.
+- **Open**: the rest-grip memo keeps the first grip found at a place: in play without the studio the grip at a two-grip place is
+  still whichever the first rest solve found (now the same every time after). Shotgun-style rounds go in on the way in play:
+  the carry's and insert's ends are never drawn there; that is the game as tuned (port radius), not a studio mismatch.
 ## ammomags: with immersive reloading the magazine or round loaded sets the ammo; the pouch in two halves; no mixed loads (branch agent/ammomags, 2026-11-28)
 
 His words (kit `scratch/fb1127n/words_1128b.md` item 18; his decision 11-28: mixed loads stay blocked, research in BACKLOG).

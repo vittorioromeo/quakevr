@@ -1164,6 +1164,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flatprocreload_pose: the free hand and the item in it as drawn now (a real reload's or the Reload Studio's "
                   "lock), in the gun hand's frame: the hand placed and drawn, the item, the grasp's palm move and the fingers' "
                   "curls (fprl_pose: ...)."),
+        command("Procedural Reload: Studio vs Game Strip", "vr_reloadstudio strip")
+            .help("vr_reloadstudio strip: with a gun in one hand and the other empty, a screenshot from the Reload Studio's orbit "
+                  "camera of its lock on each key, then of a real reload held at each key's end: the same keys side by side "
+                  "(Misc/quakevr/reloadstudio_strip.sh lays them out). Ends on reloadstudio_strip: N passed, M failed."),
         command("Reload Studio", "vr_reloadstudio")
             .help("vr_reloadstudio: the procedural reloads' keyframes in an ImGui window over play (flat screen): pick a gun, "
                   "play, pause, step or scrub its keys, edit each key's times, ease, the gun's tilt, the free hand's offset and "
