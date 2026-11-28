@@ -189,11 +189,23 @@ float(float xWeapon) VR_Reload_ManualFor =
     return VR_Reload_ManualForInst(xWeapon, world);
 };
 
+// Whether the gun in `xHand` of `p` is on a flat-screen procedural reload now (vr_flatreload.qc, flatprocreload: the
+// other hand takes rounds from the pouch and puts them in by this file's own paths).
+float(entity p, float xHand) VR_FlatReload_ProcIn;
+// Set around a flat-screen procedural reload's take (VR_FlatReload_ProcTake): VR_Reload_Take gives without the headset's
+// Immersive mode.
+float vr_flatreload_proc_go;
+
 // The same of the weapon `p` holds in `xHand`.
-// (Never a flat-screen player's: his guns reload at the hips, vr_flatreload.qc.)
+// (A flat-screen player's only while its procedural reload runs, flatprocreload: else his guns reload at the hips,
+// vr_flatreload.qc.)
 float(entity p, float xHand) VR_Reload_ManualInHand =
 {
-    return !VR_FlatPlay(p) && VR_Reload_ManualForInst(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
+    if(VR_FlatPlay(p))
+    {
+        return VR_FlatReload_ProcIn(p, xHand);
+    }
+    return VR_Reload_ManualForInst(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
 };
 
 // Whether the gun in `xHand` of `p` breaks open after its shots in flat-screen play (vr_flatreload.qc, vr_flat_ssg_break).
@@ -1461,7 +1473,7 @@ void(float xHand) VR_Reload_Take =
     float w = vr_reload_kind_wid;
     float front = vr_reload_kind_front;
     float slug = vr_reload_kind_slug;
-    if(aid < 0 || !VR_Reload_Immersive())
+    if(aid < 0 || !(VR_Reload_Immersive() || vr_flatreload_proc_go))
     {
         return;
     }

@@ -336,6 +336,7 @@
         row(opt::vr_flat_xhair_reload_alpha),
         row(opt::vr_flat_reload),
         row(opt::vr_flat_autoreload),
+        row(opt::vr_flat_proc_reload),
         row(opt::vr_flat_holsters),
         row(opt::vr_flat_holster_menu_mode),
         row(opt::vr_flat_holster_menu_timescale),

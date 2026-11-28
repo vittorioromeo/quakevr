@@ -61,6 +61,9 @@ On the Quest, after Setup's Quest step, start Scourge of Armagon and Dissolution
 [2. Flat screen]
 ## Grab, hold and push
 ## Spear and Crystal Lance
+Flat-screen: with the shotgun in one hand and the other empty, fire then press R: the free hand goes to the ammo pouch on your belt, brings a taped pair to the port under the shotgun (tilted to meet it) and back, two shells a trip until full; say how the speed, the tilt and the hand's path feel. {test:flat_proc_reload}
+Flat-screen: fire or shove in the middle of a procedural shotgun reload: it stops at once and the pair in the hand goes back into the pouch (the shell count is unchanged). {test:flat_proc_reload}
+Flat-screen: dual-wield two shotguns, or hold the super shotgun, and press R: they still reload at the hips as before (procedural reload is shotgun one-handed only for now). {test:flat_proc_reload}
 
 [3. Tutorial and VR interface]
 ## Tutorial

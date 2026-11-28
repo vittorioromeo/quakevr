@@ -25,11 +25,11 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Splitscreen**: agent/split (6e6f2af6e, split19, SPLITSCREEN.md) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next if it still shows.
 - **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache across frames would rarely hit (questperf2: the instance data changes every frame with the flickering dynamic lights and the wounds' timers); LRZ in the opaque entity pass (questperf2): alive with no alias draws and after your first model, dead after your leg holsters (batches 2-3), not from one state alone; `vr_debug_alias_lrz 62` plus `vr_gl_alias_lazy_blend 1` together keep it (1.16M pixels killed): next, bisect that combination (ROUND26 "questperf2"); CPU-bound big fights
   (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
-- **Baseline failures, 2026-11-26 list, what is left** (agrunt 203 fixed: ROUND26 "basefix2"; `ragdoll_grab` and teleporters: "basefix1"/"basefix2"): `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14; agrunt 74 (78 vs 80%); the recoil test has 4 slots off the old defaults; agrunt 16 (the drawn grip 2.72 off, limit 2.5) and agrunt 65 (flaky) as in basefix2.
+- **Baseline failures, 2026-11-26 list, what is left** (agrunt 203 fixed: ROUND26 "basefix2"; `ragdoll_grab` and teleporters: "basefix1"/"basefix2"): `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14 (0/5 on 11-27, same check); agrunt 16 (0/5: the drawn grip 2.73-2.76 off, limit 2.5) and agrunt 65 (1/5: "grab anywhere: an axe swung at its chest at 4.5 m/s: its parry raised 0.12, parried 0, disarmed 1") as in basefix2. Agrunt 74 and the recoil test passed 5/5 on 11-27 (ROUND26 "flakysweep").
 - **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` points to `qvr-kit/relit`); no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
 - **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
 
-- **Flaky/stale lists below, from 11-12 to 11-21 (to recheck: overnight flaky sweep queued 2026-11-27)**.
+- **Flaky/stale lists below, from 11-12 to 11-21 (rechecked 2026-11-27 by the flaky sweep, 5 unseeded runs each: ROUND26 "flakysweep" has the table; the lines below are updated)**.
 - **AD-only tests** (ran 2026-11-13 with `-game ad`, ROUND25.md "adtests"): `vr_flatswap_test 4` 48/0 on `map start`
   (one earlier run of two failed with faulty-frame counts on the blades' stance cases while it timed out under the
   default 240 s: a one-off, not reproduced; watch it), visor_test 37/0 with AD's two custom keys counted, `vr_agrunt_test
@@ -37,9 +37,11 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   `vr_ad_mtest 3` a diagnostic (no verdict: the death knight and zombie knight gib at the kill, the crossbow knight leaves
   a corpse). The baseline runner has `flatswap_4_ad` and 213 under AD; the others are described in the round notes.
 - **Random run to run** (re-run 3 times each on 2026-11-12, ROUND25.md "Test triage B"; flatpose and flatswing seeded
-  and read earlier, ROUND25.md "testfix": flatpose's last version unrun): `vr_systems_test 15` (1 of 3 fails: the
-  blast's body never knocks the torch off; the body's flight varies: UNKNOWN), ragdoll_ragtest (1 of 3: "catch: NOT begun in 3.0 s"), reload (1 of 3: "a hit: the
-  old one knocked out, the new one not seated by the same touch").
+  and read earlier, ROUND25.md "testfix": flatpose's last version unrun): `vr_systems_test 15` (2/5 on 11-27: the
+  blast's body never knocks the torch off; the body's flight varies: UNKNOWN), ragdoll_ragtest (4/5 on 11-27: "catch: NOT begun in 3.0 s"), ragdoll_guard
+  (4/5: "guard stagger: guards its head (staggering)"), **reload is now a real failure, 0/5 on 11-27** ("a prop held in the other hand hits the
+  barrels open and shut by its surface (prop 10, want 10; the fist as far off: 1, want 0)" in all 5; also "the lying shell taken again by the fist" and
+  "let go of at the pouch: refunded" in 4, the SSG sights' colour in 2; the old "a hit: the old one knocked out" check did not show).
 - **ragdoll_stagger: what is left** (the lip fixed, ROUND25.md "realfix_stagger"): the grunt's beaten backpedal falls
   at 0.43 s after 2 steps instead of giving way after 3 (F, not G; on level ground, every trial); in one combined
   batched run (lip rates steady backpedal) the 8th steady grunt (balance 0.52) and monster 2's 8th fell, and the lip
@@ -51,9 +53,12 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   leftovers: the grunt's move-in, the hell knight's second hand".
   (agrunt 60, agarmor_5, limb_wear, stealth settled 2026-11-12; autopump, cellcord, animsmooth, xr_runtime and
   secret_hits too: ROUND25.md, "Always-failing monster tests" and "Always-failing tests, part b".)
-- Stale, passing 3 of 3 (2026-11-12, seeded where the runner seeds): agrunt 47/63/66/67/71/72/76/86/209, ragdoll_grab,
-  ragdoll_guard, rv_1, judo, nail_1, teleporters_chase, parry_pose, weapon_catch, dead_gear (removed from this list;
-  `test_flaky.txt` still names some: take them off after more runs unseeded).
+- Stale list, rechecked 2026-11-27 (5 unseeded runs each): steady 5/5 (off `test_flaky.txt`): agrunt 47/63/72/76/86, ragdoll_grab, rv_1, nail_1,
+  judo, parry_pose, weapon_catch, dead_gear, stealth (all scenes, seeded 1: its scenes seed themselves). Still flaky (stay on the list):
+  agrunt 66 4/5 ("lying (as shipped): walked up and reached for its weapon: it holds nothing, 1 dropped"), agrunt 67 4/5 ("grabtable normal
+  time ...: 101/128 taken (90% or more)"), agrunt 209 4/5 ("grabtable bullet time ...: 137/153 taken"), agrunt 71 3/5 ("balance grunt: damage a
+  second within 25%"), ragdoll_guard 4/5. **Real failure: `teleporters_chase` 0/5** ("chase dog at framed_sill32: never reached the north
+  room ... (try 3 of 3, seed 3)", the same text every run) and agrunt 60 0/5 (agparry: "weapon: parried 1, 0 damage (kept 5 of 20), still armed 1").
 - **Embedded blades** (`vr_embed` on since 2026-11-08): real heavy monsters, saves, level change and multiplayer
   unproven (tests 14-20 written); tests 24 and 33 as above.
 - **Embedded blades, the handle hold** (2026-11-12, ROUND25.md "embedgrip"): his VR check of the handle staying in the
@@ -66,9 +71,9 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   `R_SurfaceHoldsPoint` replaced for the light.
 - **Baseline 2026-11-12, still failing alone** (ROUND25.md "basefix1112": first-bad merges by bisect, alone, seed 1):
   agrunt 16's hunt check (the drawn grip 2.7-2.8 units off the drawn hand hull, limit 2.5; its vertex checks fixed,
-  ROUND25.md "agfails2"), stealth props_round (knight within 77
-  units; since housing_nailpistol: likely a seeded run's butterfly). Older: agrunt 3, 91, 92; 213 fixed 2026-11-13
-  (adtests).
+  ROUND25.md "agfails2"; 0/5 on 11-27, 2.73-2.76), stealth props_round (5/5 on 11-27 in the full stealth run: steady). Older (11-27, 5 runs): agrunt 3
+  0/5 ("yank: your main hand Fist, the grunt holds Shotgun": the hand does not take the gun), agrunt 91 3/5 ("raggrab: 8/9 won" / "9/10 won"), agrunt 92
+  5/5; 213 fixed 2026-11-13 (adtests).
 - **vrtrailer: the test's swing, not the game** (ROUND25.md "testenv", 2026-11-21): it has failed since 11-10 (passed
   only in the 11-07 lanes; release12's "3 of 3 on 2026-11-12" was weapon_catch's, not this test's). Its mock (10-08)
   was written for vr_gunangle 39.5 and an estimated Super Axe line; the defaults went to 70 on 10-16 and the axe's blow
@@ -76,7 +81,7 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
   and the measured line; still open: a swing path whose blade crosses the neck sideways (now 8 of 9: killed, "a stab
   (0.82)" at 0.63 along the blade).
 - **Baseline 2026-11-13** (ROUND25.md "basefix1113"): agrunt 12/47 and teleporters_chase fixed (the tests); arena 11
-  failed under load only (25/0 alone, 2 of 2); ragdoll_ragtest's catch as above (31/0 alone, 2 of 2).
+  failed under load only (25/0 alone, 2 of 2; 4/5 on 11-27: "its humanoids hold its 5 tier-2 and tier-3 guns (4 hold one)"); ragdoll_ragtest's catch as above (4/5); agrunt 12 and 47 5/5.
 - **r2m1 (Rogue): a counted monster that is no monster edict is inherited, not ours** (r2m1 branch, 2026-11-13): stock
   QuakeSpasm (-rogue, skill 1, map r2m1, save) and Quake VR give the same save: total_monsters 93, 92 FL_MONSTER edicts,
   95 monster_* edicts (the extra ones: a monster_morph spawner and a knight-class entity that counts itself without
