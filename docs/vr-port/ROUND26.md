@@ -5151,3 +5151,50 @@ then "the hand grabbing the shells doesn't use the same finger pose as VR" and "
   reload_test 112/4: the 4 are BACKLOG section 1's known baseline failures (0/5 on 11-27), VR paths this doesn't touch.
 - **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
   the pair); his eyes on the drawn pair at the port while running.
+
+## beastmp: remote multiplayer clients draw the beasts' armour (branch agent/beastmp, 2026-11-28)
+
+Approved 2026-11-28 (beastarmour's open note: "a remote MP client draws no beast pieces").
+- **Cause:** not the wire. The server already sends every armoured entity's type, worn mask and wear (QVR_SVC_ARMOR, the
+  humanoids' message: beasts included). The client's `beastarmour::relinkEntity` placed the pieces from the *server's*
+  edict (`ready(ent)`, `place(ent, ...)`: the hit model's body), so it returned at once without a server (`!sv.active`): a
+  remote client drew no piece, no leather. Second, latent: a piece armour.txt shapes has its debris model named
+  "<piece>#tweak" in the server's precache list; a client that had not yet read beastarmour.txt (a remote one joining)
+  could not make it (`makeTweaked` looked only at kinds already read and resolved).
+- **Now:** without a server edict for the entity the pieces sit on the client's own drawing of the body (`ClientBody`,
+  vr_beastarmour.cpp): animated, its drawn lerp (`hitmodel::clientLerp`) and the shader's points for the anchors
+  (`animsmooth::drawnPoints`, as a listen host's armour since armourrebuild) through the renderer's drawn matrix
+  (`render::drawnEntityMatrix`: place, turn, scale, network scale and offset); a corpse or knocked-down beast, the ragdoll
+  the server sent (QVR_SVC_RAGPOSE) skinned as drawn (`ragdoll::skinnedVertices(num, ..., drawn)`: each vertex on its own
+  body, as the drawn skin and the host's hit model have it; per-part `drawnPart` was tried first: the ogre's chest and
+  right forearm pieces came out 3.6-4.7 units off, their anchors' vertices carried by other bodies). The rest is shared with
+  the listen path (`fitPlaced`, `restPlaced`, `junctionBonesBy` taking a placer): pieces, parts with their own bits (shins,
+  the scrag's back half and tail segments), the leather junctions, the wear skins by the server's wear bits, the Armour
+  Studio's ghost. Breaks need nothing new: the mask shrinks, the debris is a server entity with the piece's model.
+  `makeTweaked` reads beastarmour.txt and resolves the piece's kind first.
+- **Whose armour.txt:** each client's own (decision). As the humanoids' MP path (each machine makes the shells from its
+  armour.txt): the shipped file is the same on every install, so everyone sees his promoted tweaks; the server's file
+  decides what a shot hits (the server's placements); a player's own Armour Studio edits stay a local look; no wire bytes.
+  A remote client with a different armour.txt sees its own shapes on bodies that are hit as the server's.
+- **Wire:** unchanged, no QVR_NET_VERSION bump.
+- **Debug:** `vr_beastarmour_drawn` (Debug > Tests "Beast Armour Drawn Here"): each armoured beast drawn last frame, the
+  server's mask, pieces drawn at each wear, leather, the pieces' mean on the body, "server-body" / "client-body" /
+  "client-ragdoll", and the debris in view; `vr_beastarmour_drawn compare` (a listen host) places each beast's pieces both
+  ways for a frame and prints how far apart. Debug > Tests also has "Beast Armour in Multiplayer: Armoured Ogre and Scrag"
+  (`vr_agarmor_test 25`) and "... Break a Part of Each" (26).
+- **Tests:** `mp_test.py beastmp` 19/0 (in the suite): a listen host A on vrtesthall, B remote; the server's QC
+  (`vr_agarmor_test 25`-`27`, test_numbers.txt) dresses an ogre (12 pieces, mask 4095) and a scrag (13, 32575) in yellow:
+  A and B draw every piece and the leather (B "client-body"); B's armour on each body within 0.68 / 0.91 units of A's
+  (pieces' mean, idling; clocks a tick apart); the host placing them B's way off his own by 0.000 units, 0.04 degrees at
+  most; 26 breaks the ogre's left shin and the scrag's tail3 and wears the ogre's breastplate: B drops just those (11 /
+  12), draws the breastplate at two thirds, sees the 2 debris; 27 kills both: B draws the corpses' pieces on the sent
+  ragdolls, 0.66 / 0.09 units from A's once settled (host compare 0.11 units, 0.57 degrees: the drawn pose between the last
+  two steps against the hit model's latest). `beastmp_dedicated` 17/0 (not in the suite): a dedicated server, the beasts
+  dressed before B joins (the "#tweak" debris models in his precache list, the armour in the joining client's state), A and
+  B both remote, the corpses within 0.01 / 0.00 units of each other. `vr_agarmor_test 15` 71/0, `21` 30/0.
+- **Files:** vr_beastarmour.cpp (ClientBody, placeClient, fitPlaced/restPlaced, junctionBonesBy, relinkBody, the report,
+  makeTweaked), vr_agarmor.cpp (beginRelink every frame), vr_menu_debug_tests.inc, QC vr_beastarmour_test.qc
+  (VR_BMP_Frame), vr_agarmor_test.qc, mp_test.py (beastmp), scenario `mp_coop_beasts`.
+- **Open:** a remote client's armour follows its own clock (as its drawing of the body, no kick); the beasts of
+  `beastmp_dedicated` hunt B before his notarget, so their living placement is compared on the listen run only;
+  `vr_armour_on_drawn 0` (debug) is a listen host's comparison alone (a remote client always uses the drawn points).
