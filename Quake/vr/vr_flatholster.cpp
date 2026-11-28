@@ -152,6 +152,7 @@ struct Contents
     bool unloadFull[2]{}; // that gun's ammo full up in the reserve: no round would go back
     bool unloadable[2]{}; // UNLOAD would move rounds now (some fit, not reloading): lit (the weapon wheel's UNLOAD too)
     bool tooBig[2]{};     // that hand's weapon too big for a holster (QC WeaponIdToHolsterable: a drag greys the holsters)
+    int gren[2]{};        // the hand grenade it holds (handGrenade): 0 none, 1 unarmed, 2 an unarmed multi-grenade, 3 armed
 };
 
 [[nodiscard]] Contents contents()
@@ -198,6 +199,8 @@ struct Contents
     c.tooBig[1] = (full & 8) != 0;
     c.unloadable[0] = (full & 16) != 0; // (bits 4 and 5: the server's own test, either mode)
     c.unloadable[1] = (full & 32) != 0;
+    c.gren[0] = (full >> 6) & 3; // (grenhold: two bits a hand, QC VR_FlatReload_HandFrameOn)
+    c.gren[1] = (full >> 8) & 3;
     return c;
 }
 
@@ -389,8 +392,12 @@ void layOut()
     const auto handHas = [&c](int h) { return c.hand[h] != WID_FIST || c.carry[h] != 0; };
     switch(b.act)
     {
-    case Act::HolsterLeft: return (c.holster[b.index] != WID_FIST || c.hand[0] != WID_FIST) && !c.carry[0];
-    case Act::HolsterRight: return (c.holster[b.index] != WID_FIST || c.hand[1] != WID_FIST) && !c.carry[1];
+    // (A hand grenade isn't a carried prop here, grenhold: the press puts it back in the pouch, the holster's weapon then
+    // drawn; armed, the server's refusal says why.)
+    case Act::HolsterLeft:
+        return (c.holster[b.index] != WID_FIST || c.hand[0] != WID_FIST || c.gren[0]) && (!c.carry[0] || c.gren[0]);
+    case Act::HolsterRight:
+        return (c.holster[b.index] != WID_FIST || c.hand[1] != WID_FIST || c.gren[1]) && (!c.carry[1] || c.gren[1]);
     case Act::HolsterDrop: return c.holster[b.index] != WID_FIST;
     case Act::HandDrop: return handHas(b.index);
     case Act::DropBoth: return handHas(0) || handHas(1);
@@ -783,6 +790,11 @@ bool canUnload(int hand)
 {
     const Button b{Act::Unload, hand == 0 ? 0 : 1, {}, {}};
     return enabled(b, contents());
+}
+
+int handGrenade(int hand)
+{
+    return contents().gren[hand == 0 ? 0 : 1];
 }
 
 bool canFlip(int hand)

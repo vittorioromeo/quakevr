@@ -941,6 +941,7 @@ constexpr float dualProneTurnMost = 45.f;
 // to rise into an upper-cut and dealt no damage at all to a knight standing in front of the player.
 // `target`: what the crosshair is on (the point vr_flat_punch_aim_dist along its ray), off the same shoulder in the same
 // frame as `rest`: the fist is thrown at it by vr_flat_punch_aim (his notes 2026-11-08: it hit low, beside the target).
+[[nodiscard]] bool fistsJab();
 [[nodiscard]] glm::vec3 punchSwing(int h, const glm::vec3& rest, const glm::vec3& target)
 {
     const double t = vr_gametime - fs.punchAt[h];   // the press's own clock: seconds since the punch was started. Each
@@ -964,10 +965,16 @@ constexpr float dualProneTurnMost = 45.f;
     const glm::vec2 throwDir{plane.x, plane.y * punchLevel};                   // thrown along the aim, kept near its own height
     const float hit_share = za::min(span, r0 + punchReach) / za::max(0.05f, glm::length(throwDir));
     glm::vec3 thrown{plane.x * hit_share, rest.y, plane.y * punchLevel * hit_share};
-    if(const float aimShare = za::clamp(vr_flat_punch_aim.value, 0.f, 1.f); aimShare > 0.f && glm::length(target) > 1.f)
+    // Both fists' jabs (fistsJab; flatpunch, his words 2026-11-28: "The new alternating punches do not seem to target what
+    // the crosshair is pointing at, please make them do so"): all the way to the target, each hand's, as the swing and the
+    // thrust go to it. `target` is already on the crosshair's ray, at what it hits or as far as the arm reaches along it
+    // (meleeAimPoint); the old share (0.7) and the old throw's length (punchReach past where it rests) left the fist up to
+    // 7 units off that point, below and short of it: well off the crosshair at arm's length on the screen.
+    const bool jab = fistsJab();
+    if(const float aimShare = jab ? 1.f : za::clamp(vr_flat_punch_aim.value, 0.f, 1.f); aimShare > 0.f && glm::length(target) > 1.f)
     {
         // At the target, out to what the arm reaches (as far as the old throw went), never past the target itself.
-        const float reachTo = za::min(glm::length(target), za::min(span, r0 + punchReach));
+        const float reachTo = jab ? glm::length(target) : za::min(glm::length(target), za::min(span, r0 + punchReach));
         thrown += (glm::normalize(target) * reachTo - thrown) * aimShare;
     }
     if(t < punchWind)
@@ -993,16 +1000,26 @@ constexpr float dualProneTurnMost = 45.f;
 // ray than the arm reaches from `root` (`armReach`: a punch or a swing, so the blow ends on the ray rather than beside it)
 // or than vr_flat_punch_aim_dist (the shove's push, whose hands travel vr_flat_shove_anim_reach whatever the arm). 0:
 // vr_flat_punch_aim_dist along the ray, as before.
-[[nodiscard]] glm::vec3 meleeAimPoint(const hands::State& s, const glm::vec3& aim, const glm::vec3& root, bool armReach)
+// `jabFrom` (a jab, both fists: flatpunch): where its hand rests; the point then goes jabThrough past what the ray hits
+// (the fist strikes into it: ended on its face, it only touched it and dealt no blow), and never nearer along the ray
+// than punchReach past the hand (the old throw's reach: a grunt right in front, its face behind the fist's rest, is
+// still struck), the arm's reach as ever its end.
+constexpr float jabThrough = 8.f;
+[[nodiscard]] glm::vec3 meleeAimPoint(
+    const hands::State& s, const glm::vec3& aim, const glm::vec3& root, bool armReach, const glm::vec3* jabFrom = nullptr)
 {
     glm::vec3 org, dir;
     crosshairRay(s, aim, org, dir);
     const float fixed = za::clamp(vr_flat_punch_aim_dist.value, 8.f, 96.f);
-    if(vr_flat_melee_aim_hit.value == 0.f)
+    if(vr_flat_melee_aim_hit.value == 0.f && !jabFrom)
     {
         return org + dir * fixed;
     }
-    const float hit = glm::dot(flatsight::crosshairHit(s, aim) - org, dir);
+    float hit = vr_flat_melee_aim_hit.value == 0.f ? fixed : glm::dot(flatsight::crosshairHit(s, aim) - org, dir);
+    if(jabFrom)
+    {
+        hit = za::max(hit + jabThrough, glm::dot(*jabFrom - org, dir) + punchReach);
+    }
     // (The furthest point along the ray the arm reaches: |org + dir d - root| = its span.)
     const glm::vec3 w = org - root;
     const float b = glm::dot(w, dir), span = za::max(4.f, armSpan());
@@ -3070,6 +3087,41 @@ void swapHands(const char* what)
     }
 }
 
+// A gamepad's right stick on the holster menu's cursor (padflat): the window pixels not yet sent (flatholster::mouse
+// takes whole counts).
+struct PadHolsterCursor
+{
+    float x{0.f}, y{0.f};
+};
+PadHolsterCursor padHolsterCursor;
+
+// IN_JoyMove: a gamepad's right stick (eased, past its dead zone) while the weapon wheel (pointed at a slot) or the
+// holster menu (its cursor moved, vr_pad_holster_cursor_speed) is open: theirs, the view stays.
+extern "C" int VR_FlatStickCursor(float x, float y, float dt)
+{
+    if(!flatplay::active())
+    {
+        return 0;
+    }
+    if(weaponwheel::flatStick(x, y))
+    {
+        return 1;
+    }
+    if(!flatholster::open())
+    {
+        padHolsterCursor = {};
+        return 0;
+    }
+    const float k = za::max(vr_pad_holster_cursor_speed.value, 0.f) * static_cast<float>(vid.height) * za::clamp(dt, 0.f, 0.1f);
+    padHolsterCursor.x += x * k;
+    padHolsterCursor.y += y * k;
+    const int dx = static_cast<int>(padHolsterCursor.x), dy = static_cast<int>(padHolsterCursor.y);
+    padHolsterCursor.x -= static_cast<float>(dx);
+    padHolsterCursor.y -= static_cast<float>(dy);
+    (void)flatholster::mouse(dx, dy);
+    return 1;
+}
+
 // IN_MouseMotion: the toolgun panel's cursor while it is open on the screen, or the tool's adjust while B is held
 // (flatTg.adjust): the mouse is theirs, the view stays.
 extern "C" int VR_FlatToolgunMouse(int dx, int dy)
@@ -4717,6 +4769,7 @@ struct MeleeProbe
     float pitchHi[2]{0.f, 0.f};
     float roll[2]{0.f, 0.f};
     float off[2]{-1.f, -1.f}; // a punch's or swing's hand at its end (its held reach): how far beside the crosshair's ray (units)
+    float at[2]{-1.f, -1.f};  // and how far from the ray, up and down too: off the crosshair on the screen (units)
     glm::vec3 start[2]{};     // the hand off the eye as it began
     glm::vec3 wound[2]{};     // at the windup's held top, off where it began: the view's back, up, out to its own side (units)
     float tip[2]{0.f, 0.f};   // a thrust's line at the strike's held end: degrees over the view's level (negative: down)
@@ -4751,6 +4804,7 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
             p.pitchLo[h] = p.pitchHi[h] = p.roll[h] = 0.f;
             p.overlap[h] = false;
             p.off[h] = -1.f;
+            p.at[h] = -1.f;
             p.start[h] = s.pos[h] - eye;
             p.wound[h] = glm::vec3{0.f};
             p.tip[h] = 0.f;
@@ -4803,6 +4857,8 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
                     d -= dir * glm::dot(d, dir);
                     d -= viewUp * glm::dot(d, viewUp);
                     p.off[h] = za::max(p.off[h], glm::length(d));
+                    const glm::vec3 fromRay = s.pos[h] - org - dir * glm::dot(s.pos[h] - org, dir);
+                    p.at[h] = za::max(p.at[h], glm::length(fromRay));
                     if(fs.punchThrust[h])
                     {
                         p.tip[h] = glm::degrees(za::asin(za::clamp(glm::dot(fs.thrustWay[h], viewUp), -1.f, 1.f)));
@@ -4819,7 +4875,7 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
             p.running[h] = false;
             p.lines++;
             // (Short: a console line wraps past its width, and the tests read it whole.)
-            Con_Printf("flatmelee: %s %s: n %d eye %.1f up %.0f dn %.0f palm %.2f fing %.2f vp %.2f %.2f roll %.2f both %d off %.1f\n",
+            Con_Printf("flatmelee: %s %s: n %d eye %.1f up %.0f dn %.0f palm %.2f fing %.2f vp %.2f %.2f roll %.2f both %d off %.1f ray %.1f\n",
                 h == HAND_MAIN ? "main" : "off",
                 p.shove[h]            ? (fs.shoveBoth ? "shove both" : "shove")
                 : fs.punchThrust[h]   ? "thrust"
@@ -4829,7 +4885,7 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
                                       : "punch",
                 p.frames[h], static_cast<double>(p.overEye[h]), static_cast<double>(p.up[h]), static_cast<double>(p.down[h]),
                 static_cast<double>(p.palm[h]), static_cast<double>(p.fingers[h]), static_cast<double>(p.pitchLo[h]),
-                static_cast<double>(p.pitchHi[h]), static_cast<double>(p.roll[h]), p.overlap[h] ? 1 : 0, static_cast<double>(p.off[h]));
+                static_cast<double>(p.pitchHi[h]), static_cast<double>(p.roll[h]), p.overlap[h] ? 1 : 0, static_cast<double>(p.off[h]), static_cast<double>(p.at[h]));
             if(fs.punchThrust[h] || fs.punchOverhead[h])
             {
                 Con_Printf("flatwindup: %s %s: back %.1f up %.1f out %.1f tip %.1f\n", h == HAND_MAIN ? "main" : "off",
@@ -5111,8 +5167,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                                                         -poseNum(vr_flat_guard_down)} *
                                                         armSpan()
                                                   : restOld;
-        const glm::vec3 swing = punchSwing(h, punchRest, target) - punchRest + shoveOffset(h, target - restOld);
-        const glm::vec3 off = onBody ? fs.local[h] + swing : fs.local[h] - fromAnchor + swing;
+        // Where the hand rests (world), the swing on top of it: the punch's or the shove's.
+        glm::vec3 base;
         if(onBody)
         {
             const glm::vec3 gunView = heldIn(h) < 0 ? glm::vec3{0.f}
@@ -5121,15 +5177,25 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                                                           viewUp * za::clamp(vr_flat_gun_view_up.value, -poseTweakMax, poseTweakMax);
             // (The nudge and the gun's own view offsets carry the hand after the body's limits: the stock's is measured with them.
             // Leaning, posed upright and turned with the body; a punch's or a shove's swing after it, on the crosshair's point.)
-            s.pos[h] = rig(handOnBody(upright, roots, h, aim, fs.local[h], eye - rig.shift, nudge + gunView) + nudge + gunView) +
-                       fwd * swing.x + right * swing.y + up * swing.z;
+            base = rig(handOnBody(upright, roots, h, aim, fs.local[h], eye - rig.shift, nudge + gunView) + nudge + gunView);
         }
         else
         {
-            const glm::vec3 still = off - swing;
-            s.pos[h] = rig(shoulder(upright, h) + nudge + fwd * still.x + right * still.y + up * still.z) + fwd * swing.x + right * swing.y +
-                       up * swing.z;
+            const glm::vec3 still = fs.local[h] - fromAnchor;
+            base = rig(shoulder(upright, h) + nudge + fwd * still.x + right * still.y + up * still.z);
         }
+        // A jab (both fists: flatpunch) ends on the crosshair's ray, into what it hits (meleeAimPoint's jabFrom): its target
+        // measured from where the hand really rests, not from the shoulder by the rest pose's numbers (the body pose's hand
+        // sits elsewhere: off the shoulder's target, the fist rose 12 units over the eye, 13 from the point).
+        glm::vec3 punchTarget = target;
+        if(punching(h) && fistsJab())
+        {
+            const glm::vec3 d = meleeAimPoint(s, aim, shoulder(s, h) + nudge, true, &base) - base;
+            punchTarget = punchRest + glm::vec3{glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)};
+        }
+        const glm::vec3 swing = punchSwing(h, punchRest, punchTarget) - punchRest + shoveOffset(h, target - restOld);
+        const glm::vec3 off = onBody ? fs.local[h] + swing : fs.local[h] - fromAnchor + swing;
+        s.pos[h] = base + fwd * swing.x + right * swing.y + up * swing.z;
         // (Leaning, the hand's turn rolled vr_flat_lean_gun_roll of the view's lean roll: aimed again from where the turn took it.)
         s.rot[h] = aimRotAtCrosshair(aim + glm::vec3{0.f, 0.f, gunRoll(h)}, h);
         s.rot[h].z += vr_fakevr_handroll.value;

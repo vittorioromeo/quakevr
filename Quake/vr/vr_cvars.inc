@@ -81,8 +81,8 @@ QVR_CVAR(vr_lowceil_fade, "0.2", CVAR_ARCHIVE | QVR_RULE)         // ... seconds
 QVR_CVAR(vr_lowceil_dark, "0.95", CVAR_ARCHIVE | QVR_RULE)        // ... how dark the view goes (0-1): nearly black, the room past the ceiling barely seen
 QVR_CVAR(vr_lowceil_blur, "1", CVAR_ARCHIVE | QVR_RULE)           // ... how blurred (0-4; 0 none)
 QVR_CVAR(vr_lowceil_message, "1", CVAR_ARCHIVE | QVR_RULE)        // ... the message in front of your eyes ("Lie back down", "Crouch back down"); 0 none
-QVR_CVAR(vr_flat_key_crouch, "c CTRL", CVAR_ARCHIVE) // flat-screen: the crouch (and the slide, running) while held: C and Left Ctrl (his words 2026-11-25; Left Ctrl alone before), up to two bind names with a space between (every vr_flat_key_* takes two: flatplay::keySlots); "" none. Their binds do not run in flat play (CTRL +attack, c +movedown) unless vr_flat_crouch_fire
-QVR_CVAR(vr_flat_key_prone, "x", CVAR_ARCHIVE)        // flat-screen: the key that lies down and gets up again (a toggle: vr_prone_toggle), by its bind name; "" none
+QVR_CVAR(vr_flat_key_crouch, "c CTRL BBUTTON", CVAR_ARCHIVE) // flat-screen: the crouch (and the slide, running) while held: C and Left Ctrl (his words 2026-11-25; Left Ctrl alone before), up to two bind names with a space between (every vr_flat_key_* takes two: flatplay::keySlots); "" none. Their binds do not run in flat play (CTRL +attack, c +movedown) unless vr_flat_crouch_fire
+QVR_CVAR(vr_flat_key_prone, "x ABUTTON_ALT", CVAR_ARCHIVE)        // flat-screen: the key that lies down and gets up again (a toggle: vr_prone_toggle), by its bind name; "" none
 QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE | QVR_RULE)                // monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE | QVR_RULE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
 QVR_CVAR(vr_mhull_ledges, "1", CVAR_ARCHIVE | QVR_RULE)            // ... and SV_CheckBottom's ledge test takes the narrow box's corners (0: Quake's box's)
@@ -199,6 +199,23 @@ QVR_CVAR(vr_attach_pull_radius, "6", CVAR_ARCHIVE | QVR_RULE)  // how near (unit
 QVR_CVAR(vr_attach_pull_button, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: pulled off by that hand's B/Y with its grip held (a grip there alone is the gun's two-handed grip); 0: by the grip alone
 QVR_CVAR(vr_attach_mount_show, "1", CVAR_ARCHIVE)               // bayomounts: the bayonet's mount drawn on every weapon a bayonet fits (progs/bayonet_mount.mdl at its att1 mount, Weapon Offsets mnt_*): 1 always; 2 not while an attachment is on it; 0 never
 QVR_CVAR(vr_attach_mount_dist, "1500", CVAR_ARCHIVE)            // bayomounts: lying and carried guns' mounts drawn within this many units of the view (the nearest 32)
+// mountoffs (his 2026-11-28): every weapon's bayonet and dagger placed from its gun's mount (Weapon Offsets mnt_*) by these,
+// then by the gun's own att1_*/att2_* (vr_attach.cpp mount): in the mount's units (the bayonet's) and axes (forward along
+// its blade, left, up), turned pitch up, yaw left, roll about the blade (degrees), scaled (Weapon Offsets > Attachments)
+QVR_CVAR(vr_attach_bayonet_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_bayonet_scale, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_x, "-2.79", CVAR_ARCHIVE)     // (the dagger's grip behind and under the bayonet's socket: the shotguns' mean)
+QVR_CVAR(vr_attach_dagger_y, "0.339", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_z, "-1.47", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_attach_dagger_scale, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_attach_daggers, "1", CVAR_ARCHIVE | QVR_RULE)      // Daggers as Bayonets (daggerattach; his 2026-11-27, on for testing): 1 the dagger in a hand goes on the other hand's shotgun or super shotgun as its bayonet (brought to the mount; flat: the Attach key); 0 not (one already on still comes off)
 QVR_CVAR(vr_attach_turn, "1", CVAR_NONE)                // 1: the server's attachment points (QC attachinfo) turned by the gun's Pitch/Yaw/Roll in the hand; 0: not (attach2's comparison)
 QVR_CVAR(vr_attach_probe, "0", CVAR_NONE)              // 1: the client writes the main hand's drawn attachment tip into vr_attach_probe_x/y/z every frame (the tests: QC vr_attach_test.qc)
@@ -224,6 +241,8 @@ QVR_CVAR(vr_throw_spin_drag, "0.3", CVAR_ARCHIVE | QVR_RULE)  // per second, in 
 
 // Version of quakevr/vr_bindings.cfg last applied (vr_checkbindings).
 QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
+// Version of the flat-screen gamepad defaults last filled into a config (flatplay::fillPadDefaults, padflat).
+QVR_CVAR(vr_flat_pad_defaults_version, "0", CVAR_ARCHIVE)
 // 1.0.1: after the start-up configs (vr_startgame, after autoexec.cfg), the controller keys checked: a controller with no
 // key bound to a grab (another config's gamepad bindings: Ironwail's own have the left trigger jump, the grips cycle
 // weapons, A nothing) gets vr_bindings.cfg again, said in the console and qvr_openxr.txt. 0: never.
@@ -4704,8 +4723,8 @@ QVR_CVAR(vr_flat_aim_zoom, "-1", CVAR_ARCHIVE)          // the right mouse butto
 QVR_CVAR(vr_flat_route_seen, "-1", CVAR_NONE)           // test aid: vr_flat_route_probe's bits (the mouse's routing by what the hands hold; vr_flatitems_test 10)
 QVR_CVAR(vr_flat_aim_sens, "1", CVAR_ARCHIVE)           // the look's speed in the flatscreen ironsight (mouse, gyro, stick; vr_flataimsens.cpp): times this on top of the field of view's own slowing (vr_flat_aim_sens_match), blended in with the travel (0.05..5; 1: none)
 QVR_CVAR(vr_flat_aim_sens_match, "0", CVAR_ARCHIVE)     // the ironsight's monitor distance match (vr_flataimsens.cpp): a mouse move that puts a point this many half screen heights from the centre on the crosshair at hipfire does it sighted too (0..4; 0: the centre, the zoom's tangent ratio; 1.33 the 4:3 edge, Battlefield's uniform aiming; 1.78 the 16:9 edge)
-QVR_CVAR(vr_flat_key_swap, "3", CVAR_ARCHIVE)           // the key that swaps what the two hands hold (impulse 48, QC VR_FlatSwapHands), by its bind name ("3", "x", ...; "" none); read from the keyboard's state like F and H (3 was the third weapon's slot key: in the mode the weapons are reached with 1, 2 and the wheel)
-QVR_CVAR(vr_flat_key_shove, "mouse5", CVAR_ARCHIVE)   // the key that shoves (an open hand pushed out in front of you: the headset's one-hand shove, QC vr_melee_bash.qc VR_FlatShove), by its bind name; "" none
+QVR_CVAR(vr_flat_key_swap, "3 YBUTTON_ALT", CVAR_ARCHIVE)           // the key that swaps what the two hands hold (impulse 48, QC VR_FlatSwapHands), by its bind name ("3", "x", ...; "" none); read from the keyboard's state like F and H (3 was the third weapon's slot key: in the mode the weapons are reached with 1, 2 and the wheel)
+QVR_CVAR(vr_flat_key_shove, "mouse5 YBUTTON", CVAR_ARCHIVE)   // the key that shoves (an open hand pushed out in front of you: the headset's one-hand shove, QC vr_melee_bash.qc VR_FlatShove), by its bind name; "" none
 QVR_CVAR(vr_flat_shove, "1", CVAR_ARCHIVE)            // flatscreen play: 1 the shove key shoves; 0 it does nothing
 QVR_CVAR(vr_flat_shove_cooldown, "0.8", CVAR_ARCHIVE) // seconds after a shove before the key shoves again (a press meanwhile does nothing)
 QVR_CVAR(vr_flat_shove_push, "1", CVAR_ARCHIVE)       // how hard it throws what it reaches back, times the headset's one-hand shove (vr_shove_push_onehand)
@@ -4719,26 +4738,26 @@ QVR_CVAR(vr_flat_shove_anim_reach, "32", CVAR_ARCHIVE) // units the hand pushes 
 QVR_CVAR(vr_handsource_gate, "1", CVAR_ARCHIVE)        // 1: hand motion the game makes up (the flat-screen look, a lean, the wall tilt: vr_handsource.cpp) triggers no gesture (a swing, a flick, a pry); 0: every motion does, as before (a test's comparison, a way back)
 QVR_CVAR(vr_handsource_force, "0", CVAR_NONE)         // test aid: 1 marks both hands' motion synthesized every frame (as the flat-screen pose's), in a headset too: no gesture may fire on it (vr_handsource.cpp; crawl_test.py)
 QVR_CVAR(vr_handsource_debug, "0", CVAR_NONE)         // 1: prints each hand's motion source as it changes (vr_handsource.cpp: tracked, synthesized, action; motion-triggered gestures read tracked and action motion only)
-QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
-QVR_CVAR(vr_flat_key_grab, "mouse4", CVAR_ARCHIVE)      // the key that force-grabs what the view is pointed at (impulse 46: the dominant hand when both are empty, else the empty one), by its bind name; "" none (mouse 4: the side button the shove (mouse 5) leaves; was R, before that E)
+QVR_CVAR(vr_flat_key_bullettime, "z RSHOULDER_ALT", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
+QVR_CVAR(vr_flat_key_grab, "mouse4 DPAD_RIGHT", CVAR_ARCHIVE)      // the key that force-grabs what the view is pointed at (impulse 46: the dominant hand when both are empty, else the empty one), by its bind name; "" none (mouse 4: the side button the shove (mouse 5) leaves; was R, before that E)
 QVR_CVAR(vr_flat_grab_preview, "1", CVAR_ARCHIVE)      // flatscreen play: 1 what the grab key (mouse 4) would take now glows with the force grab's outline, as an open hand's aim shows it in the headset (QC VR_Forcegrab_FlatPreview); 0 no preview
-QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
-QVR_CVAR(vr_flat_key_ammo, "n", CVAR_ARCHIVE)           // flat-screen (N; B until 2026-11-25, his words): the key that switches the main hand's weapon to its other ammo (impulse 43, as the headset's weapon button: QC ToggleSecondaryAmmo: the rocket and grenade launchers' multi-rockets and -grenades, the thunderbolt's plasma, the hell knight's sword...; nothing for one without); not with the toolgun in hand (N is its adjust key there), by its bind name; "" none
-QVR_CVAR(vr_flat_key_pull, "h", CVAR_ARCHIVE)           // flatscreen Grab / Pull key (H; replaces retired vr_flat_key_drop, which merged into B): uses every available empty hand to grab physics props, crates, ragdolls, gibs in front of the player (Toggle by default, or Hold via vr_flat_grab_hold); by its bind name; "" none
+QVR_CVAR(vr_flat_key_reload, "r XBUTTON", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
+QVR_CVAR(vr_flat_key_ammo, "n XBUTTON_ALT", CVAR_ARCHIVE)           // flat-screen (N; B until 2026-11-25, his words): the key that switches the main hand's weapon to its other ammo (impulse 43, as the headset's weapon button: QC ToggleSecondaryAmmo: the rocket and grenade launchers' multi-rockets and -grenades, the thunderbolt's plasma, the hell knight's sword...; nothing for one without); not with the toolgun in hand (N is its adjust key there), by its bind name; "" none
+QVR_CVAR(vr_flat_key_pull, "h BBUTTON_ALT", CVAR_ARCHIVE)           // flatscreen Grab / Pull key (H; replaces retired vr_flat_key_drop, which merged into B): uses every available empty hand to grab physics props, crates, ragdolls, gibs in front of the player (Toggle by default, or Hold via vr_flat_grab_hold); by its bind name; "" none
 QVR_CVAR(vr_flat_1h_dagger, "1", CVAR_ARCHIVE | QVR_OWN)  // flatgrip3 (his flat item 7, 2026-11-26): flatscreen, a dagger is always held in one hand: no two-handed stance, the free hand never takes its grip, nor joins it stuck in a body (0: as any blade; vr_flatplay.cpp oneHandOnly)
 QVR_CVAR(vr_flat_1h_axe, "1", CVAR_ARCHIVE | QVR_OWN)     // flatgrip3: the same for the axes (the axe, AD's Shadow Axe, MG3's super axe): "2H poses for axes are a bit awkward, I would prefer them to always be held 1H like daggers"
 QVR_CVAR(vr_flat_overhand_both, "1", CVAR_ARCHIVE | QVR_OWN)  // flatfeedback 2026-11-26 (flatmelee6): flatscreen quick melee (V) with both hands empty: 1 both fists' two-handed overhead blow, raised and brought down together, one hit (vr_flat_overhand_2h_*; the client's own: the move tells the server, .handsynth 256); 0 the one-fist overhand blow (vr_flat_overhand)
 QVR_CVAR(vr_flat_grab_hold, "0", CVAR_ARCHIVE | QVR_OWN)  // flatscreen Grab / Pull key (H, vr_flat_key_pull) mode (his own: the client picks the impulse it sends, the server never reads it): 0 Toggle (default: press to grab, press again to release); 1 Hold (hold to grab and carry, let go to release)
 // The holsters' number keys (his words 2026-11-22; vr_flat_holsters on only: off, 1 .. 7 pick weapons as before; vr_flatplay.cpp
 // pollKeysFlat, QC vr_flatholster.qc VR_FlatHolster_Cycle / _Put). "Left" and "right" as the holster menu's: the off hand, the main hand.
-QVR_CVAR(vr_flat_key_cycle_left, "1", CVAR_ARCHIVE)     // the key that cycles the left hand through the holstered weapons, holster order, then the empty hand (impulse 86); by its bind name; "" none
-QVR_CVAR(vr_flat_key_cycle_right, "2", CVAR_ARCHIVE)    // the same for the right hand (impulse 87); by its bind name; "" none
+QVR_CVAR(vr_flat_key_cycle_left, "1 LSHOULDER", CVAR_ARCHIVE)     // the key that cycles the left hand through the holstered weapons, holster order, then the empty hand (impulse 86); by its bind name; "" none
+QVR_CVAR(vr_flat_key_cycle_right, "2 RSHOULDER", CVAR_ARCHIVE)    // the same for the right hand (impulse 87); by its bind name; "" none
 QVR_CVAR(vr_flat_key_holster_left, "4", CVAR_ARCHIVE)   // the key that puts the left hand's weapon in a free holster (the one it came from, else the nearest on its side; impulse 88); by its bind name; "" none
 QVR_CVAR(vr_flat_key_holster_right, "5", CVAR_ARCHIVE)  // the same for the right hand (impulse 89); by its bind name; "" none
 QVR_CVAR(vr_flat_key_drop_left, "6", CVAR_ARCHIVE)      // the key that drops what the left hand holds (impulse 78: the holster menu's left DROP); by its bind name; "" none
 QVR_CVAR(vr_flat_key_drop_right, "7", CVAR_ARCHIVE)     // the same for the right hand (impulse 79); by its bind name; "" none
-QVR_CVAR(vr_flat_key_grenade, "g", CVAR_ARCHIVE)        // the quick grenade key (impulse 57, QC vr_flatgrenade.qc; vr_flatgrenade.cpp): a free hand fetches the back pouch's grenade, the fire button arms it, held winds up, let go throws; by its bind name; "" none
-QVR_CVAR(vr_flat_key_throw, "b", CVAR_ARCHIVE)          // the unified throw / drop key (B; impulse 39 down, 40 up; QC vr_flatgrenade.qc "The throw key"; vr_flatgrenade.cpp): a quick tap (< vr_flat_throw_tap_time) drops what a hand holds (gentle short toss) or lets go of an embedded blade; held longer, winds up behind the shoulder and throws the held weapon or H-grabbed prop/crate/ragdoll/gib along the crosshair; by its bind name; "" none
+QVR_CVAR(vr_flat_key_grenade, "g DPAD_DOWN", CVAR_ARCHIVE)        // the quick grenade key (impulse 57, QC vr_flatgrenade.qc; vr_flatgrenade.cpp): a free hand fetches the back pouch's grenade, the fire button arms it, held winds up, let go throws; by its bind name; "" none
+QVR_CVAR(vr_flat_key_throw, "b DPAD_LEFT", CVAR_ARCHIVE)          // the unified throw / drop key (B; impulse 39 down, 40 up; QC vr_flatgrenade.qc "The throw key"; vr_flatgrenade.cpp): a quick tap (< vr_flat_throw_tap_time) drops what a hand holds (gentle short toss) or lets go of an embedded blade; held longer, winds up behind the shoulder and throws the held weapon or H-grabbed prop/crate/ragdoll/gib along the crosshair; by its bind name; "" none
 QVR_CVAR(vr_flat_grenade, "1", CVAR_ARCHIVE)            // flat-screen play: 1 the quick grenade key (vr_flat_key_grenade) takes a grenade from the pouch; 0 it does nothing
 QVR_CVAR(vr_flat_grenade_arm_mode, "1", CVAR_ARCHIVE | QVR_PREF)   // the quick grenade's fire button: 1 a press arms it (its fuse runs), the next press held winds up the throw and its release throws; 0 one press: it arms, held winds up, let go throws
 QVR_CVAR(vr_flat_grenade_debug, "0", CVAR_NONE)         // 1: the quick grenade's drawn hand printed step by step (flatgren: ...; vr_flatgrenade.cpp); developer 1 prints the game's side (flat grenade: ...)
@@ -4772,12 +4791,12 @@ QVR_CVAR(vr_flat_toolgun_panel_size, "0.75", CVAR_ARCHIVE) // flatscreen play: t
 QVR_CVAR(vr_flat_toolgun_panel_x, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle across the window (0 left .. 1 right; kept on the window)
 QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle down the window (0 top .. 1 bottom; kept on the window)
 QVR_CVAR(vr_flat_holsters, "1", CVAR_ARCHIVE | QVR_PREF)           // flatscreen play carries what a headset does: six holsters and two hands, the weapon keys doing nothing (3 swaps the hands), the wheel's button holding the holster menu (vr_flatholster.cpp, QC vr_flatholster.qc); 0: the number keys and the wheel cycle through every weapon collected, as before 2026-11-10
-QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Options > Controls, Quake VR (flat screen))
+QVR_CVAR(vr_flat_key_flashlight, "f DPAD_UP", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Options > Controls, Quake VR (flat screen))
 QVR_CVAR(vr_flat_key_gearlights, "9", CVAR_ARCHIVE)    // the key that dims and lights the gear (vr_gear_lights_toggle: the visor, the guns' ammo screens; the wrist gadget's side button in VR), by its bind name; "" none (9: bound to nothing by default.cfg)
-QVR_CVAR(vr_flat_key_attach, "j", CVAR_ARCHIVE)        // weapon attachments (QC vr_attach.qc, impulse 52): the key that puts the attachment the other hand holds (a bayonet) on the gun in one hand, or takes the gun's off into the empty other hand, by its bind name; "" none
-QVR_CVAR(vr_flat_key_punch, "v", CVAR_ARCHIVE)         // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
+QVR_CVAR(vr_flat_key_attach, "j LSHOULDER_ALT", CVAR_ARCHIVE)        // weapon attachments (QC vr_attach.qc, impulse 52): the key that puts the attachment the other hand holds (a bayonet) on the gun in one hand, or takes the gun's off into the empty other hand, by its bind name; "" none
+QVR_CVAR(vr_flat_key_punch, "v RTHUMB", CVAR_ARCHIVE)         // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
 QVR_CVAR(vr_flat_key_voicechat, "CAPSLOCK", CVAR_ARCHIVE) // multiplayer voice chat's push-to-talk key, held (vr_voicechat.cpp; flat play owns it, VR reads it too); by its bind name; "" none
-QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
+QVR_CVAR(vr_flat_key_holster_menu, "mouse3 LTHUMB", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
 QVR_CVAR(vr_flat_holster_menu_mode, "0", CVAR_ARCHIVE) // flatscreen play: 0 hold the key, hover a button and let go: that button (let go over nothing: just closed; a left click while held clicks too, and then letting go only closes); 1 a press opens it, left clicks as many as wanted, the next press (or Esc) closes it (his words 2026-11-10)
 QVR_CVAR(vr_flat_holster_menu_timescale, "0.3", CVAR_ARCHIVE) // flatscreen play: time's speed while the holster menu is open (bullet time's slow motion; 1 not slowed)
 QVR_CVAR(vr_flat_holster_menu_blur, "6", CVAR_ARCHIVE)  // flatscreen play: the view's blur behind the holster menu and the weapon wheel (pixels at 1080p, 0 none)
@@ -4796,6 +4815,7 @@ QVR_CVAR(vr_flat_wheel, "1", CVAR_ARCHIVE)             // flatscreen play (holst
 QVR_CVAR(vr_flat_wheel_hold, "0.15", CVAR_ARCHIVE)     // flatscreen play: seconds 1 / 2 are held before the weapon wheel opens (a shorter press cycles the hand when let go)
 QVR_CVAR(vr_flat_wheel_size, "0.5", CVAR_ARCHIVE)      // flatscreen play: the weapon wheel's height, a share of the window's
 QVR_CVAR(vr_flat_bind_panel, "1", CVAR_ARCHIVE)      // flatscreen play: the most used flat keys as key caps in a panel over the holster menu and the weapon wheel, and in the main menu left of its rows with Setup Bindings under it (vr_bindpanel.cpp; wheelui, his words 2026-11-28); with a gamepad the device last used, its bound buttons' glyphs and actions instead (bindpanel2); 0 none
+QVR_CVAR(vr_menu_bind_panel_scale, "1.5", CVAR_ARCHIVE) // the menus' bindings reminder panel's letters, times 8 menu units at most (it shrinks to fit the room; two columns when too short for one; vr_menuui.cpp drawBindPanel; panelsize, his words 2026-11-28)
 QVR_CVAR(vr_wheel_bind_panel, "1", CVAR_ARCHIVE)     // the headset's weapon wheel: a panel above it with the detected controllers' pictures, each bound button's glyph and action beside it (vr_bindpanel.cpp; bindpanel2, his words 2026-11-28); 0 none
 QVR_CVAR(vr_flat_holster_drop_ahead, "20", CVAR_ARCHIVE | QVR_PREF) // flatscreen play: how far ahead of him (units) a holster's DROP lays its weapon
 QVR_CVAR(vr_flat_unload_volume, "0.8", CVAR_ARCHIVE) // flatscreen play: the holster menu's UNLOAD sound's volume (its rounds back into the pouch); 0 silent

@@ -50,9 +50,15 @@ float(float i) VR_FlatHolster_Hotspot =
 // Holster `hs` and hand `hand` trade what they hold, each weapon with its record (its magazine, its id): the holster's
 // drawn into the hand (VRDrawHolsterWeapon), the hand's put in the holster (VRPutWeaponInHolster). A weapon too big for
 // a holster stays in the hand (VRHolsterRefused: the word and the buzz a headset's gets); a hand carrying a box or a prop
-// keeps it (drop it first). (`self` the player: the holster's getters are self's.)
+// keeps it (drop it first), but an unarmed hand grenade goes back in the pouch first (grenhold: VR_HandGrenade_Stow; armed,
+// refused). (`self` the player: the holster's getters are self's.)
+float(float xHand) VR_HandGrenade_Stow; // (vr_flatgrenade.qc)
 void(float hs, float hand) VR_FlatHolster_Swap =
 {
+    if(!VR_HandGrenade_Stow(hand)) // (grenhold: an unarmed hand grenade back in the pouch first; armed: refused)
+    {
+        return;
+    }
     float hw = getHolsterWeapon(hs);
     float empty = VRIsHandWeaponless(self, hand);
     if(VR_Carry_Held(self, hand) != world)
@@ -308,6 +314,10 @@ float(float xHand, float prefer, float vacant) VR_FlatHolster_FreeFor =
 // Whether `xHand` may take part (not carrying a box or a prop: VR_FlatHolster_Swap's rule).
 float(float xHand) VR_FlatHolster_KeyHandOk =
 {
+    if(!VR_HandGrenade_Stow(xHand)) // (grenhold: an unarmed hand grenade back in the pouch first; armed: refused)
+    {
+        return FALSE;
+    }
     if(VR_Carry_Held(self, xHand) != world)
     {
         sprint(self, "That hand carries something: drop it first.\n");
@@ -453,7 +463,8 @@ float VR_WHEEL_DROP = -2;
 float VR_WHEEL_UNLOAD = -3;
 float VR_WHEEL_FLIP = -4;
 // -5 GRENADE / -6 CLUSTER (wheelgrenade, his words 2026-11-28): a grenade (or the multi-grenade) from the back pouch in the
-// hand, its weapon put away first (VR_Wheel_Grenade, vr_flatgrenade.qc).
+// hand, its weapon put away first (VR_Wheel_Grenade, vr_flatgrenade.qc). A hand grenade in the hand (grenhold) is no carried
+// prop to the holster picks: unarmed, it goes back in the pouch first (VR_FlatHolster_KeyHandOk: VR_HandGrenade_Stow).
 float VR_WHEEL_GRENADE = -5;
 float VR_WHEEL_MULTIGRENADE = -6;
 void(float xHand, float xMulti) VR_Wheel_Grenade; // (vr_flatgrenade.qc)

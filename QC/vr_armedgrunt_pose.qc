@@ -1345,6 +1345,7 @@ vector vr_agp_drawl;
 vector vr_agp_waist; // the waist the torso was turned about, as sent (agposesend reads it)
 vector vr_agp_elr;   // the elbows' poles (its body's space; their length the share: 0 the animation's)
 vector vr_agp_ell;
+vector vr_agp_shpole; // the shielding elbow's pole (its body's space; its length the share): VR_AGP_Shield's, laid on vr_agp_ell
 vector VR_AGP_WAIST = '-4.7 0.9 4.8'; // the grunt's waist (its rig's pelvis's end: the chest's turn's pivot)
 
 // The shares at `g`'s attack's time now (its strike's parameter as its pose's: a swing's smoothed, a punch's not).
@@ -2616,6 +2617,21 @@ void(entity g, entity p) VR_AGP_PoseQC =
             body = TRUE;
         }
     }
+    if(vr_agp_shpole != '0 0 0' && !(vr_agp_flags & VR_AGP_FIXED))
+    {
+        // (dazzled: its shielding elbow out to its side, VR_AGP_Shield; on a strike's or the keys' poles, or alone: then
+        // no torso turn, only the poles sent)
+        if(!body)
+        {
+            vr_agp_tq = '0 0 0';
+            vr_agp_elr = '0 0 0';
+            vr_agp_ell = '0 0 0';
+        }
+        vr_agp_ell = vr_agp_ell + vr_agp_shpole;
+        vr_agp_flags = vr_agp_flags | VR_AGP_BODY;
+        body = TRUE;
+    }
+    vr_agp_shpole = '0 0 0';
     if(vlen(vr_agp_elr) > 1) { vr_agp_elr = normalize(vr_agp_elr); }
     if(vlen(vr_agp_ell) > 1) { vr_agp_ell = normalize(vr_agp_ell); }
     if(vr_agk_on)

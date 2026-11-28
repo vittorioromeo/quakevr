@@ -4863,6 +4863,13 @@ void setupHand(const hands::State& s, int hand)
     // What the fingers wrap (vr_hand_fit): the gun in the hand, the other hand's gun it helps hold (its foregrip, a
     // sword's blade), a carried box or gib, the flashlight.
     Held held = heldBy(hp);
+    // Flat-screen play's procedural reload (prlmove): its free hand bringing the round to the port goes on the gun as drawn
+    // (the gun sways off its game pose on the move; the round is aimed at the port in the game's frame).
+    if(own)
+    {
+        flatprocreload::attachDrawn(s, hand, pos, handRot);
+        flatprocreload::noteDrawn(s, hand, pos, handRot);
+    }
     drawHand(hand, pos, handRot, mirrored, hide, held, motion);
     // (flatgrip3: the probe of a hand put on a pole's shaft above, measured as drawn: after the grasp's palm move.)
     poleProbeNote(hand, mirrored, pos, handRot);

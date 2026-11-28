@@ -4938,3 +4938,261 @@ stuck thunderbolt's start sound again and again; the burst rifle and the revolve
   bayonet or an axe, so flat doesn't take them two-handed), the run stalled after the V (no more output until the
   timeout). Not looked into. Casings (ejectcasings) still come from the hand. A stuck gun let go mid-animation keeps its
   last frame. Multiplayer: the prop's `.frame` and the beam entity go out as ordinary entity state; nothing per seat.
+
+## padflat: a flat-screen gamepad's default layout, its stick on the wheel and holster menu, a stick cursor in the menus (branch agent/padflat, 2026-11-28)
+
+His words (2026-11-28): 13. "The default flatscreen controller bindings are pretty bad, there's no way to access the weapon
+wheels or perform other common actions. Come up with a decent default binding selection." 14. "When using a controller in
+flatscreen mode, there needs to be a cursor in the menu that can be controlled with the thumbstick. Leave discrete
+navigation for the directional keypad." The layout table: FLATPLAY.md "A gamepad".
+- **Where the pad's actions live**: each flat key (`vr_flat_key_*`) now holds three keys, the keyboard's two and a gamepad
+  button ("c CTRL BBUTTON"; `flatplay::keySlots` 3; `keyNumKeyboard`, `keyNumPad`, `setPadKey`, `resetPadKeys`). In flat play
+  it wins over the button's bind (VR_FlatKeyOwned), so the headset's binds of the same keys (vr_bindings.cfg: a VR
+  controller sends ABUTTON etc.) are untouched. Fire, jump, the alt layer and the scoreboard are binds. 17 buttons on flat
+  keys (6 on the alt layer); no button on two actions.
+- **Alt layer**: Back held (`bind BACK +altmodifier`, Ironwail's; the buttons send `_ALT` keys). keys.c: a flat key on an
+  `_ALT` key counts as bound for the fallback, a button let go after Back lets go of its `_ALT` key (Ironwail left it held:
+  its next press was an "autorepeat"), and a flat key's button is not "unbound" (no console nag). in_sdl.c: SDL's Back now
+  sends its own key `BACK` (named in keys.c; it sent Tab before, so the Controller Bindings screen's Back was never pressed).
+- **Existing players**: flat keys left at their defaults get the layout (a sparse config). Once (`vr_flat_pad_defaults_version`
+  1, by `vr_checkbindings`; `fillPadDefaults`): a flat key of their own without a button gets its default's if no other
+  action has it; BACK and RTHUMB_ALT get their binds if unbound. Nothing bound is replaced.
+- **Rebinding**: Options > Controls' flat rows edit the keyboard's two keys (VR_FLATKEY_SLOTS stays 2) and keep the button;
+  a gamepad button's flat key and its bind no longer show a "!" clash (meant so), two flat keys on a button still do. The
+  Controller Bindings screen with a pad shown (`flatPad`: not a headset's controllers) shows each button's flat action
+  (else its bind), lists the flat actions, swaps/picks them (`setKey`), and its Reset also resets every flat key's button.
+  The pad's reminder panel (bindpanel2) reads the same (panelButtons in the model's context); the keyboard rows skip buttons.
+- **Right stick** (IN_JoyMove, `VR_FlatStickCursor`): with the flat weapon wheel open it points at a slot (past
+  `vr_pad_wheel_deadzone` 0.5 the cursor on the ring that way; back in the middle the slot stays), with the holster menu open
+  it moves the cursor (`vr_pad_holster_cursor_speed` 1.1 window heights a second); the view does not turn meanwhile.
+- **Menu cursor** (vr_menuui.cpp `VR_MenuPadStick` / `VR_MenuPadKey` / `VR_MenuPadHide`, drawn in VR_End2D with the holster
+  menu's arrow): the left stick moves it in the window (M_Mousemove, so every menu's hover works), A clicks while it shows
+  (the left mouse button, press and release, no repeats; the release follows even if the click closed the menu), the d-pad
+  steps as before and hides it, the mouse moving or a keyboard key hides it. Tunables > Flatscreen > Gamepad:
+  `vr_pad_cursor` 1, `_speed` 0.9, `_accel` 1.5 over `_accel_time` 0.6 s, `_curve` 2, `_deadzone` 0.2. Not in a headset.
+- **Debug** (Tools > Controller Bindings): Flat Gamepad Layout Test, Gamepad Menu Cursor Test / Report
+  (`vr_menu_pad_report`), Fill Flat Gamepad Defaults. Scenario `flat_gamepad`.
+- **Tests**: `Misc/quakevr/flatpad_test.sh` 4/0: `vr_flat_pad_test` 33/0 (every action's button, no duplicates or clashes,
+  slots, the alt layer press/release, fill once, reset, the screen's and panel's names), `vr_bindsetup_test` 17/0 (a pad's
+  swaps and reset now on the flat keys' buttons), `vr_menu_pad_test` 6/0 (hidden at first, the stick moves it, steered onto
+  B's label, A opens its list, the d-pad steps and hides it); screenshot `scratch/flatpad/bindings.png`. flatkeybind_test 31/0
+  (its expected values now carry the buttons), bindpanel_test 18/0.
+- **MP / splitscreen**: client-side input only (binds, cvars, menus): nothing networked. Splitscreen seats will need a
+  per-seat pad (which pad drives which seat's flat keys and cursor) on agent/split.
+- **Open**: the OS mouse pointer stays where it was while the pad cursor shows (not hidden); the stick on the toolgun's
+  panel and the gyro while the wheel is open not done; Back in menus does nothing now (it was Tab).
+## The dazzled humanoids' shield: a forearm across the eyes for every kind, dual wielders too (branch agent/dazzlepose, 2026-11-28)
+
+His notes (2026-11-28): the grunts' shield looks great, the other humanoids' needs work (a general solution: the forearm
+across the face by the IK); dual wielders don't shield (an option to try). Follows "flashblind" above.
+- **Where the hand goes** (`VR_AGP_ShieldAt`, QC vr_armedgrunt_dazzle.qc): from its kind's own eyes (`vr_am_eye`, a new row
+  value in vr_armedmon.qc: its rig's head bone, 0.41 up from its base; the grunt's `'3 0 22'` as before; also the dazzle's
+  eyes, `VR_AG_DazzleEye`, no longer the grunt's fitted), forward / left / up by `vr_agrunt_dazzle_face_fwd/_left/_up`
+  (8, 0.5, -0.5, the grunt's units times its arm against the grunt's 15.2), then drawn towards its left shoulder to within
+  `vr_agrunt_dazzle_bend` (0.9) of its arm's reach: a bent arm, never one held out straight (the enforcer's and the death
+  knight's wide shoulders had it straight). The grunt's place is unchanged (11 0.5 21.5). Replaces `_hand_fwd/_left/_up`
+  (the grunt's body fitted per kind; his cfg had none).
+- **Its elbow** (`VR_AG_SHIELD_POLE` '0.3 1 -0.45': out to its side, a little down and forward) times
+  `vr_agrunt_dazzle_elbow` (1) and the shield's ease: `vr_agp_shpole`, laid on the left elbow's pole after the body's turns
+  and sent as the body's poles (`VR_AGP_BODY`, no torso turn when alone: the existing pose message, so every client and MP
+  draws it; nothing per seat). QC and the engine's agpose both (`vr_agpose_native 2`: 0 mismatches over test 232). The
+  forearm then comes in across the eyes; with the old elbow (`_elbow 0`) the knights' forearms pointed at you like a punch
+  held up (test 232 measured 56..65 degrees off across; now 4..39). The grunts' pictures with 0 and 1 are near alike.
+- **Palm**: still the arm IK's Point goal, a fist turned with its forearm (no wrist roll to turn a palm out: a new goal
+  or flag in the pose message; not done).
+- **Dual wielders** (`vr_agrunt_dazzle_dual`, 0 by default; Tunables > Flashlight Dazzle > Dual Wielders Shield): its left
+  weapon's grip goes to the same place, the weapon still held, turned to point up and out to its left, its top back; while
+  raised (`VR_AG_ShieldingLeft`: its shield over half) its left gun doesn't fire (vr_armedgrunt.qc's second-gun shots); the
+  right one fires on, its aim worse as any dazzled one's.
+- **Tunables** (Flashlight Dazzle): Hand Forward / Left / Up (from its eyes), Arm Bend, Elbow Out, Dual Wielders Shield.
+  menu_paths.txt regenerated (it also picked up the flat reload rows next had not listed).
+- **Pose Studio**: there is no Shield key (the shield is laid on after the keys' hand poses). Not added: the place is now
+  measured per kind from its head and shoulder, the Tunables sliders move it live for every kind, and a key would need a new
+  pose class in agpose, QC and the studio; worth it only if one kind still needs its own hand-placed tweak.
+- **Test** `vr_agrunt_test 232` (23/0; `vr_agpose_native` 0 and 2 too): each kind's drawn forearm (the client's solved
+  arm: `weapondrawnpose(g, side, 57 / 58 / 59)` its shoulder, elbow, grip, world, `hitreact::drawnArm`) within 4 units of
+  its eyes' line to the lens, under 50 degrees off square across it and off level; a dual wielder (two revolvers): with the
+  option its left hand up before its eyes, the gun pointing up, not fired (its forearm within 6.5: below its grip), without
+  it no shield. `scratch1 232`: nearer (64 units), a screenshot of each kind and of the dual wielder, for his review.
+
+## flatpunch: flat jabs along the crosshair's ray; Run Setup's melee row Axe, Dagger, Spear, Nothing (branch agent/flatpunch, 2026-11-28)
+
+His flat notes 2026-11-28, items 4 and 11.
+- **Jabs at the crosshair** (item 4): both fists' jabs (`fistsJab`) now end on the crosshair's ray, either hand. Before,
+  the fist was thrown 0.7 of the way (`vr_flat_punch_aim`) to a point measured off the shoulder by the rest pose's numbers,
+  out to the old throw's length: it ended 6.5 to 7.6 units from the crosshair's point, below and short of it (at arm's
+  length, well off the crosshair on the screen). Now (vr_flatplay.cpp pose loop) the target is measured from where the
+  hand really rests (`base`, the same place the swing is added to) and the jab goes all the way: to `jabThrough` (8) past
+  what the ray hits (ended on a grunt's face, the fist only touched it: no blow), never nearer along the ray than
+  `punchReach` (24) past the hand (a grunt right in front is still struck), at most the arm's reach along the ray
+  (`meleeAimPoint`'s new `jabFrom`). Other fist punches (a prop's, a free hand beside a gun, `vr_flat_jab_alternate` 0)
+  are unchanged. The melee probe's line gains `ray`: the blow's held end off the crosshair's ray, up and down too.
+  No new state: the pose is the client's; the blow is the game's hand motion as before (nothing new to network; per-seat
+  splitscreen needs nothing beyond the existing flat state).
+- **Run Setup melee order** (item 11): the Starting melee weapon row shows Axe, Dagger, Spear, Nothing (Nothing last, as
+  the Starting gun's). Display only: `Mutator::order` (vr_runsetup.hpp) gives a row's screen order of the values; the
+  values stay (Nothing 2, Spear 3), so saved picks, save lines and the QC's numbers are untouched (no config version).
+  The icon picker's pictures follow the screen's order (vr_menu_runsetup.inc).
+- **Tests**: flatfists_test.sh 21/0 (adds: the jabs in the air end on the ray, 0.0 off; a grunt off the line he faced,
+  turned onto with the mouse: each hand's jab hits it, 0.1 off the ray; the second jabhit grunt 60 back: the first's
+  falling corpse took the next jab and was thrown into it). vr_runsetup_test 88/0 (adds: every screen order a
+  permutation; the melee row's order and kept values). vr_runlaunch_test 91/1: the failing check is Select Campaign's
+  Arena Mode row under AD (campaign page; not touched here). flatmelee_test 12/0, flatmelee4 9/0, flatmelee6 9/0.
+## panelfix: the bindings reminder panels and the holster labels (branch agent/panelfix, 2026-11-28)
+
+His words (2026-11-28), items 1, 6, 9, 10, 12 of his flat-screen session.
+- **Every page** (9): the menus' panel (`vr_menuui.cpp` drawBindPanel) is drawn on every menu page where it fits, not only
+  the main menu. Its room goes from the panel's left edge to the page's leftmost text (the main menu's rows:
+  `M_Main_RowsExtent`; other pages `menu::contentLeft` / `contentLeftBelow`), from under the corner's buttons to above the
+  bottom corner's rows. Pages whose labels reach far left (VR Settings) leave no room, so the panel is not drawn there.
+  The Controller Bindings screen (m_bindsetup) never draws it.
+- **One anchor** (12): the panel's bottom left corner, for the keyboard and a pad alike. The pad's panel used to stand
+  under the column of corner buttons, while the keyboard's (too wide for that) moved to the canvas's left. Left margin:
+  20 menu units from the panel's edge (1). The panel used to touch the border (`l.left + 4`).
+- **Hover bug** (1): every corner hit test already checked both X and Y (`ToolbarLayout::hit`, `zoomHit`, `cornerRowAt`,
+  the flat Recording box, the version link). The panel was the problem: its room ended at `l.bottom - 24`, ignoring the
+  bottom corner's rows, so Setup Bindings sat over the OBS and Recording Settings rows and lit them. Its room now ends
+  `gap` above `menuui::cornerRowsTop()`, or above the flat Recording box. Those rows are also not lit while the mouse is
+  over Setup Bindings. Heights now count in true pixels: on a stretched canvas (Options: `l.k` 2) the letters are square
+  (`Draw_CharacterEx` keeps them so) and the rows are spaced to match.
+- **More rows, grouped** (10): `vr_bindpanel.cpp` has 20 rows (`maxRows` 24). The 9 main ones come first, drawn large:
+  fire, aim, reload, wheel, holster menu, grab, throw/drop, grenade, crouch. After them come smaller rows
+  (`BindPanelRow::minor`) in two groups under small titles (`BindPanelRow::header`):
+  - Hands: Cycle L / R (1 2), Holster L / R (4 5, `vr_flat_key_holster_*`), Drop L / R (6 7), Swap hands, Next ammo
+    (`vr_flat_key_ammo`), Attach / detach (`vr_flat_key_attach`).
+  - More: Force grab, Shove, Punch, Lie down (`vr_flat_key_prone`), Flashlight.
+
+  The menu draws the minor rows at 0.75 of the letters, each group's title with a rule. The gadget image over the MMB menu
+  and the flat wheel (`vr_gadget_holster.inc` bindRowsLayout) puts the main rows in its first column and the groups at 5 px
+  in the second. A pad's rows (its bound buttons) stay one group, all large.
+- **Holster titles** (6): `holsterTitleInk` goes from 0.55 to 0.8 of the label ink. This covers the MMB menu and the
+  weapon wheel, VR and flat.
+- **Report**: `vr_bindpanel_report`'s menu lines are now `bindpanel: menu panel drawn: N rows, letters, page <main|options|
+  keys|other>, corner hits H, obs row 0/1, clear C` and a `menu panel room ...` line. H is the hover test: of 15 spots over
+  Setup Bindings, how many the column, zoom, Recording, OBS or RenderDoc hit tests also take; it is measured while drawing,
+  in the menu's canvas. C is the gap from Setup Bindings's bottom to the corner rows' top. Rows print ` minor` and
+  ` group <title>`.
+- **Tests**: bindpanel_test 29/0. New checks: 20 rows; the new rows and their keys and groups; the panel drawn on the main
+  menu and on Options; with OBS's row (`vr_obs_mock 1`) corner hits 0 and clear >= 0; the keyboard's and the pad's Setup
+  Bindings at the same left and bottom. Also weaponwheel_test flat 21/0 and vr 26/0, flatholster_test 54/0,
+  flatmenu_esc 7/0. Screenshot: scratch/bindpanel/main.png (keyboard, Xbox pad, Options).
+- **MP / splitscreen**: client-side drawing only (key binds and cvars), nothing networked. Splitscreen: the panel reads
+  the one keyboard's binds; per-seat binds stay in BACKLOG section 3.
+## mountoffs: the bayonet and dagger hang from the gun's mount; every gun's bayonet and dagger offsets (branch agent/mountoffs, 2026-11-28)
+
+His flat notes 2026-11-28 (7) the nailgun's bayonet didn't follow his moved mount, (17) global, weapon-independent bayonet
+and dagger offsets from the mount.
+- **One hierarchy** (`attach::mount`, vr_attach.cpp; ATTACHMENTS.md): gun -> its mount (`mnt_x/y/z`, `mnt_pitch/yaw/roll`
+  in the gun model's space, `mnt_size` the bayonet's size on it: `attach::mountValues`) -> every gun's offset of the kind
+  (new `vr_attach_bayonet_*` / `vr_attach_dagger_*`: x/y/z, pitch/yaw/roll, scale, in the mount's units and axes) -> the
+  gun's own `att1_*` / `att2_*` (same units; 0 / scale 1 by default) -> the kind's frame (flatbayonet's). Everything goes
+  through it: held, holstered, lying, monsters', previews, the server's points (QC attachinfo via `fromMuzzle`), the stick
+  blade, the toolgun icons. The drawn rail (`railMount`) is the mount itself; a map pickup maps its view gun's mount onto
+  itself (`pickupRails` now hold the view gun's mount they were measured against: refPos / refScale), so a moved mount
+  moves the pickup's rail as before.
+- **weapons.txt converted** (scratch `mo_convert.py`): each gun's old att1 place is its `mnt_*` (the shipped mnt_* were
+  all 0); att1 back to 0; att2 from the mount: every bayomounts gun's dagger was the same (-2.79, 0.339, -1.47) from the
+  bayonet, now the dagger's global default, so their att2 are 0; the shotgun keeps (-0.004, 0, -0.535) and pitch -0.74,
+  the SSG (0.0055, 0, 0.533) and pitch 0.76. At the defaults every gun's bayonet and dagger are where they were (7 guns
+  checked: within 0.0009 units, sizes and turns exact).
+- **Configs: vr_wofs_version 81** (`takeMountOffsets81`, `attach::convertToMountOffsets`): a config's own att/mnt values
+  (the rest the old defaults, read back from today's) to the hierarchy: the mount where the old moved mount was drawn, the
+  bayonet on it (its size kept), the dagger kept relative to the bayonet's old place, so a moved mount takes both along.
+  His config: `vr_wofs_mnt_y_04 0.68` (bayonet units) becomes the nailgun's mount at y -0.0636 (from -1.48: centred);
+  **what moved**: the nailgun's bayonet and dagger 1.416 units left (gun model units) onto it, nothing else (his shotgun
+  att2 values convert to today's defaults with his -0.743 / 0.757 pitches kept). Step 80's old dagger scale reads the
+  mount's size now.
+- **Menu** (Weapon Offsets > Attachments): "Bayonet Mount" first (Bayonet Fits, Show, Mount Forward/Left/Up in the gun's
+  units with the old Bayonet ranges, Pitch/Yaw/Roll, Size), "Bayonet" (this gun's offset from the mount, small ranges),
+  "Every Weapon's Bayonet" (Every Bayonet Forward ... Scale), "Dagger" (as before, relative), "Every Weapon's Dagger".
+  Weapon Offsets pages are not in menu_paths.txt; vrcalibration 0 missing. (menu_paths.txt is stale on origin/next by 45
+  rows of the prl / reminder-panel work: not regenerated here.)
+- **MP / splitscreen**: the global offsets are local `CVAR_ARCHIVE` (like the per-slot vr_wofs values): each client draws
+  with its own, the server's attach points use the host's. Splitscreen seats share them (no per-seat state).
+- **Tests**: `menu_vr attachtest` 20/0 (new: the defaults unchanged on 7 guns, Mount Left 1.5 / Mount Yaw 20 on the
+  nailgun take its bayonet and dagger along, every-gun offsets and scale move every gun's, his config's nailgun converts
+  with the bayonet on the moved mount; the page's Mount Forward row moves the bayonet); `vr_embed_test 96` attachguns
+  57/0 + attach_guns_check 32/32; flat 80 17/0, flat dagger 85 18/0. The migration checked with his config's lines
+  (vr_wofs_version 80 -> 81: values above).
+## grenhold: a held grenade isn't a stuck prop: put back or swapped by the weapon wheel and the holster menu (branch agent/grenhold, 2026-11-28)
+
+His words (2026-11-28): "When holding a grenade, the hand is considered holding a prop, so I cannot put it back or switch it
+for a gun unless I drop it first. Make held grenades go back to the ammo if unlit, and make it possible to swap them or put
+them back by using the usual weapon wheel or MMB buttons."
+- **Put back** (`VR_HandGrenade_Stow`, vr_flatgrenade.qc): before a holster pick for a hand (the wheel's EMPTY HAND and
+  holster slots, `VR_Wheel_Pick` through `VR_FlatHolster_KeyHandOk`; the flat holster keys 1/2/4/5, Cycle/Put; the MMB
+  holster menu's holster buttons, `VR_FlatHolster_Swap`), an unarmed hand grenade in that hand goes back in the pouch: its
+  rocket or multi-rocket back (as the pouch's own let-go, VR_HandGrenade_LetGo), the pouch sound and tick, the headset's
+  collect effect into the pouch; then the pick goes on with the hand empty (the holster's weapon drawn into it). Flat-screen
+  play's quick grenade state for that hand is ended; its trip to the pouch (FETCH) with that hand is called off.
+- **Refused**: an armed grenade (or a pouch full up of its ammo) stays in the hand: a dull knock (`vr/pack_full.wav`), a buzz,
+  and "The grenade is armed: throw it or drop it." (the wheel's DROP still drops it; pressing G with it armed is as before).
+- **BACK POUCH** (`VR_Wheel_Grenade`): with a grenade in the hand, the other kind swaps it (put back, the other taken: the
+  headset's at once, flat's by its trip); the same kind puts it back (the hand empty). Armed: refused.
+- **Client** (both modes, MP-safe): STAT_QVR_FLATUNLOADFULL carries the hand grenade per hand (bits 6-7 off, 8-9 main:
+  1 unarmed, 2 unarmed multi, 3 armed; `VR_FlatReload_HandFrameOn`), read by `flatholster::handGrenade`. The wheel lights
+  EMPTY HAND ("put back", "armed!" when armed: lit so the press gets the refusal), keeps the held kind's BACK POUCH half lit
+  with none left, and names DROP's "grenade"; the MMB menu's holster buttons stay lit with a grenade carried. Stats are per
+  client, so coop/MP clients get their own; splitscreen seats read their own stats once agent/split gives each seat its
+  cl.stats (nothing else needed here).
+- Not done (decided): letting go of an unarmed grenade at a weapon holster in the headset still drops it as before (only
+  the pouch takes it back): an overhead throw passes the shoulder holsters, and with vr_handgrenade_arm 1 an unarmed throw
+  let go there would vanish into the pouch.
+- **Tests**: `weaponwheel_test.sh <agent> grenade` 15/0 and `flatgrenade` 16/0 (new steps: with a grenade in the hand
+  EMPTY HAND and CLUSTER lit; CLUSTER swaps it, the rocket back; the nailgun's holster: the gun in the hand, the
+  multi-grenade back; an armed one: EMPTY HAND says "armed!", picked, refused, still armed, no rocket back (QC
+  `VR_Wheel_TestStow`); flat also takes another from the wheel after G). pouchgren_test 15/0, flatholster_test 54/0.
+
+## panelsize: the menu's bindings reminder easier to read (branch agent/panelsize, 2026-11-28)
+
+His words: "Binding reminder is a bit too small in the menu now, please make it easier to read."
+- The menu panel (`vr_menuui.cpp` drawBindPanel) now picks one column or two, whichever gives larger letters. With twenty
+  rows one column was height-limited (7.9 units for the main rows, minor 5.9). Two columns (the main rows and Setup
+  Bindings left, the Hands / More groups right, bottom aligned) reach 8.9 main and 7.6 minor on the main menu (Options 8.5);
+  a pad's 15 rows stay one column (9.9). Minor rows are 0.85 of the main ones (was 0.75). The 20-unit margin and the
+  clearance above the corner rows are unchanged.
+- `vr_menu_bind_panel_scale` (default 1.5, archived): the letters' limit is 8 menu units times it (0.5 .. 3); the panel still
+  shrinks to fit its room, so the main menu is room-limited (width: the rows' left) at the default.
+- The menu canvas is in menu units, independent of the window's resolution, so 720p / 1080p / 1440p / 4K lay out alike;
+  `vid_restart` in the headless run did not change the canvas. The layout is checked on the main menu (keyboard, OBS
+  row, pad) and on Options (stretched canvas).
+- Report: new `bindpanel: menu panel extent L T .. R B, columns N` line. Tests: bindpanel_test 37/0 (new: extent inside the
+  room x4, letters >= 8, scale 0.5 smaller, columns 2 / 1). Screenshot: scratch/bindpanel/main.png (keyboard, pad, Options).
+- MP / splitscreen: client-side drawing only.
+## prlmove: the procedural reload works running, jumping, sliding; the hand grips the pair; Hand at Port offsets (branch agent/prlmove, 2026-11-28)
+
+His words (2026-11-28): "Procedural reload for the shotgun seems to fail if the player is running, jumping, sliding ...";
+then "the hand grabbing the shells doesn't use the same finger pose as VR" and "add 'hand at port' positional offsets".
+- **Why it failed** (measured: `vr_reload_debug 2` server distances, `vr_flat_proc_reload_debug 3` client gaps): every run
+  on the move (run, strafe, jump, slide, crouch) was cancelled by the failsafe with nothing loaded, three causes in turn:
+  (1) the server's carry (QC `VR_Carry_Follow`) swept the pair from where it was a frame ago through the torso
+  (`carrybody`) and the held gun's drawn hull: behind the moving player it stuck (25 units off the port) and the hand let
+  go of it (a pair dropped on the floor each trip); (2) the client measured the pair's place in the hand from the drawn
+  entity, interpolated a frame's walk behind (3.3 units off running): the hand put it beside the port; (3) the port was
+  measured in the drawn gun hand, which sways 1-4 units and 2-3 degrees off the game's on the move, while the server tests
+  in the game's frame. Turning alone worked.
+- **Fix**: the round of a procedural reload follows its hand exactly, through the body and the gun
+  (`VR_FlatReload_ProcHolds`, vr_flatreload.qc; flat-only, VR's carry unchanged; the stale `trace_allsolid` test now only
+  after `carrybody`). The pair's place in the hand is `held::placeInHand` (the server's own `.carry_offset`). The port is
+  measured in the game's gun hand (`State::placedFrom`, its turn) and the move sends the port from this frame's gun hand by
+  that measure (`flatprocreload::portNow`, vr_client.cpp): the very point the free hand aims at, so the server's test is
+  the hands' relative placement. The drawn free hand rides the drawn gun from the carry to the insert (`attachDrawn` /
+  `noteDrawn`, vr_view_hands.cpp setupHand; eased 0.12 s): the pair goes into the drawn port as well (drawn gap at the
+  seat within ~0.5 of the game's). The hand's target was already remade each frame from the gun's pose (`spotsOf`).
+- **Fingers**: the free hand holding the pair takes a headset's grip on it (`gripShare`, eased 0.08 s; vr_view.cpp
+  updateFingerFrames: the grip squeezed, the index closing with it, vr_hand_fit wrapping the pair), the flat hand's own
+  pose otherwise. Drawn curl at each seat 0.7-1.0 (open 0 at the pouch before the take).
+- **Hand at Port: Forward / Right / Up** (`vr_flat_prl_port_fwd/right/up`, 0, Tunables > Flatscreen > Procedural Reload,
+  -4..4 u): the hand and its pair at the port's mouth and in, in the gun hand's frame (right mirrored), on top of the
+  retarget, in the trip and the lock's keys 5-6. Past the port's reach (1.6 u) the pair no longer goes in.
+- **Debug**: `vr_flat_proc_reload_debug 3`: `fprl_gap:` each frame of the carry/insert (the drawn gun off the game's, the
+  pair's gap from the port drawn and in the game); "the round went in" lines add the fingers' curl and grip; the report's
+  lock line adds `grip` / `fingers`.
+- **Networking/splitscreen**: nothing new on the wire (the port was already in the move; the round's place is the server's);
+  the client state is the local player's (as the rest of vr_flatprocreload.cpp: agent/split will need it per seat).
+- **Tests**: flatprocreload_test.sh 51/0 (new: full reloads while running in a circle, jumping, sliding, crouch-strafing,
+  running at 60 and 144 fps: 4 trips of 2, none dropped, no failsafe, full; fingers closed at each seat; the lock's grip at
+  key 4 and none at key 3; Hand at Port Forward 1 / Up 2 moved the locked hand 2.22 units). flatreload_test 54/0.
+  reload_test 112/4: the 4 are BACKLOG section 1's known baseline failures (0/5 on 11-27), VR paths this doesn't touch.
+- **Open**: the lock's pair isn't a held entity, so its hand closes to a fist through it (the real trip's fingers stop on
+  the pair); his eyes on the drawn pair at the port while running.

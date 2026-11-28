@@ -34,6 +34,7 @@
 #include "vr_gunfx.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_flatplay.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatxhair.hpp"
 #include "vr_flycam.hpp"
@@ -382,6 +383,8 @@ void handMove(VrMove& move, const hands::State& hs, int h)
         move.muzzlePos[h] += tip - hs.muzzle[h];
     }
     move.loadPort[h] = hs.loadPortValid[h] ? hs.loadPort[h] + (hs.pos[h] - hs.placedFrom[h]) : hs.pos[h];
+    // Flat-screen play's procedural reload: where its free hand aims the round (prlmove).
+    (void)flatprocreload::portNow(hs, h, move.loadPort[h]);
     move.loadPortAxis[h] = hs.loadPortValid[h] ? hs.loadPortAxis[h] : glm::vec3{0.f};
     move.loadPortFace[h] = hs.loadPortValid[h] ? hs.loadPortFace[h] : glm::vec3{0.f};
     move.launchOfs[h] = adcrossbow::launchOffset(h); // (the AD crossbow's bolt as drawn; zero: the muzzle)

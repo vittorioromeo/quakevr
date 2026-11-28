@@ -114,6 +114,9 @@ void release(int hand);
 [[nodiscard]] bool openInHeadset();
 // Flatscreen play: IN_MouseMotion's (VR_FlatToolgunMouse) while open: the cursor's. True when taken (the view stays).
 [[nodiscard]] bool flatMouse(int dx, int dy);
+// Flatscreen play: a gamepad's right stick (IN_JoyMove, VR_FlatStickCursor; padflat) while open: points the cursor at
+// a slot (x right, y down, -1 .. 1). True when taken (the view stays).
+[[nodiscard]] bool flatStick(float x, float y);
 // Flatscreen play: Key_Event's Esc while open: closed, nothing picked. True when taken.
 [[nodiscard]] bool escape();
 // Flatscreen play: the crosshair's opacity share (vr_flatxhair.cpp): faded out as the wheel fades in

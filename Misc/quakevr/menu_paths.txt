@@ -1483,6 +1483,7 @@ vr_flat_xhair_kick_smooth|1|Locomotion|Visor Crosshair Kick Smoothing|Advanced V
 vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced VR Options > Movement > Locomotion > Visor Crosshair While Reloading
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
+vr_flat_proc_reload|1|Locomotion|Procedural Reload|Advanced VR Options > Movement > Locomotion > Procedural Reload
 vr_flat_holsters|1|Locomotion|Holsters|Advanced VR Options > Movement > Locomotion > Holsters
 vr_flat_holster_menu_mode|1|Locomotion|Holster Menu Wheel Button|Advanced VR Options > Movement > Locomotion > Holster Menu Wheel Button
 vr_flat_holster_menu_timescale|1|Locomotion|Holster Menu Time Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Time Speed
@@ -4436,6 +4437,40 @@ vr_flat_rv_open_up|2|Tunables|Revolver Open: Up|Advanced VR Options > Debug > Tu
 vr_flat_rv_open_out|2|Tunables|Revolver Open: Out|Advanced VR Options > Debug > Tunables > Revolver Open: Out
 vr_flat_rv_open_in_time|2|Tunables|Revolver Open: In Time|Advanced VR Options > Debug > Tunables > Revolver Open: In Time
 vr_flat_rv_open_out_time|2|Tunables|Revolver Open: Out Time|Advanced VR Options > Debug > Tunables > Revolver Open: Out Time
+vr_flat_prl_reach_time|2|Tunables|Reach Time|Advanced VR Options > Debug > Tunables > Reach Time
+vr_flat_prl_grab_time|2|Tunables|Grab Time|Advanced VR Options > Debug > Tunables > Grab Time
+vr_flat_prl_carry_time|2|Tunables|Carry Time|Advanced VR Options > Debug > Tunables > Carry Time
+vr_flat_prl_insert_time|2|Tunables|Insert Time|Advanced VR Options > Debug > Tunables > Insert Time
+vr_flat_prl_return_time|2|Tunables|Return Time|Advanced VR Options > Debug > Tunables > Return Time
+vr_flat_prl_tilt_in_time|2|Tunables|Tilt In Time|Advanced VR Options > Debug > Tunables > Tilt In Time
+vr_flat_prl_tilt_out_time|2|Tunables|Tilt Out Time|Advanced VR Options > Debug > Tunables > Tilt Out Time
+vr_flat_prl_tilt_pitch|2|Tunables|Tilt: Pitch|Advanced VR Options > Debug > Tunables > Tilt: Pitch
+vr_flat_prl_tilt_yaw|2|Tunables|Tilt: Yaw|Advanced VR Options > Debug > Tunables > Tilt: Yaw
+vr_flat_prl_tilt_roll|2|Tunables|Tilt: Roll|Advanced VR Options > Debug > Tunables > Tilt: Roll
+vr_flat_prl_gun_fwd|2|Tunables|Gun: Forward|Advanced VR Options > Debug > Tunables > Gun: Forward
+vr_flat_prl_gun_up|2|Tunables|Gun: Up|Advanced VR Options > Debug > Tunables > Gun: Up
+vr_flat_prl_gun_in|2|Tunables|Gun: In|Advanced VR Options > Debug > Tunables > Gun: In
+vr_flat_prl_approach|2|Tunables|Port Approach|Advanced VR Options > Debug > Tunables > Port Approach
+vr_flat_prl_arc|2|Tunables|Arc|Advanced VR Options > Debug > Tunables > Arc
+vr_flat_prl_ease|2|Tunables|Ease|Advanced VR Options > Debug > Tunables > Ease
+vr_flat_prl_pouch_fwd|2|Tunables|Hand at Pouch: Forward|Advanced VR Options > Debug > Tunables > Hand at Pouch: Forward
+vr_flat_prl_pouch_right|2|Tunables|Hand at Pouch: Right|Advanced VR Options > Debug > Tunables > Hand at Pouch: Right
+vr_flat_prl_pouch_up|2|Tunables|Hand at Pouch: Up|Advanced VR Options > Debug > Tunables > Hand at Pouch: Up
+vr_flat_prl_pouch_pitch|2|Tunables|Hand at Pouch: Pitch|Advanced VR Options > Debug > Tunables > Hand at Pouch: Pitch
+vr_flat_prl_pouch_yaw|2|Tunables|Hand at Pouch: Yaw|Advanced VR Options > Debug > Tunables > Hand at Pouch: Yaw
+vr_flat_prl_pouch_roll|2|Tunables|Hand at Pouch: Roll|Advanced VR Options > Debug > Tunables > Hand at Pouch: Roll
+vr_flat_prl_port_pitch|2|Tunables|Hand at Port: Pitch|Advanced VR Options > Debug > Tunables > Hand at Port: Pitch
+vr_flat_prl_port_yaw|2|Tunables|Hand at Port: Yaw|Advanced VR Options > Debug > Tunables > Hand at Port: Yaw
+vr_flat_prl_port_roll|2|Tunables|Hand at Port: Roll|Advanced VR Options > Debug > Tunables > Hand at Port: Roll
+vr_flat_prl_failsafe|2|Tunables|Failsafe Time|Advanced VR Options > Debug > Tunables > Failsafe Time
+vr_flat_prl_giveup|2|Tunables|Server Give-Up Time|Advanced VR Options > Debug > Tunables > Server Give-Up Time
+vr_flat_ammo_pouch_x|2|Tunables|Pouch: Forward|Advanced VR Options > Debug > Tunables > Pouch: Forward
+vr_flat_ammo_pouch_y|2|Tunables|Pouch: Right|Advanced VR Options > Debug > Tunables > Pouch: Right
+vr_flat_ammo_pouch_z|2|Tunables|Pouch: Up|Advanced VR Options > Debug > Tunables > Pouch: Up
+vr_flat_ammo_pouch_pitch|2|Tunables|Pouch: Pitch|Advanced VR Options > Debug > Tunables > Pouch: Pitch
+vr_flat_ammo_pouch_yaw|2|Tunables|Pouch: Yaw|Advanced VR Options > Debug > Tunables > Pouch: Yaw
+vr_flat_ammo_pouch_roll|2|Tunables|Pouch: Roll|Advanced VR Options > Debug > Tunables > Pouch: Roll
+vr_flat_ammo_pouch_scale|2|Tunables|Pouch: Size|Advanced VR Options > Debug > Tunables > Pouch: Size
 vr_flat_fg_pose|2|Tunables|Force Grab: Palm Out First|Advanced VR Options > Debug > Tunables > Force Grab: Palm Out First
 vr_flat_fg_turn_time|2|Tunables|Force Grab: Turn Time|Advanced VR Options > Debug > Tunables > Force Grab: Turn Time
 vr_flat_fg_detach_time|2|Tunables|Force Grab: Off The Grip Time|Advanced VR Options > Debug > Tunables > Force Grab: Off The Grip Time
@@ -5315,9 +5350,12 @@ vr_agrunt_dazzle_fade|2|Tunables|Fade Time|Advanced VR Options > Debug > Tunable
 vr_agrunt_dazzle_threshold|2|Tunables|Hand Up From|Advanced VR Options > Debug > Tunables > Hand Up From
 vr_agrunt_dazzle_spread|2|Tunables|Aim Spread|Advanced VR Options > Debug > Tunables > Aim Spread
 vr_agrunt_dazzle_pose|2|Tunables|Hand Pose|Advanced VR Options > Debug > Tunables > Hand Pose
-vr_agrunt_dazzle_hand_fwd|2|Tunables|Hand Forward|Advanced VR Options > Debug > Tunables > Hand Forward
-vr_agrunt_dazzle_hand_left|2|Tunables|Hand Left|Advanced VR Options > Debug > Tunables > Hand Left
-vr_agrunt_dazzle_hand_up|2|Tunables|Hand Up|Advanced VR Options > Debug > Tunables > Hand Up
+vr_agrunt_dazzle_face_fwd|2|Tunables|Hand Forward|Advanced VR Options > Debug > Tunables > Hand Forward
+vr_agrunt_dazzle_face_left|2|Tunables|Hand Left|Advanced VR Options > Debug > Tunables > Hand Left
+vr_agrunt_dazzle_face_up|2|Tunables|Hand Up|Advanced VR Options > Debug > Tunables > Hand Up
+vr_agrunt_dazzle_bend|2|Tunables|Arm Bend|Advanced VR Options > Debug > Tunables > Arm Bend
+vr_agrunt_dazzle_elbow|2|Tunables|Elbow Out|Advanced VR Options > Debug > Tunables > Elbow Out
+vr_agrunt_dazzle_dual|2|Tunables|Dual Wielders Shield|Advanced VR Options > Debug > Tunables > Dual Wielders Shield
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -5775,12 +5813,19 @@ vr_xr_debug|2|Debug - Profiling and Memory|OpenXR Loader Log|Advanced VR Options
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
 |2|Debug - Reports|Flatscreen Attach Report|Advanced VR Options > Debug > Reports > Flatscreen Attach Report
+|2|Debug - Reports|Flatscreen Procedural Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Procedural Reload Report
 |2|Debug - Reports|Flatscreen Swim Report|Advanced VR Options > Debug > Reports > Flatscreen Swim Report
 |2|Debug - Reports|Flatscreen Swim Probe|Advanced VR Options > Debug > Reports > Flatscreen Swim Probe
 |2|Debug - Reports|Flatscreen Force Grab Report|Advanced VR Options > Debug > Reports > Flatscreen Force Grab Report
 |2|Debug - Reports|Flatscreen Force Grab: Press E|Advanced VR Options > Debug > Reports > Flatscreen Force Grab: Press E
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
 vr_flat_attach_debug|2|Debug - Reports|Flatscreen Attach Print|Advanced VR Options > Debug > Reports > Flatscreen Attach Print
+vr_flat_proc_reload_debug|2|Debug - Reports|Flatscreen Procedural Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Procedural Reload Print
+vr_flat_prl_test_miss|2|Debug - Reports|Procedural Reload: Miss the Port|Advanced VR Options > Debug > Reports > Procedural Reload: Miss the Port
+vr_flat_prl_lock|2|Debug - Reports|Procedural Reload: Lock Pose|Advanced VR Options > Debug > Reports > Procedural Reload: Lock Pose
+|2|Debug - Reports|Procedural Reload: Next Key|Advanced VR Options > Debug > Reports > Procedural Reload: Next Key
+|2|Debug - Reports|Procedural Reload: Previous Key|Advanced VR Options > Debug > Reports > Procedural Reload: Previous Key
+vr_flat_prl_scrub|2|Debug - Reports|Procedural Reload: Scrub|Advanced VR Options > Debug > Reports > Procedural Reload: Scrub
 |2|Debug - Reports|Holster Menu Dump|Advanced VR Options > Debug > Reports > Holster Menu Dump
 |2|Debug - Reports|Holster Menu: Hold Open|Advanced VR Options > Debug > Reports > Holster Menu: Hold Open
 |2|Debug - Reports|Holster Menu: Let Go|Advanced VR Options > Debug > Reports > Holster Menu: Let Go
@@ -5997,6 +6042,9 @@ vr_obsrec_as_if|2|Debug - Reports|Clean Recording: Act As If OBS Records|Advance
 |2|Debug - Tools|Controller Bindings Screen|Advanced VR Options > Debug > Tools > Controller Bindings Screen
 |2|Debug - Tools|Print Controller Bindings|Advanced VR Options > Debug > Tools > Print Controller Bindings
 |2|Debug - Tools|Bindings Screen Tests|Advanced VR Options > Debug > Tools > Bindings Screen Tests
+|2|Debug - Tools|Reminder Panels: Next Controller|Advanced VR Options > Debug > Tools > Reminder Panels: Next Controller
+|2|Debug - Tools|Reminder Panels: Detected Controller|Advanced VR Options > Debug > Tools > Reminder Panels: Detected Controller
+|2|Debug - Tools|Reminder Panels Report|Advanced VR Options > Debug > Tools > Reminder Panels Report
 |2|Debug - Tools|Blood Feedback Report|Advanced VR Options > Debug > Tools > Blood Feedback Report
 |2|Debug - Tools|Damage Protocol Preview|Advanced VR Options > Debug > Tools > Damage Protocol Preview
 |2|Debug - Tools|Preview Hit Left|Advanced VR Options > Debug > Tools > Preview Hit Left

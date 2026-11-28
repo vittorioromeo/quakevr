@@ -2517,7 +2517,7 @@ void(float n) VR_AG_AtkFrame =
     // Two guns: the second fires too, a frame behind the first's (a shot, a round, a burst: in turn; the nail guns' and
     // the thunderbolt's streams: both at once).
     entity q = self.vr_ag_prop2;
-    if(q && VR_AG_DualGuns(self))
+    if(q && VR_AG_DualGuns(self) && !VR_AG_ShieldingLeft(self)) // (raised to shield its eyes: vr_agrunt_dazzle_dual)
     {
         float c2 = VR_AG_Class(q.weapon);
         if(c2 == VR_AG_CLASS_AUTO && n >= 4 && n <= 8)
