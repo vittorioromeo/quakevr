@@ -476,17 +476,39 @@ extern "C" int VR_PlayerShotClip(edict_t* touch, const float* start, const float
     return 1;
 }
 
+namespace
+{
+
+// playerbodypoint's last shape: points 0..6 make it, 16..22 read it again for the same player (QC VR_Lean_Scan's seven
+// points with tracelines between them: one shape made, not seven; questopt2).
+struct BodyPointKept
+{
+    const edict_t* ent{nullptr};
+    bool ok{false};
+    qvr::playerhit::Shape shape;
+};
+BodyPointKept bodyPointKept;
+
+} // namespace
+
 void PF_playerbodypoint()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
-    const int i = static_cast<int>(G_FLOAT(OFS_PARM1));
+    int i = static_cast<int>(G_FLOAT(OFS_PARM1));
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = out[1] = out[2] = 0.f;
-    playerhit::Shape s;
-    if(!playerhit::serverShape(e, s) || s.n < 8)
+    const bool again = i >= 16 && bodyPointKept.ent == e;
+    i = i >= 16 ? i - 16 : i;
+    if(!again)
+    {
+        bodyPointKept.ent = e;
+        bodyPointKept.ok = playerhit::serverShape(e, bodyPointKept.shape) && bodyPointKept.shape.n >= 8;
+    }
+    if(!bodyPointKept.ok)
     {
         return;
     }
+    const playerhit::Shape& s = bodyPointKept.shape;
     // (build's order: 0 the head, 1 the torso neck..pelvis, then each side h its upper arm 2+4h, forearm 3+4h, legs)
     glm::vec3 p;
     switch(i)

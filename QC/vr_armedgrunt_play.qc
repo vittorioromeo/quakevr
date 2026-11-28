@@ -1246,6 +1246,7 @@ float(entity g, string why) VR_AG_TugDisarm =
 // VR_AG_PropThink, every frame: a hard blow or a throw on the held weapon itself (not only its hand). TRUE: disarmed.
 float(entity g, entity p) VR_AG_WeaponStruck =
 {
+    vr_ags_quiet = world;
     if(VR_AGS_Frame(g, p)) // (shot out of its hand: vr_armedgrunt_shot.qc)
     {
         return TRUE;
@@ -1258,8 +1259,25 @@ float(entity g, entity p) VR_AG_WeaponStruck =
     {
         return TRUE;
     }
-    // (A throw: only what flies at 100 or more can, findradiusmoving's chain; nothing near its grip, no line to work out.)
-    if(!cvar_hget(cvarh_vr_agrunt_disarm) || !g.vr_ag_prop || findradiusmoving(p.origin, 48 + VR_AG_LINE_REACH, 99) == world)
+    // (A throw: only what flies at 100 or more can, findradiusmoving's chain; nothing near its grip, no line to work out.
+    // Nothing moving at all within 128 + reach of it this think, the shot scan's first look: nothing here either, with
+    // vr_qc_scan_share; 2: looked for all the same and compared.)
+    if(!cvar_hget(cvarh_vr_agrunt_disarm) || !g.vr_ag_prop)
+    {
+        return FALSE;
+    }
+    float share = cvar_hget(cvarh_vr_qc_scan_share);
+    float quiet = vr_ags_quiet == p && vr_ags_quiet_at == p.origin;
+    if(quiet && share == 1)
+    {
+        return FALSE;
+    }
+    float none = findradiusmoving(p.origin, 48 + VR_AG_LINE_REACH, 99) == world;
+    if(quiet && share == 2)
+    {
+        VR_ScanShare_Check(!none);
+    }
+    if(none)
     {
         return FALSE;
     }

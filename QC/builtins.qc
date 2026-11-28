@@ -697,6 +697,7 @@ void(entity e, float zone, vector lo, vector hi, float radius) debughitzone = #0
 float(entity e, vector p, vector dir) playerhitzone = #0;
 // (leanaim) Sample point i of player e's drawn body (world): 0 the head's centre, 1 the neck, 2 the torso's middle, 3 and
 // 4 the shoulders (off, main), 5 and 6 the hands; '0 0 0': no shape (vr_hit_player_shape 0) or no such point.
+// 16 + i: point i of the shape the last call made for e (for points read with no change to him between; questopt2).
 vector(entity e, float i) playerbodypoint = #0;
 // Debug > Show Disarm Volumes (vr_debug_disarm; vr_disarmviz.qc, the engine's vr_disarmviz.cpp): a shape this server
 // frame (world units: a capsule of `radius` round a..b, a sphere where they meet; `kind` VR_DV_*), and a note: `what` 0

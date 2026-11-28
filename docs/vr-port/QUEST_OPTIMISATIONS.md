@@ -312,3 +312,16 @@ His recording: CPU-bound (fights 24-41 ms a frame, GPU 10-22). Landed, both exac
 | Lightmap dynamic lights: a surface sums only the lights reaching its texels (box, back faces, spot cone) | `vr_gl_world_dlmap_reach` | lightmap 3.9 -> 1.6 ms; CPU busy 13.8-15.0 -> 11.1-11.2 ms |
 | Worn packs' / armour anchors: only their vertices of the drawn body; the chest frame kept per shell | `vr_hitmodel_points_subset` | PC QuakeC 2.04 -> 1.39 ms at the start; nothing at his spot (no wearer out of view) |
 | Kept blocks for unchanged lights | `vr_gl_world_dlmap_keep` (off) | no hit in hip1m1 (lights change every frame) |
+
+## hip1m1's fights: QuakeC (questopt2, 2026-11-28)
+
+Scene: hip1m1, skill 2, god, every monster woken onto the player (`vr_test_monsters 4` then `2`: 69 hunting, 40 armed
+humanoids, 29 worn packs), `vr_qcprofile 1`. QuakeC a frame: PC 2.2 ms, Quest 3 5.7 ms (the profiler's own clock reads
+included; ROUND26 "questopt2" has the breakdown). Nearly half is the armed humanoids' weapon props' think
+(`VR_AG_PropThink` 2.7 ms incl. on the Quest: the pose builtin `agpose` 0.67, the shot scan's `findradiusmoving` 0.33,
+the parry frame 0.37); then the worn packs' place (`limbpiece` 0.47), the navmesh steer (`navsteer` 0.33, 36 us a call),
+the lean sight (0.26). Builtins are ~half of it: the hot QuakeC left is natively done already.
+
+| Change | Cvar | Measured |
+|---|---|---|
+| The throw scan's first look skipped when the shot scan's first look (a superset: 320 units, any speed) found nothing moving round the weapon in the same think; the lean sight's seven body points from one shape (`playerbodypoint` 16+) | `vr_qc_scan_share` (Debug tunables "Shared QuakeC Scans"; 2 compares) | PC: findradiusmoving 167 -> 83 calls a frame, `VR_AG_WeaponStruck` self 0.15-0.19 -> 0.04-0.05 ms; exact: 168,000 compared, 0 differed. Quest (his config, interleaved x4 in one launch): QuakeC median 4.40 (off) / 4.44 (on), within the fight's drift: there the throw scan ran ~4 times a frame, not 82 (it never got past its own early tests), so nothing to save |
