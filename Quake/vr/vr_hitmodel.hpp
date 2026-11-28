@@ -94,6 +94,9 @@ bool surfacePoint(edict_s* ent, int tri, float u, float v, glm::vec3& point, glm
 // Where vertex `vert` (the .mdl's order) of `ent`'s model is as drawn now, in the world (the armed grunts' hands and
 // hidden gun: QC modelvertex). False: no such model or vertex.
 bool vertexPoint(edict_s* ent, int vert, glm::vec3& point);
+// vertexPoint for `n` vertices at once (its frame's setup made once, the same points): each one not found left as
+// `fallback` (qcbuiltins2: agpose's gun vertices).
+void vertexPoints(edict_s* ent, const int* verts, int n, const glm::vec3& fallback, glm::vec3* out);
 // ... vertices `verts` as shots meet the model (segment's pose: an armed humanoid's on its authored rig, a ragdoll's as
 // its parts carry it), not its animation frame's: the armour's plates (vr_agarmor.cpp). False: no such model or vertex.
 bool drawnVertexPoints(edict_s* ent, const int* verts, int n, glm::vec3* out);
