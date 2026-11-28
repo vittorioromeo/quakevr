@@ -96,8 +96,23 @@ enum class Act : int
     DropBoth,     // both hands drop, the off hand first (81)
     Swap,         // the hands swap (48: 3's)
     Unload,       // hand `index`'s gun's live rounds back into the reserve (82, 83)
-    FlipGrip      // hand `index`'s sword or dagger turned over, as the eject button does (84, 85)
+    FlipGrip,     // hand `index`'s sword or dagger turned over, as the eject button does (84, 85)
+    PouchLeft,    // the back pouch's grenade (`index` 0) or cluster (1) into the left hand: the weapon wheel's BACK POUCH
+    PouchRight    // ... into the right hand (weaponwheel::pickPouch: take, swap or put back, its rules)
 };
+// The back pouch (flatmenu3, his words 2026-11-28: "MMB/TAB menu should also have the grenade slot/buttons like the weapon
+// wheels"): over the hands, GRENADE on the left and CLUSTER on the right, each its compact slot between its L and R
+// buttons, "BACK POUCH" over them. Shown while the pouch is on (vr_handgrenade); both kinds always there (greyed with
+// none left), so nothing moves with the ammo.
+constexpr float pouchY = 11.f;
+constexpr float pouchH = 26.f;
+constexpr float pouchX[2] = {262.f, 369.f}; // each kind's left edge (its L button's)
+constexpr float pouchButtonW = 16.f;
+constexpr float pouchSlotW = 69.f;
+[[nodiscard]] glm::vec4 pouchSlotRect(int kind)
+{
+    return {pouchX[kind] + pouchButtonW + 1.f, pouchY, pouchSlotW, pouchH};
+}
 struct Button
 {
     Act act;
@@ -105,7 +120,17 @@ struct Button
     glm::vec4 rect;
     char name[16];
 };
-constexpr int buttonCount = holsterCount * 3 + 8;
+constexpr int buttonCount = holsterCount * 3 + 8 + 4;
+
+[[nodiscard]] bool pouchAct(Act a)
+{
+    return a == Act::PouchLeft || a == Act::PouchRight;
+}
+
+[[nodiscard]] bool pouchOn()
+{
+    return weaponwheel::pouchKind(HAND_OFF, false).on;
+}
 
 struct State
 {
@@ -431,6 +456,13 @@ void layOut()
     add(Act::Unload, 1, {handRect[1].x, unloadY, handRect[1].z, 14.f}, "right unload");
     add(Act::FlipGrip, 0, {handRect[0].x, flipY, handRect[0].z, 14.f}, "left flip");
     add(Act::FlipGrip, 1, {handRect[1].x, flipY, handRect[1].z, 14.f}, "right flip");
+    for(int kind = 0; kind < 2; kind++)
+    {
+        const float x = pouchX[kind];
+        add(Act::PouchLeft, kind, {x, pouchY, pouchButtonW, pouchH}, kind == 0 ? "pouch g l" : "pouch c l");
+        add(Act::PouchRight, kind, {x + pouchButtonW + pouchSlotW + 2.f, pouchY, pouchButtonW, pouchH},
+            kind == 0 ? "pouch g r" : "pouch c r");
+    }
 }
 
 [[nodiscard]] bool inside(const glm::vec4& r, const glm::vec2& p)
@@ -456,6 +488,8 @@ void layOut()
     case Act::Swap: return (c.hand[0] != WID_FIST || c.hand[1] != WID_FIST) && !c.carry[0] && !c.carry[1];
     case Act::Unload: return c.unloadable[b.index];
     case Act::FlipGrip: return c.flippable[b.index];
+    case Act::PouchLeft: return weaponwheel::pouchKind(HAND_OFF, b.index != 0).usable;
+    case Act::PouchRight: return weaponwheel::pouchKind(HAND_MAIN, b.index != 0).usable;
     }
     return false;
 }
@@ -472,6 +506,8 @@ void layOut()
     case Act::Swap: return 48;
     case Act::Unload: return b.index == 0 ? 82 : 83;
     case Act::FlipGrip: return b.index == 0 ? 84 : 85;
+    case Act::PouchLeft:
+    case Act::PouchRight: return 0; // (a client command: weaponwheel::pickPouch)
     }
     return 0;
 }
@@ -479,9 +515,10 @@ void layOut()
 [[nodiscard]] const Button* buttonAt(const glm::vec2& p)
 {
     layOut();
+    const bool pouch = pouchOn();
     for(const Button& b : st.buttons)
     {
-        if(inside(b.rect, p))
+        if(inside(b.rect, p) && (pouch || !pouchAct(b.act)))
         {
             return &b;
         }
@@ -512,6 +549,10 @@ void click()
     if(b->act == Act::Swap)
     {
         flatplay::swapHands("the holster menu's SWAP"); // (3's own: the hands meet first, vr_flatswap.cpp)
+    }
+    else if(pouchAct(b->act))
+    {
+        weaponwheel::pickPouch(b->act == Act::PouchLeft ? HAND_OFF : HAND_MAIN, b->index != 0);
     }
     else
     {
@@ -889,6 +930,123 @@ void drawImage(unsigned texture, const glm::vec2& size, const glm::vec3 (&corner
         texture);
 }
 
+namespace
+{
+// flatmenu3 (his words 2026-11-28: "there should be enough room to show the horizontal bar at the bottom of the screen with
+// the level name, kill/secret counter, etc while the menu is open, so we can use one single key to show the menu,
+// bindings reminder, and level stat ... stylize that bar to fit the visual theme of the menus"): TAB's old scoreboard
+// (sbar.c Sbar_SoloScoreboard: the level's name, kills, secrets, skill; and the time) as a bar in the menu's look, under
+// it at its scale. A deathmatch: everyone's frags, the most first, yours lit (the scoreboard TAB showed there; the full
+// ranking stays on +showscores: a pad's right stick click with its alt modifier, and on dying).
+constexpr float levelBarH = 25.f;  // menu pixels
+constexpr float levelBarGap = 4.f; // between the menu and the bar
+constexpr int levelBarMost = 10;   // items at most
+
+struct LevelBarText
+{
+    char title[96]{};
+    char labels[levelBarMost][24]{};
+    char values[levelBarMost][16]{};
+    gadget::LevelBarItem items[levelBarMost]{};
+    int count{0};
+    int frame{-1}; // host_framecount it was made in
+};
+LevelBarText levelBarText;
+
+[[nodiscard]] bool levelBarShown()
+{
+    return vr_flat_holster_menu_levelbar.value != 0.f && cls.signon == SIGNONS;
+}
+
+void addBarItem(const char* label, const char* value, bool lit = false)
+{
+    LevelBarText& b = levelBarText;
+    if(b.count >= levelBarMost)
+    {
+        return;
+    }
+    q_strlcpy(b.labels[b.count], label, sizeof(b.labels[0]));
+    q_strlcpy(b.values[b.count], value, sizeof(b.values[0]));
+    b.items[b.count] = {b.labels[b.count], b.values[b.count], lit};
+    b.count++;
+}
+
+// This frame's bar (made once a frame: the test's report reads it too).
+void makeLevelBar()
+{
+    LevelBarText& b = levelBarText;
+    if(b.frame == host_framecount)
+    {
+        return;
+    }
+    b.frame = host_framecount;
+    b.count = 0;
+    if(cl.levelname[0])
+    {
+        char clean[sizeof(cl.levelname)];
+        Mod_SanitizeMapDescription(clean, sizeof(clean), cl.levelname);
+        q_snprintf(b.title, sizeof(b.title), "%s (%s)", clean, cl.mapname);
+    }
+    else
+    {
+        q_strlcpy(b.title, cl.mapname, sizeof(b.title));
+    }
+    char v[16];
+    if(cl.gametype == GAME_DEATHMATCH)
+    {
+        // Everyone's frags, the most first (the room for levelBarMost - 1 of them, the time after).
+        int order[MAX_SCOREBOARD];
+        int n = 0;
+        for(int i = 0; i < cl.maxclients && n < MAX_SCOREBOARD; i++)
+        {
+            if(!cl.scores[i].name[0])
+            {
+                continue;
+            }
+            int j = n++;
+            for(; j > 0 && cl.scores[order[j - 1]].frags < cl.scores[i].frags; j--)
+            {
+                order[j] = order[j - 1];
+            }
+            order[j] = i;
+        }
+        for(int k = 0; k < n && k < levelBarMost - 1; k++)
+        {
+            const scoreboard_t& s = cl.scores[order[k]];
+            q_snprintf(v, sizeof(v), "%d", s.frags);
+            addBarItem(s.name, v, order[k] == cl.viewentity - 1);
+        }
+    }
+    else
+    {
+        q_snprintf(v, sizeof(v), "%d/%d", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+        addBarItem("KILLS", v);
+        q_snprintf(v, sizeof(v), "%d/%d", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
+        addBarItem("SECRETS", v);
+        q_snprintf(v, sizeof(v), "%d", static_cast<int>(skill.value + 0.5f));
+        addBarItem("SKILL", v);
+    }
+    const int secs = za::max(static_cast<int>(cl.time), 0);
+    q_snprintf(v, sizeof(v), "%d:%02d", secs / 60, secs % 60);
+    addBarItem("TIME", v);
+}
+
+void drawLevelBar(const glm::vec4& rect, float alpha)
+{
+    makeLevelBar();
+    gadget::LevelBarView v;
+    v.size = {panelW, levelBarH};
+    v.title = levelBarText.title;
+    v.items = levelBarText.items;
+    v.itemCount = levelBarText.count;
+    const gadget::VisorImage img = gadget::renderLevelBar(v);
+    if(img.shown)
+    {
+        drawOnWindow(img.texture, v.size, rect, alpha);
+    }
+}
+} // namespace
+
 void draw()
 {
     if(!shown() || !flatplay::active() || vid.width <= 0 || vid.height <= 0)
@@ -900,7 +1058,7 @@ void draw()
     const Contents c = contents();
 
     // The image: the slots, the buttons (lit under the cursor), the figure.
-    za::Array<gadget::HolsterMenuSlot, holsterCount + 2> slots{};
+    za::Array<gadget::HolsterMenuSlot, holsterCount + 4> slots{}; // (the holsters, the hands, the pouch's two kinds)
     za::Array<gadget::HolsterMenuButton, buttonCount> buttons{};
     za::Array<glm::vec4, za::getArraySize(figure) + holsterCount + 1> lines{};
     int nl = 0;
@@ -939,10 +1097,32 @@ void draw()
         }
         s.hovered = inside(s.rect, st.cursor);
     }
+    // The back pouch's two kinds (flatmenu3), the weapon wheel's BACK POUCH as compact slots.
+    const bool pouch = pouchOn();
+    int ns = holsterCount + 2;
+    for(int kind = 0; pouch && kind < 2; kind++)
+    {
+        const weaponwheel::PouchKind k = weaponwheel::pouchKind(HAND_OFF, kind != 0);
+        gadget::HolsterMenuSlot& s = slots[ns++];
+        s.rect = pouchSlotRect(kind);
+        s.compact = true;
+        s.name = kind != 0 ? "cluster" : "grenade";
+        s.model = kind != 0 ? "progs/mervup.mdl" : "progs/grenade.mdl";
+        s.ammoType = kind != 0 ? 6 : 3; // (AID_MULTI_ROCKETS, AID_ROCKETS)
+        s.reserve = k.left;
+        s.hovered = inside(s.rect, st.cursor);
+        const bool held = c.gren[0] == kind + 1 || c.gren[1] == kind + 1;
+        s.drop = k.left > 0 || held ? gadget::HolsterMenuSlot::Drop::None : gadget::HolsterMenuSlot::Drop::Invalid; // (greyed: none left)
+    }
+    int nb = 0;
     for(int i = 0; i < buttonCount; i++)
     {
         const Button& b = st.buttons[i];
-        gadget::HolsterMenuButton& g = buttons[i];
+        if(pouchAct(b.act) && !pouch)
+        {
+            continue;
+        }
+        gadget::HolsterMenuButton& g = buttons[nb++];
         g.rect = b.rect;
         g.enabled = enabled(b, c);
         g.hovered = inside(b.rect, st.cursor);
@@ -956,14 +1136,21 @@ void draw()
         case Act::Swap: g.icon = gadget::MenuIcon::Swap; break;
         case Act::Unload: g.icon = gadget::MenuIcon::Unload; g.label = "UNLOAD"; break;
         case Act::FlipGrip: g.icon = gadget::MenuIcon::FlipGrip; g.label = "FLIP GRIP"; break;
+        case Act::PouchLeft: g.icon = gadget::MenuIcon::HandLeft; g.label = "L"; break;
+        case Act::PouchRight: g.icon = gadget::MenuIcon::HandRight; g.label = "R"; break;
         }
     }
     gadget::HolsterMenuView v;
     v.size = {panelW, panelH};
     v.slots = slots.data();
-    v.slotCount = holsterCount + 2;
+    v.slotCount = ns;
     v.buttons = buttons.data();
-    v.buttonCount = buttonCount;
+    v.buttonCount = nb;
+    if(pouch)
+    {
+        v.caption = "BACK POUCH";
+        v.captionAt = {(pouchX[0] + pouchX[1] + 2.f * pouchButtonW + pouchSlotW + 1.f) * 0.5f, pouchY - 4.f};
+    }
     v.lines = lines.data();
     v.lineCount = nl;
     if(body)
@@ -994,14 +1181,16 @@ void draw()
     // On the window: vr_flat_holster_menu_size of its height (narrowed to fit its width), in its middle; with the bindings
     // panel over it (wheelui), the two together in the middle, the panel at the menu's scale (smaller if the window is
     // too short for both).
+    // flatmenu3: the level bar (levelBarShown) at the window's bottom at the menu's scale, the menu and the panel centred in
+    // the room above it (his words 2026-11-28: "a tiny bit smaller and move it upwards").
     const float W = static_cast<float>(vid.width), H = static_cast<float>(vid.height);
     const glm::vec2 keys = bindpanel::shown() ? bindpanel::size() : glm::vec2{0.f};
     const float gapV = keys.y > 0.f ? bindPanelGap : 0.f;
+    const bool bar = levelBarShown();
+    const float barV = bar ? levelBarH + levelBarGap : 0.f; // (menu pixels under the menu: the gap, the bar)
+    const float margin = H * 0.02f;
     float h = za::clamp(vr_flat_holster_menu_size.value, 0.2f, 1.f) * H;
-    if(keys.y > 0.f)
-    {
-        h = za::min(h, H * 0.96f * panelH / (panelH + gapV + keys.y)); // (both inside the window's height)
-    }
+    h = za::min(h, (H - 2.f * margin) * panelH / (panelH + gapV + keys.y + barV)); // (all inside the window's height)
     float w = h * panelW / panelH;
     if(w > W * 0.96f)
     {
@@ -1010,7 +1199,9 @@ void draw()
     }
     st.scale = h / panelH;
     const float above = (keys.y + gapV) * st.scale;
-    const float x0 = (W - w) * 0.5f, y0 = (H - h + above) * 0.5f;
+    const float barTop = bar ? H - margin - levelBarH * st.scale : H; // (the room above the bar: the menu and the panel)
+    const float x0 = (W - w) * 0.5f;
+    const float y0 = bar ? za::max(margin + above, (barTop - levelBarGap * st.scale - h + above) * 0.5f) : (H - h + above) * 0.5f;
     st.screen = {x0, y0, w, h};
     if(keys.y > 0.f)
     {
@@ -1018,6 +1209,10 @@ void draw()
         bindpanel::drawOnWindow((W - keys.x * ks) * 0.5f, y0 - above, ks, st.fade);
     }
     drawOnWindow(img.texture, {panelW, panelH}, st.screen, st.fade);
+    if(bar)
+    {
+        drawLevelBar({x0, barTop, w, levelBarH * st.scale}, st.fade);
+    }
     if(st.open)
     {
         drawCursorOnWindow({x0 + st.cursor.x * st.scale, y0 + st.cursor.y * st.scale}, st.fade);
@@ -1777,6 +1972,99 @@ void testStep()
         if(wait(!shown() && timescale::current() >= 1.f, "the menu closed, time back at 1"))
         {
             result(true, "the menu closed, time back at 1");
+            Cbuf_AddText("give r 3; give m 2\n");
+            next();
+        }
+        break;
+    // flatmenu3: the back pouch's buttons (the weapon wheel's BACK POUCH: take, swap, put back), both hands empty.
+    case 27:
+        if(test.frames == 2)
+        {
+            st.cmdHeld = true;
+        }
+        if(wait(st.open && cl.stats[STAT_ROCKETS] == 3 && cl.stats[protocol::STAT_QVR_AMMOMULTI] == 2 && test.frames > 4,
+               "the pouch filled (3 rockets, 2 multi-rockets), the menu open"))
+        {
+            const auto on = [&c](const char* name) {
+                const Button* b = nullptr;
+                for(const Button& x : st.buttons)
+                {
+                    b = !q_strcasecmp(x.name, name) ? &x : b;
+                }
+                return b && enabled(*b, c);
+            };
+            result(pouchOn() && on("pouch g l") && on("pouch g r") && on("pouch c l") && on("pouch c r"),
+                "the pouch's GRENADE and CLUSTER buttons lit for both hands");
+            press("pouch g r");
+            next();
+        }
+        break;
+    case 28:
+        if(wait(c.gren[1] == 1, "the right hand's GRENADE: a grenade in the right hand"))
+        {
+            result(cl.stats[STAT_ROCKETS] == 2, va("the right hand's GRENADE: a grenade in the hand, %d rockets left", cl.stats[STAT_ROCKETS]));
+            press("pouch c r");
+            next();
+        }
+        break;
+    case 29:
+        if(wait(c.gren[1] == 2, "the right hand's CLUSTER: swapped for a multi-grenade"))
+        {
+            result(cl.stats[STAT_ROCKETS] == 3 && cl.stats[protocol::STAT_QVR_AMMOMULTI] == 1,
+                va("CLUSTER swaps it: the rocket back (%d), a multi-rocket out (%d)", cl.stats[STAT_ROCKETS],
+                    cl.stats[protocol::STAT_QVR_AMMOMULTI]));
+            press("pouch c r");
+            next();
+        }
+        break;
+    case 30:
+        if(wait(c.gren[1] == 0 && cl.stats[protocol::STAT_QVR_AMMOMULTI] == 2, "CLUSTER again: put back"))
+        {
+            result(true, "CLUSTER again puts it back (2 multi-rockets, the hand empty)");
+            pointAt({256.f, 30.f}); // (off the buttons: letting go clicks nothing)
+            st.cmdHeld = false;
+            next();
+        }
+        break;
+    case 31:
+        if(wait(!shown(), "the menu closed"))
+        {
+            // TAB (flatmenu3: the menu's key beside MMB) held: the menu with the level bar; its old bind (+showscores) not run.
+            Cbuf_AddText("vr_mock_key TAB down\n");
+            next();
+        }
+        break;
+    case 32:
+        if(wait(st.open && test.frames > 6, "TAB held: the menu open"))
+        {
+            makeLevelBar();
+            const bool kills = levelBarText.count > 0 && !q_strcasecmp(levelBarText.labels[0], "KILLS");
+            result(flatplay::keyIs(vr_flat_key_holster_menu, K_TAB) && !Sbar_ShowingScores() && levelBarShown() && kills &&
+                       levelBarText.title[0],
+                va("TAB held: the menu open, the level bar \"%s\" (%d items, first %s), no scoreboard", levelBarText.title,
+                    levelBarText.count, levelBarText.count > 0 ? levelBarText.labels[0] : "none"));
+            const float H = static_cast<float>(vid.height), barTop = H * 0.98f - levelBarH * st.scale;
+            result(st.screen.y + st.screen.w <= barTop - levelBarGap * st.scale * 0.5f && st.screen.y > 0.f,
+                va("the menu (%.0f .. %.0f) above the level bar (%.0f .. %.0f), all on the window (%.0f high)", st.screen.y,
+                    st.screen.y + st.screen.w, barTop, H * 0.98f, H));
+            next();
+        }
+        break;
+    case 33:
+        if(test.frames == 4)
+        {
+            Cbuf_AddText("screenshot\n"); // (his review: the menu on TAB with the bar)
+        }
+        if(test.frames >= 8)
+        {
+            Cbuf_AddText("vr_mock_key TAB up\n");
+            next();
+        }
+        break;
+    case 34:
+        if(wait(!st.open, "TAB let go: the menu closed"))
+        {
+            result(!Sbar_ShowingScores(), "TAB let go: the menu closed, no scoreboard");
             next();
         }
         break;
@@ -1825,6 +2113,13 @@ void dump_f()
         Con_Printf("  button \"%s\" at %.0f %.0f %.0f x %.0f: %s, impulse %d\n", b.name, b.rect.x, b.rect.y, b.rect.z, b.rect.w,
             enabled(b, c) ? "on" : "off", impulseOf(b));
     }
+    makeLevelBar();
+    Con_Printf("  level bar (%s): \"%s\"", levelBarShown() ? "shown" : "off", levelBarText.title);
+    for(int i = 0; i < levelBarText.count; i++)
+    {
+        Con_Printf("%s %s %s", i ? "," : "", levelBarText.labels[i], levelBarText.values[i]);
+    }
+    Con_Printf("\n");
     const toolgun::icons::MeshStats ms = toolgun::icons::lastMeshStats();
     Con_Printf("  body preview: %s, made %d times, kept %d frames (moved under %.2f px), last moved %.3f px, %d triangles into "
                "%d x %d\n",
