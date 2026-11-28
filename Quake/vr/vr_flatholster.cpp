@@ -247,7 +247,7 @@ struct Contents
 // STAT_QVR_AMMOTYPE / STAT_QVR_AMMO2). AID_*: 0 none, 1 shells, 2 nails, 3 rockets, 4 cells, 5 lava, 6 multi, 7 plasma.
 constexpr unsigned char widAmmo[WID_LAST + 1][2] = {{0, 0}, {0, 0}, {0, 0}, {4, 4}, {1, 1}, {1, 1}, {2, 5}, {2, 5}, {3, 6},
     {3, 3}, {3, 6}, {4, 7}, {4, 4}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {4, 4}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
-    {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {2, 2}, {0, 0}, {1, 1}};
+    {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {2, 5}, {0, 0}, {1, 1}}; // (29 the nail pistol: its lava nails, nplava)
 static_assert(WID_REVOLVER == 31 && WID_LAST == 31, "widAmmo follows QC's VR_WEAPONS");
 
 [[nodiscard]] int ammoTypeOf(int wid, int flags)

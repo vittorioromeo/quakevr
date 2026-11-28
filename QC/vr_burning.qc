@@ -1462,7 +1462,10 @@ void(entity n, vector xFlame, entity xTorch) VR_Burn_NailToLava =
         sound(xTorch, CHAN_AUTO, random() < 0.5 ? "vr/nail_sizzle1.wav" : "vr/nail_sizzle2.wav", min(1, vol), ATTN_IDLE);
     }
     n.classname = "lava_spike";
-    n.touch = n.touch == superspike_touch ? superlavaspike_touch : lavaspike_touch;
+    if(n.touch != VR_NailPistol_SpikeTouch) // (the nail pistol's: its own touch, a lava nail by its class: nplava)
+    {
+        n.touch = n.touch == superspike_touch ? superlavaspike_touch : lavaspike_touch;
+    }
     setmodel(n, "progs/lspike.mdl");
     setsize(n, VEC_ORIGIN, VEC_ORIGIN);
     n.effects = n.effects | EF_VERYDIMLIGHT | EF_LAVATRAIL;
@@ -1694,7 +1697,10 @@ void() VR_Burn_LavaNailsWater =
             vector at = now ? n.origin : VR_Burn_WaterSurface(n.origin, b);
             float super = n.touch == superlavaspike_touch;
             n.classname = "spike";
-            n.touch = super ? superspike_touch : spike_touch;
+            if(n.touch != VR_NailPistol_SpikeTouch) // (the nail pistol's lava nail: its plain nail by its class, nplava)
+            {
+                n.touch = super ? superspike_touch : spike_touch;
+            }
             setmodel(n, super ? "progs/s_spike.mdl" : "progs/spike.mdl");
             setsize(n, VEC_ORIGIN, VEC_ORIGIN);
             n.effects = n.effects - (n.effects & (EF_VERYDIMLIGHT | EF_LAVATRAIL));

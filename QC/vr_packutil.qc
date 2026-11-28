@@ -97,7 +97,7 @@ float(float aid) VR_Pack_AmmoAvailable =
 float(float wid, float flags) VR_Pack_WeaponFlags =
 {
     if(!vr_pack_refreshed) { VR_Pack_Refresh(); }
-    if(((wid == WID_NAILGUN || wid == WID_SUPER_NAILGUN) && !vr_have_lava) ||
+    if(((wid == WID_NAILGUN || wid == WID_SUPER_NAILGUN || wid == WID_NAILPISTOL) && !vr_have_lava) ||
        (wid == WID_ROCKET_LAUNCHER && !vr_have_multirockets) || (wid == WID_LIGHTNING && !vr_have_plasma))
     {
         return flags - (flags & QVR_WPNFLAG_USE_SECONDARY_AMMO);

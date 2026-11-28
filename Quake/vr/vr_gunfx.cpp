@@ -152,6 +152,7 @@ constexpr ModelId modelIds[] = {
     {"progs/v_gruntgun.mdl", WID_GRUNTGUN},
     {"progs/v_enfrifle.mdl", WID_ENFRIFLE},
     {"progs/v_nailpistol.mdl", WID_NAILPISTOL},
+    {"progs/v_nailpistol_lava.mdl", WID_NAILPISTOL}, // its lava nails (nplava)
     {"progs/v_flaregun.mdl", WID_FLAREGUN},
     {"progs/v_revolver.mdl", WID_REVOLVER},
 };

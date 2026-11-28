@@ -238,7 +238,7 @@ vr_weapon_row VR_WEAPONS[WID_LAST + 1] =
     { "", IID_ADPYRO, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
     { "", IID_ADFUMIGATOR, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
     { "", IID_ADCROSSBOW, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
-    { "weapon_nailpistol", IID_NAILPISTOL, AID_NAILS, AID_NAILS, "progs/v_nailpistol.mdl", "progs/v_nailpistol.mdl", "Nail Pistol", 0.9, 12, 1.0, 24, 0, VR_WROW_RELOAD },
+    { "weapon_nailpistol", IID_NAILPISTOL, AID_NAILS, AID_LAVA_NAILS, "progs/v_nailpistol.mdl", "progs/v_nailpistol_lava.mdl", "Nail Pistol", 0.9, 12, 1.0, 24, 0, VR_WROW_RELOAD | VR_WROW_SECONDARY },
     { "weapon_flaregun", IID_FLAREGUN, AID_NONE, AID_NONE, "progs/v_flaregun.mdl", "progs/v_flaregun.mdl", "Flare Gun", 0.9, 10, 1.0, 0, 0, 0 },
     { "weapon_revolver", IID_REVOLVER, AID_SHELLS, AID_SHELLS, "progs/v_revolver.mdl", "progs/v_revolver.mdl", "Heavy Revolver", 0.85, 15, 1.0, 12, 0, VR_WROW_RELOAD }
 };

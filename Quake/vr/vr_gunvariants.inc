@@ -11,3 +11,5 @@ QVR_GUN_VARIANT("progs/v_lava2.mdl", "progs/v_nail2.mdl", "Misc/quakevr/src_mode
 QVR_GUN_VARIANT("progs/v_multi2.mdl", "progs/v_rock2.mdl", "Misc/quakevr/src_models/blend/v_rock2/v_rock2_skin_v_multi2.png")
 QVR_GUN_VARIANT("progs/v_light_plasma.mdl", "progs/v_light.mdl",
     "Misc/quakevr/src_models/blend/v_light/v_light_skin_v_light_plasma.png")
+QVR_GUN_VARIANT("progs/v_nailpistol_lava.mdl", "progs/v_nailpistol.mdl",
+    "Misc/quakevr/src_models/blend/v_nailpistol/v_nailpistol_skin_v_nailpistol_lava.png")

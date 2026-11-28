@@ -399,8 +399,14 @@ void() VR_NPH_Frame =
     if(vr_nph_case >= VR_NPH_GUNS * 2) VR_NPH_End();
 };
 
+float() VR_NPL_Tick;  // (vr_nplava_test.qc: vr_np_test 8, its lava nails)
+void() VR_NPL_Begin;
 void() VR_NailPistol_TestFrame =
 {
+    if(VR_NPL_Tick())
+    {
+        return;
+    }
     if(vr_nph_on)
     {
         entity osh = self;
@@ -418,6 +424,12 @@ void() VR_NailPistol_TestFrame =
         return;
     }
     float req = cvar_hget(cvarh_vr_np_test);
+    if(req == 8)
+    {
+        cvar_set("vr_np_test", "0");
+        VR_NPL_Begin();
+        return;
+    }
     if(req == 7)
     {
         cvar_set("vr_np_test", "0");
