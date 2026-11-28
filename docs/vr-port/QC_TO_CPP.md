@@ -101,7 +101,23 @@ readable rewrite (section 5) must keep by hand.
 
 ## 4. Proof and speed
 
-(See ROUND26 "qc2cpp" for the runs.)
+- **Build:** `QVR_QC_CPP=1 bash <kit>/build.sh <tree>`. The generator writes `qc_sources.txt` (the files of this
+  compile; the build compiles those, never a stale `.cpp` in the folder) and rewrites only changed files, with
+  stable names (`qc_<qcfile>.cpp`), so a QuakeC edit recompiles its own files and `qc_table.cpp`. A whole first
+  build adds ~2-3 min (817 files, 58 MB, compiled once each).
+- **Compare** (`qc_cpp_compare.py <tree>`, 2026-11-28): e1m1, combat_48, hip1m1 (69 monsters woken, skill 2),
+  arena_wave6, bots_dm4 (3 bots), saveload: every QuakeC field's hash over every edict at 3-4 checkpoints 300 frames
+  apart, and the `profile` total (up to 122 M statements), equal between `vr_qc_cpp 0` and `1`. Left out: fields fed
+  from the real clock (`vr_posetime`, the hands' motion history `mh_*`), which differ between two interpreter runs
+  too (`--control`). One saveload run differed in `stl_light` after the load (the client's light reading); the rerun
+  and the control matched.
+- **Whole suites in C++:** `QVR_QC_CPP_RUN=1` in the environment starts the game with `vr_qc_cpp 1` (every test
+  launcher passes its environment on), e.g. `QVR_QC_CPP_RUN=1 python <kit>/scratch/refactor/run_baseline.py ...`.
+- **Speed** (PC, Release without LTO, low-impact runs beside his game, so rough): `vr_qcexec_time` (QuakeC's time a
+  frame, builtins included) interleaved 0/1 in one run: hip1m1's fight 2.00 -> 1.76 ms a frame (x1.13), combat_48
+  2.13 -> 1.86 ms (x1.15), against the interpreter before origin/next's combined instructions. Builtins (traces,
+  findradius, the VR code) are much of that time and are the same code either way (not measured apart). The readable
+  pass (section 5: locals in registers, no per-block counting) is where the larger gain is.
 
 ## 5. The switch (after splitscreen merges)
 

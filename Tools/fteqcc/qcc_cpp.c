@@ -691,8 +691,8 @@ void QCC_CppGen_Maybe (const QCC_dstatement32_t *st, const dfunction_t *df)
 	int p = QCC_CheckParm ("-cppout"), i, j, nq = 0, nfiles = 0;
 	int *order, *ends;
 	unsigned char *label;
-	cgnames_t fnames = {0};
-	cgbuf_t hdr = {0}, tab = {0};
+	cgnames_t fnames = {0}, filenames = {0};
+	cgbuf_t hdr = {0}, tab = {0}, list = {0};
 	unsigned hash = 2166136261u;
 	const char *curfile = NULL;
 	cgbuf_t file = {0}, funcs = {0};
@@ -760,9 +760,11 @@ void QCC_CppGen_Maybe (const QCC_dstatement32_t *st, const dfunction_t *df)
 			cb_putn (&whole, file.p, file.n);
 			cb_puts (&whole, "} // namespace qc\n");
 			cg_sanitize (curfile, base, sizeof (base));
-			// a file name may repeat (a second run of functions from the same file): number it
-			snprintf (outname, sizeof (outname), "qc_%03d_%s.cpp", nfiles++, base);
+			// stable names (an added QuakeC file renames no other: MSBuild recompiles only what changed); a name
+			// may repeat (a second run of functions from the same file): numbered then
+			snprintf (outname, sizeof (outname), "qc_%s.cpp", cg_nameset_get (&filenames, base, (unsigned)nfiles++));
 			cg_writefile (outname, &whole);
+			cb_printf (&list, "%s\n", outname);
 			free (whole.p);
 			file.n = 0;
 			cg_nameset_clear (&cg_gnames);
@@ -803,6 +805,10 @@ void QCC_CppGen_Maybe (const QCC_dstatement32_t *st, const dfunction_t *df)
 	cb_printf (&tab, "const QCppProgs qcpp_progs = {0x%08xu, %d, %d, %u, %d, qcpp_functions, qcpp_fields};\n", hash,
 			   numstatements, numfunctions, numpr_globals, numfielddefs);
 	cg_writefile ("qc_table.cpp", &tab);
+	// qc_sources.txt: the files this compile wrote (the build compiles these, not every .cpp in the folder: a file
+	// left from an older compile, its QuakeC file renamed or removed, stays out)
+	cb_puts (&list, "qc_table.cpp\n");
+	cg_writefile ("qc_sources.txt", &list);
 
 	externs->Printf ("qcc_cpp: %d functions in %d files written to %s (hash %08x)%s\n", nq, nfiles, cg_dir, hash,
 					 cg_errors ? " WITH ERRORS" : "");
@@ -816,5 +822,7 @@ void QCC_CppGen_Maybe (const QCC_dstatement32_t *st, const dfunction_t *df)
 	free (tab.p);
 	free (file.p);
 	free (funcs.p);
+	free (list.p);
 	cg_nameset_clear (&fnames);
+	cg_nameset_clear (&filenames);
 }
