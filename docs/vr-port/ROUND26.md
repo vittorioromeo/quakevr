@@ -5171,13 +5171,43 @@ renders the world at full scale; top foveation barely shows; are we rendering th
 - **FOV**: the eyes are drawn with exactly xrLocateViews' field of view (`VR_OverrideProjection` takes
   `frameState().eyes[].fov`, and the projection layer submits the same), with the runtime's hidden-area mesh drawn
   first: nothing is rendered outside what the runtime asks for. The console now says the runtime's angles once a
-  session (`VR: eye N field of view (the runtime's): ...`). Quest 3: QV_FOV_TBD.
+  session (`VR: eye N field of view (the runtime's): ...`). Quest 3: left eye left -54 right 40 up 44 down -55 degrees
+  (94 x 99), the right eye mirrored; recommended 1680 x 1760 an eye. No waste to cut beyond the hidden area.
 - **FOV reduction** (`vr_fov_reduce`, 0..30 %, saved, default 0; VR Settings > Display and Graphics, "FOV
   Reduction"): each edge's tangent of the located views is scaled (both the projection and the submitted layer, so the
   compositor places the picture right and shows black beyond), and the eyes' drawn size with it (`scaledEyeSize`):
   the same sharpness, (1 - p)^2 of the pixels. Any OpenXR headset and the mock.
-- **Foveation**: QV_FOVEATION_TBD
-- **Headset numbers**: QV_HEADSET_TBD
+- **Foveation**: what is applied is right (the runtime says "fixed foveation level N ... set" for 0..4, the profile on
+  the eye swapchains, the eyes drawn straight into them, form 2). Its coverage is the driver's: whole bins of 864 x 448
+  (qfov4), the bins round the submitted rect's centre kept full. At his 0.55-0.65 scale the drawn part (about 1090 x
+  1140 at 0.65) covers 2 x 3 bins, so little is left to reduce: High saves 0.6 ms on the hub (below); at 0.9 it saved
+  5.5 ms (questfovmusic). XR_FB_foveation has no level past High (Top) and no custom map; eye-tracked foveation is
+  Quest Pro only. Show Foveation models zones, not the driver's bins. Nothing changed.
+- **Headset numbers** (Quest 3 unworn, `-unattended -noconfigwrite`, the hub vrstart, fixed scale 0.65, `vr_dynres 0`,
+  parts of 360 frames interleaved, 2 rounds in one launch, GPU mean a frame from `vr_profile_report 3`, median):
+
+  | part | GPU ms | frame period | missed |
+  |---|---|---|---|
+  | Foveation Off | 13.22 | 13.88 | 0.6% |
+  | Low | 13.07 | 13.92 | 0.2% |
+  | Medium | 13.08 | 13.91 | 0.2% |
+  | High | 12.64 | 13.88 | 0.2% |
+  | High (Top) | 13.52 (12.77 / 14.27) | 14.65 | 2.9% |
+  | High + FOV reduction 10% | 11.62 | 13.89 | 0.4% |
+  | High + FOV reduction 20% | 11.21 | 13.88 | 0.2% |
+  | Menu open, native (world 0.65, menu at the image's size) | 13.98 | 15.67 | 16.9% |
+  | Menu open, old (`vr_menu_native 0`: the whole eye at 1) | 13.91 | 15.37 | 11.8% |
+  | SpaceWarp on (High) | 15.11 | 27.77 | 0.0% |
+  | SpaceWarp off | 12.76 | 13.95 | 0.8% |
+
+  FOV reduction: -1.0 ms (8%) at 10%, -1.4 ms (11%) at 20% (the pixels -19% / -36%; the fixed costs stay). The menu
+  at native resolution costs the same as the old floor: the world at 0.65 leaves the straight-in path (the resample
+  needs the post-process path, the scene's own unfoveated targets, more full-image passes). Its cheap form is the menu
+  as a compositor quad layer (the world straight in, the menu sampled by the runtime): not done. SpaceWarp with the
+  new depth and motion: half rate at once, nothing missed, no crash; its look worn: not checked.
+- **Headset**: this branch's release APK for the block only; the APK installed before (questnext's 1.2.0-beta6
+  release build) put back with `install -r`, his 439 saves/configs verified md5-equal. Left on the headset:
+  quakevr/qv_measure.cfg and qv_round.cfg (to delete).
 - Files: vr_spacewarp.cpp, vr_backend.hpp, vr_gfx.hpp, vr_gfx_gl.cpp, vr_temporal.cpp/.hpp, vr_gadget.cpp,
   vr_stereo.cpp, vr_dynres.cpp, vr_main.cpp, vr_backend_openxr_frame.cpp, vr_backend_openxr_internal.hpp,
   vr_backend_mock.cpp, vr_cvars.inc, vr_menu_rows.inc, vr_menu_settings.inc, vr_tunables.inc, vr_tunables_rows.inc;

@@ -213,6 +213,7 @@ vr_xr_foveation|0|VR Settings - Display and Graphics|Quest Foveation|VR Settings
 vr_xr_foveation_dynamic|1|VR Settings - Display and Graphics|Quest Foveation: Dynamic|VR Settings > Display and Graphics > Quest Foveation: Dynamic
 vr_xr_foveation_offset|1|VR Settings - Display and Graphics|Quest Foveation: Shift|VR Settings > Display and Graphics > Quest Foveation: Shift
 vr_xr_spacewarp|0|VR Settings - Display and Graphics|SpaceWarp|VR Settings > Display and Graphics > SpaceWarp
+vr_fov_reduce|0|VR Settings - Display and Graphics|FOV Reduction|VR Settings > Display and Graphics > FOV Reduction
 vr_retro|0|VR Settings - Display and Graphics|Retro Textures|VR Settings > Display and Graphics > Retro Textures
 vr_retrolight|0|VR Settings - Display and Graphics|Retro Lighting|VR Settings > Display and Graphics > Retro Lighting
 vid_fsaa|0|VR Settings - Display and Graphics|Antialiasing|VR Settings > Display and Graphics > Antialiasing
@@ -1158,6 +1159,7 @@ vr_agrunt_ai_retreat|1|Armed Grunts - AI Behaviour|Retreat Readiness|Advanced VR
 vr_agrunt_speed|1|Armed Grunts - AI Behaviour|Movement Speed|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Movement Speed
 vr_agrunt_speed_back|1|Armed Grunts - AI Behaviour|Backpedal Speed|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Backpedal Speed
 vr_agrunt_speed_strafe|1|Armed Grunts - AI Behaviour|Strafe Speed|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Strafe Speed
+vr_elite_spawn|1|Armed Grunts - AI Behaviour|Elites in Hard and Nightmare|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Elites in Hard and Nightmare
 vr_agrunt_mspace|1|Armed Grunts - AI Behaviour|Long Blades Keep Their Reach|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Long Blades Keep Their Reach
 vr_agrunt_mspace_reach|1|Armed Grunts - AI Behaviour|Reach Share|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Reach Share
 vr_agrunt_mspace_min|1|Armed Grunts - AI Behaviour|Shortest Standoff|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Shortest Standoff
@@ -4847,6 +4849,7 @@ vr_flat_thrust_yaw|2|Tunables|Thrust Yaw|Advanced VR Options > Debug > Tunables 
 vr_flat_thrust_dwell_time|2|Tunables|Thrust Hold|Advanced VR Options > Debug > Tunables > Thrust Hold
 vr_flat_thrust_back_time|2|Tunables|Thrust Recover Time|Advanced VR Options > Debug > Tunables > Thrust Recover Time
 vr_flat_thrust_off_slide|2|Tunables|Thrust Other Hand Slide|Advanced VR Options > Debug > Tunables > Thrust Other Hand Slide
+vr_flat_thrust_2h_drive|2|Tunables|Two-Handed Bayonet Drive|Advanced VR Options > Debug > Tunables > Two-Handed Bayonet Drive
 vr_flat_thrust_arm_stretch|2|Tunables|Thrust Arm Stretch|Advanced VR Options > Debug > Tunables > Thrust Arm Stretch
 vr_flat_thrust_blades|2|Tunables|Blade Thrust|Advanced VR Options > Debug > Tunables > Blade Thrust
 vr_flat_thrust_1h_reach|2|Tunables|Blade Thrust Reach|Advanced VR Options > Debug > Tunables > Blade Thrust Reach
@@ -5311,6 +5314,7 @@ vr_gl_alias_nofb|2|Tunables|No Fullbright Read (Quest)|Advanced VR Options > Deb
 vr_gl_alias_flat|2|Tunables|Flat-Lit Gore (Quest)|Advanced VR Options > Debug > Tunables > Flat-Lit Gore (Quest)
 vr_gl_alias_vlight|2|Tunables|Plain Models Lit at Vertices (Quest)|Advanced VR Options > Debug > Tunables > Plain Models Lit at Vertices (Quest)
 vr_menu_render_scale|2|Tunables|Menu Render Scale|Advanced VR Options > Debug > Tunables > Menu Render Scale
+vr_menu_native|2|Tunables|Menu at Native Resolution|Advanced VR Options > Debug > Tunables > Menu at Native Resolution
 vr_gl_foveation|2|Tunables|Scene Foveation (Quest)|Advanced VR Options > Debug > Tunables > Scene Foveation (Quest)
 vr_revgrip_pivot|2|Tunables|Flip Pivot|Advanced VR Options > Debug > Tunables > Flip Pivot
 vr_revgrip_pivot_shift|2|Tunables|Flip Pivot Shift|Advanced VR Options > Debug > Tunables > Flip Pivot Shift
@@ -5374,6 +5378,21 @@ vr_agrunt_dazzle_face_up|2|Tunables|Hand Up|Advanced VR Options > Debug > Tunabl
 vr_agrunt_dazzle_bend|2|Tunables|Arm Bend|Advanced VR Options > Debug > Tunables > Arm Bend
 vr_agrunt_dazzle_elbow|2|Tunables|Elbow Out|Advanced VR Options > Debug > Tunables > Elbow Out
 vr_agrunt_dazzle_dual|2|Tunables|Dual Wielders Shield|Advanced VR Options > Debug > Tunables > Dual Wielders Shield
+vr_elite_firerate|2|Tunables|Fire Rate|Advanced VR Options > Debug > Tunables > Fire Rate
+vr_elite_reaction|2|Tunables|Reaction Time|Advanced VR Options > Debug > Tunables > Reaction Time
+vr_elite_accuracy|2|Tunables|Accuracy|Advanced VR Options > Debug > Tunables > Accuracy
+vr_elite_aggression|2|Tunables|Aggressiveness|Advanced VR Options > Debug > Tunables > Aggressiveness
+vr_elite_speed|2|Tunables|Walking Speed|Advanced VR Options > Debug > Tunables > Walking Speed
+vr_elite_melee|2|Tunables|Melee Speed|Advanced VR Options > Debug > Tunables > Melee Speed
+vr_elite_pain|2|Tunables|Pains Taken|Advanced VR Options > Debug > Tunables > Pains Taken
+vr_elite_aimlag|2|Tunables|Aim Lag|Advanced VR Options > Debug > Tunables > Aim Lag
+vr_elite_turn|2|Tunables|Turning Speed|Advanced VR Options > Debug > Tunables > Turning Speed
+vr_elite_health|2|Tunables|Health|Advanced VR Options > Debug > Tunables > Health
+vr_elite_spawn_chance|2|Tunables|Hard and Nightmare Chance|Advanced VR Options > Debug > Tunables > Hard and Nightmare Chance
+vr_elite_arena_wave|2|Tunables|Arena: From Wave|Advanced VR Options > Debug > Tunables > Arena: From Wave
+vr_elite_arena_chance|2|Tunables|Arena: Chance|Advanced VR Options > Debug > Tunables > Arena: Chance
+vr_elite_pulse|2|Tunables|Dye Pulse|Advanced VR Options > Debug > Tunables > Dye Pulse
+vr_elite_pulse_hz|2|Tunables|Dye Pulse Rate|Advanced VR Options > Debug > Tunables > Dye Pulse Rate
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -6058,6 +6077,9 @@ vr_obsrec_as_if|2|Debug - Reports|Clean Recording: Act As If OBS Records|Advance
 |2|Debug - Reports|Main Menu Lettering|Advanced VR Options > Debug > Reports > Main Menu Lettering
 |2|Debug - Reports|Reset This Page|Advanced VR Options > Debug > Reports > Reset This Page
 @page|2|Debug - Tools||Advanced VR Options > Debug > Tools
+|2|Debug - Tools|Make the Nearest Monster Elite|Advanced VR Options > Debug > Tools > Make the Nearest Monster Elite
+|2|Debug - Tools|Make the Nearest Monster Ordinary|Advanced VR Options > Debug > Tools > Make the Nearest Monster Ordinary
+|2|Debug - Tools|Infect the Nearest Monster|Advanced VR Options > Debug > Tools > Infect the Nearest Monster
 |2|Debug - Tools|Controller Bindings Screen|Advanced VR Options > Debug > Tools > Controller Bindings Screen
 |2|Debug - Tools|Print Controller Bindings|Advanced VR Options > Debug > Tools > Print Controller Bindings
 |2|Debug - Tools|Bindings Screen Tests|Advanced VR Options > Debug > Tools > Bindings Screen Tests
@@ -6461,6 +6483,8 @@ vr_struggle_force|2|Debug - Tests|Every Downed One Struggles|Advanced VR Options
 vr_enemy_melee_arc_debug|2|Debug - Tests|Log Melee Arc|Advanced VR Options > Debug > Tests > Log Melee Arc
 vr_enemy_melee_arc_show|2|Debug - Tests|Show Melee Arcs|Advanced VR Options > Debug > Tests > Show Melee Arcs
 |2|Debug - Tests|Melee Arcs Drawn|Advanced VR Options > Debug > Tests > Melee Arcs Drawn
+|2|Debug - Tests|Test: Elite Armed Humanoids|Advanced VR Options > Debug > Tests > Test: Elite Armed Humanoids
+|2|Debug - Tests|Elite Lineup (Screenshot)|Advanced VR Options > Debug > Tests > Elite Lineup (Screenshot)
 |2|Debug - Tests|Test: Melee Rules (Side-step, Arcs)|Advanced VR Options > Debug > Tests > Test: Melee Rules (Side-step, Arcs)
 |2|Debug - Tests|Melee Arc: Nearest Faces You|Advanced VR Options > Debug > Tests > Melee Arc: Nearest Faces You
 |2|Debug - Tests|Melee Arc: Nearest Faces Away|Advanced VR Options > Debug > Tests > Melee Arc: Nearest Faces Away
@@ -6855,6 +6879,7 @@ vr_ar_play_scale|2|Animation Recorder|Scale|Advanced VR Options > Debug > Animat
 |2|Debug - Automation & Self-Tests|Arena Presets: Format Test|Advanced VR Options > Debug > Automation & Self-Tests > Arena Presets: Format Test
 |2|Debug - Automation & Self-Tests|Arena Wave Editor: Click Through Test|Advanced VR Options > Debug > Automation & Self-Tests > Arena Wave Editor: Click Through Test
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Infection Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Infection Test
+|2|Debug - Automation & Self-Tests|Armed Humanoids: Elite Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Elite Test
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Preview Test|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Preview Test
 |2|Debug - Automation & Self-Tests|Jump to Wave 6|Advanced VR Options > Debug > Automation & Self-Tests > Jump to Wave 6
 |2|Debug - Automation & Self-Tests|Perk Card Panel Test|Advanced VR Options > Debug > Automation & Self-Tests > Perk Card Panel Test
