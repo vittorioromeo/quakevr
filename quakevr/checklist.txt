@@ -61,6 +61,9 @@ Flat-screen: reload a two-handed gun (nailgun, super nailgun, rocket launcher): 
 Flat-screen: in the Reload Studio, right drag orbits round the player, middle drag pans, the wheel zooms, and Reset View brings the camera back; His Eyes goes back to first person. {test:flat_proc_reload}
 Flat-screen: in the Reload Studio, set the gizmo On the Gun: Move and Rotate change the key's gun Move and Tilt; Copy Gun Pose then Paste Down / Paste Up fill the next / previous keys. {test:flat_proc_reload}
 Flat-screen: Reload Speed (Tunables > Flatscreen > Procedural Reload) at 2 makes every reload twice as fast, and a gun's own Speed in the Reload Studio scales that gun alone; walking speed is unchanged while reloading. {test:flat_proc_reload}
+Hold the nail pistol and press the new small button on its inner side (under the slide, facing your other hand) with your other hand's finger: it turns to its lava look (glowing side vents, red paint) and fires lava nails that set enemies on fire; press again for its plain nails. Check the button sits well and is easy to press. {test:nplava}
+With immersive reloading, switch the nail pistol to lava nails: the plain magazine drops out and the pouch gives red lava magazines with glowing nails in their window; seat one and fire. {test:nplava}
+Flat-screen: hold the nail pistol and press N: it switches to its lava nails (its lava look), R loads a lava magazine, N again goes back to nails. {test:nplava}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
