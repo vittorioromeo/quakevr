@@ -1404,7 +1404,8 @@ void emissive::otherPowerupLight(int player, int hand, const glm::vec3& pos, flo
 
 bool emissive::isLavaGun(const qmodel_t* model)
 {
-    return model && (modelmeta::is(model, modelmeta::Id::VLava) || modelmeta::is(model, modelmeta::Id::VLava2));
+    return model && (modelmeta::is(model, modelmeta::Id::VLava) || modelmeta::is(model, modelmeta::Id::VLava2) ||
+                     modelmeta::is(model, modelmeta::Id::VNailPistolLava)); // (and the nail pistol's, nplava)
 }
 
 // Round 20: the lava nailguns' barrels show lava through their windows; loaded with lava nails the gun glows: a

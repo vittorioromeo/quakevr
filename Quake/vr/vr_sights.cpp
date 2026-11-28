@@ -39,6 +39,7 @@ constexpr const char* sightedModels[] = {
     // The nail pistol (2026-11-07): its modelled sights (two rear ears, a front post) painted to glow. It is its own
     // pickup (QC impl_weapon_item); the art preview carries the same skin's colours. Its magazines' skins have no sights.
     "progs/v_nailpistol.mdl",
+    "progs/v_nailpistol_lava.mdl", // its lava nails' look (nplava): the same sights (its lava glows in other fullbrights)
     "progs/vr_nailpistol_preview.mdl",
     // The guns' parts drawn in their place, made from their skins (the sights recoloured, as on the gun: the author saw
     // them change colour as the shotgun pumped and the super shotgun broke open).
@@ -117,6 +118,7 @@ constexpr FrontPost frontPosts[] = {
     {"progs/v_light.mdl", 512, 178, 42, 96, 48, 102},
     {"progs/v_light_plasma.mdl", 512, 178, 42, 96, 48, 102},
     {"progs/v_nailpistol.mdl", 256, 512, 62, 470, 66, 475},
+    {"progs/v_nailpistol_lava.mdl", 256, 512, 62, 470, 66, 475},
 };
 // The texels round each patch taken with it (vr_skin_edge_fill copies a sight texel into its triangles' edges): far
 // less than the gap to the rear patch in every skin.

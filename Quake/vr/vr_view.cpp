@@ -264,6 +264,9 @@ constexpr MagMount magMounts[] = {
     // grip's lean, 12 degrees back): no receiver drawn (the grip is its well: `well` none).
     {modelmeta::Id::VNailPistol, "progs/vr_mag_on_v_nailpistol.mdl", "0.4678 0 2.2008", nullptr, {0.4678f, 0.f, 2.2008f},
         {-0.0669f, 0.f, -0.5072f}, QVR_WELL_OFFSETS(npistol), 3},
+    // (Its lava nails' look, nplava: the same gun in its lava skin, its seated magazine the lava one.)
+    {modelmeta::Id::VNailPistolLava, "progs/vr_mag_on_v_nailpistol_lava.mdl", "0.4678 0 2.2008", nullptr,
+        {0.4678f, 0.f, 2.2008f}, {-0.0669f, 0.f, -0.5072f}, QVR_WELL_OFFSETS(npistol), 3},
 };
 #undef QVR_WELL_OFFSETS
 } // namespace

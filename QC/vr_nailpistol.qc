@@ -50,6 +50,7 @@ void() VR_MagSlide_TestFrame; // (vr_magslide_test.qc)
 void() VR_NailPistol_Precache =
 {
     precache_model("progs/v_nailpistol.mdl");
+    precache_model("progs/v_nailpistol_lava.mdl"); // its lava nails' look (nplava: vr_gunvariants.inc)
     precache_model("progs/vr_mag_npistol.mdl");
     precache_sound("vr/nailpistol_shot.wav");
     precache_sound("vr/nailpistol_rack.wav");
@@ -125,9 +126,28 @@ float(float xWeapon, float xDir) VR_NailPistol_CycleStep =
     return xWeapon + xDir;
 };
 
-// Its nail's hit (spike_touch's, with its own damage: vr_dmg_nailpistol a player's, 9 a monster's).
+// Its lava nail's damage as a multiple of its plain nail's (nplava, his words 2026-11-28 item 19): the nailguns' lava
+// nail over their plain nail, Weapon Damage's (vr_dmg_lava_nail over vr_dmg_nail: 15 / 9 to a monster). A player hit
+// takes 3/5 of that, as Rogue's lava nails give a player (lavaspike_touch: 9 of its 15).
+float(entity xOwner, entity xHit) VR_NailPistol_LavaFactor =
+{
+    float k = VR_WpnDmg(xOwner, cvarh_vr_dmg_lava_nail, 15) / max(1, VR_WpnDmg(xOwner, cvarh_vr_dmg_nail, 9));
+    return xHit.classname == "player" ? k * 0.6 : k;
+};
+
+void() VR_Burn_LavaNail; // (vr_burning.qc)
+entity(vector org, vector dir) launch_lava_spike; // (rogue_lava_wpn.qc)
+
+float vr_np_lavahits;  // its lava nails into something that takes damage (tests)
+float vr_np_lavashots; // its lava nails fired (tests)
+float vr_np_lastdmg;   // the last nail's damage before its hit part's factor (tests)
+
+// Its nail's hit (spike_touch's, with its own damage: vr_dmg_nailpistol a player's, 9 a monster's). A lava nail (fired
+// with its lava nails: classname "lava_spike", launch_lava_spike's) the nailguns' lava nail's rules: its damage
+// VR_NailPistol_LavaFactor times, a lava man unhurt, what it hits set on fire (VR_Burn_LavaNail).
 void() VR_NailPistol_SpikeTouch =
 {
+    float lava = self.classname == "lava_spike";
     if(VR_OwnerSpared(other))
         return;
     if(other.solid == SOLID_TRIGGER)
@@ -144,6 +164,10 @@ void() VR_NailPistol_SpikeTouch =
         return;
     }
     float dmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_nailpistol, 9);
+    if(lava)
+    {
+        dmg = dmg * VR_NailPistol_LavaFactor(self.owner, other);
+    }
     VR_Proj_Begin(QVR_PROJ_BOLT, dmg);
     makeforward_mdl(self.angles);
     float bleed = FALSE;
@@ -151,13 +175,23 @@ void() VR_NailPistol_SpikeTouch =
     {
         float adjDmg = dmg * vr_proj_factor; // (its part: VR_Proj_Begin)
         vr_np_lastfactor = vr_proj_factor;
+        vr_np_lastdmg = dmg;
         if(vr_np_target && other == vr_np_target) { vr_np_hits++; }
+        if(lava)
+        {
+            vr_np_lavahits++;
+            VR_Burn_LavaNail(); // VR: yours set it on fire (vr_burning.qc), as the nailguns' lava nails
+            if(other.classname == "monster_lava_man")
+            {
+                adjDmg = 0; // (Rogue's lava nails leave the lava man unhurt: lavaspike_touch)
+            }
+        }
         if(cvar_hget(cvarh_vr_debug_shots))
         {
-            dprint(sprintf("nailpistol: nail hit %s at %v, part x%.2f: %g (health %g)\n", other.classname, vr_proj_at,
-                vr_proj_factor, adjDmg, other.health));
+            dprint(sprintf("nailpistol: %s hit %s at %v, part x%.2f: %g (health %g)\n", lava ? "lava nail" : "nail",
+                other.classname, vr_proj_at, vr_proj_factor, adjDmg, other.health));
         }
-        if(T_Damage(other, self, self.owner, adjDmg))
+        if(adjDmg > 0 && T_Damage(other, self, self.owner, adjDmg))
         {
             spawn_touchblood(adjDmg);
             bleed = TRUE;
@@ -196,19 +230,26 @@ void(float xHand) W_FireNailPistol =
     float vol = max(0, min(4, cvar_hget(cvarh_vr_nailpistol_volume)));
     // Its shot: our crack and the slide's clack (vr/nailpistol_shot.wav, make_nailpistol_sounds.py) over the super
     // nailgun's punch pitched up (a lighter, smaller gun).
+    // Its lava nails (nplava: its ammo button or N, as the nailguns'): the lava nailgun's whoosh over the crack instead.
+    float lava = (VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO) && vr_have_lava;
     sound(self, VRGetGunChannel(xHand), "vr/nailpistol_shot.wav", vol, ATTN_NORM);
-    sound_pitch(self, CHAN_AUTO, "weapons/spike2.wav", vol * 0.7, ATTN_NORM, 135 + crandom() * 4);
-    delAmmoOrClipAndUpdateCounter(xHand, AID_NAILS, 1);
+    if(lava) { sound_pitch(self, CHAN_AUTO, "weapons/rocket1i.wav", vol * 0.6, ATTN_NORM, 125 + crandom() * 4); }
+    else     { sound_pitch(self, CHAN_AUTO, "weapons/spike2.wav", vol * 0.7, ATTN_NORM, 135 + crandom() * 4); }
+    delAmmoOrClipAndUpdateCounter(xHand, lava ? AID_LAVA_NAILS : AID_NAILS, 1);
 
     float k = max(0, cvar_hget(cvarh_vr_nailpistol_spread)) * 0.0174533; // (radians: small, its tangent)
     vector dir = normalize(v_forward + (v_right * crandom() + v_up * crandom()) * k);
-    entity newmis = launch_spike(VRGetMuzzlePos(xHand), dir);
+    entity newmis = lava ? launch_lava_spike(VRGetMuzzlePos(xHand), dir) : launch_spike(VRGetMuzzlePos(xHand), dir);
+    if(lava) { vr_np_lavashots++; }
     VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.touch = VR_NailPistol_SpikeTouch;
     newmis.velocity = dir * max(100, cvar_hget(cvarh_vr_nailpistol_speed));
     vector carried = vrProjectileVelocity(xHand, VR_PROJK_FAST); // (the hand's and yours, as the other projectiles')
     newmis.velocity += carried;
-    VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
+    if(!lava)
+    {
+        VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
+    }
 
     self.effects = self.effects | EF_MUZZLEFLASH;
     self.punchangle_x = -1;
