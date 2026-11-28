@@ -5971,3 +5971,45 @@ Brush").
 - Recommendation: no JIT. Finish the interpreter (qcvm) and the hand ports first; spike a profile-guided AOT of our own
   progs' hottest functions (qc2c.py, hash-gated, `vr_qc_aot` 0/1/2 compare) only if > ~1 ms of interpreted QuakeC is
   left on the Quest. Expected AOT gain ~0.4-0.7 ms Quest, ~0.15-0.3 ms PC.
+
+## qcbuiltins: the builtins QuakeC calls most, profiled natively; the worn packs' limbpiece 2.5-3x faster (branch agent/qcbuiltins, 2026-11-28)
+
+- **Scene**: questopt2's hip1m1 fight (skill 2, god, all 69 woken: 40 armed humanoids, 29 worn packs). Quest 3: a release
+  APK of this branch with the test progs, unattended; PC: Release, mock headset (low-impact runs: his game was open, so
+  PC ms are relative). simpleperf was not tried (release APK, not profileable); the native breakdown came from temporary
+  section timers on PC (`za::Clock` around the builtins' parts; not committed).
+- **Profile** (`profile_qc` builtins, ms a frame; per call in brackets):
+
+| builtin | calls/frame | Quest before | Quest after | PC before | PC after | where its time goes (PC timers) |
+|---|---|---|---|---|---|---|
+| `agpose` | 38-41 | 0.68 (16.7 us) | same | 0.37-0.43 (9.4-11 us) | same | spread: model vertices 10 a pose (0.2 us each), keys 1.7 us, arms 1.6 us, its QuakeC calls 2.1 us |
+| `limbpiece` (worn packs, 4 calls a wearer) | 116 | **0.43-0.47 (3.7-4.0 us)** | **0.20 (1.6 us)** | **0.27-0.31 (2.4-2.6 us)** | **0.095-0.099 (0.83 us)** | wornPackAll 10 us a wearer: the anchors' skeleton rebuild for the whole rig (animsmooth::serverPoints, rebuildRows) |
+| `navsteer` | 12.7 | 0.47 (36 us) | | 0.32-0.34 (26 us) | | repaths 147 us each (1.4 a frame: Detour findPath), refreshMovers 8 us a call averaged, start poly 2 us, straight path 1 us |
+| `agstruck` | 82 | 0.34 | | 0.17-0.19 | | its findradiusmoving (qcnative) |
+| `traceline` | 63-72 | 0.17 | | 0.14 | | |
+| `cvar_hget` | 1,150-1,330 | 0.10-0.12 (0.09 us) | | 0.03 | | |
+| `movetogoal`, `walkmove`, `find`, `playerbodypoint`, `findradius` | 5-270 | | | 0.03-0.07 each | | |
+
+- **Change** (`vr_qc_builtin_fast`, cvar, default 1; Debug > Armed Humanoids rows "QuakeC's Busiest Builtins, Faster"; 0 as
+  before, the A/B; 2 both, compared bit for bit, `vr_qc_builtin_fast point bones check: N compared, M differed` every
+  2,000): a worn pack's three anchors on a body out of view (agarmor::packWhere -> hitmodel::drawnVertexPoints ->
+  animsmooth::serverPoints, questopt's subset path) rebuilt the whole rig's rows (rigpose::along's rotation per bone:
+  atan2/sin/cos/sqrt, twice with the swing) for three vertices. Now only those vertices' bones and their parents
+  (`rigpose::wantWithParents`; `want` masks on rigpose::along/alongSlots, animsmooth's swings/rebuildRows); the swing's
+  stillness test reads the other bones' keys only while every wanted bone stays still (all still: nothing swings). The
+  whole-body callers (hitmodel's shape, the draw) pass every bone, as before.
+- **Exact**: PC fight, 44,000 anchor sets compared over 1,440 frames, 0 differed.
+- **Measured**: Quest QuakeC a frame (`vr_qcexec_time`, 2 launches, 6+6 interleaved blocks of 432 frames each, medians):
+  **2.93 -> 2.63 ms (-0.30 ms, -10%)**, 33.0 -> 30.0 ns a statement; CPU busy 9.07 -> 9.00 (within its +-0.3 noise).
+  Quest profiler: limbpiece 0.47/0.43 -> 0.20/0.20 ms. PC profiler: limbpiece 0.28/0.27 -> 0.099/0.095 ms.
+- **Tests**: animsmooth_test 9/0; `vr_wornpack_test 1` (developer 1) 24/1, the same 24/1 with `vr_qc_builtin_fast 0`
+  ("gibbed: its pack comes off": not this change; its verdict prints only with developer 1).
+- **Not done** (by size): `agpose` (16.7 us Quest, spread thin over many small steps: no single lever); `navsteer`'s repaths
+  (Detour A* 147 us PC each; exact speedups would need a path cache keyed on start/end polys and points: rarely equal
+  between monsters); refreshMovers' periodic whole-mesh pass (the lift boarding list rebuilt from every tile each tick:
+  cacheable per tile generation); findradiusmoving (already per grid). A try that skinned an armed humanoid's three
+  anchor vertices alone (drawnpose) measured nothing in this scene (its wearers out of view are not on the authored rig)
+  and was dropped.
+- Headset: beta6 put back (1.2.0-beta6, progs a0bfe11a), his 31 autosaves and 3 top-level saves restored (35 sums match).
+  Scripts: worktree `scratch/qcb_*` (not committed): `qcb_q.sh` (backup/install/launch/restore), `qcb_mkcfg.py`,
+  `qcb_parse.py`, `qcb_q2.cfg` (the profile A/B).
