@@ -4811,3 +4811,38 @@ frames at the cap, distance at most, how it let go. Scenario `knight_ledge`.
 
 Left: `ragdollPartNear` (any push or shot on a ragdoll) takes the part whose bounding box is nearest, so a point inside
 two boxes (a hand at the lip, a shin kicked up beside it) can take the wrong part: a box3d change, not done here.
+
+## iwextract: VR blocks out of Ironwail's files (agent/iwextract, 2026-11-28)
+
+BACKLOG 9, item 2 (pure moves). 4,453 lines of whole Quake VR definitions out of 15 Ironwail files into 20 files in
+the new `Quake/vr/iw/`; each Ironwail file now has one line per block in its place, `#include "vr/iw/<file>_<what>.c"
+// QVR: <what> (moved out as it was)`, as `pr_exec.c` already did with `vr/vr_qcexec.c`. Lines Quake VR adds to
+Ironwail's files: 25,391 -> 20,958 (hunks 3,246 -> 3,224). The table, file by file: IRONWAIL_DIFF.md, "iwextract".
+
+- Why included, not compiled on its own: the blocks use their file's statics, are C (the module is C++) and some sit on
+  hot paths; included, each stays in its translation unit, so nothing is exposed, converted or called differently.
+  No build globs `Quake/vr/iw/` (the `vr/*.cpp` globs are not recursive); its README.md says how it works.
+- Moved: menu.c's whole MAIN MENU section (`menu_main.c`, 560 lines, with M_Menu_Main_f: the VR main menu replaced
+  Ironwail's, git matched only braces and blanks) and the Load Autosave menu (`menu_autosaves.c`, 332); r_alias.c's
+  caches (426); r_world.c's lit grid (458); gl_shaders.c's program cache, queue and lazy getters (228 + 154 + 147);
+  host.c's fixed tick and autosave waits (161 + 159); gl_texmgr.c's normal maps and image hash (217 + 83); pr_cmds.c's
+  extension builtins (274; the builtin table stays where qvr_checks reads it); sv_phys.c's push grid (248); pr_exec.c's
+  QC profiler (197); common.c's base dirs (171); gl_rmain.c's zoned passes (169); gl_draw.c's run-time pics (112);
+  world.c's sv_hulltrace_compare (97); net_main.c's server-browser entries (97); pr_edict.c's known-strings check (83).
+- Left in place: our lines inside Ironwail's functions (most of the rest), net_dgrm.c's packet queue (agent/split
+  edits NET_PortCheck inside it), snd_vorbis.c's stb reader (cut by `#if`). The "VR heap macro remap": nothing left
+  (the heap is mimalloc's at link level, vr_crtheap.c; no allocator macro in Ironwail's files).
+- qvr_checks: the canonical-helper check skips `Quake/vr/iw/` (C inside Ironwail's files, without the module's C++
+  helpers: checked as those files are). The statics check still scans it (passes).
+- Proof of pure moves: each of the 15 files preprocessed (clang-cl `/E`, line markers and blanks dropped) at origin/next
+  and after: identical, 0 lines differ. Physics hash (`sv_random_seed 1; map e1m1; vr_physics_pile 24`, 600 frames):
+  `55 bodies, 87f9a3fb86150d54` on the origin/next sources and on the branch.
+
+| Check | Result |
+|---|---|
+| Release build (Windows), Android native build (arm64, Release) | built, 0 warnings / built |
+| physics hash, before and after | identical (above) |
+| vr_menu_path_check maps/vrcalibration.map | 6 found, 0 missing |
+| menu_shortcuts_test.py, menu_flat_panel_test.py | 14/0, 31/0 |
+| smoke: vr_campaign_hub, e1m1 (600 frames each) | no errors |
+| eval.sh | canary 37/42 (the preprocessed code is origin/next's: the same as there) |

@@ -20,8 +20,11 @@ Ironwail files Quake VR deleted (2026-10-07, REPO_CLEANUP.md; `--diff-filter=D` 
 | After | 73 | 3088 | 320 | 727 |
 | With the spatial audio's hooks (`snd_dma.c`, `snd_mix.c`) | 74 | 3099 | 321 | 735 |
 | Now (2026-10-06, `c86c27c4`: the fixed server tick in `host.c`, the QuakeC build target, campaigns, ...) | 91 | 5209 | 722 | 749 |
+| Before iwextract (2026-11-28, `49dc13fd`; also counting the build files, `.github` and the readme) | 114 | 25391 | 3503 | 3246 |
+| After iwextract (`Quake/vr/iw/`, below) | 114 | 20958 | 3423 | 3224 |
 
-The per-file table below is from the 74-file state; the files changed since are not in it.
+The per-file table below is from the 74-file state; the files changed since are not in it. The iwextract table after it
+has the 15 files that round moved blocks out of.
 
 Six headers were Ironwail's again (`cvar.h`, `gl_texmgr.h`, `platform.h`, `progs.h`, `view.h`, `zone.h`); `progs.h`
 has QVR fields again since (+3).
@@ -45,13 +48,18 @@ has QVR fields again since (+3).
 | `Quake/vr/vr.mk` | the three Makefiles | the module's objects, flags and rules |
 | `Windows/VisualStudio/quakevr.toolset.props`, `quakevr.props` | `ironwail.vcxproj` | the ClangCL toolset; Release flags (evaluated project items checked identical) |
 | `quakevr/.gitignore`, `Quake/vr/.gitignore` | `.gitignore` | the game folder's and the module's ignores |
+| `Quake/vr/iw/*.c` (20 files, 4453 lines) | 15 Ironwail files (iwextract, below) | whole blocks of Quake VR functions moved as they were; each file includes its block back at the same place (`#include "vr/iw/<file>_<what>.c" // QVR: ...`), so it stays in that translation unit (its statics, C, the same flags): the menu.c VR main menu and Load Autosave menu, caches, the pushers' grid, the program cache, the QC profiler... (`Quake/vr/iw/README.md`) |
 
 ## What stays inline, and why
 
 - Hot paths: the world traces (`world.c`: narrower hulls, precise hits), the brush and alias draw paths (`r_world.c`,
-  `r_alias.c`), the light loops in the shaders: moving them would add calls per entity or per surface.
+  `r_alias.c`), the light loops in the shaders: moving them out to the module would add calls per entity or per
+  surface. (A whole block of them can still go to `Quake/vr/iw/`: included, it compiles where it was.)
 - Code that needs a file's statics (`framesetup`, `glcanvas`, the console's text, the menus, the zone, the command
-  buffer, the texture list): moving it would mean exposing more of the engine than the move saves.
+  buffer, the texture list): moving it to the module would mean exposing more of the engine than the move saves; whole
+  functions of it go to `Quake/vr/iw/` instead (they keep the statics).
+- Our lines inside Ironwail's functions (a hook, a changed condition, a block in the middle of a function): an included
+  block must be whole top-level definitions, so these stay as hunks.
 - Engine fixes the module needs (a growing command buffer, lines of any length, no fixed cvar count, a bigger zone,
   atomic config writes): they change Ironwail's own logic.
 
@@ -154,3 +162,31 @@ after; `models` 0.028 / 0.026 ms.
 | `Quake/progs.h` | +2 -0 | upstream | 0 |  |
 | `Quake/view.h` | +1 -0 | upstream | 0 |  |
 | `Quake/zone.h` | +2 -0 | upstream | 0 |  |
+
+## iwextract (2026-11-28): blocks moved to Quake/vr/iw
+
+Pure moves (ROUND26.md, "iwextract"): each file's preprocessed text identical before and after (clang-cl `/E`, line
+markers dropped), the physics hash identical. Lines added vs `v0.8.2` before and after; the blocks moved:
+
+| File | Added before | Added after | Moved to `Quake/vr/iw/` |
+|---|---:|---:|---|
+| `Quake/menu.c` | 2369 | 1410 | `menu_main.c` (the VR main menu section, 560), `menu_autosaves.c` (Load Autosave menu, 332) |
+| `Quake/r_alias.c` | 1960 | 1524 | `r_alias_caches.c` (depth, eye and frame caches, frame lerp finish, pose history; 426) |
+| `Quake/r_world.c` | 1886 | 1429 | `r_world_litgrid.c` (the lit-surface split by the lights, C4v; 458) |
+| `Quake/gl_shaders.c` | 1517 | 991 | `gl_shaders_cache.c` (registry, binary cache, keys, limits; 228), `gl_shaders_queue.c` (deferred checks, queued compiles; 154), `gl_shaders_programs.c` (decal retro programs, lazy getters; 147) |
+| `Quake/host.c` | 807 | 489 | `host_tick.c` (fixed server tick and its stats; 161), `host_autosave.c` (autosave waits, co-op autosaves; 159) |
+| `Quake/gl_texmgr.c` | 776 | 478 | `gl_texmgr_normalmaps.c` (normal maps as textures, memory count; 217), `gl_texmgr_imagehash.c` (texture checksums, readback test; 83) |
+| `Quake/pr_cmds.c` | 395 | 122 | `pr_cmds_ext.c` (the extension builtins; 274; the builtin table stays) |
+| `Quake/sv_phys.c` | 521 | 274 | `sv_phys_pushgrid.c` (the pushers' candidate grid; 248) |
+| `Quake/pr_exec.c` | 298 | 102 | `pr_exec_profile.c` (per-function QuakeC profiler; 197) |
+| `Quake/common.c` | 716 | 546 | `common_basedirs.c` (the exe's base dirs, the game folder's root; 171) |
+| `Quake/gl_rmain.c` | 559 | 391 | `gl_rmain_zoned.c` (model fragment counts, zoned passes; 169) |
+| `Quake/gl_draw.c` | 380 | 269 | `gl_draw_runtimepics.c` (run-time pics; 112) |
+| `Quake/world.c` | 904 | 808 | `world_hullcompare.c` (sv_hulltrace_compare; 97) |
+| `Quake/net_main.c` | 241 | 145 | `net_main_slist.c` (the server browser's entries; 97) |
+| `Quake/pr_edict.c` | 675 | 593 | `pr_edict_kscheck.c` (pr_knownstrings_check; 83) |
+
+Not moved: our lines inside Ironwail's functions (most of what is left), `net_dgrm.c`'s packet queue (agent/split edits
+`NET_PortCheck` inside it) and `snd_vorbis.c`'s stb reader (split by `#if`). The "VR heap macro remap" (BACKLOG 9.2)
+has nothing left to move: since "nohunk"/"nozone" the C heap is mimalloc's through `vr_crtheap.c` at link level, and no
+Ironwail file remaps an allocator by macro.
