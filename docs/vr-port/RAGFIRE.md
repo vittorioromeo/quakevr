@@ -5,6 +5,8 @@ trying to aim at the player, at a lower rate and accuracy; one-handed ranged gun
 revolver...), never big, explosive or melee weapons.
 
 **Verdict: feasible and cheap as a prototype (done, off by default); good looks need one more engine step (the wrist).**
+**ragfire2 (section 4b): the wrist done and the arm lifts; on its back the gun now points 8 degrees off (median), its
+shots turned at most 10.**
 The weapon already rides the ragdoll's hand, the shot path takes any muzzle and line, and the active ragdoll already
 has per-arm reaches. What does not work well yet: a lying ragdoll's gun points 35 to 55 degrees off the player even
 with its arm reaching for him (measured below), so the prototype fires along a line turned up to 30 degrees from the
@@ -101,6 +103,48 @@ about once in 6 s.
   2. *Pose the fall*: a downed one rolling to its side towards the target before firing (the get-up's roll exists).
   3. *Dual guns*, the long guns' second hand, AD's armed variants outside the active classes, a reload while down.
   4. Tuning in VR (rate, error, cone) and a decision on the held case.
+
+## 4b. ragfire2: the wrist, and why the arm never lifted (branch agent/ragfire2, 2026-11-28)
+
+His words: "Can you make that fix?" (steer the hand, then bring the shot's turn back to ~10 degrees).
+
+- **The wrist** (`vr_agrunt_ragfire_wrist` 1, Debug > Tunables "Ragfire: Wrist"): the QC hands `ragdollaim` the gun's
+  drawn line too (`ragdollguard`'s optional `barrel`); the engine learns it in the hand bone's axes (`Aim::local`,
+  eased: the gun is fixed in the hand) and turns the hand bone's joint target so that line meets the way from the grip
+  to the target (`aimWrist`, vr_ragactive.cpp, after the arm's reach), clamped by the rig's wrist (the soldier's and
+  enforcer's hand_l/_r swing 30 degrees), at the aim's strength. Rigs without a hand bone get no wrist (as before).
+- **Three things held the arm on the floor** (found with `vr_debug_ragdoll` 2/3's `ragaim:`/`ragaim2:` lines):
+  1. *The shoulder's cone was never widened*: `shoulderReach` asked Box3D for 150 degrees, and
+     `b3SphericalJoint_SetConeLimit` skips anything over 90 (`B3_CHECK_INPUT`), so the arm kept the rig's 40 and its
+     goal was out of range. The aimed arm's cone is now clamped to 90. **A struggle's own 150 meets the same skip** (its
+     hands never go over its head): left as it is here (a BACKLOG line).
+  2. *The knockdown's stirring* (`vr_knockdown_stir_*`) picked the gun hand or arm and took it from the drive (its
+     `yield` bit zeroes the joint's strength): the wrist went limp. The aimed arm's bones are never stirred now
+     (`aimedArm`, vr_box3d_ragdoll.cpp).
+  3. *Too weak*: with the cone fixed, the shoulder's motor still sat at its cap 15 degrees short. The aimed arm and
+     wrist get a struggle-like arm drive (`aimArmDrive` 2: springs' hertz and motors' cap), still short of a turret: it
+     sways and lags as it lies.
+- **Defaults**: `vr_agrunt_ragfire_cone` 60 -> 35, `vr_agrunt_ragfire_steer` (now "Shot Turn") 30 -> 10; rate unchanged;
+  the muzzle-in-floor and line checks unchanged. Still off by default (experimental). The QC's learnt arm turn
+  (`vr_ag_rf_corr`) stays: without it (measured) the gun was further off, the wrist's 30 degrees too few on their own.
+
+Measured (test 237: 3 guns on their back, front, left and right side in two rounds, then staggering, each down 6 s;
+the drawn gun's angle off the player each frame once the arm has eased in; before = the prototype, cone 60, turn 30):
+
+| Pose | Before: median / 90th % | After: median / 90th % |
+| --- | --- | --- |
+| On its back | 44 / 50 deg | 8 / 20 deg |
+| On its left side | 74 / 104 | 44 / 58 |
+| On its right side | 56 / 86 | 38 / 58 |
+| On its front (gun under it, you behind it) | 122 / 148 | 82 / 170 |
+| Staggering | not measured (the first stagger case recovered at once) | 20 / 58 |
+| All poses | 64 / 128 | 32 / 122 |
+| The shots' own drawn gun angle | 40 / 50 (56 shots) | 8 / 20 (82 shots) |
+| Shots per 10 s down | 3.8 (cone 60) | 5.0 (cone 35) |
+
+Left as is: on its front it can't bring its gun round (needs section 4's "Pose the fall", a roll); on its side the gun
+arm is often the one under it. Held by a player the same aim and wrist run (not in the test: it needs the mock hand's
+grab).
 
 ## 5. Try it
 
