@@ -16,6 +16,7 @@
 #include "vr_gadget.hpp"
 #include "vr_gfx.hpp"
 #include "vr_notectx.hpp"
+#include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_testkit.hpp"
@@ -293,8 +294,39 @@ struct BodyPreview
     bool ok{false};
     int frame{-1}; // host_framecount it was made in
     int made{0};   // (vr_flatholster_dump)
+    int kept{0};   // frames it was kept as made (the body moved under keepPixels)
+    float moved{0.f}; // (vr_flatholster_dump) the last frame's most movement from the drawn body, picture pixels
+    glm::vec3 level{0.f}; // the view's level direction it was drawn from
 };
 BodyPreview bodyPreview;
+
+// (pcperf) The body's vertices as the picture shows them: a body that moved less than keepPixels of the picture since
+// keeps its picture (the raster was 1.5-2.2 ms a frame: standing with the menu open, its slowed time, the pose drifts by
+// hundredths of a pixel). Measured against the drawn vertices, never the last frame's, so the picture is never further off
+// than that.
+constexpr float keepPixels = 0.05f;
+struct BodyDrawn
+{
+    za::Vector<glm::vec3> verts;
+    auto members() { return mem::list(verts); }
+};
+mem::Cache<BodyDrawn> bodyDrawn{"holster menu body drawn", mem::Never};
+
+// The most any vertex of `now` moved from `was` (units; a different mesh: infinity).
+[[nodiscard]] float mostMoved(const za::Vector<glm::vec3>& was, const za::Vector<glm::vec3>& now)
+{
+    if(was.size() != now.size())
+    {
+        return 1e30f;
+    }
+    float most = 0.f;
+    for(za::SizeT i = 0; i < now.size(); i++)
+    {
+        const glm::vec3 d = now[i] - was[i];
+        most = za::max(most, za::max(za::abs(d.x), za::abs(d.y), za::abs(d.z)));
+    }
+    return most;
+}
 
 // The body drawn this frame (false: not posed, or nothing drawn: the stick figure instead).
 [[nodiscard]] bool posedBody()
@@ -304,19 +336,39 @@ BodyPreview bodyPreview;
     {
         return b.ok;
     }
+    QVR_PROFILE("holster menu body");
     b.frame = host_framecount;
-    b.ok = false;
     avatar::Skeleton sk;
-    if(!avatar::skeleton(sk) || !avatar::posedMesh(bodyScratch.verts, bodyScratch.tris, bodyScratch.parts, true))
+    if(!avatar::skeleton(sk))
     {
+        b.ok = false;
         return false;
     }
     const glm::vec3 fwd = sk.pelvisFrame.rot[2];
     glm::vec3 level{fwd.x, fwd.y, 0.f};
     level = glm::length(level) > 1e-3f ? glm::normalize(level) : glm::vec3{1.f, 0.f, 0.f};
+    {
+        QVR_PROFILE("holster menu body mesh");
+        if(!avatar::posedMesh(bodyScratch.verts, bodyScratch.tris, bodyScratch.parts, true))
+        {
+            b.ok = false;
+            return false;
+        }
+    }
+    // (pcperf) Seen the same way and moved less than keepPixels: the picture kept (keepPixels).
+    const float pixelsPerUnit = b.framing.scale;
+    b.moved = b.ok ? mostMoved(bodyDrawn.verts, bodyScratch.verts) * pixelsPerUnit : 1e30f;
+    if(b.ok && level == b.level && b.moved < keepPixels)
+    {
+        b.kept++;
+        return true;
+    }
+    QVR_PROFILE("holster menu body raster");
     b.ok = toolgun::icons::drawMesh(bodyScratch.verts, bodyScratch.tris, -level + glm::vec3{0.f, 0.f, bodyViewRise}, bodyPicW,
         bodyPicH, b.picture, b.framing);
     b.made += b.ok ? 1 : 0;
+    b.level = level;
+    bodyDrawn.verts = bodyScratch.verts;
     return b.ok;
 }
 
@@ -843,6 +895,7 @@ void draw()
     {
         return;
     }
+    QVR_PROFILE("holster menu");
     layOut();
     const Contents c = contents();
 
@@ -1772,6 +1825,11 @@ void dump_f()
         Con_Printf("  button \"%s\" at %.0f %.0f %.0f x %.0f: %s, impulse %d\n", b.name, b.rect.x, b.rect.y, b.rect.z, b.rect.w,
             enabled(b, c) ? "on" : "off", impulseOf(b));
     }
+    const toolgun::icons::MeshStats ms = toolgun::icons::lastMeshStats();
+    Con_Printf("  body preview: %s, made %d times, kept %d frames (moved under %.2f px), last moved %.3f px, %d triangles into "
+               "%d x %d\n",
+        bodyPreview.ok ? "shown" : "none", bodyPreview.made, bodyPreview.kept, keepPixels, bodyPreview.moved, ms.triangles,
+        ms.width, ms.height);
 }
 
 } // namespace
