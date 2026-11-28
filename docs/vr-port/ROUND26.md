@@ -6546,3 +6546,61 @@ His words (kit `scratch/fb1127n/words_1128b.md` item 18; his decision 11-28: mix
   well's side), and the debug ports' magazine dots and the mock's `pouchmag` follow the whole pouch's layout. Holstered
   and lying guns hide their buttons by this client's settings (another player's holstered guns draw no buttons anyway).
   Mixed loads: BACKLOG section 11 (bookkeeping, LIFO firing, refunds, HUD, MP; about 1-2 days).
+
+## navshare: chasers of an unreachable foe share one search; their repaths back off (branch agent/navshare, 2026-11-28)
+
+- **His ask**: monsters grouped together share the path search instead of each doing its own; for paths that can't reach
+  the player a backoff up to a maximum; monsters must not learn to open doors (they don't).
+- **Approach picked: (a), the island's nearest polygon, shared.** A partial search (foe unreachable) goes through the
+  walker's whole island and ends at the island's polygon nearest the foe. `chaseSearch` (vr_nav.cpp) keeps it (32 a
+  class): the island's polygons (sorted), that polygon, the foe's polygon and point, the class's `gen`. A chaser after it
+  starting on that island, same foe polygon, the foe's point within `vr_nav_repath_move` (64) and gen unchanged (4 x
+  `vr_nav_repath` at most) searches only to that polygon, aimed at its point nearest the foe: an A* that ends there
+  (~25 us) instead of exhausting the island (~170-200 us on this busy PC). Not reached (a one-way drop between): its own
+  full search (0 times in hip1m1). Why not (b) a flow field from the target: Detour has no reverse links (drops are one
+  way, costs are per polygon left), so it means a second search engine and other paths; (a) already took searches from
+  0.36 to 0.07 ms a frame. (c) corridor reuse would add little: the short search to a near polygon is a few nodes.
+- **gen** (a class's, new): bumped when refreshMovers' blocked polygons or a teleporter's open state differ from its last
+  pass (a sum), an obstacle tile is rebuilt or restored, or the mesh is made again. hip1m1's fight: ~15 bumps in 14 s.
+- **Paths: how they differ** (`vr_nav_share 2`, both searches each repath, hip1m1, 954 compared): 72% end on the same
+  polygon (684 the same path too). The rest end along the same edge: their end points 61 units apart on average
+  (max 261), the shared end nearer the foe 127 times, farther 88 (by 12 units), the same distance 48. Cause: a polygon's
+  place in a search is the middle of the edge it was first reached by, so among near-equal polygons the nearest swaps
+  with the start; every chaser of one shared island now picks the same one. They still head to the spot nearest him.
+- **Backoff** (`vr_nav_unreach_backoff_max`, cvar, 2.4 s; 0 off): the same unreachable foe polygon again, gen unchanged:
+  each wait twice the last (0.6, 1.2, 2.4 s). Ends at once (back on the plain 0.6 s interval, so never more searches
+  than without it) when gen changes, the walker is hurt, or once past the plain interval it can't see the foe (one
+  trace). A first version repathed at once on those: it searched 5% more; fixed. Gain in hip1m1: ~4% of the searches
+  (timer+mesh+sight 678 vs timer 704 in 720 frames): most chasers there can't see him, and most other repaths are
+  "off path" (pushed off their corridor: 500 of 1,230), which the shared search makes cheap instead. **Decision**: the
+  brief's ~0.5 s max is under the plain interval already (vr_nav_repath 0.6 x 0.75-1.25), so it would do nothing: 2.4 s.
+- **Gain** (PC Release, no LTO, hip1m1 fight: seed 1, 69 woken, 300 settle frames, 720 measured; profile_qc on; 3 runs
+  each interleaved; the PC was shared with other workers, so the absolute us are high and noisy):
+
+| config | searches/frame | full searches | shared | full us | shared us | search ms/frame | navsteer ms/frame | QuakeC ms/frame |
+|---|---|---|---|---|---|---|---|---|
+| off (`vr_nav_share 0`, backoff 0) | 1.71 | 1,230 | 0 | 209 | - | 0.357 (0.42/0.33/0.32) | 0.522 (0.66/0.46/0.44) | 4.26 |
+| share (backoff 0) | 1.76 | 150 | 1,117 | 172 | 27.5 | 0.078 (0.08/0.10/0.06) | 0.189 (0.19/0.23/0.15) | 3.41 |
+| share + backoff 2.4 (first version) | 1.84 | 139 | 1,189 | 148 | 22.3 | 0.065 | 0.240 (0.39/0.16/0.17) | 4.53 |
+| share + backoff 2.4 (final, 1 run) | 1.72 | 126 | 1,114 | 79 | 14.1 | 0.036 | | |
+
+  Search time a frame -78% (shared), navsteer -64%. combat_48: no partial searches (he is reachable there): 344
+  searches, 1.9-2.4 us each either way, the same fight (below). The Quest was not used (no headset run here).
+- **Balance** (`scratch/navshare_balance.py`: aglod_balance's census, vr_agrunt_test 235, 30 s, off vs on):
+
+| scene, seed | damage off/on | hits | shots | kills | game hash |
+|---|---|---|---|---|---|
+| hip1m1 7, 11, 23 | 0/0 each | 0/0 | 0/0 | 0/0 | differs (paths differ; no one reaches him in 30 s either way, as questopt2 found) |
+| combat48 7 | 2679/2679 | 323/323 | 9/9 | 13/13 | the same |
+| arena 7 | 218/218 | 30/30 | 0/0 | 0/0 | the same |
+
+  Time to reach: teleporters_test.sh chase 6/0 with the same frames on and off (45-345); arenapath_test.sh 16/0.
+- Debug: `vr_nav_sharestats [reset]` (Debug > Navmesh: "Print Chasers' Shared Searches"): searches a frame, full or
+  shared, their time, the repaths' causes (new, timer, moved, off path, mesh, hurt, sight), backed-off intervals, the
+  classes' gen; with `vr_nav_share 2` the shared-vs-own match counts. NAVMESH.md section 25.
+- Files: vr_nav.cpp (ShareIsland, NavClass gen/flagSum/share, Agent backoff fields, chaseSearch, sharestats_f, steer's
+  repath causes and backoff, refreshMovers' sum), vr_cvars.inc (vr_nav_share, vr_nav_unreach_backoff_max),
+  vr_menu_debug.inc, NAVMESH.md.
+- Open: the Quest A/B (vr_qcexec_time, both cvars); a scene where chasers of an unreachable foe later reach him (a door
+  opening mid-chase) to time the reach on/off; exactness of the end polygon could be had by choosing the island's
+  polygon by its true distance (closestPointOnPoly over the island: ~0.3 ms an island, not done).

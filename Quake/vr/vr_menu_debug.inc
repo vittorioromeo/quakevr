@@ -312,6 +312,10 @@ za::Vector<Item> pageDebugViews()
         command("Time the Chasers' Path Searches", "vr_nav_pathbench 20")
             .help("vr_nav_pathbench 20: the last 64 path searches of chasing monsters run 20 times each, by Detour's own way "
                   "and by Quake VR's faster one (vr_qc_builtin_fast): the time a search each way and whether every result matched."),
+        command("Print Chasers' Shared Searches", "vr_nav_sharestats reset")
+            .help("vr_nav_sharestats reset: the chasers' path searches since the last press: how many a frame, full or shared "
+                  "(vr_nav_share: chasers of a foe they can't reach share one search of their island), their time, why "
+                  "they searched again (vr_nav_unreach_backoff_max's backoff), then starts the count again."),
         command("Crowd Stall Test (40 s)", "vr_nav_crowdtest 40")
             .help("vr_nav_crowdtest 40: every walker comes at you; each half second one moved under 8 units while over 128 "
                   "away is a stall, given its cause (a monster or a wall in the way, a ledge, in a wall, no chase...). The "
