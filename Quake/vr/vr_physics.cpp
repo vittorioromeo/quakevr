@@ -1099,6 +1099,159 @@ extern "C" int VR_RunThink2(edict_t* ent)
     return !ent->free;
 }
 
+// ---- vr_think_spread: a crowd's thinks spread over frames (questframe) ----
+// Quake runs a think with `time` at its nextthink (SV_RunThink), so monsters woken on the same frame (a shot's noise, a
+// trigger, vr_test_monsters) think on the same frame every 0.1 s for good: hip1m1's 69 woken took QuakeC from ~2 ms to
+// 11-14 ms on every 7th frame on the Quest (the perf recorder's ev_qc; autocorrelation at lag 7), each a missed refresh.
+// Past vr_think_spread monster thinks in a server frame, the rest wait (their nextthink stays due); the next frame runs
+// them at its own time, as a think that fell due between frames always ran, so their next thinks fall on later frames:
+// the burst is spread once and stays spread. A think waits at most vr_think_spread_frames frames. Only FL_MONSTER
+// entities wait (no missile, trigger, door or player); the count is deterministic (no clock).
+namespace
+{
+namespace thinkspread
+{
+constexpr int ringSize = 1024;
+struct FrameRow
+{
+    int monsterThinks{0};
+    int deferred{0};
+    double monsterStatements{0.0};
+    double otherStatements{0.0};
+};
+struct State
+{
+    double frameTime{-1.0}; // the server frame being counted (qcvm->time)
+    FrameRow cur;
+    FrameRow ring[ringSize];
+    int ringCount{0};
+    int ringNext{0};
+    long long deferredTotal{0};
+    long long forcedTotal{0};
+    int longestWait{0};
+};
+State state;
+
+void closeFrame()
+{
+    State& s = state;
+    if(s.frameTime >= 0.0)
+    {
+        s.ring[s.ringNext] = s.cur;
+        s.ringNext = (s.ringNext + 1) % ringSize;
+        s.ringCount = za::min(s.ringCount + 1, ringSize);
+    }
+    s.cur = FrameRow{};
+}
+
+void touchFrame()
+{
+    State& s = state;
+    if(qcvm->time != s.frameTime)
+    {
+        closeFrame();
+        s.frameTime = qcvm->time;
+    }
+}
+
+[[nodiscard]] bool isMonster(edict_t* ent)
+{
+    return (static_cast<int>(ent->v.flags) & FL_MONSTER) != 0 && NUM_FOR_EDICT(ent) > svs.maxclients;
+}
+} // namespace thinkspread
+} // namespace
+
+extern "C" int VR_ThinkSpreadDefer(edict_t* ent)
+{
+    using namespace thinkspread;
+    const int cap = static_cast<int>(vr_think_spread.value);
+    if(cap <= 0 || qcvm != &sv.qcvm || !isMonster(ent))
+    {
+        ent->thinkdefer = 0;
+        return 0;
+    }
+    touchFrame();
+    State& s = state;
+    const int most = za::clamp(static_cast<int>(vr_think_spread_frames.value), 0, 60);
+    if(s.cur.monsterThinks >= cap && ent->thinkdefer < most)
+    {
+        ent->thinkdefer++;
+        s.cur.deferred++;
+        s.deferredTotal++;
+        s.longestWait = za::max(s.longestWait, static_cast<int>(ent->thinkdefer));
+        return 1;
+    }
+    if(s.cur.monsterThinks >= cap)
+    {
+        s.forcedTotal++;
+    }
+    ent->thinkdefer = 0;
+    return 0;
+}
+
+extern "C" void VR_ThinkSpreadRan(edict_t* ent, double statements)
+{
+    using namespace thinkspread;
+    if(qcvm != &sv.qcvm)
+    {
+        return;
+    }
+    touchFrame();
+    if(isMonster(ent))
+    {
+        state.cur.monsterThinks++;
+        state.cur.monsterStatements += statements;
+    }
+    else
+    {
+        state.cur.otherStatements += statements;
+    }
+}
+
+// vr_think_spread_stats [reset]: the server frames' thinks since the last reset (the last 1024 frames that ran any):
+// monster thinks a frame and their QC statements (median, 90th percentile, most), the other thinks' statements, the
+// thinks that waited and the longest wait.
+extern "C" void VR_ThinkSpreadStats(void)
+{
+    using namespace thinkspread;
+    State& s = state;
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
+    {
+        s = State{};
+        Con_Printf("vr_think_spread_stats: reset\n");
+        return;
+    }
+    const int n = s.ringCount;
+    if(n == 0)
+    {
+        Con_Printf("vr_think_spread_stats: no frames yet\n");
+        return;
+    }
+    za::Vector<double> thinks, mst, ost;
+    thinks.reserve(static_cast<za::SizeT>(n));
+    mst.reserve(static_cast<za::SizeT>(n));
+    ost.reserve(static_cast<za::SizeT>(n));
+    int deferredFrames = 0;
+    for(int i = 0; i < n; i++)
+    {
+        const FrameRow& r = s.ring[i];
+        thinks.pushBack(r.monsterThinks);
+        mst.pushBack(r.monsterStatements);
+        ost.pushBack(r.otherStatements);
+        deferredFrames += r.deferred > 0;
+    }
+    const auto q = [](za::Vector<double>& v, double p) {
+        za::quickSort(v.begin(), v.end(), [](double a, double b) { return a < b; });
+        return v[za::min(static_cast<za::SizeT>(p * static_cast<double>(v.size())), v.size() - 1)];
+    };
+    Con_Printf("vr_think_spread_stats: %d frames (vr_think_spread %g, frames %g): monster thinks a frame med %.0f p90 %.0f "
+               "max %.0f; their statements med %.0f p90 %.0f max %.0f; others' statements med %.0f p90 %.0f max %.0f; "
+               "%lld waited (%d frames with any, %lld ran at the wait's end), longest wait %d frames\n",
+        n, vr_think_spread.value, vr_think_spread_frames.value, q(thinks, 0.5), q(thinks, 0.9), q(thinks, 1.0),
+        q(mst, 0.5), q(mst, 0.9), q(mst, 1.0), q(ost, 0.5), q(ost, 0.9), q(ost, 1.0), s.deferredTotal, deferredFrames,
+        s.forcedTotal, s.longestWait);
+}
+
 extern "C" void VR_ClientPreMove(edict_t* ent)
 {
     QVR_PROFILE("vr hand touches");
