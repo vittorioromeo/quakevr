@@ -444,6 +444,21 @@ struct WeaponFrame
 // How closed the jointed hand's four fingers were as last drawn (0 open .. 1 the tightest fist): their joints' mean, with
 // any grasp (fingerCurl is the controller's curl alone). -1: no jointed hand drawn. (polepose: the pole track's grip check.)
 [[nodiscard]] float drawnGripCurl(int hand);
+// The jointed hand as last drawn, for comparisons (reloadstudio2: the Reload Studio's lock against a real reload): its
+// entity's place and angles (after the grasp's palm move), the palm's move (units in the rig) and turn (degrees) the grasp
+// gave it, whether it wraps something (the grasp's held thing) and each finger's mean curl (0 open .. 1 closed). False: no
+// jointed hand drawn.
+struct DrawnHandDiag
+{
+    glm::vec3 origin{0.f};
+    glm::vec3 angles{0.f};
+    float palmMove{0.f};
+    float palmTurn{0.f};
+    bool wraps{false};
+    bool wrapsWeapon{false}; // (what it wraps is a weapon: its own, or the other hand's it helps hold)
+    float curl[5]{};
+};
+bool drawnHandDiag(int hand, DrawnHandDiag& out);
 // Flatscreen play: `hand` pinned on the other hand's pole weapon held as a spear (flatsight::pinShare, twohand::poleWeapon):
 // drawn closed round its shaft (polepose).
 [[nodiscard]] bool onFlatPole(int hand);

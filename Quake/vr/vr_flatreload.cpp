@@ -21,6 +21,7 @@
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatprocreload.hpp"
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
@@ -263,7 +264,9 @@ void openFrame(float dt)
     {
         OpenPose& o = rs.openPose[h];
         const int kind = openKind(h);
-        const bool open = kind != 0;
+        // (reloadstudio2: not while a procedural reload poses that gun, its keys' tilt alone, as the Reload Studio's lock shows it:
+        // the revolver's open pose on top of it put the free hand 19 units and 45 degrees off the studio's at the take.)
+        const bool open = kind != 0 && !flatprocreload::posesGun(h);
         if(open)
         {
             o.kind = kind;

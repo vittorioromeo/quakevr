@@ -46,6 +46,7 @@ struct Cam
     bool eyeValid{false};
     double lastReal{-1.0};    // realtime of the last flight step (the flight runs on while the game is held)
     bool keyWas{false};       // vr_flat_key_flycam down last frame
+    int otherFrame{-100};     // host_framecount another tool's camera last had the view (borrowView: the Reload Studio's)
 };
 
 Cam cam;
@@ -519,14 +520,24 @@ bool holds()
     return cam.on && vr_flat_flycam_pause.value != 0.f && sv.active && svs.maxclients == 1 && !cls.demoplayback;
 }
 
+[[nodiscard]] bool viewElsewhere()
+{
+    return cam.eyeValid && (cam.on || host_framecount - cam.otherFrame <= 1);
+}
+
 glm::vec3 eyeOrg()
 {
-    return cam.on && cam.eyeValid ? cam.eyeOrg : geom::vec(r_refdef.vieworg);
+    return viewElsewhere() ? cam.eyeOrg : geom::vec(r_refdef.vieworg);
 }
 
 glm::vec3 eyeAngles()
 {
-    return cam.on && cam.eyeValid ? cam.eyeAngles : geom::vec(r_refdef.viewangles);
+    return viewElsewhere() ? cam.eyeAngles : geom::vec(r_refdef.viewangles);
+}
+
+void borrowView()
+{
+    cam.otherFrame = host_framecount;
 }
 
 void frame(bool flatOn)

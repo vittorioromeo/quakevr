@@ -781,7 +781,9 @@ void(float xHand) VR_FlatReload_ProcFrame =
         VR_FlatReload_ProcStop(xHand, TRUE, "the reserve is out");
         return;
     }
-    float giveUp = max(0.5, cvar_hget(cvarh_vr_flat_prl_giveup));
+    // (reloadstudio2: longer when the reloads play slower, vr_reload_speed under 1; a gun's own speed is the client's, at
+    // least 0.5: its longest step between takes stays inside the default.)
+    float giveUp = max(0.5, cvar_hget(cvarh_vr_flat_prl_giveup)) / min(1, max(0.5, cvar_hget(cvarh_vr_reload_speed)));
     if(time >= self.vr_fprl_prog + giveUp)
     {
         VR_FlatReload_ProcStop(xHand, FALSE, sprintf("failsafe: nothing taken or loaded for %g s", giveUp));

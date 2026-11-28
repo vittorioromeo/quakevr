@@ -6376,3 +6376,48 @@ Counts: closed 1 (a sub-item), trimmed 5, kept the rest (about 73), added 3.
   in yet ("Ammo type follows the loaded magazine" stays).
 - **Added (section 11):** mixed ammo loads in launchers (placeholder for the ammomags worker), `vr_menu_pad_test` hang on agent/split,
   the unused scenes `agrunt_dual_guns` and `armour_beasts`.
+
+## reloadstudio2: the Reload Studio shows what the game does; orbit camera, gun gizmo, gun pose paste; straight back to the 2H grip; reload speed (branch agent/reloadstudio2, 2026-11-28)
+
+His notes 2026-11-28 (kit `scratch/fb1127n/words_1128b.md` items 9-12) and his later ask (a global and a per-gun reload
+speed). His reloads.txt values are untouched (no frame change forced a conversion).
+- **Why the studio and the game differed** (measured: `vr_flatprocreload_pose` prints the free hand, its drawn entity, the item
+  and the fingers in the drawn gun hand's frame; `vr_flat_prl_hold N` holds a real reload at key N's end): (1) the lock's item
+  was drawn after the hands and wrapped by nothing: the fingers closed to a fist through it (curl 1.25), while the real hand
+  wrapped the server's item with the prop's VR finger settings (Held Object Offsets), the grasp moving the palm up to 1.9 units
+  and turning it up to its 20 degree limit; (2) in a real reload the item rode the hand placed before the drawn-gun attach
+  (followDrawnHands) while the hand itself was carried on the drawn gun (attachDrawn): the item moved in the hand, the grasp
+  re-solved warm every frame and drifted to a 20 degree palm turn at the carry (0 at the take); (3) before a gun's first real
+  take the lock used the shotgun pair's place in the hand for every gun's item: the hand solved for a magazine sat 1-2 units off
+  the real one; (4) the port and the seated magazine were measured on the breathing, swaying drawn gun against the steady hand,
+  then carried on the drawn gun again: the hand drifted 0.2-0.3 units about the port over time; (5) the revolver's (and the
+  broken-open super shotgun's) open pose was added on top of the keys' tilt in a real reload, never in the lock: 19 units / 45
+  degrees at the revolver's take; (6) the lock's empty hand kept the guard's fist as its fingers' input, the real hand (holding a
+  prop) didn't.
+- **Fixes**: one path for both (vr_view_hands.cpp setupHand): after attachDrawn, a busy free hand's item is put rigid on the
+  hand as drawn (`held::followHand`; the lock's `placePrlItem`, moved there from after the hands) and wrapped with the prop's
+  fingers (`propHeld`, shared with every held prop); per-gun item places in the hand (vr_flatprocreload.cpp `itemDefaults`,
+  measured from real takes, deterministic; a take still measures afresh); flat play's ports and seats steadied like the muzzle
+  (vr_view.cpp, flat only); the open pose eases out while a procedural reload poses the gun (`flatprocreload::posesGun`); the
+  round's grip input without the guard fist (vr_view.cpp updateFingerFrames).
+- **Straight back to the grip** (item 10): a reload's-end key to the hand's own pose (`freesForGrip`) lets flatsight take the
+  hand now: the grip's pin (rocket launcher, shotgun-style grips) and the stance look (nailguns) during the return key, so its
+  target is the grip and nothing is left to ease after the trip. One-handed guns: no grip, as before.
+- **Studio**: Camera: His Eyes / Orbit / Reset View; over the scene right drag orbits, middle drag pans, the wheel zooms
+  (`VR_ReloadStudioView` after the fly camera; `flycam::borrowView` keeps his hands posed from his own eye). Gizmo: On the Hand /
+  On the Gun (Move: the key's gun Move in the body's frame; Rotate: its Tilt about the gun's axes, the turned angles less the
+  drawn ones). Copy Gun Pose, Paste, Paste Down (into the next key and on to it), Paste Up (the previous). Reload: Speed.
+- **Speed** (his ask): `vr_reload_speed` (Tunables > Flatscreen > Procedural Reload, default 1, 0.5..3) times each gun's `speed`
+  (reloads.txt, the studio's Speed row; default 1) scales every key's times, the take's wait and the studio's Play; the server's
+  give-up stretches under 1. Movement is never slowed by a reload (nothing did, nothing does).
+- **Debug** (Debug > Flatscreen): Procedural Reload: Hold Real Reload at Key (`vr_flat_prl_hold`), Pose Print
+  (`vr_flatprocreload_pose`).
+- **Tests**: `Misc/quakevr/reloadstudio_pose_test.sh <tree>` (`vr_reloadstudio posetest` per gun: the lock before any real
+  reload vs a held real reload, the take key and the carry after it; plus the speed runs 1x / 2x / gun 0.5: 0.82 / 0.44 / 1.60 s,
+  full). Matrix `flatprocreload_test.sh matrix-<gun>`: see the report. `vr_reloadstudio test` 15/0.
+- **Open**: the grasp on a taped pair (super shotgun, revolver) and on the thunderbolt's and nail pistol's magazines still
+  settles on one of two solutions (palm 0 or 20 degrees) depending on how the hand got there: the grasp solves afresh once the
+  item rests, with the controller-curl input of that moment (sameGrasp ignores curls); a fix is a fresh solve once the busy
+  hand's input curls settle (vr_view_hands.cpp updateGrasp). The super nailgun's take differs 4.5 units (the gun posed
+  differently at the take: not found). The lock draws the super shotgun shut and the revolver's cylinder in (the real reload
+  opens them), so their carry isn't compared. No frame strips were made (budget).

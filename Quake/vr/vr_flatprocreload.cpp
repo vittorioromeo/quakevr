@@ -176,7 +176,54 @@ struct ItemMemory
 };
 ItemMemory itemMem;
 
-// `item` made the one measured for `weapon` (its first take not yet seen: the shotgun's pair's as measured).
+const char* lockItemModelFor(int weapon);
+
+// reloadstudio2: each gun's item as a real take puts it in the free hand (the server's place for it, measured 2026-11-28 with
+// the shipped props: vr_flat_proc_reload_debug's fprl_item_at / _axes lines; the same at every take): before a gun's first
+// real take the studio's lock used the shotgun's pair's place for any gun's item, so the hand it solved for a magazine sat
+// 1-2 units off the one a real reload solves (his note item 11). A take still measures it afresh (a props edit).
+// `at`, `ref`: units; `fwd`, `left`: the item's model axes in the hand's frame.
+struct ItemDefault
+{
+    int weapon;
+    glm::vec3 at, ref, fwd, left;
+};
+constexpr float rh = 0.70711f;
+const ItemDefault itemDefaults[]{
+    {WID_SHOTGUN, {-0.25f, -0.1875f, -1.875f}, {0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}},
+    {WID_SUPER_SHOTGUN, {-0.25f, -0.1875f, -1.875f}, {0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}},
+    {WID_REVOLVER, {-0.25f, -0.1875f, -1.875f}, {0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}},
+    {WID_NAILGUN, {-1.155f, -0.0275f, -1.8425f}, {0.f, 0.f, 1.815f}, {1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}},
+    {WID_SUPER_NAILGUN, {-1.17f, -0.0315f, -1.6785f}, {0.f, 0.f, 2.115f}, {1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}},
+    {WID_LIGHTNING, {-1.17f, -0.0315f, -1.6785f}, {0.f, 0.f, 1.62f}, {1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}},
+    {WID_NAILPISTOL, {-1.87f, 0.275f, -1.815f}, {0.f, 0.f, 1.518f}, {1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}},
+    {WID_GRENADE_LAUNCHER, {-1.7435f, -0.0314f, -2.6227f}, {-2.7207f, 0.f, 0.f}, {rh, 0.f, rh}, {0.f, 1.f, 0.f}},
+    {WID_PROXIMITY_GUN, {-1.3938f, 0.0126f, -2.3661f}, {0.f, 0.f, 0.f}, {rh, 0.f, -rh}, {0.f, 1.f, 0.f}},
+    {WID_ROCKET_LAUNCHER, {-1.3473f, -0.0384f, -2.315f}, {-3.937f, 0.f, 0.f}, {rh, 0.f, rh}, {0.f, 1.f, 0.f}},
+};
+
+// The item before a gun's first real take: its measured default (a taped pair's line from its model, as measureRound finds it).
+[[nodiscard]] ItemInHand defaultItemOf(int weapon)
+{
+    ItemInHand it;
+    for(const ItemDefault& d : itemDefaults)
+    {
+        if(d.weapon != weapon)
+        {
+            continue;
+        }
+        it.at = d.at;
+        it.ref = d.ref;
+        it.axes = glm::mat3{d.fwd, d.left, glm::cross(d.fwd, d.left)};
+    }
+    if(const qmodel_t* m = view::viewModel(lockItemModelFor(weapon)); m && ZA_STRSTR(m->name, "pair"))
+    {
+        it.across = (m->maxs[1] - m->mins[1]) >= (m->maxs[2] - m->mins[2]) ? glm::vec3{0.f, 1.f, 0.f} : glm::vec3{0.f, 0.f, 1.f};
+    }
+    return it;
+}
+
+// `item` made the one measured for `weapon` (its first take not yet seen: its default, defaultItemOf).
 void useItemOf(int weapon)
 {
     if(itemMem.current == weapon)
@@ -184,7 +231,7 @@ void useItemOf(int weapon)
         return;
     }
     itemMem.current = weapon;
-    item = ItemInHand{};
+    item = defaultItemOf(weapon);
     for(int i = 0; i < itemMem.count; i++)
     {
         if(itemMem.weapon[i] == weapon)
@@ -585,6 +632,10 @@ bool measureRound(int free)
                    "size %.2f, its reference %.2f %.2f %.2f\n",
             in.x, in.y, in.z, a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z, item.scale, item.ref.x,
             item.ref.y, item.ref.z);
+        // (Short lines in full, the built-in table's values: itemDefaults.)
+        Con_Printf("fprl_item_at: %d %.4f %.4f %.4f size %.4f ref %.4f %.4f %.4f\n", ps.trip.weapon, in.x, in.y, in.z, item.scale,
+            item.ref.x, item.ref.y, item.ref.z);
+        Con_Printf("fprl_item_axes: %d %.5f %.5f %.5f %.5f %.5f %.5f\n", ps.trip.weapon, a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z);
     }
     return true;
 }
@@ -634,6 +685,26 @@ void report_f()
         lk.on ? "on" : "off", lk.on ? lk.key + 1 : 0, lk.on ? keyName(r, lk.key) : "-", lk.t, handName(lk.free), rel.x, rel.y, rel.z, fr.x,
         fr.y - gr.y, fr.z, gun.x, gun.y, gun.z, lk.pair ? 1 : 0, busy(lk.free) ? 1 : 0, ps.portGap, gripShare(lk.free),
         view::drawnGripCurl(lk.free));
+}
+
+// vr_flatprocreload_pose (reloadstudio2: the lock against a real reload, his note 2026-11-28 item 11): the pose sample
+// (poseSample) printed: "fprl_pose: ..." and three lines more (short: the console wraps long ones).
+void pose_f()
+{
+    PoseSample p;
+    if(!poseSample(p))
+    {
+        Con_Printf("fprl_pose: none\n");
+        return;
+    }
+    Con_Printf("fprl_pose: %s key %d t %.2f hand %.2f %.2f %.2f turn %.1f %.1f %.1f\n", p.lock ? "lock" : "trip", p.key + 1, p.t,
+        p.handPos.x, p.handPos.y, p.handPos.z, p.handRot.x, p.handRot.y, p.handRot.z);
+    Con_Printf("fprl_pose_drawn: %.2f %.2f %.2f turn %.1f %.1f %.1f palm %.2f %.1f wraps %d\n", p.drawnPos.x, p.drawnPos.y, p.drawnPos.z,
+        p.drawnRot.x, p.drawnRot.y, p.drawnRot.z, p.palmMove, p.palmTurn, p.wraps);
+    Con_Printf("fprl_pose_item: %d %.2f %.2f %.2f turn %.1f %.1f %.1f in hand %.2f %.2f %.2f turn %.1f %.1f %.1f\n", p.item ? 1 : 0,
+        p.itemPos.x, p.itemPos.y, p.itemPos.z, p.itemRot.x, p.itemRot.y, p.itemRot.z, p.inHandPos.x, p.inHandPos.y, p.inHandPos.z,
+        p.inHandRot.x, p.inHandRot.y, p.inHandRot.z);
+    Con_Printf("fprl_pose_curl: %.2f %.2f %.2f %.2f %.2f\n", p.curl[0], p.curl[1], p.curl[2], p.curl[3], p.curl[4]);
 }
 
 [[nodiscard]] int lockValue()
@@ -952,6 +1023,7 @@ void applyLock(hands::State& s)
 void init()
 {
     Cmd_AddCommand("vr_flatprocreload_report", report_f);
+    Cmd_AddCommand("vr_flatprocreload_pose", pose_f);
     Cmd_AddCommand("vr_flat_prl_lock_next", lockNext_f);
     Cmd_AddCommand("vr_flat_prl_lock_prev", lockPrev_f);
     reloadsys::init();
@@ -1117,9 +1189,11 @@ void frame(bool on)
     measurePort(t.gun);
     measureDest(t.gun, *r);
     key = &r->keys[t.key];
-    t.t = za::min(1.f, t.t + step / reloadsys::handTime(*key));
-    t.gt = za::min(1.f, t.gt + step / reloadsys::gunTime(*key));
-    const double since = vr_gametime - t.keyAt;
+    // (reloadstudio2: the gun's speed and vr_reload_speed scale every key's times: `since` below in the keys' own seconds.)
+    const float speed = reloadsys::playSpeed(*r);
+    t.t = za::min(1.f, t.t + step * speed / reloadsys::handTime(*key));
+    t.gt = za::min(1.f, t.gt + step * speed / reloadsys::gunTime(*key));
+    const double since = (vr_gametime - t.keyAt) * static_cast<double>(speed);
     const int carried = carriedEnt(t.free);
     const float failsafe = timeOf(vr_flat_prl_failsafe, 0.05f);
     const auto cond = [&](Cond c) { return condMet(c, t.gun); };
@@ -1177,6 +1251,8 @@ void frame(bool on)
         return;
     }
     bool done = t.t >= 1.f;
+    // (vr_flat_prl_hold N, a test aid: held at key N's end, no failsafe, until it is set back.)
+    const bool holdHere = static_cast<int>(vr_flat_prl_hold.value) == t.key + 1 && !t.ending;
     switch(key->action)
     {
         case Action::Take:
@@ -1198,7 +1274,7 @@ void frame(bool on)
                 }
             }
             done = carried > 0 && since >= static_cast<double>(reloadsys::handTime(*key)) - 1e-4;
-            if(carried == 0 && since >= static_cast<double>(reloadsys::handTime(*key) + failsafe))
+            if(carried == 0 && since >= static_cast<double>(reloadsys::handTime(*key) + failsafe * speed))
             {
                 ps.failsafes++;
                 cancel(t.takeSent ? "failsafe: the pouch gave nothing" : "failsafe: the hand never reached the pouch's hotspot", true);
@@ -1215,7 +1291,7 @@ void frame(bool on)
                     t.atPortAt = vr_gametime;
                     ps.insertGap = ps.portGap;
                 }
-                else if(vr_gametime - t.atPortAt >= static_cast<double>(failsafe))
+                else if(vr_gametime - t.atPortAt >= static_cast<double>(failsafe) && !holdHere)
                 {
                     ps.failsafes++;
                     cancel("failsafe: the round wasn't seated at the port", true);
@@ -1225,7 +1301,7 @@ void frame(bool on)
             break;
         default: break;
     }
-    if(!done)
+    if(!done || holdHere)
     {
         return;
     }
@@ -1318,6 +1394,23 @@ bool portNow(const hands::State& s, int g, glm::vec3& port)
     return true;
 }
 
+bool posesGun(int h)
+{
+    return (ps.trip.on && h == ps.trip.gun) || (lk.on && h == lk.gun);
+}
+
+bool freesForGrip(int h)
+{
+    const bool lock = lk.on && h == lk.free;
+    if(!lock && !(ps.trip.on && ps.trip.ending && h == ps.trip.free))
+    {
+        return false;
+    }
+    const Reload* r = reloadOf(lock ? lk.weapon : ps.trip.weapon);
+    const int k = lock ? lk.key : ps.trip.key;
+    return r && k >= 0 && k < r->keyCount && r->keys[k].finish && r->keys[k].target == Target::Rest;
+}
+
 bool busy(int h)
 {
     return (ps.trip.on && h == ps.trip.free) || (lk.on && h == lk.free);
@@ -1344,7 +1437,14 @@ glm::vec3 lockPairPlace(const glm::vec3& handPos, const glm::vec3& handRot, glm:
 
 const char* lockItemModel()
 {
-    switch(lk.weapon)
+    return lockItemModelFor(lk.weapon);
+}
+
+namespace
+{
+const char* lockItemModelFor(int weapon)
+{
+    switch(weapon)
     {
         case WID_NAILGUN: return "progs/vr_mag_nail.mdl";
         case WID_SUPER_NAILGUN: return "progs/vr_mag_snail.mdl";
@@ -1358,6 +1458,7 @@ const char* lockItemModel()
         default: return "progs/vr_shell_pair.mdl";
     }
 }
+} // namespace
 
 Status status()
 {
@@ -1380,6 +1481,78 @@ Status status()
     st.failsafes = ps.failsafes;
     st.lastCancel = ps.lastCancel;
     return st;
+}
+
+bool poseSample(PoseSample& out)
+{
+    const bool lock = lk.on;
+    const int f = lock ? lk.free : ps.trip.free;
+    const int g = 1 - f;
+    glm::vec3 gp, gr, fp, fr;
+    view::DrawnHandDiag d;
+    if((!lock && !ps.trip.on) || !view::drawnHandPose(g, gp, gr) || !view::drawnHandPose(f, fp, fr) || !view::drawnHandDiag(f, d))
+    {
+        return false;
+    }
+    const glm::mat3 toGun = glm::transpose(held::axesFromAngles(&gr[0], true));
+    const auto relAngles = [&](const glm::mat3& axes) {
+        glm::vec3 a;
+        held::anglesFromAxes(toGun * axes, &a[0], true);
+        return a;
+    };
+    PoseSample p;
+    p.lock = lock;
+    p.key = lock ? lk.key : ps.trip.key;
+    p.t = lock ? lk.t : ps.trip.t;
+    p.handPos = toGun * (fp - gp);
+    p.handRot = relAngles(held::axesFromAngles(&fr[0], true));
+    p.drawnPos = toGun * (d.origin - gp);
+    p.drawnRot = relAngles(held::axesFromAngles(&d.angles[0], false));
+    glm::vec3 itemAt{0.f};
+    glm::mat3 itemAxes{1.f};
+    if(lock && lk.pair)
+    {
+        itemAt = lockPairPlace(fp, fr, itemAxes);
+        p.item = true;
+        p.itemModel = lockItemModel();
+    }
+    else if(const int ent = carriedEnt(f); !lock && ent > 0 && ent < cl.num_entities)
+    {
+        const entity_t& e = cl_entities[ent];
+        itemAt = geom::vec(e.origin);
+        itemAxes = held::axesFromAngles(&e.angles[0], false);
+        p.item = true;
+        p.itemModel = e.model ? e.model->name : "";
+        p.itemFrame = e.frame;
+    }
+    if(p.item)
+    {
+        p.itemPos = toGun * (itemAt - gp);
+        p.itemRot = relAngles(itemAxes);
+        const glm::mat3 toHand = glm::transpose(held::axesFromAngles(&fr[0], true));
+        p.inHandPos = toHand * (itemAt - fp);
+        held::anglesFromAxes(toHand * itemAxes, &p.inHandRot[0], true);
+    }
+    p.palmMove = d.palmMove;
+    p.palmTurn = d.palmTurn;
+    p.wraps = d.wrapsWeapon ? 2 : d.wraps ? 1 : 0;
+    for(int i = 0; i < 5; i++)
+    {
+        p.curl[i] = d.curl[i];
+    }
+    out = p;
+    return true;
+}
+
+bool lockGunFrame(glm::vec3& handPos, glm::vec3& handRot, glm::vec3& bodyFwd, glm::vec3& bodyRight, float& side)
+{
+    if(!lk.on || !reloadOf(lk.weapon) || !view::drawnHandPose(lk.gun, handPos, handRot))
+    {
+        return false;
+    }
+    bodyAxes(hands::current().bodyYaw, bodyFwd, bodyRight);
+    side = sideOf(lk.gun);
+    return true;
 }
 
 bool lockFrames(glm::vec3& framePos, glm::mat3& frameAxes, glm::vec3& handPos, glm::vec3& handRot, int& kind)
