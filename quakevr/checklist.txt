@@ -62,6 +62,9 @@ Immersive reloading, a nailgun in hand: it has no ammo button, and the ammo pouc
 Immersive reloading, the rocket launcher with rockets in it: a multi-rocket from the pouch's left half won't go in (a dull tap); fire it empty and the multi-rocket loads, then it fires multi-rockets. The grenade launcher the same. {test:ammomags}
 Reloading on Hip Holsters or Off: the multi-ammo guns show their ammo button again and it switches the ammo as before; the pouch is not split. {test:ammomags}
 Flat-screen: with the procedural reload on, the nailgun shows no ammo button; N still switches its ammo and the next reload loads the new kind. {test:ammomags}
+Flat-screen: in the Reload Studio lock the super shotgun's and the revolver's keys after the break open / open: the gun is drawn broken open / swung out (the revolver's spent shells gone), as in a real reload. {test:flat_proc_reload}
+Flat-screen: in the Reload Studio lock the super nailgun's keys after the eject: the magazine is drawn out and the gun sits where a real reload holds it, the free hand at the pouch in the same place. {test:flat_proc_reload}
+Flat-screen: reload the super shotgun, the revolver, the thunderbolt and the nail pistol, then lock their take and carry keys in the Reload Studio: the hand holds the shells or magazine with the same wrist turn and fingers in both. {test:flat_proc_reload}
 
 [1. Installer, start-up and platforms]
 ## Setup and Quest install
