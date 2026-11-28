@@ -920,7 +920,7 @@ void lookFit(const Shell& s, const rig2::Rig& rig, bool skipUpperArms, LookFit& 
 void lookCheck_f()
 {
     constexpr int triBudget = 3400;   // a body's whole set (the player's default was 23 000, a grunt's 3 436)
-    constexpr float hueApart = 30.f;  // degrees between any two tiers' means
+    constexpr float hueApart = 25.f;  // degrees between any two tiers' means (armourstyle: a mustard ochre and a brick red, his "after"; apart in value and saturation too)
     constexpr float redSatMost = 0.82f, redSatLeast = 0.35f;
     constexpr float mirrorMost = 0.25f;  // units: left against right, the plates' outer vertices (the player's symmetric body)
     constexpr float mirrorMostAuthored = 4.f; // (a humanoid's: its two arms' rest poses and meshes differ)

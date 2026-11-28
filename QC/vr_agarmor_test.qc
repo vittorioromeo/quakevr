@@ -646,6 +646,23 @@ void() VR_AgArmor_TestFrame =
             VR_AgArmor_Give(VR_ART_Spawn(p, 44), 3, 1023);
             return;
         }
+        if(request == 24)
+        {
+            // (armourstyle's lineup renders: a bare one, then green, yellow and red full sets, three quarters on; temp1 the
+            // kind: 0 grunts, 1 enforcers, 2 knights, 3 death knights)
+            float k24 = cvar_hget(cvarh_temp1);
+            float i24;
+            for(i24 = 0; i24 < 4; i24++)
+            {
+                entity e24 = VR_ART_SpawnKind(p, -57 + 38 * i24, k24, 370);
+                e24.angles_y = e24.angles_y - 35;
+                if(i24 > 0)
+                {
+                    VR_AgArmor_Give(e24, i24, 1023);
+                }
+            }
+            return;
+        }
         if(request == 3)
         {
             // (P2's eyeshots: enforcers in full green (facing), yellow (side on) and red (its back: the power pack) sets)

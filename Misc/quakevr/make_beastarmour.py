@@ -1102,7 +1102,7 @@ def skins():
     out = []
     for level in (0, 1, 2):
         for armor in (1, 2, 3):
-            full = np.frombuffer(make_agarmor.to_palette(make_agarmor.paint(lay, armor, level), armor, lay.emblem), np.uint8)
+            full = np.frombuffer(make_agarmor.to_palette(make_agarmor.paint(lay, armor, level), armor, lay.accent), np.uint8)
             full = full.reshape(make_agarmor.SKIN_H, make_agarmor.SKIN_W)
             out.append(full[::HALF, ::HALF].copy().tobytes())
     return out
