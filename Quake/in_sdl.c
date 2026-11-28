@@ -551,6 +551,26 @@ gamepadtype_t IN_GetGamepadType (void)
 	return joy_active_type;
 }
 
+// QVR: SDL's own type of the gamepad in use (SDL_GameControllerType; -1: none, 0: unknown): the Controller Bindings
+// screen's picture (vr/vr_bindsetup.cpp).
+int IN_GetGamepadSdlType (void)
+{
+	if (!joy_active_controller)
+		return -1;
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+	return (int) SDL_GameControllerGetType (joy_active_controller);
+#else
+	return 0;
+#endif
+}
+
+// QVR: nonzero when a gamepad is connected and is the device last used (the bindings reminder panels show its buttons
+// then: vr/vr_bindpanel.cpp).
+int IN_GamepadLastUsed (void)
+{
+	return joy_active_controller != NULL && IN_GetLastActiveDeviceType () == KD_GAMEPAD;
+}
+
 void IN_UseNextGamepad (int dir, qboolean allow_disable)
 {
 	int i, j, numiter, numdev;

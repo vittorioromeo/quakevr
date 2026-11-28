@@ -36,7 +36,8 @@ float(float easy, float hard, float nightmare) VR_AGAI_Skill =
 };
 
 float() VR_AGAI_Aggression = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_aggression)) * VR_AGAI_Skill(0.85, 1.2, 1.4); };
-float() VR_AGAI_Accuracy = { return max(0.05, max(0, cvar_hget(cvarh_vr_agrunt_ai_accuracy)) * VR_AGAI_Skill(0.8, 1.25, 1.5)); };
+// (a flashlight in its eyes makes it worse: VR_AG_DazzleAim, 1 undazzled; vr_armedgrunt_dazzle.qc)
+float() VR_AGAI_Accuracy = { return max(0.05, max(0, cvar_hget(cvarh_vr_agrunt_ai_accuracy)) * VR_AGAI_Skill(0.8, 1.25, 1.5)) / VR_AG_DazzleAim(self); };
 float() VR_AGAI_Reaction = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_reaction)) * VR_AGAI_Skill(1.3, 0.7, 0); };
 float() VR_AGAI_Retreat = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_retreat)) * VR_AGAI_Skill(0.85, 1.15, 1.3); };
 float() VR_AGAI_FireRate = { return max(0.05, max(0, cvar_hget(cvarh_vr_agrunt_ai_firerate)) * VR_AGAI_Skill(0.9, 1.15, 1.15)); };

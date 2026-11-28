@@ -14,6 +14,10 @@
 
 #include <glm/glm.hpp>
 
+namespace qvr::gfx
+{
+struct Picture;
+}
 
 namespace qvr::gadget
 {
@@ -155,6 +159,17 @@ struct HolsterMenuSlot
     const char* name{""};  // the weapon's name ("" empty)
     const char* model{""}; // its model's file (its thumbnail; "" none)
     bool hovered{false};
+    // Its ammunition, a smaller line under the name (wheelui, his words 2026-11-28: "4/8" and the ammo type's icon): the
+    // rounds in its magazine (tube, cylinder) and how many it holds (clipSize 0: none, no "a/b"), its ammo type's HUD
+    // picture (-1 none: sb_shells .. sb_cells, the mission packs' own when the game has them) and the reserve of that
+    // ammo (-1 not shown).
+    int clip{0};
+    int clipSize{0};
+    int ammoType{0}; // QC's AID_* (0 none)
+    int reserve{-1};
+    // Its attachment (attach::Kind: the bayonet, a dagger as one; 0 none): drawn on its thumbnail and as a blade glyph
+    // after its name.
+    int attach{0};
     // While a weapon is dragged (vr_flatholster.cpp): the slot it came from (its thumbnail faded), a place it may go
     // (lit), or one it may not (greyed).
     enum class Drop : unsigned char
@@ -185,13 +200,54 @@ struct HolsterMenuView
     int buttonCount{0};
     const glm::vec4* lines{nullptr}; // the figure's strokes (x0, y0, x1, y1)
     int lineCount{0};
-    const char* header{""};
+    // The player's own body (wheelui: in place of the stick figure, flatholster's): a picture drawn at `bodyRect` (x, y,
+    // w, h) before the strokes (nullptr: none, the strokes alone).
+    const gfx::Picture* body{nullptr};
+    glm::vec4 bodyRect{0.f};
+    const char* header{""}; // ("" none: wheelui took the titles off, his words 2026-11-28)
     const char* footer{""};
     const char* dragModel{""}; // the weapon being dragged (its thumbnail at dragAt, under the cursor; "" none)
     const char* dragName{""};
     glm::vec2 dragAt{0.f};
 };
 [[nodiscard]] VisorImage renderHolsterMenu(const HolsterMenuView& view);
+
+// Flatscreen play's bindings reminder (wheelui, vr_bindpanel.hpp): each row an action and its keys as key caps (up to
+// two: "" none), in `columns` columns, in the holster menu's palette and font; its own target (it shows with the holster
+// menu or the weapon wheel). `size`: the image's virtual pixels (bindPanelSize).
+// bindpanel2: a key may be a controller's button, drawn as its glyph (a qpic_t: vr_bindsetup.hpp PanelButton) in place
+// of its cap; and the headset's weapon wheel's panel is the controller's pictures with each button's glyph and action
+// beside it, a leader line to the button (`pictureCount` > 0: the pictures and `callouts` in place of the rows).
+//
+//   META QUEST 3
+//   [glyph] Attack ------( L )   ( R )------ [glyph] Attack
+struct BindPanelRow
+{
+    const char* action{""};
+    const char* keys[2]{"", ""};
+    const void* glyphs[2]{nullptr, nullptr}; // a key's glyph (nullptr: its cap, `keys`)
+};
+struct BindPanelCallout
+{
+    int picture{0};             // which of the view's pictures its button is on
+    float u{0.f}, v{0.f};       // the button on that picture (0..1)
+    const void* glyph{nullptr}; // the button's glyph (a qpic_t; nullptr none)
+    const char* text{""};       // what it does
+};
+struct BindPanelView
+{
+    const BindPanelRow* rows{nullptr};
+    int rowCount{0};
+    int columns{2};
+    const char* title{""};                     // over the pictures ("" none)
+    const void* pictures[2]{nullptr, nullptr}; // qpic_t (a VR pair, the left hand first; or a gamepad)
+    float aspects[2]{1.f, 1.f};                // their height / width
+    int pictureCount{0};
+    const BindPanelCallout* callouts{nullptr};
+    int calloutCount{0};
+};
+[[nodiscard]] glm::vec2 bindPanelSize(const BindPanelView& view);
+[[nodiscard]] VisorImage renderBindPanel(const BindPanelView& view);
 
 void renderVisor(const VisorInput& in);
 // Only the centre print's popup's contents, for `text` ("" none) at its power-on sweep `boot` (VisorInput's): the

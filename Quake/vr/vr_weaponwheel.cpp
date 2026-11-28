@@ -15,6 +15,7 @@
 
 #include "vr_api.h"
 #include "vr_backend.hpp"
+#include "vr_bindpanel.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatholster.hpp"
@@ -67,6 +68,7 @@ constexpr float actionH = 32.f;
 constexpr float innerR = 26.f;
 constexpr float outerR = ringR + 46.f;
 constexpr float fadeSeconds = 0.1f;
+constexpr float panelGap = 6.f; // a headset: between the bindings panel and the wheel's image above which it shows
 constexpr float flatCursorMargin = 60.f; // flatscreen play: how far past the image's edge the mouse's cursor goes (off the wheel)
 constexpr int giveUp = 400; // the test: frames a step may wait
 
@@ -90,6 +92,8 @@ struct WheelState
     float fade{0.f};
     double lastTime{-1.0};
     unsigned texture{0}; // the image, rendered this frame (render)
+    gadget::VisorImage panel; // the bindings panel above it (a headset's; render)
+    bool panelShown{false};   // the panel shown since the test began (the test)
     int ticks{0}, opens{0}, picks{0}, cancels{0}; // (vr_weaponwheel_dump, the test)
 };
 WheelState ws;
@@ -151,6 +155,11 @@ int listHolsters(int hand, Choice* out, int max)
         copyText(c.title, sizeof(c.title), s.title);
         copyText(c.name, sizeof(c.name), s.name);
         copyText(c.model, sizeof(c.model), s.model);
+        c.clip = s.clip;
+        c.clipSize = s.clipSize;
+        c.ammoType = s.ammoType;
+        c.reserve = s.reserve;
+        c.attach = s.attach;
         // An empty holster takes the hand's weapon (a quick slot's copy); a full one gives its own (immersive: the same
         // weapon already in the hand is a quick slot's copy only).
         c.usable = s.name[0] ? (immersive || q_strcasecmp(s.model, held.model) != 0) : handFull;
@@ -772,6 +781,9 @@ void testStep()
         aimAt(main, choiceOfKey(1));
         if(waitFor(++test.mark >= 3, "the screenshot"))
         {
+            result(vr_wheel_bind_panel.value == 0.f || ws.panelShown,
+                va("the bindings panel above the wheel (vr_wheel_bind_panel %g: the controllers' pictures, labelled)",
+                    vr_wheel_bind_panel.value));
             press(main, false);
         }
         break;
@@ -1302,6 +1314,11 @@ void render()
         s.title = c.title;
         s.name = c.name;
         s.model = c.model;
+        s.clip = c.clip;
+        s.clipSize = c.clipSize;
+        s.ammoType = c.ammoType;
+        s.reserve = c.reserve;
+        s.attach = c.attach;
         s.hovered = i == ws.hovered;
         s.drop = s.hovered && c.usable ? Drop::Valid : c.usable ? Drop::None : Drop::Invalid;
     }
@@ -1322,7 +1339,6 @@ void render()
     v.buttonCount = buttonCount;
     v.lines = lines;
     v.lineCount = len > innerR * 0.5f ? 3 : 2;
-    v.header = ws.shownHand == HAND_MAIN ? "WEAPON WHEEL - RIGHT HAND" : "WEAPON WHEEL - LEFT HAND";
     const bool lit = ws.hovered >= 0 && ws.choices[ws.hovered].usable;
     const int litKey = lit ? ws.choices[ws.hovered].key : 0;
     v.footer = !lit                 ? (ws.outside ? "Let go here: cancel" : ws.flat ? "Point at a slot" : "Move the hand to a slot")
@@ -1332,6 +1348,9 @@ void render()
                                      : "Let go: take it";
     const gadget::VisorImage img = gadget::renderHolsterMenu(v);
     ws.texture = img.shown ? img.texture : 0;
+    // The bindings panel above it in a headset (bindpanel2; vr_wheel_bind_panel): the controllers' pictures, labelled.
+    ws.panel = ws.flat ? gadget::VisorImage{} : bindpanel::headsetImage();
+    ws.panelShown = ws.panelShown || ws.panel.shown;
 }
 
 void drawInEye(const hands::State& s)
@@ -1342,6 +1361,14 @@ void drawInEye(const hands::State& s)
     }
     const glm::vec3 corner[4] = {worldAt({0.f, panelH}), worldAt({panelW, panelH}), worldAt({panelW, 0.f}), worldAt({0.f, 0.f})};
     flatholster::drawImage(ws.texture, {panelW, panelH}, corner, gfx::sceneViewProjection(), ws.fade);
+    if(ws.panel.shown)
+    {
+        // Above the wheel, centred on it, at its scale (a wheel pixel a panel pixel), a little gap between.
+        const glm::vec2 p = ws.panel.size;
+        const float x0 = ringMid.x - p.x * 0.5f, y1 = -panelGap;
+        const glm::vec3 above[4] = {worldAt({x0, y1}), worldAt({x0 + p.x, y1}), worldAt({x0 + p.x, y1 - p.y}), worldAt({x0, y1 - p.y})};
+        flatholster::drawImage(ws.panel.texture, p, above, gfx::sceneViewProjection(), ws.fade);
+    }
 }
 
 void drawFlat()
@@ -1366,8 +1393,18 @@ void drawFlat()
         h = w * panelH / panelW;
     }
     ws.scale = h / panelH;
+    // The bindings panel over it (wheelui; vr_flat_bind_panel), at its scale, the two kept on the window together (the
+    // panel under the wheel when the wheel is too high for it above).
+    const glm::vec2 keys = bindpanel::shown() ? bindpanel::size() : glm::vec2{0.f};
+    const float ks = za::min(ws.scale, W * 0.96f / za::max(keys.x, 1.f));
+    const float above = keys.y > 0.f ? (keys.y + 4.f) * ks : 0.f;
     const float x0 = za::clamp(ws.screenAt.x - w * 0.5f, W * 0.02f, za::max(W * 0.98f - w, W * 0.02f));
-    const float y0 = za::clamp(ws.screenAt.y - h * 0.5f, H * 0.02f, za::max(H * 0.98f - h, H * 0.02f));
+    const float y0 = za::clamp(ws.screenAt.y - h * 0.5f, H * 0.02f + above, za::max(H * 0.98f - h, H * 0.02f + above));
+    if(keys.y > 0.f)
+    {
+        const float kx = za::clamp(x0 + (w - keys.x * ks) * 0.5f, W * 0.02f, za::max(W * 0.98f - keys.x * ks, W * 0.02f));
+        bindpanel::drawOnWindow(kx, y0 - above, ks, ws.fade);
+    }
     flatholster::drawOnWindow(ws.texture, {panelW, panelH}, {x0, y0, w, h}, ws.fade);
     if(ws.hand >= 0)
     {

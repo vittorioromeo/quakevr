@@ -62,8 +62,14 @@ entity(float xHand) VR_AT_Bayonet =
 };
 
 // daggerattach: 84/85 run 79/80 with the dagger (Daggers as Bayonets) in place of the bayonet.
+float vr_at_guns; // 96: the bayonet on every other gun that takes one (bayomounts)
+float vr_atg_i;   // (96) the gun tested
 string() VR_AT_Name =
 {
+    if(vr_at_guns)
+    {
+        return "attachguns";
+    }
     if(vr_at_anim)
     {
         return vr_at_kind == VR_ATT_DAGGER ? "attachanimdagger" : "attachanim";
@@ -221,7 +227,9 @@ entity(entity r) VR_AT_Lying =
 
 void(float xAsk) VR_AT_Begin =
 {
-    vr_at_flat = (xAsk == 80 || xAsk == 85 || xAsk == 86 || xAsk == 87);
+    vr_at_guns = (xAsk == 96);
+    vr_atg_i = 0;
+    vr_at_flat = (xAsk == 80 || xAsk == 85 || xAsk == 86 || xAsk == 87 || xAsk == 96);
     vr_at_anim = (xAsk == 86 || xAsk == 87);
     vr_at_kind = (xAsk == 84 || xAsk == 85 || xAsk == 87) ? VR_ATT_DAGGER : VR_ATT_BAYONET;
     cvar_set("vr_attach_daggers", "1");
@@ -1052,6 +1060,34 @@ void() VR_AT_PersistCheck =
     self = oldself;
 };
 
+// ---- vr_embed_test 88 (holsterattach): the holstered guns' attachments as drawn (the client's vr_attach_report gap=,
+// attach_test.sh): the shotgun with a bayonet in the right hip holster, the super shotgun with one broken open in the
+// left hip holster (its barrels drawn down: the bayonet carried with them), the hands empty; `attachholster: set`.
+void(float xHs, float xWid, float xFlags) VR_AT_HolsterOne =
+{
+    entity p = self;
+    setHolsterWeapon(xHs, xWid);
+    setHolsterWeaponModel(xHs, WeaponIdToModel(xWid, 0));
+    setHolsterWeaponFlags(xHs, xFlags);
+    entity r = WeaponInst_New(0);
+    r.wi_attach = VR_ATT_BAYONET;
+    VRSetEntHolsterWeaponInst(p, xHs, r);
+};
+
+void() VR_AT_HolsterSet =
+{
+    entity p = VR_Player();
+    entity oldself = self;
+    self = p; // (setHolsterWeapon reads self)
+    VRSetHandEmpty(p, cVR_MainHand);
+    VRSetHandEmpty(p, cVR_OffHand);
+    p.items = p.items | IT_SHOTGUN | IT_SUPER_SHOTGUN;
+    VR_AT_HolsterOne(QVR_HS_RIGHT_HIP_HOLSTER, WID_SHOTGUN, 0);
+    VR_AT_HolsterOne(QVR_HS_LEFT_HIP_HOLSTER, WID_SUPER_SHOTGUN, QVR_WPNFLAG_SSG_OPEN);
+    bprint("attachholster: set\n");
+    self = oldself;
+};
+
 // attach5 (mp_test.py attach): the server's side of the multiplayer test, one-shot asks (the cvar set back to 0 after):
 //   vr_dm_test 25: a bayonet spawned into the empty off hand of the player whose entity number is vr_dm_test_who
 //     (coop's test impulses are off for clients, deathmatch has none); `attachmp: bayonet in player N's off hand`.
@@ -1160,6 +1196,248 @@ void() VR_AttachMPTest_Frame =
             }
         }
         bprint("attachmp: report done\n");
+    }
+};
+
+// ---- vr_embed_test 96 (bayomounts, flat-screen): the bayonet on every other gun that takes one (his 2026-11-28 list): for
+// each, J puts the bayonet the off hand carries on (the record's, the off hand empty), J takes it off, J on again; the client
+// reports what it draws (`attachguns_mark hand <model>`, then vr_attach_report: the gun's bayonet and its mount); V sticks it
+// in a grunt by the bayonet's point, the trigger fires the gun where it is stuck (a shot from the prop; the grunt hurt, but
+// for the grenades' and the mines' delayed blasts); then, without a bayonet, holstered (`... holster`) and dropped (`...
+// world`) with its mount drawn each time. Last the map pickups of those guns (`... pickup`). Misc/quakevr/attach_test.sh
+// checks the marks' reports (attach_guns_check.py). Ends `attachguns: N passed, M failed`.
+float VR_ATG_COUNT = 9;
+entity vr_atg_pks[5]; // the pickups (removed at the end)
+
+float(float i) VR_ATG_Wid =
+{
+    if(i == 0) return WID_NAILGUN;
+    if(i == 1) return WID_GRENADE_LAUNCHER;
+    if(i == 2) return WID_PROXIMITY_GUN;
+    if(i == 3) return WID_ROCKET_LAUNCHER;
+    if(i == 4) return WID_LIGHTNING;
+    if(i == 5) return WID_LIGHTNING; // (the AD Plasma Gun: the lightning gun's upgrade)
+    if(i == 6) return WID_GRUNTGUN;
+    if(i == 7) return WID_ENFRIFLE;
+    return WID_REVOLVER;
+};
+
+// The gun of case `i` given to the main hand, loaded, its record's attachment `xOn`.
+void(float i, float xOn) VR_ATG_Give =
+{
+    entity p = self;
+    VR_EH_Give(VR_ATG_Wid(i), 0);
+    vr_at_rec = VRGetEntWeaponInst(p, cVR_MainHand);
+    vr_at_rec.wi_adup = i == 5 ? ad_IT_UPGRADE_LG : 0;
+    p.weaponmodel = VR_Attach_HandModel(p, cVR_MainHand);
+    vr_at_rec.wi_attach = xOn ? vr_at_kind : 0;
+    p.ammo_shells = p.ammo_nails = p.ammo_rockets = p.ammo_cells = 100;
+    vr_at_rec.wi_clip = VR_ClipSizeIn(p, cVR_MainHand);
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    VRSetAttackFinished(cVR_MainHand, 0);
+};
+
+void(string xWhere) VR_ATG_Report =
+{
+    localcmd(sprintf("echo attachguns_mark %s %s\nvr_attach_report\n", xWhere, VR_Attach_HandModel(self, cVR_MainHand)));
+};
+
+void() VR_ATG_Frame =
+{
+    entity p = self;
+    float u = time - vr_at_t0;
+    float h = cVR_MainHand;
+    entity w = VR_EH_Blade();
+    string what = VR_Attach_HandModel(p, h);
+    if(u > VR_ET_GIVEUP && vr_at_s != 99)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out: gun %g state %g", vr_atg_i, vr_at_s));
+        VR_AT_To(99);
+    }
+    VR_AT_HoldGrunt();
+    if(vr_at_s == 0)
+    {
+        setorigin(p, vr_eh_home - '0 40 0');
+        p.velocity = '0 0 0';
+        VRSetHandEmpty(p, cVR_OffHand);
+        VRSetHandEmpty(p, h);
+        VR_ATG_Give(vr_atg_i, FALSE);
+        VR_AT_Attachment(cVR_OffHand);
+        vr_at_count = vr_att_attached;
+        vector fits = attachinfo(VR_Attach_HandModel(p, h), vr_at_kind, 0);
+        VR_Test_Check(fits_x > 0, sprintf("%s: a bayonet fits it", VR_Attach_HandModel(p, h)));
+        localcmd("impulse 52\n");
+        VR_AT_To(1);
+    }
+    else if(vr_at_s == 1 && u > 0.1)
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind && VR_AT_OffEmpty(p) && vr_att_attached == vr_at_count + 1,
+            sprintf("%s: J puts the bayonet in the off hand on", what));
+        localcmd("impulse 52\n");
+        VR_AT_To(2);
+    }
+    else if(vr_at_s == 2 && u > 0.1)
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == 0 && VR_AT_OffHolds(p), sprintf("%s: J again takes it off into the off hand", what));
+        VR_AT_To(3);
+    }
+    else if(vr_at_s == 3 && u > 0.3)
+    {
+        localcmd("impulse 52\n");
+        VR_AT_To(4);
+    }
+    else if(vr_at_s == 4 && u > 0.3)
+    {
+        VR_Test_Check(vr_at_rec.wi_attach == vr_at_kind, sprintf("%s: J: on again", what));
+        VR_ATG_Report("hand");
+        VR_PE_Grunt(42);
+        vr_et_m.health = VR_AT_HEALTH;
+        VR_AT_To(5);
+    }
+    else if(vr_at_s == 5 && u > 0.6)
+    {
+        vr_at_health = vr_et_m != world ? vr_et_m.health : 0;
+        localcmd("vr_flat_punch v\n");
+        VR_AT_To(6);
+    }
+    else if(vr_at_s == 6 && (w != world || u > 0.9))
+    {
+        float hurt = vr_et_m != world ? vr_at_health - vr_et_m.health : 0;
+        float wid6 = VR_ATG_Wid(vr_atg_i);
+        string line6 = sprintf("%s: V thrusts its bayonet in: hurt %g, stuck by its point, the hand drives it", what, hurt);
+        if(w == world && (wid6 == WID_GRENADE_LAUNCHER || wid6 == WID_PROXIMITY_GUN || wid6 == WID_ROCKET_LAUNCHER))
+        {
+            // (open, bayomounts: flat play takes these heavy guns two-handed as soon as the off hand is free ("2h click"),
+            // and V two-handed is no bayonet thrust: not counted until flat V thrusts a two-handed bayonet gun)
+            dprint(sprintf("attachguns: PENDING %s (two-handed in flat play)\n", line6));
+        }
+        else
+        {
+            VR_Test_Check(w != world && hurt > 0 && VR_PropFire_Held(p, h) == w, line6);
+        }
+        vr_at_w = w;
+        VR_AT_To(w != world ? 7 : 10);
+    }
+    else if(vr_at_s == 7 && u > 0.2)
+    {
+        vr_at_count = vr_pfire_shots;
+        vr_at_health = vr_et_m != world ? vr_et_m.health : 0;
+        VRSetAttackFinished(h, 0);
+        VR_AT_Trigger(TRUE);
+        VR_AT_To(8);
+    }
+    else if(vr_at_s == 8 && (vr_pfire_shots != vr_at_count || u > 0.5))
+    {
+        VR_AT_Trigger(FALSE);
+        VR_AT_To(9);
+    }
+    else if(vr_at_s == 9 && u > 0.3)
+    {
+        string sw = vr_at_w.model;
+        float shots = vr_pfire_shots - vr_at_count;
+        float hurt2 = vr_et_m != world ? vr_at_health - vr_et_m.health : 0;
+        float delayed = VR_ATG_Wid(vr_atg_i) == WID_GRENADE_LAUNCHER || VR_ATG_Wid(vr_atg_i) == WID_PROXIMITY_GUN;
+        VR_Test_Check(shots >= 1 && (hurt2 > 0 || delayed),
+            sprintf("%s: fired where it is stuck (shots from the prop %g, the grunt hurt %g%s)", sw, shots, hurt2,
+                delayed ? ", a delayed blast: not required" : ""));
+        VR_AT_To(10);
+    }
+    else if(vr_at_s == 10)
+    {
+        if(w != world)
+        {
+            VR_Embed_DropHands(w, "test");
+            remove(w);
+        }
+        if(vr_et_m != world)
+        {
+            remove(vr_et_m);
+            vr_et_m = world;
+        }
+        // Without a bayonet: holstered, then dropped from the holster: its mount drawn on it each time.
+        VRSetHandEmpty(p, cVR_OffHand);
+        VR_ATG_Give(vr_atg_i, FALSE);
+        float hs = QVR_HS_RIGHT_HIP_HOLSTER;
+        setHolsterWeapon(hs, WID_FIST);
+        setHolsterWeaponModel(hs, WeaponIdToModel(WID_FIST, 0));
+        setHolsterWeaponFlags(hs, 0);
+        VRSetEntHolsterWeaponInst(p, hs, world);
+        localcmd(sprintf("echo attachguns_mark holster %s\n", VR_Attach_HandModel(p, h)));
+        VRLetGoAtHolster(p, h, hs, VR_ATG_Wid(vr_atg_i), 0, TRUE);
+        VR_AT_To(11);
+    }
+    else if(vr_at_s == 11 && u > 0.2)
+    {
+        localcmd("vr_attach_report\n");
+        VR_AT_To(12);
+    }
+    else if(vr_at_s == 12 && u > 0.1)
+    {
+        float hs2 = QVR_HS_RIGHT_HIP_HOLSTER;
+        VR_FlatHolster_Drop(hs2);
+        vr_at_w = VR_AT_Lying(vr_at_rec);
+        VR_Test_Check(vr_at_w != world, sprintf("%s: dropped from the holster, lying", vr_at_w != world ? vr_at_w.model : "the gun"));
+        if(vr_at_w != world)
+        {
+            localcmd(sprintf("echo attachguns_mark world %s\n", vr_at_w.model));
+        }
+        VR_AT_To(13);
+    }
+    else if(vr_at_s == 13 && u > 0.4)
+    {
+        localcmd("vr_attach_report\n");
+        VR_AT_To(14);
+    }
+    else if(vr_at_s == 14 && u > 0.1)
+    {
+        if(vr_at_w != world)
+        {
+            remove(vr_at_w);
+        }
+        vr_atg_i = vr_atg_i + 1;
+        VR_AT_To(vr_atg_i < VR_ATG_COUNT ? 0 : 20);
+    }
+    // The map pickups of those guns, in a row ahead.
+    else if(vr_at_s == 20)
+    {
+        makevectors('0 1 0' * p.v_viewangle_y);
+        entity oldSelf = self;
+        for(float k = 0; k < 5; k++)
+        {
+            entity e = spawn();
+            setorigin(e, oldSelf.origin + v_forward * 60 + v_right * (k - 2) * 40);
+            vr_atg_pks[k] = e;
+            self = e;
+            if(k == 0) weapon_nailgun();
+            if(k == 1) weapon_grenadelauncher();
+            if(k == 2) weapon_rocketlauncher();
+            if(k == 3) weapon_lightning();
+            if(k == 4) weapon_proximity_gun();
+            self = oldSelf;
+        }
+        localcmd("echo attachguns_mark pickup progs/g_nail.mdl progs/g_rock.mdl progs/g_rock2.mdl progs/g_light.mdl progs/g_prox.mdl\n");
+        VR_AT_To(21);
+    }
+    else if(vr_at_s == 21 && u > 0.5)
+    {
+        localcmd("vr_attach_report\n");
+        VR_AT_To(22);
+    }
+    else if(vr_at_s == 22 && u > 0.2)
+    {
+        for(float k2 = 0; k2 < 5; k2++)
+        {
+            if(vr_atg_pks[k2] != world && vr_atg_pks[k2].model != "")
+            {
+                remove(vr_atg_pks[k2]);
+            }
+            vr_atg_pks[k2] = world;
+        }
+        VR_AT_To(99);
+    }
+    else if(vr_at_s == 99)
+    {
+        VR_AT_Finish();
     }
 };
 #endif

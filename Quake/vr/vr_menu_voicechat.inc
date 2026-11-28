@@ -54,10 +54,11 @@ void voicePlayerButtonPress(int slot, int b)
     voicechat::setPlayerVolume(slot, floorf(v / voiceVolumeStep + 0.5f) * voiceVolumeStep);
 }
 
-// The row's own text tinted: green while he talks, red muted.
+// The row's own text tinted: green while he talks, red muted. (review C8: his talking itself, not "talking" searched for
+// in the row's text: a player named so was lit all the time)
 [[nodiscard]] int voicePlayerMark(int slot)
 {
-    return voicechat::muted(slot) ? 2 : strstr(voicechat::playerLine(slot), "talking") ? 1 : 0;
+    return voicechat::muted(slot) ? 2 : voicechat::listed(slot) && voicechat::talkingNow(slot) ? 1 : 0;
 }
 
 [[nodiscard]] za::Vector<Item> pageVoiceChat()

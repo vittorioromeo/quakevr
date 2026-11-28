@@ -3889,7 +3889,7 @@ The deep review before agent/mp merges into next (`qvr-kit/scratch/mprev_A.md`, 
 - A5 (low) fixed: ReadShared reads 1024 datagrams a call at most.
 - A9 (low) fixed: an empty server name becomes "*" before the duplicate-name suffix.
 - A12 (low) fixed: vr_mp_clientkey from DgrmRandom.
-- A6, A7, A8, A10, A11, A13, S1-S3, O1, O2: not done (budget); lows, listed in BACKLOG.md.
+- A6, A7, A8, A10, A11, A13, S1-S3, O1, O2: fixed later (mplows, 2026-11-27; ROUND26.md "mplows").
 - C1 (high) fixed: heldpose decode clamps slot/leaveSlot to the weapon table, helpKind, spotType, carriedGrip,
   leaveFlip to their domains; weapons::value returns 0 for a slot past the table. mp_fuzz sends such a record.
 - C2 (medium) fixed: the voice jitter estimate updates only on a frame newer than the newest, by seqDiff (the copies and
@@ -3899,7 +3899,7 @@ The deep review before agent/mp merges into next (`qvr-kit/scratch/mprev_A.md`, 
 - C5 (low, privacy) fixed: push-to-talk ends when the off hand's button is up (whatever ate the release), a menu or the
   console is up, or voice chat is inactive. Not harness-tested (needs a held button eaten by a page).
 - C6 skipped: the 8 bytes are what mp_avatar / mp_held check the weapon over the wire with (mp_test.py "wpn").
-- C7, C8: not done (budget); BACKLOG.md.
+- C7, C8: fixed later (mplows, 2026-11-27; ROUND26.md "mplows").
 
 ## Review fixes, half 2: snapshots, prediction, lag compensation; QC, menus, harness (mpreview B and D, 2026-11-20)
 

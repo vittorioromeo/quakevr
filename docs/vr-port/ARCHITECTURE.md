@@ -151,7 +151,8 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
   `vr_menu_*.inc` page (rows via the `menu_detail` builders). A shipped default changes: edit the default alone (the
   config is sparse since configVersion 218, so it reaches every player who left the setting alone; `defaultChanges` is
   frozen: CODE_STYLE.md, "Settings and the config"). Renamed or moved menu rows: run `vr_menu_path_check maps/vrcalibration.map` and update
-  `Misc/quakevr/make_vrcalibration_map.py`.
+  `Misc/quakevr/make_vrcalibration_map.py`. `Misc/quakevr/menu_paths.txt` is generated, never edited by hand: after any menu
+  change regenerate it (`menu_paths.py` docstring) and check it with `vr_menu_path_check <full path>/menu_paths.txt` ("current").
 - **Tuning constants** (numbers tuned once that no player sets): a `QVR_TUNABLE` line in vr_tunables.inc and its row
   in vr_tunables_rows.inc, no menu row of its own; read as `name.value` everywhere. Development builds tune them live
   (`tune`, Debug > Tunables, `tunables.cfg`; vr_tunables.cpp), releases (`QVR_RELEASE`) fold them in; tuned values

@@ -52,8 +52,15 @@ enum m_state_e {
 	m_vr, // QVR: vr/vr_menu.cpp
 	m_credits, // QVR: native official campaign ending
 	m_confirm, // QVR: a question over the menu it came from, with two buttons (M_Confirm)
-	m_autosaves // QVR: Load Autosave, and the death menu (M_Menu_Autosaves_f, M_CheckDeathMenu)
+	m_autosaves, // QVR: Load Autosave, and the death menu (M_Menu_Autosaves_f, M_CheckDeathMenu)
+	m_bindsetup // QVR: the Controller Bindings screen (vr/vr_bindsetup.cpp)
 };
+
+// QVR: the menus' bounds as last laid out (menu x, y; the Controller Bindings screen lays out in them).
+void M_GetBounds (int *left, int *top, int *width, int *height);
+// QVR: every action Options > Controls lists for either device (bindlist.lst's too; not the flat keys), in its order:
+// `add` called with each one's command and name (the strings last until the Controls menu opens again).
+void M_Keys_EachAction (void (*add) (const char *command, const char *name));
 
 extern enum m_state_e m_state;
 extern enum m_state_e m_return_state;
