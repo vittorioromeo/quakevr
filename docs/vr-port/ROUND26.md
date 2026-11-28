@@ -6318,6 +6318,38 @@ His words 2026-11-28, items 2, 7, 8.
 - Disk: moved to F:\QVR-Parked‚6-11-28\diskclean\: worktrees pcbase and unionmerge (3.3 GB, worktree prune), the kit base
   bases/pcbase, 6 scenes, 2150 old (>2 days) screenshots/logs/dumps from the kit and quest scratch (0.19 GB). Their link dirs were
   renamed (not followed) into qvr-kit/scratch/dc_links. C: free 35.6 -> 38.4 GB.
+
+## qcconv: the QuakeC <-> C boundary measured, the fight's opcode mix, combined instructions; builtins called straight from the loop (branch agent/qcconv, 2026-11-28)
+
+- **Scope** (his update): QuakeC is to be converted to C++ (qc2cpp); the measurements are written up for that design,
+  only small exact cvar-gated engine changes landed, no FTEQCC change. Details and tables: docs/vr-port/QC_VM.md "The
+  C <-> QuakeC boundary, the opcode mix, combined instructions".
+- **Tools**: `vr_qcexec_stats start|stop|dump [N]|hash` (Debug > Profiling "QuakeC Opcode Stats Start" / "QuakeC Opcode
+  Stats"): opcode, pair, triple, call and builtin counts, and the dispatches the combined instructions save. Boundary
+  benches in QC/qcconv_test.qc (test progs): `vr_qcexec_bench qcconv_bench_{empty,builtin,vbuiltin,qccall,field} 2000
+  100`; the exactness check `vr_qcexec_bench qcconv_fuse_check 200 60`. `vr_qcexec_bench` now times five loops (+ goto
+  combined).
+- **hip1m1 fight, a frame**: 99,700 statements, 3,790 QuakeC calls, 4,220 builtin calls, 417 runs from C. Top opcodes
+  IFNOT 15.6%, STORE_F 15.3, AND 7.6, LOAD_F 6.7, EQ_F 4.8, OR 4.7; top pairs AND+IFNOT 6.05%, STORE_F+STORE_F 5.09,
+  STORE_F+CALL1 3.65, NE_F+IFNOT 2.45, IFNOT+LOAD_F 2.23.
+
+| idea | measured gain PC (Release, fast mode) | Quest | kept? |
+|---|---|---|---|
+| builtin called straight from the loop (no QCExec_Builtin call without an extension check or profiler) | builtin call 8.7 -> 7.5 ns (switch loop, no fusion) | not measured (headset busy) | yes (vr_qcexec 1/2; 3 the A/B) |
+| locals saved and restored inline up to 8 (no memcpy call) | with the above: QuakeC call and return 11.3 -> 8.6 ns | not measured | yes (same) |
+| combined instructions, 36 pairs, load-time copy (`vr_qcexec_fuse` 1) | check function 1.24x, fast_pow 1.23x, builtin call 3.8 ns in all; fight QuakeC 0.831 -> 0.767 ms a frame (-8%, lower in 6/6 blocks); 33% of dispatches saved | not measured | yes (default 1; 0 the A/B) |
+| FTEQCC: jump-based conditions (AND/OR/NOT + IFNOT) | ~5-8% fewer statements (estimate) | | no: documented (the conversion) |
+| FTEQCC: parameters kept in the OFS_PARM slots (no copy at entry) | STORE+STORE+CALL are 9% of statements | | no: an ABI change |
+| think dispatch batching | ~0.02 ms PC at most | | no |
+
+- **Exact**: `qcconv_fuse_check` returns the same bits and statement count in all 5 loops; its traces with fuse 0 and 1
+  are identical (427 lines); every bench "results and counts equal". The fight is not repeatable run to run even
+  unchanged (two identical runs: 103.59 M and 103.91 M statements; e1m1 alone too), so no whole-scene hash compare.
+- **Tests**: agrunt group (run_baseline, 224 cases): all PASS but agrunt_71 8/2 (flaky list), agrunt_206 14/1 (re-run alone: PASS twice with fuse 1, twice with 0; its 20 s pickup window), agrunt_231 TIMEOUT in the pool, alone FAIL 2 adpose rows (tags 656/658, Shotgun reach short) the same with fuse 0: not this change. Check function and traces as above.
+- Memory: the combined copy is 16 bytes a statement (13 MB for our progs, malloc'd at the first QuakeC call, freed
+  with the progs). Files: Quake/vr/vr_qcexec.c, vr_qcexec_loop.inc (QX_DO_* bodies shared by the single and combined
+  handlers), progs.h, pr_edict.c, the Debug menu rows; QC/qcconv_test.qc. Scripts: worktree scratch/qcconv_* (not
+  committed).
 ## qcbuiltins2: why the next builtins are slow; navsteer's path search and agpose's vertices faster, the same results (branch agent/qcbuiltins2, 2026-11-28)
 
 - **Scene**: questopt2's hip1m1 fight (skill 2, god, `sv_random_seed 1`, all 69 woken, 300 frames settled, 720 measured).

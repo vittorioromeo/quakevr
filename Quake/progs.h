@@ -209,6 +209,7 @@ typedef struct qcvm_s
 	qboolean		progs32;	// QVR: loaded from the 32-bit format (FTE32; else 16-bit, widened at load: PR_LoadProgs)
 	dfunction_t		*functions;
 	dstatement_t	*statements;
+	dstatement_t	*qx_fused;	// QVR: statements with combined instructions (vr_qcexec_fuse; vr/vr_qcexec.c; malloc'd)
 	float			*globals;	/* same as pr_global_struct */
 	ddef_t			*fielddefs;	//yay reflection.
 
@@ -358,6 +359,7 @@ void PR_ProfileQC_f (void); // QVR: per-function QuakeC time
 extern cvar_t vr_qcprofile;
 void VR_QCExec_Init (void); // QVR: vr_qcexec, the faster QuakeC loop (vr/vr_qcexec.c)
 extern cvar_t vr_qcexec;
+extern cvar_t vr_qcexec_fuse; // (vr/vr_qcexec.c)
 
 edict_t *ED_Alloc (void);
 void ED_Free (edict_t *ed);
