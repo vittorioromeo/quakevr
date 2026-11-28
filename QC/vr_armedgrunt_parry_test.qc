@@ -40,6 +40,10 @@ void(entity g) VR_AGPT2_Hold =
     g.health = 1000;
     g.pain_finished = 0;
     g.vr_ag_act = 0;
+    // No armour plates (vr_agarmor: a spawned grunt may wear them, and Plate Blocks All took the whole of a parried
+    // blow's kept share on its chest, where `weapon` meets its body: 0 damage, not 5); vr_agarmor_test's own way.
+    g.vr_ar_type = 0;
+    g.vr_ar_mask = 0;
 };
 
 // The least distance between the blade swept from `c0` to `c1` (its line along `along`, 26 back, 6 ahead) and `g`'s
