@@ -37,9 +37,10 @@ SCENARIOS = {
 }
 
 
-# Fields the engine writes from the real clock (the mock headset's pose times: vr_posetime, the mocap hand history),
-# different in every run even in the interpreter (--control shows them): left out of the comparison.
-NOISY = re.compile(r"^(vr_posetime|mh_ptime|mh_hdt\[\d+\])$")
+# Fields fed from the real clock (the mock headset's pose times: vr_posetime; the hands' motion history mh_*, its
+# ring and speeds from those times), different between runs even in the interpreter (--control shows them on e1m1
+# and arena_wave6): left out of the comparison.
+NOISY = re.compile(r"^(vr_posetime|mh_\w+(\[\d+\])?)$")
 
 
 def run(tree, cpp, body):
