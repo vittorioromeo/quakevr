@@ -44,6 +44,10 @@ echo "$anim"
 danim=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Timeout 200 -Script "$START; vr_embed_test 87" \
     -QuitOn "^attachanimdagger: [0-9]+ passed" -Filter "^attachanim|^flatattach|rror")
 echo "$danim"
+# bayomounts: the bayonet on every other gun that takes one, and the bayonet's mount drawn (attach_guns_check.py).
+guns=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Timeout 400 -Script "$START; vr_embed_test 96" \
+    -QuitOn "^attachguns: [0-9]+ passed" -Filter "^attach|rror")
+echo "$guns" | grep -v "^attach_drawn"
 menu=$(bash $KIT/run.sh $AGENT -Timeout 120 -Script "menu_vr attachtest; toggleconsole; quit" -QuitOn "^attachmenu_test: [0-9]+ passed" \
     -Filter "^attachmenu_test")
 echo "$menu"
@@ -56,6 +60,8 @@ expect_verdict "$dflat" attachdaggerflat "the dagger as the shotguns' bayonet (f
 expect_verdict "$anim" attachanim "J's hand trip with the bayonet (flat)"
 expect_verdict "$danim" attachanimdagger "J's hand trip with the dagger (flat)"
 expect_verdict "$menu" attachmenu_test "Weapon Offsets > Attachments edits the mount"
+expect_verdict "$guns" attachguns "the bayonet on every other gun that takes one (flat)"
+while read -r ok what; do check "$ok" "$what"; done < <(python "$(dirname "$0")/attach_guns_check.py" - <<< "$guns")
 # bayonetfix: the HUD on a stuck gun, the bayonet taken off drawn in the hand (Misc/quakevr/attach_probe_check.py).
 while read -r ok what; do check "$ok" "$what"; done < <(python "$(dirname "$0")/attach_probe_check.py" vr - <<< "$vr")
 while read -r ok what; do check "$ok" "$what"; done < <(python "$(dirname "$0")/attach_probe_check.py" flat - <<< "$flat")

@@ -68,6 +68,7 @@ vr_button_swap|0|VR Settings - Locomotion and Controls|Swap Face Buttons|VR Sett
 vr_swim|0|VR Settings - Locomotion and Controls|Swimming|VR Settings > Locomotion and Controls > Swimming
 vr_water_jump|0|VR Settings - Locomotion and Controls|Jump Out of Water|VR Settings > Locomotion and Controls > Jump Out of Water
 vr_menu_button|0|VR Settings - Locomotion and Controls|Menu Button|VR Settings > Locomotion and Controls > Menu Button
+|0|VR Settings - Locomotion and Controls|Controller Bindings|VR Settings > Locomotion and Controls > Controller Bindings
 |0|VR Settings - Locomotion and Controls|Reset This Page|VR Settings > Locomotion and Controls > Reset This Page
 @page|0|VR Settings - Comfort, Teleport and Turning||VR Settings > Comfort, Teleport and Turning
 vr_comfort_vignette|0|VR Settings - Comfort, Teleport and Turning|Vignette|VR Settings > Comfort, Teleport and Turning > Vignette
@@ -5556,7 +5557,9 @@ vr_alias_batch_posed|2|Debug - Profiling and Memory|Batch Posed Models|Advanced 
 |2|Debug - Profiling and Memory|Opaque Draws Unblended (Quest LRZ)|Advanced VR Options > Debug > Profiling and Memory > Opaque Draws Unblended (Quest LRZ)
 |2|Debug - Profiling and Memory|LRZ Probe: After the Clear|Advanced VR Options > Debug > Profiling and Memory > LRZ Probe: After the Clear
 |2|Debug - Profiling and Memory|LRZ Probe: Behind the Scene|Advanced VR Options > Debug > Profiling and Memory > LRZ Probe: Behind the Scene
+|2|Debug - Profiling and Memory|LRZ Probe: After Your Own Models|Advanced VR Options > Debug > Profiling and Memory > LRZ Probe: After Your Own Models
 |2|Debug - Profiling and Memory|LRZ Probe: Off|Advanced VR Options > Debug > Profiling and Memory > LRZ Probe: Off
+|2|Debug - Profiling and Memory|Still Models' Set-up Check|Advanced VR Options > Debug > Profiling and Memory > Still Models' Set-up Check
 |2|Debug - Profiling and Memory|Hide Gibs, Heads and Limbs|Advanced VR Options > Debug > Profiling and Memory > Hide Gibs, Heads and Limbs
 |2|Debug - Profiling and Memory|Show Every Model|Advanced VR Options > Debug > Profiling and Memory > Show Every Model
 vr_profile_overlay|2|Debug - Profiling and Memory|Profiler Panel|Advanced VR Options > Debug > Profiling and Memory > Profiler Panel
@@ -5991,6 +5994,9 @@ vr_obsrec_as_if|2|Debug - Reports|Clean Recording: Act As If OBS Records|Advance
 |2|Debug - Reports|Main Menu Lettering|Advanced VR Options > Debug > Reports > Main Menu Lettering
 |2|Debug - Reports|Reset This Page|Advanced VR Options > Debug > Reports > Reset This Page
 @page|2|Debug - Tools||Advanced VR Options > Debug > Tools
+|2|Debug - Tools|Controller Bindings Screen|Advanced VR Options > Debug > Tools > Controller Bindings Screen
+|2|Debug - Tools|Print Controller Bindings|Advanced VR Options > Debug > Tools > Print Controller Bindings
+|2|Debug - Tools|Bindings Screen Tests|Advanced VR Options > Debug > Tools > Bindings Screen Tests
 |2|Debug - Tools|Blood Feedback Report|Advanced VR Options > Debug > Tools > Blood Feedback Report
 |2|Debug - Tools|Damage Protocol Preview|Advanced VR Options > Debug > Tools > Damage Protocol Preview
 |2|Debug - Tools|Preview Hit Left|Advanced VR Options > Debug > Tools > Preview Hit Left

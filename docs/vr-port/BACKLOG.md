@@ -23,7 +23,7 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
 - **Dog wedged against a wall**: it can stay standing wedged with the wiggle off. ROUND25.md "wallglue".
 - **Flat: no low or sideways swing, so no flat leg sweeps** (his call 2026-11-24: not now).
 - **Splitscreen**: agent/split (6e6f2af6e, split19, SPLITSCREEN.md) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next if it still shows.
-- **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache is open; LRZ still dead in the opaque entity pass (some alias batch; next: bisect by batch); CPU-bound big fights
+- **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache across frames would rarely hit (questperf2: the instance data changes every frame with the flickering dynamic lights and the wounds' timers); LRZ in the opaque entity pass (questperf2): alive with no alias draws and after your first model, dead after your leg holsters (batches 2-3), not from one state alone; `vr_debug_alias_lrz 62` plus `vr_gl_alias_lazy_blend 1` together keep it (1.16M pixels killed): next, bisect that combination (ROUND26 "questperf2"); CPU-bound big fights
   (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
 - **Baseline failures, 2026-11-26 list, what is left** (agrunt 203 fixed: ROUND26 "basefix2"; `ragdoll_grab` and teleporters: "basefix1"/"basefix2"): `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14; agrunt 74 (78 vs 80%); the recoil test has 4 slots off the old defaults; agrunt 16 (the drawn grip 2.72 off, limit 2.5) and agrunt 65 (flaky) as in basefix2.
 - **Spear/Lance numbers differ between trees** (quest vs mp, same commit): the relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` points to `qvr-kit/relit`); no recheck of quest's spear/flatthrust numbers is recorded since: needs one.
@@ -136,9 +136,6 @@ Open on 2026-11-27 (notes in ROUND26.md; the named ROUND25.md sections for older
      the takes tool), so the last shot is real flat play.
   New work, small: the desk map generator, the scene QC (actor walk + camera), optionally the hands-to-face fade and a
   sit pose. Everything else exists.
-- **VR weapon wheel reminder panel (controller image + labeled buttons)** (2026-11-28, his words): in VR the weapon
-  wheel shows the same reminder panel as the menu's, but as the current controllers' picture with its buttons labelled
-  by their bindings (the Controller Bindings screen's data and pictures: vr_bindsetup.cpp, ROUND26 "ctrlbind").
 - **Splitscreen: per-seat controller bindings in the rebinding screen** (2026-11-28, todo): the Controller Bindings
   screen edits the one bind table; with true seats (agent/split) each seat's controller gets its own page and binds.
 
@@ -295,11 +292,6 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   0.37-0.46 ms step; `vr_ragdoll_self_pairs 0` A/B). An exact skip (a Box3D change: a self pair's narrow phase skipped
   while its last distance less a motion bound stays over the speculative distance) would save at most that. Left: the
   GPU side close up, and a test on a lower-end PC to see whether the drop remains.
-- **The knight's ledge grab "pulled away"** (ROUND25.md "box3dup2"): climb_test pull, seeds 7-10, with upstream's mesh
-  ghost handling (the default, `vr_box3d_mesh_ghosts 1`): 21/24, the ogre 4/4 now (its "not hanging" fixed), but the
-  knight 2/4 (4/4 before the Box3D update and with the handling off): falling past the lip at speed, a hand's hold
-  stretches 11-15 units off at the cap and lets go ("pulled away"), sometimes both. Chaotic: which seeds fail changes
-  between the batched and the single runs. Look at its grab's load (the cap against the fall) before tuning.
 - **Linux Flatpak needed Steam folder access** (same tester): it worked once she granted access to
   ~/.local/share/Steam (she had first installed the Windows build there to try Proton). The manifest has
   `--filesystem=home:ro`, which should cover it: find why it didn't (a Flatpak'd Steam's path, a symlinked library,

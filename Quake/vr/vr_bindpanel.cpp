@@ -11,6 +11,7 @@
 #include "vr_menuui.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 #include <ctype.h>
@@ -48,19 +49,107 @@ const Action actions[] = {
 };
 static_assert(za::getArraySize(actions) <= maxRows, "maxRows holds them");
 
-// The keys' names as shown (their texts: rows()'s), and the image over the holster menu as last made.
+// The keys' names as shown (their texts: rows()'s; a controller's rows: their actions cut to fit, their glyphs' files),
+// and the image over the holster menu or the weapon wheel as last made (the flat rows' or the headset's pictures: one
+// gadget target, the two never show together).
 struct Texts
 {
     char keys[maxRows][2][16]{};
+    char actions[maxRows][20]{};
+    const char* glyphNames[maxRows]{};
 };
 Texts texts;
 
 struct Image
 {
     gadget::VisorImage image;
-    int frame{-1}; // host_framecount it was made in
+    int frame{-1};        // host_framecount it was made in
+    bool headset{false};  // the headset's panel (else the flat rows)
 };
 Image panelImage;
+
+// bindpanel2: the controller the panels show (vr_bindpanel_device: a model forced, Count: the detected one), and the
+// headset's panel as last made (vr_bindpanel_report, the weapon wheel's test).
+struct Device
+{
+    bindsetup::Model forced{bindsetup::Model::Count};
+};
+Device device;
+
+constexpr int maxCallouts = 32;
+struct Headset
+{
+    bindsetup::PanelButton buttons[maxCallouts];
+    gadget::BindPanelCallout callouts[maxCallouts];
+    char texts[maxCallouts][20]{};
+    bindsetup::PanelPictures pictures;
+    int count{0};
+    bindsetup::Model model{bindsetup::Model::Count};
+    int renders{0};     // images made
+    int lastFrame{-10}; // host_framecount of the last
+    int glyphs{0};      // the last one's callouts with a glyph
+};
+Headset headset;
+
+// `text` into `out`, cut to its size ("..": cut).
+template <int N>
+void fitInto(const char* text, char (&out)[N])
+{
+    q_strlcpy(out, text, N);
+    if(static_cast<int>(ZA_STRLEN(text)) >= N)
+    {
+        out[N - 3] = '.';
+        out[N - 2] = '.';
+    }
+}
+
+// The flat rows' device: a gamepad when it is the device last used (a model forced, or SDL's type), else the keyboard.
+[[nodiscard]] bindsetup::Model flatDevice()
+{
+    if(device.forced != bindsetup::Model::Count)
+    {
+        return device.forced;
+    }
+    if(IN_GamepadLastUsed())
+    {
+        return bindsetup::modelForPad(IN_GetGamepadSdlType());
+    }
+    return bindsetup::Model::Keyboard;
+}
+
+// The headset's: the controllers detected (bindsetup::detect), or a model forced.
+[[nodiscard]] bindsetup::Model headsetDevice()
+{
+    return device.forced != bindsetup::Model::Count ? device.forced : bindsetup::detect();
+}
+
+// A controller's rows: each bound button (the menu button left out), its action and its glyph (its name the fallback).
+int controllerRows(bindsetup::Model m, gadget::BindPanelRow* out, int max)
+{
+    bindsetup::PanelPictures pics;
+    bindsetup::PanelButton buttons[maxCallouts];
+    const int count = bindsetup::panelButtons(m, pics, buttons, maxCallouts);
+    int n = 0;
+    for(int i = 0; i < count && n < max && n < maxRows; i++)
+    {
+        const bindsetup::PanelButton& b = buttons[i];
+        if(b.fixed || !b.action[0])
+        {
+            continue;
+        }
+        fitInto(b.action, texts.actions[n]);
+        q_strlcpy(texts.keys[n][0], b.name, sizeof(texts.keys[n][0]));
+        texts.keys[n][1][0] = 0;
+        texts.glyphNames[n] = b.glyphName;
+        gadget::BindPanelRow& r = out[n++];
+        r.action = texts.actions[n - 1];
+        r.keys[0] = texts.keys[n - 1][0];
+        r.keys[1] = "";
+        r.glyphs[0] = b.glyph;
+        r.glyphs[1] = nullptr;
+    }
+    return n;
+}
 
 // A key's name on its cap: Quake's, upper case, the mouse's buttons short.
 void keyName(int key, char (&out)[16])
@@ -110,6 +199,15 @@ void boundKeys(const char* command, int (&out)[2])
 
 int rows(gadget::BindPanelRow* out, int max)
 {
+    const bindsetup::Model m = flatDevice();
+    if(m != bindsetup::Model::Keyboard)
+    {
+        const int n = controllerRows(m, out, max);
+        if(n > 0)
+        {
+            return n;
+        }
+    }
     int n = 0;
     for(const Action& a : actions)
     {
@@ -133,6 +231,7 @@ int rows(gadget::BindPanelRow* out, int max)
             boundKeys(a.command, keys);
         }
         gadget::BindPanelRow& r = out[n];
+        texts.glyphNames[n] = nullptr;
         r.action = a.label;
         for(int s = 0; s < 2; s++)
         {
@@ -158,9 +257,10 @@ namespace
 {
 [[nodiscard]] const gadget::VisorImage& image()
 {
-    if(panelImage.frame != host_framecount)
+    if(panelImage.frame != host_framecount || panelImage.headset)
     {
         panelImage.frame = host_framecount;
+        panelImage.headset = false;
         gadget::BindPanelRow r[maxRows];
         gadget::BindPanelView v;
         v.rows = r;
@@ -197,9 +297,79 @@ bool inMainMenu()
     return vr_flat_bind_panel.value != 0.f;
 }
 
+namespace
+{
+// The headset's panel's view: the controller's pictures, each bound button's glyph and action (the menu button left
+// out). False when there is no controller to show.
+[[nodiscard]] bool headsetView(gadget::BindPanelView& v)
+{
+    Headset& h = headset;
+    h.model = headsetDevice();
+    const int count = bindsetup::panelButtons(h.model, h.pictures, h.buttons, maxCallouts);
+    h.count = 0;
+    h.glyphs = 0;
+    for(int i = 0; i < count; i++)
+    {
+        const bindsetup::PanelButton& b = h.buttons[i];
+        if(b.fixed || !b.action[0])
+        {
+            continue;
+        }
+        gadget::BindPanelCallout& c = h.callouts[h.count];
+        fitInto(b.action, h.texts[h.count]);
+        c.picture = b.picture;
+        c.u = b.u;
+        c.v = b.v;
+        c.glyph = b.glyph;
+        c.text = h.texts[h.count];
+        h.glyphs += b.glyph ? 1 : 0;
+        h.buttons[h.count] = b; // (kept in the callouts' order: the report's)
+        h.count++;
+    }
+    if(h.pictures.count <= 0 || h.count <= 0)
+    {
+        return false;
+    }
+    v.title = bindsetup::modelName(h.model);
+    v.pictureCount = h.pictures.count;
+    for(int p = 0; p < h.pictures.count; p++)
+    {
+        v.pictures[p] = h.pictures.pic[p];
+        v.aspects[p] = h.pictures.aspect[p];
+    }
+    v.callouts = h.callouts;
+    v.calloutCount = h.count;
+    return true;
+}
+} // namespace
+
+gadget::VisorImage headsetImage()
+{
+    if(vr_wheel_bind_panel.value == 0.f)
+    {
+        return {};
+    }
+    if(panelImage.frame != host_framecount || !panelImage.headset)
+    {
+        panelImage.frame = host_framecount;
+        panelImage.headset = true;
+        gadget::BindPanelView v;
+        panelImage.image = headsetView(v) ? gadget::renderBindPanel(v) : gadget::VisorImage{};
+        if(panelImage.image.shown)
+        {
+            headset.renders++;
+            headset.lastFrame = host_framecount;
+        }
+    }
+    return panelImage.image;
+}
+
 void setupBindings()
 {
-    if(bindsetup::open())
+    // (the device the panel shows: a pad's screen while a pad is in use, else the keyboard's keys; bindpanel2. The
+    // headset's controllers are not asked here: the main menu's panel is a flat screen's.)
+    const bindsetup::Model m = flatDevice();
+    if(m != bindsetup::Model::Keyboard && bindsetup::open(m))
     {
         Con_DPrintf("bindpanel: Setup Bindings: the controller binding screen\n");
         return;
@@ -216,19 +386,66 @@ void report_f()
 {
     gadget::BindPanelRow r[maxRows];
     const int n = rows(r, maxRows);
+    int glyphs = 0;
     for(int i = 0; i < n; i++)
     {
-        Con_Printf("bindpanel: row %d \"%s\" keys \"%s\" \"%s\"\n", i, r[i].action, r[i].keys[0], r[i].keys[1]);
+        glyphs += r[i].glyphs[0] ? 1 : 0;
+        Con_Printf("bindpanel: row %d \"%s\" keys \"%s\" \"%s\"%s%s%s\n", i, r[i].action, r[i].keys[0], r[i].keys[1],
+            texts.glyphNames[i] ? " glyph \"" : "", texts.glyphNames[i] ? texts.glyphNames[i] : "", texts.glyphNames[i] ? "\"" : "");
     }
     menuui::bindPanelReport();
+    // The headset's panel (bindpanel2): its view now (the controller the weapon wheel would show) and how often it was made.
+    gadget::BindPanelView v;
+    const bool has = headsetView(v);
+    for(int i = 0; i < headset.count; i++)
+    {
+        const bindsetup::PanelButton& b = headset.buttons[i];
+        Con_Printf("bindpanel: callout %d hand %d \"%s\" glyph \"%s\"%s \"%s\"\n", i, b.picture, b.name, b.glyphName,
+            b.glyph ? "" : " (missing)", headset.texts[i]);
+    }
+    Con_Printf("bindpanel: headset panel %s: %s, pictures %d, callouts %d, glyphs %d; made %d times, last %d frames ago\n",
+        vr_wheel_bind_panel.value != 0.f && has ? "on" : "off", bindsetup::modelId(headset.model), headset.pictures.count,
+        headset.count, headset.glyphs, headset.renders, host_framecount - headset.lastFrame);
     const char* menu = key_dest != key_menu ? "none" : m_state == m_main ? "main" : m_state == m_keys ? "keys" : "other";
-    Con_Printf("bindpanel: %d rows, shown %d, menu %s\n", n, shown() ? 1 : 0, menu);
+    Con_Printf("bindpanel: %d rows, shown %d, menu %s, device %s, glyphs %d\n", n, shown() ? 1 : 0, menu,
+        bindsetup::modelId(flatDevice()), glyphs);
+}
+
+// vr_bindpanel_device [model | auto | next]: the controller the reminder panels show (a model id as menu_bindsetup's:
+// quest3, index, xboxone, playstation, keyboard...; auto: the detected one; next: the next model). The tests', and the
+// Debug menu's (a pad's or another headset's panel without one).
+void device_f()
+{
+    using bindsetup::Model;
+    const char* arg = Cmd_Argc() >= 2 ? Cmd_Argv(1) : "";
+    Model m = Model::Count;
+    if(!q_strcasecmp(arg, "next"))
+    {
+        const int at = device.forced == Model::Count ? -1 : static_cast<int>(device.forced);
+        device.forced = static_cast<Model>((at + 1) % static_cast<int>(Model::Count));
+    }
+    else if(!q_strcasecmp(arg, "auto"))
+    {
+        device.forced = Model::Count;
+    }
+    else if(arg[0] && bindsetup::modelFromId(arg, m))
+    {
+        device.forced = m;
+    }
+    else if(arg[0])
+    {
+        Con_Printf("bindpanel: no controller \"%s\"\n", arg);
+        return;
+    }
+    Con_Printf("bindpanel: device %s (%s)\n", device.forced == Model::Count ? "auto" : bindsetup::modelId(device.forced),
+        device.forced == Model::Count ? "detected" : bindsetup::modelName(device.forced));
 }
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_bindpanel_report", report_f);
+    Cmd_AddCommand("vr_bindpanel_device", device_f);
     Cmd_AddCommand("vr_bindpanel_setup", setupBindings); // (the main menu's Setup Bindings, for the tests)
 }
 

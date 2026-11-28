@@ -2771,7 +2771,7 @@ struct AttachSeen
 };
 struct AttachSeenList
 {
-    AttachSeen list[32];
+    AttachSeen list[96]; // (bayomounts: the mounts' too)
     int count{0};
     int frame{-1};
 };
@@ -2806,6 +2806,62 @@ void noteAttachSeen(const char* where, int ent, int kind, const qvr::view::ViewE
     }
 }
 
+// (bayomounts) The bayonet's mount on every other gun drawn in the world that a bayonet fits: lying (dropped, thrown, stuck),
+// held by an armed monster, a map's pickup (attach::railMount: g_shot0, g_shot, ...): the nearest maxWorldRails within
+// vr_attach_mount_dist of the view. Yours and another player's are placed with their guns (setupAttachments, drawGunParts).
+void setupWorldRails()
+{
+    struct Near
+    {
+        const entity_t* e;
+        float dist;
+    };
+    Near nearest[maxWorldRails]{};
+    int count = 0;
+    const glm::vec3 eye = geom::vec(r_refdef.vieworg);
+    const float reach = vr_attach_mount_dist.value;
+    attach::Mount m;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || !e->model || e->model->type != mod_alias || view::find(e) || e == &cl_entities[cl.viewentity] ||
+            !attach::railMount(e->model, m))
+        {
+            continue;
+        }
+        const float d = glm::distance(geom::vec(e->origin), eye);
+        if(d > reach || (count == maxWorldRails && d >= nearest[maxWorldRails - 1].dist))
+        {
+            continue;
+        }
+        int at = count < maxWorldRails ? count++ : maxWorldRails - 1;
+        while(at > 0 && nearest[at - 1].dist > d)
+        {
+            nearest[at] = nearest[at - 1];
+            at--;
+        }
+        nearest[at] = {e, d};
+    }
+    for(int i = 0; i < maxWorldRails; i++)
+    {
+        view::ViewEntity& out = entities.worldRail[i];
+        out.visible = false;
+        if(i >= count)
+        {
+            continue;
+        }
+        const entity_t* e = nearest[i].e;
+        const bool numbered = e >= cl_entities && e < cl_entities + cl_max_edicts;
+        const client::EntityVr* net = numbered ? client::entityVr(static_cast<int>(e - cl_entities)) : nullptr;
+        view::ViewEntity gun;
+        gun.ent = *e;
+        gun.visible = true;
+        gun.netEntity = numbered ? static_cast<int>(e - cl_entities) : 0;
+        (void)view::placeRail(out, gun, net ? attach::kindOfUid(net->weaponUid) : attach::None, -1);
+        noteAttachSeen("rail_world", gun.netEntity, 0, out, gun);
+    }
+}
+
 // Every frame, after the guns are placed: their magazines (immersive reloading: the server's mode, the guns' flags; a
 // lying gun's U_QVR_NOMAG); with Show Load Points, a held magazine's reference point and radius (orange).
 // Every frame, after the guns are placed (before the open super shotgun hides its gun for its parts): the guns'
@@ -2820,6 +2876,9 @@ void setupAttachments()
         const attach::KindInfo* const info = attach::info(kind);
         AttachDrawn& d = attachDrawn[hand];
         d.valid = view::placeAttachment(entities.attach[hand], entities.weapon[hand], kind, hand) && info;
+        (void)view::placeRail(entities.rail[hand], entities.weapon[hand], kind, hand);
+        noteAttachSeen(hand == HAND_MAIN ? "rail_hand_main" : "rail_hand_off", cl.viewentity, 0, entities.rail[hand],
+            entities.weapon[hand]);
         if(d.valid)
         {
             d.mount = modelPoint(entities.attach[hand], glm::vec3{0.f});
@@ -2854,7 +2913,11 @@ void setupAttachments()
         (void)view::placeAttachment(entities.holsterAttach[h], entities.holster[h], kind, -1, open ? ssgHolsters[h].angle : 0.f);
         noteAttachSeen("holster", cl.viewentity, kind, entities.holsterAttach[h], entities.holster[h],
             open ? &entities.holsterSsgBarrels[h] : nullptr);
+        (void)view::placeRail(entities.holsterRail[h], entities.holster[h], kind, -1, open ? ssgHolsters[h].angle : 0.f);
+        noteAttachSeen("rail_holster", cl.viewentity, 0, entities.holsterRail[h], entities.holster[h],
+            open ? &entities.holsterSsgBarrels[h] : nullptr);
     }
+    setupWorldRails();
     for(int i = 0; i < maxWorldWeapons; i++)
     {
         const entity_t* e = worldWeaponsNear[i];
@@ -3921,6 +3984,12 @@ glm::mat3 weaponTurnInHand(int slot)
     return anglesBasis(glm::vec3{-o.x, o.y, o.z}); // (as weaponTurn composes it with the hand)
 }
 
+namespace
+{
+bool placeOnMount(ViewEntity& out, const ViewEntity& gun, int slot, const attach::Mount& m, qmodel_t* model, int ssgHand,
+    float ssgOpen);
+} // namespace
+
 bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand, float ssgOpen)
 {
     out.visible = false;
@@ -3932,10 +4001,28 @@ bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHa
     const int slot = weapons::slotForModel(gun.ent.model);
     const attach::Mount m = attach::mount(slot, kind);
     qmodel_t* const model = m.fits ? viewModel(k->model) : nullptr;
-    if(!model)
+    return model && placeOnMount(out, gun, slot, m, model, ssgHand, ssgOpen);
+}
+
+bool placeRail(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand, float ssgOpen)
+{
+    out.visible = false;
+    attach::Mount m;
+    if(!gun.visible || !gun.ent.model || gun.ent.model->type != mod_alias || (vr_attach_mount_show.value == 2.f && kind != attach::None) ||
+        !attach::railMount(gun.ent.model, m))
     {
         return false;
     }
+    qmodel_t* const model = viewModel(attach::railModel);
+    return model && placeOnMount(out, gun, attach::railSlot(gun.ent.model), m, model, ssgHand, ssgOpen);
+}
+
+namespace
+{
+// An attachment's model (or the bayonet's mount, placeRail) placed on `gun` by the mount `m` (in the gun model's space).
+bool placeOnMount(ViewEntity& out, const ViewEntity& gun, int slot, const attach::Mount& m, qmodel_t* model, int ssgHand,
+    float ssgOpen)
+{
     // Its axes as the gun's model is drawn (its place, turn, Scale, mirroring; a lying gun's networked scale).
     const ModelSpace space{gun};
     const glm::mat3 r = m.basis; // (its model's axes in the gun's: its frame turned by the mount's angles)
@@ -3998,6 +4085,7 @@ bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHa
     out.visible = true;
     return true;
 }
+} // namespace
 
 void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen, int player, int side)
 {
@@ -4033,9 +4121,12 @@ void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held
     }
     // (before the gun is hidden for its parts; holsterattach: carried down with an open super shotgun's barrels)
     (void)placeAttachment(p[GunParts::Attach], gun, look.attach, -1, g.ssg.parts ? g.ssg.angle : 0.f);
+    (void)placeRail(p[GunParts::Rail], gun, look.attach, -1, g.ssg.parts ? g.ssg.angle : 0.f); // (bayomounts: always)
     if(player > 0)
     {
         noteAttachSeen(held ? "other_held" : "other_holster", player, look.attach, p[GunParts::Attach], gun,
+            g.ssg.parts ? &p[GunParts::SsgBarrels] : nullptr);
+        noteAttachSeen(held ? "rail_other_held" : "rail_other_holster", player, 0, p[GunParts::Rail], gun,
             g.ssg.parts ? &p[GunParts::SsgBarrels] : nullptr);
     }
     if(!held)
@@ -4422,7 +4513,8 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(rvCyl, VR_DRAW_HELD), QVR_DRAW_RANGE(rvShell, VR_DRAW_HELD), QVR_DRAW_RANGE(sawHandle, VR_DRAW_HELD), QVR_DRAW_RANGE(button, VR_DRAW_HELD),
         QVR_DRAW_RANGE(frontButton, VR_DRAW_HELD), QVR_DRAW_RANGE(ghost, VR_DRAW_OTHER), QVR_DRAW_RANGE(ghostHand, VR_DRAW_OTHER), QVR_DRAW_RANGE(muzzleFlash, VR_DRAW_HELD),
         QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER), QVR_DRAW_RANGE(adBolt, VR_DRAW_HELD), QVR_DRAW_RANGE(attach, VR_DRAW_HELD),
-        QVR_DRAW_RANGE(holsterAttach, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldAttach, VR_DRAW_LYING)};
+        QVR_DRAW_RANGE(holsterAttach, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldAttach, VR_DRAW_LYING),
+        QVR_DRAW_RANGE(rail, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterRail, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldRail, VR_DRAW_LYING)};
 #undef QVR_DRAW_RANGE
     // Every member in a range (the heavy revolver's parts were not: drawn as OTHER, flatscreen play's model FOV missed them).
     static_assert(

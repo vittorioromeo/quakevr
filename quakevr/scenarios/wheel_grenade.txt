@@ -1,0 +1,14 @@
+# wheel_grenade: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The weapon wheel's back pouch
+# grenade entry (wheelgrenade, his words 2026-11-28: Quake/vr/vr_weaponwheel.cpp listGrenades, QC vr_flatgrenade.qc
+# VR_Wheel_Grenade); rockets and multi-rockets both carried, so the entry is split GRENADE / CLUSTER.
+# weaponwheel_test.sh grenade / flatgrenade.
+title Weapon wheel: a grenade from the back pouch, GRENADE or CLUSTER
+hint Open the weapon wheel (VR: hold B or Y; flat screen: hold 1 or 2): after UNLOAD, the BACK POUCH entry is split, GRENADE on top, CLUSTER below, each with how many are left. Let go on either half: that hand holds that grenade, its gun put in a holster. Arm it (the trigger; flat: the fire button), throw it; the count stays down. Flat: G puts an unarmed one back. Give yourself none (give r 0; give m 0): one greyed grenade.
+map vrtesthall
+cvar vr_weaponwheel 1
+god
+notarget
+give "Shotgun" main
+give "Nailgun" off
+cmd give r 10
+cmd give m 5

@@ -170,6 +170,9 @@ struct HolsterMenuSlot
     // Its attachment (attach::Kind: the bayonet, a dagger as one; 0 none): drawn on its thumbnail and as a blade glyph
     // after its name.
     int attach{0};
+    // A half slot (the weapon wheel's grenade entry split in two, wheelgrenade): its thumbnail on its left, the name and the
+    // ammunition's line beside it, no title.
+    bool compact{false};
     // While a weapon is dragged (vr_flatholster.cpp): the slot it came from (its thumbnail faded), a place it may go
     // (lit), or one it may not (greyed).
     enum class Drop : unsigned char
@@ -215,16 +218,36 @@ struct HolsterMenuView
 // Flatscreen play's bindings reminder (wheelui, vr_bindpanel.hpp): each row an action and its keys as key caps (up to
 // two: "" none), in `columns` columns, in the holster menu's palette and font; its own target (it shows with the holster
 // menu or the weapon wheel). `size`: the image's virtual pixels (bindPanelSize).
+// bindpanel2: a key may be a controller's button, drawn as its glyph (a qpic_t: vr_bindsetup.hpp PanelButton) in place
+// of its cap; and the headset's weapon wheel's panel is the controller's pictures with each button's glyph and action
+// beside it, a leader line to the button (`pictureCount` > 0: the pictures and `callouts` in place of the rows).
+//
+//   META QUEST 3
+//   [glyph] Attack ------( L )   ( R )------ [glyph] Attack
 struct BindPanelRow
 {
     const char* action{""};
     const char* keys[2]{"", ""};
+    const void* glyphs[2]{nullptr, nullptr}; // a key's glyph (nullptr: its cap, `keys`)
+};
+struct BindPanelCallout
+{
+    int picture{0};             // which of the view's pictures its button is on
+    float u{0.f}, v{0.f};       // the button on that picture (0..1)
+    const void* glyph{nullptr}; // the button's glyph (a qpic_t; nullptr none)
+    const char* text{""};       // what it does
 };
 struct BindPanelView
 {
     const BindPanelRow* rows{nullptr};
     int rowCount{0};
     int columns{2};
+    const char* title{""};                     // over the pictures ("" none)
+    const void* pictures[2]{nullptr, nullptr}; // qpic_t (a VR pair, the left hand first; or a gamepad)
+    float aspects[2]{1.f, 1.f};                // their height / width
+    int pictureCount{0};
+    const BindPanelCallout* callouts{nullptr};
+    int calloutCount{0};
 };
 [[nodiscard]] glm::vec2 bindPanelSize(const BindPanelView& view);
 [[nodiscard]] VisorImage renderBindPanel(const BindPanelView& view);

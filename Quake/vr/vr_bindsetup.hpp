@@ -55,6 +55,28 @@ enum class Model : unsigned char
 // mouse: no controller in use): the caller opens the keyboard's page instead (VR_BindSetup_Open: Options > Controls).
 [[nodiscard]] bool open(Model model = Model::Count);
 
+// The reminder panels' data (vr_bindpanel.cpp; ROUND26 "bindpanel2"): a controller's small pictures (a VR pair, the left
+// hand first, or a gamepad) and each of its buttons as this screen labels it, from the same tables and binds, so the
+// panels show what the screen edits. Keyboard: none (0).
+struct PanelButton
+{
+    int picture{0};             // 0 the left hand or the pad, 1 the right hand
+    float u{0.f}, v{0.f};       // its anchor on that picture (0..1)
+    const char* name{""};       // "Trigger", "A"
+    const char* glyphName{""};  // its glyph's file (gfx/vr/glyphs/<glyphName>)
+    const void* glyph{nullptr}; // that glyph loaded (a qpic_t, for Draw_SubPic; nullptr: none)
+    const char* action{""};     // its binding's name ("Attack"; "" unbound)
+    bool fixed{false};          // the menu button (never rebound)
+};
+struct PanelPictures
+{
+    const void* pic[2]{nullptr, nullptr}; // qpic_t (nullptr: not found)
+    float aspect[2]{1.f, 1.f};            // height / width
+    int count{0};
+};
+// Its buttons into `out` (up to max): how many.
+[[nodiscard]] int panelButtons(Model m, PanelPictures& pictures, PanelButton* out, int max);
+
 void registerCommands();
 
 } // namespace qvr::bindsetup

@@ -3856,6 +3856,12 @@ static void Host_Give_f (void)
 			    sv_player->v.ammo_rockets = v;
 		    }
 		}
+		else if ((val = GetEdictFieldValueByName(sv_player, "ammo_multi_rockets")) != NULL)
+		{
+		    // Quake VR's progs carry multi-rockets in every game (the back pouch's multi-grenade: the weapon
+		    // wheel's CLUSTER, wheelgrenade): "give m 5" gives them outside the mission pack too.
+		    val->_float = v;
+		}
 		break;
 
 	case 'h':

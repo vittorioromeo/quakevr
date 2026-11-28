@@ -28,6 +28,14 @@ int rows(gadget::BindPanelRow* out, int max);
 // at most once a frame.
 void drawOnWindow(float x, float y, float scale, float alpha);
 
+// bindpanel2 (his words 2026-11-28: "the weapon wheel to have the same reminder panel, but with the current controllers
+// image + labeled buttons" ... "the correct icons for the controller buttons ... that match the connected controller
+// type"): with a gamepad the device last used, the rows above are its buttons (each bound one's action and Kenney's glyph
+// for that pad: vr_bindsetup.cpp's tables and binds, what the Controller Bindings screen edits); and the headset's weapon
+// wheel shows the detected controllers' pictures with each bound button's glyph and action beside it
+// (vr_wheel_bind_panel): its image this frame (made at most once a frame; not shown: off, or no controller).
+[[nodiscard]] gadget::VisorImage headsetImage();
+
 // The main menu's panel (flat screen): shown there (vr_flat_bind_panel, not in a headset).
 [[nodiscard]] bool inMainMenu();
 // Its Setup Bindings button: the controller binding screen (bindsetup::open) for a controller in use, else Options >

@@ -380,6 +380,17 @@ QVR_WEAPON_KEY(Att2Pitch, "att2_pitch")
 QVR_WEAPON_KEY(Att2Yaw, "att2_yaw")
 QVR_WEAPON_KEY(Att2Roll, "att2_roll")
 QVR_WEAPON_KEY(Att2Scale, "att2_scale")
+// The bayonet's mount drawn on the weapon (bayomounts, his 2026-11-28: "a small mounting rail ... so that the user is
+// aware"; progs/bayonet_mount.mdl, make_bayonet.py): on every weapon a bayonet fits (att1_ok), at its bayonet mount,
+// moved from it by (x, y, z) in the bayonet's own units and axes (forward along its blade, left, up), turned pitch up, yaw
+// left, roll about the blade (degrees), drawn `mnt_size` times the bayonet's size (Weapon Offsets > Attachments, Mount).
+QVR_WEAPON_KEY(MntX, "mnt_x")
+QVR_WEAPON_KEY(MntY, "mnt_y")
+QVR_WEAPON_KEY(MntZ, "mnt_z")
+QVR_WEAPON_KEY(MntPitch, "mnt_pitch")
+QVR_WEAPON_KEY(MntYaw, "mnt_yaw")
+QVR_WEAPON_KEY(MntRoll, "mnt_roll")
+QVR_WEAPON_KEY(MntSize, "mnt_size")
 // Heavy handling (ROUND22.md, "Heavy weapons: struggle, droop, recoil, two-handed swings"; vr_weight.cpp; Weapon Weights >
 // Heavy Handling): the weapon's weight class, its Heft: 0 light (no struggle) .. 1 the heaviest (the laser cannon); -1
 // (every slot's default, weapons.txt) from its mass (vr_heavy_auto_from .. _full kg). One-handed, a heavy weapon lags an
