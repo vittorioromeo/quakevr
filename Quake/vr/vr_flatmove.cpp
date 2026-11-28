@@ -3021,7 +3021,7 @@ cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, 
 const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Crouch / slide", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Grab / pull",
     "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Throw / drop", "Bullet time", "Flashlight", "Gear lights", "Attach / detach", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
 static_assert(za::getArraySize(flatKeyList) == za::getArraySize(flatKeyLabels), "a label for every flat key");
-static_assert(flatplay::keySlots == VR_FLATKEY_SLOTS, "the menu's slots are the keys'");
+static_assert(flatplay::keySlots == VR_FLATKEY_SLOTS + 1, "the menu's slots are the keyboard's, a gamepad button after them");
 
 // The keys a key cvar names, in its order (a name Key_StringToKeynum does not know: none); out past the last: -1.
 int flatKeyNums(const cvar_t& c, int (&out)[flatplay::keySlots])
@@ -3106,8 +3106,25 @@ bool qvr::flatplay::keyHeld(const cvar_t& c)
 
 void qvr::flatplay::setKey(cvar_t& c, int slot, int key)
 {
+    // The keyboard's slots (Options > Controls, the VR menu's key rows): the gamepad's button kept after them (padflat); a
+    // gamepad button given is the action's button instead (setPadKey).
+    if(key > 0 && isPadKey(key))
+    {
+        setPadKey(c, key);
+        return;
+    }
+    const int pad = keyNumPad(c);
+    int all[keySlots];
+    const int total = flatKeyNums(c, all);
     int keys[keySlots];
-    int n = flatKeyNums(c, keys);
+    int n = 0;
+    for(int i = 0; i < total; i++)
+    {
+        if(!isPadKey(all[i]) && n < keySlots - 1)
+        {
+            keys[n++] = all[i];
+        }
+    }
     const bool valid = key > 0 && key < MAX_KEYS;
     // (one key never in both slots: the action has it already, nothing changes)
     for(int i = 0; valid && i < n; i++)
@@ -3132,11 +3149,15 @@ void qvr::flatplay::setKey(cvar_t& c, int slot, int key)
             n--;
         }
     }
-    else if(valid && n < keySlots)
+    else if(valid && n < keySlots - 1)
     {
         keys[n++] = key;
     }
-    char value[64] = "";
+    if(pad >= 0)
+    {
+        keys[n++] = pad;
+    }
+    char value[96] = "";
     for(int i = 0; i < n; i++)
     {
         q_strlcat(value, i ? " " : "", sizeof(value));
@@ -3331,7 +3352,7 @@ extern "C" const char* VR_FlatKeyCvarName(int i)
 
 extern "C" int VR_FlatKeyGet(int i, int slot)
 {
-    return flatKeyIndexOk(i) ? flatplay::keyNum(*flatKeyList[i], slot) : -1;
+    return flatKeyIndexOk(i) ? flatplay::keyNumKeyboard(*flatKeyList[i], slot) : -1; // (the keyboard's keys: setKey's slots)
 }
 
 extern "C" void VR_FlatKeySet(int i, int slot, int key)

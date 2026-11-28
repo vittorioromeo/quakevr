@@ -747,7 +747,7 @@ int VR_FlatKeyOwned (int key); // Key_Event: a key flatscreen play reads itself 
 // The flat keys (vr_flat_key_*; vr_flatmove.cpp), Options > Controls' "Quake VR (flat screen)" group (menu.c): index i in the
 // menu's order, each with VR_FLATKEY_SLOTS keys (slot 0, 1). Get: a slot's key (-1 none); Set: a slot's key, -1 clears it (the
 // slots stay packed); For: the flat key on `key` other than `skip` (-1 none).
-#define VR_FLATKEY_SLOTS 3 // (flatplay::keySlots: two keyboard keys and a gamepad button)
+#define VR_FLATKEY_SLOTS 2 // (the keyboard's: flatplay::keySlots less the gamepad's button, which these leave as it is; padflat)
 int VR_FlatKeyCount (void);
 const char *VR_FlatKeyLabel (int i);
 const char *VR_FlatKeyCvarName (int i);

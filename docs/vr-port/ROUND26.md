@@ -4909,3 +4909,46 @@ the camera suddenly a few units, then goes back" and "add a way to lock the anim
   the scrub, let go; the fire and melee cases now cancel at wait20: with his promoted times the first pair was already in
   at wait30). flatreload_test.sh 54/0.
 - **Open**: the pair in the locked hand is drawn but only checked by numbers (his eyes: key 4 looking down, key 6).
+
+## padflat: a flat-screen gamepad's default layout, its stick on the wheel and holster menu, a stick cursor in the menus (branch agent/padflat, 2026-11-28)
+
+His words (2026-11-28): 13. "The default flatscreen controller bindings are pretty bad, there's no way to access the weapon
+wheels or perform other common actions. Come up with a decent default binding selection." 14. "When using a controller in
+flatscreen mode, there needs to be a cursor in the menu that can be controlled with the thumbstick. Leave discrete
+navigation for the directional keypad." The layout table: FLATPLAY.md "A gamepad".
+- **Where the pad's actions live**: each flat key (`vr_flat_key_*`) now holds three keys, the keyboard's two and a gamepad
+  button ("c CTRL BBUTTON"; `flatplay::keySlots` 3; `keyNumKeyboard`, `keyNumPad`, `setPadKey`, `resetPadKeys`). In flat play
+  it wins over the button's bind (VR_FlatKeyOwned), so the headset's binds of the same keys (vr_bindings.cfg: a VR
+  controller sends ABUTTON etc.) are untouched. Fire, jump, the alt layer and the scoreboard are binds. 17 buttons on flat
+  keys (6 on the alt layer); no button on two actions.
+- **Alt layer**: Back held (`bind BACK +altmodifier`, Ironwail's; the buttons send `_ALT` keys). keys.c: a flat key on an
+  `_ALT` key counts as bound for the fallback, a button let go after Back lets go of its `_ALT` key (Ironwail left it held:
+  its next press was an "autorepeat"), and a flat key's button is not "unbound" (no console nag). in_sdl.c: SDL's Back now
+  sends its own key `BACK` (named in keys.c; it sent Tab before, so the Controller Bindings screen's Back was never pressed).
+- **Existing players**: flat keys left at their defaults get the layout (a sparse config). Once (`vr_flat_pad_defaults_version`
+  1, by `vr_checkbindings`; `fillPadDefaults`): a flat key of their own without a button gets its default's if no other
+  action has it; BACK and RTHUMB_ALT get their binds if unbound. Nothing bound is replaced.
+- **Rebinding**: Options > Controls' flat rows edit the keyboard's two keys (VR_FLATKEY_SLOTS stays 2) and keep the button;
+  a gamepad button's flat key and its bind no longer show a "!" clash (meant so), two flat keys on a button still do. The
+  Controller Bindings screen with a pad shown (`flatPad`: not a headset's controllers) shows each button's flat action
+  (else its bind), lists the flat actions, swaps/picks them (`setKey`), and its Reset also resets every flat key's button.
+  The pad's reminder panel (bindpanel2) reads the same (panelButtons in the model's context); the keyboard rows skip buttons.
+- **Right stick** (IN_JoyMove, `VR_FlatStickCursor`): with the flat weapon wheel open it points at a slot (past
+  `vr_pad_wheel_deadzone` 0.5 the cursor on the ring that way; back in the middle the slot stays), with the holster menu open
+  it moves the cursor (`vr_pad_holster_cursor_speed` 1.1 window heights a second); the view does not turn meanwhile.
+- **Menu cursor** (vr_menuui.cpp `VR_MenuPadStick` / `VR_MenuPadKey` / `VR_MenuPadHide`, drawn in VR_End2D with the holster
+  menu's arrow): the left stick moves it in the window (M_Mousemove, so every menu's hover works), A clicks while it shows
+  (the left mouse button, press and release, no repeats; the release follows even if the click closed the menu), the d-pad
+  steps as before and hides it, the mouse moving or a keyboard key hides it. Tunables > Flatscreen > Gamepad:
+  `vr_pad_cursor` 1, `_speed` 0.9, `_accel` 1.5 over `_accel_time` 0.6 s, `_curve` 2, `_deadzone` 0.2. Not in a headset.
+- **Debug** (Tools > Controller Bindings): Flat Gamepad Layout Test, Gamepad Menu Cursor Test / Report
+  (`vr_menu_pad_report`), Fill Flat Gamepad Defaults. Scenario `flat_gamepad`.
+- **Tests**: `Misc/quakevr/flatpad_test.sh` 4/0: `vr_flat_pad_test` 33/0 (every action's button, no duplicates or clashes,
+  slots, the alt layer press/release, fill once, reset, the screen's and panel's names), `vr_bindsetup_test` 17/0 (a pad's
+  swaps and reset now on the flat keys' buttons), `vr_menu_pad_test` 6/0 (hidden at first, the stick moves it, steered onto
+  B's label, A opens its list, the d-pad steps and hides it); screenshot `scratch/flatpad/bindings.png`. flatkeybind_test 31/0
+  (its expected values now carry the buttons), bindpanel_test 18/0.
+- **MP / splitscreen**: client-side input only (binds, cvars, menus): nothing networked. Splitscreen seats will need a
+  per-seat pad (which pad drives which seat's flat keys and cursor) on agent/split.
+- **Open**: the OS mouse pointer stays where it was while the pad cursor shows (not hidden); the stick on the toolgun's
+  panel and the gyro while the wheel is open not done; Back in menus does nothing now (it was Tab).
