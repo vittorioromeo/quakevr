@@ -5546,3 +5546,44 @@ QVR_NET_VERSION change.
     other players' guns already come from the entities (shared).
   - Visor boot, the bindings panels, padflat's stick cursor and Controller Bindings: per seat's input device and HUD.
   - Global attachment offsets are shared CVAR_ARCHIVE (seats draw with the same; nothing to do).
+## elitedye: the elite enforcer's dye hidden by its armour; every elite kind checked as drawn (branch agent/elitedye, 2026-11-28)
+
+Open from "elite": in the lineup (test 234) the elite enforcer looked stock green though `vr_humlook_info` gave it the elite
+row and a mask.
+- **Cause**: not the dye. The skill's armour roll (`VR_AgArmor_Roll`, by spawn position) gave that spot green armour: the
+  cuirass, helmet and pauldrons drew over the dyed clothes (a pure-red elite row dyed only its legs). The dye, mask, rows and
+  shader were right for every kind. In play an armoured elite shows its gold only where no plate sits (decision: the plates
+  keep their tier colour, which is armour information; a gold trim on an elite's plates is his call).
+- **Test 234** (`vr_attrs_test.qc`): the lineup is now 8 (death knight added), unarmoured (`VR_AgArmor_Give(e, 0, 0)`), laid
+  out clear of vrtesthall's left wall (dist 260, sides -55 + 36 i); it runs `vr_humlook_dyetest 4` with the screenshot and
+  checks its result (cvar `vr_test_humlook_dye`, its failures): 2/0.
+- **`vr_humlook_dyetest [n]`** (vr_humlook.cpp; Debug > Tools > Enemy Attributes > Check the Elites' Dye): each client
+  elite's skin texture read back, its clothes-masked texels through its instance rows (the shader's HumDye on the CPU)
+  against the stock texels: PASS when the mean hue moves (channel shares > 0.04) towards gold (blue share down > 0.05, red
+  over green); fewer than n elites fails. Grunt, enforcer, knight and death knight pass (blue share down 0.08-0.12).
+- **Infected**: an infected elite still loses the elite when it rises (kept). The risen body's `.vr_hum_look` is now 0
+  (`MG3_Infected_DropWeapon`: it kept its weapon's look, which the engine would dye on the zombie's skin by palette rows);
+  arena test 35 checks it. Test 35's "his plates shed" failures (4-6 of 504, varying) are the same without this change.
+- Tests: `vr_agrunt_test 233` 52/0, `234` 2/0 (dyetest 5/0), `vr_arena_test 35` 498/6 (pre-existing, above).
+
+## alwaysfail2: the four still-failing tests, and `god` in test scripts (branch agent/alwaysfail2, 2026-11-28)
+
+| test | cause | action | result |
+|---|---|---|---|
+| vr_agarmor_look_check 26 | stale, not today's armour work: the failures date from 11-07/08 (ROUND24 "fewer, bigger plates" already had 25 "there before"). Main cause: the leather bridge (14512043b, 11-07) took the elbows' and knees' leather out of the shell's triangles (a per-frame bridge entity), so the coverage rays counted every skin vertex between a limb's last plate row and its joint as bare (grunt thigh 0%, player forearms 54-56%, death knight shin 12%). The rest: the fewer, bigger plates and his armour.txt tuning (5c475b022: death knight thigh taper_start 1.5, cuirass start 2.5 / end 4 / standoff -0.4) | the coverage also casts at the bridge (evalBridge in the check's pose, s.bridgeTris); humanoid coverage limits 0.7 / 0.7 (grunt thigh 75%, enforcer upper arm bent 75%, knight forearm 81%: 8-20 vertices a piece); death knight width 9.5, taper 0.5, rest 0.65 (his tuning: 8.89, 0.46, cuirass 68%, 78% untuned). Player builds keep 0.85 / 0.8 (now 0.95-1.00) | 114/0, 3 of 3 |
+| teleporters_chase (sill-32 dog) | harness stale since navtrail (613a3861c, 11-13): a hunter that lost you walks your trail and searches within vr_nav_trail_search 160 of its end. The test moves the player by setpos through the wall: no trail through a gate, so the dog searched about his old place in front of the 32 sill it can't climb (it ended at 1400-1440, 510-570: that place), 180 units from the sill-16 gate. Not a play bug (a real player crosses by a gate, which the trail follows) | that case runs with vr_nav_trail 0, keeping its expected Quake chase (bump, slide, sill-16 gate) | PASS seeds 1, 4, 7, each on its first try (90-105 frames); off test_flaky.txt |
+| `god` in test START lines (bayofix's find) | two causes. Client: right after `map` the client is connected at signon 0; the forwarded command went into cls.message, which reading the serverinfo clears (CL_ClearState): lost. Server: one arriving before the client spawned is undone by Host_Spawn_f's edict reset and PutClientInServer | client: forwarded commands are held (the mpoverflow queue, vr_client.cpp fitsNow) until the serverinfo is read; server: god, notarget, noclip, fly, give, setpos from a client not yet spawned are kept (client_t.heldcmds, SV_HeldUntilSpawned) and run at its begin, in order | `map start; god; notarget; give s 77` -> FL_GODMODE, FL_NOTARGET, 77 shells (before: none). flatwalk 12/0, dismember arm/leg clean, attach_test 51/2 (the 2 also without god: see below) |
+| agrunt_16 (hunt grip) | not found: max 2.73, mean 2.13 over 72 frames, the server's hull 1.51, 126 from you; passes batched, fails alone (testbatch3) | none | 273/1 |
+| rigstudio_posekeys 5 | the earlier "no output": the studio is flat-screen only, the run had no -flatscreenmode and the not-open path printed no verdict (ran to its timeout). With -flatscreenmode: case 5 "right elbow, down 4": key ElbowR +(-0.31, 0.27, -0.09), the drawn elbow moved (-1.44, 1.46, -0.05): sideways, not down; not looked into further | the not-open path prints the verdict (0 passed, 1 failed) | 13/1 |
+
+- **Tests that asked for god/notarget/give right after `map` and never had it** (57 files; scan scratch/af2_godscan.py): agspear,
+  attach, attach_holster, doubletap, embeddual, embedfire, embedhold, poleembed, smallgibs, spear, vrspear, stickclick,
+  weaponwheel, ragdoll/saveload (god); ragdoll/active and ragdoll/dismember (notarget, "unaware of you"); 31 flat*_test.sh
+  (flatads, flatdrag, flatfists, flatmelee4/6, flatreload, flatsight, flatwalk, flatwall, flatzoom, ...); vr_playerplates_test.qc's
+  scripts. They now get what they ask for; the ones run here are unchanged (above). The coordinator's suites will show any
+  that leaned on being mortal or seen.
+- **Unrelated, on origin/next b0756f0fd:** attach_test's vr_embed_test 79 (3) and 84 (2) failures: "picked up by the hand: the
+  same record", the stuck super shotgun "broken open where it is by its B", "the off hand's round goes in"; the same with
+  god taken out of the script (BACKLOG section 1).
+- **Files:** vr_agarmor_check.cpp, host_cmd.c, server.h, vr_client.cpp, vr_rigstudio.cpp, teleporters_test.sh, test_flaky.txt,
+  BACKLOG.md.

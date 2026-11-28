@@ -133,6 +133,8 @@ typedef struct client_s
 {
 	qboolean		active;				// false = client is free
 	qboolean		spawned;			// false = don't send datagrams
+	char			heldcmds[512];		// QVR: god, notarget, noclip, fly, give, setpos sent before spawning (a script's
+										// "map x; god"): run once spawned, as the spawn's edict reset would undo them (host_cmd.c)
 	qboolean		dropasap;			// has been told to go to another level
 	enum sendsignon_e	sendsignon;			// only valid before spawned
 	int				signonidx;
