@@ -506,7 +506,7 @@ testkit::Tally armedTally;
 // vr_run_elites_check <allelites>: the running map's armed humanoids as that run spawns them (QC VR_Run_ElitesCheck:
 // every one an elite with All Elites, none without (vr_elite_spawn 0); the hook's rules for the arena's and the tools'
 // spawns); vr_run_elites_check verdict: "runelites: N passed, M failed".
-testkit::Tally elitesTally;
+testkit::Tally elitesTally; // seat-shared: a test's tally
 
 void elitesCheckCmd()
 {
