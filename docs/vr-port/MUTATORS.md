@@ -100,6 +100,7 @@ designated initializers (a line names only the fields it needs; the others defau
 | `VR_Run_Respawn()` | `respawn` (a dead single player), after the tutorial's checkpoints; TRUE: taken over | Ironman: `restart fresh` |
 | `VR_Run_MonsterSpawning()` | the engine's `ED_LoadFromFile`, before a map's `monster_*` spawns, while Enemy Count or Randomized Enemies is on (self: its keys parsed, its spawn function not run) | Randomized Enemies' swap (its classname: the new kind spawns from the map's own keys), then Enemy Count's number of copies (0..2) |
 | `VR_Run_MonsterCopy(k)` | `ED_LoadFromFile`, once the whole map has spawned (self: copy k, its monster's keys parsed again; other: its monster) | Enemy Count's placement beside its monster; FALSE: no room, no copy |
+| `VR_Run_ForcesElite(e)` | `VR_Attr_Spawned` (`VR_AM_Spawn`'s end: every armed humanoid, the arena's waves too) | All Elites: TRUE makes it an elite (no roll) |
 | `VR_Run_MonsterCopied()` | `ED_LoadFromFile`, right after a placed copy's spawn function (self: the copy; other: its monster) | its own box tested where it stands: in solid, logged and counted for `vr_run_enemies_check` |
 
 A mutator that keeps state of its own in QC (Ironman's lives, say) keeps it in a saved global or field; the run's
@@ -126,6 +127,7 @@ choices themselves are the engine's line.
 | `rangedknights` | Off, On | knights and death knights spawn with and take up guns (`vr_armedrepl.qc` `VR_AKN_Pick`; below); held Off while Armed Humanoids is off |
 | `wildweapons` | Off, On | armed humanoids' rolled weapons ignore what you own and the rare tier's map (`VR_AGR_Eligible`, `VR_AGR_RareOk`); held Off likewise |
 | `armoredfoes` | Off, On | armed humanoids armoured far more often (`vr_agarmor.qc` `VR_AgArmor_Roll`); held Off likewise |
+| `allelites` | Off, On | every armed humanoid spawns an elite (`vr_run_allelites.qc`): the map's, replacements', copies, swaps, the arena's waves; never the tools' or deathmatch's. Not held by Armed Humanoids (Arena Mode shows it and always has them; without them it changes nothing) |
 
 ### Randomized Pickups
 

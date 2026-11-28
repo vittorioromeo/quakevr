@@ -6073,6 +6073,176 @@ Brush").
   Scripts: worktree `scratch/qcb_*` (not committed): `qcb_q.sh` (backup/install/launch/restore), `qcb_mkcfg.py`,
   `qcb_parse.py`, `qcb_q2.cfg` (the profile A/B).
 
+## questframe: the Quest's whole frame profiled per scene; a crowd's thinks spread; the sound's reverb off the main thread (branch agent/questframe, 2026-11-28)
+
+His words: "Profile the whole frame" (what sets the Quest's frame rate, beyond QuakeC).
+- **Method**: Quest 3, release APK of this branch with the test progs, his ironwail.cfg (read, `-noconfigwrite`), unworn,
+  `-unattended`, 72 Hz (the runtime's: his `vid_refreshrate 90` is the desktop's, logged), dynres on, SpaceWarp off; one
+  launch through the scenes, each settled 3 s then 432 frames between perf marks, `vr_profile 1` (GPU queries 1 in 4) and
+  the perf recorder (CSV exported: `vr_android_export perf` + `vr_android_share export`); per frame "bound" = CPU busy or
+  gpu_span over 0.9 of the 13.89 ms budget. Every thread's work that sets the frame is the main thread's (server, client,
+  GL submit, xrWaitFrame/xrEndFrame, S_Update); the pool takes the sound mix, the steam-audio sims, arm solves, Box3D.
+  Scripts: worktree `scratch/qf_*` (not committed: qf_q.sh backup/install/launch/restore, qf_mkcfg.py, qf_csv.py,
+  qf_parse.py, qf_ab.py).
+
+| scene (ms) | period med / p90 | CPU busy med / p90 | GPU med / p90 | dynres | late | bound |
+|---|---|---|---|---|---|---|
+| hub (vrstart) | 14.07 / 16.11 | 8.05 / 10.19 | 10.90 / 11.43 | 0.80 (held) | 0% | GPU, by design (dynres holds it at ~11 ms); xrWaitFrame idles 4.7 ms |
+| e1m1 start | 13.88 / 14.70 | 7.08 / 7.76 | 6.40 / 7.10 | 1.00 | 0% | neither: paced by the runtime (6 ms idle) |
+| arena wave 3 | 14.06 / 15.67 | 5.63 / 7.55 | 6.70 / 7.57 | 1.00 | 0.5% | neither |
+| hip1m1, 69 woken | 13.58 / 22.47 | 8.12 / 16.45 | 5.68 / 6.35 | 1.00 | 3.9% (report: 93 of 408 missed) | **CPU spikes: QuakeC every 7th frame** |
+| hipnotic start / rogue start | 13.99 / 15.65, 14.06 / 15.94 | 5.84 / 7.54, 6.52 / 8.58 | 6.83 / 7.05, 6.16 / 6.40 | 1.00 | 0-0.5% | neither |
+
+  (The last row was meant as his hip1m1 and r1m1 autosaves: `load qf/...` copies were not found under the campaign's
+  folder and the campaigns' start maps were measured instead; not re-run.)
+  Top CPU costs (vr_profile, ms a frame): hub models 1.77, ui/hud/menu 1.06 (the hub's signs), vr view setup 1.03,
+  light setup 0.92, sound 0.63; e1m1 vr view setup 1.12, models 1.03, quakec 0.97, render other 0.63, ui 0.61; arena vr
+  view setup 1.10, models 1.00, quakec 0.61, render other 0.48, ui 0.47; fight quakec 3.80, vr view setup 1.05, sound
+  0.66, models 0.66, ui 0.46 (box3d 0.38, physics 0.39). GPU: one "render other" row (the eyes' scene passes, 5.4-10.8):
+  timer queries inside an Adreno tiled pass don't split by system (world, models ~0.01), so the GPU's parts come only from
+  turning features off (questperf: the world ~5 ms of the fight's 7.5).
+- **What sets the frame**: unworn at his settings every scene holds 72 Hz on average with CPU and GPU under budget; the
+  misses come from spikes on the main thread: (1) **QuakeC's 10 Hz burst** in the crowd: SV_RunThink runs a think at its
+  nextthink, so 69 monsters woken on one frame think on one frame every 0.1 s for good: ev_qc 11-14 ms on every 7th frame
+  (2 ms between; autocorrelation 0.45 at lag 7; PC: 66 monster thinks, up to 207k statements, on one frame, none on the
+  others); (2) **the spatial audio's reverb convolution** (~2 ms, `vr_snd_bench`: paint 2.1 ms median, reverb_conv 1.7)
+  landing on the main thread every 3-10 frames: the pool's mix and S_Update both painted, and whichever crossed the next
+  spatial frame took it (snd_mixstats: 2 paints a frame, half on the main thread); `vr_snd_spatial 0` took busy p90 10.5
+  -> 8.5 in the hub.
+- **Change 1: `vr_think_spread`** (cvar 12, `vr_think_spread_frames` 4; Debug > the armed humanoids' rows "Monsters'
+  Thinks Spread over Frames", "Monsters' Thinks a Frame" = `vr_think_spread_stats`): past 12 monster (FL_MONSTER) thinks
+  in a server frame the rest wait (their nextthink stays due) and run on the next frame at its time (as a think that fell
+  due between frames always did), at most 4 frames late; their later thinks fall on later frames, so the burst is spread
+  once (11 frames deferred anything in 720) and stays spread. Deterministic (counts, no clock); missiles, doors, triggers,
+  players never wait. sv_phys.c SV_RunThink, vr_physics.cpp. PC fight: monster thinks a frame max 66 -> 19, their
+  statements max 207k -> 15k. **Not frame-for-frame the same game** once a crowd above 12 is due on one frame: those
+  monsters' AI ticks shift by up to 4 frames (55 ms) once; nothing visible. combat48 seed 7: 1227 damage taken (2050
+  before; one seed, chaotic: aglod's seeds ranged 1067-2050).
+- **Change 2: `snd_mixasync_lead`** (cvar 0.6; Debug > Threads "Sound Paint Left to the Pool"): S_Update leaves its paint
+  to the pool's mix (posted every screen update) while what is painted leads the device by 60% of the mix-ahead or more;
+  a long frame (less lead) still paints at once. The same samples. snd_mixstats counts the paints left. snd_dma.c.
+- **Headset A/B** (interleaved blocks in one launch each, medians over blocks):
+
+| | off | on |
+|---|---|---|
+| `vr_think_spread` 0 / 12, hip1m1 69 woken (each block re-woken: `vr_test_monsters 2`), 6+6 blocks of 432 | late 10.22%, over budget 13.9%, busy p90 17.45, p99 24.90, period p90 23.03, ev_qc p99 17.2 | **late 1.39%, over 3.7%, busy p90 12.55, p99 18.60, period p90 17.08, ev_qc p99 11.4** (busy median 9.14 -> 10.70: the same work spread; QuakeC mean 4.49 / 4.78) |
+| `snd_mixasync_lead` 0 / 0.5, hub, 6+6 blocks of 432 | main-thread sound 0.67 ms a frame (p99 2.81), busy p90 10.27, p99 11.24, period p90 16.15 | **0.05 (p99 0.19), busy p90 8.59, p99 9.69, period p90 14.70** |
+
+  Underruns (snd_mixstats past the load): hub 0.5 0, fight 0.5 1 of 1371 frames (0 with 0), fight 0.6 0 and 0 in two
+  blocks of 1296: the default is 0.6 (still 1371 of 1373 paints left to the pool). PC: the sound isn't on in headless runs
+  (0 paints), so the sound change is measured on the Quest only; the think spread is the same code on PC.
+- Tests: aglod_test.sh 18/0; aglod_balance.py hip1m1 + combat48 seed 7 "2 same, 0 differ" (think LOD off = on with the
+  spread on); the spread's stats above. vr_snd_mixcheck_test needs sound (not on in headless runs): not run.
+- Headset: beta6 put back (APK 9261565a, progs a0bfe11a), his 31 autosaves and 4 top-level saves restored (35 sums
+  match); lock released. Left: `quakevr/qf.cfg`, `quakevr/qf/` (two save copies, not listed by the load menu),
+  `files/export/` CSVs. prox_close was not used (the KEYCODE_WAKEUP cycle kept it running; frames don't run while the
+  runtime stops the session, so per-frame numbers hold).
+- Open (by size): his autosaves' scenes (load them as `load autosave/<campaign>~<map>`, fixed in qf_mkcfg.py); the
+  hub's GPU (dynres holds 0.80: SpaceWarp or foveation are his calls); vr view setup ~1.0-1.1 ms everywhere; models
+  0.6-1.8; the hub's ui/hud 1.06 ms; a worn session (his play adds the flashlight's and rig's lightmap lights:
+  questopt) not reproducible unattended.
+## elite2: elites easy to spot (gold rim glow, gold-trimmed plates) and the All Elites mutator (branch agent/elite2, 2026-11-28)
+
+His words 2026-11-28 (items 15, 16): the elite colouring is not easily visible, armoured elites harder still; a glow or aura; a
+Run Setup mutator making every enemy spawn elite. Then (his addition): a gold trim on an armoured elite's plates, the tier's
+colour still clearly read.
+- **The marker** (`vr_elite_glow` 0.55, `vr_elite_glow_fill` 0.12; Tunables > Armed Humanoids > Elite): a gold fresnel rim
+  (1 - |n.v|)^2 plus a small fill, unlit (added after the model's light, before fog): an elite reads in the dark. On its body
+  and on its armour's plates and joints' leather (`agarmor::sourceOf` maps them to the wearer); the plates get the outline
+  alone (no fill: their tier's colour kept). Pulses with the dye (`vr_elite_pulse`, same phase). `humlook::eliteGlow` fills a
+  new instance vec4 `Elite` (vraliasinstance_t.elite); the term lives in `ModelRimReflect`, so an elite's instance sets the
+  rim bit (128) of `VR_AliasPlainNeeds`: no new plain-form bit, no extra pass. AD's death guard and crossbow knight now carry
+  the elite bit too (QC VR_Attr_Look: kind * 16 + 8192; no dye masks there: keyOf -1, the marker alone; dyetest skips them).
+- **The gold trim** (`vr_elite_trim` 1): make_agarmor.py paints 9 more skins (9..17: the same nine with the plates' trim, sides
+  and lower edge, a bright gold quantised with Quake's tan-gold and yellow rows, not the tier's: no green or red speckle); the
+  faces are untouched. relink draws an elite's plates with skin + 9 (the leather keeps its own). The first nine skins and the
+  relief are byte-identical; vragarmor.mdl 295 KB -> 590 KB. On red the gold reads orange-gold (the palette's limit).
+- **Cost**: per elite fragment one dot, an abs and three mads under a per-instance branch; 16 bytes more per alias instance;
+  the trim a skin swap (9 more 256x128 skins in memory). Not measured on the Quest (no headset run here), nor timed on PC.
+- **All Elites** (`allelites`, Run Setup's Enemies group and Arena Mode's screen): `vr_run_allelites.qc` through the new hook
+  `VR_Run_ForcesElite(e)` in VR_Attr_Spawned (VR_AM_Spawn's end): every armed humanoid the map, a replacement, Enemy Count or
+  Randomized Enemies spawns, and the arena's waves (its held roll, preset waves too); never the tools' (vr_agr_hold) or
+  deathmatch's. Not held by Armed Humanoids (decision: Arena Mode always has them; without them it changes nothing). Saved
+  with the run through the registry like the others.
+- **Debug**: `vr_humlook_glowtest [elites] [plates]` (Debug > Tools > Enemy Attributes > Check the Elites' Marker); the client
+  elite lines of `vr_humlook_info` print the marker.
+- **Tests**: `vr_agrunt_test 234` 4/0 (three screenshots now: plain, armoured a tier per pair, dim light; glowtest 10/0, then
+  26/0 with the plates and their skins); `vr_run_elites_check` 4/0 (e1m2: 17 of 17 armed humanoids elite, 0 of 7 others; off:
+  none; the hook's rules); vr_runsetup_test 91/0; `mp_test.py suite --only mp_elite` 10/0 (B's marker 0.45); tunables_test
+  passes. Scene: elite_marker.
+
+## ragknock: ragdolls knock living monsters down only when it convinces (branch agent/ragknock, 2026-11-28)
+
+His note (words_1128b item 1): bodies with smaller forces floored enemies too easily. The one path where a ragdoll
+(corpse, knocked-down or staggering one, thrown, swung or flung by anything) knocks a living monster over is the Thrown
+Body trigger: the engine's `callBodyHits` (vr_box3d_step.cpp) -> QC `VR_KdTrig_BodyHit` -> `VR_KdTrig_Bump`
+(vr_kdtrig.qc). (A gun or prop falling on one is the hit stagger's, vr_hitstagger.qc: not changed.)
+
+| | before | now (`vr_ragknock` 1) |
+|---|---|---|
+| meeting | the whole body's box (grown 4 u) overlapping the monster's box | only the parts whose own boxes meet it |
+| momentum | whole mass x the middle's whole speed (falling included) | meeting parts' mass x their speed into it (towards its middle, relative to its velocity) + `_body` 0.6 of the rest behind the pelvis/chest (`_limb` 0.15 behind limbs alone); a stagger's backpedal: all of it x `_driven` 1.75 |
+| when | every frame it overlaps | once a meeting: its hardest within `_wait` 0.15 s (sooner when all of it is in it or it stops striking); its speed capped at the closing speed as they met (falling on through one gains nothing); a new throw starts a new meeting |
+| floor | middle speed >= 40 u/s; strike >= `vr_kdtrig_thrown_least` 0.05 | also parts into it >= `_min_speed` 60 u/s, strike >= `_stagger` 0.35 |
+| tiers | strike 0.05..1: chance of down grows 0..full, else stagger | < 0.35 nothing; 0.35..0.9 stagger; 0.9..1.5 down at half to full chance, else stagger; >= 1.5 full chance |
+| victim | weight 80 x group resistance; weight classes | same, strike also / stance: off the ground x`_air` 0.6, a low wide box (height/width < `_low_ratio` 1.45: ogre, dog, spider) x`_low` 1.6 |
+
+Strike = momentum / (its weight x `vr_kdtrig_thrown_speed` 160), as before; the weight classes (`vr_kdtrig_weight_*`), the
+chance (`vr_kdtrig_thrown`), the push and the cooldowns keep their meaning. `vr_ragknock 0` is the old rule. Tunables
+under Combat > Ragdoll Triggers - Thrown Bodies. `vr_kdtrig_debug 2` prints the engine's measure each frame a pair meets
+(`ragknock: 47 of 84 kg meet it (trunk, driven) at 113 u/s into it, the body 120: ... as 93 u/s`).
+
+Measured (headless): a hard two-hand shove's backpedal into a grunt 1.3-1.6 (down), a corpse flung at a grunt at 380
+u/s 1.4-2.1 (a glancing one, a leg first, 0.4-0.8: a stagger), a body falling 140 units onto one 3.1, a grunt's
+ragdoll falling from its head through it: nothing, a corpse falling over beside it: nothing or 0.66 (stagger), a corpse
+at 380 u/s at an ogre 0.15-0.62 (nothing or a stagger; it is never toppled: its weight class).
+
+- Files: vr_box3d_step.cpp (`ragKnockStrike`, `callBodyHits`), vr_box3d_internal.hpp (`RagdollBodies::Meet`),
+  vr_kdtrig.qc (`VR_KdTrig_Bump`'s tiers, `VR_RagKnock_Stance`), vr_tunables*.inc (`vr_ragknock*`).
+- Test: `vr_agrunt_test 236` (QC/vr_ragknock_test.qc, map vrragtriggers): 6 cases x 3 trials, seeds 1-3 7/0 each; the
+  old rule (`tune vr_ragknock 0`) fails the light drop (1 of 3 down, 2 staggered).
+  `sv_random_seed 1;map vrragtriggers;wait30;god;vr_agrunt_test 236` -QuitOn "test 236 over".
+- Open: `vr_kdtrig_test 44` (the thrown trials) is confounded: its corpse is killed between you and the target, and the
+  kill push throws it into the target before the fling (down then, counted "stands"). Not changed.
+## dazzlestudio: the dazzle shield's pose tweaked per armed humanoid kind, one weapon and two, in an ImGui Dazzle Studio with gizmos (branch agent/dazzlestudio, 2026-11-28)
+
+His words 2026-11-28 (item 14): per-kind offsets/rotations on top of the base dazzle pose, elbow and forearm adjustments,
+how far the gun arm moves away, dual-wielding ones; an imgui studio with gizmos. Follows "flashblind" and "dazzlepose".
+- **Data** `quakevr/data/dazzle.txt` (`vr_dazzle_file`; vr_dazzledata.hpp/.cpp): per kind (grunt, enforcer, knight,
+  death knight, AD's death guard, crossbow knight) a `single` set (one weapon or none) and a `dual` set (two weapons), one
+  line a non-zero field: `hand` (the shielding grip moved: forward, left, up in its body, units), `hand_turn` (two weapons:
+  the left weapon turned in that hand, pitch yaw roll), `elbow` (added to its elbow's way '0.3 1 -0.45', normalized),
+  `twist` (degrees: the elbow turned about the shoulder-to-hand line, its forearm rolled across the face), `gun` (the gun
+  hand moved away while it shields, times the shield's share). Shipped file: the header only, all zero = the dazzlepose
+  pose exactly. `vr_dazzle_load` / `vr_dazzle_save`.
+- **The game** (QC vr_armedgrunt_dazzle.qc `VR_AGP_Shield`, through the new builtin `dazzletweak(kind, dual, field)`):
+  the hand's place = `VR_AGP_ShieldAt` + `hand` (after the bend's clamp: an offset moves it by exactly that much);
+  the pole `VR_AG_ShieldPole` (elbow + twist); the right hand's `vr_agp_v` + `gun` x share (single and dual); the dual
+  shield's weapon frame turned by `hand_turn` (`VR_AG_DazzleTurn`, makevectors, v_* kept). The server's pose: it goes out
+  in the existing pose message (`vr_agp_v`, `vr_agp_vl`, the left pole in `vr_agp_ell`): MP clients and both agpose paths
+  (QC and native, which calls the QC shield) draw it; nothing new on the wire.
+- **The single hand has no turn**: a bare hand is the arm IK's Point goal (it points along its forearm; the pose message
+  has no wrist turn, `freeOff` only applies to a hanging hand). Its look is set by the forearm's twist and the elbow;
+  `hand_turn` is the two-weapon set's only (the studio greys it out for one weapon).
+- **Dazzle Studio** (vr_dazzlestudio.hpp/.cpp; `vr_dazzlestudio [open|close|toggle|test]`; Debug > Tools, Tunables >
+  Armed Humanoids > Flashlight Dazzle): the Reload Studio's ImGui window pattern, the shared gizmo (vr_gizmo.hpp) and the
+  Armour Studio's subject spawner, now shared: QC `VR_StudioSubject(kind, ahead, wid, wid2)` (vr_armourstudio.qc;
+  `VR_ArmourStudio_Spawn` calls it, as before) and `VR_DazzleStudio_Spawn`. The subject: the kind with its own weapon
+  (shotgun, nailgun, sword, crossbow) or two revolvers (`vr_dazzlestudio_kind`, `_dual`), `_ahead` (56) units ahead, every
+  armed humanoid frozen while open (`vr_agrunt_freeze`, put back on closing), held in its shield pose by the new field
+  `.vr_ag_dazzle_hold` (`VR_AG_DazzleTick`: held at it whatever lights it; `VR_AG_ShieldDual` true for it): frozen at full
+  or Live (`_live`: rises and falls over 3 s). Right-drag turns it (`_turn`), as the Armour Studio's. Gizmo on the target
+  picked (its dot clicked, or 1 2 3): the hand sent (`vr_ag_shield_at`), the drawn elbow and the drawn gun hand
+  (`hitreact::drawnArm`); W moves, E turns (the hand, two weapons). Sliders for every field; Save, Revert, Reset This Set,
+  Copy to Other Set. Edits are live for every dazzled humanoid of that kind.
+- **Test** `vr_dazzlestudio test` (flat screen, a level loaded; Debug > Tests): 18/0. Zero data, a settled pose; a hand
+  tweak 3 -2 1 moves the hand sent by exactly that (0.0000 off); gun 0 -4 0: the gun hand 4.00 to its right; elbow 0 0 -1:
+  the elbow 2.18 lower; twist 40: the elbow 2.28 away, the hand kept; the gizmo's turn math; saved, cleared, read back;
+  cleared: the hand, elbow and gun hand as with no tweaks (within 0.001 / 0.01); two revolvers: the dual set alone moves
+  it; closed: the subject gone, vr_agrunt_freeze back. `test shots`: a screenshot per gizmo (worktree
+  scratch/dazzlestudio_hand/_gunarm/_elbow/_dual_turn.png). `vr_agrunt_test 232` 23/0 (as dazzlepose's), armourwin 17/0.
+- **Open**: the subject's pitch is not offered (the Armour Studio's right-drag pitch: the pose's body math is yaw only);
+  no undo beyond Revert; "mirrored preview" read as the live edit on the subject.
 ## flatmenu3: the holster menu on TAB with the level bar, its BACK POUCH, legible pad glyphs, the off hand's wheel (branch agent/flatmenu3, 2026-11-28)
 
 His words 2026-11-28 (items 3-6 of the afternoon's flat-screen notes).
@@ -6189,3 +6359,35 @@ on its inner side for the simple/no-reloading modes, a lava look in the lava nai
   button close: roll -90 face out, +90 its back, from above).
 - **Open**: the button's size is the shared `wpnbutton.mdl`'s (bigger than the frame band; no per-weapon scale key):
   tune `wpnbtn_*_37` in the weapon studio if it should sit elsewhere. Flat R after N wasn't exercised by the test.
+## Armed ragdolls keep firing one-handed guns: research and prototype (branch agent/ragfire, 2026-11-28)
+
+His item 17 (fb1127n). Full notes: `RAGFIRE.md`. Verdict: feasible and cheap; prototype done behind `vr_agrunt_ragfire`
+0 (VR Settings > Armed Grunts > Loadout: "Fire While Down (Experimental)"); looks need a wrist drive (about a day).
+- A staggering, downed or held armed humanoid with a shotgun, nailgun, nail pistol, revolver, burst rifle or laser rifle
+  fires at its target from its gun as it lies: its gun arm reaches towards the target (new active-ragdoll drive
+  `ragactive::Aim`, QC `ragdollaim` = `ragdollguard`'s optional grip/strength), it fires while the gun points within
+  `vr_agrunt_ragfire_cone` 60 deg, the shot turned by at most `_steer` 30 and off by `_error` 5, every `_interval` 1.6 s
+  (nails `_nail_interval` 0.6), never with its muzzle in the floor or its line blocked; `_held` 1 fires in your hands too;
+  `_aim` 0.7 the arm's strength (tunables, Debug > Tunables "Ragfire").
+- Shared shot path: `VR_AG_ShootProp`, `EnemyFireBullets`, `VR_AGR_NativeShot` take a global `vr_ag_rf_dir` (no AI aim,
+  no convergence, no drawn-line turn); off, nothing changes.
+- Measured: a lying ragdoll's gun stays 36-59 deg off the player with the arm reach on (limp wrist, arm on the floor); a
+  shotgun lying muzzle down holds every shot (blocked). Next: drive the hand bone, then cut the steer to ~10 deg.
+- Test `vr_agrunt_test 237` (vr_armedgrunt_ragfire_test.qc): 5/0. Scene `agrunt_ragfire`.
+## blcheck: BACKLOG items checked against the code and ROUND26 (branch agent/blcheck, 2026-11-28)
+
+Every open BACKLOG.md bullet (about 79) read against ROUND26/ROUND25 sections and the code (greps; no tests run: docs only).
+Counts: closed 1 (a sub-item), trimmed 5, kept the rest (about 73), added 3.
+
+- **Closed:** the flat `weaponwheel_test` failure (section 1): flatmenu3 ran weaponwheel_test flat 21/0 (the wheel's tap cycle).
+- **Trimmed to what is left:** section 1 hip1m1 (QuakeC profiled and cut: questopt2, qcnative, aglod, qcbuiltins, qcvm; the unworn
+  headset's pauses explained by questopt2; left: props' think native port, agpose, limbpiece, navsteer); section 3 procedural
+  reloads (reloadsys, reloadmags, reloadmuzzle did the super shotgun, magazine guns, nailguns, launchers, heavy revolver); section 6
+  AD humanoids (adknights armed the death guard and crossbow knight and their worn packs; his look and the other AD kinds left);
+  section 8 the dagger's flight (its Dagger Settling tunables shipped in ROUND25; values and refinement left); section 1's toolgun
+  panel line (its sibling fixed).
+- **Checked, still open:** agent/split is not in origin/next; `vr_physsound.cpp` still has its surface-hold copy (line ~403);
+  `vr_main.cpp` still registers many test commands; flat left-handed mode has no mirrored `routeFire`; the ammomags work is not
+  in yet ("Ammo type follows the loaded magazine" stays).
+- **Added (section 11):** mixed ammo loads in launchers (placeholder for the ammomags worker), `vr_menu_pad_test` hang on agent/split,
+  the unused scenes `agrunt_dual_guns` and `armour_beasts`.

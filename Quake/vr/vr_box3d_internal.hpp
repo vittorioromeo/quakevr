@@ -390,6 +390,21 @@ struct RagdollBodies
     // Its middle's fastest (units/s) since then: a strike counts at thrownKeep of it at least (callBodyHits; the floor
     // or a limb catching on the way slows it before it meets the monster).
     float thrownPeak{0.f};
+    // The living monsters its parts meet now (vr_ragknock; callBodyHits): each one's edict and the speed it closed on
+    // it at as they met (units/s), its strike's speed at most while they stay met (ragdolls pass through living
+    // monsters: falling or swinging on through one gains it nothing); when they met, the meeting's hardest strike so far
+    // and whether it was struck (once a meeting).
+    struct Meet
+    {
+        int mon{0};
+        float speed{0.f};
+        bool seen{false};
+        double since{0.0}; // QC time
+        glm::vec3 best{0.f};
+        bool fired{false};
+    };
+    za::Array<Meet, 4> meets{};
+    int meetCount{0};
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
     // Its active drive's forces this frame (N, world; ragactive::Parts::force), given again for the step's later pieces

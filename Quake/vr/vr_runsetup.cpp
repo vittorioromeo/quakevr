@@ -241,6 +241,11 @@ const Mutator registry[] = {
                 "Humanoids.",
         .pick = &vr_runpick_armoredfoes, .active = &vr_run_armoredfoes, .forced = armedOnlyForced,
         .heldBy = "Armed Humanoids off"},
+    // (not held by Armed Humanoids: Arena Mode shows it and always has them; without them it has nothing to change)
+    {.id = "allelites", .label = "All Elites", .options = {"Off", "On"}, .tags = {"", "All elites"},
+        .help = "Every armed humanoid spawns an elite: much quicker to fire, react and close in, more accurate, tougher, "
+                "glowing gold. In the campaigns and in Arena Mode. Needs Armed Humanoids.",
+        .pick = &vr_runpick_allelites, .active = &vr_run_allelites},
 };
 // clang-format on
 
@@ -497,6 +502,33 @@ void enemiesCheckCmd()
 // run's cvars; QC VR_Run_ArmedCheck: the rolls' shares over many spawns as the choices say, the map's own knights and
 // armed humanoids as rolled); vr_run_armed_check verdict: "runarmed: N passed, M failed".
 testkit::Tally armedTally;
+
+// vr_run_elites_check <allelites>: the running map's armed humanoids as that run spawns them (QC VR_Run_ElitesCheck:
+// every one an elite with All Elites, none without (vr_elite_spawn 0); the hook's rules for the arena's and the tools'
+// spawns); vr_run_elites_check verdict: "runelites: N passed, M failed".
+testkit::Tally elitesTally;
+
+void elitesCheckCmd()
+{
+    constexpr const char* name = "runelites";
+    if(Cmd_Argc() == 2 && !ZA_STRCMP(Cmd_Argv(1), "verdict"))
+    {
+        elitesTally.verdict(name);
+        elitesTally = testkit::Tally{};
+        return;
+    }
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_run_elites_check <allelites> | verdict\n");
+        return;
+    }
+    const int ae = atoi(Cmd_Argv(1));
+    char what[96];
+    q_snprintf(what, sizeof(what), "%s: all elites %d", sv.name, ae);
+    elitesTally.check(activeValue(find("allelites")) == ae, name, va("%s: the run's cvar (%s)", what, summary(false)));
+    elitesTally.check(sv.active && qcCheck("VR_Run_ElitesCheck", static_cast<float>(ae)), name,
+        va("%s: the map's armed humanoids, the hook's rules", what));
+}
 
 void armedCheckCmd()
 {
@@ -760,9 +792,9 @@ void testCmd()
         {
             shownRows += arenaShows(i) ? 1 : 0;
         }
-        t.check(shownRows == 4 && arenaShows(find("skill")) && arenaShows(find("gore")) && !arenaShows(find("ironman")) &&
-                    arenaShows(find("glasscannon")) && arenaShows(find("meleeonly")),
-            name, "Arena Mode: its screen's five choices");
+        t.check(shownRows == 5 && arenaShows(find("skill")) && arenaShows(find("gore")) && !arenaShows(find("ironman")) &&
+                    arenaShows(find("glasscannon")) && arenaShows(find("meleeonly")) && arenaShows(find("allelites")),
+            name, "Arena Mode: its screen's six choices");
         startArena();
         t.check(skill.value == 2.f && vr_run_gore.value == 2.f && vr_run_ironman.value == 0.f &&
                     vr_run_glasscannon.value == 1.f && vr_run_meleeonly.value == 1.f,
@@ -862,7 +894,7 @@ int activeValue(int i)
 
 // Arena Mode's screen (ROUND25.md, "arenacamp"): the player's own picks for these; every other choice fixed by
 // arenaValue (his call 2026-11-15: "anything else would disrupt the arena mode balance/mechanics").
-constexpr const char* arenaRows[] = {"skill", "gore", "glasscannon", "meleeonly"}; // (no Ironman: the arena never saves)
+constexpr const char* arenaRows[] = {"skill", "gore", "glasscannon", "meleeonly", "allelites"}; // (no Ironman: the arena never saves)
 
 bool arenaShows(int i)
 {
@@ -1279,6 +1311,7 @@ void init()
     Cmd_AddCommand("vr_run_check", checkCmd);
     Cmd_AddCommand("vr_run_enemies_check", enemiesCheckCmd);
     Cmd_AddCommand("vr_run_armed_check", armedCheckCmd);
+    Cmd_AddCommand("vr_run_elites_check", elitesCheckCmd);
     // A mutator's vr_run_<id> changed (the Start, a load, `vr_run`, a scenario's or a test's own): the next `map`
     // keeps the run as it is (newGame).
     for(int i = 0; i < registryCount; i++)

@@ -249,6 +249,7 @@ vr_agrunt_test   85       vr_armedgrunt_muzzle_test.qc     dual guns: each shot 
 vr_agrunt_test   77       vr_armedgrunt_blade_test.qc      your blow on a melee weapon's blade away from its hand: sparks, the clang, no damage; a strong one staggers it
 vr_agrunt_test   78       vr_dirparry_test.qc              the directional parry: its overhead or side swing parried by your weapon held across it; stock monsters by the lines their frames gives way (vr_dirparry)
 vr_agrunt_test   88       vr_armedgrunt_ragweapon_test.qc  the held weapon on an active ragdoll's hand
+vr_agrunt_test   237      vr_armedgrunt_ragfire_test.qc    firing as a ragdoll (vr_agrunt_ragfire): one-handed guns fire, a launcher and the setting off never
 vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves up close
 vr_agrunt_test   18       vr_armedgrunt_reach_test.qc      melee spacing: a long blade's standoff from its reach, its blows landing (vr_agrunt_mspace)
 vr_agrunt_test   90       vr_armedgrunt_guard_test.qc      an unarmed enforcer's guard in game as the Pose Studio holds its Aim key
@@ -270,6 +271,7 @@ vr_agrunt_test   200      vr_armedgrunt_aware_test.qc      disarm attempts on un
 vr_agrunt_test   202      vr_armedgrunt_impact_test.qc     the impact rule: a push, you walking into it, a topple or a swing in the air keep the weapon; a fall, a throw into the floor or a wall, a body banged into a wall drop it
 vr_agrunt_test   210      vr_ledgeshove_test.qc            humanoids shoved off a ledge backpedal on their feet and go over it
 vr_agrunt_test   225      vr_ragthud_test.qc               living ragdolls' thuds: off a ledge, knocked down on the flat, no rattle; Living Thuds off: none
+vr_agrunt_test   236      vr_ragknock_test.qc              ragdoll knocks (vr_ragknock): a light drop, a corpse falling beside, a hard shove into another, a fall from height, an ogre and a grunt struck by a flung corpse
 vr_agrunt_test   226-227  vr_armedgrunt_lod_test.qc        the armed grunts' QC cost by state (idle unseen or seen, alert, fighting, dead), the map as it stands (226) or all woken at the player (227): a measurement
 vr_agrunt_test   228      vr_armedgrunt_lod_test.qc        a far, unseen armed grunt (posed once in vr_agrunt_pose_lod_frames) seen or shot, an unarmed one heard or shot: posed that frame and every frame after, alert and attacking; its trace the same as with the old LOD and none (aglod_test.sh)
 vr_agrunt_test   235      vr_armedgrunt_lod_test.qc        a fight's census for vr_agrunt_think_lod on against off: damage he took, hits, armed humanoids' shots, kills, think-LOD skips over 30 s, a hash of the game alone (aglod_balance.py): a measurement

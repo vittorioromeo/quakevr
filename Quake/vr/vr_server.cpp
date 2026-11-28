@@ -3383,6 +3383,7 @@ void sendTracer(edict_t* shooter, int hand, const float from[3], const float to[
 void init()
 {
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);
+    Cmd_AddCommand("vr_think_spread_stats", VR_ThinkSpreadStats); // vr_physics.cpp
     Cmd_AddCommand("vr_net_stats", netStats_f);
     Cmd_AddCommand("vr_net_broadcast_report", broadcastReport_f); // [reset]: the broadcast's bytes sent and culled (B13b)
     Cmd_AddCommand("vr_net_reliable_test", netReliableTest_f);
