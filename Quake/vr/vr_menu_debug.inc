@@ -892,6 +892,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_agpose_native: an armed humanoid's weapon pose (QC VR_AGP_Pose and its helpers) worked out by the "
                   "engine, the same results; off: by QuakeC, as before. 2 (console): both, compared; vr_agpose_compare "
                   "prints the differences."),
+        toggle("Armed Humanoids: Quiet Weapon Checks in the Engine", vr_qc_native_think)
+            .help("vr_qc_native_think: an armed humanoid's weapon checks on frames where nothing comes at it (no shot, "
+                  "throw or hand near: agstruck; no blow or raise to parry: agparry) done by the engine, the same results; "
+                  "off: by QuakeC, as before. 2 (console): both, compared; vr_agthink_compare prints the verdict."),
         toggle("Armed Humanoids: Pose Message in One Builtin", vr_agposesend)
             .help("vr_agposesend: an armed humanoid's pose message written by one builtin (agposesend), the same bytes as "
                   "QuakeC's ~50 Write calls (vr_agarms_hash); off: QuakeC writes it, as before."),

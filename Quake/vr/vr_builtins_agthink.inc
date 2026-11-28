@@ -7,6 +7,9 @@
 // agstruck: VR_AG_WeaponStruck (vr_armedgrunt_play.qc) with nothing coming at the weapon: nothing moving within the shot
 // scan's first look (VR_AGS_Projectiles' findradiusmoving), no roll pending, no tug, no player within VR_AG_StrikeFrame's
 // 160 units, the throw scan settled (vr_qc_scan_share 1) or finding nothing. Anything else: QuakeC, as before.
+// agparry: VR_AGPar_Frame (vr_armedgrunt_parry.qc) with nothing to read: its guard (VR_AGG_Frame) idle or recovering with
+// no raise due, no player within the wind-up reach (VR_AGG_ReadReach, once worked out this frame) nor a preventive check
+// due, then no player within 160 units and no monster melee begun in 1.5 s.
 
 // QC's constants this port reads (FTEQCC keeps no names for them: vr_armedgrunt_defs.qc).
 constexpr float agtc_VR_AG_LINE_REACH = 192.f;
